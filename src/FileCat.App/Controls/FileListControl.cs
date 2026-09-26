@@ -64,6 +64,8 @@ public sealed class FileListControl : Control
     private DispatcherTimer? _loadingHintTimer;
     private bool _showLoadingHint;
     private IImage? _linkOverlay;
+    private readonly Action _metadataHandler;
+    private Core.Metadata.MetadataService? _metadataSource;
 
     // Brushes resolved from theme tokens.
     private IBrush _bg = Brushes.White, _bgInactive = Brushes.White, _header = Brushes.LightGray, _text = Brushes.Black;
@@ -94,6 +96,7 @@ public sealed class FileListControl : Control
         VisualChildren.Add(_vbar);
         LogicalChildren.Add(_vbar);
         ThemeManager.ThemeChanged += OnThemeChanged;
+        _metadataHandler = () => Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
         UpdateTypefaces();
     }
 
@@ -151,6 +154,12 @@ public sealed class FileListControl : Control
             {
                 _listing = tab.Listing;
                 _listing.Changed += OnListingChanged;
+                if (!ReferenceEquals(_metadataSource, tab.Services.Metadata))
+                {
+                    if (_metadataSource is not null) _metadataSource.ValuesChanged -= _metadataHandler;
+                    _metadataSource = tab.Services.Metadata;
+                    _metadataSource.ValuesChanged += _metadataHandler;
+                }
                 tab.ColumnsChanged += OnColumnsChanged;
                 _columns = tab.Columns;
             }
@@ -374,12 +383,15 @@ public sealed class FileListControl : Control
         {
             int cap = VisibleRowCapacity + 1;
             int focused = listing.FocusedIndex;
+            var visible = new HashSet<int>();
             for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
             {
+                visible.Add(listing.GetStoreIndex(row));
                 double y = _headerHeight + (row - _topRow) * _rowHeight;
                 RenderRow(dc, listing, row, y, contentWidth, row == focused, active);
             }
             RenderEmptyState(dc, listing, count, contentWidth, bounds.Height);
+            if (Tab is { } tab) tab.VisibleStoreIndices = visible;
         }
     }
 
@@ -394,7 +406,7 @@ public sealed class FileListControl : Control
         {
             var c = _columns[i];
             string title = c.Header;
-            if (c.SortField is { } sf && sf == sort.Field) title += sort.Descending ? " ▼" : " ▲";
+            if (c.SortField is { } sf && sf == sort.Field && (sf != SortField.Metadata || sort.MetadataId == c.MetadataId)) title += sort.Descending ? " ▼" : " ▲";
             var ft = MakeText(title, _headerText, _typeface, _columnW[i] - 2 * Padding);
             double x = c.RightAlign ? _columnX[i] + _columnW[i] - Padding - ft.Width : _columnX[i] + Padding + (i == 0 ? IconSize + MarkGutter + 4 : 0);
             dc.DrawText(ft, new Point(x, (_headerHeight - ft.Height) / 2));
@@ -453,6 +465,17 @@ public sealed class FileListControl : Control
                 avail = colX + colW - textX - Padding;
             }
             if (avail < 4) continue;
+            if (c.Field == ColumnField.Metadata && c.MetadataId is { } metadataId)
+            {
+                // Metadata changes state (pending -> value), so it is not cached with the static cells.
+                bool pending = false;
+                var mtext = Tab is { } owner ? owner.GetMetadataText(e, storeIndex, metadataId, out pending) : string.Empty;
+                if (mtext.Length == 0) continue;
+                var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
+                double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
+                dc.DrawText(mft, new Point(mx, y + (_rowHeight - mft.Height) / 2));
+                continue;
+            }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
             if (!_textCache.TryGetValue(key, out var ft) || Math.Abs((ft.MaxTextWidth) - avail) > 0.5)
             {
@@ -643,7 +666,8 @@ public sealed class FileListControl : Control
         if (pos.Y < _headerHeight)
         {
             int col = ColumnAt(pos);
-            if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col].SortField is { } sf) Tab?.SortBy(sf);
+            if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col] is { Field: ColumnField.Metadata, MetadataId: { } mid }) Tab?.SortByMetadata(mid);
+            else if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col].SortField is { } sf) Tab?.SortBy(sf);
             e.Handled = true;
             return;
         }

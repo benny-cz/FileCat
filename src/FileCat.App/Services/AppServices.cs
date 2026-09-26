@@ -41,7 +41,10 @@ public sealed class AppServices : IDisposable
         Providers.Register(ResultSets);
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
+        Metadata = new Core.Metadata.MetadataService(Io);
     }
+
+    public Core.Metadata.MetadataService Metadata { get; }
 
     public Core.Jobs.JobManager Jobs { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }

@@ -17,10 +17,14 @@ public enum ColumnField
     Kind,
     /// <summary>Registry data preview or archive member details.</summary>
     Details,
+    /// <summary>A lazily computed metadata field (<see cref="ColumnSpec.MetadataId"/>).</summary>
+    Metadata,
 }
 
 public sealed record ColumnSpec(ColumnField Field, string Header, double Width, bool RightAlign = false, bool Star = false)
 {
+    public string? MetadataId { get; init; }
+
     public SortField? SortField => Field switch
     {
         ColumnField.Name => Core.Listing.SortField.Name,
@@ -29,6 +33,7 @@ public sealed record ColumnSpec(ColumnField Field, string Header, double Width, 
         ColumnField.Modified => Core.Listing.SortField.Modified,
         ColumnField.Created => Core.Listing.SortField.Created,
         ColumnField.Attributes => Core.Listing.SortField.Attributes,
+        ColumnField.Metadata => Core.Listing.SortField.Metadata,
         _ => null,
     };
 }
@@ -55,7 +60,20 @@ public static class ColumnProfiles
             new(ColumnField.Size, "Size", 96, RightAlign: true),
             new(ColumnField.Modified, "Modified", 128),
             new(ColumnField.Created, "Created", 128),
+            new(ColumnField.Metadata, "Version", 110) { MetadataId = "version" },
             new(ColumnField.Attributes, "Attr", 50),
+        ]),
+        ("Media", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Size, "Size", 86, RightAlign: true),
+            new(ColumnField.Metadata, "Dimensions", 110, RightAlign: true) { MetadataId = "dimensions" },
+            new(ColumnField.Metadata, "Origin", 90) { MetadataId = "zone" },
+            new(ColumnField.Modified, "Modified", 128),
+        ]),
+        ("Links", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Metadata, "Link target", 260, Star: true) { MetadataId = "linkTarget" },
+            new(ColumnField.Modified, "Modified", 128),
         ]),
     ];
 

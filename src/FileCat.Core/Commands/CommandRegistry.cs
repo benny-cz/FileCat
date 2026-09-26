@@ -114,6 +114,7 @@ public static class CommandIds
     public const string ColumnProfilePrefix = "view.columns";
     public const string QuickFilter = "view.filter";
     public const string FlatView = "view.flat";
+    public const string AnalyzeFolder = "view.analyze";
 
     public const string FindFiles = "search.find";
     public const string CompareDirectories = "compare.dirs";
@@ -268,6 +269,7 @@ public sealed class CommandRegistry
             Add(CommandIds.ColumnProfilePrefix + i, $"Column profile {i}", V, null, CommandContext.Panel, $"Alt+{i}");
         Add(CommandIds.QuickFilter, "Quick filter…", V, null, CommandContext.Panel, "Ctrl+S");
         Add(CommandIds.FlatView, "Flat view (all files below this folder)", V, null, CommandContext.Panel, "Ctrl+B");
+        Add(CommandIds.AnalyzeFolder, "Analyze folder (complete metadata sort)", V);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");

@@ -57,6 +57,9 @@
       </Border>
 
       <!-- Comparison / issue banners -->
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.AnalysisStatus, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <TextBlock Classes="small" Text="{Binding ActiveTab.AnalysisStatus}" />
+      </Border>
       <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.ComparisonLabel, Converter={x:Static ObjectConverters.IsNotNull}}">
         <TextBlock Classes="small" Text="{Binding ActiveTab.ComparisonLabel}" />
       </Border>
@@ -69,6 +72,7 @@
 
       <Panel>
         <ctl:FileListControl x:Name="List" Tab="{Binding ActiveTab}" IsActivePanel="{Binding IsActive}"
+                             FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).ListFontSize, FallbackValue=13}"
                              AutomationProperties.Name="File list" />
         <Border Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.QuickSearchNoMatch}"
                 HorizontalAlignment="Left" VerticalAlignment="Bottom"

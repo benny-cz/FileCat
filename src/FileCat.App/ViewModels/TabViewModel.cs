@@ -83,6 +83,69 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     partial void OnQuickSearchChanged(string? value) => OnPropertyChanged(nameof(IsQuickSearchActive));
 
+    // ---- Change watching (plan §8.2): only the visible tab of each panel watches its folder ------------------
+
+    private ChangeMonitor? _monitor;
+    private DateTime _folderStampAtLoad;
+
+    partial void OnIsActiveTabChanged(bool value)
+    {
+        if (value)
+        {
+            StartWatching();
+            RefreshIfFolderChanged();
+        }
+        else
+        {
+            StopWatching();
+        }
+    }
+
+    private void StartWatching()
+    {
+        StopWatching();
+        if (Location is not { IsFileSystem: true } loc || !IsActiveTab) return;
+        var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() =>
+        {
+            if (Location == loc && Listing.State == ListingState.Complete && !Listing.IsRefreshing) Listing.Refresh();
+        }));
+        _monitor = monitor.IsActive ? monitor : null;
+        if (!monitor.IsActive) monitor.Dispose();
+    }
+
+    private void StopWatching()
+    {
+        _monitor?.Dispose();
+        _monitor = null;
+    }
+
+    /// <summary>An inactive tab was not watched: a cheap folder timestamp check decides whether to refresh.</summary>
+    private void RefreshIfFolderChanged()
+    {
+        if (Location is not { IsFileSystem: true } loc || Listing.State != ListingState.Complete) return;
+        var device = Services.Providers.For(loc).GetDeviceKey(loc);
+        var stamp = _folderStampAtLoad;
+        _ = Services.Io.Run(device, Core.Threading.IoPriority.Normal, _ => Directory.GetLastWriteTimeUtc(loc.Path)).ContinueWith(t =>
+        {
+            if (t.IsCompletedSuccessfully && t.Result != stamp)
+                Services.Ui.Post(() =>
+                {
+                    if (Location == loc && !Listing.IsRefreshing) Listing.Refresh();
+                });
+        }, TaskScheduler.Default);
+    }
+
+    private void OnLoadCompleted()
+    {
+        if (_monitor is not null) _monitor.MinInterval = TimeSpan.FromMilliseconds(Math.Clamp(Listing.LastLoadDuration.TotalMilliseconds * 3, 300, 10_000));
+        if (Location is { IsFileSystem: true } loc)
+        {
+            var device = Services.Providers.For(loc).GetDeviceKey(loc);
+            _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, _ => Directory.GetLastWriteTimeUtc(loc.Path))
+                .ContinueWith(t => { if (t.IsCompletedSuccessfully) _folderStampAtLoad = t.Result; }, TaskScheduler.Default);
+        }
+    }
+
     // ---- Navigation ----------------------------------------------------------------------------------------
 
     /// <summary>
@@ -106,6 +169,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         ComparisonLabel = null;
         Banner = null;
         Listing.Load(location, focusName);
+        if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
         UpdateTitle();
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
@@ -137,6 +201,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         EndQuickSearch();
         ComparisonLabel = null;
         Listing.Load(target);
+        if (IsActiveTab) StartWatching();
         UpdateTitle();
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -301,7 +366,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             IsLoading = Listing.State == ListingState.Loading || Listing.IsRefreshing;
             if (Listing.Issues.Count > 0) Banner = Listing.Issues[^1];
-            if (Listing.State == ListingState.Complete) RequestFreeSpace();
+            if (Listing.State == ListingState.Complete)
+            {
+                RequestFreeSpace();
+                OnLoadCompleted();
+            }
         }
         if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset)) != 0) UpdateStatus();
         else if ((change & ListingChange.Focus) != 0 && Listing.MarkedCount == 0) UpdateStatus();
@@ -396,6 +465,118 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetKindText(in EntryData e) => e.Tag is IDisplayDetails d ? d.KindText : string.Empty;
 
+    // ---- Metadata columns (plan §10) --------------------------------------------------------------------
+
+    /// <summary>Store indices drawn in the last frame; queued metadata work for other rows is skipped.</summary>
+    public volatile HashSet<int> VisibleStoreIndices = [];
+
+    private CancellationTokenSource? _analysis;
+
+    [ObservableProperty] private string? _analysisStatus;
+
+    private bool IsSlowLocation => Location is { IsFileSystem: true } l && (PathUtil.IsUncPath(l.Path) || Services.Providers.For(l).GetDeviceKey(l).StartsWith(@"\\", StringComparison.Ordinal));
+
+    public string GetMetadataText(in EntryData e, int storeIndex, string fieldId, out bool pending)
+    {
+        pending = false;
+        var field = Services.Metadata.Field(fieldId);
+        if (field is null || Location is null) return string.Empty;
+        var item = Services.Providers.For(Location).GetItemRef(Location, e);
+        if (item.FileSystemPath is not { } path) return string.Empty;
+        var store = Listing.Store;
+        var device = Services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
+        var value = Services.Metadata.Get(fieldId, path, e, device, IsSlowLocation, () => ReferenceEquals(store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex));
+        switch (value.State)
+        {
+            case Core.Metadata.MetadataState.Available:
+                return field.Format(value.Value);
+            case Core.Metadata.MetadataState.Pending:
+                pending = true;
+                return "…";
+            case Core.Metadata.MetadataState.Failed:
+                return "error";
+            case Core.Metadata.MetadataState.Unsupported:
+                return "—";
+            default:
+                return string.Empty;
+        }
+    }
+
+    public void SortByMetadata(string fieldId)
+    {
+        var s = Listing.Sort;
+        bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
+        Listing.MetadataKeys ??= MetadataKey;
+        Listing.Sort = s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending };
+        var field = Services.Metadata.Field(fieldId);
+        Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View > Analyze folder to compute every value.";
+    }
+
+    private IComparable? MetadataKey(EntryStore store, int storeIndex, string fieldId)
+    {
+        var loc = Location;
+        if (loc is null || storeIndex >= store.Count) return null;
+        var e = store[storeIndex];
+        var field = Services.Metadata.Field(fieldId);
+        if (field is null || Services.Providers.For(loc).GetItemRef(loc, e).FileSystemPath is not { } path) return null;
+        var v = Services.Metadata.Get(fieldId, path, e, Services.Providers.For(loc).GetDeviceKey(loc), IsSlowLocation, () => false);
+        return v.State == Core.Metadata.MetadataState.Available ? field.SortKey?.Invoke(v.Value) ?? v.Value as IComparable : null;
+    }
+
+    /// <summary>
+    /// Explicit analysis (plan §10): computes a metadata field for every item with visible progress and
+    /// cancellation, then re-sorts. Until it completes the order is labeled partial.
+    /// </summary>
+    public async Task AnalyzeAsync(string fieldId)
+    {
+        if (Location is null) return;
+        _analysis?.Cancel();
+        var cts = _analysis = new CancellationTokenSource();
+        var loc = Location;
+        var provider = Services.Providers.For(loc);
+        var store = Listing.Store;
+        int count = store.Count;
+        var field = Services.Metadata.Field(fieldId);
+        AnalysisStatus = $"Analyzing {field?.Title}: 0 of {count:N0}…";
+        int done = 0;
+        try
+        {
+            await Services.Io.Run(provider.GetDeviceKey(loc), Core.Threading.IoPriority.Background, ct =>
+            {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token);
+                var last = DateTime.UtcNow;
+                for (int i = 0; i < count; i++)
+                {
+                    linked.Token.ThrowIfCancellationRequested();
+                    var e = store[i];
+                    if (!e.IsContainer && provider.GetItemRef(loc, e).FileSystemPath is { } path) Services.Metadata.Compute(fieldId, path, e, linked.Token);
+                    done = i + 1;
+                    if (DateTime.UtcNow - last > TimeSpan.FromMilliseconds(200))
+                    {
+                        last = DateTime.UtcNow;
+                        int d = done;
+                        Services.Ui.Post(() => AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)");
+                    }
+                }
+            }, cts.Token);
+            AnalysisStatus = null;
+            Banner = $"Sorted by {field?.Title} with every value computed ({count:N0} items).";
+            Listing.Resort();
+        }
+        catch (OperationCanceledException)
+        {
+            AnalysisStatus = null;
+            Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
+        }
+    }
+
+    public bool CancelAnalysis()
+    {
+        if (_analysis is null || AnalysisStatus is null) return false;
+        _analysis.Cancel();
+        return true;
+    }
+
     public string GetDetailsText(in EntryData e) => e.Tag is IDisplayDetails d ? d.DetailsText : string.Empty;
 
     // ---- Persistence ---------------------------------------------------------------------------------------
@@ -432,6 +613,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        StopWatching();
         Listing.Changed -= OnListingChanged;
         Listing.Dispose();
     }

@@ -60,6 +60,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void Initialize(WorkspaceState? state)
     {
         ShowKeyBar = Services.Settings.ShowFunctionKeyBar;
+        ListFontSize = Services.Settings.FontSize;
         ShowCommandLine = Services.Settings.ShowCommandLine;
         Workspace.LoadState(state);
         if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)

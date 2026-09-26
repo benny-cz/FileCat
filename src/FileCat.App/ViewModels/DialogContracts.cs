@@ -63,6 +63,8 @@ public interface IViewActions
     void OpenMenuBar();
     void ShowContextMenu();
     void ShowNotification(string message, bool isError = false);
+    /// <summary>Rebuilds menus and gesture hints after key bindings change.</summary>
+    void ReloadChrome();
     Avalonia.Input.Platform.IClipboard? Clipboard { get; }
     TopLevel? TopLevel { get; }
 }

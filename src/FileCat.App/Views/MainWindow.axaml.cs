@@ -44,7 +44,7 @@ public partial class MainWindow : Window, IViewActions
             CommandIds.OpenInNewTargetTab]),
         ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
-            CommandIds.ThemeCycle]),
+            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemeCycle]),
         ("_Tools", [CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
             CommandIds.DiagnosticsExport]),
         ("_Help", [CommandIds.Help, CommandIds.About]),
@@ -433,6 +433,7 @@ public partial class MainWindow : Window, IViewActions
             _vm.ClearNotification();
             return true;
         }
+        if (tab.CancelAnalysis()) return true;
         if (tab.Listing.State == ListingState.Loading || tab.Listing.IsRefreshing)
         {
             tab.Listing.CancelLoading();
@@ -524,6 +525,8 @@ public partial class MainWindow : Window, IViewActions
     public void ShowContextMenu() => ActivePanelView()?.ShowContextMenu();
 
     public void ShowNotification(string message, bool isError = false) => _vm.Notify(message, isError);
+
+    public void ReloadChrome() => BuildMenu();
 
     IClipboard? IViewActions.Clipboard => Clipboard;
 

@@ -75,11 +75,78 @@ public partial class PanelView : UserControl
 
     private void OnTabPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (e.InitialPressMouseButton == MouseButton.Middle && sender is Button { Tag: TabViewModel tab } && Panel is { } p)
+        if (sender is not Button { Tag: TabViewModel tab } button || Panel is not { } p) return;
+        if (e.InitialPressMouseButton == MouseButton.Middle)
         {
             p.CloseTab(tab);
             e.Handled = true;
         }
+        else if (e.InitialPressMouseButton == MouseButton.Right)
+        {
+            BuildTabMenu(p, tab).Open(button);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Tab operations following Total Commander (plan §4.1).</summary>
+    private ContextMenu BuildTabMenu(PanelViewModel panel, TabViewModel tab)
+    {
+        var ws = panel.Workspace;
+        var items = new List<Control>();
+        void Add(string header, Action action, bool enabled = true)
+        {
+            var mi = new MenuItem { Header = header, IsEnabled = enabled };
+            mi.Click += (_, _) =>
+            {
+                action();
+                List.Focus();
+            };
+            items.Add(mi);
+        }
+        Add("Close tab", () => panel.CloseTab(tab), panel.Tabs.Count > 1);
+        Add("Close other tabs", () =>
+        {
+            foreach (var t in panel.Tabs.Where(t => !ReferenceEquals(t, tab) && !t.IsLocked).ToList()) panel.CloseTab(t);
+        }, panel.Tabs.Count > 1);
+        Add("Duplicate tab", () =>
+        {
+            if (tab.Location is null) return;
+            var dup = panel.OpenTab(tab.Location);
+            var s = tab.ToState();
+            s.Locked = false;
+            dup.ApplyState(s);
+        });
+        items.Add(new Separator());
+        Add(tab.IsLocked && !tab.ReturnToRoot ? "Unlock tab" : "Lock tab (navigation opens new tabs)", () =>
+        {
+            bool lockIt = !(tab.IsLocked && !tab.ReturnToRoot);
+            tab.IsLocked = lockIt;
+            tab.ReturnToRoot = false;
+            tab.LockedRoot = lockIt ? tab.Location : null;
+        });
+        Add(tab.IsLocked && tab.ReturnToRoot ? "Unlock tab" : "Lock tab at root (returns here when revisited)", () =>
+        {
+            bool lockIt = !(tab.IsLocked && tab.ReturnToRoot);
+            tab.IsLocked = lockIt;
+            tab.ReturnToRoot = lockIt;
+            tab.LockedRoot = lockIt ? tab.Location : null;
+        });
+        items.Add(new Separator());
+        var target = ws.GetTarget(panel);
+        Add(target is null ? "Move tab to target panel (no target)" : $"Move tab to panel {target.Number}", () =>
+        {
+            if (target is null || panel.Tabs.Count <= 1) return;
+            target.AttachTab(panel.DetachTab(tab));
+            ws.Activate(target);
+        }, target is not null && panel.Tabs.Count > 1);
+        Add(target is null ? "Copy tab to target panel (no target)" : $"Copy tab to panel {target.Number}", () =>
+        {
+            if (target is not null && tab.Location is { } l) target.OpenTab(l);
+        }, target is not null);
+        int index = panel.Tabs.IndexOf(tab);
+        Add("Move tab left", () => panel.Tabs.Move(index, index - 1), index > 0);
+        Add("Move tab right", () => panel.Tabs.Move(index, index + 1), index < panel.Tabs.Count - 1);
+        return new ContextMenu { ItemsSource = items };
     }
 
     private void OnNewTabClick(object? sender, RoutedEventArgs e)

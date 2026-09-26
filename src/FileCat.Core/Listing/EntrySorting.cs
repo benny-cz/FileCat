@@ -12,6 +12,8 @@ public enum SortField
     Attributes,
     /// <summary>Enumeration order.</summary>
     None,
+    /// <summary>A metadata field (<see cref="SortSpec.MetadataId"/>); unknown values sort last.</summary>
+    Metadata,
 }
 
 /// <summary>
@@ -22,13 +24,44 @@ public readonly record struct SortSpec(SortField Field = SortField.Name, bool De
 {
     public bool DirectoriesFirst => !MixDirectories;
     public bool Natural => !Ordinal;
+    /// <summary>Metadata field id when <see cref="Field"/> is <see cref="SortField.Metadata"/>.</summary>
+    public string? MetadataId { get; init; }
 }
+
+/// <summary>Supplies comparable metadata keys for store indices (thread-safe; null = unknown).</summary>
+public delegate IComparable? MetadataKeyProvider(EntryStore store, int storeIndex, string fieldId);
 
 /// <summary>Typed entry comparisons with a stable identity tie-break (plan §10).</summary>
 public static class EntrySorter
 {
-    public static Comparison<int> CreateComparison(EntryStore store, SortSpec spec) =>
-        (x, y) => Compare(ref store.GetRef(x), ref store.GetRef(y), spec, x, y);
+    public static Comparison<int> CreateComparison(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata = null)
+    {
+        if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
+            return (x, y) => CompareMetadata(store, spec, metadata, id, x, y);
+        return (x, y) => Compare(ref store.GetRef(x), ref store.GetRef(y), spec, x, y);
+    }
+
+    private static int CompareMetadata(EntryStore store, SortSpec spec, MetadataKeyProvider provider, string id, int x, int y)
+    {
+        ref var a = ref store.GetRef(x);
+        ref var b = ref store.GetRef(y);
+        if (a.Kind == EntryKind.Parent) return b.Kind == EntryKind.Parent ? 0 : -1;
+        if (b.Kind == EntryKind.Parent) return 1;
+        if (spec.DirectoriesFirst && a.IsContainer != b.IsContainer) return a.IsContainer ? -1 : 1;
+        var ka = provider(store, x, id);
+        var kb = provider(store, y, id);
+        int r;
+        // Unknown values are not definite: they sort last in both directions (plan §10).
+        if (ka is null || kb is null) r = ka is null && kb is null ? 0 : ka is null ? 1 : -1;
+        else
+        {
+            try { r = ka.CompareTo(kb); }
+            catch (ArgumentException) { r = 0; }
+            if (spec.Descending) r = -r;
+        }
+        if (r == 0) r = NaturalCompare.Compare(a.Name, b.Name, spec.Natural);
+        return r != 0 ? r : x.CompareTo(y);
+    }
 
     public static int Compare(ref EntryData a, ref EntryData b, SortSpec spec, int ia, int ib)
     {

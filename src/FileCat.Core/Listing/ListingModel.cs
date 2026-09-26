@@ -85,6 +85,12 @@ public sealed class ListingModel : IDisposable
     public TimeSpan LastLoadDuration { get; private set; }
     public bool IsRefreshing => _pendingRefresh is not null;
 
+    /// <summary>Metadata sort keys (set by the view layer); used only when sorting by a metadata field.</summary>
+    public MetadataKeyProvider? MetadataKeys { get; set; }
+
+    /// <summary>Re-sorts with current keys, e.g. after an explicit metadata analysis completed.</summary>
+    public void Resort() => PushSpec();
+
     /// <summary>Names used by the last operation started from this listing (restore selection).</summary>
     public IReadOnlyCollection<string> LastOperationNames { get; set; } = [];
 
@@ -738,7 +744,7 @@ public sealed class ListingModel : IDisposable
                     var spec = _spec;
                     bool done = LoadDone;
                     int n = Store.Count;
-                    var cmp = EntrySorter.CreateComparison(Store, spec.Sort);
+                    var cmp = EntrySorter.CreateComparison(Store, spec.Sort, _owner.MetadataKeys);
                     bool changed = false;
                     if (applied is null || applied.Sort != spec.Sort)
                     {
@@ -764,7 +770,7 @@ public sealed class ListingModel : IDisposable
                     {
                         changed = true;
                         // A size re-sort request arrives as a version bump with the same sort.
-                        if (spec.Sort.Field == SortField.Size) StableSort.Sort(sorted, cmp);
+                        if (spec.Sort.Field is SortField.Size or SortField.Metadata) StableSort.Sort(sorted, cmp);
                     }
                     sortedCount = n;
                     bool announceDone = done && !doneAnnounced;

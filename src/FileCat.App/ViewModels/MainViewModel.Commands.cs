@@ -363,7 +363,7 @@ public sealed partial class MainViewModel
                 View.TopLevel?.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(View.TopLevel, null);
                 break;
             default:
-                if (!await ExecuteOperationCommandAsync(id))
+                if (!await ExecuteOperationCommandAsync(id) && !await ExecuteWorkspaceCommandAsync(id))
                     Notify($"\"{Services.Commands.Get(id)?.Title ?? id}\" is not available in this build yet.");
                 break;
         }

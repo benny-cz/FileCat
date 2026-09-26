@@ -1,44 +1,44 @@
 # FileCat implementation status
 
 Resume point for implementing `docs/design/FILECAT_PRODUCT_ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md`.
-Work happens on `main`; every chunk is committed and pushed. Keep this file compact.
+Work happens directly on `main`; every chunk is committed and pushed. Keep this file compact.
 
-## How to build and run
+## Build, test, run
 
 ```
 dotnet build FileCat.slnx
-dotnet test tests/FileCat.Core.Tests
-dotnet run --project src/FileCat.App        # args: [paths] --left P --right P --profile NAME --new-instance --reset-layout
+dotnet test FileCat.slnx                   # Core 96 tests, Windows integration 8 (incl. real recycle/restore)
+dotnet run --project src/FileCat.App        # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
 
-Portable mode: put an empty `FileCat.portable` next to the executable (state goes to `Data/`).
+Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs/crash reports: `%LOCALAPPDATA%\FileCat\diagnostics`.
 
-## Solution layout
+## Layout
 
 | Project | Contents |
 |---|---|
-| `src/FileCat.Core` | Resource model (Location/EntryData/ItemRef/providers), listing engine (paged store, background sort/filter, identity marks), mask language, commands + keymap (ADR-16), I/O scheduler with hang isolation, state persistence, file-operation contracts, portable platform |
-| `src/FileCat.Platform.Windows` | Shell services (extension-only icons, properties, reveal, terminals), drive list, SMB share listing + credential prompt, volume profiles, recycle classification, Mark-of-the-Web |
-| `src/FileCat.App` | Avalonia 12.1 UI: custom virtualized `FileListControl`, panels/tabs/workspace view models, overlay dialogs, themes, command dispatch |
-| `tests/*` | xUnit v3 (Core: 66 tests) |
+| `src/FileCat.Core` | Resources/providers, `ListingModel` (paged store, background sort/filter, identity marks), masks, commands/keymap, I/O scheduler, jobs (scheduler, journal, executors, undo), content (paged reader, search, encodings), metadata service, tools launcher, result sets, state |
+| `src/FileCat.Platform.Windows` | CopyFile2/MoveFileEx, IFileOperation recycle + restore, junctions, shell (icons by extension, properties, reveal, terminals), drives, SMB shares + sign-in, MotW |
+| `src/FileCat.App` | Avalonia 12.1 UI: `FileListControl`, panels/tabs/workspace, overlay dialogs, operation center, viewer (text/hex), settings, themes |
 
-## Decisions taken during implementation (plan updates)
+## Decisions taken during implementation (also to be reflected in the plan)
 
-- **ADR-02 → custom control.** Avalonia 12.1 `TableView` is a row-container `ItemsControl`: its selection conflates focus and marks and it realizes a control per row. FileCat uses a custom-drawn control over `ListingModel` (paged `EntryStore`, identity bit-set marks). Spill tier: pending (P2).
-- **ADR-04 → append-only checksummed journal** (planned, next chunk) instead of SQLite: no native dependency (signing gate, ARM64), simpler reconciliation.
-- **Keymap (ADR-16):** no Ctrl+Alt+letter chords (AltGr on CZ/PL/DE layouts); F11 maximize panel, F12 focus-panel picker, Shift+F12 choose target, Ctrl+Shift+T reopen tab, Ctrl+J operations, Ctrl+Shift+P palette, Ctrl+E command line, Ctrl+S quick filter. Space toggles the mark without moving (and sizes folders).
-- `SortSpec` flags are inverted (`MixDirectories`, `Ordinal`) so `default` is the correct order.
+- ADR-02 → custom-drawn virtualized control (TableView conflates focus and marks; one container per row).
+- ADR-04 → append-only CRC-checked journal per job (no SQLite: no native dependency). Torn lines are skipped; recovery appends on a fresh line.
+- TV-03 partial (this machine): pre-delete abort guard + verified recycle outcome; restore via the Recycle Bin namespace item's `undelete` verb works (the Shell reports the physical `$R…` path, not the bin item).
+- ADR-16 additions: no Ctrl+Alt+letter chords (AltGr); F11 maximize, F12 panel picker, Shift+F12 target, Ctrl+J operations, Ctrl+Shift+P palette, Ctrl+E command line, Ctrl+S quick filter; Space toggles the mark without moving.
+- Viewer text mode scrolls by byte offset (no line index); UTF-8 search maps chars→bytes with maximal-subpart rules.
 
 ## Phase status
 
 | Phase | Status |
 |---|---|
-| P1 walking slice | **In progress.** Done: browsing, streaming listing, sort, quick search, marks (Insert/Space/masks/invert/same-ext/restore), tabs, drive/location menu, history, bookmarks, palette, key bar, themes, command line (`cd` + terminal), single instance. **Next:** job engine (copy/move/delete/recycle/mkdir/rename), journal, operation center, F3 viewer, F4 editor launcher (TV-17), native CopyFile2 + verified Shell recycle |
-| P2 scalable workspace | Partly done (multi-panel targets, tabs, workspace persistence). Pending: spill store, watchers, column profiles UI, named workspaces |
-| P3 v1 | Pending (search/result sets, compare, ZIP, viewer, packaging, CI) |
+| P1 walking slice | **Done**: browse, marks, quick search, F3 viewer, F4/Shift+F4 editor (TV-17 rules), F5/F6 Start/Queue, conflicts, F7, F8 recycle with preflight, Shift+F8, rename, undo, journal + interrupted-job review, drag & drop, clipboard |
+| P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: listing spill tier (AI-10) |
+| P3 v1 | **In progress**: done — SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9). **Next**: Alt+F7 search + result sets + flat view, Ctrl+F10 compare-and-mark, read-only ZIP, quick view pane, attributes dialog, packaging (portable ZIP, installer script, CI, notices) |
 | P4–P10 | Pending |
 
 ## Known gaps / TODO
 
-- File operations commands currently report "not available in this build yet".
-- No app icon yet; no CI workflow yet.
+- No app icon; no CI workflow yet; App.Tests project empty.
+- Inline rename uses a prompt dialog (not in-row editing).
