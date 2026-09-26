@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileCat.App.ViewModels"
+             xmlns:ctl="using:FileCat.App.Controls"
+             x:Class="FileCat.App.Views.PanelView"
+             x:DataType="vm:PanelViewModel">
+  <Border Classes="panel" Classes.active="{Binding IsActive}" CornerRadius="4" BorderThickness="{Binding IsActive, Converter={x:Static vm:Converters.ActiveBorder}}">
+    <DockPanel>
+      <!-- Tabs -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Background="{DynamicResource FcHeader}">
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Tabs}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TabViewModel">
+                <Button Classes="tab" Classes.current="{Binding IsActiveTab}" Click="OnTabClick" Tag="{Binding}"
+                        ToolTip.Tip="{Binding DisplayPath}" PointerReleased="OnTabPointerReleased">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding TabHeader}" MaxWidth="220" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="⟳" IsVisible="{Binding IsLoading}" Classes="muted" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+        <Button Grid.Column="1" Classes="flat" Content="+" Click="OnNewTabClick" ToolTip.Tip="New tab (Ctrl+T)" />
+      </Grid>
+
+      <!-- Address row -->
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource FcPanel}">
+        <Border Margin="4,2,0,2" CornerRadius="3" Padding="5,0" VerticalAlignment="Center"
+                Background="{Binding IsActive, Converter={x:Static vm:Converters.ActiveAccent}}">
+          <TextBlock Text="{Binding Number}" FontWeight="Bold" FontSize="11"
+                     Foreground="{Binding IsActive, Converter={x:Static vm:Converters.ActiveAccentText}}"
+                     ToolTip.Tip="Panel number" />
+        </Border>
+        <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
+        <TextBox x:Name="PathBox" Grid.Column="2" Classes="path" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
+                 AutomationProperties.Name="Location" />
+        <Border Grid.Column="3" Classes="badge target" IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Text="{Binding RoleLabel}" />
+        </Border>
+      </Grid>
+
+      <!-- Status -->
+      <Border DockPanel.Dock="Bottom" Classes="status">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding ActiveTab.StatusLeft}" Classes="small" TextTrimming="CharacterEllipsis" />
+          <TextBlock Grid.Column="1" Text="{Binding ActiveTab.StatusRight}" Classes="small" Margin="12,0,0,0"
+                     MaxWidth="420" TextTrimming="CharacterEllipsis" />
+        </Grid>
+      </Border>
+
+      <!-- Comparison / issue banners -->
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.ComparisonLabel, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <TextBlock Classes="small" Text="{Binding ActiveTab.ComparisonLabel}" />
+      </Border>
+      <Border DockPanel.Dock="Top" Classes="banner" IsVisible="{Binding ActiveTab.Banner, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="small warning" Text="{Binding ActiveTab.Banner}" TextWrapping="Wrap" />
+          <Button Grid.Column="1" Classes="flat" Content="✕" Click="OnDismissBanner" ToolTip.Tip="Dismiss" />
+        </Grid>
+      </Border>
+
+      <Panel>
+        <ctl:FileListControl x:Name="List" Tab="{Binding ActiveTab}" IsActivePanel="{Binding IsActive}"
+                             AutomationProperties.Name="File list" />
+        <Border Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.QuickSearchNoMatch}"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                IsVisible="{Binding ActiveTab.IsQuickSearchActive}">
+          <TextBlock>
+            <Run Text="Quick search: " />
+            <Run Text="{Binding ActiveTab.QuickSearch}" FontWeight="Bold" />
+          </TextBlock>
+        </Border>
+      </Panel>
+    </DockPanel>
+  </Border>
+</UserControl>

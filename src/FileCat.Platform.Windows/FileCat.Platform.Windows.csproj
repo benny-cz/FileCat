@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Windows adapters. Targets plain net10.0 and guards every entry point with
+       OperatingSystem.IsWindows(), so one application build runs on every platform. -->
+  <PropertyGroup>
+    <RootNamespace>FileCat.Platform.Windows</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
+    <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
+  </ItemGroup>
+</Project>

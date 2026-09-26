@@ -1,0 +1,102 @@
+using FileCat.Core.FileSystem;
+using FileCat.Core.Resources;
+using FileCat.Core.State;
+
+namespace FileCat.Core.Tests;
+
+public class PathAndStateTests
+{
+    [Fact]
+    public void Containment_is_segment_aware()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "abc");
+        Assert.True(PathUtil.IsSameOrUnder(Path.Combine(root, "x"), root));
+        Assert.True(PathUtil.IsSameOrUnder(root, root));
+        Assert.False(PathUtil.IsSameOrUnder(root + "def", root));
+        Assert.True(PathUtil.SubtreesOverlap(root, Path.Combine(root, "x", "y")));
+    }
+
+    [Fact]
+    public void Unc_detection()
+    {
+        Assert.True(PathUtil.IsUncServerRoot(@"\\server"));
+        Assert.True(PathUtil.IsUncServerRoot(@"\\server\"));
+        Assert.False(PathUtil.IsUncServerRoot(@"\\server\share"));
+        Assert.True(PathUtil.IsUncShareRoot(@"\\server\share"));
+        Assert.True(PathUtil.IsUncShareRoot(@"\\server\share\"));
+        Assert.False(PathUtil.IsUncShareRoot(@"\\server\share\dir"));
+        Assert.Equal(@"\\server", PathUtil.GetUncServer(@"\\server\share\dir"));
+        Assert.False(PathUtil.IsUncPath(@"\\?\C:\x"));
+    }
+
+    [Fact]
+    public void Unique_names_do_not_stack_suffixes()
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "a.txt", "a (2).txt", "a (3).txt" };
+        Assert.Equal("a (4).txt", PathUtil.MakeUniqueName("a.txt", existing.Contains));
+        Assert.Equal("a (4).txt", PathUtil.MakeUniqueName("a (2).txt", existing.Contains));
+        Assert.Equal("dir.v1 (2)", PathUtil.MakeUniqueName("dir.v1", n => n == "dir.v1", isDirectory: true));
+    }
+
+    [Fact]
+    public void Windows_name_rules()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        Assert.NotNull(PathUtil.ValidateNewName("CON"));
+        Assert.NotNull(PathUtil.ValidateNewName("con.txt"));
+        Assert.NotNull(PathUtil.ValidateNewName("a:b"));
+        Assert.NotNull(PathUtil.ValidateNewName("trailing."));
+        Assert.NotNull(PathUtil.ValidateNewName(""));
+        Assert.Null(PathUtil.ValidateNewName("normal name.txt"));
+        Assert.Null(PathUtil.ValidateNewName("consistent.txt"));
+    }
+
+    [Fact]
+    public void Location_serialization_round_trips_nested_containers()
+    {
+        var zip = new Location(Schemes.Zip, "dir/sub", Location.FileSystem(@"C:\a b\x.zip"), session: "cp437");
+        var text = zip.Serialize();
+        var back = Location.Deserialize(text);
+        Assert.Equal(zip, back);
+        Assert.Null(Location.Deserialize("{broken"));
+    }
+
+    [Fact]
+    public void State_store_recovers_from_corruption_and_refuses_newer_schema()
+    {
+        using var dir = new TempDir();
+        var path = Path.Combine(dir.Path, "settings.json");
+        var s = new AppSettings { Theme = "Cyberpunk" };
+        JsonFileStore.Save(path, s, StateJsonContext.Default.AppSettings);
+        JsonFileStore.Save(path, new AppSettings { Theme = "Psychedelic" }, StateJsonContext.Default.AppSettings);
+
+        var loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema, () => new AppSettings(), out var st);
+        Assert.Equal(StateLoadStatus.Loaded, st);
+        Assert.Equal("Psychedelic", loaded.Theme);
+
+        File.WriteAllText(path, "{ not json");
+        loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema, () => new AppSettings(), out st);
+        Assert.Equal(StateLoadStatus.RecoveredFromBackup, st);
+        Assert.Equal("Cyberpunk", loaded.Theme);
+        Assert.NotEmpty(Directory.GetFiles(dir.Path, "settings.json.corrupt-*"));
+
+        File.WriteAllText(path, "{\"SchemaVersion\": 99, \"Theme\": \"Future\"}");
+        loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema, () => new AppSettings(), out st);
+        Assert.Equal(StateLoadStatus.NewerSchemaReadOnly, st);
+    }
+
+    [Fact]
+    public void Workspace_state_round_trips_locations()
+    {
+        using var dir = new TempDir();
+        var path = Path.Combine(dir.Path, "ws.json");
+        var ws = new WorkspaceState
+        {
+            Panels = [new PanelState { Tabs = [new TabState { Location = Location.FileSystem(dir.Path), Locked = true }] }],
+        };
+        JsonFileStore.Save(path, ws, StateJsonContext.Default.WorkspaceState);
+        var back = JsonFileStore.Load(path, StateJsonContext.Default.WorkspaceState, 1, () => new WorkspaceState(), out _);
+        Assert.Equal(Location.FileSystem(dir.Path), back.Panels[0].Tabs[0].Location);
+        Assert.True(back.Panels[0].Tabs[0].Locked);
+    }
+}

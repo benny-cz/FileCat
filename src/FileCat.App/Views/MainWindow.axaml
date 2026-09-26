@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FileCat.App.ViewModels"
+        x:Class="FileCat.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="FileCat"
+        Width="1280" Height="800" MinWidth="640" MinHeight="420"
+        WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,*,Auto,Auto">
+    <Menu x:Name="MainMenu" Grid.Row="0" />
+
+    <Grid x:Name="WorkspaceHost" Grid.Row="1" Margin="4,2,4,2" />
+
+    <Border x:Name="MaximizedStrip" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
+            Classes="notification" Margin="0,4,12,0" IsVisible="False">
+      <TextBlock x:Name="MaximizedText" Classes="small" />
+    </Border>
+
+    <Border Grid.Row="2" Classes="status" IsVisible="{Binding ShowCommandLine}">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Text="{Binding CommandLinePrompt}" VerticalAlignment="Center" Classes="muted"
+                   MaxWidth="520" TextTrimming="{x:Static TextTrimming.LeadingCharacterEllipsis}" />
+        <TextBox x:Name="CommandLine" Grid.Column="1" Classes="path" Text="{Binding CommandLineText}"
+                 PlaceholderText="Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"
+                 AutomationProperties.Name="Command line" />
+      </Grid>
+    </Border>
+
+    <ItemsControl Grid.Row="3" ItemsSource="{Binding KeyBar}" IsVisible="{Binding ShowKeyBar}" Margin="2,2,2,3">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <UniformGrid Rows="1" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:KeyBarItem">
+          <Button Classes="fkey" IsEnabled="{Binding IsEnabled}" Tag="{Binding CommandId}" Click="OnKeyBarClick"
+                  AutomationProperties.Name="{Binding Label}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Classes="fkeynum" Text="{Binding Number}" />
+              <TextBlock Classes="fkeylabel" Text="{Binding Label}" />
+            </StackPanel>
+          </Button>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <Border x:Name="NotificationBorder" Grid.Row="1" Classes="notification" Classes.error="{Binding NotificationIsError}"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,22" MaxWidth="900"
+            IsVisible="{Binding Notification, Converter={x:Static ObjectConverters.IsNotNull}}"
+            PointerPressed="OnNotificationPressed">
+      <TextBlock Text="{Binding Notification}" TextWrapping="Wrap" />
+    </Border>
+
+    <Panel x:Name="OverlayHost" Grid.Row="0" Grid.RowSpan="4" IsVisible="False" />
+  </Grid>
+</Window>

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FileCat.App/FileCat.App.csproj" />
+    <Project Path="src/FileCat.Core/FileCat.Core.csproj" />
+    <Project Path="src/FileCat.Platform.Windows/FileCat.Platform.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />
+    <Project Path="tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj" />
+    <Project Path="tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj" />
+  </Folder>
+</Solution>

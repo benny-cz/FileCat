@@ -1,0 +1,27 @@
+using FileCat.Core.FileSystem;
+using FileCat.Core.Platform;
+using FileCat.Core.Resources;
+
+namespace FileCat.Platform.Windows;
+
+/// <summary>The Windows adapter set (AI-04): native shell, file operations, drives, and SMB shares.</summary>
+public sealed class WindowsPlatform : PortablePlatform
+{
+    public WindowsPlatform()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        Shell = new WindowsShellServices();
+        FileOperations = new WindowsFileOperations();
+    }
+
+    public override string Name => $"Windows {Environment.OSVersion.Version}";
+
+    public override void RegisterProviders(ProviderRegistry registry)
+    {
+        base.RegisterProviders(registry);
+        registry.Register(new WindowsComputerProvider());
+        registry.Register(new NetworkShareProvider());
+    }
+
+    protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider();
+}

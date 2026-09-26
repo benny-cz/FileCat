@@ -1,0 +1,414 @@
+using System.Security.Cryptography;
+using System.Text;
+
+namespace FileCat.Core.FileSystem;
+
+/// <summary>Return value of a copy progress callback.</summary>
+public enum CopyProgressAction
+{
+    Continue,
+    Cancel,
+}
+
+/// <summary>Called from the copying thread; may block to implement pause and rate limiting.</summary>
+public delegate CopyProgressAction CopyProgressCallback(long bytesTransferred, long totalBytes);
+
+public sealed class FileCopyOptions
+{
+    /// <summary>Copy a symbolic link as a link instead of its target (never follow silently, §8.1).</summary>
+    public bool CopyLinkAsLink { get; init; } = true;
+    /// <summary>Unbuffered I/O for very large files.</summary>
+    public bool NoBuffering { get; init; }
+}
+
+/// <summary>Native identity and metadata of one file-system item.</summary>
+public sealed record FileSystemItemInfo(
+    string Path,
+    bool IsDirectory,
+    bool IsLink,
+    long Size,
+    DateTime ModifiedUtc,
+    DateTime CreatedUtc,
+    FileAttributes Attributes,
+    string? FileId = null,
+    int LinkCount = 1,
+    string? LinkTarget = null)
+{
+    public bool IsReadOnly => (Attributes & FileAttributes.ReadOnly) != 0;
+}
+
+/// <summary>Capability profile of the volume holding a path (ReFS/Dev Drive is its own profile, §8.1).</summary>
+public sealed record VolumeInfo(
+    string DeviceKey,
+    string? FileSystem,
+    bool SupportsNamedStreams,
+    bool CaseSensitive,
+    TimeSpan TimestampPrecision,
+    bool SupportsHardLinks,
+    bool SupportsSymbolicLinks,
+    bool IsRemote,
+    bool IsRemovable,
+    bool SupportsRecycle,
+    long FreeBytes = -1)
+{
+    public static VolumeInfo Unknown(string path) => new(PathUtil.GetDeviceKey(path), null, false, !OperatingSystem.IsWindows(),
+        TimeSpan.FromSeconds(2), false, false, false, false, false);
+}
+
+public enum RecycleClassification
+{
+    Recyclable,
+    /// <summary>Network shares and most removable media have no Recycle Bin.</summary>
+    NoRecycleBin,
+    /// <summary>Larger than the bin's quota: the Shell would delete it permanently.</summary>
+    TooLarge,
+    /// <summary>The name is too long for the bin.</summary>
+    NameTooLong,
+    Unknown,
+}
+
+public enum RecycleOutcome
+{
+    Recycled,
+    /// <summary>The platform destroyed the item instead of recycling it. Reported, never hidden.</summary>
+    PermanentlyDeleted,
+    Failed,
+    /// <summary>FileCat stopped the item because it would have been deleted permanently.</summary>
+    Aborted,
+    NotAttempted,
+}
+
+/// <param name="RecycledId">Platform identifier of the item in the bin, used for guarded restore.</param>
+public sealed record RecycleResult(string Path, RecycleOutcome Outcome, string? RecycledId = null, string? Error = null);
+
+/// <summary>
+/// Platform file-system mutations used by the operation engine (AI-02: controls never call these).
+/// Every method is synchronous and called from job threads; failures throw IOException subclasses.
+/// </summary>
+public interface IFileSystemOperations
+{
+    FileSystemItemInfo? TryGetInfo(string path);
+    VolumeInfo GetVolumeInfo(string path);
+
+    /// <summary>Copies one file to a destination that must not exist (staged names only).</summary>
+    void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
+
+    /// <summary>Renames/moves within a volume. Replacing requires <paramref name="replaceExisting"/>.</summary>
+    void Move(string source, string destination, bool replaceExisting);
+
+    void CreateDirectory(string path);
+
+    /// <summary>Permanently deletes one file or link (never follows it).</summary>
+    void DeleteFile(string path);
+
+    /// <summary>Permanently deletes an empty directory or a directory link (never its target's content).</summary>
+    void DeleteDirectory(string path);
+
+    void SetAttributes(string path, FileAttributes attributes);
+
+    void SetTimes(string path, DateTime? createdUtc, DateTime? modifiedUtc);
+
+    /// <summary>Copies a directory link/junction as a link. Returns false when the platform cannot.</summary>
+    bool TryCopyLink(string source, string destination, bool isDirectory, out string? error);
+
+    RecycleClassification ClassifyRecycle(string path, long size);
+
+    /// <summary>Recycles items, reporting a verified per-item outcome (plan §9.2).</summary>
+    IReadOnlyList<RecycleResult> Recycle(IReadOnlyList<string> paths, Action<string>? itemStarted, CancellationToken ct);
+
+    /// <summary>Restores a recycled item to its original location when it is still in the bin.</summary>
+    bool TryRestoreRecycled(string recycledId, string originalPath, out string? error);
+
+    /// <summary>Mark-of-the-Web / quarantine origin data, or null.</summary>
+    string? ReadOriginMark(string path);
+
+    /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
+    bool WriteOriginMark(string path, string mark);
+}
+
+/// <summary>
+/// Portable implementation over System.IO: streamed copy with progress, links via .NET link APIs, and the
+/// freedesktop.org trash (Linux) or ~/.Trash (macOS).
+/// </summary>
+public class PortableFileOperations : IFileSystemOperations
+{
+    private const int BufferSize = 1024 * 1024;
+
+    public virtual FileSystemItemInfo? TryGetInfo(string path)
+    {
+        try
+        {
+            FileSystemInfo fi = new FileInfo(path);
+            if (!fi.Exists)
+            {
+                fi = new DirectoryInfo(path);
+                if (!fi.Exists)
+                {
+                    // A dangling link still exists as an item.
+                    var link = new FileInfo(path);
+                    if (link.LinkTarget is null) return null;
+                    fi = link;
+                }
+            }
+            bool isDir = fi is DirectoryInfo;
+            bool isLink = fi.LinkTarget is not null;
+            return new FileSystemItemInfo(path, isDir, isLink, isDir ? -1 : ((FileInfo)fi).Length,
+                fi.LastWriteTimeUtc, fi.CreationTimeUtc, fi.Attributes, null, 1, fi.LinkTarget);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    public virtual VolumeInfo GetVolumeInfo(string path)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(Path.GetFullPath(path)) ?? "/";
+            DriveInfo? best = null;
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                if (path.StartsWith(d.Name, StringComparison.Ordinal) && (best is null || d.Name.Length > best.Name.Length)) best = d;
+            }
+            var fs = best?.IsReady == true ? best.DriveFormat : null;
+            bool fat = fs is not null && (fs.Contains("fat", StringComparison.OrdinalIgnoreCase) || fs.Contains("msdos", StringComparison.OrdinalIgnoreCase));
+            return new VolumeInfo(best?.Name ?? root, fs, false, !OperatingSystem.IsMacOS() && !fat,
+                fat ? TimeSpan.FromSeconds(2) : TimeSpan.FromTicks(1), !fat, !fat,
+                best?.DriveType == DriveType.Network, best?.DriveType == DriveType.Removable,
+                TrashDirectoryFor(path) is not null, best?.IsReady == true ? best.AvailableFreeSpace : -1);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return VolumeInfo.Unknown(path);
+        }
+    }
+
+    public virtual void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+    {
+        var info = new FileInfo(source);
+        if (options.CopyLinkAsLink && info.LinkTarget is not null)
+        {
+            File.CreateSymbolicLink(destination, info.LinkTarget);
+            return;
+        }
+        long total = info.Length;
+        try
+        {
+            using (var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
+            using (var dst = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan))
+            {
+                if (total > 0) dst.SetLength(total);
+                var buffer = new byte[BufferSize];
+                long done = 0;
+                int n;
+                while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    dst.Write(buffer, 0, n);
+                    done += n;
+                    if (progress?.Invoke(done, total) == CopyProgressAction.Cancel) throw new OperationCanceledException(ct);
+                }
+                if (dst.Length != done) dst.SetLength(done);
+                dst.Flush(flushToDisk: false);
+            }
+            File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
+            File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(destination, File.GetUnixFileMode(source));
+        }
+        catch
+        {
+            TryDelete(destination);
+            throw;
+        }
+    }
+
+    protected static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    public virtual void Move(string source, string destination, bool replaceExisting)
+    {
+        if (Directory.Exists(source) && new DirectoryInfo(source).LinkTarget is null)
+        {
+            if (replaceExisting) throw new IOException("Directories are merged item by item, never replaced wholesale.");
+            Directory.Move(source, destination);
+        }
+        else
+        {
+            File.Move(source, destination, replaceExisting);
+        }
+    }
+
+    public virtual void CreateDirectory(string path)
+    {
+        if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
+        Directory.CreateDirectory(path);
+    }
+
+    public virtual void DeleteFile(string path) => File.Delete(path);
+
+    public virtual void DeleteDirectory(string path)
+    {
+        var di = new DirectoryInfo(path);
+        if (di.LinkTarget is not null)
+        {
+            // Removing a link removes only the link.
+            di.Delete(recursive: false);
+            return;
+        }
+        Directory.Delete(path, recursive: false);
+    }
+
+    public virtual void SetAttributes(string path, FileAttributes attributes) => File.SetAttributes(path, attributes);
+
+    public virtual void SetTimes(string path, DateTime? createdUtc, DateTime? modifiedUtc)
+    {
+        bool dir = Directory.Exists(path);
+        if (createdUtc is { } c)
+        {
+            if (dir) Directory.SetCreationTimeUtc(path, c);
+            else File.SetCreationTimeUtc(path, c);
+        }
+        if (modifiedUtc is { } m)
+        {
+            if (dir) Directory.SetLastWriteTimeUtc(path, m);
+            else File.SetLastWriteTimeUtc(path, m);
+        }
+    }
+
+    public virtual bool TryCopyLink(string source, string destination, bool isDirectory, out string? error)
+    {
+        error = null;
+        try
+        {
+            var target = isDirectory ? new DirectoryInfo(source).LinkTarget : new FileInfo(source).LinkTarget;
+            if (target is null)
+            {
+                error = "The item is not a link.";
+                return false;
+            }
+            if (isDirectory) Directory.CreateSymbolicLink(destination, target);
+            else File.CreateSymbolicLink(destination, target);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public virtual RecycleClassification ClassifyRecycle(string path, long size) =>
+        TrashDirectoryFor(path) is null ? RecycleClassification.NoRecycleBin : RecycleClassification.Recyclable;
+
+    /// <summary>The home trash when the path is on the same file system, otherwise null.</summary>
+    public static string? TrashDirectoryFor(string path)
+    {
+        if (OperatingSystem.IsWindows()) return null;
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home)) return null;
+        string trash = OperatingSystem.IsMacOS()
+            ? Path.Combine(home, ".Trash")
+            : Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } x ? x : Path.Combine(home, ".local", "share"), "Trash");
+        // Only the home volume is supported portably; renames across volumes would become copies.
+        return path.StartsWith(home, StringComparison.Ordinal) ? trash : null;
+    }
+
+    public virtual IReadOnlyList<RecycleResult> Recycle(IReadOnlyList<string> paths, Action<string>? itemStarted, CancellationToken ct)
+    {
+        var results = new List<RecycleResult>();
+        foreach (var p in paths)
+        {
+            if (ct.IsCancellationRequested)
+            {
+                results.Add(new RecycleResult(p, RecycleOutcome.NotAttempted));
+                continue;
+            }
+            itemStarted?.Invoke(p);
+            var trash = TrashDirectoryFor(p);
+            if (trash is null)
+            {
+                results.Add(new RecycleResult(p, RecycleOutcome.Aborted, null, "No trash is available for this location."));
+                continue;
+            }
+            try
+            {
+                var files = OperatingSystem.IsMacOS() ? trash : Path.Combine(trash, "files");
+                Directory.CreateDirectory(files);
+                var name = PathUtil.MakeUniqueName(Path.GetFileName(p), n => File.Exists(Path.Combine(files, n)) || Directory.Exists(Path.Combine(files, n)), Directory.Exists(p));
+                if (!OperatingSystem.IsMacOS())
+                {
+                    var info = Path.Combine(trash, "info");
+                    Directory.CreateDirectory(info);
+                    var sb = new StringBuilder("[Trash Info]\n");
+                    sb.Append("Path=").Append(Uri.EscapeDataString(p).Replace("%2F", "/")).Append('\n');
+                    sb.Append("DeletionDate=").Append(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")).Append('\n');
+                    File.WriteAllText(Path.Combine(info, name + ".trashinfo"), sb.ToString());
+                }
+                var dest = Path.Combine(files, name);
+                if (Directory.Exists(p)) Directory.Move(p, dest);
+                else File.Move(p, dest);
+                results.Add(new RecycleResult(p, RecycleOutcome.Recycled, dest));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                results.Add(new RecycleResult(p, RecycleOutcome.Failed, null, ex.Message));
+            }
+        }
+        return results;
+    }
+
+    public virtual bool TryRestoreRecycled(string recycledId, string originalPath, out string? error)
+    {
+        error = null;
+        try
+        {
+            if (File.Exists(originalPath) || Directory.Exists(originalPath))
+            {
+                error = "An item already exists at the original location.";
+                return false;
+            }
+            if (Directory.Exists(recycledId)) Directory.Move(recycledId, originalPath);
+            else if (File.Exists(recycledId)) File.Move(recycledId, originalPath);
+            else
+            {
+                error = "The item is no longer in the trash.";
+                return false;
+            }
+            var info = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(recycledId)!)!, "info", Path.GetFileName(recycledId) + ".trashinfo");
+            TryDelete(info);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public virtual string? ReadOriginMark(string path) => null;
+
+    public virtual bool WriteOriginMark(string path, string mark) => false;
+
+    /// <summary>Streaming content hash for verification and checksum features.</summary>
+    public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)
+    {
+        using var hash = IncrementalHash.CreateHash(algorithm);
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+        var buffer = new byte[BufferSize];
+        long done = 0;
+        int n;
+        while ((n = fs.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            hash.AppendData(buffer, 0, n);
+            done += n;
+            progress?.Invoke(done);
+        }
+        return hash.GetHashAndReset();
+    }
+}

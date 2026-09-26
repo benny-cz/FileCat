@@ -1,0 +1,107 @@
+using System.Globalization;
+using System.Text;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Resources;
+
+namespace FileCat.App.Services;
+
+/// <summary>Culture-aware display formatting only; nothing here is persisted (plan §19.4).</summary>
+public static class Formatters
+{
+    public static string DateFormat { get; set; } = "Culture";
+
+    public static string Size(long bytes)
+    {
+        if (bytes < 0) return string.Empty;
+        if (bytes < 1_000_000) return bytes.ToString("N0", CultureInfo.CurrentCulture);
+        string[] units = ["KB", "MB", "GB", "TB", "PB", "EB"];
+        double v = bytes / 1024.0;
+        int u = 0;
+        while (v >= 1000 && u < units.Length - 1)
+        {
+            v /= 1024;
+            u++;
+        }
+        return v.ToString(v < 10 ? "0.0#" : v < 100 ? "0.0" : "0", CultureInfo.CurrentCulture) + " " + units[u];
+    }
+
+    public static string ExactSize(long bytes) =>
+        bytes < 0 ? "unknown" : bytes.ToString("N0", CultureInfo.CurrentCulture) + (bytes == 1 ? " byte" : " bytes");
+
+    public static string Date(long utcTicks)
+    {
+        if (utcTicks <= 0) return string.Empty;
+        var local = new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime();
+        return DateFormat == "Culture"
+            ? local.ToString("g", CultureInfo.CurrentCulture)
+            : local.ToString(DateFormat, CultureInfo.InvariantCulture);
+    }
+
+    public static string Attributes(in EntryData e)
+    {
+        if (e.Kind is EntryKind.Parent or EntryKind.Drive or EntryKind.Server or EntryKind.Share) return string.Empty;
+        var a = (FileAttributes)e.Attributes;
+        Span<char> s = stackalloc char[8];
+        int n = 0;
+        if ((a & FileAttributes.ReadOnly) != 0) s[n++] = 'r';
+        if ((a & FileAttributes.Hidden) != 0) s[n++] = 'h';
+        if ((a & FileAttributes.System) != 0) s[n++] = 's';
+        if ((a & FileAttributes.Archive) != 0) s[n++] = 'a';
+        if ((a & FileAttributes.Compressed) != 0) s[n++] = 'c';
+        if ((a & FileAttributes.Encrypted) != 0) s[n++] = 'e';
+        if ((a & FileAttributes.ReparsePoint) != 0) s[n++] = 'l';
+        if (e.Has(EntryFlags.Offline)) s[n++] = 'o';
+        return new string(s[..n]);
+    }
+
+    public static string SizeCell(in EntryData e)
+    {
+        switch (e.Kind)
+        {
+            case EntryKind.Parent:
+                return "<UP>";
+            case EntryKind.Drive:
+                if (e.Tag is DriveTag t)
+                {
+                    if (!t.Ready) return t.DriveType == "Not responding" ? "<NOT RESPONDING>" : "<NOT READY>";
+                    return t.TotalBytes > 0 ? $"{Size(t.FreeBytes)} free" : string.Empty;
+                }
+                return string.Empty;
+            case EntryKind.Server or EntryKind.Share:
+                return "<SHARE>";
+            case EntryKind.RegistryKey:
+                return "<KEY>";
+        }
+        if (e.IsContainer)
+        {
+            if (e.Has(EntryFlags.SizeComputed)) return Size(e.Size);
+            if (e.Size >= 0) return Size(e.Size) + "…";
+            return e.Has(EntryFlags.Link) ? "<LINK>" : "<DIR>";
+        }
+        return Size(e.Size);
+    }
+
+    /// <summary>Escapes control and bidirectional characters so a name cannot visually spoof another (§18.3).</summary>
+    public static string SafeName(string name)
+    {
+        bool needs = false;
+        foreach (var c in name)
+        {
+            if (char.IsControl(c) || IsBidiControl(c)) { needs = true; break; }
+        }
+        if (!needs) return name;
+        var sb = new StringBuilder(name.Length + 8);
+        foreach (var c in name)
+        {
+            if (char.IsControl(c) || IsBidiControl(c)) sb.Append($"\\u{(int)c:X4}");
+            else sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    private static bool IsBidiControl(char c) =>
+        c is >= '‪' and <= '‮' or >= '⁦' and <= '⁩' or '‎' or '‏' or '؜';
+
+    public static string Plural(int n, string singular, string plural) =>
+        n.ToString("N0", CultureInfo.CurrentCulture) + " " + (n == 1 ? singular : plural);
+}

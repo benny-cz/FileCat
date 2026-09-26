@@ -1,0 +1,10 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FileCat.App.App"
+             Name="FileCat"
+             RequestedThemeVariant="Default">
+  <Application.Styles>
+    <FluentTheme DensityStyle="Compact" />
+    <StyleInclude Source="avares://FileCat/Themes/Styles.axaml" />
+  </Application.Styles>
+</Application>
