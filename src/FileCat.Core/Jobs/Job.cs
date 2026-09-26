@@ -252,6 +252,13 @@ public sealed class Job
         lock (_lock) _undo.Add(step);
     }
 
+    /// <summary>Undo was performed (or attempted); the steps are not offered again.</summary>
+    public void MarkUndone()
+    {
+        lock (_lock) _undo.Clear();
+        Changed?.Invoke(this);
+    }
+
     /// <summary>Asks the user (or a remembered "apply to all" answer) and blocks the job thread until answered.</summary>
     internal Decision Ask(DecisionRequest request)
     {

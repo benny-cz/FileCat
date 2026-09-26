@@ -304,6 +304,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (Listing.State == ListingState.Complete) RequestFreeSpace();
         }
         if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset)) != 0) UpdateStatus();
+        else if ((change & ListingChange.Focus) != 0 && Listing.MarkedCount == 0) UpdateStatus();
     }
 
     public void UpdateTitle()
@@ -358,11 +359,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _totals = (folders, files, bytes, l.Generation);
         }
         var left = $"{Formatters.Plural(_totals.Folders, "folder", "folders")}, {Formatters.Plural(_totals.Files, "file", "files")}";
-        if (_totals.Bytes > 0) left += $" · {Formatters.Size(_totals.Bytes)}";
+        if (_totals.Bytes > 0) left += $" · {Formatters.SizeWithUnit(_totals.Bytes)}";
         if (l.State == ListingState.Loading) left += " · loading…";
         else if (l.IsRefreshing) left += " · refreshing…";
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
-        if (_freeBytes >= 0) left += $" · {Formatters.Size(_freeBytes)} free";
+        if (_freeBytes >= 0) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
         StatusLeft = left;
 
         var stats = l.GetMarkStats();
@@ -372,7 +373,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         else
         {
-            var s = $"Marked {Formatters.Plural(stats.Count, "item", "items")} · {Formatters.Size(stats.Bytes)}{(stats.SizesIncomplete ? "+" : "")}";
+            var s = $"Marked {Formatters.Plural(stats.Count, "item", "items")} · {Formatters.SizeWithUnit(stats.Bytes)}{(stats.SizesIncomplete ? "+" : "")}";
             if (stats.HiddenByFilter > 0) s += $" · {stats.HiddenByFilter} hidden by filter";
             if (l.State == ListingState.Loading) s += " · listing incomplete";
             StatusRight = s;

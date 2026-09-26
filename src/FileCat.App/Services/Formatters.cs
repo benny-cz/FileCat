@@ -25,6 +25,9 @@ public static class Formatters
         return v.ToString(v < 10 ? "0.0#" : v < 100 ? "0.0" : "0", CultureInfo.CurrentCulture) + " " + units[u];
     }
 
+    /// <summary>Size with a unit for sentences and status lines ("85 bytes", "12.4 MB").</summary>
+    public static string SizeWithUnit(long bytes) => bytes < 0 ? "unknown size" : bytes < 1024 ? (bytes == 1 ? "1 byte" : bytes.ToString("N0", CultureInfo.CurrentCulture) + " bytes") : bytes < 1_000_000 ? (bytes / 1024.0).ToString("0.#", CultureInfo.CurrentCulture) + " KB" : Size(bytes);
+
     public static string ExactSize(long bytes) =>
         bytes < 0 ? "unknown" : bytes.ToString("N0", CultureInfo.CurrentCulture) + (bytes == 1 ? " byte" : " bytes");
 

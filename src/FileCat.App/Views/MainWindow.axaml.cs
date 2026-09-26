@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FileCat.App.Controls;
 using FileCat.App.Services;
@@ -96,10 +97,63 @@ public partial class MainWindow : Window, IViewActions
         AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
         CommandLine.AddHandler(KeyDownEvent, OnCommandLineKeyDown, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => _vm.UpdateKeyBar(KeyMods.None);
+        _ = vm.Operations;
         Opened += (_, _) =>
         {
+            if (OperatingSystem.IsWindows() && TryGetPlatformHandle()?.Handle is { } hwnd)
+                Platform.Windows.WindowsPlatform.SetOwnerWindow(hwnd);
             RebuildPanels();
             Dispatcher.UIThread.Post(FocusActivePanel, DispatcherPriority.Loaded);
+            _ = LoadInterruptedAsync();
+        };
+    }
+
+    /// <summary>Jobs whose journal has no end are shown as interrupted, never silently resumed (plan §9.3).</summary>
+    private async Task LoadInterruptedAsync()
+    {
+        var dir = _vm.Services.Paths.JournalDirectory;
+        var interrupted = await Task.Run(() => Core.Jobs.JournalRecovery.Scan(dir));
+        if (interrupted.Count == 0) return;
+        _vm.Operations.LoadInterrupted(interrupted);
+        _vm.Operations.IsOpen = true;
+        _vm.Notify($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.", true);
+    }
+
+    private void AttachDragDrop(PanelView view, PanelViewModel panel)
+    {
+        DragDrop.SetAllowDrop(view, true);
+        view.AddHandler(DragDrop.DragOverEvent, (_, e) =>
+        {
+            e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
+                ? (e.KeyModifiers & KeyModifiers.Shift) != 0 ? DragDropEffects.Move : DragDropEffects.Copy
+                : DragDropEffects.None;
+        });
+        view.AddHandler(DragDrop.DropEvent, async (_, e) =>
+        {
+            var files = e.DataTransfer.TryGetFiles();
+            if (files is null) return;
+            var paths = files.Select(f => f.TryGetLocalPath()).Where(p => p is not null).Cast<string>().ToList();
+            bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+            e.Handled = true;
+            await _vm.DropFilesAsync(panel, paths, move);
+        });
+        view.List.DragRequested += async (_, press) =>
+        {
+            var tab = panel.ActiveTab;
+            if (tab is null) return;
+            var sel = tab.Listing.GetSelection();
+            var paths = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Cast<string>().ToList();
+            // Only local files are offered to other applications (plan §4.2).
+            if (paths.Count == 0) return;
+            var transfer = new DataTransfer();
+            foreach (var p in paths)
+            {
+                Avalonia.Platform.Storage.IStorageItem? item = Directory.Exists(p)
+                    ? await StorageProvider.TryGetFolderFromPathAsync(p)
+                    : await StorageProvider.TryGetFileFromPathAsync(p);
+                if (item is not null) transfer.Add(DataTransferItem.CreateFile(item));
+            }
+            await DragDrop.DoDragDropAsync(press, transfer, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
         };
     }
 
@@ -135,6 +189,7 @@ public partial class MainWindow : Window, IViewActions
         v.PathSubmitted += text => NavigateToText(p, text);
         v.LocationMenuRequested += () => _vm.Execute(_vm.Workspace.Panels.Count == 2 && _vm.Workspace.Panels.IndexOf(p) == 1 ? CommandIds.LocationMenuRight : CommandIds.LocationMenuLeft);
         v.MiddleClick += row => OpenRowInNewTab(p, row);
+        AttachDragDrop(v, p);
         _panelViews[p] = v;
         return v;
     }
@@ -432,6 +487,12 @@ public partial class MainWindow : Window, IViewActions
         {
             e.Handled = true;
             _vm.RunCommandLine();
+        }
+        else if (e.Key is Key.Up or Key.Down && e.KeyModifiers == KeyModifiers.None)
+        {
+            e.Handled = true;
+            _vm.CommandLineHistory(e.Key == Key.Up ? 1 : -1);
+            Dispatcher.UIThread.Post(() => CommandLine.CaretIndex = CommandLine.Text?.Length ?? 0);
         }
     }
 

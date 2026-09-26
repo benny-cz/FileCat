@@ -1,0 +1,427 @@
+using System.Globalization;
+using System.Text;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
+using FileCat.App.Controls;
+using FileCat.App.Services;
+using FileCat.Core.Content;
+using FileCat.Core.Jobs;
+using FileCat.Core.Resources;
+
+namespace FileCat.App.Views;
+
+/// <summary>
+/// F3 viewer in its own top-level window (plan §4.1, §16.1): one viewer with text and hex modes (F4 toggles),
+/// encoding chosen with visible evidence (F8 cycles), search (Ctrl+F, F3/Shift+F3), go to (Ctrl+G), range
+/// checksums, and follow mode for growing logs. Opened with full sharing, so other programs keep working.
+/// </summary>
+public sealed class ViewerWindow : Window
+{
+    private readonly AppServices _services;
+    private readonly PagedReader _reader;
+    private readonly TextViewer _text = new();
+    private readonly HexView _hex = new();
+    private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _encodingInfo = new() { Classes = { "small", "muted" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBox _search = new() { PlaceholderText = "Find (Ctrl+F)", MinWidth = 220 };
+    private readonly CheckBox _matchCase = new() { Content = "Aa", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _hexSearch = new() { Content = "Hex bytes", VerticalAlignment = VerticalAlignment.Center };
+    private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
+    private readonly ToggleButton _modeText = new() { Content = "Text" };
+    private readonly ToggleButton _modeHex = new() { Content = "Hex" };
+    private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
+    private readonly DispatcherTimer _changeTimer;
+    private readonly string _displayName;
+    private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
+    private bool _isHex;
+    private CancellationTokenSource? _searchCts;
+    private long _lastHit = -1;
+    private int _lastHitLength;
+
+    public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex)
+    {
+        _services = services;
+        _displayName = displayName;
+        _reader = new PagedReader(source);
+        Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
+        Width = 980;
+        Height = 700;
+        MinWidth = 480;
+        MinHeight = 300;
+        TextDecoding.EnsureCodePages();
+
+        foreach (var (name, _) in TextDecoding.Choices) _encodingBox.Items.Add(name);
+        _wrap.IsChecked = services.Settings.ViewerWrap;
+        _text.Wrap = services.Settings.ViewerWrap;
+        _text.SetReader(_reader, _guess.Encoding, 0);
+        _hex.SetReader(_reader);
+
+        var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
+        toolbar.Children.Add(_modeText);
+        toolbar.Children.Add(_modeHex);
+        toolbar.Children.Add(new TextBlock { Text = "Encoding:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+        toolbar.Children.Add(_encodingBox);
+        toolbar.Children.Add(_wrap);
+        toolbar.Children.Add(_follow);
+        toolbar.Children.Add(_search);
+        toolbar.Children.Add(_matchCase);
+        toolbar.Children.Add(_hexSearch);
+        var goTo = new Button { Content = "Go to…" };
+        goTo.Click += async (_, _) => await GoToAsync();
+        var checksum = new Button { Content = "Checksum…" };
+        checksum.Click += async (_, _) => await ChecksumAsync();
+        toolbar.Children.Add(goTo);
+        toolbar.Children.Add(checksum);
+
+        var statusBar = new Border { Classes = { "status" }, Child = new DockPanel { Children = { _encodingInfo, _status } } };
+        DockPanel.SetDock(_encodingInfo, Dock.Right);
+        var content = new Panel { Children = { _text, _hex } };
+        var root = new DockPanel();
+        DockPanel.SetDock(toolbar, Dock.Top);
+        DockPanel.SetDock(statusBar, Dock.Bottom);
+        root.Children.Add(toolbar);
+        root.Children.Add(statusBar);
+        root.Children.Add(content);
+        Content = root;
+
+        _modeText.Click += (_, _) => SetMode(false);
+        _modeHex.Click += (_, _) => SetMode(true);
+        _wrap.IsCheckedChanged += (_, _) =>
+        {
+            _text.Wrap = _wrap.IsChecked == true;
+            _services.Settings.ViewerWrap = _text.Wrap;
+        };
+        _encodingBox.SelectionChanged += (_, _) =>
+        {
+            if (_encodingBox.SelectedIndex < 0) return;
+            var enc = TextDecoding.Choices[_encodingBox.SelectedIndex].Get();
+            bool bomMatches = _guess.PreambleLength > 0 && enc.WebName == _guess.Encoding.WebName;
+            _text.SetEncoding(enc, bomMatches ? _guess.PreambleLength : 0);
+            _encodingInfo.Text = bomMatches || enc.WebName == _guess.Encoding.WebName ? $"{enc.WebName}: {_guess.Evidence}" : $"{enc.WebName}: chosen manually (detected: {_guess.Evidence})";
+        };
+        _search.KeyDown += async (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                await FindAsync(forward: (e.KeyModifiers & KeyModifiers.Shift) == 0);
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                _searchCts?.Cancel();
+                FocusContent();
+            }
+        };
+        _text.PositionChanged += UpdateStatus;
+        _hex.CursorMoved += UpdateStatus;
+        AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
+        _changeTimer = new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, (_, _) => CheckForChanges());
+        Opened += async (_, _) =>
+        {
+            SetMode(hex);
+            await DetectEncodingAsync(forceHexIfBinary: !hex);
+            _changeTimer.Start();
+            FocusContent();
+        };
+        Closed += (_, _) =>
+        {
+            _changeTimer.Stop();
+            _searchCts?.Cancel();
+            _reader.Dispose();
+        };
+    }
+
+    private async Task DetectEncodingAsync(bool forceHexIfBinary)
+    {
+        var prefix = await Task.Run(() =>
+        {
+            var buf = new byte[64 * 1024];
+            int n = _reader.Read(0, buf);
+            return buf[..n];
+        });
+        _guess = TextDecoding.Detect(prefix);
+        int index = Array.FindIndex(TextDecoding.Choices.ToArray(), c => c.Get().WebName == _guess.Encoding.WebName);
+        _text.SetEncoding(_guess.Encoding, _guess.PreambleLength);
+        _encodingBox.SelectedIndex = index >= 0 ? index : 0;
+        _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
+        if (_guess.LooksBinary && forceHexIfBinary) SetMode(true);
+        UpdateStatus();
+    }
+
+    private void SetMode(bool hex)
+    {
+        _isHex = hex;
+        _hex.IsVisible = hex;
+        _text.IsVisible = !hex;
+        _modeHex.IsChecked = hex;
+        _modeText.IsChecked = !hex;
+        _wrap.IsEnabled = !hex;
+        if (hex) _hex.GoTo(_text.TopOffset);
+        else _text.ScrollToOffset(_hex.CursorOffset);
+        FocusContent();
+        UpdateStatus();
+    }
+
+    private void FocusContent()
+    {
+        if (_isHex) _hex.Focus();
+        else _text.Focus();
+    }
+
+    private void UpdateStatus()
+    {
+        long len = _reader.Length;
+        long pos = _isHex ? _hex.CursorOffset : _text.TopOffset;
+        double pct = len > 0 ? 100.0 * pos / len : 0;
+        var sel = _hex.Selection;
+        _status.Text = $"{Formatters.ExactSize(len)} · offset 0x{pos:X} ({pos.ToString("N0", CultureInfo.CurrentCulture)}) · {pct:0.#}%" +
+                       (_isHex && sel.Length > 1 ? $" · selected {sel.Length.ToString("N0", CultureInfo.CurrentCulture)} bytes" : string.Empty);
+    }
+
+    private void CheckForChanges()
+    {
+        if (!_reader.Refresh()) return;
+        _text.InvalidateVisual();
+        _hex.InvalidateVisual();
+        if (_follow.IsChecked == true)
+        {
+            if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
+            else _text.GoToEnd();
+        }
+        _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
+    }
+
+    private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
+        bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+        if (FocusManager?.GetFocusedElement() is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
+        switch (e.Key)
+        {
+            case Key.Escape:
+            case Key.F10:
+                Close();
+                break;
+            case Key.F4:
+                SetMode(!_isHex);
+                break;
+            case Key.F8:
+                _encodingBox.SelectedIndex = (_encodingBox.SelectedIndex + 1) % TextDecoding.Choices.Count;
+                break;
+            case Key.F2 when !_isHex:
+                _wrap.IsChecked = !_wrap.IsChecked;
+                break;
+            case Key.F when ctrl:
+            case Key.F7:
+                _search.Focus();
+                _search.SelectAll();
+                break;
+            case Key.F3:
+                await FindAsync(!shift);
+                break;
+            case Key.G when ctrl:
+                await GoToAsync();
+                break;
+            case Key.C when ctrl:
+                await CopyAsync();
+                break;
+            case Key.K when ctrl:
+                await ChecksumAsync();
+                break;
+            case Key.OemPlus when ctrl:
+            case Key.Add when ctrl:
+                _text.FontSize += 1;
+                _hex.FontSize += 1;
+                break;
+            case Key.OemMinus when ctrl:
+            case Key.Subtract when ctrl:
+                _text.FontSize -= 1;
+                _hex.FontSize -= 1;
+                break;
+            default:
+                return;
+        }
+        e.Handled = true;
+    }
+
+    private async Task FindAsync(bool forward)
+    {
+        var pattern = _search.Text ?? string.Empty;
+        if (pattern.Length == 0)
+        {
+            _search.Focus();
+            return;
+        }
+        _searchCts?.Cancel();
+        var cts = _searchCts = new CancellationTokenSource();
+        long from = _lastHit >= 0 ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : _isHex ? _hex.CursorOffset : _text.TopOffset;
+        bool hexMode = _hexSearch.IsChecked == true;
+        byte[]? bytes = hexMode ? ContentSearch.ParseHex(pattern) : null;
+        if (hexMode && bytes is null)
+        {
+            _status.Text = "Hex search expects bytes such as \"4D 5A 90\".";
+            return;
+        }
+        var enc = _text.Encoding;
+        bool matchCase = _matchCase.IsChecked == true;
+        _status.Text = "Searching…";
+        long found;
+        try
+        {
+            found = await Task.Run(() =>
+            {
+                if (bytes is not null)
+                    return forward ? ContentSearch.FindBytes(_reader, from, bytes, cts.Token) : ContentSearch.FindBytesBackward(_reader, from, bytes, cts.Token);
+                if (!forward)
+                {
+                    // Backward text search: search forward from a window before the position and keep the last hit.
+                    long start = Math.Max(0, from - 4 * 1024 * 1024), last = -1, p = start;
+                    while (true)
+                    {
+                        long hit = ContentSearch.FindText(_reader, enc, p, pattern, matchCase, cts.Token);
+                        if (hit < 0 || hit >= from) break;
+                        last = hit;
+                        p = hit + 1;
+                    }
+                    return last;
+                }
+                return ContentSearch.FindText(_reader, enc, from, pattern, matchCase, cts.Token);
+            }, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _status.Text = "Search canceled.";
+            return;
+        }
+        if (found < 0)
+        {
+            _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.";
+            return;
+        }
+        _lastHit = found;
+        _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
+        _text.SetHighlight(bytes is null ? pattern : null, matchCase);
+        if (_isHex) _hex.GoTo(found, select: true, _lastHitLength);
+        else _text.ScrollToOffset(found);
+        _hex.GoTo(found, select: true, _lastHitLength);
+        UpdateStatus();
+    }
+
+    private async Task GoToAsync()
+    {
+        var box = new TextBox { PlaceholderText = "0x1F00, 7936, or 50%" };
+        var dialog = new Window
+        {
+            Title = "Go to",
+            Width = 360,
+            SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(16),
+                Spacing = 8,
+                Children = { new TextBlock { Text = "Offset (hex with 0x, decimal) or percentage:" }, box },
+            },
+        };
+        string? result = null;
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter) { result = box.Text; dialog.Close(); }
+            else if (e.Key == Key.Escape) dialog.Close();
+        };
+        dialog.Opened += (_, _) => box.Focus();
+        await dialog.ShowDialog(this);
+        if (string.IsNullOrWhiteSpace(result)) return;
+        var t = result.Trim();
+        long len = _reader.Length;
+        long offset;
+        if (t.EndsWith('%') && double.TryParse(t[..^1], NumberStyles.Float, CultureInfo.CurrentCulture, out var pct)) offset = (long)(len * Math.Clamp(pct, 0, 100) / 100);
+        else if (t.StartsWith("0x", StringComparison.OrdinalIgnoreCase) && long.TryParse(t[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hexVal)) offset = hexVal;
+        else if (long.TryParse(t.Replace(" ", "").Replace(" ", ""), NumberStyles.Integer, CultureInfo.CurrentCulture, out var dec)) offset = dec;
+        else
+        {
+            _status.Text = $"\"{t}\" is not an offset.";
+            return;
+        }
+        if (_isHex) _hex.GoTo(offset);
+        else _text.ScrollToOffset(offset);
+        UpdateStatus();
+    }
+
+    private async Task CopyAsync()
+    {
+        if (Clipboard is null) return;
+        if (_isHex)
+        {
+            var bytes = await Task.Run(() => _hex.ReadSelection(1024 * 1024));
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, Convert.ToHexString(bytes));
+            _status.Text = $"Copied {bytes.Length:N0} bytes as hex.";
+        }
+        else
+        {
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, _text.GetSelectedOrVisibleText());
+            _status.Text = "Copied text.";
+        }
+    }
+
+    private async Task ChecksumAsync()
+    {
+        var (start, length) = _isHex && _hex.Selection.Length > 1 ? _hex.Selection : (0L, _reader.Length);
+        _status.Text = "Computing checksums…";
+        var result = await Task.Run(() =>
+        {
+            using var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+            uint crc = 0;
+            var buf = new byte[1024 * 1024];
+            long pos = start, end = start + length;
+            while (pos < end)
+            {
+                int n = _reader.Read(pos, buf.AsSpan(0, (int)Math.Min(buf.Length, end - pos)));
+                if (n <= 0) break;
+                sha.AppendData(buf, 0, n);
+                crc = Crc32.Append(crc, buf.AsSpan(0, n));
+                pos += n;
+            }
+            return (Sha: Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant(), Crc: crc, Read: pos - start);
+        });
+        var scope = length == _reader.Length ? "whole file" : $"range 0x{start:X}–0x{start + length - 1:X}";
+        var message = $"{scope}, {result.Read:N0} bytes\nSHA-256: {result.Sha}\nCRC-32: {result.Crc:x8}";
+        if (result.Read < length) message += "\nWarning: the content ended early; the checksum covers only the bytes read.";
+        _status.Text = $"SHA-256 {result.Sha[..16]}… · CRC-32 {result.Crc:x8} ({scope})";
+        if (Clipboard is not null) await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, message);
+        _status.Text += " · copied to the clipboard";
+    }
+}
+
+/// <summary>Opens viewer windows for items of any provider that exposes content.</summary>
+public static class ViewerLauncher
+{
+    public static void Open(AppServices services, ItemRef item, bool hex)
+    {
+        var provider = services.Providers.For(item.Parent);
+        var source = provider.OpenContent(item) ?? throw new IOException("This item has no viewable content.");
+        var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
+        new ViewerWindow(services, source, name, hex).Show();
+    }
+
+    public static void OpenPath(AppServices services, string path)
+    {
+        try
+        {
+            new ViewerWindow(services, new FileContentSource(path), path, hex: false).Show();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The caller shows its own errors; a missing file simply opens nothing.
+        }
+    }
+}

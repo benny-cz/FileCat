@@ -50,7 +50,8 @@ public sealed class FileListControl : Control
     private double[] _columnW = [];
     private Typeface _typeface;
     private Typeface _boldTypeface;
-    private int _cacheGeneration = -1;
+    // Cached row text belongs to one store instance: a refresh swaps stores, so identity (not generation) keys it.
+    private EntryStore? _cachedStore;
     private int _anchorRow = -1;
     private bool? _extendState;
     private int _resizingColumn = -1;
@@ -58,6 +59,7 @@ public sealed class FileListControl : Control
     private double _resizeStartWidth;
     private readonly Dictionary<ColumnField, double> _widthOverrides = new();
     private Point? _dragStart;
+    private PointerPressedEventArgs? _pressArgs;
     private int _pressedRow = -1;
     private DispatcherTimer? _loadingHintTimer;
     private bool _showLoadingHint;
@@ -74,6 +76,8 @@ public sealed class FileListControl : Control
     {
         Focusable = true;
         ClipToBounds = true;
+        // FileCat draws its own focus cues (row outline, panel frame); the default adorner would duplicate them.
+        FocusAdorner = null;
         _vbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Vertical, AllowAutoHide = false };
         _vbar.PropertyChanged += (_, e) =>
         {
@@ -127,7 +131,8 @@ public sealed class FileListControl : Control
 
     public event EventHandler<Point>? ContextMenuRequested;
 
-    public event EventHandler<PointerEventArgs>? DragRequested;
+    /// <summary>Raised when a drag starts; carries the original press, which drag-and-drop requires.</summary>
+    public event EventHandler<PointerPressedEventArgs>? DragRequested;
 
     public event EventHandler<int>? MiddleClickRequested;
 
@@ -247,7 +252,7 @@ public sealed class FileListControl : Control
             _textCache.Clear();
             _topRow = 0;
             _anchorRow = -1;
-            _cacheGeneration = _listing!.Generation;
+            _cachedStore = _listing!.Store;
             _showLoadingHint = false;
             _loadingHintTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background, (_, _) =>
             {
@@ -258,16 +263,21 @@ public sealed class FileListControl : Control
             _loadingHintTimer.Stop();
             _loadingHintTimer.Start();
         }
-        if (_listing!.Generation != _cacheGeneration)
-        {
-            _textCache.Clear();
-            _cacheGeneration = _listing.Generation;
-        }
+        EnsureCacheStore();
         if ((change & (ListingChange.Rows | ListingChange.Marks)) != 0 && _textCache.Count > 4000) _textCache.Clear();
         if ((change & ListingChange.Marks) != 0) _textCache.Clear();
         if ((change & (ListingChange.Focus | ListingChange.Reset | ListingChange.Rows)) != 0) EnsureFocusVisible();
         UpdateScrollBar();
         InvalidateVisual();
+    }
+
+    private void EnsureCacheStore()
+    {
+        if (_listing is not null && !ReferenceEquals(_listing.Store, _cachedStore))
+        {
+            _textCache.Clear();
+            _cachedStore = _listing.Store;
+        }
     }
 
     public void EnsureFocusVisible()
@@ -358,6 +368,7 @@ public sealed class FileListControl : Control
 
         var listing = _listing;
         if (listing is null) return;
+        EnsureCacheStore();
         int count = listing.VisibleCount;
         using (dc.PushClip(new Rect(0, _headerHeight, contentWidth, Math.Max(0, bounds.Height - _headerHeight))))
         {
@@ -680,6 +691,7 @@ public sealed class FileListControl : Control
             }
             _dragStart = pos;
             _pressedRow = row;
+            _pressArgs = e;
         }
         Tab?.OnUserMovedFocus();
         e.Handled = true;
@@ -704,7 +716,7 @@ public sealed class FileListControl : Control
             if (Math.Abs(pos.X - start.X) > 6 || Math.Abs(pos.Y - start.Y) > 6)
             {
                 _dragStart = null;
-                if (_pressedRow >= 0) DragRequested?.Invoke(this, e);
+                if (_pressedRow >= 0 && _pressArgs is { } press) DragRequested?.Invoke(this, press);
             }
         }
     }

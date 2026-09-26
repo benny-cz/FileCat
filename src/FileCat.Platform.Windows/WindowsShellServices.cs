@@ -183,6 +183,19 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     public override void SetKeepAwake(bool keepAwake) =>
         SetThreadExecutionState(keepAwake ? ES_CONTINUOUS | ES_SYSTEM_REQUIRED : ES_CONTINUOUS);
 
+    public override string ToUncPath(string path)
+    {
+        if (path.Length >= 2 && path[1] == ':' && WindowsNetwork.GetRemoteName(path[..2]) is { } unc)
+            return unc.TrimEnd('\\') + path[2..];
+        return path;
+    }
+
+    public override string? ConnectNetworkDrive(nint owner) => WindowsNetwork.ShowConnectDriveDialog(owner);
+
+    public override string? DisconnectNetworkDrive(nint owner) => WindowsNetwork.ShowDisconnectDriveDialog(owner);
+
+    public override string? SignIn(string server, nint owner) => WindowsNetwork.ConnectInteractive(server, owner);
+
     internal static string? FindOnPath(string exe)
     {
         var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;

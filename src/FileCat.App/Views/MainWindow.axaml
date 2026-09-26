@@ -1,12 +1,13 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FileCat.App.ViewModels"
+        xmlns:local="using:FileCat.App.Views"
         x:Class="FileCat.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="FileCat"
         Width="1280" Height="800" MinWidth="640" MinHeight="420"
         WindowStartupLocation="CenterScreen">
-  <Grid RowDefinitions="Auto,*,Auto,Auto">
+  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
     <Menu x:Name="MainMenu" Grid.Row="0" />
 
     <Grid x:Name="WorkspaceHost" Grid.Row="1" Margin="4,2,4,2" />
@@ -16,9 +17,11 @@
       <TextBlock x:Name="MaximizedText" Classes="small" />
     </Border>
 
-    <Border Grid.Row="2" Classes="status" IsVisible="{Binding ShowCommandLine}">
+    <local:OperationsView x:Name="OperationsPane" Grid.Row="2" DataContext="{Binding Operations}" />
+
+    <Border Grid.Row="3" Classes="status" IsVisible="{Binding ShowCommandLine}">
       <Grid ColumnDefinitions="Auto,*">
-        <TextBlock Text="{Binding CommandLinePrompt}" VerticalAlignment="Center" Classes="muted"
+        <TextBlock Text="{Binding Workspace.ActiveTab.DisplayPath, StringFormat='{}{0}>'}" VerticalAlignment="Center" Classes="muted"
                    MaxWidth="520" TextTrimming="{x:Static TextTrimming.LeadingCharacterEllipsis}" />
         <TextBox x:Name="CommandLine" Grid.Column="1" Classes="path" Text="{Binding CommandLineText}"
                  PlaceholderText="Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"
@@ -26,7 +29,7 @@
       </Grid>
     </Border>
 
-    <ItemsControl Grid.Row="3" ItemsSource="{Binding KeyBar}" IsVisible="{Binding ShowKeyBar}" Margin="2,2,2,3">
+    <ItemsControl Grid.Row="4" ItemsSource="{Binding KeyBar}" IsVisible="{Binding ShowKeyBar}" Margin="2,2,2,3">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
           <UniformGrid Rows="1" />
@@ -52,6 +55,6 @@
       <TextBlock Text="{Binding Notification}" TextWrapping="Wrap" />
     </Border>
 
-    <Panel x:Name="OverlayHost" Grid.Row="0" Grid.RowSpan="4" IsVisible="False" />
+    <Panel x:Name="OverlayHost" Grid.Row="0" Grid.RowSpan="5" IsVisible="False" />
   </Grid>
 </Window>

@@ -202,3 +202,15 @@ public enum UndoKind
 /// <param name="From">Current location of the item (the result of the operation).</param>
 /// <param name="To">Where undo puts it back.</param>
 public sealed record UndoStep(UndoKind Kind, string From, string To, long Size, long ModifiedTicks, string? RecycledId = null);
+
+/// <summary>Plain-language reasons for items the Recycle Bin cannot take (plan §5.3).</summary>
+public static class RecycleText
+{
+    public static string Explain(FileSystem.RecycleClassification c) => c switch
+    {
+        FileSystem.RecycleClassification.NoRecycleBin => "this location has no Recycle Bin (network shares and most removable drives).",
+        FileSystem.RecycleClassification.TooLarge => "the item is larger than the Recycle Bin accepts.",
+        FileSystem.RecycleClassification.NameTooLong => "the path is too long for the Recycle Bin.",
+        _ => "the Recycle Bin cannot take it.",
+    };
+}

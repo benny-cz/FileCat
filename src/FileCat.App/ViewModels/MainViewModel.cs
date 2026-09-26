@@ -113,8 +113,13 @@ public sealed partial class MainViewModel : ObservableObject
         if (_sizing.TryGetValue(key, out var cts) && cts.Token == token) _sizing.Remove(key);
     }
 
+    /// <summary>Last known window placement, reused by autosave.</summary>
+    public WindowPlacement? LastPlacement { get; set; }
+
     public void SaveWorkspace(WindowPlacement? placement)
     {
+        placement ??= LastPlacement;
+        LastPlacement = placement;
         try
         {
             JsonFileStore.Save(Services.Paths.WorkspaceFile, Workspace.ToState(placement), StateJsonContext.Default.WorkspaceState);
@@ -128,7 +133,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Opens locations forwarded by a second launch or passed on the command line.</summary>
-    public void OpenArguments(StartupOptions options)
+    public void OpenArguments(StartupOptions options, bool initial = false)
     {
         var panel = Workspace.ActivePanel;
         if (panel is null) return;
@@ -146,7 +151,10 @@ public sealed partial class MainViewModel : ObservableObject
                 focus = Path.GetFileName(loc.Path);
                 loc = Location.FileSystem(Path.GetDirectoryName(loc.Path)!);
             }
-            (into ?? panel).OpenTab(loc, focus);
+            var target = into ?? panel;
+            // At startup the requested location replaces the default tab instead of adding one next to it.
+            if (initial && target.Tabs.Count == 1 && !target.Tabs[0].IsLocked) target.ActiveTab?.Navigate(loc, focus, record: false);
+            else target.OpenTab(loc, focus);
         }
         if (options.LeftLocation is { } l && Workspace.Panels.Count > 0) Open(l, Workspace.Panels[0]);
         if (options.RightLocation is { } r && Workspace.Panels.Count > 1) Open(r, Workspace.Panels[1]);

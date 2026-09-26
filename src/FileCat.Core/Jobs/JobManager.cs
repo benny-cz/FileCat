@@ -203,6 +203,7 @@ public sealed class JobManager
             journal = JobJournal.Create(_journalDirectory, job);
             var executor = JobExecutors.Create(job, _fs, _providers, journal);
             executor.Execute();
+            job.TotalsFinal = true;
             final = FinalState(job);
         }
         catch (OperationCanceledException)

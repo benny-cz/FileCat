@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileCat.App.ViewModels"
+             xmlns:jobs="using:FileCat.Core.Jobs"
+             x:Class="FileCat.App.Views.OperationsView"
+             x:DataType="vm:OperationCenterViewModel">
+  <StackPanel>
+    <!-- Compact strip: the most relevant operation -->
+    <Border Classes="status" IsVisible="{Binding HasVisibleWork}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto" DataContext="{Binding Primary}" x:DataType="vm:JobViewModel">
+        <StackPanel Spacing="2" Margin="0,2">
+          <TextBlock TextTrimming="CharacterEllipsis" Classes="small">
+            <Run Text="{Binding Title}" FontWeight="SemiBold" />
+            <Run Text=" — " />
+            <Run Text="{Binding StateText}" />
+            <Run Text=" · " />
+            <Run Text="{Binding DetailText}" />
+          </TextBlock>
+          <ProgressBar Height="4" MinHeight="4" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}"
+                       IsVisible="{Binding IsActive}" />
+          <TextBlock Text="{Binding CurrentItem}" Classes="small muted" TextTrimming="CharacterEllipsis" IsVisible="{Binding IsActive}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,0,0">
+          <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
+          <Button Classes="flat" Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
+          <Button Classes="flat" Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="Stops at the next safe step; completed steps are kept" />
+          <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+          <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).Summary}" VerticalAlignment="Center" Classes="small muted" />
+          <Button Classes="flat" Content="Details (Ctrl+J)" Click="OnToggleDetails" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Details drawer -->
+    <Border IsVisible="{Binding IsOpen}" Height="240" Background="{DynamicResource FcPanel}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="2*,Auto,3*" RowDefinitions="Auto,*">
+        <!-- Interrupted jobs -->
+        <ItemsControl Grid.ColumnSpan="3" ItemsSource="{Binding Interrupted}" Margin="8,4">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:InterruptedJobViewModel">
+              <Border Classes="banner" Margin="0,2">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes="small warning" />
+                    <TextBlock Text="{Binding Details}" Classes="small" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Content="Clean up partial files" Tag="{Binding}" Click="OnCleanupInterrupted" />
+                    <Button Content="Dismiss" Tag="{Binding}" Click="OnDismissInterrupted" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <DockPanel Grid.Row="1">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="8,4">
+            <TextBlock Text="Operations" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Classes="flat" Content="Clear finished" Click="OnClearFinished" />
+          </StackPanel>
+          <ListBox ItemsSource="{Binding Jobs}" SelectedItem="{Binding Selected}" Classes="choices">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:JobViewModel">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                  <TextBlock Classes="small muted" TextTrimming="CharacterEllipsis">
+                    <Run Text="{Binding StateText}" />
+                    <Run Text=" · " />
+                    <Run Text="{Binding DetailText}" />
+                  </TextBlock>
+                  <ProgressBar Height="3" MinHeight="3" Minimum="0" Maximum="100" Value="{Binding Percent}" IsVisible="{Binding IsActive}" IsIndeterminate="{Binding IsIndeterminate}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+        <GridSplitter Grid.Row="1" Grid.Column="1" Width="4" ResizeDirection="Columns" Background="Transparent" />
+        <DockPanel Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="8,4">
+            <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
+            <Button Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
+            <Button Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" />
+            <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+            <Button Content="Move up" Click="OnMoveUp" IsVisible="{Binding !IsActive}" />
+            <Button Content="Limit speed…" Click="OnLimit" IsVisible="{Binding !IsFinished}" />
+            <Button Content="Remove" IsVisible="{Binding IsFinished}" Click="OnRemove" />
+          </StackPanel>
+          <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}" Classes="choices">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="jobs:JobIssue">
+                <StackPanel>
+                  <TextBlock TextWrapping="Wrap" Classes="small">
+                    <Run Text="{Binding Severity}" FontWeight="SemiBold" />
+                    <Run Text=": " />
+                    <Run Text="{Binding Message}" />
+                  </TextBlock>
+                  <TextBlock Text="{Binding Path}" Classes="small muted" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

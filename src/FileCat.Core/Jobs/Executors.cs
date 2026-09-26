@@ -938,19 +938,12 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                 {
                     Job.ItemSkipped();
                     Job.RootFailed(u.Root);
-                    Issue(IssueSeverity.Warning, u.Path, "Not deleted: " + Explain(u.Why) + " Nothing was changed.", StepOutcome.CanceledBeforeChange);
+                    Issue(IssueSeverity.Warning, u.Path, "Not deleted: " + RecycleText.Explain(u.Why) + " Nothing was changed.", StepOutcome.CanceledBeforeChange);
                 }
             }
         }
     }
 
-    public static string Explain(RecycleClassification c) => c switch
-    {
-        RecycleClassification.NoRecycleBin => "this location has no Recycle Bin (network shares and most removable drives).",
-        RecycleClassification.TooLarge => "the item is larger than the Recycle Bin accepts.",
-        RecycleClassification.NameTooLong => "the path is too long for the Recycle Bin.",
-        _ => "the Recycle Bin cannot take it.",
-    };
 }
 
 internal sealed class CreateExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)

@@ -35,6 +35,18 @@ public interface IShellServices
 
     /// <summary>Keeps the system awake while jobs run (optional setting).</summary>
     void SetKeepAwake(bool keepAwake);
+
+    /// <summary>UNC form of a path on a mapped network drive; other paths are returned unchanged.</summary>
+    string ToUncPath(string path);
+
+    /// <summary>Shows the OS "map network drive" dialog; returns an error or null.</summary>
+    string? ConnectNetworkDrive(nint owner);
+
+    /// <summary>Shows the OS "disconnect network drive" dialog; returns an error or null.</summary>
+    string? DisconnectNetworkDrive(nint owner);
+
+    /// <summary>Prompts for credentials for a server through the OS networking UI; returns an error or null.</summary>
+    string? SignIn(string server, nint owner);
 }
 
 /// <summary>Portable fallback using xdg-open / open.</summary>
@@ -93,6 +105,14 @@ public class PortableShellServices : IShellServices
     }
 
     public virtual void SetKeepAwake(bool keepAwake) { }
+
+    public virtual string ToUncPath(string path) => path;
+
+    public virtual string? ConnectNetworkDrive(nint owner) => "Mount network shares with your desktop's tools; they then appear under Computer.";
+
+    public virtual string? DisconnectNetworkDrive(nint owner) => "Unmount network shares with your desktop's tools.";
+
+    public virtual string? SignIn(string server, nint owner) => "Direct sign-in to servers is not available on this platform; mount the share first.";
 
     protected static void Start(string exe, params string[] args)
     {

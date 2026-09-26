@@ -37,8 +37,14 @@ public sealed class AppServices : IDisposable
         Shell = Platform.Shell;
         Providers = new ProviderRegistry();
         Platform.RegisterProviders(Providers);
+        ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
+        Providers.Register(ResultSets);
         Formatters.DateFormat = Settings.DateFormat;
+        Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
     }
+
+    public Core.Jobs.JobManager Jobs { get; }
+    public Core.Search.ResultSetProvider ResultSets { get; }
 
     public static AppServices Current { get; private set; } = null!;
 

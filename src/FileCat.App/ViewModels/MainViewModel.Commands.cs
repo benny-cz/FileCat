@@ -395,6 +395,15 @@ public sealed partial class MainViewModel
         if (tab is null) return;
         if (tab.Listing.State == ListingState.Failed)
         {
+            // A share that needs credentials: Enter opens the Windows sign-in prompt, then retries (NET-004).
+            var loc = tab.Location;
+            bool unc = loc is not null && (loc.Scheme == Schemes.Network || loc.IsFileSystem && PathUtil.IsUncPath(loc.Path));
+            if (unc && tab.Listing.Error is { } err && (err.Contains("credentials", StringComparison.OrdinalIgnoreCase) || err.Contains("denied", StringComparison.OrdinalIgnoreCase)))
+            {
+                var target = loc!.Scheme == Schemes.Network ? loc.Path : ShareRoot(loc.Path);
+                _ = SignInThenRefreshAsync(tab, target);
+                return;
+            }
             tab.Refresh();
             return;
         }
@@ -416,6 +425,17 @@ public sealed partial class MainViewModel
         {
             Notify($"Could not open \"{e.Name}\": {ex.Message}", true);
         }
+    }
+
+    private static string ShareRoot(string unc)
+    {
+        var parts = unc.TrimStart('\\').Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? $@"\\{parts[0]}\{parts[1]}" : unc;
+    }
+
+    private async Task SignInThenRefreshAsync(TabViewModel tab, string remote)
+    {
+        if (await SignInToServerAsync(remote)) tab.Refresh();
     }
 
     private void SwapWithTarget()
