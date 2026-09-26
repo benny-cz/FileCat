@@ -23,6 +23,37 @@ public partial class PanelView : UserControl
         };
         PathBox.LostFocus += (_, _) => RevertPath();
         PathBox.AddHandler(KeyDownEvent, OnPathKeyDown, RoutingStrategies.Tunnel);
+        DataContextChanged += (_, _) => HookQuickView();
+    }
+
+    private PanelViewModel? _hookedPanel;
+    private PanelViewModel? _hookedSource;
+
+    /// <summary>Keeps the quick-view pane attached to the source panel's current tab.</summary>
+    private void HookQuickView()
+    {
+        if (_hookedPanel is not null) _hookedPanel.PropertyChanged -= OnPanelPropertyChanged;
+        _hookedPanel = Panel;
+        if (_hookedPanel is not null) _hookedPanel.PropertyChanged += OnPanelPropertyChanged;
+        AttachQuickView();
+    }
+
+    private void OnPanelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PanelViewModel.QuickViewSource)) AttachQuickView();
+    }
+
+    private void OnSourcePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PanelViewModel.ActiveTab)) QuickView.Attach(_hookedSource?.ActiveTab);
+    }
+
+    private void AttachQuickView()
+    {
+        if (_hookedSource is not null) _hookedSource.PropertyChanged -= OnSourcePropertyChanged;
+        _hookedSource = Panel?.QuickViewSource;
+        if (_hookedSource is not null) _hookedSource.PropertyChanged += OnSourcePropertyChanged;
+        QuickView.Attach(_hookedSource?.ActiveTab);
     }
 
     public event Action? Activated;

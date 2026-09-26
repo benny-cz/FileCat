@@ -276,6 +276,10 @@ public sealed class JobManager
                 title = $"Create file \"{r.NewName}\"";
                 writes.Add(D(r.NewName ?? ""));
                 break;
+            case JobKind.Attributes:
+                title = $"Change attributes of {What()}";
+                writes.AddRange(r.Sources.Select(P));
+                break;
             case JobKind.Rename:
                 title = $"Rename \"{r.Sources[0].Name}\" to \"{r.NewName}\"";
                 writes.Add(P(r.Sources[0]));

@@ -18,6 +18,7 @@ public enum JobKind
     Extract,
     Restore,
     Checksum,
+    Attributes,
 }
 
 /// <summary>Job lifecycle (plan §9.1). Canceled and Interrupted are never merged (PI-07).</summary>
@@ -119,6 +120,8 @@ public sealed class JobRequest
     /// <summary>Relative folders for result-set items (keep-relative-paths copies).</summary>
     public IReadOnlyDictionary<ItemRef, string>? RelativeFolders { get; init; }
     public string? Description { get; init; }
+    /// <summary>For <see cref="JobKind.Attributes"/>.</summary>
+    public AttributeChangeSet? Attributes { get; init; }
 }
 
 public enum IssueSeverity
@@ -214,3 +217,6 @@ public static class RecycleText
         _ => "the Recycle Bin cannot take it.",
     };
 }
+
+/// <summary>Attribute and time changes (plan §23.3: basic metadata editing in P3).</summary>
+public sealed record AttributeChangeSet(FileAttributes Set, FileAttributes Clear, DateTime? ModifiedUtc, DateTime? CreatedUtc, bool Recursive);

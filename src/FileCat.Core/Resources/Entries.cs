@@ -109,6 +109,9 @@ public sealed class ItemRef : IEquatable<ItemRef>
     public long Size { get; }
     public long Modified { get; }
 
+    /// <summary>Distinguishes items that share a name in one container (duplicate archive entries).</summary>
+    public int Ordinal { get; init; }
+
     public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Drive or EntryKind.Share or EntryKind.RegistryKey;
 
     /// <summary>Full file-system path when the parent is a file-system location, otherwise null.</summary>
@@ -123,12 +126,12 @@ public sealed class ItemRef : IEquatable<ItemRef>
         return new ItemRef(Location.FileSystem(parent), System.IO.Path.GetFileName(trimmed), kind);
     }
 
-    public bool Equals(ItemRef? other) => other is not null &&
+    public bool Equals(ItemRef? other) => other is not null && Ordinal == other.Ordinal &&
         string.Equals(Name, other.Name, StringComparison.Ordinal) && Parent.Equals(other.Parent);
 
     public override bool Equals(object? obj) => Equals(obj as ItemRef);
 
-    public override int GetHashCode() => HashCode.Combine(Parent, Name);
+    public override int GetHashCode() => HashCode.Combine(Parent, Name, Ordinal);
 
     public override string ToString() => $"{Parent} :: {Name}";
 }

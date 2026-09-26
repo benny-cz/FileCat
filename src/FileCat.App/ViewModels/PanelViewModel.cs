@@ -29,6 +29,8 @@ public sealed partial class PanelViewModel : ObservableObject
     [ObservableProperty] private string? _targetPanelId;
     [ObservableProperty] private string _roleLabel = string.Empty;
     [ObservableProperty] private double _size = 1;
+    /// <summary>When set, this panel shows a quick view of that panel's focused item (Ctrl+Q).</summary>
+    [ObservableProperty] private PanelViewModel? _quickViewSource;
 
     partial void OnActiveTabChanged(TabViewModel? oldValue, TabViewModel? newValue)
     {

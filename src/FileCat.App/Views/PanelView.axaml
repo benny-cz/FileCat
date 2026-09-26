@@ -71,6 +71,8 @@
       </Border>
 
       <Panel>
+        <ctl:QuickViewPane x:Name="QuickView" IsVisible="{Binding QuickViewSource, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           Background="{DynamicResource FcPanel}" ZIndex="1" />
         <ctl:FileListControl x:Name="List" Tab="{Binding ActiveTab}" IsActivePanel="{Binding IsActive}"
                              FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).ListFontSize, FallbackValue=13}"
                              AutomationProperties.Name="File list" />

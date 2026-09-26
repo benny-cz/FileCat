@@ -111,7 +111,7 @@ public sealed partial class MainViewModel
                 tab?.GoUp();
                 break;
             case CommandIds.Enter:
-                if (tab is not null && !tab.TryEnterFocused(out _)) Notify("The focused item cannot be entered.");
+                if (tab is not null && !tab.TryEnterFocused(out var entered) && !TryOpenAsArchive(tab, entered)) Notify("The focused item cannot be entered: it is neither a folder nor a ZIP-compatible archive.");
                 break;
             case CommandIds.Root:
                 tab?.GoRoot();
@@ -363,7 +363,7 @@ public sealed partial class MainViewModel
                 View.TopLevel?.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(View.TopLevel, null);
                 break;
             default:
-                if (!await ExecuteOperationCommandAsync(id) && !await ExecuteWorkspaceCommandAsync(id))
+                if (!await ExecuteToolCommandAsync(id) && !await ExecuteOperationCommandAsync(id) && !await ExecuteWorkspaceCommandAsync(id))
                     Notify($"\"{Services.Commands.Get(id)?.Title ?? id}\" is not available in this build yet.");
                 break;
         }

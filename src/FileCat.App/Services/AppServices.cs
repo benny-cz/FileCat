@@ -39,12 +39,17 @@ public sealed class AppServices : IDisposable
         Platform.RegisterProviders(Providers);
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
+        Zip = new Core.Archives.ZipProvider(paths.TempDirectory);
+        Providers.Register(Zip);
+        if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = Zip;
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
         Metadata = new Core.Metadata.MetadataService(Io);
     }
 
     public Core.Metadata.MetadataService Metadata { get; }
+
+    public Core.Archives.ZipProvider Zip { get; private set; } = null!;
 
     public Core.Jobs.JobManager Jobs { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }

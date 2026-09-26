@@ -51,7 +51,6 @@ public sealed partial class MainViewModel
             case CommandIds.Edit: EditFocused(); return true;
             case CommandIds.View: ViewFocused(hex: false); return true;
             case CommandIds.ViewAlternate: ViewFocused(hex: true); return true;
-            case CommandIds.QuickView: ViewFocused(hex: false); return true;
             case CommandIds.Undo: await UndoLastAsync(); return true;
             case CommandIds.Operations: Operations.IsOpen = !Operations.IsOpen; return true;
             case CommandIds.CopyToClipboard: await PutFilesOnClipboardAsync(cut: false); return true;

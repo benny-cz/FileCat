@@ -29,6 +29,8 @@ public static class JobExecutors
                 return new RecycleExecutor(job, fs, journal);
             case JobKind.CreateDirectory or JobKind.CreateFile when r.Destination is { IsFileSystem: true }:
                 return new CreateExecutor(job, fs, journal);
+            case JobKind.Attributes when fsSources:
+                return new AttributesExecutor(job, fs, journal);
             case JobKind.Rename when fsSources:
                 return new RenameExecutor(job, fs, journal);
             default:
@@ -1087,5 +1089,55 @@ public static class UndoService
             }
         }
         return report;
+    }
+}
+
+/// <summary>Sets attributes and times; recursive changes never follow links.</summary>
+internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
+{
+    private const FileAttributes Editable = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive;
+
+    public override void Execute()
+    {
+        var change = Job.Request.Attributes ?? throw new InvalidOperationException("No attribute change.");
+        foreach (var root in Job.Request.Sources)
+        {
+            Job.Checkpoint();
+            var path = root.FileSystemPath!;
+            bool ok = Apply(path, change);
+            if (ok && change.Recursive && Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
+            {
+                foreach (var child in Directory.EnumerateFileSystemEntries(path, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true }))
+                {
+                    Job.Checkpoint();
+                    ok &= Apply(child, change);
+                }
+            }
+            if (ok) Job.RootCompleted(root);
+            else Job.RootFailed(root);
+        }
+    }
+
+    private bool Apply(string path, AttributeChangeSet change)
+    {
+        Job.SetCurrent(path);
+        Job.AddTotals(1, 0);
+        bool ok = TryIo(path, "change attributes", () =>
+        {
+            var info = Fs.TryGetInfo(path) ?? throw new FileNotFoundException("The item no longer exists.", path);
+            var current = info.Attributes;
+            var wanted = (current & ~change.Clear & Editable | change.Set & Editable) | current & ~Editable;
+            // Times first: a read-only file refuses time changes on some file systems.
+            if (change.ModifiedUtc is not null || change.CreatedUtc is not null)
+            {
+                if ((current & FileAttributes.ReadOnly) != 0) Fs.SetAttributes(path, current & ~FileAttributes.ReadOnly);
+                Fs.SetTimes(path, change.CreatedUtc, change.ModifiedUtc);
+            }
+            if (wanted != current || (current & FileAttributes.ReadOnly) != 0 && (change.ModifiedUtc is not null || change.CreatedUtc is not null))
+                Fs.SetAttributes(path, wanted == 0 ? FileAttributes.Normal : wanted);
+        });
+        if (ok) Job.ItemDone();
+        else Job.ItemFailed();
+        return ok;
     }
 }
