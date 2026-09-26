@@ -12,7 +12,11 @@ public sealed class WindowsPlatform : PortablePlatform
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         Shell = new WindowsShellServices();
         FileOperations = new WindowsFileOperations();
+        Core.Jobs.Junctions.CreateHandler = Junction.Create;
     }
+
+    /// <summary>Owner window for Shell warnings (e.g. the permanent-deletion warning during recycle).</summary>
+    public static void SetOwnerWindow(nint hwnd) => WindowsFileOperations.OwnerWindow = hwnd;
 
     public override string Name => $"Windows {Environment.OSVersion.Version}";
 
