@@ -5,6 +5,8 @@
     <AssemblyName>FileCat</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>Assets/filecat.ico</ApplicationIcon>
+    <Description>FileCat — keyboard-first dual-panel file manager</Description>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>

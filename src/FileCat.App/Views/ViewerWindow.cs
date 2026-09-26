@@ -56,6 +56,7 @@ public sealed class ViewerWindow : Window
         MinWidth = 480;
         MinHeight = 300;
         TextDecoding.EnsureCodePages();
+        try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
 
         foreach (var (name, _) in TextDecoding.Choices) _encodingBox.Items.Add(name);
         _wrap.IsChecked = services.Settings.ViewerWrap;

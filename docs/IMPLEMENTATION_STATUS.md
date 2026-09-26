@@ -35,10 +35,18 @@ Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs
 |---|---|
 | P1 walking slice | **Done**: browse, marks, quick search, F3 viewer, F4/Shift+F4 editor (TV-17 rules), F5/F6 Start/Queue, conflicts, F7, F8 recycle with preflight, Shift+F8, rename, undo, journal + interrupted-job review, drag & drop, clipboard |
 | P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: listing spill tier (AI-10) |
-| P3 v1 | **In progress**: done — SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9). **Next**: Alt+F7 search + result sets + flat view, Ctrl+F10 compare-and-mark, read-only ZIP, quick view pane, attributes dialog, packaging (portable ZIP, installer script, CI, notices) |
+| P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README |
 | P4–P10 | Pending |
 
-## Known gaps / TODO
+## Resume here (next slices, in order)
 
-- No app icon; no CI workflow yet; App.Tests project empty.
-- Inline rename uses a prompt dialog (not in-row editing).
+1. P2 leftover: listing spill tier for huge folders (AI-10) — memory-budgeted `EntryStore` with a private temp-file tier.
+2. P3 polish: in-row rename editor, keyboard-reference/help page, TV-10 accessibility pass, App.Tests (headless) smoke tests.
+3. P4a Registry provider (typed values, views, F4 editors, export/import, search) + per-plan elevation broker (`FileCat.PrivilegedHost`).
+4. P4b fixed-length hex editing (patch overlay, undo, save strategies).
+5. P5 ZIP create/update + edit sessions; P6 SFTP; P7 diff/sync/inspectors; post-v1 slices (bulk rename, links, manifests); P8–P10.
+
+## Known gaps
+
+- Code signing needs a SignPath Foundation project (manual; CI has the placeholder step).
+- Inline rename uses a prompt dialog; App.Tests project has no tests yet.

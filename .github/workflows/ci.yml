@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  AVALONIA_TELEMETRY_OPTOUT: 1
+
+jobs:
+  windows:
+    name: Windows (build, all tests)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet build FileCat.slnx -c Release
+      - run: dotnet test FileCat.slnx -c Release --no-build --logger "trx;LogFileName=results.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows
+          path: "**/TestResults/*.trx"
+
+  portable:
+    name: ${{ matrix.os }} (build, portable tests)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet build FileCat.slnx -c Release
+      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build
+
+  package:
+    name: Package (tags only)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, portable]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish portable, framework-dependent, and installer payload
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          ./eng/publish.ps1 -Version $v
+      - name: Build installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $v = "${{ github.ref_name }}".TrimStart('v').Split('-')[0]
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" eng/installer/FileCat.iss
+      # Code signing (ADR-15): SignPath Foundation signs the artifacts built here from tagged source.
+      # Configure the SignPath project and its GitHub integration, then add the signing step here.
+      # Until then releases are published as clearly labeled, unsigned previews.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filecat-release
+          path: artifacts/*.*
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          name: FileCat ${{ github.ref_name }} (unsigned preview)
+          files: artifacts/*.*

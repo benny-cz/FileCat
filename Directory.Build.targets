@@ -1,0 +1,8 @@
+<Project>
+  <!--
+    FileCat builds make no network calls. Avalonia.BuildServices (MIT, build-time only) runs an
+    "AvaloniaStats" task before compilation that reports usage statistics; this empty target
+    replaces it. Nothing from that package is shipped in FileCat.
+  -->
+  <Target Name="AvaloniaStats" />
+</Project>

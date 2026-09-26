@@ -6,7 +6,8 @@
         x:DataType="vm:MainViewModel"
         Title="FileCat"
         Width="1280" Height="800" MinWidth="640" MinHeight="420"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/filecat.ico">
   <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
     <Menu x:Name="MainMenu" Grid.Row="0" />
 
