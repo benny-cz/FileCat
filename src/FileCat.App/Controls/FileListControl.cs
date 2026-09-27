@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -67,6 +68,15 @@ public sealed class FileListControl : Control
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
 
+    private readonly TextBox _renameEditor;
+    private readonly Border _renameErrorBox;
+    private readonly TextBlock _renameErrorText;
+    private TaskCompletionSource<string?>? _renameCompletion;
+    private PromptOptions? _renameOptions;
+    private int _renameStoreIndex = -1;
+
+    public bool IsRenaming => _renameCompletion is not null;
+
     // Brushes resolved from theme tokens.
     private IBrush _bg = Brushes.White, _bgInactive = Brushes.White, _header = Brushes.LightGray, _text = Brushes.Black;
     private IBrush _muted = Brushes.Gray, _dim = Brushes.Gray, _dir = Brushes.Black, _archive = Brushes.Brown, _exec = Brushes.Green, _link = Brushes.Blue;
@@ -89,12 +99,37 @@ public sealed class FileListControl : Control
                 if (top != _topRow)
                 {
                     _topRow = top;
+                    if (IsRenaming) InvalidateArrange();
                     InvalidateVisual();
                 }
             }
         };
         VisualChildren.Add(_vbar);
         LogicalChildren.Add(_vbar);
+        _renameEditor = new TextBox
+        {
+            IsVisible = false,
+            AcceptsReturn = false,
+            Padding = new Thickness(3, 0),
+            MinWidth = 80,
+        };
+        AutomationProperties.SetName(_renameEditor, "Rename selected item");
+        _renameEditor.KeyDown += OnRenameKeyDown;
+        _renameEditor.LostFocus += (_, _) => FinishRename(null, restoreFocus: false);
+        _renameEditor.TextChanged += (_, _) => ClearRenameError();
+        VisualChildren.Add(_renameEditor);
+        LogicalChildren.Add(_renameEditor);
+        _renameErrorText = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        _renameErrorBox = new Border
+        {
+            Child = _renameErrorText,
+            IsVisible = false,
+            Padding = new Thickness(5, 2),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+        };
+        VisualChildren.Add(_renameErrorBox);
+        LogicalChildren.Add(_renameErrorBox);
         ThemeManager.ThemeChanged += OnThemeChanged;
         _metadataHandler = () => Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
         UpdateTypefaces();
@@ -139,11 +174,123 @@ public sealed class FileListControl : Control
 
     public event EventHandler<int>? MiddleClickRequested;
 
+    /// <summary>Edits the focused name in its row. Null means the user canceled or the row vanished.</summary>
+    public Task<string?>? BeginRename(PromptOptions options)
+    {
+        if (_listing is null || !_listing.TryGetFocused(out var entry) || entry.Kind == EntryKind.Parent)
+            return null;
+        FinishRename(null, restoreFocus: false);
+        EnsureFocusVisible();
+        _renameOptions = options;
+        _renameStoreIndex = _listing.FocusedStoreIndex;
+        _renameEditor.Text = options.Text;
+        _renameCompletion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _renameEditor.IsVisible = true;
+        ClearRenameError();
+        InvalidateMeasure();
+        InvalidateArrange();
+        _renameEditor.Focus();
+        SelectRenameText(options);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsRenaming) return;
+            _renameEditor.Focus();
+            SelectRenameText(options);
+        }, DispatcherPriority.Input);
+        return _renameCompletion.Task;
+    }
+
+    private void SelectRenameText(PromptOptions options)
+    {
+        var name = _renameEditor.Text ?? string.Empty;
+        if (options.SelectStem)
+        {
+            int dot = name.LastIndexOf('.');
+            _renameEditor.SelectionStart = 0;
+            _renameEditor.SelectionEnd = dot > 0 ? dot : name.Length;
+        }
+        else _renameEditor.SelectAll();
+    }
+
+    private void OnRenameKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            FinishRename(null);
+        }
+        else if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            var name = _renameEditor.Text ?? string.Empty;
+            var error = _renameOptions?.Validate?.Invoke(name);
+            if (error is not null) ShowRenameError(error);
+            else FinishRename(name);
+        }
+    }
+
+    private void ShowRenameError(string error)
+    {
+        _renameErrorText.Text = error;
+        _renameErrorText.Foreground = _error;
+        _renameErrorBox.BorderBrush = _error;
+        _renameErrorBox.Background = _bg;
+        _renameEditor.BorderBrush = _error;
+        ToolTip.SetTip(_renameEditor, error);
+        _renameErrorBox.IsVisible = true;
+        InvalidateMeasure();
+        InvalidateArrange();
+    }
+
+    private void ClearRenameError()
+    {
+        if (_renameErrorBox is null) return;
+        _renameErrorBox.IsVisible = false;
+        _renameEditor.BorderBrush = null;
+        ToolTip.SetTip(_renameEditor, null);
+    }
+
+    private void FinishRename(string? name, bool restoreFocus = true)
+    {
+        var completion = _renameCompletion;
+        if (completion is null) return;
+        _renameCompletion = null;
+        _renameOptions = null;
+        _renameStoreIndex = -1;
+        _renameEditor.IsVisible = false;
+        ClearRenameError();
+        InvalidateMeasure();
+        InvalidateArrange();
+        if (restoreFocus) Focus();
+        completion.TrySetResult(name);
+    }
+
+    private void ArrangeRename(Size finalSize, double scrollWidth)
+    {
+        if (!IsRenaming || _listing is null) return;
+        int row = _listing.GetVisibleIndex(_renameStoreIndex);
+        if (row < 0) { FinishRename(null, restoreFocus: false); return; }
+        int nameColumn = Array.FindIndex(_columns, c => c.Field == ColumnField.Name);
+        if (nameColumn < 0) nameColumn = 0;
+        double y = _headerHeight + (row - _topRow) * _rowHeight;
+        double x = _columnX[nameColumn] + MarkGutter + IconSize + 4;
+        double available = Math.Max(80, finalSize.Width - scrollWidth - x - Padding);
+        double width = Math.Min(available, Math.Max(140, _columnW[nameColumn] - (x - _columnX[nameColumn]) - Padding));
+        _renameEditor.Arrange(new Rect(x, y + 1, width, Math.Max(18, _rowHeight - 2)));
+        if (_renameErrorBox.IsVisible)
+        {
+            double errorY = y + _rowHeight + 2;
+            if (errorY + 40 > finalSize.Height) errorY = Math.Max(_headerHeight, y - 42);
+            _renameErrorBox.Arrange(new Rect(x, errorY, Math.Min(Math.Max(240, width), available), 40));
+        }
+    }
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == TabProperty)
         {
+            FinishRename(null, restoreFocus: false);
             if (change.OldValue is TabViewModel oldTab)
             {
                 oldTab.Listing.Changed -= OnListingChanged;
@@ -212,6 +359,7 @@ public sealed class FileListControl : Control
     {
         base.OnDetachedFromVisualTree(e);
         _loadingHintTimer?.Stop();
+        FinishRename(null, restoreFocus: false);
     }
 
     private void UpdateTypefaces()
@@ -256,6 +404,12 @@ public sealed class FileListControl : Control
     private void OnListingChanged(object? sender, ListingChange change)
     {
         if (!ReferenceEquals(sender, _listing)) return;
+        if (IsRenaming)
+        {
+            if ((change & ListingChange.Reset) != 0 || _listing!.GetVisibleIndex(_renameStoreIndex) < 0)
+                FinishRename(null, restoreFocus: false);
+            else InvalidateArrange();
+        }
         if ((change & ListingChange.Reset) != 0)
         {
             _textCache.Clear();
@@ -324,6 +478,8 @@ public sealed class FileListControl : Control
     protected override Size MeasureOverride(Size availableSize)
     {
         _vbar.Measure(availableSize);
+        if (IsRenaming) _renameEditor.Measure(availableSize);
+        if (_renameErrorBox.IsVisible) _renameErrorBox.Measure(availableSize);
         double w = double.IsInfinity(availableSize.Width) ? 400 : availableSize.Width;
         double h = double.IsInfinity(availableSize.Height) ? 300 : availableSize.Height;
         return new Size(w, h);
@@ -336,6 +492,7 @@ public sealed class FileListControl : Control
         LayoutColumns(finalSize.Width - (_vbar.IsVisible ? sbw : 0));
         ClampTop();
         UpdateScrollBar();
+        ArrangeRename(finalSize, _vbar.IsVisible ? sbw : 0);
         return finalSize;
     }
 
@@ -568,7 +725,7 @@ public sealed class FileListControl : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || _listing is null) return;
+        if (e.Handled || _listing is null || IsRenaming) return;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         bool other = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta)) != 0;
         if (other) return;
@@ -762,6 +919,7 @@ public sealed class FileListControl : Control
         _topRow -= (int)Math.Round(e.Delta.Y * 3);
         ClampTop();
         UpdateScrollBar();
+        if (IsRenaming) InvalidateArrange();
         InvalidateVisual();
         e.Handled = true;
     }

@@ -72,6 +72,9 @@ public sealed class AppServices : IDisposable
 
     public bool SettingsReadOnly => SettingsStatus == StateLoadStatus.NewerSchemaReadOnly;
 
+    /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
+    public static AppServices CreateForPaths(AppPaths paths) => new(paths);
+
     public static AppServices Initialize(string? profile)
     {
         Current = new AppServices(AppPaths.Resolve(profile));

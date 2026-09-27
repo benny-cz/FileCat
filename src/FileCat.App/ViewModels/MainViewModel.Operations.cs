@@ -278,17 +278,17 @@ public sealed partial class MainViewModel
         }
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         var dir = Path.GetDirectoryName(item.FileSystemPath!)!;
-        var r = await Dialogs.PromptAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(f.Name)}\":")
+        var newName = await View.RenameInlineAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(f.Name)}\":")
         {
             Text = f.Name,
             SelectStem = !f.IsContainer,
             Validate = n => ValidateSiblingName(dir, n, f.Name),
             ConfirmText = "Rename",
         });
-        if (r is null) return;
-        var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.Rename, Sources = [item], NewName = r.Text });
+        if (newName is null) return;
+        var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.Rename, Sources = [item], NewName = newName });
         Track(job, tab);
-        _focusAfter[job] = r.Text;
+        _focusAfter[job] = newName;
     }
 
     private async Task MakeDirectoryAsync()

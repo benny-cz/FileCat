@@ -22,6 +22,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private int _columnProfile;
     private long _freeBytes = -1;
     private string? _freeBytesDevice;
+    private bool _disposed;
 
     public TabViewModel(AppServices services, PanelViewModel panel)
     {
@@ -398,6 +399,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             if (t.IsCompletedSuccessfully)
                 Services.Ui.Post(() =>
                 {
+                    if (_disposed || Location != loc || _freeBytesDevice != device) return;
                     _freeBytes = t.Result;
                     UpdateStatus();
                 });
@@ -594,6 +596,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         StopWatching();
         Listing.Changed -= OnListingChanged;
         Listing.Dispose();

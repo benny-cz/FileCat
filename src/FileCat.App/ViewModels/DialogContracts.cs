@@ -58,6 +58,7 @@ public interface IDialogService
 public interface IViewActions
 {
     void FocusActivePanel();
+    Task<string?> RenameInlineAsync(PromptOptions options);
     void FocusPathBox();
     void FocusCommandLine();
     void OpenMenuBar();

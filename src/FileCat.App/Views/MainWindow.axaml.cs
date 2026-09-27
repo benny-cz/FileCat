@@ -350,7 +350,7 @@ public partial class MainWindow : Window, IViewActions
             _vm.UpdateKeyBar(KeyMapper.ToMods(e.KeyModifiers));
             return;
         }
-        if (_dialogs.IsOpen) return;
+        if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;
         if (KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
 
         var focused = FocusManager?.GetFocusedElement();
@@ -503,6 +503,13 @@ public partial class MainWindow : Window, IViewActions
     {
         var v = ActivePanelView();
         v?.List.Focus(NavigationMethod.Tab);
+    }
+
+    public async Task<string?> RenameInlineAsync(PromptOptions options)
+    {
+        var inline = ActivePanelView()?.List.BeginRename(options);
+        if (inline is not null) return await inline;
+        return (await _dialogs.PromptAsync(options))?.Text;
     }
 
     public void FocusPathBox() => ActivePanelView()?.FocusPathBox();
