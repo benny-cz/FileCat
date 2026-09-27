@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia;
 using FileCat.App.Views;
+using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Platform.Windows;
 
@@ -8,6 +10,200 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    private static string? RegistryNameError(string name, bool key) =>
+        name.Contains('\0') || name.Length > 16383 || key && (name.Length == 0 || name.Contains('\\'))
+            ? "Enter a valid Registry name (keys cannot contain \\)." : null;
+
+    private RegistryValueSnapshot ReadRegistrySnapshot(ItemRef item)
+    {
+        using var key = WindowsRegistryProvider.Open(item.Parent, false);
+        var raw = RegistryRaw.Read(key, item.Name);
+        if (raw.Data.Length != raw.Length) throw new IOException("This value exceeds the 64 MiB edit limit.");
+        return new RegistryValueSnapshot(raw.Type, raw.Data);
+    }
+
+    private void SubmitRegistry(RegistryChange change, string title, ItemRef? source = null, string? focus = null)
+    {
+        var tab = ActiveTab;
+        if (tab is null) return;
+        var job = Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Registry,
+            Registry = change,
+            Sources = source is null ? [] : [source],
+            Destination = change.TargetKey ?? change.Key,
+            Description = title,
+        });
+        Track(job, tab);
+        if (focus is not null) _focusAfter[job] = focus;
+    }
+
+    private async Task CreateRegistryAsync()
+    {
+        var loc = ActiveTab?.Location;
+        if (loc is null || (Services.Providers.For(loc).GetCapabilities(loc) & LocationCapabilities.CreateDirectory) == 0)
+        {
+            Notify("Select a writable Registry key. HKCR and HKCC are merged or alias views; choose an explicit HKCU or HKLM target.", true);
+            return;
+        }
+        var choice = await Dialogs.ChooseAsync(new ChoiceOptions("Create in Registry", [
+            new ChoiceItem("Key", "A navigable subkey"), new ChoiceItem("Value", "A typed value; an empty name means (Default)"),
+        ]) { Hint = "F7 creates a key or value in this location" });
+        if (choice.Index < 0) return;
+        bool key = choice.Index == 0;
+        var named = await Dialogs.PromptAsync(new PromptOptions(key ? "Create key" : "Create value", key ? "New key name:" : "Value name (empty for the default value):")
+        {
+            Validate = n => RegistryNameError(n, key),
+            ConfirmText = "Next",
+        });
+        if (named is null) return;
+        if (key)
+        {
+            SubmitRegistry(new RegistryChange(RegistryAction.CreateKey, loc, named.Text), $"Create Registry key {named.Text}", focus: named.Text);
+            return;
+        }
+        using (var opened = WindowsRegistryProvider.Open(loc, false))
+            if (RegistryRaw.ReadIfPresent(opened, named.Text, RegistryRaw.PreviewLimit) is not null)
+            {
+                Notify("That value already exists. Select it and use F4 to edit it.", true);
+                return;
+            }
+        var desired = await EditRegistryDialogAsync(named.Text, null);
+        if (desired is null) return;
+        SubmitRegistry(new RegistryChange(RegistryAction.SetValue, loc, named.Text, Desired: desired),
+            $"Create Registry value {(named.Text.Length == 0 ? "(Default)" : named.Text)}", focus: named.Text);
+    }
+
+    private async Task EditRegistryValueAsync(ItemRef item)
+    {
+        try
+        {
+            var original = await Task.Run(() => ReadRegistrySnapshot(item));
+            var desired = await EditRegistryDialogAsync(item.Name, original);
+            if (desired is null || desired.Type == original.Type && desired.Data.AsSpan().SequenceEqual(original.Data)) return;
+            if (!await Dialogs.ConfirmAsync("Save Registry value",
+                $"Write {(item.Name.Length == 0 ? "(Default)" : item.Name)} in {Services.Providers.Display(item.Parent)}?\n\n" +
+                $"{RegistryValueCodec.TypeName(original.Type)} → {RegistryValueCodec.TypeName(desired.Type)}; {original.Data.Length:N0} → {desired.Data.Length:N0} bytes. " +
+                "FileCat rereads the original before writing and verifies the result. Another program can still race this best-effort check.", "Save value")) return;
+            SubmitRegistry(new RegistryChange(RegistryAction.SetValue, item.Parent, item.Name, original, desired),
+                $"Edit Registry value {(item.Name.Length == 0 ? "(Default)" : item.Name)}", item);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Notify($"Cannot edit Registry value: {ex.Message}", true);
+        }
+    }
+
+    private async Task<RegistryValueSnapshot?> EditRegistryDialogAsync(string name, RegistryValueSnapshot? original)
+    {
+        var current = original is null ? null : new RegistryValueData(original.Type, original.Data, original.Data.Length);
+        bool rawOnly = false;
+        string initial = current is null ? "" : RegistryValueCodec.Format(current, out rawOnly);
+        var types = RegistryValueCodec.EditableTypes.Concat(current is null ? [] : [current.Type]).Distinct().ToArray();
+        var names = types.Select(RegistryValueCodec.TypeName).ToArray();
+        var type = new ComboBox { ItemsSource = names, SelectedIndex = current is null ? 0 : Array.IndexOf(types, current.Type), MinWidth = 180 };
+        Avalonia.Automation.AutomationProperties.SetName(type, "Registry value type");
+        var input = new TextBox { Text = initial, MinWidth = 500, MinHeight = 80, MaxHeight = 280,
+            AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Stored data" };
+        Avalonia.Automation.AutomationProperties.SetName(input, "Registry value data");
+        var reinterpret = new CheckBox { Content = "Reinterpret original bytes as the selected type", IsVisible = original is not null };
+        var preview = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 650, Classes = { "muted" } };
+        var issue = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" } };
+        var body = new StackPanel { Spacing = 8 };
+        body.Children.Add(new TextBlock { Text = $"{(name.Length == 0 ? "(Default)" : name)} · choose a type and edit its stored data. Changes are not applied until you confirm.", TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(type);
+        body.Children.Add(input);
+        body.Children.Add(reinterpret);
+        body.Children.Add(preview);
+        body.Children.Add(issue);
+        RegistryValueSnapshot? parsed = null;
+        void Refresh()
+        {
+            uint selected = types[Math.Max(0, type.SelectedIndex)];
+            bool retype = original is not null && selected != original.Type && reinterpret.IsChecked == true;
+            reinterpret.IsVisible = original is not null && selected != original.Type;
+            bool hex = selected == 3 || !RegistryValueCodec.EditableTypes.Contains(selected) || rawOnly && original?.Type == selected;
+            input.PlaceholderText = hex ? "Hex bytes, e.g. 00 FF 2A" : selected is 4 or 11 ? "Unsigned decimal or 0x hexadecimal" : selected == 7 ? "One string per line" : "Stored text (not expanded)";
+            if (retype) parsed = new RegistryValueSnapshot(selected, original!.Data);
+            else if (RegistryValueCodec.TryParse(selected, input.Text ?? "", hex, out var bytes, out var error)) parsed = new RegistryValueSnapshot(selected, bytes);
+            else { parsed = null; issue.Text = error; preview.Text = ""; return; }
+            issue.Text = "";
+            preview.Text = $"Preview: {RegistryValueCodec.TypeName(selected)} · {parsed.Data.Length:N0} bytes · {RegistryRaw.Preview(new RegistryValueData(selected, parsed.Data, parsed.Data.Length))}";
+        }
+        type.SelectionChanged += (_, _) => Refresh();
+        input.TextChanged += (_, _) => Refresh();
+        reinterpret.IsCheckedChanged += (_, _) => Refresh();
+        Refresh();
+        var result = await Dialogs.ShowCustomAsync(original is null ? "Create Registry value" : "Edit Registry value", body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Save", "save", IsDefault: true)], input,
+            () => parsed is not null);
+        return result as string == "save" ? parsed : null;
+    }
+
+    private async Task DeleteRegistryAsync()
+    {
+        var tab = ActiveTab;
+        if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (item.Kind != EntryKind.RegistryValue) { Notify("Key deletion needs a subtree review and is not available yet.", true); return; }
+        var original = await Task.Run(() => ReadRegistrySnapshot(item));
+        if (!await Dialogs.ConfirmAsync("Delete Registry value permanently",
+            $"Delete {(item.Name.Length == 0 ? "(Default)" : item.Name)} from {Services.Providers.Display(item.Parent)}?\n\n" +
+            $"{RegistryValueCodec.TypeName(original.Type)}, {original.Data.Length:N0} bytes. Registry values do not go to the Recycle Bin.",
+            "Delete value", danger: true)) return;
+        SubmitRegistry(new RegistryChange(RegistryAction.DeleteValue, item.Parent, item.Name, original),
+            $"Delete Registry value {(item.Name.Length == 0 ? "(Default)" : item.Name)}", item);
+    }
+
+    private async Task RenameRegistryAsync()
+    {
+        var tab = ActiveTab;
+        if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        var named = await Dialogs.PromptAsync(new PromptOptions("Rename Registry item", "New name in this key:")
+        {
+            Text = item.Name,
+            Validate = n => RegistryNameError(n, item.Kind == EntryKind.RegistryKey) ?? (n == item.Name ? "The name is unchanged." : null),
+            ConfirmText = "Rename",
+        });
+        if (named is null) return;
+        if (item.Kind == EntryKind.RegistryKey)
+            SubmitRegistry(new RegistryChange(RegistryAction.RenameKey, item.Parent, item.Name, TargetName: named.Text),
+                $"Rename Registry key {item.Name} to {named.Text}", item, named.Text);
+        else
+        {
+            var original = await Task.Run(() => ReadRegistrySnapshot(item));
+            if (!await Dialogs.ConfirmAsync("Rename Registry value",
+                "Value rename creates the new name and then deletes the old one. If deletion fails, both values remain; the operation report identifies that outcome.", "Rename value")) return;
+            SubmitRegistry(new RegistryChange(RegistryAction.RenameValue, item.Parent, item.Name, original, TargetKey: item.Parent, TargetName: named.Text),
+                $"Rename Registry value {item.Name} to {named.Text}", item, named.Text);
+        }
+    }
+
+    private async Task CopyRegistryValueAsync()
+    {
+        var tab = ActiveTab;
+        if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (item.Kind != EntryKind.RegistryValue) { Notify("Key subtree copy needs a scope review and is not available yet.", true); return; }
+        var target = Workspace.ActiveTarget?.ActiveTab?.Location;
+        if (target?.Scheme != Schemes.Registry)
+        {
+            Notify("Choose a Registry key in the target panel. Export to a file is a separate named command.");
+            return;
+        }
+        var name = await Dialogs.PromptAsync(new PromptOptions("Copy Registry value", $"Destination: {Services.Providers.Display(target)}\nName:")
+        {
+            Text = item.Name, Validate = n => RegistryNameError(n, false), ConfirmText = "Copy",
+        });
+        if (name is null) return;
+        var original = await Task.Run(() => ReadRegistrySnapshot(item));
+        if (!await Dialogs.ConfirmAsync("Copy Registry value",
+            $"Copy {RegistryValueCodec.TypeName(original.Type)} ({original.Data.Length:N0} bytes) to {Services.Providers.Display(target)}\\{(name.Text.Length == 0 ? "(Default)" : name.Text)}? Existing values are never overwritten silently.", "Copy value")) return;
+        SubmitRegistry(new RegistryChange(RegistryAction.CopyValue, item.Parent, item.Name, original, TargetKey: target, TargetName: name.Text),
+            $"Copy Registry value {item.Name}", item);
+    }
+
     private void ViewRegistryValue(ItemRef item, bool raw) => _ = ViewRegistryValueAsync(item, raw);
 
     private async Task ViewRegistryValueAsync(ItemRef item, bool raw)

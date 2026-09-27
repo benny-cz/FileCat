@@ -34,7 +34,12 @@ public sealed class WindowsRegistryProvider : ResourceProvider
     public override string? GetNameInParent(Location location) =>
         location.Path.Length == 0 ? null : location.Path[(location.Path.LastIndexOf('\\') + 1)..];
 
-    public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+    public override LocationCapabilities GetCapabilities(Location location) => location.Path.Length == 0 ||
+        location.Path is "HKCR" or "HKCC" || location.Path.StartsWith("HKCR\\", StringComparison.Ordinal) ||
+        location.Path.StartsWith("HKCC\\", StringComparison.Ordinal)
+        ? LocationCapabilities.Enumerate
+        : LocationCapabilities.Enumerate | LocationCapabilities.CreateDirectory | LocationCapabilities.Delete |
+          LocationCapabilities.Rename | LocationCapabilities.TransferTarget;
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) =>
         "Registry data is typed; use its Registry commands rather than file operations.";
@@ -159,6 +164,7 @@ public static partial class RegistryRaw
         uint size = 0;
         int code = RegQueryValueEx(key.Handle, name, 0, out uint type, null, ref size);
         if (code != 0) throw new Win32Exception(code);
+        if (size > int.MaxValue) throw new IOException("This Registry value exceeds the supported size.");
         if (size > limit) return new RegistryValueData(type, [], checked((int)size));
         var bytes = new byte[size];
         for (int i = 0; i < 3; i++)
@@ -170,6 +176,27 @@ public static partial class RegistryRaw
             bytes = new byte[actual];
         }
         throw new Win32Exception(code == MoreData ? MoreData : code);
+    }
+
+    public static RegistryValueData? ReadIfPresent(RegistryKey key, string name, int limit = EditLimit)
+    {
+        uint size = 0;
+        int code = RegQueryValueEx(key.Handle, name, 0, out _, null, ref size);
+        if (code == 2) return null;
+        if (code != 0) throw new Win32Exception(code);
+        return Read(key, name, limit);
+    }
+
+    public static void Set(RegistryKey key, string name, uint type, byte[] data)
+    {
+        int code = RegSetValueEx(key.Handle, name, 0, type, data, checked((uint)data.Length));
+        if (code != 0) throw new Win32Exception(code);
+    }
+
+    public static void Delete(RegistryKey key, string name)
+    {
+        int code = RegDeleteValue(key.Handle, name);
+        if (code != 0) throw new Win32Exception(code);
     }
 
     public static string Preview(RegistryValueData value)
@@ -189,4 +216,10 @@ public static partial class RegistryRaw
 
     [LibraryImport("advapi32.dll", EntryPoint = "RegQueryValueExW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int RegQueryValueEx(SafeRegistryHandle key, string valueName, nint reserved, out uint type, byte[]? data, ref uint dataSize);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "RegSetValueExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RegSetValueEx(SafeRegistryHandle key, string valueName, nint reserved, uint type, byte[] data, uint dataSize);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "RegDeleteValueW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RegDeleteValue(SafeRegistryHandle key, string valueName);
 }

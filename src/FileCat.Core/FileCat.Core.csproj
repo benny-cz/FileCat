@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FileCat.Core.Tests" />
+    <InternalsVisibleTo Include="FileCat.Platform.Windows" />
   </ItemGroup>
 </Project>

@@ -202,7 +202,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return tcs.Task;
     }
 
-    public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null)
+    public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
+        Func<bool>? canConfirm = null)
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
@@ -217,7 +218,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
             if (b.IsDanger) btn.Classes.Add("danger");
             else if (b.IsDefault) btn.Classes.Add("primary");
-            btn.Click += (_, _) => Finish(b.Result);
+            btn.Click += (_, _) => { if (!b.IsDefault || canConfirm?.Invoke() != false) Finish(b.Result); };
             return btn;
         }).ToArray();
         var card = Card(title, content, ButtonRow(btns), 760);

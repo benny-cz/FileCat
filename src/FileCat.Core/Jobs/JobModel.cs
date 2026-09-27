@@ -19,7 +19,18 @@ public enum JobKind
     Restore,
     Checksum,
     Attributes,
+    Registry,
 }
+
+public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue }
+
+/// <summary>Exact type and bytes; null means the value must be absent. No expansion or decoding occurs in jobs.</summary>
+public sealed record RegistryValueSnapshot(uint Type, byte[] Data);
+
+/// <summary>One captured Registry mutation. Names are raw; an empty value name denotes the default value.</summary>
+public sealed record RegistryChange(
+    RegistryAction Action, Location Key, string Name, RegistryValueSnapshot? Expected = null,
+    RegistryValueSnapshot? Desired = null, Location? TargetKey = null, string? TargetName = null);
 
 /// <summary>Job lifecycle (plan §9.1). Canceled and Interrupted are never merged (PI-07).</summary>
 public enum JobState
@@ -120,6 +131,7 @@ public sealed class JobRequest
     public string? Description { get; init; }
     /// <summary>For <see cref="JobKind.Attributes"/>.</summary>
     public AttributeChangeSet? Attributes { get; init; }
+    public RegistryChange? Registry { get; init; }
 }
 
 public enum IssueSeverity

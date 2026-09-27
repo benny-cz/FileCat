@@ -473,6 +473,7 @@ public sealed partial class MainViewModel
         var path = item?.FileSystemPath ?? (e.Kind == EntryKind.Parent && tab.Location!.IsFileSystem ? tab.Location.Path : null);
         if (path is null)
         {
+            if (item is { Kind: EntryKind.RegistryValue }) { ViewFocused(hex: false); return; }
             _ = OpenNonFileSystemItemAsync(tab, item);
             return;
         }

@@ -44,15 +44,21 @@ public sealed partial class MainViewModel
     {
         switch (id)
         {
-            case CommandIds.Copy: await TransferAsync(JobKind.Copy); return true;
+            case CommandIds.Copy:
+                if (ActiveTab?.Location?.Scheme == Schemes.Registry) await CopyRegistryValueAsync();
+                else await TransferAsync(JobKind.Copy);
+                return true;
             case CommandIds.Move: await TransferAsync(JobKind.Move); return true;
             case CommandIds.Duplicate: await DuplicateAsync(); return true;
-            case CommandIds.Rename: await RenameAsync(); return true;
+            case CommandIds.Rename:
+                if (ActiveTab?.Location?.Scheme == Schemes.Registry) await RenameRegistryAsync();
+                else await RenameAsync();
+                return true;
             case CommandIds.MakeDirectory: await MakeDirectoryAsync(); return true;
             case CommandIds.Delete: await DeleteAsync(permanent: false); return true;
             case CommandIds.DeletePermanent: await DeleteAsync(permanent: true); return true;
             case CommandIds.EditNew: await EditNewAsync(); return true;
-            case CommandIds.Edit: EditFocused(); return true;
+            case CommandIds.Edit: await EditFocusedAsync(); return true;
             case CommandIds.View: ViewFocused(hex: false); return true;
             case CommandIds.ViewAlternate: ViewFocused(hex: true); return true;
             case CommandIds.Undo: await UndoLastAsync(); return true;
@@ -323,6 +329,7 @@ public sealed partial class MainViewModel
     private async Task MakeDirectoryAsync()
     {
         var tab = ActiveTab;
+        if (tab?.Location?.Scheme == Schemes.Registry) { await CreateRegistryAsync(); return; }
         if (tab?.Location is not { IsFileSystem: true } loc) return;
         var r = await Dialogs.PromptAsync(new PromptOptions("Create folder", "Folder name (use \\ for nested folders):")
         {
@@ -369,6 +376,7 @@ public sealed partial class MainViewModel
 
     private async Task DeleteAsync(bool permanent)
     {
+        if (ActiveTab?.Location?.Scheme == Schemes.Registry) { await DeleteRegistryAsync(); return; }
         var sel = SourceSelection();
         if (sel is null) return;
         var (tab, items, hidden, summary) = sel.Value;
@@ -699,11 +707,17 @@ public sealed partial class MainViewModel
         }
     }
 
-    private void EditFocused()
+    private async Task EditFocusedAsync()
     {
         var tab = ActiveTab;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (item.Parent.Scheme == Schemes.Registry)
+        {
+            if (item.Kind == EntryKind.RegistryValue) await EditRegistryValueAsync(item);
+            else Notify("F4 edits a selected value. Keys have no editable data property; use F7 to create a key or value.");
+            return;
+        }
         if (f.IsContainer)
         {
             Notify("F4 edits files. Folders have no content to edit.");

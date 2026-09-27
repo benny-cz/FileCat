@@ -58,7 +58,8 @@ public interface IDialogService
     Task<ChoiceResult> ChooseAsync(ChoiceOptions options);
     Task<string?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands);
     /// <summary>Hosts arbitrary content with buttons; returns the chosen button result or null on Esc.</summary>
-    Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null);
+    Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
+        Func<bool>? canConfirm = null);
     bool IsOpen { get; }
 }
 

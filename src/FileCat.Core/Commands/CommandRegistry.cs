@@ -202,7 +202,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Move, "Move / rename…", F, "Move", CommandContext.Panel, "F6");
         Add(CommandIds.Rename, "Rename in place", F, "Rename", CommandContext.Panel, "F2", "Shift+F6");
         Add(CommandIds.MakeDirectory, "Create folder…", F, "MkDir", CommandContext.Panel, "F7");
-        Add(CommandIds.Delete, "Delete (to Recycle Bin)…", F, "Delete", CommandContext.Panel, "F8", "Delete");
+        Add(CommandIds.Delete, "Delete…", F, "Delete", CommandContext.Panel, "F8", "Delete");
         Add(CommandIds.DeletePermanent, "Delete permanently…", F, "Delete!", CommandContext.Panel, "Shift+F8", "Shift+Delete");
         Add(CommandIds.Open, "Open", F, null, CommandContext.Panel, "Enter");
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");

@@ -37,7 +37,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P2 scalable workspace | **Done.** Tabs, multi-panel targets, bookmarks, workspaces, single instance, persistence, watchers, metadata columns, column profiles (Settings → Columns, persisted widths). TV-01 ran natively at 4 × 1M: complete in 2.9 s, re-sort 270 ms, held paging p95 16.9 ms, peak private 504 MiB. |
 | P3 v1 | **Done (engineering scope).** SMB, command line, viewer, search and result sets, compare-and-mark, read-only ZIP, quick view, associations, Alt+F8, themes, diagnostics, packaging. Also: truthful outcomes (fault-injection tests), stream and Mark-of-the-Web loss reporting, fuzzing, shutdown block, update check (notify only), automated TV-10 pass, ADR and validation records. |
 | P1–P3 review loop | **Done (2026-09-27).** A: durable moves (flush + write-through before a source is deleted), tiered journal with fill records, direct small-file copies (100k × 4 KiB within the ≤25% budget), PI-05 metadata question, EFS/sparse, mount-point volumes, safe exit. C: bulk reads for whole-listing commands on spilled listings (see TV-01). B: history pins/clear, target-panel bookmarks, `.lnk` folders, guarded Space sizing, partial Ctrl+A and Ctrl+Shift+A, viewer list and go-to-line, Alt+F10 folder scan, Find within results, saved filters (`@name`), lossless F9 editing, "Run again…" with a durable source manifest. D: job routes, bounded drag-out, re-armed folder watches. |
-| P4 | **In progress.** Local Registry navigation with explicit views, typed/raw read-only value inspection, and HKCU tests landed. Mutation, search, import/export, elevation broker, and hex editing remain. |
+| P4 | **In progress.** Registry navigation/views and raw inspection; typed value create/edit/copy/rename/delete and key create/rename through guarded jobs. Subtree actions, import/export, search, notifications, elevated retry, and hex editing remain. |
 | P5–P10 | Pending |
 
 ## Resume here (next slices, in order)
@@ -48,7 +48,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
    - Narrator, NVDA, and JAWS runs, plus users of the three references (TV-10).
    - Recycle quota, UNC, and removable fixtures (TV-03).
    - ReFS/Dev Drive cloning and SMB server-side copy on real servers.
-2. **P4a:** Finish Registry typed mutations/editors, search, import/export, notifications, and per-plan elevation broker (`FileCat.PrivilegedHost`).
+2. **P4a:** Finish Registry subtree actions, search, import/export, notifications, and per-plan elevation broker (`FileCat.PrivilegedHost`).
 3. **P4b:** fixed-length hex editing (patch overlay, undo, save strategies).
 4. **Later phases:** P5 ZIP create/update and edit sessions; P6 SFTP; P7 diff, sync, and inspectors; post-v1 slices (bulk rename, links, manifests); P8–P10.
 

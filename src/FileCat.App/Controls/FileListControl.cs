@@ -991,7 +991,8 @@ public sealed class FileListControl : Control
         var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
         if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e.Modified);
         var marked = _listing.IsMarked(_listing.FocusedStoreIndex) ? ", marked" : string.Empty;
-        return $"{DisplayName(e)}, {kind}{details}{marked}, {i} of {_listing.VisibleCount}";
+        var spokenName = e.Kind == EntryKind.RegistryValue && e.Name.Length == 0 ? "(Default)" : e.Name;
+        return $"{spokenName}, {kind}{details}{marked}, {i} of {_listing.VisibleCount}";
     }
 }
 
