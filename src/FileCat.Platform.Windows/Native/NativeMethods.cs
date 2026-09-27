@@ -166,6 +166,16 @@ internal static unsafe partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetDiskFreeSpaceEx(string lpDirectoryName, out ulong lpFreeBytesAvailable, out ulong lpTotalNumberOfBytes, out ulong lpTotalNumberOfFreeBytes);
 
+    // ---- Session end ----------------------------------------------------------------------------------------
+
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ShutdownBlockReasonCreate(nint hWnd, string pwszReason);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ShutdownBlockReasonDestroy(nint hWnd);
+
     // ---- Networking ---------------------------------------------------------------------------------------
 
     [StructLayout(LayoutKind.Sequential)]

@@ -114,12 +114,22 @@ public static class ErrorText
         if (ex is FileNotFoundException or DirectoryNotFoundException) return "notfound";
         return Win32Code(ex) switch
         {
-            32 or 33 => "sharing",
+            32 or 33 or 1224 => "sharing",
             39 or 112 => "diskfull",
+            1295 => "quota",
             5 => "access",
             2 or 3 => "notfound",
             206 or 111 => "toolong",
             1314 => "privilege",
+            19 => "writeprotect",
+            123 or 161 => "badname",
+            225 or 226 => "blocked",
+            1260 or 4551 => "policy",
+            21 or 55 or 1167 => "device",
+            53 or 59 or 64 or 67 or 121 or 1222 or 1231 or 1232 => "offline",
+            483 or 1117 => "hardware",
+            362 or 389 or 395 or 396 or 397 => "cloud",
+            50 => "unsupported",
             _ => "io",
         };
     }
@@ -128,10 +138,20 @@ public static class ErrorText
     {
         "sharing" => "The item is in use by another program (for example an antivirus scan or an open editor).",
         "diskfull" => "There is not enough free space on the destination.",
+        "quota" => "Your disk quota on the destination is used up.",
         "access" => "Access is denied. If the destination is a protected folder, Windows Controlled Folder Access may be blocking FileCat.",
         "notfound" => "The item no longer exists or its folder was removed.",
         "toolong" => "The name or path is too long for the destination.",
         "privilege" => "A required privilege is not held (creating symbolic links needs Developer Mode or administrator rights).",
+        "writeprotect" => "The destination is write-protected.",
+        "badname" => "The name is not valid on the destination (reserved names or characters).",
+        "blocked" => "Windows Security blocked this file because it contains a threat or potentially unwanted software.",
+        "policy" => "A system policy (for example Smart App Control or an administrator rule) blocks this file.",
+        "device" => "The device is not ready or was disconnected (removable media ejected?).",
+        "offline" => "The network location is no longer reachable; the connection was lost or the server is offline.",
+        "hardware" => "The device reported a hardware or I/O error; the medium may be damaged.",
+        "cloud" => "The cloud storage provider (for example OneDrive) is unavailable, so this online-only file cannot be read.",
+        "unsupported" => "The destination does not support this operation.",
         _ => ex.Message,
     };
 }
@@ -499,6 +519,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _stagedCounter)}.tmp");
         long baseBytes = Job.BytesDone;
         bool copied = false;
+        int quietRetries = 0;
         while (!copied)
         {
             long reported = 0;
@@ -527,6 +548,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 TryDeleteStaged(staged);
                 if (Job.IsCancellationRequested) throw new OperationCanceledException();
                 var cls = ErrorText.Classify(ex);
+                if (cls == "sharing" && quietRetries < 3)
+                {
+                    // Antivirus scans and indexers hold new files briefly: retry quietly before asking.
+                    quietRetries++;
+                    Job.Token.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(250 * quietRetries));
+                    continue;
+                }
                 var decision = Job.Ask(new ErrorRequest("Could not copy the file", $"{Path.GetFileName(src)}: {ErrorText.Describe(ex)}", src, true, cls));
                 if (decision.Action == DecisionAction.Retry) continue;
                 if (decision.Action == DecisionAction.Skip)
@@ -731,9 +759,19 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private void PreserveOrigin(string src, string staged, string finalPath)
     {
+        var vol = Volume(finalPath);
+        if (!vol.SupportsNamedStreams && OperatingSystem.IsWindows())
+        {
+            // Other alternate data streams are dropped as well: name them instead of losing them silently (FS-002).
+            var lost = Fs.GetAlternateStreams(src).Where(s => !s.Equals("Zone.Identifier", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (lost.Count > 0)
+            {
+                var names = string.Join(", ", lost.Take(3)) + (lost.Count > 3 ? $" and {lost.Count - 3} more" : string.Empty);
+                Issue(IssueSeverity.Warning, src, $"Not kept: {(lost.Count == 1 ? "an alternate data stream" : $"{lost.Count} alternate data streams")} ({names}); {vol.FileSystem ?? "the destination"} cannot store them.", StepOutcome.Committed);
+            }
+        }
         var mark = Fs.ReadOriginMark(src);
         if (mark is null) return;
-        var vol = Volume(finalPath);
         if (!vol.SupportsNamedStreams && OperatingSystem.IsWindows())
         {
             Issue(IssueSeverity.Warning, src, $"Security metadata lost: the file's download origin (Mark of the Web) cannot be stored on {vol.FileSystem ?? "the destination"}. Windows will not warn when it is opened.", StepOutcome.Committed);

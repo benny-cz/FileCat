@@ -165,6 +165,7 @@ public sealed class DeviceIoScheduler : IDisposable
             lock (_lock)
             {
                 _queue.Enqueue(item, ((int)priority, _seq++));
+                if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);
                 else if (ActiveWorkers() < owner.ThreadsPerDevice || (_queue.Count > 0 && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice))
                     StartWorker();

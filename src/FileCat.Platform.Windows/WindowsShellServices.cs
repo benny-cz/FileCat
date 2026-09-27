@@ -183,6 +183,22 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     public override void SetKeepAwake(bool keepAwake) =>
         SetThreadExecutionState(keepAwake ? ES_CONTINUOUS | ES_SYSTEM_REQUIRED : ES_CONTINUOUS);
 
+    public override void SetShutdownBlock(nint owner, string? reason)
+    {
+        if (owner == 0) return;
+        if (reason is null) ShutdownBlockReasonDestroy(owner);
+        else ShutdownBlockReasonCreate(owner, reason);
+    }
+
+    public override bool IsElevated
+    {
+        get
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+    }
+
     public override string ToUncPath(string path)
     {
         if (path.Length >= 2 && path[1] == ':' && WindowsNetwork.GetRemoteName(path[..2]) is { } unc)

@@ -124,6 +124,9 @@ public interface IFileSystemOperations
 
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
+
+    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.</summary>
+    IReadOnlyList<string> GetAlternateStreams(string path);
 }
 
 /// <summary>
@@ -393,6 +396,8 @@ public class PortableFileOperations : IFileSystemOperations
     public virtual string? ReadOriginMark(string path) => null;
 
     public virtual bool WriteOriginMark(string path, string mark) => false;
+
+    public virtual IReadOnlyList<string> GetAlternateStreams(string path) => [];
 
     /// <summary>Streaming content hash for verification and checksum features.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)

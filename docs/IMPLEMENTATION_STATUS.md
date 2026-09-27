@@ -7,7 +7,7 @@ Work happens directly on `main`; every chunk is committed and pushed. Keep this 
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                   # Core 121, Windows integration 8, App headless 8 tests
+dotnet test FileCat.slnx                   # Core 137, Windows integration 9, App headless 8 tests
 $env:FILECAT_UI_SCALE_COUNT=1000000; dotnet test tests/FileCat.App.Tests --filter FullyQualifiedName~UiScale # optional TV-01 headless run
 FileCat.exe --benchmark 1000000 --benchmark-panels 4   # TV-01 native benchmark (isolated state, JSON results; docs/validation/TV-01.md)
 dotnet run --project src/FileCat.App        # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
@@ -37,7 +37,7 @@ Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs
 |---|---|
 | P1 walking slice | **Done**: browse, marks, quick search, F3 viewer, F4/Shift+F4 editor (TV-17 rules), F5/F6 Start/Queue, conflicts, F7, F8 recycle with preflight, Shift+F8, rename, undo, journal + interrupted-job review, drag & drop, clipboard |
 | P2 scalable workspace | **Done**: column profiles (Alt+0–9) editable in Settings → Columns (fields incl. metadata, order, widths, 0 = fill), dragged widths persist per profile (a fill column's border resizes its neighbor), tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. TV-01 executed (native 1M × 4: complete 2.9 s, re-sort 270 ms, held paging p95 16.9 ms; `docs/validation/TV-01.md`). At scale: mapped spill sorting, glyph-run cells, low-latency swap chain, record/name spill, shared 512 MiB index cap with external sort/view tier, geometric batching, four-panel headless UI scale, bounded job overlap scopes/header, streaming journal recovery, huge selections captured as leased store-index snapshots (`SelectionSnapshot`; jobs stream them, outcomes are per-position bitsets, undo capped at 100k steps, recycle in 2,048-item chunks) |
-| P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README, in-row rename, searchable F1 help + headless UI smoke |
+| P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README, in-row rename, searchable F1 help + headless UI smoke; truthful outcomes (full/offline/AV-blocked/policy/device/cloud/in-use with quiet retries, racing sources; fault-injection tests), alternate-stream and MotW loss named per file, ZIP lying-size/corruption fuzzing, mask/encoding fuzzing, shutdown-block reason while jobs run, elevated-start warning, device not-responding notices, Esc stops folder sizing, UI-stall/listing/queue-depth tracing |
 | P4–P10 | Pending |
 
 Scale (this machine, details in `docs/validation/TV-01.md`): core 1M × 1 complete 1.6 s (in memory 1.4 s), forced external index 1.7 s, 1M × 4 2.3 s / peak private 348 MiB; native 1M × 4 first rows 566 ms, complete 2.9 s, cursor handler p95 0.2 ms, startup (R2R) ≈ 0.9 s.
@@ -45,7 +45,7 @@ Scale (this machine, details in `docs/validation/TV-01.md`): core 1M × 1 comple
 ## Resume here (next slices, in order)
 
 1. P3 polish: TV-10 accessibility pass (automation peers for viewer/hex/quick view, names, focus announcements, headless reachability test).
-2. P3 robustness (ADS loss reporting, locked-file/permission/race tests, ZIP/mask/encoding fuzzing, shutdown handling); UX completeness (per-type associations, Alt+F8 history, opt-in update check, SECURITY.md).
+2. P3 UX completeness (per-type associations, Alt+F8 history, opt-in update check, SECURITY.md).
 3. P4a Registry provider (typed values, views, F4 editors, export/import, search) + per-plan elevation broker (`FileCat.PrivilegedHost`).
 4. P4b fixed-length hex editing (patch overlay, undo, save strategies).
 5. P5 ZIP create/update + edit sessions; P6 SFTP; P7 diff/sync/inspectors; post-v1 slices (bulk rename, links, manifests); P8–P10.

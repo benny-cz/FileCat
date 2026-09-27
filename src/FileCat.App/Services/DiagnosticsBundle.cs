@@ -39,6 +39,7 @@ public static class DiagnosticsBundle
         env.AppendLine($"Portable: {s.Paths.IsPortable}; profile: {s.Paths.ProfileName}");
         env.AppendLine($"Culture: {System.Globalization.CultureInfo.CurrentCulture.Name}");
         env.AppendLine($"Processors: {Environment.ProcessorCount}; 64-bit process: {Environment.Is64BitProcess}");
+        env.AppendLine(UiStallMonitor.Describe());
         AddText(zip, "environment.txt", env.ToString());
         AddText(zip, "settings.json", JsonSerializer.Serialize(s.Settings, Core.State.StateJsonContext.Default.AppSettings));
         foreach (var file in new[] { "filecat.log", "filecat.log.1", "crash.log" })

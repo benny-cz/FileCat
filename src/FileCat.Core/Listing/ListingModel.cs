@@ -449,6 +449,7 @@ public sealed class ListingModel : IDisposable
             _pendingMarkNames = null;
             _pendingFocusName = null;
             LastLoadDuration = Stopwatch.GetElapsedTime(p.StartedTimestamp);
+            Diagnostics.FileCatEventSource.Log.ListingCompleted(TotalCount, LastLoadDuration.TotalMilliseconds);
             foreach (var issue in p.DrainIssues()) _issues.Add(issue);
             if (r.Error is not null)
             {

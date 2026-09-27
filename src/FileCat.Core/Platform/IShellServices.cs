@@ -36,6 +36,12 @@ public interface IShellServices
     /// <summary>Keeps the system awake while jobs run (optional setting).</summary>
     void SetKeepAwake(bool keepAwake);
 
+    /// <summary>Names running work when the user signs out or shuts down (null clears it).</summary>
+    void SetShutdownBlock(nint owner, string? reason);
+
+    /// <summary>True when FileCat runs with administrator rights (worth a warning: plan §13).</summary>
+    bool IsElevated { get; }
+
     /// <summary>UNC form of a path on a mapped network drive; other paths are returned unchanged.</summary>
     string ToUncPath(string path);
 
@@ -105,6 +111,10 @@ public class PortableShellServices : IShellServices
     }
 
     public virtual void SetKeepAwake(bool keepAwake) { }
+
+    public virtual void SetShutdownBlock(nint owner, string? reason) { }
+
+    public virtual bool IsElevated => !OperatingSystem.IsWindows() && Environment.UserName == "root";
 
     public virtual string ToUncPath(string path) => path;
 

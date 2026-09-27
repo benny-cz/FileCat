@@ -48,6 +48,48 @@ public sealed partial class WindowsFileOperations
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool RemoveDirectoryW(string lpPathName);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private unsafe struct WIN32_FIND_STREAM_DATA
+    {
+        public long StreamSize;
+        public fixed char StreamName[296];
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "FindFirstStreamW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial nint FindFirstStream(string lpFileName, int infoLevel, out WIN32_FIND_STREAM_DATA data, uint flags);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "FindNextStreamW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool FindNextStream(nint handle, out WIN32_FIND_STREAM_DATA data);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "FindClose", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool FindStreamClose(nint handle);
+
+    /// <summary>Alternate data streams of a file ("::$DATA" is the unnamed default stream and is not listed).</summary>
+    public override unsafe IReadOnlyList<string> GetAlternateStreams(string path)
+    {
+        nint handle = FindFirstStream(Long(path), 0, out var data, 0);
+        if (handle == -1) return [];
+        var list = new List<string>();
+        try
+        {
+            do
+            {
+                var name = new string(data.StreamName);
+                const string suffix = ":$DATA";
+                if (name.Length > suffix.Length + 1 && name[0] == ':' && name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    list.Add(name[1..^suffix.Length]);
+            }
+            while (FindNextStream(handle, out data));
+        }
+        finally
+        {
+            FindStreamClose(handle);
+        }
+        return list;
+    }
+
     [LibraryImport("kernel32.dll", EntryPoint = "CreateDirectoryW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateDirectoryW(string lpPathName, nint lpSecurityAttributes);

@@ -141,4 +141,18 @@ public sealed class WindowsFileOperationsTests : IDisposable
         Assert.Equal(JobState.Completed, job.State);
         Assert.Equal("2", File.ReadAllText(Path.Combine(dst, "s", "sub", "two.txt")));
     }
+
+    [Fact]
+    public void Alternate_data_streams_are_listed_without_the_default_stream()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var path = Path.Combine(_root, "streams.txt");
+        File.WriteAllText(path, "main");
+        Assert.Empty(_ops.GetAlternateStreams(path));
+        File.WriteAllText(path + ":extra", "x");
+        File.WriteAllText(path + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        var streams = _ops.GetAlternateStreams(path).Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(["Zone.Identifier", "extra"], streams);
+        Assert.Empty(_ops.GetAlternateStreams(Path.Combine(_root, "missing.txt")));
+    }
 }

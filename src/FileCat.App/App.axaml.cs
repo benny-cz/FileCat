@@ -52,6 +52,7 @@ public partial class App : Application
         }
 
         InstallCrashGuard(services, vm);
+        UiStallMonitor.Start();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -63,6 +64,14 @@ public partial class App : Application
             vm.OpenArguments(StartupOptions, initial: true);
             desktop.MainWindow = window;
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
+            // Signing out or shutting down while operations run: Windows shows the reason set by the view model and
+            // lets the user decide; interrupted jobs are reviewed at the next start.
+            desktop.ShutdownRequested += (_, e) =>
+            {
+                if (vm.ShouldBlockSessionEnd) e.Cancel = true;
+            };
+            if (!benchmark && services.Shell.IsElevated)
+                vm.Notify("FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.", true);
             desktop.Exit += (_, _) =>
             {
                 services.Dispose();

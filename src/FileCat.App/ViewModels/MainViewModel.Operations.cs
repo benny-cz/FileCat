@@ -33,6 +33,10 @@ public sealed partial class MainViewModel
         var oc = new OperationCenterViewModel(Services.Jobs);
         Services.Jobs.DecisionRequested += d => Services.Ui.Post(() => EnqueueDecision(d));
         Services.Jobs.JobFinished += job => Services.Ui.Post(() => OnJobFinished(job));
+        Services.Jobs.JobAdded += _ => Services.Ui.Post(UpdateJobActivity);
+        Services.Io.HealthChanged += (device, health) => Services.Ui.Post(() => Notify(health == Core.Threading.DeviceHealth.NotResponding
+            ? $"{device} is not responding. Other drives keep working; its operations continue when it responds again."
+            : $"{device} responds again.", health == Core.Threading.DeviceHealth.NotResponding));
         return oc;
     }
 
@@ -478,7 +482,7 @@ public sealed partial class MainViewModel
                 Notify($"{job.Title}: canceled. {job.Summary}. Steps already completed were kept.");
                 break;
         }
-        UpdateKeepAwake();
+        UpdateJobActivity();
     }
 
     private void FocusWhenPresent(TabViewModel tab, string name)
@@ -510,11 +514,18 @@ public sealed partial class MainViewModel
         }
     }
 
-    private void UpdateKeepAwake()
+    /// <summary>While jobs run: the optional keep-awake, and a shutdown-block reason naming them at sign-out.</summary>
+    private void UpdateJobActivity()
     {
-        if (!Services.Settings.KeepAwakeDuringJobs) return;
-        Services.Shell.SetKeepAwake(Services.Jobs.HasActiveWork);
+        int active = Services.Jobs.Jobs.Count(j => !j.State.IsFinished());
+        Services.Shell.SetKeepAwake(Services.Settings.KeepAwakeDuringJobs && active > 0);
+        Services.Shell.SetShutdownBlock(NativeOwner(), active > 0
+            ? $"FileCat is running {Formatters.Plural(active, "file operation", "file operations")}. Signing out interrupts them; FileCat reviews them at the next start."
+            : null);
     }
+
+    /// <summary>Windows asks before signing out or shutting down: running operations hold it so Windows can name them.</summary>
+    public bool ShouldBlockSessionEnd => Services.Jobs.HasActiveWork;
 
     // ---- Decisions ------------------------------------------------------------------------------------
 

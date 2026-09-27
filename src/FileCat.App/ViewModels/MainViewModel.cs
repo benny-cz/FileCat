@@ -95,6 +95,16 @@ public sealed partial class MainViewModel : ObservableObject
         if (_sizing.Remove(key, out var cts)) cts.Cancel();
     }
 
+    /// <summary>Esc stops folder sizing started in this tab; true when something was running.</summary>
+    internal bool CancelSizing(TabViewModel tab)
+    {
+        var prefix = tab.GetHashCode() + "|";
+        var keys = _sizing.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+        foreach (var k in keys) CancelSizing(k);
+        if (keys.Count > 0) Notify($"Stopped sizing {Formatters.Plural(keys.Count, "folder", "folders")}; the sizes shown so far are lower bounds.");
+        return keys.Count > 0;
+    }
+
     internal void CancelAllSizing()
     {
         foreach (var c in _sizing.Values) c.Cancel();
