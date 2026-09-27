@@ -56,6 +56,7 @@ public static class CommandIds
     public const string MarkInvert = "mark.invert";
     public const string MarkInvertAll = "mark.invertAll";
     public const string MarkAll = "mark.all";
+    public const string MarkAllComplete = "mark.allComplete";
     public const string MarkNone = "mark.none";
     public const string MarkSameExt = "mark.sameExt";
     public const string UnmarkSameExt = "mark.sameExtUnselect";
@@ -79,6 +80,8 @@ public static class CommandIds
     public const string Bookmarks = "nav.bookmarks";
     public const string BookmarkSetPrefix = "nav.bookmarkSet";
     public const string BookmarkGoPrefix = "nav.bookmarkGo";
+    /// <summary>Distinct from <see cref="BookmarkGoPrefix"/>, which would prefix-match a longer id.</summary>
+    public const string BookmarkTargetPrefix = "nav.targetBookmark";
     public const string ToggleHidden = "nav.toggleHidden";
     public const string Home = "nav.home";
 
@@ -143,6 +146,7 @@ public static class CommandIds
     public const string Exit = "app.exit";
     public const string About = "app.about";
     public const string CheckUpdates = "app.checkUpdates";
+    public const string ClearHistory = "app.clearHistory";
     public const string SaveWorkspace = "app.saveWorkspace";
     public const string LoadWorkspace = "app.loadWorkspace";
     public const string DiagnosticsExport = "app.diagnostics";
@@ -219,6 +223,7 @@ public sealed class CommandRegistry
         Add(CommandIds.MarkInvert, "Invert selection (files)", M, null, CommandContext.Panel, "Num*");
         Add(CommandIds.MarkInvertAll, "Invert selection (files and folders)", M, null, CommandContext.Panel, "Shift+Num*");
         Add(CommandIds.MarkAll, "Select all", M, null, CommandContext.Panel, "Ctrl+A", "Ctrl+Num+");
+        Add(CommandIds.MarkAllComplete, "Select all once the listing is complete", M, null, CommandContext.Panel, "Ctrl+Shift+A");
         Add(CommandIds.MarkNone, "Unselect all", M, null, CommandContext.Panel, "Ctrl+Num-");
         Add(CommandIds.MarkSameExt, "Select same extension", M, null, CommandContext.Panel, "Shift+Num+");
         Add(CommandIds.UnmarkSameExt, "Unselect same extension", M, null, CommandContext.Panel, "Shift+Num-");
@@ -244,6 +249,7 @@ public sealed class CommandRegistry
         {
             Add(CommandIds.BookmarkSetPrefix + i, $"Set bookmark {i} to this location", N, null, CommandContext.Panel, $"Ctrl+Shift+{i}");
             Add(CommandIds.BookmarkGoPrefix + i, $"Go to bookmark {i}", N, null, CommandContext.Panel, $"Ctrl+{i}");
+            Add(CommandIds.BookmarkTargetPrefix + i, $"Open bookmark {i} in the target panel", N, null, CommandContext.Panel, $"Alt+Shift+{i}");
         }
         Add(CommandIds.ToggleHidden, "Show hidden and system items", N, null, CommandContext.Panel, "Ctrl+H");
         Add(CommandIds.Home, "Go to home folder", N);
@@ -309,6 +315,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Exit, "Exit", A, "Quit", CommandContext.Global, "Alt+F4");
         Add(CommandIds.About, "About FileCat", A);
         Add(CommandIds.CheckUpdates, "Check for updates…", A);
+        Add(CommandIds.ClearHistory, "Clear history…", A);
         Add(CommandIds.SaveWorkspace, "Save workspace as…", A);
         Add(CommandIds.LoadWorkspace, "Open workspace…", A);
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);

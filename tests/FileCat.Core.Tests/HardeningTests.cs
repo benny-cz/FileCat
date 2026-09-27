@@ -15,6 +15,73 @@ public sealed class HardeningTests : IDisposable
 
     public void Dispose() => _dir.Dispose();
 
+    /// <summary>A minimal shortcut: header, then a LinkInfo with a local base path (ANSI, or Unicode as well).</summary>
+    private static byte[] Shortcut(string basePath, bool unicode, bool directory)
+    {
+        var header = new byte[0x4C];
+        BinaryPrimitives.WriteUInt32LittleEndian(header, 0x4C);
+        new Guid("00021401-0000-0000-c000-000000000046").TryWriteBytes(header.AsSpan(4));
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(20), 0x2 | 0x80); // HasLinkInfo | IsUnicode
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(24), directory ? 0x10u : 0x20u);
+        int headerSize = unicode ? 0x24 : 0x1C;
+        var volume = new byte[0x11];
+        BinaryPrimitives.WriteUInt32LittleEndian(volume, 0x11);
+        BinaryPrimitives.WriteUInt32LittleEndian(volume.AsSpan(4), 3);
+        BinaryPrimitives.WriteUInt32LittleEndian(volume.AsSpan(12), 0x10);
+        var ansi = Encoding.ASCII.GetBytes(unicode ? @"C:\ignored" : basePath).Append((byte)0).ToArray();
+        byte[] ansiSuffix = [0];
+        var wide = unicode ? Encoding.Unicode.GetBytes(basePath).Concat(new byte[2]).ToArray() : [];
+        byte[] wideSuffix = unicode ? [0, 0] : [];
+        int volumeAt = headerSize, baseAt = volumeAt + volume.Length, suffixAt = baseAt + ansi.Length;
+        int wideAt = suffixAt + ansiSuffix.Length, wideSuffixAt = wideAt + wide.Length;
+        var info = new byte[wideSuffixAt + wideSuffix.Length];
+        BinaryPrimitives.WriteUInt32LittleEndian(info, (uint)info.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(4), (uint)headerSize);
+        BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(8), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(12), (uint)volumeAt);
+        BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(16), (uint)baseAt);
+        BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(24), (uint)suffixAt);
+        if (unicode)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(28), (uint)wideAt);
+            BinaryPrimitives.WriteUInt32LittleEndian(info.AsSpan(32), (uint)wideSuffixAt);
+        }
+        volume.CopyTo(info, volumeAt);
+        ansi.CopyTo(info, baseAt);
+        ansiSuffix.CopyTo(info, suffixAt);
+        wide.CopyTo(info, wideAt);
+        wideSuffix.CopyTo(info, wideSuffixAt);
+        return [.. header, .. info, 0, 0, 0, 0];
+    }
+
+    [Fact]
+    public void Shortcut_targets_are_read_raw_and_malformed_links_are_ignored()
+    {
+        var ansi = _dir.File("ansi.lnk");
+        File.WriteAllBytes(ansi, Shortcut(@"C:\Data", unicode: false, directory: true));
+        Assert.True(Core.FileSystem.ShellLinkReader.TryRead(ansi, out var a));
+        Assert.Equal(new Core.FileSystem.ShellLinkTarget(@"C:\Data", true), a);
+
+        var wide = _dir.File("wide.lnk");
+        File.WriteAllBytes(wide, Shortcut(@"D:\Dáta\žluť.txt", unicode: true, directory: false));
+        Assert.True(Core.FileSystem.ShellLinkReader.TryRead(wide, out var w));
+        Assert.Equal(new Core.FileSystem.ShellLinkTarget(@"D:\Dáta\žluť.txt", false), w);
+
+        // Truncated and corrupted links never throw; they are simply not followed.
+        var bytes = Shortcut(@"C:\Data", unicode: true, directory: true);
+        var random = new Random(3);
+        var fuzz = _dir.File("fuzz.bin"); // the reader ignores the extension; antivirus inspects every .lnk written
+        for (int round = 0; round < 400; round++)
+        {
+            var copy = bytes.Take(random.Next(bytes.Length + 1)).ToArray();
+            for (int i = 0; i < 4 && copy.Length > 0; i++) copy[random.Next(copy.Length)] = (byte)random.Next(256);
+            File.WriteAllBytes(fuzz, copy);
+            Core.FileSystem.ShellLinkReader.TryRead(fuzz, out _);
+        }
+        File.WriteAllText(fuzz, "not a shortcut");
+        Assert.False(Core.FileSystem.ShellLinkReader.TryRead(fuzz, out _));
+    }
+
     private sealed class Sink(List<EntryData> list) : IEnumerationSink
     {
         public void AddBatch(ReadOnlySpan<EntryData> entries)

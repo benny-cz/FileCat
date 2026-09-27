@@ -85,7 +85,12 @@ public sealed partial class MainViewModel
 
         if (id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal))
         {
-            GoToBookmark(int.Parse(id[CommandIds.BookmarkGoPrefix.Length..]), target: false);
+            GoToBookmark(int.Parse(id[CommandIds.BookmarkGoPrefix.Length..], CultureInfo.InvariantCulture), target: false);
+            return;
+        }
+        if (id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
+        {
+            GoToBookmark(int.Parse(id[CommandIds.BookmarkTargetPrefix.Length..], CultureInfo.InvariantCulture), target: true);
             return;
         }
         if (id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal))
@@ -274,7 +279,13 @@ public sealed partial class MainViewModel
                 listing?.InvertMarks(includeDirectories: true);
                 break;
             case CommandIds.MarkAll:
-                listing?.MarkAll(true);
+                if (listing is null) break;
+                listing.MarkAll(true);
+                if (listing.State == ListingState.Loading)
+                    Notify($"Selected the {listing.MarkedCount:N0} items listed so far; this folder is still being read. Ctrl+Shift+A selects everything once the listing is complete.");
+                break;
+            case CommandIds.MarkAllComplete:
+                if (tab is not null) SelectAllWhenComplete(tab);
                 break;
             case CommandIds.MarkNone:
                 listing?.UnmarkEverything();
@@ -371,6 +382,9 @@ public sealed partial class MainViewModel
             case CommandIds.CheckUpdates:
                 await CheckForUpdatesAsync();
                 break;
+            case CommandIds.ClearHistory:
+                await ClearHistoryAsync();
+                break;
             case CommandIds.About:
                 await Dialogs.AlertAsync("About FileCat", $"FileCat {typeof(MainViewModel).Assembly.GetName().Version}\nMIT-licensed file manager and system-resource navigator.\nPlatform: {Services.Platform.Name}\nProfile: {Services.Paths.ProfileName}{(Services.Paths.IsPortable ? " (portable)" : "")}\nData: {Services.Paths.SettingsDirectory}");
                 break;
@@ -453,6 +467,14 @@ public sealed partial class MainViewModel
             _ = OpenNonFileSystemItemAsync(tab, item);
             return;
         }
+        // A shortcut to a folder opens that folder here, as in the references. Its raw target is read without the
+        // Shell (nothing is resolved or searched); links to files open through the system as before.
+        if (!withSystem && !e.IsContainer && e.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+            && Core.FileSystem.ShellLinkReader.TryRead(path, out var link) && link is { IsDirectory: true })
+        {
+            tab.Navigate(Location.FileSystem(link.Path));
+            return;
+        }
         if (!withSystem && !e.IsContainer && TryLaunchAssociation(Core.Tools.Associations.Open, path))
         {
             Services.RecordFile(tab.Location!, e.Name);
@@ -521,10 +543,9 @@ public sealed partial class MainViewModel
         var item = listing.GetItemRef(listing.FocusedStoreIndex);
         if (item.FileSystemPath is not { } path) return;
         var vol = tab.Location!;
-        bool slow = PathUtil.IsUncPath(path) || e.Has(EntryFlags.Offline);
-        if (slow && !Services.Settings.SizeFolderOnSlowLocations)
+        if (!Services.Settings.SizeFolderOnSlowLocations && (e.Has(EntryFlags.Offline) || IsSlowLocation(path)))
         {
-            Notify("Marked without sizing: folder sizing is off for network and cloud locations (Settings).");
+            Notify("Marked without sizing: folder sizing is off for network, removable, and cloud locations (Settings → Behavior).");
             return;
         }
         var token = BeginSizing(key);
@@ -550,6 +571,70 @@ public sealed partial class MainViewModel
                 }
             });
         }, TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// Network shares (mapped drive letters included), removable and optical media: Space marks without sizing there
+    /// unless enabled (plan §4.3). The drive type comes from the mount manager, without touching the device.
+    /// </summary>
+    private bool IsSlowLocation(string path)
+    {
+        if (PathUtil.IsUncPath(path)) return true;
+        try
+        {
+            // The drive letter's type on Windows (resolving mount points could reach a dead share); the mount point on Unix.
+            var root = OperatingSystem.IsWindows() ? Path.GetPathRoot(path) : Services.Platform.FileOperations.GetVolumeRoot(path);
+            if (string.IsNullOrEmpty(root)) return false;
+            return new DriveInfo(root).DriveType is DriveType.Network or DriveType.Removable or DriveType.CDRom;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Ctrl+Shift+A: selects everything once the listing is complete (a bounded membership pass, then frozen; later
+    /// arrivals are never added). Navigating away cancels it.
+    /// </summary>
+    private void SelectAllWhenComplete(TabViewModel tab)
+    {
+        var listing = tab.Listing;
+        if (listing.State != ListingState.Loading)
+        {
+            listing.MarkAll(true);
+            return;
+        }
+        var location = listing.Location;
+        Notify("Selecting everything once this folder is completely listed…");
+        void Handler(object? sender, ListingChange change)
+        {
+            if (!Equals(listing.Location, location))
+            {
+                listing.Changed -= Handler;
+                return;
+            }
+            if (listing.State == ListingState.Loading) return;
+            listing.Changed -= Handler;
+            listing.MarkAll(true);
+            var incomplete = listing.Issues.Count > 0 ? " The listing reported problems; see the banner." : string.Empty;
+            Notify($"Selected all {listing.MarkedCount:N0} items.{incomplete}");
+        }
+        listing.Changed += Handler;
+    }
+
+    private async Task ClearHistoryAsync()
+    {
+        int pinned = Services.History.Folders.Count(h => h.Pinned) + Services.History.Files.Count(h => h.Pinned);
+        var buttons = new List<DialogButton> { new("Cancel", "cancel", IsCancel: true) };
+        if (pinned > 0) buttons.Add(new DialogButton("Clear, including pinned", "all", IsDanger: true));
+        buttons.Add(new DialogButton("Clear history", "clear", IsDefault: true));
+        var text = "Forget recent folders and files, command lines, copy destinations, masks, and search terms? Bookmarks stay."
+            + (pinned > 0 ? $"\n\n{Formatters.Plural(pinned, "pinned entry stays", "pinned entries stay")} unless you clear them too." : string.Empty);
+        var r = await Dialogs.ShowCustomAsync("Clear history", new Avalonia.Controls.TextBlock { Text = text, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 560 }, buttons);
+        if (r is not ("clear" or "all")) return;
+        Services.ClearHistory(includePinned: r as string == "all");
+        Notify("History cleared. Bookmarks were kept.");
     }
 
     private async Task MarkByMaskAsync(bool select)

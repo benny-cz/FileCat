@@ -339,6 +339,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         var tcs = new TaskCompletionSource<ChoiceResult>();
         var deleted = new List<int>();
+        var pinToggled = new HashSet<int>();
         var all = o.Items.Select((item, index) => new ChoiceRow(item, index)).ToList();
         var filter = new TextBox { PlaceholderText = "Type to filter…", MinWidth = 520 };
         Avalonia.Automation.AutomationProperties.SetName(filter, "Filter " + o.Title);
@@ -353,7 +354,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 var left = new StackPanel { Orientation = Orientation.Vertical };
                 left.Children.Add(new TextBlock
                 {
-                    Text = (row?.Item.Pinned == true ? "📌 " : string.Empty) + row?.Item.Title,
+                    Text = (row?.Pinned == true ? "📌 " : string.Empty) + row?.Item.Title,
                     FontWeight = row?.Item.IsHeader == true ? FontWeight.Bold : FontWeight.Normal,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                 });
@@ -372,7 +373,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         Avalonia.Automation.AutomationProperties.SetName(list, o.Title);
         var hint = new TextBlock
         {
-            Text = o.Hint ?? "Type to filter · Enter chooses · Esc closes" + (o.AllowDelete ? " · Ctrl+Del removes" : string.Empty),
+            Text = o.Hint ?? "Type to filter · Enter chooses · Esc closes" + (o.AllowDelete ? " · Ctrl+Del removes" : string.Empty) + (o.AllowPin ? " · Insert pins" : string.Empty),
             Classes = { "muted", "small" },
             TextWrapping = TextWrapping.Wrap,
         };
@@ -409,10 +410,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }
         void Accept(bool alternate)
         {
-            if (list.SelectedItem is ChoiceRow row && !row.Item.IsHeader) Finish(new ChoiceResult(row.Index, alternate, deleted));
+            if (list.SelectedItem is ChoiceRow row && !row.Item.IsHeader) Finish(new ChoiceResult(row.Index, alternate, deleted) { PinToggled = [.. pinToggled] });
         }
         filter.TextChanged += (_, _) => Apply();
-        filter.KeyDown += (_, e) =>
+        // Tunneling: the text box would otherwise take Ctrl+Delete (delete word) before the chooser sees it.
+        filter.AddHandler(InputElement.KeyDownEvent, (_, e) =>
         {
             int count = current.Count;
             if (count == 0 && e.Key != Key.Escape) return;
@@ -423,6 +425,16 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 case Key.PageDown: list.SelectedIndex = Math.Min(count - 1, list.SelectedIndex + 10); break;
                 case Key.PageUp: list.SelectedIndex = Math.Max(0, list.SelectedIndex - 10); break;
                 case Key.Enter: Accept((e.KeyModifiers & KeyModifiers.Shift) != 0); break;
+                case Key.Insert when o.AllowPin:
+                    if (list.SelectedItem is ChoiceRow pin && !pin.Item.IsHeader)
+                    {
+                        pin.Pinned = !pin.Pinned;
+                        if (!pinToggled.Add(pin.Index)) pinToggled.Remove(pin.Index);
+                        int keep = list.SelectedIndex;
+                        Apply();
+                        list.SelectedIndex = Math.Min(keep, current.Count - 1);
+                    }
+                    break;
                 case Key.Delete when o.AllowDelete && (e.KeyModifiers & KeyModifiers.Control) != 0:
                     if (list.SelectedItem is ChoiceRow del)
                     {
@@ -437,7 +449,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             }
             if (list.SelectedIndex >= 0) list.ScrollIntoView(list.SelectedIndex);
             e.Handled = true;
-        };
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         list.DoubleTapped += (_, _) => Accept(false);
         list.KeyDown += (_, e) =>
         {
@@ -448,7 +460,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             }
         };
         Apply();
-        session = Show(Card(o.Title, body, null, 720), filter, top: true, () => Finish(new ChoiceResult(-1, false, deleted)));
+        session = Show(Card(o.Title, body, null, 720), filter, top: true, () => Finish(new ChoiceResult(-1, false, deleted) { PinToggled = [.. pinToggled] }));
         return tcs.Task;
     }
 
@@ -467,6 +479,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         public ChoiceItem Item { get; } = item;
         public int Index { get; } = index;
         public bool Deleted { get; set; }
+        public bool Pinned { get; set; } = item.Pinned;
         public string Haystack { get; } = item.Title + " " + item.Detail + " " + item.Gesture;
     }
 }

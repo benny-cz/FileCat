@@ -52,6 +52,31 @@ public sealed class WindowsFileOperationsTests : IDisposable
     }
 
     [Fact]
+    public void Shortcuts_made_by_windows_yield_their_raw_targets()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "target folder ž")).FullName;
+        var file = Path.Combine(folder, "doc.txt");
+        File.WriteAllText(file, "x");
+        var shellType = Type.GetTypeFromProgID("WScript.Shell");
+        if (shellType is null) return; // Windows Script Host disabled by policy
+        dynamic shell = Activator.CreateInstance(shellType)!;
+        foreach (var (name, target) in new[] { ("folder.lnk", folder), ("file.lnk", file) })
+        {
+            dynamic shortcut = shell.CreateShortcut(Path.Combine(_root, name));
+            shortcut.TargetPath = target;
+            shortcut.Save();
+        }
+        // Windows stores the target with the file system's own casing ("C:\Windows" for "C:\WINDOWS\Temp").
+        Assert.True(FileCat.Core.FileSystem.ShellLinkReader.TryRead(Path.Combine(_root, "folder.lnk"), out var toFolder));
+        Assert.Equal(folder, toFolder!.Path, ignoreCase: true);
+        Assert.True(toFolder.IsDirectory);
+        Assert.True(FileCat.Core.FileSystem.ShellLinkReader.TryRead(Path.Combine(_root, "file.lnk"), out var toFile));
+        Assert.Equal(file, toFile!.Path, ignoreCase: true);
+        Assert.False(toFile.IsDirectory);
+    }
+
+    [Fact]
     public void Flushed_copies_work_for_read_only_files_with_streams()
     {
         if (!OperatingSystem.IsWindows()) return;

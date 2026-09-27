@@ -29,6 +29,9 @@ public sealed record ChoiceItem(string Title, string? Detail = null, string? Ges
 public sealed record ChoiceResult(int Index, bool Alternate, IReadOnlyList<int> Deleted)
 {
     public static ChoiceResult Canceled { get; } = new(-1, false, []);
+
+    /// <summary>Items whose pinned state the user toggled with Insert (history lists).</summary>
+    public IReadOnlyList<int> PinToggled { get; init; } = [];
 }
 
 public sealed record KeyboardHelpEntry(string Id, string Title, string Category, string? Gestures, string? Description, bool Enabled = true, string? UnavailableReason = null);
@@ -38,6 +41,8 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
     public string? Hint { get; init; }
     public int SelectedIndex { get; init; }
     public bool AllowDelete { get; init; }
+    /// <summary>Insert pins or unpins the selected item (history lists keep pinned items first and never trim them).</summary>
+    public bool AllowPin { get; init; }
     public string? AlternateHint { get; init; }
 }
 

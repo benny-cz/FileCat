@@ -80,13 +80,11 @@ public sealed partial class MainViewModel
         }
         var r = await Dialogs.ChooseAsync(new ChoiceOptions(findFolder ? "Find folder (history and bookmarks)" : "Folder history", items)
         {
-            Hint = "Type to filter · Enter opens · Shift+Enter opens in the target panel · Del removes",
+            Hint = "Type to filter · Enter opens · Shift+Enter opens in the target panel · Insert pins · Ctrl+Del removes",
             AllowDelete = true,
+            AllowPin = true,
         });
-        foreach (var d in r.Deleted.OrderByDescending(i => i))
-        {
-            if (d < entries.Count) Services.History.Folders.Remove(entries[d]);
-        }
+        ApplyHistoryEdits(Services.History.Folders, entries, r);
         if (r.Index < 0) return;
         var panel = r.Alternate ? RequireTarget() : Workspace.ActivePanel;
         panel?.ActiveTab?.Navigate(locs[r.Index]);
@@ -99,13 +97,28 @@ public sealed partial class MainViewModel
         var items = entries.Select(h => new ChoiceItem(h.Name!, Services.Providers.Display(h.Location!)) { Pinned = h.Pinned }).ToList();
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("File history", items)
         {
-            Hint = "Type to filter · Enter focuses the file · Del removes",
+            Hint = "Type to filter · Enter focuses the file · Insert pins · Ctrl+Del removes",
             AllowDelete = true,
+            AllowPin = true,
         });
-        foreach (var d in r.Deleted.OrderByDescending(i => i)) Services.History.Files.Remove(entries[d]);
+        ApplyHistoryEdits(Services.History.Files, entries, r);
         if (r.Index < 0) return;
         var h = entries[r.Index];
         ActiveTab?.Navigate(h.Location!, h.Name);
+    }
+
+    /// <summary>Applies pins and removals made in a history chooser (indices beyond the history are other rows).</summary>
+    private void ApplyHistoryEdits(List<HistoryEntry> history, List<HistoryEntry> shown, ChoiceResult r)
+    {
+        foreach (int i in r.PinToggled)
+        {
+            if (i < shown.Count) shown[i].Pinned = !shown[i].Pinned;
+        }
+        foreach (var d in r.Deleted.OrderByDescending(i => i))
+        {
+            if (d < shown.Count) history.Remove(shown[d]);
+        }
+        if (r.PinToggled.Count > 0 || r.Deleted.Count > 0) Services.SaveHistory();
     }
 
     private async Task ShowBookmarksAsync()
@@ -115,10 +128,11 @@ public sealed partial class MainViewModel
         items.Add(new ChoiceItem("+ Add current location", "Adds an unnumbered bookmark"));
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("Bookmarks", items)
         {
-            Hint = "Enter opens · Shift+Enter opens in the target panel · Del removes · Ctrl+Shift+0–9 sets numbered slots",
+            Hint = "Enter opens · Shift+Enter opens in the target panel · Ctrl+Del removes · Ctrl+Shift+0–9 sets numbered slots, Ctrl+0–9 opens them, Alt+Shift+0–9 opens them in the target panel",
             AllowDelete = true,
         });
         foreach (var d in r.Deleted.OrderByDescending(i => i)) if (d < list.Count) Services.History.Bookmarks.Remove(list[d]);
+        if (r.Deleted.Count > 0) Services.SaveHistory();
         if (r.Index < 0) return;
         if (r.Index == list.Count)
         {
@@ -204,6 +218,7 @@ public sealed partial class MainViewModel
         var commands = Services.Commands.All
             .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
+                && !d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
             .Select(d =>
             {

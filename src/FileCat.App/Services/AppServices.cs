@@ -110,6 +110,19 @@ public sealed class AppServices : IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving history failed", ex); }
     }
 
+    /// <summary>Forgets recent locations and typed text (privacy). Bookmarks stay; pinned entries stay unless included.</summary>
+    public void ClearHistory(bool includePinned)
+    {
+        History.Folders.RemoveAll(h => includePinned || !h.Pinned);
+        History.Files.RemoveAll(h => includePinned || !h.Pinned);
+        History.CommandLine.Clear();
+        History.CopyDestinations.Clear();
+        History.Masks.Clear();
+        History.SearchNames.Clear();
+        History.SearchTexts.Clear();
+        SaveHistory();
+    }
+
     public void RecordFolder(Location location)
     {
         if (location.Scheme is Schemes.ResultSet) return;
