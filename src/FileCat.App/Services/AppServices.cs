@@ -30,7 +30,7 @@ public sealed class AppServices : IDisposable
         Io = new DeviceIoScheduler();
         Io.HealthChanged += (device, health) => FileCatEventSource.Log.DeviceHealth(device, health.ToString());
         Ui = AvaloniaUiDispatcher.Instance;
-        Commands = CommandRegistry.CreateDefault();
+        Commands = CommandRegistry.CreateDefault(CommandTranslations.Load(Path.Combine(AppContext.BaseDirectory, "lang"), System.Globalization.CultureInfo.CurrentUICulture));
         Keymap = new Keymap(Commands, Settings.KeyBindings);
         foreach (var c in Keymap.Conflicts) AppLog.Warn("Key binding: " + c);
         Icons = new IconProvider();

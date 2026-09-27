@@ -169,11 +169,22 @@ public sealed class CommandRegistry
     /// with the conflicts resolved as recorded in ADR-16 (plan §4.5). Ctrl+Alt+letter chords are avoided
     /// because they are AltGr characters on many European layouts.
     /// </summary>
-    public static CommandRegistry CreateDefault()
+    /// <param name="translations">
+    /// Optional translated titles by command id, and key-bar labels by "id#bar" (plan D-25: English first, localizable
+    /// without code changes). Ids and gestures are never translated.
+    /// </param>
+    public static CommandRegistry CreateDefault(IReadOnlyDictionary<string, string>? translations = null)
     {
         var r = new CommandRegistry();
-        void Add(string id, string title, string category, string? keyBar = null, CommandContext ctx = CommandContext.Panel, params string[] gestures) =>
+        void Add(string id, string title, string category, string? keyBar = null, CommandContext ctx = CommandContext.Panel, params string[] gestures)
+        {
+            if (translations is not null)
+            {
+                if (translations.TryGetValue(id, out var t) && !string.IsNullOrWhiteSpace(t)) title = t;
+                if (translations.TryGetValue(id + "#bar", out var b) && !string.IsNullOrWhiteSpace(b)) keyBar = b;
+            }
             r.Add(new CommandDefinition(id, title, category) { DefaultGestures = gestures, KeyBarLabel = keyBar, Context = ctx });
+        }
 
         const string F = "File", M = "Mark", N = "Navigate", P = "Panels", T = "Tabs", V = "View", C = "Commands", A = "Application";
 

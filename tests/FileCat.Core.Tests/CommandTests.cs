@@ -75,4 +75,23 @@ public class CommandTests
         var alt = k.GetFunctionKeyBar(KeyMods.Alt, CommandContext.Panel);
         Assert.Equal("Find", alt[6].Label);
     }
+
+    [Fact]
+    public void Language_files_translate_titles_and_key_bar_labels_with_culture_fallback()
+    {
+        using var dir = new TempDir();
+        File.WriteAllText(Path.Combine(dir.Path, "cs.json"), """
+            // Czech sample
+            { "file.copy": "Kopírovat", "file.copy#bar": "Kopie", "unknown.command": "x", }
+            """);
+        var translations = CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("cs-CZ"));
+        Assert.NotNull(translations);
+        var registry = CommandRegistry.CreateDefault(translations);
+        Assert.Equal("Kopírovat", registry.Get(CommandIds.Copy)!.Title);
+        Assert.Equal("Kopie", registry.Get(CommandIds.Copy)!.KeyBarLabel);
+        Assert.Equal("Move", registry.Get(CommandIds.Move)!.KeyBarLabel ?? "Move"); // untranslated ids keep English
+        Assert.Null(CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("de-DE")));
+        File.WriteAllText(Path.Combine(dir.Path, "de.json"), "{ broken");
+        Assert.Null(CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("de-DE")));
+    }
 }
