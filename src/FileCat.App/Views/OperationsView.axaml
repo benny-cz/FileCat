@@ -9,7 +9,7 @@
     <Border Classes="status" IsVisible="{Binding HasVisibleWork}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto" DataContext="{Binding Primary}" x:DataType="vm:JobViewModel">
         <StackPanel Spacing="2" Margin="0,2">
-          <TextBlock TextTrimming="CharacterEllipsis" Classes="small">
+          <TextBlock TextTrimming="CharacterEllipsis" Classes="small" ToolTip.Tip="{Binding Route}">
             <Run Text="{Binding Title}" FontWeight="SemiBold" />
             <Run Text=" — " />
             <Run Text="{Binding StateText}" />
@@ -66,6 +66,8 @@
               <DataTemplate x:DataType="vm:JobViewModel">
                 <StackPanel Spacing="1">
                   <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Route}" Classes="small muted" TextTrimming="CharacterEllipsis"
+                             IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                   <TextBlock Classes="small muted" TextTrimming="CharacterEllipsis">
                     <Run Text="{Binding StateText}" />
                     <Run Text=" · " />

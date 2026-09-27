@@ -3,15 +3,47 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FileCat.App.Services;
 using FileCat.Core.Jobs;
+using FileCat.Core.Listing;
+using FileCat.Core.Resources;
 
 namespace FileCat.App.ViewModels;
 
 /// <summary>One job as shown in the operation center. Progress is polled at a bounded rate.</summary>
 public sealed partial class JobViewModel : ObservableObject
 {
-    public JobViewModel(Job job) => Job = job;
+    public JobViewModel(Job job, Func<Location, string>? display = null)
+    {
+        Job = job;
+        Route = DescribeRoute(job.Request, display ?? (l => l.IsFileSystem ? l.Path : l.ToString()));
+    }
 
     public Job Job { get; }
+
+    /// <summary>Where the items come from and where they go (plan §9: source and destination stay clear).</summary>
+    public string Route { get; }
+
+    private static string DescribeRoute(JobRequest r, Func<Location, string> display)
+    {
+        string? from = null;
+        try
+        {
+            // A captured listing answers without enumerating; more than three folders are summarized.
+            var parents = ItemSources.Parents(r.Sources, 3);
+            from = parents is null ? "many folders" : parents.Count switch { 0 => null, 1 => display(parents.First()), _ => $"{parents.Count} folders" };
+        }
+        catch (ObjectDisposedException)
+        {
+            // Sources released already: the title still names the operation.
+        }
+        var to = r.Destination is { } d ? display(d) : null;
+        return (from, to) switch
+        {
+            ({ } f, { } t) => $"{f} → {t}",
+            ({ } f, null) => f,
+            (null, { } t) => "→ " + t,
+            _ => string.Empty,
+        };
+    }
 
     [ObservableProperty] private string _title = string.Empty;
     [ObservableProperty] private string _stateText = string.Empty;
@@ -92,9 +124,12 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     private readonly Dictionary<Job, JobViewModel> _map = new();
     private readonly DispatcherTimer _timer;
 
-    public OperationCenterViewModel(JobManager manager)
+    private readonly Func<Location, string>? _display;
+
+    public OperationCenterViewModel(JobManager manager, Func<Location, string>? display = null)
     {
         Manager = manager;
+        _display = display;
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => Tick());
         manager.JobAdded += job => Dispatcher.UIThread.Post(() => Add(job));
         manager.JobChanged += job => Dispatcher.UIThread.Post(() =>
@@ -130,7 +165,7 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     private void Add(Job job)
     {
         if (_map.ContainsKey(job)) return;
-        var vm = new JobViewModel(job);
+        var vm = new JobViewModel(job, _display);
         _map[job] = vm;
         Add(vm);
     }

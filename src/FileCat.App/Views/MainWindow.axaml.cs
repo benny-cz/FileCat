@@ -119,6 +119,8 @@ public partial class MainWindow : Window, IViewActions
         _vm.Notify($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.", true);
     }
 
+    private const int MaxDragItems = 5000;
+
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
         DragDrop.SetAllowDrop(view, true);
@@ -142,7 +144,15 @@ public partial class MainWindow : Window, IViewActions
             var tab = panel.ActiveTab;
             if (tab is null) return;
             var sel = tab.Listing.GetSelection();
+            if (sel.Count > MaxDragItems)
+            {
+                // Other applications cannot take a huge list well, and building it would stall the UI.
+                ItemSources.Release(sel);
+                _vm.Notify($"Too many items to drag ({sel.Count:N0}). Copy or move them with F5 or F6 instead.");
+                return;
+            }
             var paths = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Cast<string>().ToList();
+            ItemSources.Release(sel);
             // Only local files are offered to other applications (plan §4.2).
             if (paths.Count == 0) return;
             var transfer = new DataTransfer();
