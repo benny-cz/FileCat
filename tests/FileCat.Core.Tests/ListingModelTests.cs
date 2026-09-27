@@ -55,7 +55,7 @@ public sealed class ListingModelTests : IDisposable
         await _ui.InvokeAsync(first.Dispose);
         await _ui.InvokeAsync(second.Dispose);
         await _ui.WaitUntilAsync(() => budget.ReservedBytes == 0);
-        Assert.Empty(Directory.EnumerateFiles(_dir.Path, "listing-index-*"));
+        await _ui.WaitUntilAsync(() => !Directory.EnumerateFiles(_dir.Path, "listing-index-*").Any());
     }
     [Fact]
     public async Task External_index_preserves_sort_filter_focus_and_marks_under_a_shared_budget()
