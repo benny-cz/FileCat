@@ -1,6 +1,7 @@
 using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Listing;
 using FileCat.Core.Platform;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
@@ -61,6 +62,7 @@ public sealed class AppServices : IDisposable
     public StateLoadStatus SettingsStatus { get; }
     public HistoryState History { get; }
     public StateLoadStatus HistoryStatus { get; }
+    public IndexMemoryBudget ListingIndexes { get; } = new();
     public DeviceIoScheduler Io { get; }
     public IUiDispatcher Ui { get; }
     public CommandRegistry Commands { get; }

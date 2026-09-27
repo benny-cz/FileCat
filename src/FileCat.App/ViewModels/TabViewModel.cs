@@ -28,7 +28,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         Services = services;
         Panel = panel;
-        Listing = new ListingModel(services.Providers, services.Io, services.Ui, services.Paths.ListingScratchDirectory)
+        Listing = new ListingModel(services.Providers, services.Io, services.Ui, services.Paths.ListingScratchDirectory, indexBudget: services.ListingIndexes)
         {
             ShowHidden = services.Settings.ShowHidden,
             Sort = new SortSpec(SortField.Name, false, !services.Settings.DirectoriesFirst, !services.Settings.NaturalSort),

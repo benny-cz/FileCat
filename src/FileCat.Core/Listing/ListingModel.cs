@@ -42,9 +42,11 @@ public sealed class ListingModel : IDisposable
     private readonly IUiDispatcher _ui;
     private readonly string? _scratchDirectory;
     private readonly long _listingMemoryBudgetBytes;
+    private readonly IndexMemoryBudget _indexBudget;
 
     private EntryStore _store = new();
     private int[] _visible = [];
+    private DiskView? _diskView;
     private int[] _positions = [];
     private MarkSet _marks = new();
     private MarkStats? _statsCache;
@@ -64,13 +66,15 @@ public sealed class ListingModel : IDisposable
     private bool _disposed;
 
     public ListingModel(ProviderRegistry providers, DeviceIoScheduler io, IUiDispatcher ui,
-        string? scratchDirectory = null, long listingMemoryBudgetBytes = 96L * 1024 * 1024)
+        string? scratchDirectory = null, long listingMemoryBudgetBytes = 96L * 1024 * 1024,
+        IndexMemoryBudget? indexBudget = null)
     {
         _providers = providers;
         _io = io;
         _ui = ui;
         _scratchDirectory = scratchDirectory;
         _listingMemoryBudgetBytes = listingMemoryBudgetBytes;
+        _indexBudget = indexBudget ?? new IndexMemoryBudget();
     }
 
     public event EventHandler<ListingChange>? Changed;
@@ -83,7 +87,9 @@ public sealed class ListingModel : IDisposable
     public bool HasParentRow { get; private set; }
     public int Generation => _generation;
     public EntryStore Store => _store;
-    public int VisibleCount => _visible.Length;
+    public int VisibleCount => _diskView?.Count ?? _visible.Length;
+    public bool HasExternalIndex => _diskView is not null;
+    public long ExternalIndexBytes => (_diskView?.Bytes ?? 0) + (_pipeline?.ExternalSortBytes ?? 0) + (_pendingRefresh?.ExternalSortBytes ?? 0);
     public int TotalCount => Math.Max(0, _appliedCount - (HasParentRow ? 1 : 0));
     public DateTime? CompletedAtUtc { get; private set; }
     public TimeSpan LastLoadDuration { get; private set; }
@@ -133,13 +139,17 @@ public sealed class ListingModel : IDisposable
 
     // ---- Row access ------------------------------------------------------------------------------------
 
-    public int GetStoreIndex(int visibleIndex) => _visible[visibleIndex];
+    private int VisibleAt(int index) => _diskView?.GetStoreIndex(index) ?? _visible[index];
+    private IEnumerable<int> EnumerateVisible() => _diskView?.Enumerate() ?? _visible;
 
-    public EntryData GetVisible(int visibleIndex) => _store[_visible[visibleIndex]];
+    public int GetStoreIndex(int visibleIndex) => VisibleAt(visibleIndex);
+
+    public EntryData GetVisible(int visibleIndex) => _store[VisibleAt(visibleIndex)];
 
     /// <summary>Visible position of a store index, or -1 when filtered out or not yet applied.</summary>
     public int GetVisibleIndex(int storeIndex) =>
-        (uint)storeIndex < (uint)_positions.Length ? _positions[storeIndex] : -1;
+        _diskView?.GetVisibleIndex(storeIndex) ??
+        ((uint)storeIndex < (uint)_positions.Length ? _positions[storeIndex] : -1);
 
     public ItemRef GetItemRef(int storeIndex) => Provider!.GetItemRef(Location!, _store[storeIndex]);
 
@@ -173,9 +183,9 @@ public sealed class ListingModel : IDisposable
 
     public void SetFocus(int visibleIndex)
     {
-        if (_visible.Length == 0) return;
-        visibleIndex = Math.Clamp(visibleIndex, 0, _visible.Length - 1);
-        int store = _visible[visibleIndex];
+        if (VisibleCount == 0) return;
+        visibleIndex = Math.Clamp(visibleIndex, 0, VisibleCount - 1);
+        int store = VisibleAt(visibleIndex);
         _pendingFocusName = null;
         if (store == _focusStore) return;
         _focusStore = store;
@@ -281,6 +291,8 @@ public sealed class ListingModel : IDisposable
     private void CancelPipelines()
     {
         if (_pipeline is null) _store.Dispose();
+        _diskView?.Dispose();
+        _diskView = null;
         _pipeline?.Retire();
         _pendingRefresh?.Retire();
         _pipeline = null;
@@ -301,14 +313,24 @@ public sealed class ListingModel : IDisposable
 
     private void OnPipelineResult(Pipeline p, PipelineResult r)
     {
-        if (_disposed) return;
+        if (_disposed) { r.External?.Dispose(); return; }
+        if (r.ProgressOnly)
+        {
+            if (ReferenceEquals(p, _pipeline)) Raise(ListingChange.State);
+            return;
+        }
         if (ReferenceEquals(p, _pendingRefresh))
         {
-            if (!r.Done && Stopwatch.GetElapsedTime(p.StartedTimestamp) < RefreshSwapDelay) return;
+            if (!r.Done && Stopwatch.GetElapsedTime(p.StartedTimestamp) < RefreshSwapDelay)
+            {
+                r.External?.Dispose();
+                return;
+            }
             if (r.Done && r.Error is not null)
             {
                 // Refresh failed: keep the old rows and report instead of replacing them with an error view.
                 _pendingRefresh = null;
+                r.External?.Dispose();
                 p.Retire();
                 _issues.Add($"Refresh failed: {r.Error.Message}");
                 Raise(ListingChange.State);
@@ -316,7 +338,14 @@ public sealed class ListingModel : IDisposable
             }
             SwapToRefresh(p);
         }
-        if (!ReferenceEquals(p, _pipeline)) return;
+        if (!ReferenceEquals(p, _pipeline)) { r.External?.Dispose(); return; }
+        if (r.PreserveCurrent)
+        {
+            r.External?.Dispose();
+            _issues.Add($"Could not update listing view: {DescribeError(r.Error!)}");
+            Raise(ListingChange.State);
+            return;
+        }
         ApplyResult(p, r);
     }
 
@@ -334,6 +363,8 @@ public sealed class ListingModel : IDisposable
         _pipeline = p;
         _pendingRefresh = null;
         _store = p.Store;
+        _diskView?.Dispose();
+        _diskView = null;
         _visible = [];
         _positions = [];
         _marks = new MarkSet();
@@ -349,9 +380,12 @@ public sealed class ListingModel : IDisposable
     {
         int oldFocusVisible = FocusedIndex >= 0 ? FocusedIndex : _focusVisibleHint;
         int previousCount = _appliedCount;
+        _diskView?.Dispose();
+        _diskView = r.External;
         _visible = r.Visible;
         _appliedCount = r.Count;
-        _positions = BuildPositions(_visible, r.Count);
+        _positions = r.External is null && _visible.Length > 0 ? BuildPositions(_visible, r.Count) : [];
+        if (r.External is not null) p.ReleaseIndexReservation();
         var change = ListingChange.Rows;
 
         // Resolve names that were waiting for their entry to arrive.
@@ -378,10 +412,10 @@ public sealed class ListingModel : IDisposable
         if (_focusStore < 0 || GetVisibleIndex(_focusStore) < 0)
         {
             // Fall back to the previous position; a pending focus name may still move focus when it arrives.
-            if (_visible.Length > 0)
+            if (VisibleCount > 0)
             {
-                int vi = Math.Clamp(oldFocusVisible, 0, _visible.Length - 1);
-                _focusStore = _visible[vi];
+                int vi = Math.Clamp(oldFocusVisible, 0, VisibleCount - 1);
+                _focusStore = VisibleAt(vi);
                 change |= ListingChange.Focus;
             }
         }
@@ -397,7 +431,7 @@ public sealed class ListingModel : IDisposable
             if (r.Error is not null)
             {
                 Error = DescribeError(r.Error);
-                State = r.Count > (HasParentRow ? 1 : 0) ? ListingState.Complete : ListingState.Failed;
+                State = VisibleCount > (HasParentRow ? 1 : 0) ? ListingState.Complete : ListingState.Failed;
                 if (State == ListingState.Complete) _issues.Add($"Listing incomplete: {Error}");
             }
             else if (r.Canceled)
@@ -437,7 +471,7 @@ public sealed class ListingModel : IDisposable
 
     public bool IsMarked(int storeIndex) => _marks.Get(storeIndex);
 
-    public bool IsVisibleMarked(int visibleIndex) => _marks.Get(_visible[visibleIndex]);
+    public bool IsVisibleMarked(int visibleIndex) => _marks.Get(VisibleAt(visibleIndex));
 
     public int MarkedCount => _marks.Count;
 
@@ -445,21 +479,21 @@ public sealed class ListingModel : IDisposable
 
     public void SetMark(int visibleIndex, bool value)
     {
-        if ((uint)visibleIndex >= (uint)_visible.Length) return;
-        int si = _visible[visibleIndex];
+        if ((uint)visibleIndex >= (uint)VisibleCount) return;
+        int si = VisibleAt(visibleIndex);
         if (_store[si].Kind == EntryKind.Parent) return;
         if (_marks.Set(si, value)) MarksChanged();
     }
 
     public void SetMarkRange(int fromVisible, int toVisible, bool value)
     {
-        if (_visible.Length == 0) return;
-        int a = Math.Clamp(Math.Min(fromVisible, toVisible), 0, _visible.Length - 1);
-        int b = Math.Clamp(Math.Max(fromVisible, toVisible), 0, _visible.Length - 1);
+        if (VisibleCount == 0) return;
+        int a = Math.Clamp(Math.Min(fromVisible, toVisible), 0, VisibleCount - 1);
+        int b = Math.Clamp(Math.Max(fromVisible, toVisible), 0, VisibleCount - 1);
         bool changed = false;
         for (int i = a; i <= b; i++)
         {
-            int si = _visible[i];
+            int si = VisibleAt(i);
             if (_store[si].Kind != EntryKind.Parent) changed |= _marks.Set(si, value);
         }
         if (changed) MarksChanged();
@@ -479,7 +513,7 @@ public sealed class ListingModel : IDisposable
     public void InvertMarks(bool includeDirectories)
     {
         bool changed = false;
-        foreach (int si in _visible)
+        foreach (int si in EnumerateVisible())
         {
             var e = _store[si];
             if (e.Kind == EntryKind.Parent || !includeDirectories && e.IsContainer) continue;
@@ -492,7 +526,7 @@ public sealed class ListingModel : IDisposable
     {
         int affected = 0;
         bool changed = false;
-        foreach (int si in _visible)
+        foreach (int si in EnumerateVisible())
         {
             var e = _store[si];
             if (e.Kind == EntryKind.Parent) continue;
@@ -556,7 +590,7 @@ public sealed class ListingModel : IDisposable
     private void ApplyToVisible(EntryPredicate predicate, bool value)
     {
         bool changed = false;
-        foreach (int si in _visible)
+        foreach (int si in EnumerateVisible())
         {
             var e = _store[si];
             if (e.Kind == EntryKind.Parent || !predicate(e)) continue;
@@ -607,7 +641,7 @@ public sealed class ListingModel : IDisposable
         if (_marks.Count > 0)
         {
             var seen = new HashSet<int>();
-            foreach (int si in _visible)
+            foreach (int si in EnumerateVisible())
             {
                 if (_marks.Get(si))
                 {
@@ -662,7 +696,7 @@ public sealed class ListingModel : IDisposable
     private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version);
 
     /// <param name="Completion">True exactly once per pipeline: the first result after enumeration ended.</param>
-    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false);
+    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false, DiskView? External = null, bool PreserveCurrent = false, bool ProgressOnly = false);
 
     private sealed class Pipeline
     {
@@ -675,6 +709,7 @@ public sealed class ListingModel : IDisposable
         private bool _resultPosted;
         private readonly List<string> _issues = [];
         private volatile ViewSpec _spec;
+        private long _externalSortBytes;
 
         public Pipeline(int generation, Location location, ResourceProvider provider, EntryStore store, bool isRefresh,
             ViewSpec spec, IUiDispatcher ui, ListingModel owner)
@@ -704,6 +739,7 @@ public sealed class ListingModel : IDisposable
         public volatile bool LoadDone;
         public volatile bool LoadCanceled;
         public Exception? LoadError;
+        public long ExternalSortBytes => Interlocked.Read(ref _externalSortBytes);
 
         public void Signal()
         {
@@ -737,12 +773,20 @@ public sealed class ListingModel : IDisposable
 
         public void Run() => WorkTask = Task.Run(LoopAsync);
 
+        public void ReleaseIndexReservation() => _owner._indexBudget.Release(this);
+
         public void Retire()
         {
             Cts.Cancel();
             _ = Task.WhenAll(LoadTask ?? Task.CompletedTask, WorkTask ?? Task.CompletedTask)
                 .ContinueWith(_ =>
                 {
+                    lock (_resultLock)
+                    {
+                        _queuedResult?.External?.Dispose();
+                        _queuedResult = null;
+                    }
+                    ReleaseIndexReservation();
                     Store.Dispose();
                     Cts.Dispose();
                     _signal.Dispose();
@@ -758,6 +802,10 @@ public sealed class ListingModel : IDisposable
             ViewSpec? applied = null;
             bool doneAnnounced = false;
             bool first = true;
+            bool externalMode = false;
+            DiskIntIndex? externalSorted = null;
+            SortSpec? externalSort = null;
+            int lastProgressCount = sortedCount;
             try
             {
                 while (!ct.IsCancellationRequested)
@@ -770,6 +818,54 @@ public sealed class ListingModel : IDisposable
                     var spec = _spec;
                     bool done = LoadDone;
                     int n = Store.Count;
+                    if (!externalMode && !_owner._indexBudget.TryReserve(this, 40L * n))
+                    {
+                        if (_owner._scratchDirectory is null)
+                            throw new IOException("A private scratch directory is required for large listing indexes.");
+                        externalMode = true;
+                        sorted = [];
+                    }
+                    if (externalMode)
+                    {
+                        if (!done)
+                        {
+                            if (n - lastProgressCount >= Math.Max(4096, n / 8))
+                            {
+                                lastProgressCount = n;
+                                Publish(new PipelineResult([], n, false, null, false, ProgressOnly: true));
+                            }
+                            continue;
+                        }
+                        if (doneAnnounced && applied?.Version == spec.Version) continue;
+                        if (n > lastProgressCount)
+                        {
+                            lastProgressCount = n;
+                            Publish(new PipelineResult([], n, false, null, false, ProgressOnly: true));
+                        }
+                        if (externalSorted is null || externalSort != spec.Sort ||
+                            (spec.Sort.Field is SortField.Size or SortField.Metadata) && applied?.Version != spec.Version)
+                        {
+                            externalSorted?.Dispose();
+                            Interlocked.Exchange(ref _externalSortBytes, 0);
+                            externalSorted = ExternalViewBuilder.Sort(Store, n, spec.Sort,
+                                _owner.MetadataKeys, _owner._scratchDirectory!, ct);
+                            externalSort = spec.Sort;
+                            Interlocked.Exchange(ref _externalSortBytes, externalSorted.Bytes);
+                        }
+                        var external = ExternalViewBuilder.BuildView(Store, n, externalSorted, spec.Filter,
+                            spec.ShowHidden, _owner._scratchDirectory!, ct);
+                        if (_spec.Version != spec.Version)
+                        {
+                            external.Dispose();
+                            continue;
+                        }
+                        bool completion = !doneAnnounced;
+                        sortedCount = n;
+                        applied = spec;
+                        doneAnnounced = true;
+                        Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external));
+                        continue;
+                    }
                     // Geometric batches keep streaming merges and position rebuilds near O(n log n).
                     if (!done && applied is not null && applied.Version == spec.Version &&
                         n - sortedCount < Math.Max(64, sortedCount / 2)) continue;
@@ -821,7 +917,13 @@ public sealed class ListingModel : IDisposable
             }
             catch (Exception ex)
             {
-                Publish(new PipelineResult([], sortedCount, true, ex, false, true));
+                Publish(new PipelineResult([], sortedCount, true, ex, false, !doneAnnounced,
+                    PreserveCurrent: doneAnnounced));
+            }
+            finally
+            {
+                externalSorted?.Dispose();
+                Interlocked.Exchange(ref _externalSortBytes, 0);
             }
         }
 
@@ -831,6 +933,7 @@ public sealed class ListingModel : IDisposable
             {
                 if (_queuedResult is { Completion: true } && !result.Completion)
                     result = result with { Completion = true };
+                _queuedResult?.External?.Dispose();
                 _queuedResult = result;
                 if (_resultPosted) return;
                 _resultPosted = true;

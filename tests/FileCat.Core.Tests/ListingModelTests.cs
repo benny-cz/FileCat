@@ -38,6 +38,51 @@ public sealed class ListingModelTests : IDisposable
         _ui.InvokeAsync(() => Enumerable.Range(0, m.VisibleCount).Select(i => m.GetVisible(i).Name).ToArray());
 
     [Fact]
+    public async Task Tabs_share_the_index_reservation_and_release_it_on_close()
+    {
+        for (int i = 0; i < 200; i++) _dir.File($"f{i:000}.txt");
+        var budget = new IndexMemoryBudget(10_000);
+        ListingModel NewModel() => new(_providers, _io, _ui, _dir.Path, indexBudget: budget);
+        var first = await _ui.InvokeAsync(NewModel);
+        await _ui.InvokeAsync(() => first.Load(Location.FileSystem(_dir.Path)));
+        await _ui.WaitUntilAsync(() => first.State == ListingState.Complete);
+        Assert.False(await _ui.InvokeAsync(() => first.HasExternalIndex));
+        var second = await _ui.InvokeAsync(NewModel);
+        await _ui.InvokeAsync(() => second.Load(Location.FileSystem(_dir.Path)));
+        await _ui.WaitUntilAsync(() => second.State == ListingState.Complete);
+        Assert.True(await _ui.InvokeAsync(() => second.HasExternalIndex));
+        Assert.InRange(budget.ReservedBytes, 1, budget.LimitBytes);
+        await _ui.InvokeAsync(first.Dispose);
+        await _ui.InvokeAsync(second.Dispose);
+        await _ui.WaitUntilAsync(() => budget.ReservedBytes == 0);
+        Assert.Empty(Directory.EnumerateFiles(_dir.Path, "listing-index-*"));
+    }
+    [Fact]
+    public async Task External_index_preserves_sort_filter_focus_and_marks_under_a_shared_budget()
+    {
+        for (int i = 0; i < 200; i++) _dir.File($"f{i:000}.txt");
+        var budget = new IndexMemoryBudget(512);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui,
+            _dir.Path, listingMemoryBudgetBytes: 1024, indexBudget: budget));
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        Assert.True(await _ui.InvokeAsync(() => model.HasExternalIndex));
+        Assert.Equal(201, await _ui.InvokeAsync(() => model.VisibleCount));
+        Assert.Equal("f000.txt", await _ui.InvokeAsync(() => model.GetVisible(1).Name));
+        await _ui.InvokeAsync(() => model.MarkAll(true));
+        Assert.Equal(200, await _ui.InvokeAsync(() => model.MarkedCount));
+        await _ui.InvokeAsync(() => model.Filter = Mask.Parse("f1*.txt"));
+        await _ui.WaitUntilAsync(() => model.VisibleCount == 101);
+        Assert.Equal(100, await _ui.InvokeAsync(() => model.GetMarkStats().HiddenByFilter));
+        await _ui.InvokeAsync(() => model.Sort = model.Sort with { Descending = true });
+        await _ui.WaitUntilAsync(() => model.GetVisible(1).Name == "f199.txt");
+        Assert.True(await _ui.InvokeAsync(() => model.FocusName("f150.txt")));
+        Assert.Equal("f150.txt", await _ui.InvokeAsync(() => model.TryGetFocused(out var entry) ? entry.Name : null));
+        Assert.Equal(0, budget.ReservedBytes);
+        Assert.True(await _ui.InvokeAsync(() => model.ExternalIndexBytes > 0));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+    [Fact]
     public async Task Loads_sorted_with_parent_row_and_directories_first()
     {
         _dir.File("b.txt");

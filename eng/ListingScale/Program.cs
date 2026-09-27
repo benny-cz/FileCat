@@ -6,6 +6,7 @@ using FileCat.Core.Threading;
 
 int count = args.Length > 0 ? int.Parse(args[0]) : 1_000_000;
 int panels = args.Length > 1 ? int.Parse(args[1]) : 1;
+long indexBudget = args.Length > 2 ? long.Parse(args[2]) * 1024 * 1024 : 512L * 1024 * 1024;
 if (count < 1 || panels is < 1 or > 4) throw new ArgumentOutOfRangeException(nameof(args));
 string scratch = Path.Combine(Path.GetTempPath(), "FileCat-listing-scale-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(scratch);
@@ -15,8 +16,9 @@ try
     var ui = new PumpDispatcher();
     var providers = new ProviderRegistry();
     providers.Register(new SyntheticProvider(count));
+    var indexes = new IndexMemoryBudget(indexBudget);
     var models = Enumerable.Range(0, panels)
-        .Select(_ => new ListingModel(providers, io, ui, scratch)).ToArray();
+        .Select(_ => new ListingModel(providers, io, ui, scratch, indexBudget: indexes)).ToArray();
     var clock = Stopwatch.StartNew();
     var process = Process.GetCurrentProcess();
     long firstRowsMs = -1;
@@ -38,7 +40,7 @@ try
     ui.Pump(0);
     process.Refresh();
     Console.WriteLine($"count={count} panels={panels} complete_ms={clock.ElapsedMilliseconds} first_rows_ms={firstRowsMs}");
-    Console.WriteLine($"visible={string.Join(",", models.Select(m => m.VisibleCount))} spill_mib={models.Sum(m => m.Store.SpillBytes) / 1024.0 / 1024.0:F1}");
+    Console.WriteLine($"visible={string.Join(",", models.Select(m => m.VisibleCount))} spill_mib={models.Sum(m => m.Store.SpillBytes) / 1024.0 / 1024.0:F1} external_index_mib={models.Sum(m => m.ExternalIndexBytes) / 1024.0 / 1024.0:F1} reserved_index_mib={indexes.ReservedBytes / 1024.0 / 1024.0:F1}");
     Console.WriteLine($"managed_mib={GC.GetTotalMemory(true) / 1024.0 / 1024.0:F1} private_mib={process.PrivateMemorySize64 / 1024.0 / 1024.0:F1} peak_managed_mib={peakManaged / 1024.0 / 1024.0:F1} peak_private_mib={peakPrivate / 1024.0 / 1024.0:F1}");
     foreach (var model in models)
     {
