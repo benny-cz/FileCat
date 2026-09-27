@@ -39,6 +39,12 @@ public sealed partial class MainViewModel
                 return loc?.Scheme == Schemes.Registry && loc.Path.Length > 0 &&
                     (caps & LocationCapabilities.CreateDirectory) != 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Open a concrete HKCU, HKLM, or HKU Registry key to import into its scope.");
+            case CommandIds.HexEdit:
+                return tab is not null && tab.Listing.TryGetFocused(out var hexRow) && !hexRow.IsContainer &&
+                    hexRow.Kind != EntryKind.Parent && tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is not null
+                    ? CommandAvailability.Yes : CommandAvailability.No("Select a local file to edit its bytes.");
+            case CommandIds.HexRecovery:
+                return CommandAvailability.Yes;
             case CommandIds.Edit when registryItem && focusedRegistry.Kind != EntryKind.RegistryValue:
                 return CommandAvailability.No("Registry keys have no editable value data. Select a value, or use a named Registry command.");
             case CommandIds.Move when registryItem:
@@ -660,19 +666,22 @@ public sealed partial class MainViewModel
 
     private const double MinimumPanelWidth = 300;
 
-    /// <summary>Lists open viewer windows; Enter brings one to the front (FAR's screen switcher, plan §4.1).</summary>
+    /// <summary>Lists open viewer and hex editor windows; Enter brings one to the front.</summary>
     private async Task ShowViewerWindowsAsync()
     {
-        var windows = FileCat.App.Views.ViewerWindow.OpenWindows.ToList();
+        var windows = FileCat.App.Views.ViewerWindow.OpenWindows
+            .Select(w => (Window: (Avalonia.Controls.Window)w, w.DisplayName, Kind: "Viewer"))
+            .Concat(FileCat.App.Views.HexEditorWindow.OpenWindows
+                .Select(w => (Window: (Avalonia.Controls.Window)w, w.DisplayName, Kind: "Hex editor"))).ToList();
         if (windows.Count == 0)
         {
-            Notify("No viewer windows are open. F3 opens the focused file in one.");
+            Notify("No viewer or hex editor windows are open. F3 opens the focused file in a viewer.");
             return;
         }
-        var items = windows.Select(w => new ChoiceItem(Path.GetFileName(w.DisplayName.TrimEnd('\\', '/')), w.DisplayName)).ToList();
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Viewer windows", items) { Hint = "Type to filter · Enter switches to the viewer · Esc closes" });
+        var items = windows.Select(w => new ChoiceItem(Path.GetFileName(w.DisplayName.TrimEnd('\\', '/')) + " · " + w.Kind, w.DisplayName)).ToList();
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Viewer and editor windows", items) { Hint = "Type to filter · Enter switches to the window · Esc closes" });
         if (r.Index < 0 || r.Index >= windows.Count) return;
-        var chosen = windows[r.Index];
+        var chosen = windows[r.Index].Window;
         if (chosen.WindowState == Avalonia.Controls.WindowState.Minimized) chosen.WindowState = Avalonia.Controls.WindowState.Normal;
         chosen.Activate();
     }

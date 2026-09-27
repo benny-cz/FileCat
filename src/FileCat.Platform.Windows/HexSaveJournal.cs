@@ -10,7 +10,7 @@ public sealed record HexRecoveryRecord(string JournalPath, string TargetPath, Wi
 /// <summary>Durable original/replacement ranges for explicit, non-atomic in-place hex saves.</summary>
 public static class HexSaveJournal
 {
-    private static readonly byte[] Magic = "FCHXJ001"u8.ToArray();
+    private static readonly byte[] Magic = "FCHXJ002"u8.ToArray();
     private const int MaxJournalBytes = 48 * 1024 * 1024;
 
     public static IReadOnlyList<string> Pending(string directory) => Directory.Exists(directory)
@@ -85,7 +85,7 @@ public static class HexSaveJournal
         int pathLength = reader.ReadInt32();
         if (pathLength < 1 || pathLength > 32768) throw new InvalidDataException("Invalid hex journal path.");
         string target = new UTF8Encoding(false, true).GetString(reader.ReadBytes(pathLength));
-        var identity = new WindowsFileIdentity(reader.ReadUInt32(), reader.ReadUInt64());
+        var identity = new WindowsFileIdentity(reader.ReadUInt64(), Convert.ToHexString(reader.ReadBytes(16)));
         long length = reader.ReadInt64();
         int count = reader.ReadInt32();
         if (length < 0 || count < 0 || count > HexPatchOverlay.MaxTouchedBytes)
@@ -146,7 +146,7 @@ public static class HexSaveJournal
         writer.Write(path.Length);
         writer.Write(path);
         writer.Write(file.FileIdentity.VolumeSerial);
-        writer.Write(file.FileIdentity.FileIndex);
+        writer.Write(Convert.FromHexString(file.FileIdentity.FileId));
         writer.Write(file.Length);
         writer.Write(ranges.Count);
         foreach (var range in ranges)

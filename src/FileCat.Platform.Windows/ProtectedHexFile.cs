@@ -6,9 +6,9 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
-public readonly record struct WindowsFileIdentity(uint VolumeSerial, ulong FileIndex)
+public readonly record struct WindowsFileIdentity(ulong VolumeSerial, string FileId)
 {
-    public override string ToString() => $"{VolumeSerial:X8}:{FileIndex:X16}";
+    public override string ToString() => $"{VolumeSerial:X16}:{FileId}";
 }
 
 /// <summary>Local-file baseline held with write/delete sharing denied for the entire editing session.</summary>
@@ -72,21 +72,23 @@ public sealed partial class ProtectedHexFile : IContentSource
     internal void Flush() => RandomAccess.FlushToDisk(_handle);
     public void Dispose() => _handle.Dispose();
 
-    public static WindowsFileIdentity Identity(SafeFileHandle handle)
+    public static unsafe WindowsFileIdentity Identity(SafeFileHandle handle)
     {
-        if (!GetFileInformationByHandle(handle, out var info)) throw new Win32Exception(Marshal.GetLastWin32Error());
-        return new WindowsFileIdentity(info.VolumeSerial, ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow);
+        if (!GetFileInformationByHandleEx(handle, 18, out var info, (uint)sizeof(FileIdInfo)))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        var bytes = new byte[16];
+        for (int i = 0; i < bytes.Length; i++) bytes[i] = info.FileId[i];
+        return new WindowsFileIdentity(info.VolumeSerial, Convert.ToHexString(bytes));
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ByHandleFileInformation
+    private unsafe struct FileIdInfo
     {
-        public uint Attributes;
-        public long CreationTime, LastAccessTime, LastWriteTime;
-        public uint VolumeSerial, SizeHigh, SizeLow, LinkCount, FileIndexHigh, FileIndexLow;
+        public ulong VolumeSerial;
+        public fixed byte FileId[16];
     }
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetFileInformationByHandle(SafeFileHandle handle, out ByHandleFileInformation information);
+    private static unsafe partial bool GetFileInformationByHandleEx(SafeFileHandle handle, int informationClass,
+        out FileIdInfo information, uint size);
 }

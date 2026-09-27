@@ -22,9 +22,10 @@ public partial class MainWindow : Window, IViewActions
 {
     private static readonly (string Header, string[] Items)[] MenuLayout =
     [
-        ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, "-", CommandIds.Copy, CommandIds.Duplicate,
+        ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, "-", CommandIds.Copy, CommandIds.Duplicate,
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
-            CommandIds.Pack, CommandIds.Unpack, CommandIds.Checksum, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename, "-",
+            CommandIds.Pack, CommandIds.Unpack, CommandIds.Checksum, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename,
+            CommandIds.RegistryExport, CommandIds.RegistryImport, "-",
             CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
         ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
             CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
@@ -46,7 +47,7 @@ public partial class MainWindow : Window, IViewActions
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
             CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemeCycle]),
         ("_Tools", [CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
-            CommandIds.DiagnosticsExport]),
+            CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
         ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),
     ];
 
@@ -113,10 +114,14 @@ public partial class MainWindow : Window, IViewActions
     {
         var dir = _vm.Services.Paths.JournalDirectory;
         var interrupted = await Task.Run(() => Core.Jobs.JournalRecovery.Scan(dir));
-        if (interrupted.Count == 0) return;
-        _vm.Operations.LoadInterrupted(interrupted);
-        _vm.Operations.IsOpen = true;
-        _vm.Notify($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.", true);
+        if (interrupted.Count > 0)
+        {
+            _vm.Operations.LoadInterrupted(interrupted);
+            _vm.Operations.IsOpen = true;
+            _vm.Notify($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.", true);
+        }
+        var hex = await Task.Run(() => FileCat.Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
+        if (hex > 0) _vm.Notify($"{hex:N0} interrupted hex save journal(s) need review. Open Tools → Recover interrupted hex save.", true);
     }
 
     private const int MaxDragItems = 5000;

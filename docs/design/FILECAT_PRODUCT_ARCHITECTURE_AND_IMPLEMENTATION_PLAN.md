@@ -794,13 +794,15 @@ Baseline consistency is separate from display caching. Detect identity replaceme
 
 | Situation | Preferred strategy | Guarantee and limitation |
 |---|---|---|
-| Small stable local file | Write sibling replacement, preserve required metadata, flush according to profile, validate original, publish through verified native replacement | Requires adequate space, compatible metadata/identity semantics, and validated concurrency protection. Replacement is not automatically power-loss-proof. |
-| Huge local file with feasible full replacement | Same strategy; preserve sparse allocation where supported | Can be expensive; show storage/time implications before proceeding. |
-| Huge local file with small patches | Explicit journaled in-place mode after validation | Multiple writes are non-atomic; deny concurrent ordinary writes where supported; retain original ranges before modification; disclose partial-visibility/crash limits. |
+| Local Windows file with a protected baseline (P4b) | Explicit journaled in-place mode for fixed-length patches | Multiple writes are non-atomic; ordinary concurrent writes/deletion are excluded from editor open; original ranges and full file identity support guarded recovery. |
+| New local target (P4b) | Save As with a full protected read, or export exact patch ranges | Can use substantial time and space; a new file does not inherit ACLs, streams, or sparse allocation. Neither mode overwrites an existing target. |
+| Small or huge file where replacement fidelity is validated later | Sibling replacement preserving required metadata, allocation, and identity policy | Requires adequate space, explicit hard-link/stream/ACL policy, and verified native replacement outcomes. Replacement is not automatically power-loss-proof. |
 | Remote/provider-backed content | Conditional update or verified staging/publish if supported | Ordinary SFTP/FTP timestamps are not strong version tokens; weak providers may require Save As or explicit weaker policy. |
 | No safe update path | Preserve overlay; offer export of patches and/or Save As | Do not silently fall back to unsafe overwrite. Save As also needs a stable source or explicit mixed-version warning. |
 
 The accepted product choice permits an explicitly selected, validated non-atomic in-place mode; it does not authorize silent lost updates. Fail closed for an existing-target save when the required write exclusion or conditional version guarantee cannot be established. A best-effort external-change indicator alone is not enough to claim safe original-file overwrite.
+
+ADR-05 selects the protected Windows in-place mode as P4b's first existing-file implementation because it keeps hard-link aliases, ACLs, streams, and allocation attached to the same file identity. The sibling-replacement rows remain future options until their preservation and failure semantics are validated. The editor offers Save As and patch export when the user wants a new artifact.
 
 For a strong local guarantee, establish a protected baseline from the start of editing or use a validated revision/snapshot-and-exclusion protocol. Acquiring a lock only at Save and comparing length/mtime is insufficient to prove nothing changed earlier. On systems where locks are advisory or a provider has no reliable version condition, reduce supported save modes rather than manufacture equivalent protection. On Linux and macOS, this means in-place saving of existing large files is unavailable unless a validated exclusion exists (§5.3). The user can still view, export patches, or create an explicitly qualified copy.
 

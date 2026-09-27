@@ -27,7 +27,7 @@ public sealed class HexView : Control
     private double _charWidth = 8;
     private double _rowHeight = 18;
     private bool _pendingInvalidate;
-    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _cursorBrush = Brushes.Blue, _bg = Brushes.White, _hit = Brushes.Yellow;
+    private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _selection = Brushes.LightBlue, _cursorBrush = Brushes.Blue, _bg = Brushes.White, _hit = Brushes.Yellow, _modified = Brushes.Orange;
     private (long Start, long Length)? _highlight;
 
     public HexView()
@@ -53,6 +53,8 @@ public sealed class HexView : Control
     }
 
     public event Action? CursorMoved;
+    /// <summary>Optional sparse edit marker; queried only for visible bytes.</summary>
+    public Func<long, bool>? IsModified { get; set; }
 
     private HexViewAutomationPeer? _automationPeer;
 
@@ -127,6 +129,7 @@ public sealed class HexView : Control
         _cursorBrush = B("FcFocusBorder", Brushes.Blue);
         _bg = B("FcPanel", Brushes.White);
         _hit = B("FcSearchHit", Brushes.Yellow);
+        _modified = B("FcModified", Brushes.Orange);
         InvalidateVisual();
     }
 
@@ -204,9 +207,10 @@ public sealed class HexView : Control
                 bool isHit = _highlight is { } h && pos >= h.Start && pos < h.Start + h.Length;
                 double bx = xHex + (i * 3 + (i >= 8 ? 1 : 0)) * _charWidth;
                 double tx = xText + i * _charWidth;
-                if (inSel || isHit)
+                bool modified = IsModified?.Invoke(pos) == true;
+                if (inSel || isHit || modified)
                 {
-                    var brush = isHit ? _hit : _selection;
+                    var brush = isHit ? _hit : inSel ? _selection : _modified;
                     dc.FillRectangle(brush, new Rect(bx - 1, y, _charWidth * 2 + 2, _rowHeight));
                     dc.FillRectangle(brush, new Rect(tx, y, _charWidth, _rowHeight));
                 }

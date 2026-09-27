@@ -43,6 +43,7 @@ public sealed class HexPatchOverlay : IContentSource
     public int TouchedBytes { get { lock (_gate) return _original.Count; } }
     public bool CanUndo { get { lock (_gate) return _undo.Count > 0; } }
     public bool CanRedo { get { lock (_gate) return _redo.Count > 0; } }
+    public bool IsModified(long offset) { lock (_gate) return _patch.ContainsKey(offset); }
     public event Action? Changed;
 
     public ContentRevision? GetRevision() => new(Length, Interlocked.Read(ref _revision), "hex-overlay");
