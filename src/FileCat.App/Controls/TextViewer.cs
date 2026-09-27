@@ -47,6 +47,7 @@ public sealed class TextViewer : Control
     {
         Focusable = true;
         ClipToBounds = true;
+        PositionChanged += () => _automationPeer?.AnnounceContent();
         _vbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Vertical, AllowAutoHide = false };
         _vbar.PropertyChanged += (_, e) =>
         {
@@ -57,6 +58,10 @@ public sealed class TextViewer : Control
     }
 
     public event Action? PositionChanged;
+
+    private TextViewerAutomationPeer? _automationPeer;
+
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => _automationPeer = new TextViewerAutomationPeer(this);
 
     public long TopOffset => _topLine;
 

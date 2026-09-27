@@ -63,9 +63,11 @@ public sealed class DeviceIoScheduler : IDisposable
     public Task Run(string deviceKey, IoPriority priority, Action<CancellationToken> work, CancellationToken ct = default) =>
         Run<bool>(deviceKey, priority, c => { work(c); return true; }, ct);
 
+    /// <summary>Queues work for a device. After shutdown began the work is not run and the task is canceled.</summary>
     public Task<T> Run<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        // Late requests (a watcher notification posted just before exit) are canceled, not thrown at the UI.
+        if (_disposed) return Task.FromCanceled<T>(new CancellationToken(canceled: true));
         var item = new WorkItem<T>(work, ct);
         _devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority);
         return item.Task;

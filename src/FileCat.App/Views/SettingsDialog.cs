@@ -166,6 +166,9 @@ public static class SettingsDialog
                 var l = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 12, 4) };
                 Grid.SetRow(l, i);
                 grid.Children.Add(l);
+                // Screen readers announce the field by its visible label.
+                if (string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(control)))
+                    Avalonia.Automation.AutomationProperties.SetName(control, label);
             }
             control.Margin = new Thickness(0, 4);
             Grid.SetRow(control, i);

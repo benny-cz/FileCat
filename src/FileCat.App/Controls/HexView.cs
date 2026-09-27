@@ -34,6 +34,7 @@ public sealed class HexView : Control
     {
         Focusable = true;
         ClipToBounds = true;
+        CursorMoved += () => _automationPeer?.AnnounceCursor();
         _vbar = new ScrollBar { Orientation = Avalonia.Layout.Orientation.Vertical, AllowAutoHide = false };
         _vbar.PropertyChanged += (_, e) =>
         {
@@ -52,6 +53,23 @@ public sealed class HexView : Control
     }
 
     public event Action? CursorMoved;
+
+    private HexViewAutomationPeer? _automationPeer;
+
+    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => _automationPeer = new HexViewAutomationPeer(this);
+
+    /// <summary>The cursor byte and its row, for assistive technology (never blocks on I/O).</summary>
+    internal string DescribeCursor()
+    {
+        if (_reader is null) return "No content";
+        long row = _cursor / BytesPerRow * BytesPerRow;
+        Span<byte> bytes = stackalloc byte[BytesPerRow];
+        _reader.TryRead(row, bytes, out int n);
+        int at = (int)(_cursor - row);
+        var hex = string.Join(" ", bytes[..n].ToArray().Select(b => b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)));
+        var value = at < n ? $"byte {bytes[at]:X2} hex" : "byte not loaded yet";
+        return $"Offset {_cursor:N0} of {_reader.Length:N0}, {value}; row {row:X8}: {hex}";
+    }
 
     public long CursorOffset => _cursor;
 

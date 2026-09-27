@@ -421,6 +421,8 @@ public sealed class FileListControl : Control
     private void OnListingChanged(object? sender, ListingChange change)
     {
         if (!ReferenceEquals(sender, _listing)) return;
+        // Screen readers follow the focused item through the list peer's name.
+        if ((change & (ListingChange.Focus | ListingChange.Marks | ListingChange.Reset)) != 0) _automationPeer?.AnnounceFocus();
         if (IsRenaming)
         {
             if ((change & ListingChange.Reset) != 0 || _listing!.GetVisibleIndex(_renameStoreIndex) < 0)
@@ -973,7 +975,9 @@ public sealed class FileListControl : Control
 
     public Rect GetRowBounds(int row) => new(0, _headerHeight + (row - _topRow) * _rowHeight, Bounds.Width, _rowHeight);
 
-    protected override AutomationPeer OnCreateAutomationPeer() => new FileListAutomationPeer(this);
+    private FileListAutomationPeer? _automationPeer;
+
+    protected override AutomationPeer OnCreateAutomationPeer() => _automationPeer = new FileListAutomationPeer(this);
 
     /// <summary>Right border of a laid-out column (tests and automation).</summary>
     internal double ColumnRightEdge(int column) => _columnX[column] + _columnW[column];
@@ -983,8 +987,10 @@ public sealed class FileListControl : Control
         if (_listing is null || !_listing.TryGetFocused(out var e)) return "Empty list";
         int i = _listing.FocusedIndex + 1;
         var kind = e.Kind == EntryKind.Parent ? "parent folder" : e.IsContainer ? "folder" : "file";
+        var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
+        if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e.Modified);
         var marked = _listing.IsMarked(_listing.FocusedStoreIndex) ? ", marked" : string.Empty;
-        return $"{e.Name}, {kind}{marked}, {i} of {_listing.VisibleCount}";
+        return $"{e.Name}, {kind}{details}{marked}, {i} of {_listing.VisibleCount}";
     }
 }
 
@@ -996,6 +1002,17 @@ internal sealed class FileListAutomationPeer(FileListControl owner) : ControlAut
     protected override string GetClassNameCore() => "FileList";
 
     protected override string? GetNameCore() => owner.DescribeFocus();
+
+    private string? _announced;
+
+    /// <summary>Raises a name change when the focused item (or its mark) changed, so assistive technology speaks it.</summary>
+    public void AnnounceFocus()
+    {
+        var name = owner.DescribeFocus();
+        if (name == _announced) return;
+        RaisePropertyChangedEvent(AutomationElementIdentifiers.NameProperty, _announced, name);
+        _announced = name;
+    }
 
     protected override bool IsKeyboardFocusableCore() => true;
 }

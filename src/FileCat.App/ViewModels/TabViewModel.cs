@@ -122,7 +122,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Location is not { IsFileSystem: true } loc || !IsActiveTab) return;
         var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() =>
         {
-            if (Location == loc && Listing.State == ListingState.Complete && !Listing.IsRefreshing) Listing.Refresh();
+            // The notification may arrive after the tab closed (the post outlives the watcher).
+            if (!_disposed && Location == loc && Listing.State == ListingState.Complete && !Listing.IsRefreshing) Listing.Refresh();
         }));
         _monitor = monitor.IsActive ? monitor : null;
         if (!monitor.IsActive) monitor.Dispose();

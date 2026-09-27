@@ -89,6 +89,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         var tcs = new TaskCompletionSource<PromptResult?>();
         var box = new TextBox { Text = o.Text, MinWidth = 420, AcceptsReturn = false };
+        Avalonia.Automation.AutomationProperties.SetName(box, string.IsNullOrEmpty(o.Message) ? o.Title : o.Message);
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var check = o.CheckboxText is null ? null : new CheckBox { Content = o.CheckboxText, IsChecked = o.CheckboxValue };
         var ok = new Button { Content = o.ConfirmText, Classes = { "primary" }, IsDefault = true };
@@ -340,6 +341,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var deleted = new List<int>();
         var all = o.Items.Select((item, index) => new ChoiceRow(item, index)).ToList();
         var filter = new TextBox { PlaceholderText = "Type to filter…", MinWidth = 520 };
+        Avalonia.Automation.AutomationProperties.SetName(filter, "Filter " + o.Title);
         var list = new ListBox
         {
             Classes = { "choices" },
@@ -367,6 +369,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 return g;
             }),
         };
+        Avalonia.Automation.AutomationProperties.SetName(list, o.Title);
         var hint = new TextBlock
         {
             Text = o.Hint ?? "Type to filter · Enter chooses · Esc closes" + (o.AllowDelete ? " · Ctrl+Del removes" : string.Empty),

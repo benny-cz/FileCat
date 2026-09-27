@@ -67,6 +67,10 @@ public static class SearchDialog
                 return g;
             }),
         };
+        Avalonia.Automation.AutomationProperties.SetName(minKb, "Minimum size in KB");
+        Avalonia.Automation.AutomationProperties.SetName(maxKb, "Maximum size in KB");
+        Avalonia.Automation.AutomationProperties.SetName(days, "Modified within the last days");
+        Avalonia.Automation.AutomationProperties.SetName(list, "Search results");
         int shownCount = 0;
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto") };
@@ -77,6 +81,7 @@ public static class SearchDialog
             Grid.SetRow(c, r);
             Grid.SetColumn(c, 1);
             c.Margin = new Thickness(0, 3);
+            if (c is not Panel) Avalonia.Automation.AutomationProperties.SetName(c, label.TrimEnd(':'));
             grid.Children.Add(l);
             grid.Children.Add(c);
         }

@@ -29,6 +29,7 @@ public sealed class QuickViewPane : Border
 
     public QuickViewPane()
     {
+        Avalonia.Automation.AutomationProperties.SetName(this, "Quick view");
         _debounce = new DispatcherTimer(TimeSpan.FromMilliseconds(140), DispatcherPriority.Background, (_, _) =>
         {
             _debounce!.Stop();
