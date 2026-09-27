@@ -1,7 +1,7 @@
-
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
 
@@ -28,6 +28,15 @@ public sealed class JobJournal : IDisposable
 
     public string Path { get; }
 
+    /// <summary>The header lists this many sources; a job with more gets a manifest of all of them.</summary>
+    internal const int HeaderSampleSize = 64;
+
+    /// <summary>Sources beyond this count are not listed durably (a rerun then needs a new selection).</summary>
+    public const int ManifestLimit = 1_000_000;
+
+    /// <summary>Sidecar listing every source path of a large job, one per line (plan §9.3 durable manifest).</summary>
+    public static string ManifestPathOf(string journalPath) => journalPath + ".sources";
+
     public static JobJournal Create(string directory, Job job)
     {
         Directory.CreateDirectory(directory);
@@ -41,13 +50,49 @@ public sealed class JobJournal : IDisposable
             ["kind"] = job.Kind.ToString(),
             ["title"] = job.Title,
             ["created"] = job.CreatedUtc.ToString("O"),
-            ["sources"] = new JsonArray(job.Request.Sources.Take(64).Select(s => (JsonNode)(s.FileSystemPath ?? s.ToString())).ToArray()),
+            ["sources"] = new JsonArray(job.Request.Sources.Take(HeaderSampleSize).Select(s => (JsonNode)(s.FileSystemPath ?? s.ToString())).ToArray()),
             ["sourceCount"] = job.Request.Sources.Count,
             ["dest"] = job.Request.Destination?.Serialize(),
             ["newName"] = job.Request.NewName,
         };
         j.Write(begin, sync: true);
+        int count = job.Request.Sources.Count;
+        if (count > HeaderSampleSize && count <= ManifestLimit) WriteManifest(ManifestPathOf(path), job.Request.Sources);
         return j;
+    }
+
+    /// <summary>
+    /// Writes every file-system source path, durably, once. Captured selections are read in bulk. Anything that
+    /// cannot be listed exactly (items without a path, names with line breaks) leaves no manifest at all.
+    /// </summary>
+    private static void WriteManifest(string manifest, IReadOnlyList<ItemRef> sources)
+    {
+        try
+        {
+            using (var fs = new FileStream(manifest, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 1 << 16))
+            {
+                using (var writer = new StreamWriter(fs, new UTF8Encoding(false), 1 << 16, leaveOpen: true))
+                {
+                    if (sources is Listing.SelectionSnapshot snapshot)
+                    {
+                        if (!snapshot.TryWritePaths(writer)) throw new InvalidDataException("Sources without one folder.");
+                    }
+                    else
+                    {
+                        foreach (var s in sources)
+                        {
+                            if (s.FileSystemPath is not { } p || p.AsSpan().IndexOfAny('\r', '\n') >= 0) throw new InvalidDataException("Not listable.");
+                            writer.WriteLine(p);
+                        }
+                    }
+                }
+                fs.Flush(flushToDisk: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or ObjectDisposedException)
+        {
+            try { File.Delete(manifest); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     /// <summary>Records an intent durably before the transition happens; returns the step number.</summary>
@@ -96,6 +141,8 @@ public sealed class JobJournal : IDisposable
     public void Finish(JobState state, string summary)
     {
         Write(new JsonObject { ["t"] = "end", ["state"] = state.ToString(), ["summary"] = summary, ["time"] = DateTime.UtcNow.ToString("O") }, sync: true);
+        // A job that ended needs no rerun: its manifest goes with it.
+        try { File.Delete(ManifestPathOf(Path)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     private void Write(JsonObject record, bool sync)
@@ -167,6 +214,12 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
 {
     /// <summary>Folders that received direct copies (source folder, destination folder), bounded.</summary>
     public IReadOnlyList<FillDirectory> FillDirectories { get; init; } = [];
+
+    /// <summary>The manifest listing every source, when the job had more than the header lists.</summary>
+    public string? ManifestPath { get; init; }
+
+    /// <summary>Every source path is known: from the header when it lists them all, otherwise from the manifest.</summary>
+    public bool SourcesKnown => SourceCount <= Sources.Count || ManifestPath is not null;
 }
 
 public sealed record FillDirectory(string Source, string Destination);
@@ -221,10 +274,12 @@ public static class JournalRecovery
             }
             catch (IOException) { continue; }
             catch (UnauthorizedAccessException) { continue; }
+            var manifest = JobJournal.ManifestPathOf(f.FullName);
             if (ended)
             {
                 finished++;
                 if (finished > keepFinished || f.LastWriteTimeUtc < cutoff) TryDelete(f.FullName);
+                TryDelete(manifest);
                 continue;
             }
             if (begin is null)
@@ -237,7 +292,11 @@ public static class JournalRecovery
                 ? declared : sources.Count;
             DateTime.TryParse(begin.Get("created"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var created);
             result.Add(new InterruptedJob(f.FullName, begin.Get("kind") ?? "?", begin.Get("title") ?? "Operation", created, sources,
-                begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount) { FillDirectories = fills });
+                begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount)
+            {
+                FillDirectories = fills,
+                ManifestPath = File.Exists(manifest) ? manifest : null,
+            });
         }
         return result;
     }
@@ -296,9 +355,32 @@ public static class JournalRecovery
         return list;
     }
 
+    /// <summary>Every source path of the job (header or manifest), or null when they are not all known.</summary>
+    public static IReadOnlyList<string>? LoadSources(InterruptedJob job)
+    {
+        if (job.SourceCount <= job.Sources.Count) return job.Sources;
+        if (job.ManifestPath is not { } manifest) return null;
+        try
+        {
+            var list = new List<string>(Math.Min(job.SourceCount, JobJournal.ManifestLimit));
+            foreach (var line in File.ReadLines(manifest))
+            {
+                if (line.Length > 0) list.Add(line);
+                if (list.Count > JobJournal.ManifestLimit) return null;
+            }
+            // A manifest cut short (a crash while it was written) is not the job's selection.
+            return list.Count == job.SourceCount ? list : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Marks the journal as reconciled so it no longer appears as interrupted.</summary>
     public static void Close(InterruptedJob job, string resolution)
     {
+        TryDelete(JobJournal.ManifestPathOf(job.JournalPath));
         try
         {
             // Start on a fresh line in case the crash left a torn record without a newline.

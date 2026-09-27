@@ -34,10 +34,21 @@ public static class SettingsDialog
         var sizeOnSpace = new CheckBox { Content = "Space computes the size of a marked folder", IsChecked = s.SizeFolderOnSpace };
         var sizeSlow = new CheckBox { Content = "…also on network, removable, and cloud locations", IsChecked = s.SizeFolderOnSlowLocations };
         var anywhere = new CheckBox { Content = "Quick search matches anywhere in the name (instead of the beginning)", IsChecked = s.QuickSearchMatchAnywhere };
+        var savedFilters = new TextBox
+        {
+            AcceptsReturn = true,
+            MinHeight = 80,
+            MinWidth = 460,
+            FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
+            Text = string.Join(Environment.NewLine, s.SavedFilters.Select(f => $"{f.Name} = {f.Mask}")),
+            PlaceholderText = "images = *.png;*.jpg;*.gif\ncode = *.cs;*.axaml|*.g.cs",
+        };
         var single = new CheckBox { Content = "One FileCat window per profile (a new launch opens its paths in the running window)", IsChecked = s.SingleInstance };
         var awake = new CheckBox { Content = "Keep the computer awake while operations run", IsChecked = s.KeepAwakeDuringJobs };
         var verify = new ComboBox { ItemsSource = new[] { "Native", "ReadBack" }, SelectedItem = s.DefaultVerify, MinWidth = 220 };
-        tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify)) });
+        tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify),
+            ("Saved filters", savedFilters),
+            ("", Note("One per line: name = mask. Use them as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
 
         // ---- Tools
         var editorExe = new TextBox { Text = s.Editor?.Executable ?? string.Empty, PlaceholderText = "auto: " + Core.Tools.ToolLauncher.DetectEditor().Executable, MinWidth = 460 };
@@ -49,7 +60,7 @@ public static class SettingsDialog
             MinHeight = 120,
             MinWidth = 460,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
-            Text = string.Join(Environment.NewLine, s.UserCommands.Select(u => $"{u.Name} | {u.Executable} | {string.Join(" ", u.Arguments)}")),
+            Text = Core.Tools.UserCommandsText.Format(s.UserCommands),
         };
         var associations = new TextBox
         {
@@ -66,7 +77,7 @@ public static class SettingsDialog
             Content = Form(("Editor (F4) program", editorExe), ("Editor arguments", editorArgs), ("Command line shell", shell), ("User commands (F9)", userCommands),
                 ("Associations", associations),
                 ("", Note("Associations, one per line: mask | view, edit, or open | program | arguments. F3, F4, and Enter use the first matching line; Alt+F3 always opens the internal viewer.")),
-                ("", Note("One command per line: Name | program | arguments. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters."))),
+                ("", Note("One command per line: Name | program | arguments | options. \"Group > Name\" puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option."))),
         });
 
         // ---- Columns
@@ -110,8 +121,16 @@ public static class SettingsDialog
                 tabs.SelectedIndex = 4;
                 continue;
             }
+            var parsedFilters = ParseSavedFilters(savedFilters.Text, out var filterError);
+            if (filterError is not null)
+            {
+                error.Text = filterError;
+                error.IsVisible = true;
+                tabs.SelectedIndex = 1;
+                continue;
+            }
             var parsedAssociations = Core.Tools.Associations.Parse(associations.Text, out var associationError);
-            var parsedCommands = ParseUserCommands(userCommands.Text, out var commandError);
+            var parsedCommands = Core.Tools.UserCommandsText.Parse(userCommands.Text, out var commandError);
             commandError ??= associationError;
             if (commandError is not null)
             {
@@ -136,6 +155,7 @@ public static class SettingsDialog
             s.SingleInstance = single.IsChecked == true;
             s.KeepAwakeDuringJobs = awake.IsChecked == true;
             s.DefaultVerify = verify.SelectedItem as string ?? "Native";
+            s.SavedFilters = parsedFilters;
             s.Editor = string.IsNullOrWhiteSpace(editorExe.Text) ? null : new ToolDefinition
             {
                 Name = Path.GetFileNameWithoutExtension(editorExe.Text.Trim()),
@@ -178,6 +198,49 @@ public static class SettingsDialog
         return new ScrollViewer { Content = grid, MaxHeight = 520 };
     }
 
+    /// <summary>"name = mask" lines; every mask must parse, including references between saved filters.</summary>
+    private static List<SavedFilter> ParseSavedFilters(string? text, out string? error)
+    {
+        error = null;
+        var list = new List<SavedFilter>();
+        foreach (var raw in (text ?? string.Empty).Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+            int eq = line.IndexOf('=');
+            var name = eq > 0 ? line[..eq].Trim() : string.Empty;
+            if (name.Length == 0 || name.AsSpan().IndexOfAny("*?;,|\"@ ") >= 0)
+            {
+                error = $"\"{line}\": expected name = mask, with a name of letters, digits, - or _.";
+                return list;
+            }
+            if (list.Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                error = $"The saved filter \"{name}\" is defined twice.";
+                return list;
+            }
+            list.Add(new SavedFilter { Name = name, Mask = line[(eq + 1)..].Trim() });
+        }
+        var previous = Core.Selection.Mask.SavedFilters;
+        Core.Selection.Mask.SavedFilters = n => list.FirstOrDefault(f => string.Equals(f.Name, n, StringComparison.OrdinalIgnoreCase))?.Mask;
+        try
+        {
+            foreach (var f in list)
+            {
+                if (!Core.Selection.Mask.TryParse(f.Mask, out _, out var maskError))
+                {
+                    error = $"Saved filter \"{f.Name}\": {maskError}";
+                    return list;
+                }
+            }
+        }
+        finally
+        {
+            Core.Selection.Mask.SavedFilters = previous;
+        }
+        return list;
+    }
+
     private static TextBlock Note(string text) => new() { Text = text, Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 };
 
     private static Dictionary<string, string[]> ParseBindings(string? text, CommandRegistry registry, out string? error)
@@ -212,29 +275,5 @@ public static class SettingsDialog
             result[id] = gestures;
         }
         return result;
-    }
-
-    private static List<ToolDefinition> ParseUserCommands(string? text, out string? error)
-    {
-        error = null;
-        var list = new List<ToolDefinition>();
-        foreach (var raw in (text ?? string.Empty).Split('\n'))
-        {
-            var line = raw.Trim();
-            if (line.Length == 0 || line.StartsWith('#')) continue;
-            var parts = line.Split('|');
-            if (parts.Length < 2)
-            {
-                error = $"\"{line}\": expected Name | program | arguments.";
-                return list;
-            }
-            list.Add(new ToolDefinition
-            {
-                Name = parts[0].Trim(),
-                Executable = parts[1].Trim().Trim('"'),
-                Arguments = parts.Length > 2 ? parts[2].Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() : ["{file}"],
-            });
-        }
-        return list;
     }
 }

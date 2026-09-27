@@ -68,6 +68,39 @@ public sealed class JobEngineTests : IDisposable
         var interrupted = Assert.Single(JournalRecovery.Scan(Path.Combine(_dir.Path, "journal")));
         Assert.Equal(5000, interrupted.SourceCount);
         Assert.Equal(64, interrupted.Sources.Count);
+
+        // The durable manifest lists every source, so the job can run again for the rest; closing removes it.
+        Assert.True(interrupted.SourcesKnown);
+        var all = JournalRecovery.LoadSources(interrupted);
+        Assert.Equal(sources.Select(s => s.FileSystemPath), all);
+        JournalRecovery.Close(interrupted, "test");
+        Assert.False(File.Exists(interrupted.ManifestPath));
+        Assert.Empty(JournalRecovery.Scan(Path.Combine(_dir.Path, "journal")));
+    }
+
+    [Fact]
+    public async Task A_finished_job_keeps_no_manifest_and_a_torn_manifest_is_not_trusted()
+    {
+        var files = Enumerable.Range(0, 100).Select(i =>
+        {
+            var p = Path.Combine(_src, $"m{i:000}.txt");
+            File.WriteAllText(p, "x");
+            return p;
+        }).ToList();
+        var job = await WaitAsync(Submit(JobKind.Copy, files, _dst));
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Empty(Directory.GetFiles(Path.Combine(_dir.Path, "journal"), "*.sources"));
+
+        // A manifest cut short by a crash does not stand in for the selection.
+        var request = new JobRequest { Kind = JobKind.Copy, Sources = files.Select(Item).ToList(), Destination = Location.FileSystem(_dst) };
+        var (title, device, reads, writes) = _jobs.Describe(request);
+        var crashed = new Job(request, title, device, reads, writes);
+        var journalDir = Path.Combine(_dir.Path, "journal-torn");
+        using (JobJournal.Create(journalDir, crashed)) { }
+        var manifest = Assert.Single(Directory.GetFiles(journalDir, "*.sources"));
+        File.WriteAllLines(manifest, File.ReadLines(manifest).Take(70).ToList());
+        var interrupted = Assert.Single(JournalRecovery.Scan(journalDir));
+        Assert.Null(JournalRecovery.LoadSources(interrupted));
     }
     [Fact]
     public async Task Copies_tree_and_leaves_no_staged_files()

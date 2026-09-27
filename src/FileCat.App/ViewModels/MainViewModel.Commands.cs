@@ -669,10 +669,10 @@ public sealed partial class MainViewModel
     {
         var listing = ActiveTab?.Listing;
         if (listing is null) return;
-        var r = await Dialogs.PromptAsync(new PromptOptions(select ? "Select" : "Unselect", "Mask (e.g. *.cs;*.axaml|*Test*, /regex/, trailing \\ for folders):")
+        var r = await Dialogs.PromptAsync(new PromptOptions(select ? "Select" : "Unselect", "Mask (e.g. *.cs;*.axaml|*Test*, /regex/, trailing \\ for folders, @saved filter):")
         {
             Text = Services.History.Masks.FirstOrDefault() ?? "*.*",
-            History = Services.History.Masks,
+            History = Services.MaskSuggestions(),
             Validate = t => Mask.TryParse(t, out _, out var err) ? null : err,
             CheckboxText = "Include folders",
             CheckboxValue = false,
@@ -690,7 +690,7 @@ public sealed partial class MainViewModel
         var r = await Dialogs.PromptAsync(new PromptOptions("Quick filter", "Show only items matching (empty shows all). Marks on hidden items are kept:")
         {
             Text = tab.Listing.Filter?.Text ?? string.Empty,
-            History = Services.History.Masks,
+            History = Services.MaskSuggestions(),
             Validate = t => string.IsNullOrWhiteSpace(t) || Mask.TryParse(t, out _, out var err) ? null : err,
         });
         if (r is null) return;

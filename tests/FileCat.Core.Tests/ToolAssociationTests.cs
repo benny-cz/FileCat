@@ -6,6 +6,40 @@ namespace FileCat.Core.Tests;
 public sealed class ToolAssociationTests
 {
     [Fact]
+    public void User_commands_text_round_trips_submenus_options_and_quoted_arguments()
+    {
+        List<ToolDefinition> tools =
+        [
+            new() { Name = "Notepad", Executable = @"C:\Windows\notepad.exe", Arguments = ["{file}"] },
+            new()
+            {
+                Name = "Git",
+                Children =
+                [
+                    new() { Name = "Status", Executable = @"C:\Program Files\Git\cmd\git.exe", Arguments = ["status", "--short"], Hotkey = "S", WorkingDirectory = "{target}" },
+                    new() { Name = "Log | graph", Executable = "git.exe", Arguments = ["log", "--format=%h %s", "a|b", ""], ShellMode = true },
+                ],
+            },
+        ];
+        var text = UserCommandsText.Format(tools);
+        Assert.Contains(@"Git > Status | ""C:\Program Files\Git\cmd\git.exe"" | status --short | key=S dir={target}", text);
+        var parsed = UserCommandsText.Parse(text, out var error);
+        Assert.Null(error);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(tools), System.Text.Json.JsonSerializer.Serialize(parsed));
+
+        // Lines in the old three-column form still parse; mistakes are named.
+        var legacy = UserCommandsText.Parse("Edit | C:\\e.exe | --wait {file}\n# note\nView | C:\\v.exe", out error);
+        Assert.Null(error);
+        Assert.Equal(["--wait", "{file}"], legacy[0].Arguments);
+        Assert.Equal(["{file}"], legacy[1].Arguments);
+        UserCommandsText.Parse("Broken line", out error);
+        Assert.Contains("expected Name | program | arguments", error);
+        UserCommandsText.Parse("A | b.exe | x | turbo", out error);
+        Assert.Contains("unknown option", error);
+    }
+
+
+    [Fact]
     public void Associations_parse_validate_and_pick_the_first_match_per_intent()
     {
         var list = Associations.Parse("""

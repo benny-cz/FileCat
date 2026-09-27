@@ -527,6 +527,63 @@ public sealed partial class MainViewModel
 
     private bool _exitWhenIdle;
 
+    /// <summary>
+    /// Continues an interrupted copy or move with a new job (plan §9.3: reality is inspected, nothing is replayed
+    /// blindly). Partial files of the interruption are removed first, sources that no longer exist (already moved)
+    /// are left out, and items that already arrived are skipped. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunInterruptedAgainAsync(InterruptedJob job)
+    {
+        var kind = job.Kind == nameof(JobKind.Move) ? JobKind.Move : JobKind.Copy;
+        if (Location.Deserialize(job.Destination) is not { } destination)
+        {
+            Notify("The destination of this operation is not recorded; select the items and the destination again.");
+            return false;
+        }
+        var (sources, partial) = await Task.Run(() =>
+        {
+            var paths = JournalRecovery.LoadSources(job);
+            var existing = paths?.Select(p => Directory.Exists(p) ? ItemRef.ForFileSystemPath(p, EntryKind.Directory)
+                : File.Exists(p) ? ItemRef.ForFileSystemPath(p, EntryKind.File) : null).OfType<ItemRef>().ToList();
+            var leftovers = JournalRecovery.FindStagedLeftovers(job).Concat(JournalRecovery.FindIncompleteCopies(job))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return (existing, leftovers);
+        });
+        if (sources is null)
+        {
+            Notify("Not all source items of this operation are recorded; select them again to repeat it.");
+            return false;
+        }
+        if (sources.Count == 0)
+        {
+            Notify("None of the source items exist any more: nothing is left to " + (kind == JobKind.Move ? "move." : "copy."));
+            return false;
+        }
+        var done = kind == JobKind.Move ? "moved" : "copied";
+        var message = $"{job.Title}: {sources.Count:N0} of {job.SourceCount:N0} source items still exist. Items that already arrived in {Services.Providers.Display(destination)} are skipped, so only the rest is {done}."
+            + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted." : string.Empty);
+        if (!await Dialogs.ConfirmAsync("Run again", message, kind == JobKind.Move ? "Move the rest" : "Copy the rest")) return false;
+        int deleted = 0;
+        foreach (var f in partial)
+        {
+            try
+            {
+                File.Delete(f);
+                deleted++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        JournalRecovery.Close(job, $"Continued by a new operation; {deleted} partial file(s) deleted.");
+        Services.Jobs.Submit(new JobRequest
+        {
+            Kind = kind,
+            Sources = sources,
+            Destination = destination,
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Skip, Verify = Enum.TryParse<VerifyMode>(Services.Settings.DefaultVerify, out var verify) ? verify : VerifyMode.Native },
+        });
+        return true;
+    }
+
     /// <summary>At exit or sign-out: running jobs stop at their next safe boundary and journal the rest (plan §9.3).</summary>
     public void StopJobsForExit(TimeSpan wait)
     {

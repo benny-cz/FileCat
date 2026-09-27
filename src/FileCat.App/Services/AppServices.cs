@@ -53,7 +53,12 @@ public sealed class AppServices : IDisposable
             Settings.ColumnProfiles = Columns.ToSettings();
             SaveSettings();
         };
+        RegisterSavedFilters();
     }
+
+    /// <summary>Mask prompt suggestions: saved filters first (as <c>@name</c>), then recent masks.</summary>
+    public IReadOnlyList<string> MaskSuggestions() =>
+        Settings.SavedFilters.Select(f => "@" + f.Name).Concat(History.Masks).Distinct(StringComparer.Ordinal).ToList();
 
     /// <summary>Column profiles shared by all tabs (Alt+0–9).</summary>
     public Controls.ColumnProfileSet Columns { get; }
@@ -102,6 +107,10 @@ public sealed class AppServices : IDisposable
         try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving settings failed", ex); }
     }
+
+    /// <summary>Saved filters for <c>@name</c> in masks; looked up at parse time, so edits apply to the next mask.</summary>
+    private void RegisterSavedFilters() =>
+        Core.Selection.Mask.SavedFilters = name => Settings.SavedFilters.FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))?.Mask;
 
     public void SaveHistory()
     {

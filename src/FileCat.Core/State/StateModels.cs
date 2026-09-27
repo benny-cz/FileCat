@@ -24,6 +24,12 @@ public sealed class ToolDefinition
     public List<ToolDefinition>? Children { get; set; }
 }
 
+public sealed class SavedFilter
+{
+    public string Name { get; set; } = string.Empty;
+    public string Mask { get; set; } = string.Empty;
+}
+
 public sealed class TerminalSettings
 {
     /// <summary>"cmd", "powershell", "pwsh", "wt" (Windows Terminal), or "posix".</summary>
@@ -73,6 +79,8 @@ public sealed class AppSettings : IVersionedState
     public ToolDefinition? DiffTool { get; set; }
     public TerminalSettings Terminal { get; set; } = new();
     public List<ToolDefinition> UserCommands { get; set; } = [];
+    /// <summary>Named masks used as <c>@name</c> wherever a mask is accepted (plan §11 saved filters).</summary>
+    public List<SavedFilter> SavedFilters { get; set; } = [];
     public List<ToolDefinition> Associations { get; set; } = [];
     public Dictionary<string, string[]> KeyBindings { get; set; } = new(StringComparer.Ordinal);
     public List<ColumnProfile> ColumnProfiles { get; set; } = [];

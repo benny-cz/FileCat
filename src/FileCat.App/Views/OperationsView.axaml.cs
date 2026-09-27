@@ -94,6 +94,14 @@ public partial class OperationsView : UserControl
         main.Notify($"Removed {Formatters.Plural(deleted, "partial file", "partial files")} of the interrupted operation.");
     }
 
+    private async void OnRunAgainInterrupted(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } c) return;
+        if (!await main.RunInterruptedAgainAsync(item.Job)) return;
+        c.Interrupted.Remove(item);
+        c.UpdateSummary();
+    }
+
     private void OnDismissInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Center is not { } c) return;

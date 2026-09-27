@@ -45,6 +45,26 @@ public sealed class SelectionSnapshot : IReadOnlyList<ItemRef>
 
     public int GetStoreIndex(int index) => _indices[index];
 
+    /// <summary>
+    /// Writes the full path of every item, one per line, with bulk reads of the store. False when the items do not
+    /// share one file-system folder or a name contains a line break (the list would not be exact).
+    /// </summary>
+    internal bool TryWritePaths(TextWriter writer)
+    {
+        if (Volatile.Read(ref _lease) is null || CommonParent is not { IsFileSystem: true } parent) return false;
+        var folder = Path.EndsInDirectorySeparator(parent.Path) ? parent.Path : parent.Path + Path.DirectorySeparatorChar;
+        using var scan = new EntryStore.Scan(Store, Store.Count);
+        foreach (int si in _indices)
+        {
+            var name = scan[si].Name;
+            if (name.IndexOfAny('\r', '\n') >= 0) return false;
+            writer.Write(folder);
+            writer.Write(name);
+            writer.WriteLine();
+        }
+        return true;
+    }
+
     /// <summary>Adds the names at <paramref name="positions"/> with bulk reads of the store (no item per name).</summary>
     internal void CopyNames(IEnumerable<int> positions, ISet<string> names)
     {

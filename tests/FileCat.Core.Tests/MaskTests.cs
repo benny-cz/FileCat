@@ -31,6 +31,41 @@ public class MaskTests
     }
 
     [Fact]
+    public void Saved_filters_are_used_by_name_with_their_own_exclusions()
+    {
+        var saved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["code"] = "*.cs;*.axaml|*.g.cs",
+            ["build"] = "bin\\;obj\\",
+            ["loop"] = "@loop",
+        };
+        var previous = Mask.SavedFilters;
+        Mask.SavedFilters = name => saved.GetValueOrDefault(name);
+        try
+        {
+            var m = Mask.Parse("@code;*.md");
+            Assert.True(m.IsMatch("View.axaml"));
+            Assert.True(m.IsMatch("README.md"));
+            Assert.False(m.IsMatch("View.g.cs")); // the saved filter's own exclusion
+            Assert.False(m.IsMatch("a.txt"));
+            var excluding = Mask.Parse("*|@build");
+            Assert.False(excluding.IsMatch("bin", isDirectory: true));
+            Assert.True(excluding.IsMatch("bin", isDirectory: false)); // a file named bin is not the folder mask
+            Assert.True(Mask.Parse("@*.txt").IsMatch("@notes.txt")); // wildcards: a glob, not a reference
+            Assert.True(Mask.Parse("\"@code\"").IsMatch("@code"));
+            Assert.False(Mask.TryParse("@missing", out _, out var error));
+            Assert.Contains("no saved filter named \"missing\"", error);
+            Assert.False(Mask.TryParse("@loop", out _, out error));
+            Assert.Contains("loop", error);
+            Assert.True(Mask.Parse("@CODE").IsMatch("x.cs")); // names are case-insensitive
+        }
+        finally
+        {
+            Mask.SavedFilters = previous;
+        }
+    }
+
+    [Fact]
     public void Star_only_fast_path_agrees_with_the_general_matcher()
     {
         // Random star patterns over a small alphabet (case and non-ASCII included) against random names.

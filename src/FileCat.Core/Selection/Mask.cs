@@ -7,7 +7,9 @@ namespace FileCat.Core.Selection;
 /// The one mask language shared by selection, quick filter, search, copy filters, and compare (§11):
 /// <c>;</c> or <c>,</c> separate masks, <c>|</c> starts exclusions, <c>/…/</c> (optionally <c>/…/i</c>) is a
 /// regular expression, quotes protect separators, <c>**</c> spans directories in path matching, and a
-/// trailing <c>\</c> or <c>/</c> restricts a mask to directories. Name matching is case-insensitive.
+/// trailing <c>\</c> or <c>/</c> restricts a mask to directories. <c>@name</c> stands for a saved filter and matches
+/// exactly what it matches (its own exclusions included); <c>|@name</c> excludes those items. Name matching is
+/// case-insensitive.
 /// </summary>
 public sealed class Mask
 {
@@ -33,14 +35,15 @@ public sealed class Mask
 
     public static Mask All { get; } = new("*", [], []);
 
+    /// <summary>Resolves <c>@name</c> to a saved filter's mask text, or null when there is none (set by the app).</summary>
+    public static Func<string, string?>? SavedFilters { get; set; }
+
     public static bool TryParse(string? text, out Mask mask, out string? error)
     {
         error = null;
-        text ??= string.Empty;
         try
         {
-            var (inc, exc) = SplitTopLevel(text);
-            mask = new Mask(text, inc.Select(ParsePart).ToArray(), exc.Select(ParsePart).ToArray());
+            mask = ParseAt(text ?? string.Empty, 0);
             return true;
         }
         catch (ArgumentException ex)
@@ -50,6 +53,16 @@ public sealed class Mask
             return false;
         }
     }
+
+    private static Mask ParseAt(string text, int depth)
+    {
+        var (inc, exc) = SplitTopLevel(text);
+        return new Mask(text, inc.Select(t => ParsePart(t, depth)).ToArray(), exc.Select(t => ParsePart(t, depth)).ToArray());
+    }
+
+    /// <summary>A saved-filter name: <c>@</c> followed by a name without wildcards (<c>@*.txt</c> stays a glob).</summary>
+    private static bool IsSavedFilterReference(string token) =>
+        token.Length > 1 && token[0] == '@' && token.AsSpan(1).IndexOfAny('*', '?') < 0;
 
     public static Mask Parse(string text) =>
         TryParse(text, out var m, out var error) ? m : throw new FormatException(error);
@@ -71,7 +84,8 @@ public sealed class Mask
             if (p.DirectoriesOnly && !isDirectory) continue;
             try
             {
-                if (p.IsNameMatch(name)) return true;
+                if (p.IsNameMatch(name, isDirectory)) return true;
+                if (p.Nested is { RegexTimedOut: true }) RegexTimedOut = true;
             }
             catch (RegexMatchTimeoutException)
             {
@@ -96,7 +110,8 @@ public sealed class Mask
             if (p.DirectoriesOnly && !isDirectory) continue;
             try
             {
-                if (p.IsMatch(value, pathMode)) return true;
+                if (p.IsMatch(value, pathMode, isDirectory)) return true;
+                if (p.Nested is { RegexTimedOut: true }) RegexTimedOut = true;
             }
             catch (RegexMatchTimeoutException)
             {
@@ -163,8 +178,15 @@ public sealed class Mask
         }
     }
 
-    private static MaskPart ParsePart(string token)
+    private static MaskPart ParsePart(string token, int depth)
     {
+        if (IsSavedFilterReference(token))
+        {
+            var name = token[1..];
+            if (depth >= 8) throw new ArgumentException($"Saved filters refer to each other in a loop (at \"@{name}\").");
+            var text = SavedFilters?.Invoke(name) ?? throw new ArgumentException($"There is no saved filter named \"{name}\".");
+            return new MaskPart(null, null, false) { Nested = ParseAt(text, depth + 1) };
+        }
         if (token.Length >= 2 && token[0] == '/')
         {
             int close = token.LastIndexOf('/');
@@ -191,21 +213,26 @@ public sealed class Mask
 
         public bool DirectoriesOnly { get; } = directoriesOnly;
 
-        public bool IsMatchAll => glob == "*" && !DirectoriesOnly;
+        /// <summary>A saved filter this part stands for.</summary>
+        public Mask? Nested { get; init; }
+
+        public bool IsMatchAll => Nested?.IsMatchAll ?? glob == "*" && !DirectoriesOnly;
 
         private string? _nameGlob;
 
-        public bool IsNameMatch(ReadOnlySpan<char> name)
+        public bool IsNameMatch(ReadOnlySpan<char> name, bool isDirectory)
         {
+            if (Nested is { } nested) return nested.IsMatch(name, isDirectory);
             if (regex is not null) return regex.IsMatch(name);
             var g = glob!;
             if (g == "*.") return !name.Contains('.');
             return Wildcard.IsMatch(name, _nameGlob ??= g.Replace("**", "*"));
         }
 
-        public bool IsMatch(string value, bool pathMode)
+        public bool IsMatch(string value, bool pathMode, bool isDirectory)
         {
-            if (!pathMode) return IsNameMatch(value);
+            if (Nested is { } nested) return pathMode ? nested.IsMatchPath(value, isDirectory) : nested.IsMatch(value.AsSpan(), isDirectory);
+            if (!pathMode) return IsNameMatch(value, isDirectory);
             if (regex is not null) return regex.IsMatch(value);
             var g = glob!;
             // A mask without a separator matches the last path segment, like a name mask.
