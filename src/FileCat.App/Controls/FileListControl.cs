@@ -63,7 +63,9 @@ public sealed class FileListControl : Control
     private int _resizingColumn = -1;
     private double _resizeStartX;
     private double _resizeStartWidth;
-    private readonly Dictionary<ColumnField, double> _widthOverrides = new();
+    // Live widths while dragging a border, by column position (cleared when the profile stores them).
+    private readonly Dictionary<int, double> _widthOverrides = new();
+    private bool _resizeInverse;
     private Point? _dragStart;
     private PointerPressedEventArgs? _pressArgs;
     private int _pressedRow = -1;
@@ -315,6 +317,7 @@ public sealed class FileListControl : Control
                 tab.ColumnsChanged += OnColumnsChanged;
                 _columns = tab.Columns;
             }
+            _widthOverrides.Clear();
             ClearTextCache();
             _topRow = 0;
             EnsureFocusVisible();
@@ -341,6 +344,7 @@ public sealed class FileListControl : Control
     {
         if (Tab is null) return;
         _columns = Tab.Columns;
+        _widthOverrides.Clear();
         ClearTextCache();
         InvalidateArrange();
         InvalidateVisual();
@@ -518,8 +522,8 @@ public sealed class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(c.Field, out var ow) ? ow : c.Width;
-            if (c.Star && !_widthOverrides.ContainsKey(c.Field)) starSum += w;
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Width;
+            if (c.Star && !_widthOverrides.ContainsKey(i)) starSum += w;
             else fixedSum += w;
         }
         double starSpace = Math.Max(80, totalWidth - fixedSum);
@@ -527,7 +531,7 @@ public sealed class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(c.Field, out var ow) ? ow
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow
                 : c.Star ? starSpace * (c.Width / Math.Max(1, starSum)) : c.Width;
             _columnX[i] = x;
             _columnW[i] = Math.Max(24, w);
@@ -805,13 +809,27 @@ public sealed class FileListControl : Control
         return _listing is not null && row < _listing.VisibleCount ? row : -1;
     }
 
-    private int ColumnEdgeAt(Point p)
+    /// <summary>
+    /// The column a header border drag resizes. A fill column's right border resizes the column after it (dragging
+    /// right narrows that one), so the fill column keeps absorbing the window width; the last fill border does nothing.
+    /// </summary>
+    private int ColumnEdgeAt(Point p) => ResizeTargetAt(p, out _);
+
+    private int ResizeTargetAt(Point p, out bool inverse)
     {
+        inverse = false;
         if (p.Y >= _headerHeight) return -1;
         for (int i = 0; i < _columns.Length; i++)
         {
             double right = _columnX[i] + _columnW[i];
-            if (Math.Abs(p.X - right) <= ResizeGrip) return i;
+            if (Math.Abs(p.X - right) > ResizeGrip) continue;
+            if (!_columns[i].Star) return i;
+            if (i + 1 < _columns.Length && !_columns[i + 1].Star)
+            {
+                inverse = true;
+                return i + 1;
+            }
+            return -1;
         }
         return -1;
     }
@@ -834,10 +852,11 @@ public sealed class FileListControl : Control
         var pos = point.Position;
         if (_listing is null) return;
 
-        int edge = ColumnEdgeAt(pos);
+        int edge = ResizeTargetAt(pos, out bool inverse);
         if (edge >= 0 && point.Properties.IsLeftButtonPressed)
         {
             _resizingColumn = edge;
+            _resizeInverse = inverse;
             _resizeStartX = pos.X;
             _resizeStartWidth = _columnW[edge];
             e.Pointer.Capture(this);
@@ -908,8 +927,9 @@ public sealed class FileListControl : Control
         var pos = e.GetPosition(this);
         if (_resizingColumn >= 0)
         {
-            double w = Math.Max(30, _resizeStartWidth + pos.X - _resizeStartX);
-            _widthOverrides[_columns[_resizingColumn].Field] = w;
+            double delta = pos.X - _resizeStartX;
+            double w = Math.Max(30, _resizeStartWidth + (_resizeInverse ? -delta : delta));
+            _widthOverrides[_resizingColumn] = w;
             ClearTextCache();
             InvalidateArrange();
             InvalidateVisual();
@@ -932,8 +952,11 @@ public sealed class FileListControl : Control
         _dragStart = null;
         if (_resizingColumn >= 0)
         {
+            int column = _resizingColumn;
             _resizingColumn = -1;
             e.Pointer.Capture(null);
+            // The profile keeps the width for every tab using it (and across restarts).
+            if (_widthOverrides.TryGetValue(column, out var width)) Tab?.SetColumnWidth(column, width);
         }
     }
 
@@ -951,6 +974,9 @@ public sealed class FileListControl : Control
     public Rect GetRowBounds(int row) => new(0, _headerHeight + (row - _topRow) * _rowHeight, Bounds.Width, _rowHeight);
 
     protected override AutomationPeer OnCreateAutomationPeer() => new FileListAutomationPeer(this);
+
+    /// <summary>Right border of a laid-out column (tests and automation).</summary>
+    internal double ColumnRightEdge(int column) => _columnX[column] + _columnW[column];
 
     internal string DescribeFocus()
     {

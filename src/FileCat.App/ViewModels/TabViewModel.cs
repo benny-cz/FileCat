@@ -34,6 +34,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Sort = new SortSpec(SortField.Name, false, !services.Settings.DirectoriesFirst, !services.Settings.NaturalSort),
         };
         Listing.Changed += OnListingChanged;
+        services.Columns.Changed += OnProfilesChanged;
     }
 
     public AppServices Services { get; }
@@ -68,12 +69,26 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         get => _columnProfile;
         set
         {
-            _columnProfile = Math.Clamp(value, 0, ColumnProfiles.Defaults.Count - 1);
+            _columnProfile = Math.Clamp(value, 0, Services.Columns.Count - 1);
             ColumnsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
-    public ColumnSpec[] Columns => ColumnProfiles.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
+    public ColumnSpec[] Columns => Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
+
+    /// <summary>Stores a dragged column width in the active profile (dedicated layouts keep it for this view only).</summary>
+    public bool SetColumnWidth(int column, double width)
+    {
+        if (ColumnProfileSet.HasFixedLayout(Location?.Scheme ?? Schemes.FileSystem)) return false;
+        Services.Columns.SetWidth(_columnProfile, column, width);
+        return true;
+    }
+
+    private void OnProfilesChanged()
+    {
+        _columnProfile = Math.Clamp(_columnProfile, 0, Services.Columns.Count - 1);
+        ColumnsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public string TabHeader => (IsLocked ? "🔒 " : string.Empty) + Title;
 
@@ -599,6 +614,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _disposed = true;
         StopWatching();
         Listing.Changed -= OnListingChanged;
+        Services.Columns.Changed -= OnProfilesChanged;
         Listing.Dispose();
     }
 

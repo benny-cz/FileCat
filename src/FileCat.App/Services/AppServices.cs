@@ -46,7 +46,17 @@ public sealed class AppServices : IDisposable
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
         Metadata = new Core.Metadata.MetadataService(Io);
+        Columns = new Controls.ColumnProfileSet(Settings.ColumnProfiles);
+        // Widths chosen by dragging and edited profiles persist immediately.
+        Columns.Changed += () =>
+        {
+            Settings.ColumnProfiles = Columns.ToSettings();
+            SaveSettings();
+        };
     }
+
+    /// <summary>Column profiles shared by all tabs (Alt+0–9).</summary>
+    public Controls.ColumnProfileSet Columns { get; }
 
     public Core.Metadata.MetadataService Metadata { get; }
 

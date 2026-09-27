@@ -58,6 +58,10 @@ public static class SettingsDialog
                 ("", Note("One command per line: Name | program | arguments. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters."))),
         });
 
+        // ---- Columns
+        var columnsEditor = new ColumnProfilesEditor(vm.Services.Columns);
+        tabs.Items.Add(new TabItem { Header = "Columns", Content = columnsEditor.View });
+
         // ---- Keyboard
         var bindings = new TextBox
         {
@@ -92,7 +96,7 @@ public static class SettingsDialog
             {
                 error.Text = bindingError;
                 error.IsVisible = true;
-                tabs.SelectedIndex = 3;
+                tabs.SelectedIndex = 4;
                 continue;
             }
             var parsedCommands = ParseUserCommands(userCommands.Text, out var commandError);
@@ -130,6 +134,7 @@ public static class SettingsDialog
             s.KeyBindings = parsedBindings;
             s.DiagnosticMode = diag.IsChecked == true;
             s.CheckForUpdates = updates.IsChecked == true;
+            columnsEditor.Apply();
             vm.ApplySettings();
             return;
         }

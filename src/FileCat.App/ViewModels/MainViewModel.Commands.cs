@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FileCat.App.Services;
 using FileCat.Core.Commands;
@@ -94,7 +95,15 @@ public sealed partial class MainViewModel
         }
         if (id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
         {
-            if (tab is not null) tab.ColumnProfile = int.Parse(id[CommandIds.ColumnProfilePrefix.Length..]);
+            int profile = int.Parse(id[CommandIds.ColumnProfilePrefix.Length..], CultureInfo.InvariantCulture);
+            if (tab is null) return;
+            if (profile >= Services.Columns.Count)
+            {
+                Notify($"There is no column profile {profile}. Settings → Columns defines up to {Controls.ColumnProfileSet.MaxProfiles} profiles.");
+                return;
+            }
+            tab.ColumnProfile = profile;
+            Notify($"Columns: {Services.Columns.NameOf(profile)} (Alt+{profile})");
             return;
         }
 
