@@ -248,13 +248,18 @@ public sealed class JobEngineTests : IDisposable
         File.WriteAllText(staged, "partial");
         var path = Path.Combine(journalDir, "job-20260101000000-abcdef12.fcj");
         string Line(string json) => $"{Crc32.HashToUInt32(System.Text.Encoding.UTF8.GetBytes(json)):x8} {json}\n";
+        var completed = string.Concat(Enumerable.Range(2, 500).Select(n =>
+            Line($"{{\"t\":\"intent\",\"n\":{n},\"op\":\"copy\",\"path\":\"f{n}\"}}") +
+            Line($"{{\"t\":\"done\",\"n\":{n}}}")));
         File.WriteAllText(path,
             Line("{\"t\":\"begin\",\"id\":\"abcdef12\",\"kind\":\"Copy\",\"title\":\"Copy x\",\"created\":\"2026-01-01T00:00:00Z\",\"sources\":[\"a\"]}") +
             Line($"{{\"t\":\"stagedir\",\"path\":{System.Text.Json.JsonSerializer.Serialize(_dst)}}}") +
             Line($"{{\"t\":\"intent\",\"n\":1,\"op\":\"publish\",\"path\":\"a\",\"target\":\"b\",\"staged\":{System.Text.Json.JsonSerializer.Serialize(staged)}}}") +
+            completed +
             "deadbeef {\"t\":\"done\",\"n\":1}\n"); // torn/corrupt tail must be ignored
         var interrupted = Assert.Single(JournalRecovery.Scan(journalDir));
         Assert.Single(interrupted.OpenIntents);
+        Assert.Equal(500, interrupted.CompletedSteps);
         Assert.Contains(staged, JournalRecovery.FindStagedLeftovers(interrupted));
         JournalRecovery.Close(interrupted, "cleaned");
         Assert.Empty(JournalRecovery.Scan(journalDir));

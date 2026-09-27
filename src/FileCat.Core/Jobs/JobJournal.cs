@@ -105,9 +105,11 @@ public sealed class JobJournal : IDisposable
 
     // ---- Recovery ------------------------------------------------------------------------------------------
 
-    public static IReadOnlyList<JournalRecord> ReadAll(string path)
+    public static IReadOnlyList<JournalRecord> ReadAll(string path) => ReadRecords(path).ToList();
+
+    /// <summary>CRC-checked records are yielded one at a time so recovery does not retain completed steps.</summary>
+    internal static IEnumerable<JournalRecord> ReadRecords(string path)
     {
-        var records = new List<JournalRecord>();
         foreach (var line in File.ReadLines(path))
         {
             // A torn line (crash mid-write) fails its checksum and is skipped; records appended later by
@@ -117,15 +119,11 @@ public sealed class JobJournal : IDisposable
             var json = line[(sp + 1)..];
             if (!uint.TryParse(line.AsSpan(0, 8), System.Globalization.NumberStyles.HexNumber, null, out var crc)) continue;
             if (Crc32.HashToUInt32(Encoding.UTF8.GetBytes(json)) != crc) continue;
-            try
-            {
-                if (JsonNode.Parse(json) is JsonObject o) records.Add(new JournalRecord(o));
-            }
-            catch (JsonException)
-            {
-            }
+            JsonObject? node;
+            try { node = JsonNode.Parse(json) as JsonObject; }
+            catch (JsonException) { continue; }
+            if (node is not null) yield return new JournalRecord(node);
         }
-        return records;
     }
 }
 
@@ -158,31 +156,52 @@ public static class JournalRecovery
         var cutoff = DateTime.UtcNow - (maxAge ?? TimeSpan.FromDays(30));
         foreach (var f in files)
         {
-            IReadOnlyList<JournalRecord> records;
-            try { records = JobJournal.ReadAll(f.FullName); }
+            JournalRecord? begin = null;
+            bool ended = false;
+            int completed = 0;
+            var open = new Dictionary<int, PendingIntent>();
+            var directories = new HashSet<string>(StringComparer.Ordinal);
+            try
+            {
+                foreach (var record in JobJournal.ReadRecords(f.FullName))
+                {
+                    switch (record.Type)
+                    {
+                        case "begin": begin ??= record; break;
+                        case "end": ended = true; break;
+                        case "intent":
+                            if (record.Step > 0)
+                                open[record.Step] = new PendingIntent(record.Step, record.Get("op") ?? "",
+                                    record.Get("path") ?? "", record.Get("target"), record.Get("staged"));
+                            break;
+                        case "done":
+                            if (record.Step > 0) { open.Remove(record.Step); completed++; }
+                            break;
+                        case "stagedir":
+                            if (record.Get("path") is { Length: > 0 } path) directories.Add(path);
+                            break;
+                    }
+                }
+            }
             catch (IOException) { continue; }
-            if (records.Any(r => r.Type == "end"))
+            catch (UnauthorizedAccessException) { continue; }
+            if (ended)
             {
                 finished++;
                 if (finished > keepFinished || f.LastWriteTimeUtc < cutoff) TryDelete(f.FullName);
                 continue;
             }
-            var begin = records.FirstOrDefault(r => r.Type == "begin");
             if (begin is null)
             {
                 TryDelete(f.FullName);
                 continue;
             }
-            var done = records.Where(r => r.Type == "done").Select(r => r.Step).ToHashSet();
-            var open = records.Where(r => r.Type == "intent" && !done.Contains(r.Step))
-                .Select(r => new PendingIntent(r.Step, r.Get("op") ?? "", r.Get("path") ?? "", r.Get("target"), r.Get("staged"))).ToList();
             var sources = begin.Node["sources"] is JsonArray arr ? arr.Select(x => x?.GetValue<string>() ?? "").ToList() : [];
             int sourceCount = begin.Node["sourceCount"] is JsonValue countValue && countValue.TryGetValue<int>(out int declared)
                 ? declared : sources.Count;
-            var dirs = records.Where(r => r.Type == "stagedir").Select(r => r.Get("path") ?? "").Where(p => p.Length > 0).Distinct().ToList();
             DateTime.TryParse(begin.Get("created"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var created);
             result.Add(new InterruptedJob(f.FullName, begin.Get("kind") ?? "?", begin.Get("title") ?? "Operation", created, sources,
-                begin.Get("dest"), open, dirs, done.Count, sourceCount));
+                begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount));
         }
         return result;
     }
