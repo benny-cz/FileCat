@@ -13,6 +13,8 @@ public sealed class ChangeMonitor : IDisposable
     private readonly object _lock = new();
     private DateTime _firstPending = DateTime.MaxValue;
     private bool _disposed;
+    private Timer? _rearm;
+    private int _rearmAttempts;
 
     public ChangeMonitor(string path, Action onChange)
     {
@@ -31,7 +33,7 @@ public sealed class ChangeMonitor : IDisposable
             _watcher.Deleted += (_, _) => Pending();
             _watcher.Renamed += (_, _) => Pending();
             _watcher.Changed += (_, _) => Pending();
-            _watcher.Error += (_, _) => Pending(); // overflow: reconcile by re-enumerating
+            _watcher.Error += (_, e) => OnError(e);
             _watcher.EnableRaisingEvents = true;
             IsActive = true;
         }
@@ -61,6 +63,41 @@ public sealed class ChangeMonitor : IDisposable
         }
     }
 
+    private void OnError(ErrorEventArgs e)
+    {
+        Pending(); // an overflow or a lost watch: reconcile by re-enumerating
+        if (e.GetException() is InternalBufferOverflowException) return;
+        // A watch lost to a network drop or a vanished folder raises nothing more: re-arm it, retrying for a minute.
+        lock (_lock)
+        {
+            if (_disposed) return;
+            _rearmAttempts = 0;
+            _rearm ??= new Timer(_ => Rearm(), null, Timeout.Infinite, Timeout.Infinite);
+            _rearm.Change(TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    private void Rearm()
+    {
+        lock (_lock)
+        {
+            if (_disposed || _watcher is null) return;
+        }
+        try
+        {
+            _watcher.EnableRaisingEvents = false;
+            _watcher.EnableRaisingEvents = true;
+            Pending(); // catch up with what changed while the watch was down
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or ObjectDisposedException)
+        {
+            lock (_lock)
+            {
+                if (!_disposed && ++_rearmAttempts < 12) _rearm?.Change(TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
+            }
+        }
+    }
+
     private void Fire()
     {
         lock (_lock)
@@ -79,5 +116,6 @@ public sealed class ChangeMonitor : IDisposable
         }
         _watcher?.Dispose();
         _debounce.Dispose();
+        _rearm?.Dispose();
     }
 }
