@@ -10,6 +10,7 @@ public static class ShellQuoting
 {
     public static string Quote(string text, string shell) => shell.ToLowerInvariant() switch
     {
+        "cmd" or "cmd.exe" => QuoteCmd(text),
         "powershell" or "pwsh" => QuotePowerShell(text),
         "posix" or "bash" or "sh" or "zsh" => QuotePosix(text),
         _ => OperatingSystem.IsWindows() ? QuoteCmd(text) : QuotePosix(text),

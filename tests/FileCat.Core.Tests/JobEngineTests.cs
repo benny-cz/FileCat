@@ -206,7 +206,7 @@ public sealed class JobEngineTests : IDisposable
     [Fact]
     public async Task Create_and_rename_record_undo()
     {
-        var mk = await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.CreateDirectory, Destination = Location.FileSystem(_dst), NewName = "new\\nested" }));
+        var mk = await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.CreateDirectory, Destination = Location.FileSystem(_dst), NewName = Path.Combine("new", "nested") }));
         Assert.True(Directory.Exists(Path.Combine(_dst, "new", "nested")));
         UndoService.Undo(mk, new PortableFileOperations());
         Assert.False(Directory.Exists(Path.Combine(_dst, "new")));
