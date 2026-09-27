@@ -35,6 +35,10 @@ public sealed partial class MainViewModel
             case CommandIds.RegistryExport:
                 return registryItem || loc?.Scheme == Schemes.Registry && loc.Path.Length > 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Choose a Registry key or value to export.");
+            case CommandIds.RegistryImport:
+                return loc?.Scheme == Schemes.Registry && loc.Path.Length > 0 &&
+                    (caps & LocationCapabilities.CreateDirectory) != 0
+                    ? CommandAvailability.Yes : CommandAvailability.No("Open a concrete HKCU, HKLM, or HKU Registry key to import into its scope.");
             case CommandIds.Edit when registryItem && focusedRegistry.Kind != EntryKind.RegistryValue:
                 return CommandAvailability.No("Registry keys have no editable value data. Select a value, or use a named Registry command.");
             case CommandIds.Move when registryItem:

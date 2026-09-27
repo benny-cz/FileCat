@@ -91,6 +91,58 @@ public sealed class WindowsRegistryProviderTests
     }
 
     [Fact]
+    public async Task Reg_import_previews_and_runs_guarded_batch_with_deletions()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
+        string journals = Path.Combine(Path.GetTempPath(), "filecat-regimport", Guid.NewGuid().ToString("N"));
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            RegistryRaw.Set(fixture!, "old", 3, [1]);
+            using (var trash = fixture.CreateSubKey("trash")) RegistryRaw.Set(trash!, "x", 3, [9]);
+            var scope = new Location(Schemes.Registry, "HKCU\\" + path, session: "default");
+            var text = "Windows Registry Editor Version 5.00\r\n\r\n" +
+                "[HKEY_CURRENT_USER\\" + path + "]\r\n" +
+                "@=hex:00,ff\r\n\"old\"=hex:02,03\r\n\"new\"=dword:ffffffff\r\n\r\n" +
+                "[-HKEY_CURRENT_USER\\" + path + "\\trash]\r\n\r\n" +
+                "[HKEY_CURRENT_USER\\" + path + "\\child]\r\n\"text\"=\"hello\"\r\n";
+            File.WriteAllText(file, text, System.Text.Encoding.Unicode);
+            var plan = RegistryImport.Preview(file, scope, TestContext.Current.CancellationToken);
+            Assert.Equal((1, 3, 1, 0, 1),
+                (plan.AddedKeys, plan.AddedValues, plan.OverwrittenValues, plan.DeletedValues, plan.DeletedTrees));
+            using var platform = new WindowsPlatform();
+            var providers = new ProviderRegistry();
+            platform.RegisterProviders(providers);
+            var jobs = new JobManager(platform.FileOperations, providers, journals);
+            var done = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
+            jobs.JobFinished += j => done.TrySetResult(j);
+            jobs.Submit(new JobRequest { Kind = JobKind.Registry, RegistryChanges = plan.Changes, Destination = scope });
+            var completed = await done.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Equal(JobState.Completed, completed.State);
+            using var opened = WindowsRegistryProvider.Open(scope, false);
+            Assert.Equal(new byte[] { 0, 255 }, RegistryRaw.Read(opened, "").Data);
+            Assert.Equal(new byte[] { 2, 3 }, RegistryRaw.Read(opened, "old").Data);
+            Assert.Equal(uint.MaxValue, BitConverter.ToUInt32(RegistryRaw.Read(opened, "new").Data));
+            Assert.Null(fixture.OpenSubKey("trash"));
+            using var child = fixture.OpenSubKey("child");
+            Assert.Equal("hello", child!.GetValue("text"));
+            RegistryRaw.Set(fixture, "wrapped", 3, Enumerable.Range(0, 100).Select(i => (byte)i).ToArray());
+            RegistryInterchange.Export(scope, null, file, TestContext.Current.CancellationToken);
+            Assert.Empty(RegistryImport.Preview(file, scope, TestContext.Current.CancellationToken).Changes);
+            File.WriteAllText(file, "Windows Registry Editor Version 5.00\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\FileCat-Outside]\r\n\"x\"=\"bad\"\r\n", System.Text.Encoding.Unicode);
+            Assert.Throws<FormatException>(() => RegistryImport.Preview(file, scope));
+        }
+        finally
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
+            if (File.Exists(file)) File.Delete(file);
+            if (Directory.Exists(journals)) Directory.Delete(journals, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Registry_jobs_detect_stale_values_and_preserve_raw_bytes()
     {
         if (!OperatingSystem.IsWindows()) return;

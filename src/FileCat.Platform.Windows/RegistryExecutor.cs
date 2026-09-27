@@ -12,12 +12,31 @@ internal sealed partial class RegistryExecutor(Job job, JobJournal journal) : IJ
 {
     public void Execute()
     {
-        var change = job.Request.Registry ?? throw new InvalidOperationException("Missing Registry plan.");
+        var changes = job.Request.RegistryChanges.Count > 0 ? job.Request.RegistryChanges :
+            job.Request.Registry is { } single ? [single] : throw new InvalidOperationException("Missing Registry plan.");
+        job.AddTotals(changes.Count, changes.Sum(c => (long)(c.Desired?.Data.Length ?? 0)));
+        int completed = 0;
+        foreach (var change in changes)
+        {
+            try { ExecuteOne(change); }
+            catch
+            {
+                if (completed > 0) job.AddIssue(new JobIssue(IssueSeverity.Error, change.Key.ToString(),
+                    $"{completed} of {changes.Count} Registry changes completed before this plan stopped. Review the remaining scope before retrying.",
+                    StepOutcome.PartiallyApplied));
+                throw;
+            }
+            job.ItemDone();
+            job.RootCompleted(completed++);
+        }
+    }
+
+    private void ExecuteOne(RegistryChange change)
+    {
         if (change.Key.Scheme != Schemes.Registry || change.TargetKey is { Scheme: not Schemes.Registry })
             throw new ArgumentException("Registry plans require Registry locations.");
         ValidateName(change.Name, change.Action is RegistryAction.CreateKey or RegistryAction.RenameKey or RegistryAction.DeleteKey);
         if (change.TargetName is { } targetName) ValidateName(targetName, change.Action is RegistryAction.RenameKey or RegistryAction.CopyKey);
-        job.AddTotals(1, change.Desired?.Data.Length ?? 0);
         job.Checkpoint();
         switch (change.Action)
         {
@@ -31,8 +50,6 @@ internal sealed partial class RegistryExecutor(Job job, JobJournal journal) : IJ
             case RegistryAction.DeleteKey: DeleteKey(change); break;
             default: throw new NotSupportedException($"{change.Action} is not validated for Registry jobs.");
         }
-        job.ItemDone();
-        job.RootCompleted(0);
     }
 
     private void DeleteKey(RegistryChange c)

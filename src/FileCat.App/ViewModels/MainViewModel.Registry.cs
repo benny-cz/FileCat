@@ -65,6 +65,65 @@ public sealed partial class MainViewModel
         { Notify($"Registry export failed: {ex.Message}", true); }
     }
 
+    private async Task ImportRegistryAsync()
+    {
+        var tab = ActiveTab;
+        var scope = tab?.Location;
+        if (scope?.Scheme != Schemes.Registry || scope.Path.Length == 0) return;
+        var top = View.TopLevel;
+        if (top is null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = $"Import .reg within {scope.Path}",
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("Registry files") { Patterns = ["*.reg"] }],
+        });
+        var file = files.FirstOrDefault();
+        string? path = file?.TryGetLocalPath();
+        if (path is null) { if (file is not null) Notify("Choose a local .reg file to import.", true); return; }
+        RegistryImportPlan plan;
+        try
+        {
+            Notify("Reading and checking Registry import…");
+            plan = await Task.Run(() => RegistryImport.Preview(path, scope));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or NotSupportedException or System.ComponentModel.Win32Exception)
+        { Notify($"Cannot preview Registry import: {ex.Message}", true); return; }
+        if (plan.Changes.Count == 0) { Notify("This .reg file makes no changes within the selected Registry scope."); return; }
+        string Describe(RegistryChange c) => c.Action switch
+        {
+            RegistryAction.CreateKey => $"+ key  {c.Key.Path}\\{c.Name}",
+            RegistryAction.DeleteKey => $"− tree {c.Key.Path}\\{c.Name}",
+            RegistryAction.DeleteValue => $"− value {c.Key.Path}\\{(c.Name.Length == 0 ? "(Default)" : c.Name)}",
+            RegistryAction.SetValue => $"{(c.Expected is null ? "+ value" : "↻ value")} {c.Key.Path}\\{(c.Name.Length == 0 ? "(Default)" : c.Name)} · {RegistryValueCodec.TypeName(c.Desired!.Type)}, {c.Desired.Data.Length:N0} bytes",
+            _ => c.Action.ToString(),
+        };
+        var detail = new TextBox
+        {
+            Text = string.Join(Environment.NewLine, plan.Changes.Take(200).Select(Describe)) +
+                   (plan.Changes.Count > 200 ? $"{Environment.NewLine}… {plan.Changes.Count - 200:N0} more changes" : ""),
+            IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap,
+            MinWidth = 620, MinHeight = 220, MaxHeight = 350,
+        };
+        var body = new StackPanel { Spacing = 8, Children =
+        {
+            new TextBlock { Text = $"Scope: {Services.Providers.Display(scope)}\nFile: {path}\nAdd {plan.AddedKeys:N0} keys and {plan.AddedValues:N0} values; overwrite {plan.OverwrittenValues:N0} values; delete {plan.DeletedValues:N0} values and {plan.DeletedTrees:N0} subtrees. {plan.DataBytes:N0} incoming bytes.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
+            new TextBlock { Text = "The file's paths must stay inside this scope. The selected Registry view applies to every change. Import is not atomic: completed steps remain if a later step fails. Existing values and subtrees are checked again before mutation.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
+            detail,
+        } };
+        var result = await Dialogs.ShowCustomAsync("Review Registry import", body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Import changes", "import", IsDefault: true)]);
+        if (result as string != "import") return;
+        var job = Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Registry,
+            RegistryChanges = plan.Changes,
+            Destination = scope,
+            Description = $"Import {plan.Changes.Count:N0} Registry changes from {Path.GetFileName(path)}",
+        });
+        Track(job, tab!);
+    }
+
     private static string? RegistryNameError(string name, bool key) =>
         name.Contains('\0') || name.Length > 16383 || key && (name.Length == 0 || name.Contains('\\'))
             ? "Enter a valid Registry name (keys cannot contain \\)." : null;

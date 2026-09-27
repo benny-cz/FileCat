@@ -133,6 +133,8 @@ public sealed class JobRequest
     /// <summary>For <see cref="JobKind.Attributes"/>.</summary>
     public AttributeChangeSet? Attributes { get; init; }
     public RegistryChange? Registry { get; init; }
+    /// <summary>A previewed import plan, executed in order with per-step journal outcomes.</summary>
+    public IReadOnlyList<RegistryChange> RegistryChanges { get; init; } = [];
 }
 
 public enum IssueSeverity

@@ -309,9 +309,13 @@ public sealed class JobManager
                 break;
             case JobKind.Registry:
                 title = r.Description ?? "Change Registry data";
-                if (r.Registry is not { } change) throw new ArgumentException("Registry change is required.", nameof(r));
-                writes.Add(change.Key.ToString() + "/" + change.Name);
-                if (change.TargetKey is { } target) writes.Add(target.ToString() + "/" + (change.TargetName ?? change.Name));
+                var registryChanges = r.RegistryChanges.Count > 0 ? r.RegistryChanges :
+                    r.Registry is { } single ? [single] : throw new ArgumentException("Registry change is required.", nameof(r));
+                foreach (var change in registryChanges)
+                {
+                    writes.Add(change.Key.ToString() + "/" + change.Name);
+                    if (change.TargetKey is { } target) writes.Add(target.ToString() + "/" + (change.TargetName ?? change.Name));
+                }
                 break;
             default:
                 title = r.Description ?? r.Kind.ToString();
@@ -320,7 +324,7 @@ public sealed class JobManager
         }
         var deviceLoc = r.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract or JobKind.CreateDirectory or JobKind.CreateFile
             ? r.Destination
-            : r.Kind == JobKind.Registry ? r.Registry?.Key : r.Sources.FirstOrDefault()?.Parent;
+            : r.Kind == JobKind.Registry ? r.Registry?.Key ?? r.RegistryChanges.FirstOrDefault()?.Key : r.Sources.FirstOrDefault()?.Parent;
         string device = deviceLoc is not null && _providers.TryGet(deviceLoc.Scheme, out var prov) && prov is not null ? prov.GetDeviceKey(deviceLoc) : "local";
         return (r.Description ?? title, device, reads, writes);
     }
