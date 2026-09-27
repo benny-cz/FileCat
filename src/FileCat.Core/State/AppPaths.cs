@@ -18,6 +18,7 @@ public sealed class AppPaths
         var privateRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         if (string.IsNullOrWhiteSpace(privateRoot)) privateRoot = Path.GetTempPath();
         ListingScratchDirectory = Path.Combine(privateRoot, "FileCat", "scratch", profile);
+        HexRecoveryDirectory = Path.Combine(privateRoot, "FileCat", "hex-recovery", profile);
     }
 
     public string SettingsDirectory { get; }
@@ -28,6 +29,8 @@ public sealed class AppPaths
     public string ProfileName { get; }
     /// <summary>User-local ephemeral listing data, including in portable mode.</summary>
     public string ListingScratchDirectory { get; }
+    /// <summary>Original bytes for interrupted hex saves stay in user-local storage, including portable mode.</summary>
+    public string HexRecoveryDirectory { get; }
 
     public string JournalDirectory => Path.Combine(LocalDirectory, "journal");
     public string LogDirectory => Path.Combine(LocalDirectory, "diagnostics");
@@ -80,7 +83,7 @@ public sealed class AppPaths
 
     private AppPaths Ensure()
     {
-        foreach (var d in new[] { SettingsDirectory, LocalDirectory, JournalDirectory, LogDirectory, CacheDirectory, TempDirectory, WorkspacesDirectory, ListingScratchDirectory })
+        foreach (var d in new[] { SettingsDirectory, LocalDirectory, JournalDirectory, LogDirectory, CacheDirectory, TempDirectory, WorkspacesDirectory, ListingScratchDirectory, HexRecoveryDirectory })
             Directory.CreateDirectory(d);
         if (!OperatingSystem.IsWindows())
             File.SetUnixFileMode(ListingScratchDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

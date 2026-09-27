@@ -1,6 +1,7 @@
 using FileCat.Core.Resources;
 using Microsoft.Win32;
 using FileCat.Core.Jobs;
+using FileCat.Core.Content;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -174,6 +175,66 @@ public sealed class WindowsRegistryProviderTests
             Assert.Contains("D:", acl.Sddl);
         }
         finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
+    }
+
+    [Fact]
+    public void Protected_hex_file_denies_other_writers_and_checks_original_ranges()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".bin");
+        File.WriteAllBytes(file, [1, 2, 3, 4]);
+        try
+        {
+            using var protectedFile = new ProtectedHexFile(file);
+            Assert.Throws<IOException>(() => File.OpenHandle(file, FileMode.Open, FileAccess.Write, FileShare.ReadWrite));
+            protectedFile.ValidateForSave([new HexPatchRange(1, [2], [9])]);
+            Assert.Equal(4, protectedFile.Length);
+        }
+        finally { File.Delete(file); }
+    }
+
+    [Fact]
+    public void Interrupted_hex_save_can_be_guardedly_rolled_back_or_resumed()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string directory = Path.Combine(Path.GetTempPath(), "filecat-hextest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string file = Path.Combine(directory, "target.bin");
+        string journalDir = Path.Combine(directory, "journals");
+        var original = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
+        File.WriteAllBytes(file, original);
+        try
+        {
+            using (var protectedFile = new ProtectedHexFile(file))
+            using (var overlay = new HexPatchOverlay(protectedFile))
+            {
+                overlay.Write(2, [90]);
+                overlay.Write(20, [91]);
+                Assert.Throws<IOException>(() => HexSaveJournal.Save(protectedFile, overlay, journalDir,
+                    step => { if (step == 1) throw new IOException("simulated interruption"); }));
+            }
+            var pending = Assert.Single(HexSaveJournal.Pending(journalDir));
+            var record = HexSaveJournal.Read(pending);
+            HexSaveJournal.Recover(record, rollback: true);
+            Assert.Equal(original, File.ReadAllBytes(file));
+            Assert.Empty(HexSaveJournal.Pending(journalDir));
+
+            using (var protectedFile = new ProtectedHexFile(file))
+            using (var overlay = new HexPatchOverlay(protectedFile))
+            {
+                overlay.Write(2, [90]);
+                overlay.Write(20, [91]);
+                Assert.Throws<IOException>(() => HexSaveJournal.Save(protectedFile, overlay, journalDir,
+                    step => { if (step == 0) throw new IOException("simulated interruption before write"); }));
+            }
+            record = HexSaveJournal.Read(Assert.Single(HexSaveJournal.Pending(journalDir)));
+            HexSaveJournal.Recover(record, rollback: false);
+            var expected = original.ToArray();
+            expected[2] = 90; expected[20] = 91;
+            Assert.Equal(expected, File.ReadAllBytes(file));
+            Assert.Empty(HexSaveJournal.Pending(journalDir));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 
     [Fact]
