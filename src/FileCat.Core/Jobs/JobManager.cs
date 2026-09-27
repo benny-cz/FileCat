@@ -114,6 +114,7 @@ public sealed class JobManager
     public void Schedule()
     {
         var toStart = new List<Job>();
+        var canceled = new List<Job>();
         lock (_lock)
         {
             int running = _jobs.Count(j => j.State.IsActive());
@@ -122,6 +123,7 @@ public sealed class JobManager
                 if (job.IsCancellationRequested)
                 {
                     job.SetState(JobState.Canceled);
+                    canceled.Add(job);
                     continue;
                 }
                 if (job.IsPaused)
@@ -159,6 +161,7 @@ public sealed class JobManager
                 toStart.Add(job);
             }
         }
+        foreach (var job in canceled) JobFinished?.Invoke(job);
         foreach (var job in toStart) Start(job);
     }
 

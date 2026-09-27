@@ -65,11 +65,17 @@ public partial class OperationsView : UserControl
     private async void OnCleanupInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } c) return;
-        var leftovers = JournalRecovery.FindStagedLeftovers(item.Job);
+        var (leftovers, incomplete) = await Task.Run(() => (JournalRecovery.FindStagedLeftovers(item.Job), JournalRecovery.FindIncompleteCopies(item.Job)));
         var intents = item.Job.OpenIntents.Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}").ToList();
-        var message = leftovers.Count == 0
+        var message = leftovers.Count == 0 && incomplete.Count == 0
             ? "No partial files of this operation remain."
-            : $"{leftovers.Count} partial file(s) were never published and can be deleted safely:\n" + string.Join("\n", leftovers.Take(10).Select(l => "• " + l));
+            : string.Empty;
+        if (leftovers.Count > 0)
+            message += $"{leftovers.Count} partial file(s) were never published and can be deleted safely:\n" + string.Join("\n", leftovers.Take(10).Select(l => "• " + l));
+        if (incomplete.Count > 0)
+            message += (message.Length > 0 ? "\n\n" : string.Empty) + $"{incomplete.Count} copied file(s) differ from their source and are probably incomplete (created by this operation; check any you changed yourself since):\n"
+                + string.Join("\n", incomplete.Take(10).Select(l => "• " + l));
+        leftovers = [.. leftovers, .. incomplete];
         if (intents.Count > 0) message += "\n\nSteps that were in progress (inspect these items yourself; nothing is replayed automatically):\n" + string.Join("\n", intents.Take(10));
         if (!await main.Dialogs.ConfirmAsync("Interrupted operation", message, leftovers.Count > 0 ? "Delete partial files" : "OK")) return;
         int deleted = 0;

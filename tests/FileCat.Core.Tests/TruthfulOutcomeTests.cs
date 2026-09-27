@@ -30,7 +30,10 @@ public sealed class TruthfulOutcomeTests : IDisposable
         }
     }
 
-    private async Task<(Job Job, List<DecisionRequest> Asked)> CopyAsync(IFileSystemOperations fs, IEnumerable<string> files, string dest, DecisionAction answer)
+    private Task<(Job Job, List<DecisionRequest> Asked)> CopyAsync(IFileSystemOperations fs, IEnumerable<string> files, string dest, DecisionAction answer) =>
+        RunAsync(JobKind.Copy, fs, files, dest, answer);
+
+    private async Task<(Job Job, List<DecisionRequest> Asked)> RunAsync(JobKind kind, IFileSystemOperations fs, IEnumerable<string> files, string dest, DecisionAction answer)
     {
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
@@ -43,7 +46,7 @@ public sealed class TruthfulOutcomeTests : IDisposable
         };
         var job = jobs.Submit(new JobRequest
         {
-            Kind = JobKind.Copy,
+            Kind = kind,
             Sources = files.Select(f => ItemRef.ForFileSystemPath(f, EntryKind.File)).ToList(),
             Destination = Location.FileSystem(dest),
         });
@@ -156,6 +159,10 @@ public sealed class TruthfulOutcomeTests : IDisposable
 
         public override IReadOnlyList<string> GetAlternateStreams(string path) => ["Zone.Identifier", "thumbnail", "author"];
 
+        // The destination folder acts as its own volume (like a FAT stick mounted into a folder).
+        public override string GetVolumeRoot(string path) =>
+            path.StartsWith(destination, StringComparison.OrdinalIgnoreCase) ? destination : base.GetVolumeRoot(path);
+
         public override string? ReadOriginMark(string path) => "[ZoneTransfer]\r\nZoneId=3\r\n";
     }
 
@@ -173,5 +180,138 @@ public sealed class TruthfulOutcomeTests : IDisposable
         var warnings = job.Issues.Where(i => i.Severity == IssueSeverity.Warning).Select(i => i.Message).ToList();
         Assert.Contains(warnings, m => m.Contains("2 alternate data streams (thumbnail, author)", StringComparison.Ordinal) && m.Contains("exFAT", StringComparison.Ordinal));
         Assert.Contains(warnings, m => m.Contains("Mark of the Web", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(DecisionAction.KeepSource, true, true)]
+    [InlineData(DecisionAction.Proceed, true, false)]
+    [InlineData(DecisionAction.Skip, false, true)]
+    public async Task A_move_that_would_lose_metadata_asks_before_the_original_is_deleted(DecisionAction answer, bool copied, bool sourceKept)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        var file = Path.Combine(src, "download.zip");
+        File.WriteAllText(file, "zip");
+        var (job, asked) = await RunAsync(JobKind.Move, new NoStreamsDestination(dst), [file], dst, answer);
+        var question = Assert.IsType<ConfirmRequest>(Assert.Single(asked));
+        Assert.Equal("confirm-metadata-loss", question.ClassKey);
+        Assert.Contains("Mark of the Web", question.Message);
+        Assert.Contains(DecisionAction.KeepSource, question.Actions);
+        Assert.Equal(copied, File.Exists(Path.Combine(dst, "download.zip")));
+        Assert.Equal(sourceKept, File.Exists(file));
+        Assert.True(job.State.IsFinished());
+    }
+
+    /// <summary>An EFS-encrypted source: the native engine refuses a non-encrypting destination until allowed.</summary>
+    private sealed class EncryptedSource : PortableFileOperations
+    {
+        public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+        {
+            if (!options.AllowDecryptedDestination) throw new IOException("ERROR_ENCRYPTION_FAILED", unchecked((int)0x80071770));
+            base.CopyFile(source, destination, options, progress, ct);
+        }
+    }
+
+    [Fact]
+    public async Task Encrypted_files_are_copied_decrypted_only_with_consent()
+    {
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        var file = Path.Combine(src, "secret.txt");
+        File.WriteAllText(file, "s");
+        var (job, asked) = await CopyAsync(new EncryptedSource(), [file], dst, DecisionAction.Proceed);
+        Assert.Equal("confirm-decrypt", Assert.Single(asked).ClassKey);
+        Assert.True(File.Exists(Path.Combine(dst, "secret.txt")));
+        Assert.Contains(job.Issues, i => i.Message.Contains("Copied decrypted", StringComparison.Ordinal));
+        var dst2 = _dir.Dir("dst2");
+        var (skipped, _) = await CopyAsync(new EncryptedSource(), [file], dst2, DecisionAction.Skip);
+        Assert.False(File.Exists(Path.Combine(dst2, "secret.txt")));
+        Assert.Equal([0], skipped.FailedRootIndices);
+    }
+
+    [Fact]
+    public void A_failed_copy_never_deletes_a_destination_it_did_not_create()
+    {
+        var src = _dir.File("a.txt");
+        File.WriteAllText(src, "new");
+        var existing = Path.Combine(_dir.Dir("dst"), "a.txt");
+        File.WriteAllText(existing, "precious");
+        Assert.ThrowsAny<IOException>(() => new PortableFileOperations().CopyFile(src, existing, new FileCopyOptions(), null, default));
+        Assert.Equal("precious", File.ReadAllText(existing));
+    }
+
+    /// <summary>Records the durability each step asks for; the destination folder acts as another volume.</summary>
+    private sealed class DurabilityRecorder(string destination) : PortableFileOperations
+    {
+        public readonly List<string> Events = [];
+
+        public override string GetVolumeRoot(string path) =>
+            path.StartsWith(destination, StringComparison.OrdinalIgnoreCase) ? destination : base.GetVolumeRoot(path);
+
+        public override void CopyFile(string source, string target, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+        {
+            lock (Events) Events.Add($"copy {Path.GetFileName(source)} flush={options.FlushDestination}");
+            base.CopyFile(source, target, options, progress, ct);
+        }
+
+        public override void Move(string source, string target, bool replaceExisting, bool writeThrough = false)
+        {
+            lock (Events) Events.Add($"publish {Path.GetFileName(target)} writeThrough={writeThrough}");
+            base.Move(source, target, replaceExisting, writeThrough);
+        }
+
+        public override void DeleteFile(string path)
+        {
+            lock (Events) Events.Add($"delete {Path.GetFileName(path)}");
+            base.DeleteFile(path);
+        }
+    }
+
+    [Fact]
+    public async Task A_move_to_another_volume_makes_the_copy_durable_before_deleting_the_source()
+    {
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        var small = Path.Combine(src, "small.txt");
+        File.WriteAllText(small, "s");
+        var large = Path.Combine(src, "large.bin");
+        using (var fs = new FileStream(large, FileMode.Create)) fs.SetLength(TransferExecutor.DirectCopyLimit + 1);
+
+        var moving = new DurabilityRecorder(dst);
+        var (moved, _) = await RunAsync(JobKind.Move, moving, [small, large], dst, DecisionAction.CancelJob);
+        Assert.Equal(JobState.Completed, moved.State);
+        // The small file is written straight to its name and flushed; the large one is flushed under its staged name
+        // and published with write-through. Only then is each source deleted.
+        Assert.Equal(["copy small.txt flush=True", "delete small.txt", "copy large.bin flush=True", "publish large.bin writeThrough=True", "delete large.bin"], moving.Events);
+
+        // A copy deletes nothing and keeps the cheaper path.
+        var copyDst = _dir.Dir("copy");
+        var copying = new DurabilityRecorder(copyDst);
+        var (copied, _) = await RunAsync(JobKind.Copy, copying, [Path.Combine(dst, "small.txt"), Path.Combine(dst, "large.bin")], copyDst, DecisionAction.CancelJob);
+        Assert.Equal(JobState.Completed, copied.State);
+        Assert.Equal(["copy small.txt flush=False", "copy large.bin flush=False", "publish large.bin writeThrough=False"], copying.Events);
+    }
+
+    [Fact]
+    public async Task Small_new_files_are_copied_directly_and_recovery_finds_incomplete_ones()
+    {
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        File.WriteAllText(Path.Combine(src, "one.txt"), "1111");
+        File.WriteAllText(Path.Combine(src, "two.txt"), "2222");
+        var (job, _) = await CopyAsync(new PortableFileOperations(), [Path.Combine(src, "one.txt"), Path.Combine(src, "two.txt")], dst, DecisionAction.Skip);
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Empty(Directory.GetFiles(dst, JournalRecovery.StagedPrefix + "*"));
+
+        // A crash mid-copy leaves a short file under the real name: the fill record lets recovery point at it.
+        var journalDir = _dir.Dir("crash-journal");
+        var crashed = new InterruptedJob(Path.Combine(journalDir, "job-x.fcj"), "Copy", "Copy", DateTime.UtcNow.AddMinutes(-1), [], dst, [], [], 0, 2)
+        {
+            FillDirectories = [new FillDirectory(src, dst)],
+        };
+        File.WriteAllText(Path.Combine(dst, "two.txt"), "2"); // truncated by the "crash"
+        var incomplete = JournalRecovery.FindIncompleteCopies(crashed);
+        Assert.Equal([Path.Combine(dst, "two.txt")], incomplete);
     }
 }

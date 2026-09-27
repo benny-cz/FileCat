@@ -221,6 +221,8 @@ public sealed class Job
         _runGate.Set();
         Volatile.Read(ref _decision)?.Resolve(new Decision(DecisionAction.CancelJob));
         if (State is JobState.Running or JobState.AwaitingDecision or JobState.Paused or JobState.Pausing) SetState(JobState.Stopping);
+        // A queued job never started: the manager finishes it as canceled right away.
+        else if (State == JobState.Queued) Changed?.Invoke(this);
     }
 
     // ---- Executor API (job thread) ------------------------------------------------------------------

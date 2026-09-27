@@ -73,8 +73,11 @@ public partial class App : Application
             };
             if (!benchmark && services.Shell.IsElevated)
                 vm.Notify("FileCat is running as administrator: every operation has full rights, and Windows blocks drag and drop from other programs. Start it normally for everyday work.", true);
+            if (services.Paths.PortableUnavailableReason is { } portable) vm.Notify(portable, true);
             desktop.Exit += (_, _) =>
             {
+                // Sign-out or a forced exit: running jobs stop at their next safe boundary and journal the rest.
+                vm.StopJobsForExit(TimeSpan.FromSeconds(3));
                 services.Dispose();
                 if (benchmarkRoot is not null)
                 {

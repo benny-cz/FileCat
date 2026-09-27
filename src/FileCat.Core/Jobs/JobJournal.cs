@@ -51,11 +51,29 @@ public sealed class JobJournal : IDisposable
     }
 
     /// <summary>Records an intent durably before the transition happens; returns the step number.</summary>
-    public int Intent(string op, string path, string? target = null, string? staged = null)
+    public int Intent(string op, string path, string? target = null, string? staged = null) => Intent(op, path, target, staged, durable: true);
+
+    /// <summary>
+    /// Records an intent. Destructive or replacing transitions pass <paramref name="durable"/> (flushed to disk before
+    /// returning); creating new items is group-committed (plan §9.3: a sync per small file would dominate the copy).
+    /// </summary>
+    public int Intent(string op, string path, string? target, string? staged, bool durable)
     {
         int n = Interlocked.Increment(ref _step);
-        Write(new JsonObject { ["t"] = "intent", ["n"] = n, ["op"] = op, ["path"] = path, ["target"] = target, ["staged"] = staged }, sync: true);
+        Write(new JsonObject { ["t"] = "intent", ["n"] = n, ["op"] = op, ["path"] = path, ["target"] = target, ["staged"] = staged }, sync: durable);
         return n;
+    }
+
+    /// <summary>Makes every record written so far durable (one flush for a batch of intents).</summary>
+    public void Flush()
+    {
+        lock (_lock)
+        {
+            if (_disposed) return;
+            _stream.Flush(flushToDisk: true);
+            _pendingBatched = 0;
+            _lastFlush = DateTime.UtcNow;
+        }
     }
 
     public void Done(int step, StepOutcome outcome, string? message = null) =>
@@ -63,7 +81,15 @@ public sealed class JobJournal : IDisposable
 
     /// <summary>Directory that may hold staged files of this job (for orphan cleanup after a crash).</summary>
     public void StagingDirectory(string directory) =>
-        Write(new JsonObject { ["t"] = "stagedir", ["path"] = directory }, sync: false);
+        // Durable once per directory, so recovery can always find staged leftovers of batched copies.
+        Write(new JsonObject { ["t"] = "stagedir", ["path"] = directory }, sync: true);
+
+    /// <summary>
+    /// Durable once per destination folder that receives direct (unstaged) copies: after a crash, recovery compares the
+    /// files the job created there with their sources to find incomplete copies (plan §9.3 per-directory progress).
+    /// </summary>
+    public void Fill(string sourceDirectory, string destinationDirectory) =>
+        Write(new JsonObject { ["t"] = "fill", ["src"] = sourceDirectory, ["dst"] = destinationDirectory }, sync: true);
 
     public void Note(string message) => Write(new JsonObject { ["t"] = "note", ["msg"] = message }, sync: false);
 
@@ -137,7 +163,13 @@ public sealed class JournalRecord(JsonObject node)
 
 /// <summary>An interrupted job. Sources is a bounded sample; SourceCount is the full count.</summary>
 public sealed record InterruptedJob(string JournalPath, string Kind, string Title, DateTime CreatedUtc,
-    IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps, int SourceCount);
+    IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps, int SourceCount)
+{
+    /// <summary>Folders that received direct copies (source folder, destination folder), bounded.</summary>
+    public IReadOnlyList<FillDirectory> FillDirectories { get; init; } = [];
+}
+
+public sealed record FillDirectory(string Source, string Destination);
 
 /// <summary>An intent recorded without an outcome: reality must be inspected before anything is replayed.</summary>
 public sealed record PendingIntent(int Step, string Operation, string Path, string? Target, string? Staged);
@@ -161,6 +193,7 @@ public static class JournalRecovery
             int completed = 0;
             var open = new Dictionary<int, PendingIntent>();
             var directories = new HashSet<string>(StringComparer.Ordinal);
+            var fills = new List<FillDirectory>();
             try
             {
                 foreach (var record in JobJournal.ReadRecords(f.FullName))
@@ -179,6 +212,9 @@ public static class JournalRecovery
                             break;
                         case "stagedir":
                             if (record.Get("path") is { Length: > 0 } path) directories.Add(path);
+                            break;
+                        case "fill":
+                            if (fills.Count < 10_000 && record.Get("src") is { Length: > 0 } fs && record.Get("dst") is { Length: > 0 } fd) fills.Add(new FillDirectory(fs, fd));
                             break;
                     }
                 }
@@ -201,7 +237,7 @@ public static class JournalRecovery
                 ? declared : sources.Count;
             DateTime.TryParse(begin.Get("created"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var created);
             result.Add(new InterruptedJob(f.FullName, begin.Get("kind") ?? "?", begin.Get("title") ?? "Operation", created, sources,
-                begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount));
+                begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount) { FillDirectories = fills });
         }
         return result;
     }
@@ -225,6 +261,37 @@ public static class JournalRecovery
         foreach (var intent in job.OpenIntents)
         {
             if (intent.Staged is { } s && File.Exists(s) && !list.Contains(s)) list.Add(s);
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// Files a direct copy created but may not have finished: created after the job started and different in size or
+    /// modification time from their source (the copy engine sets the time last). Bounded; deletes nothing itself.
+    /// A file changed by the user after the crash can appear here too, which is why the review asks first.
+    /// </summary>
+    public static IReadOnlyList<string> FindIncompleteCopies(InterruptedJob job, int limit = 1000)
+    {
+        var list = new List<string>();
+        var since = job.CreatedUtc.AddSeconds(-2);
+        foreach (var fill in job.FillDirectories)
+        {
+            try
+            {
+                if (!Directory.Exists(fill.Destination)) continue;
+                foreach (var dst in new DirectoryInfo(fill.Destination).EnumerateFiles())
+                {
+                    if (dst.CreationTimeUtc < since || dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal)) continue;
+                    var src = new FileInfo(Path.Combine(fill.Source, dst.Name));
+                    if (!src.Exists) continue;
+                    bool sameTime = Math.Abs((src.LastWriteTimeUtc - dst.LastWriteTimeUtc).TotalSeconds) <= 2;
+                    if (src.Length == dst.Length && sameTime) continue;
+                    list.Add(dst.FullName);
+                    if (list.Count >= limit) return list;
+                }
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
         return list;
     }

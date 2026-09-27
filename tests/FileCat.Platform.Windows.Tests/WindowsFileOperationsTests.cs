@@ -52,6 +52,34 @@ public sealed class WindowsFileOperationsTests : IDisposable
     }
 
     [Fact]
+    public void Flushed_copies_work_for_read_only_files_with_streams()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var src = Path.Combine(_root, "ro.bin");
+        var data = new byte[2 * 1024 * 1024 + 5];
+        new Random(7).NextBytes(data);
+        File.WriteAllBytes(src, data);
+        File.WriteAllText(src + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        File.SetAttributes(src, FileAttributes.ReadOnly);
+        try
+        {
+            // The flush uses the copy engine's own write handle: a read-only file could not be reopened for it.
+            var staged = Path.Combine(_root, "ro.staged");
+            _ops.CopyFile(src, staged, new FileCopyOptions { FlushDestination = true }, null, CancellationToken.None);
+            var final = Path.Combine(_root, "ro-copy.bin");
+            _ops.Move(staged, final, replaceExisting: false, writeThrough: true);
+            Assert.Equal(data, File.ReadAllBytes(final));
+            Assert.True(File.GetAttributes(final).HasFlag(FileAttributes.ReadOnly));
+            Assert.Contains("Zone.Identifier", _ops.GetAlternateStreams(final));
+            File.SetAttributes(final, FileAttributes.Normal);
+        }
+        finally
+        {
+            File.SetAttributes(src, FileAttributes.Normal);
+        }
+    }
+
+    [Fact]
     public void Move_publishes_and_replaces_only_when_asked()
     {
         if (!OperatingSystem.IsWindows()) return;

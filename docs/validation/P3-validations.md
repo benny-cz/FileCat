@@ -30,3 +30,14 @@ TV-01 has its own record: [TV-01.md](TV-01.md).
 In every case the job asks with a classified, plain explanation. It reports the item, leaves no staged file, completes the
 other roots, and ends as CompletedWithIssues or Failed, never as a false Completed. Canceling at the question ends as
 Canceled with completed work kept. A really locked file and a source deleted before its turn are reported truthfully.
+
+## Small-file copy budget (plan §21: 100,000 × 4 KiB, ≤25% over CopyFile2, journaling included)
+
+`SmallFileCopyBenchmark` (Windows integration tests) alternates the order of a plain CopyFile2 loop and a FileCat copy
+job over the same fixture. On the development machine (NVMe, NTFS, Defender on): 100,000 files 10% and 21% (another
+project's test run in parallel); 20,000 files 16% and −2%; 10,000 files median 5% over four rounds. Pass.
+
+What keeps it there: new small files go straight to their name without a staged rename, and journal intents for new
+names are group-committed. Each destination folder gets one durable fill record, and after a crash recovery compares
+the files the job created there with their sources. Replacing an existing item stays staged, journaled synchronously,
+and written through. A move also flushes each copy and writes its publish through before it deletes the source.

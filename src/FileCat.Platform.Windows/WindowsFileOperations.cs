@@ -15,7 +15,7 @@ public sealed partial class WindowsFileOperations : PortableFileOperations
     {
         try
         {
-            var root = GetVolumeRoot(path);
+            var root = VolumeRootOf(path);
             uint type = GetDriveType(root);
             var fsName = stackalloc char[64];
             if (!GetVolumeInformation(root, null, 0, out _, out _, out uint flags, fsName, 64))
@@ -45,7 +45,12 @@ public sealed partial class WindowsFileOperations : PortableFileOperations
         }
     }
 
-    internal static unsafe string GetVolumeRoot(string path)
+    public override string GetVolumeRoot(string path) => VolumeRootOf(path);
+
+    /// <summary>CopyFile2 keeps attributes, the modification time, and alternate data streams itself.</summary>
+    public override bool CopyPreservesMetadata => true;
+
+    internal static unsafe string VolumeRootOf(string path)
     {
         var buf = stackalloc char[1024];
         if (GetVolumePathName(path, buf, 1024)) return new string(buf);

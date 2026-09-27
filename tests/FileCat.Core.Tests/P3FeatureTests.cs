@@ -148,9 +148,9 @@ public sealed class P3FeatureTests : IDisposable
             return true;
         }
 
-        public override void Move(string source, string destination, bool replaceExisting)
+        public override void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
         {
-            base.Move(source, destination, replaceExisting);
+            base.Move(source, destination, replaceExisting, writeThrough);
             if (Marks.Remove(source, out var m)) Marks[destination] = m;
         }
     }

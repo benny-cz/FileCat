@@ -149,6 +149,8 @@ public enum DecisionAction
     /// <summary>Copy the link target's content instead of the link (explicit, never silent).</summary>
     FollowLink,
     CreateJunction,
+    /// <summary>Copy instead of moving: the original stays where it is.</summary>
+    KeepSource,
 }
 
 public sealed record Decision(DecisionAction Action, bool ApplyToAll = false);
@@ -172,6 +174,9 @@ public sealed record ErrorRequest(string Title, string Message, string Path, boo
 
 public sealed record ConfirmRequest(string Title, string Message, string Path, string ConfirmClass, IReadOnlyList<DecisionAction> Actions) : DecisionRequest(Title, Message)
 {
+    /// <summary>Button text for <see cref="DecisionAction.Proceed"/> (what proceeding does, in plain words).</summary>
+    public string? ProceedLabel { get; init; }
+
     public override string ClassKey => "confirm-" + ConfirmClass;
 }
 

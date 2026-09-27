@@ -19,6 +19,18 @@ public sealed class FileCopyOptions
     public bool CopyLinkAsLink { get; init; } = true;
     /// <summary>Unbuffered I/O for very large files.</summary>
     public bool NoBuffering { get; init; }
+    /// <summary>
+    /// Do not pre-size the destination: an interrupted direct copy then shows a short size instead of full-size zeros,
+    /// which is how recovery recognizes it (plan §9.3).
+    /// </summary>
+    public bool DisablePreallocation { get; init; }
+    /// <summary>Allow an encrypted (EFS) source to arrive decrypted where the destination cannot encrypt (user-approved).</summary>
+    public bool AllowDecryptedDestination { get; init; }
+    /// <summary>
+    /// Flush the copied data to the device before returning. Moves set it: their source is deleted next, and a copy
+    /// still in the write cache would be lost with it on power failure.
+    /// </summary>
+    public bool FlushDestination { get; init; }
 }
 
 /// <summary>Native identity and metadata of one file-system item.</summary>
@@ -93,8 +105,11 @@ public interface IFileSystemOperations
     /// <summary>Copies one file to a destination that must not exist (staged names only).</summary>
     void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct);
 
-    /// <summary>Renames/moves within a volume. Replacing requires <paramref name="replaceExisting"/>.</summary>
-    void Move(string source, string destination, bool replaceExisting);
+    /// <summary>
+    /// Renames/moves within a volume. Replacing requires <paramref name="replaceExisting"/>. Replacing always writes
+    /// through; <paramref name="writeThrough"/> makes a rename to a new name durable before returning as well.
+    /// </summary>
+    void Move(string source, string destination, bool replaceExisting, bool writeThrough = false);
 
     void CreateDirectory(string path);
 
@@ -127,6 +142,15 @@ public interface IFileSystemOperations
 
     /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.</summary>
     IReadOnlyList<string> GetAlternateStreams(string path);
+
+    /// <summary>True when <see cref="CopyFile"/> itself keeps attributes, times, and streams (native copy engines).</summary>
+    bool CopyPreservesMetadata { get; }
+
+    /// <summary>
+    /// Root of the volume holding <paramref name="path"/> (a mount point for mounted folders), used to tell whether a
+    /// rename can stay on one volume.
+    /// </summary>
+    string GetVolumeRoot(string path);
 }
 
 /// <summary>
@@ -153,15 +177,59 @@ public class PortableFileOperations : IFileSystemOperations
                     fi = link;
                 }
             }
-            bool isDir = fi is DirectoryInfo;
-            bool isLink = fi.LinkTarget is not null;
-            return new FileSystemItemInfo(path, isDir, isLink, isDir ? -1 : ((FileInfo)fi).Length,
-                fi.LastWriteTimeUtc, fi.CreationTimeUtc, fi.Attributes, null, 1, fi.LinkTarget);
+            return FromInfo(fi, path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Item information from data an enumeration or stat already returned. Only reparse points are asked for their
+    /// link target: reading it opens a handle, which would double the cost of every ordinary file.
+    /// </summary>
+    public static FileSystemItemInfo FromInfo(FileSystemInfo fi, string? path = null)
+    {
+        bool isDir = fi is DirectoryInfo;
+        string? linkTarget = (fi.Attributes & FileAttributes.ReparsePoint) != 0 ? fi.LinkTarget : null;
+        return new FileSystemItemInfo(path ?? fi.FullName, isDir, linkTarget is not null, isDir ? -1 : ((FileInfo)fi).Length,
+            fi.LastWriteTimeUtc, fi.CreationTimeUtc, fi.Attributes, null, 1, linkTarget);
+    }
+
+    public virtual bool CopyPreservesMetadata => false;
+
+    public virtual string GetVolumeRoot(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (OperatingSystem.IsWindows()) return Path.GetPathRoot(full) ?? path;
+        // Unix: one root holds every path, so the volume is the deepest mount point above the path. A rename across
+        // mount points would otherwise become the runtime's unguarded copy-and-delete.
+        string best = "/";
+        foreach (var mount in MountPoints())
+        {
+            if (mount.Length > best.Length && (full == mount || full.StartsWith(mount.EndsWith('/') ? mount : mount + "/", StringComparison.Ordinal)))
+                best = mount;
+        }
+        return best;
+    }
+
+    private static string[] _mounts = [];
+    private static long _mountsRead;
+
+    private static string[] MountPoints()
+    {
+        if (Environment.TickCount64 - Volatile.Read(ref _mountsRead) < 5000 && _mounts.Length > 0) return _mounts;
+        try
+        {
+            _mounts = DriveInfo.GetDrives().Select(d => d.Name).ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _mounts = ["/"];
+        }
+        Volatile.Write(ref _mountsRead, Environment.TickCount64);
+        return _mounts;
     }
 
     public virtual VolumeInfo GetVolumeInfo(string path)
@@ -196,12 +264,14 @@ public class PortableFileOperations : IFileSystemOperations
             return;
         }
         long total = info.Length;
+        bool created = false;
         try
         {
             using (var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
             using (var dst = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan))
             {
-                if (total > 0) dst.SetLength(total);
+                created = true;
+                if (total > 0 && !options.DisablePreallocation) dst.SetLength(total);
                 var buffer = new byte[BufferSize];
                 long done = 0;
                 int n;
@@ -213,7 +283,7 @@ public class PortableFileOperations : IFileSystemOperations
                     if (progress?.Invoke(done, total) == CopyProgressAction.Cancel) throw new OperationCanceledException(ct);
                 }
                 if (dst.Length != done) dst.SetLength(done);
-                dst.Flush(flushToDisk: false);
+                dst.Flush(flushToDisk: options.FlushDestination);
             }
             File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
             File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
@@ -221,7 +291,8 @@ public class PortableFileOperations : IFileSystemOperations
         }
         catch
         {
-            TryDelete(destination);
+            // Only a destination this call created is removed: an item that already existed is never touched.
+            if (created) TryDelete(destination);
             throw;
         }
     }
@@ -233,7 +304,7 @@ public class PortableFileOperations : IFileSystemOperations
         catch (UnauthorizedAccessException) { }
     }
 
-    public virtual void Move(string source, string destination, bool replaceExisting)
+    public virtual void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
         if (Directory.Exists(source) && new DirectoryInfo(source).LinkTarget is null)
         {

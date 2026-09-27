@@ -23,6 +23,8 @@ public sealed class AppPaths
     public string SettingsDirectory { get; }
     public string LocalDirectory { get; }
     public bool IsPortable { get; }
+    /// <summary>Set when a portable marker was found but its data folder is not writable (per-user state is used).</summary>
+    public string? PortableUnavailableReason { get; private init; }
     public string ProfileName { get; }
     /// <summary>User-local ephemeral listing data, including in portable mode.</summary>
     public string ListingScratchDirectory { get; }
@@ -47,14 +49,33 @@ public sealed class AppPaths
             return new AppPaths(root, Path.Combine(root, "local"), true, profile).Ensure();
         }
         baseDirectory ??= AppContext.BaseDirectory;
+        string? portableProblem = null;
         if (File.Exists(Path.Combine(baseDirectory, PortableMarker)))
         {
             var root = Path.Combine(baseDirectory, "Data", suffix);
-            return new AppPaths(root, Path.Combine(root, "local"), true, profile).Ensure();
+            // A marker in a folder the user cannot write to (for example under Program Files) must not stop startup.
+            if (IsWritable(root)) return new AppPaths(root, Path.Combine(root, "local"), true, profile).Ensure();
+            portableProblem = $"The portable data folder \"{root}\" is not writable, so FileCat keeps its settings in your user profile instead.";
         }
         var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create);
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create);
-        return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile).Ensure();
+        return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile) { PortableUnavailableReason = portableProblem }.Ensure();
+    }
+
+    private static bool IsWritable(string directory)
+    {
+        try
+        {
+            Directory.CreateDirectory(directory);
+            var probe = Path.Combine(directory, ".write-test-" + Guid.NewGuid().ToString("N"));
+            File.WriteAllText(probe, string.Empty);
+            File.Delete(probe);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private AppPaths Ensure()

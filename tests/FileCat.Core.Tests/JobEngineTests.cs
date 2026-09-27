@@ -208,6 +208,26 @@ public sealed class JobEngineTests : IDisposable
     }
 
     [Fact]
+    public async Task Canceling_a_queued_job_finishes_it_at_once()
+    {
+        var big = Path.Combine(_src, "big.bin");
+        using (var fs = new FileStream(big, FileMode.Create)) fs.SetLength(60L * 1024 * 1024);
+        var finished = new List<Job>();
+        _jobs.JobFinished += j => { lock (finished) finished.Add(j); };
+        var first = Submit(JobKind.Copy, [big], _dst, o => o.RateLimit = 10 * 1024 * 1024);
+        var second = Submit(JobKind.Delete, [big]);
+        await Task.Delay(100);
+        Assert.Equal(JobState.Queued, second.State);
+        second.Cancel();
+        Assert.Equal(JobState.Canceled, second.State);
+        lock (finished) Assert.Contains(second, finished);
+        Assert.False(first.State.IsFinished());
+        first.Cancel();
+        await WaitAsync(first);
+        Assert.True(File.Exists(big));
+    }
+
+    [Fact]
     public async Task Filtered_copy_transfers_only_matches()
     {
         File.WriteAllText(Path.Combine(_src, "a.cs"), "a");

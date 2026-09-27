@@ -518,6 +518,13 @@ public partial class MainWindow : Window, IViewActions
 
     public void FocusPathBox() => ActivePanelView()?.FocusPathBox();
 
+    public void CloseWhenIdle()
+    {
+        _forceClose = true;
+        SavePlacement();
+        Close();
+    }
+
     public void FocusCommandLine()
     {
         CommandLine.Focus();

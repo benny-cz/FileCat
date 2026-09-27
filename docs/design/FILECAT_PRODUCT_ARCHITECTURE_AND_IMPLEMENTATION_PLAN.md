@@ -637,6 +637,7 @@ Journal durability is tiered, because a synchronous flush per file would dominat
 
 - **Synchronous.** The intent is recorded durably before a destructive or externally visible transition: deleting a source, replacing or overwriting an existing item, or publishing a staged item over a name.
 - **Batched.** Creating new items is journaled in group commits. Plain copies of many small files record per-directory progress rather than a durable record per file.
+- **Data before deletion.** A journal record does not make copied bytes durable. A move therefore flushes each copy and writes its publish through before it deletes the source. Otherwise a power loss could keep the deletion and lose the copy, or leave the only copy under a staged name that recovery treats as a leftover.
 
 After a crash, reconciliation inspects the destination instead of trusting the last batch. TV-03 and TV-14 measure the overhead against the small-file budget in §21.2.
 

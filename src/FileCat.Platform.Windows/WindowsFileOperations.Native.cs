@@ -17,7 +17,12 @@ public sealed partial class WindowsFileOperations
     private const uint COPY_FILE_FAIL_IF_EXISTS = 0x00000001;
     private const uint COPY_FILE_COPY_SYMLINK = 0x00000800;
     private const uint COPY_FILE_NO_BUFFERING = 0x00001000;
+    private const uint COPY_FILE_ALLOW_DECRYPTED_DESTINATION = 0x00000008;
+    private const uint COPY_FILE_DISABLE_PRE_ALLOCATION = 0x04000000;
+    private const uint COPY_FILE_ENABLE_SPARSE_COPY = 0x20000000; // Windows 11 22H2+
+    private const int E_INVALIDARG = unchecked((int)0x80070057);
     private const int COPYFILE2_CALLBACK_CHUNK_FINISHED = 2;
+    private const int COPYFILE2_CALLBACK_STREAM_FINISHED = 4;
     private const int COPYFILE2_PROGRESS_CONTINUE = 0;
     private const int COPYFILE2_PROGRESS_CANCEL = 1;
     private const uint MOVEFILE_REPLACE_EXISTING = 0x1;
@@ -101,12 +106,18 @@ public sealed partial class WindowsFileOperations
         return PathUtil.IsUncPath(path) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
     }
 
-    private sealed class CopyContext(CopyProgressCallback? progress, CancellationToken ct)
+    private sealed class CopyContext(CopyProgressCallback? progress, string destination, bool flush, CancellationToken ct)
     {
         public readonly CopyProgressCallback? Progress = progress;
+        public readonly string Destination = destination;
+        public readonly bool Flush = flush;
         public readonly CancellationToken Token = ct;
         public Exception? CallbackError;
     }
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool FlushFileBuffers(nint hFile);
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static unsafe int ProgressRoutine(nint message, nint context)
@@ -123,6 +134,17 @@ public sealed partial class WindowsFileOperations
                 long done = *(long*)(message + 72);
                 if (p(done, total) == CopyProgressAction.Cancel) return COPYFILE2_PROGRESS_CANCEL;
             }
+            else if (type == COPYFILE2_CALLBACK_STREAM_FINISHED && ctx.Flush)
+            {
+                // StreamFinished: hDestinationFile at +24. Flushing the engine's own write handle also covers read-only
+                // files, which could not be reopened for writing afterwards.
+                nint destination = *(nint*)(message + 24);
+                if (!FlushFileBuffers(destination))
+                {
+                    ctx.CallbackError = ToException(Marshal.GetLastPInvokeError(), ctx.Destination);
+                    return COPYFILE2_PROGRESS_CANCEL;
+                }
+            }
             return COPYFILE2_PROGRESS_CONTINUE;
         }
         catch (Exception ex)
@@ -134,15 +156,20 @@ public sealed partial class WindowsFileOperations
 
     public override unsafe void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
     {
-        var ctx = new CopyContext(progress, ct);
+        var ctx = new CopyContext(progress, destination, options.FlushDestination, ct);
         var handle = GCHandle.Alloc(ctx);
         int* cancel = (int*)NativeMemory.AllocZeroed(sizeof(int));
         try
         {
+            uint flags = COPY_FILE_FAIL_IF_EXISTS | COPY_FILE_ENABLE_SPARSE_COPY
+                | (options.CopyLinkAsLink ? COPY_FILE_COPY_SYMLINK : 0)
+                | (options.NoBuffering ? COPY_FILE_NO_BUFFERING : 0)
+                | (options.DisablePreallocation ? COPY_FILE_DISABLE_PRE_ALLOCATION : 0)
+                | (options.AllowDecryptedDestination ? COPY_FILE_ALLOW_DECRYPTED_DESTINATION : 0);
             var p = new COPYFILE2_EXTENDED_PARAMETERS
             {
                 dwSize = (uint)sizeof(COPYFILE2_EXTENDED_PARAMETERS),
-                dwCopyFlags = COPY_FILE_FAIL_IF_EXISTS | (options.CopyLinkAsLink ? COPY_FILE_COPY_SYMLINK : 0) | (options.NoBuffering ? COPY_FILE_NO_BUFFERING : 0),
+                dwCopyFlags = flags,
                 pfCancel = cancel,
                 pProgressRoutine = &ProgressRoutine,
                 pvCallbackContext = GCHandle.ToIntPtr(handle),
@@ -150,10 +177,17 @@ public sealed partial class WindowsFileOperations
             nint cancelAddress = (nint)cancel;
             using var reg = ct.Register(() => Volatile.Write(ref *(int*)cancelAddress, 1));
             int hr = CopyFile2(Long(source), Long(destination), ref p);
+            if (hr == E_INVALIDARG)
+            {
+                // A Windows build that predates sparse-copy or pre-allocation control: copy with the classic flags.
+                p.dwCopyFlags = flags & ~(COPY_FILE_ENABLE_SPARSE_COPY | COPY_FILE_DISABLE_PRE_ALLOCATION);
+                hr = CopyFile2(Long(source), Long(destination), ref p);
+            }
             if (hr >= 0) return;
+            // A failure inside the callback (a flush error) ends the copy as "aborted": report the failure, not a cancel.
+            if (ctx.CallbackError is { } error and not OperationCanceledException) throw error;
             if (ctx.CallbackError is OperationCanceledException || ct.IsCancellationRequested || (hr & 0xFFFF) == 1235)
                 throw new OperationCanceledException(ct);
-            if (ctx.CallbackError is not null) throw ctx.CallbackError;
             throw ToException(hr & 0xFFFF, source);
         }
         finally
@@ -163,9 +197,12 @@ public sealed partial class WindowsFileOperations
         }
     }
 
-    public override void Move(string source, string destination, bool replaceExisting)
+    public override void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
-        uint flags = MOVEFILE_WRITE_THROUGH | (replaceExisting ? MOVEFILE_REPLACE_EXISTING : 0);
+        // Write-through when an existing item is replaced or the caller deletes a source next; a plain rename to a new
+        // name is atomic on the volume and its durability comes with the journal group commit (a flush per small file
+        // would dominate copies).
+        uint flags = (replaceExisting ? MOVEFILE_REPLACE_EXISTING : 0) | (replaceExisting || writeThrough ? MOVEFILE_WRITE_THROUGH : 0);
         if (!MoveFileEx(Long(source), Long(destination), flags)) throw ToException(Marshal.GetLastPInvokeError(), source);
     }
 

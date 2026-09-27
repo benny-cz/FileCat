@@ -79,8 +79,18 @@ public sealed partial class MainViewModel
         var list = ExactList(active.Select(j => $"{j.Title} — {j.State.Describe()}"));
         var r = await Dialogs.ShowCustomAsync("Operations are still running",
             new Avalonia.Controls.TextBlock { Text = $"Closing FileCat stops these operations at their next safe step. Completed steps stay completed; nothing is rolled back.\n\n{list}", TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 620 },
-            [new DialogButton("Keep FileCat open", "keep", IsDefault: true, IsCancel: true), new DialogButton("Stop them and exit", "stop", IsDanger: true)]);
-        if (r as string != "stop") return false;
+            [new DialogButton("Keep FileCat open", "keep", IsDefault: true, IsCancel: true), new DialogButton("Exit when they finish", "later"), new DialogButton("Stop them and exit", "stop", IsDanger: true)]);
+        if (r as string == "later")
+        {
+            _exitWhenIdle = true;
+            Notify("FileCat closes when the running operations finish. Questions they ask are still shown.");
+            return false;
+        }
+        if (r as string != "stop")
+        {
+            _exitWhenIdle = false;
+            return false;
+        }
         foreach (var j in active) j.Cancel();
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (Services.Jobs.HasActiveWork && DateTime.UtcNow < deadline) await Task.Delay(50);
@@ -483,6 +493,7 @@ public sealed partial class MainViewModel
                 break;
         }
         UpdateJobActivity();
+        if (_exitWhenIdle && !Services.Jobs.HasActiveWork) View.CloseWhenIdle();
     }
 
     private void FocusWhenPresent(TabViewModel tab, string name)
@@ -512,6 +523,18 @@ public sealed partial class MainViewModel
                 if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem)) t.Refresh();
             }
         }
+    }
+
+    private bool _exitWhenIdle;
+
+    /// <summary>At exit or sign-out: running jobs stop at their next safe boundary and journal the rest (plan §9.3).</summary>
+    public void StopJobsForExit(TimeSpan wait)
+    {
+        var active = Services.Jobs.Jobs.Where(j => !j.State.IsFinished()).ToList();
+        if (active.Count == 0) return;
+        foreach (var j in active) j.Cancel();
+        var deadline = DateTime.UtcNow + wait;
+        while (Services.Jobs.HasActiveWork && DateTime.UtcNow < deadline) Thread.Sleep(25);
     }
 
     /// <summary>While jobs run: the optional keep-awake, and a shutdown-block reason naming them at sign-out.</summary>

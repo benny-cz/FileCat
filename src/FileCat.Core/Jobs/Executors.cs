@@ -130,6 +130,9 @@ public static class ErrorText
             483 or 1117 => "hardware",
             362 or 389 or 395 or 396 or 397 => "cloud",
             50 => "unsupported",
+            80 or 183 => "exists",
+            6000 => "encryption",
+            17 => "crossdevice",
             _ => "io",
         };
     }
@@ -152,6 +155,9 @@ public static class ErrorText
         "hardware" => "The device reported a hardware or I/O error; the medium may be damaged.",
         "cloud" => "The cloud storage provider (for example OneDrive) is unavailable, so this online-only file cannot be read.",
         "unsupported" => "The destination does not support this operation.",
+        "exists" => "An item with this name appeared at the destination meanwhile.",
+        "encryption" => "The file is encrypted (EFS) and the destination cannot keep it encrypted.",
+        "crossdevice" => "The destination is on another volume, so the item cannot simply be renamed there.",
         _ => ex.Message,
     };
 }
@@ -274,28 +280,30 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private VolumeInfo Volume(string path)
     {
-        var root = Path.GetPathRoot(path) ?? path;
+        var root = VolumeRootOf(path);
         if (!_volumes.TryGetValue(root, out var v))
         {
-            v = Fs.GetVolumeInfo(path);
+            v = Fs.GetVolumeInfo(root);
             _volumes[root] = v;
         }
         return v;
     }
 
-    private bool SameVolume(string a, string b)
+    private readonly Dictionary<string, string> _volumeRoots = new(PathUtil.SafetyComparer);
+
+    /// <summary>Volume root of an item's folder, cached per folder (a mounted folder is its own volume).</summary>
+    private string VolumeRootOf(string path)
     {
-        var ra = Path.GetPathRoot(Path.GetFullPath(a));
-        var rb = Path.GetPathRoot(Path.GetFullPath(b));
-        return ra is not null && rb is not null && ra.Equals(rb, PathUtil.SafetyComparison) && !PathUtil.IsUncPath(a) && !PathUtil.IsUncPath(b)
-               || PathUtil.IsUncPath(a) && PathUtil.IsUncPath(b) && string.Equals(ShareRoot(a), ShareRoot(b), PathUtil.SafetyComparison);
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? path;
+        if (!_volumeRoots.TryGetValue(dir, out var root))
+        {
+            root = Fs.GetVolumeRoot(dir);
+            _volumeRoots[dir] = root;
+        }
+        return root;
     }
 
-    private static string ShareRoot(string unc)
-    {
-        var parts = unc.TrimStart('\\').Split('\\');
-        return parts.Length >= 2 ? $@"\\{parts[0]}\{parts[1]}" : unc;
-    }
+    private bool SameVolume(string a, string b) => string.Equals(VolumeRootOf(a), VolumeRootOf(b), PathUtil.SafetyComparison);
 
     // ---- Same-volume move -----------------------------------------------------------------------------
 
@@ -335,8 +343,24 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 }
             }
         }
-        int step = Journal.Intent(replace ? "move-replace" : "move", src, target);
-        bool ok = TryIo(src, "move the item", () => Fs.Move(src, target, replace));
+        // A rename to a new name loses nothing if interrupted (the item is at one of the two names): group-committed.
+        int step = Journal.Intent(replace ? "move-replace" : "move", src, target, null, durable: replace);
+        bool ok;
+        try
+        {
+            Fs.Move(src, target, replace);
+            ok = true;
+        }
+        catch (IOException ex) when (ErrorText.Classify(ex) == "crossdevice")
+        {
+            // Another volume behind the same drive letter (a mounted folder): use the guarded copy-then-delete path.
+            Journal.Done(step, StepOutcome.CanceledBeforeChange);
+            return info.IsDirectory && !info.IsLink ? CopyDirectory(src, target, info) : CopyFileItem(src, target, info);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ok = TryIo(src, "move the item", () => Fs.Move(src, target, replace));
+        }
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Skipped);
         if (!ok)
         {
@@ -353,12 +377,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private Result MergeMoveDirectory(string src, string dst)
     {
         bool all = true;
-        foreach (var child in SafeChildren(src))
+        foreach (var ci in SafeChildren(src))
         {
             Job.Checkpoint();
-            var ci = Fs.TryGetInfo(child);
-            if (ci is null) continue;
-            var r = MoveByRename(child, Path.Combine(dst, Path.GetFileName(child)), ci);
+            var r = MoveByRename(ci.Path, Path.Combine(dst, Path.GetFileName(ci.Path)), ci);
             all &= r == Result.Committed;
         }
         if (all) RemoveIfEmpty(src);
@@ -405,11 +427,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (Options.Filter is null && !EnsureCreated()) return Result.Failed;
         bool allOk = true;
         bool anyTransferred = false;
-        foreach (var child in SafeChildren(src))
+        foreach (var ci in SafeChildren(src))
         {
             Job.Checkpoint();
-            var ci = Fs.TryGetInfo(child);
-            if (ci is null) continue;
+            var child = ci.Path;
             var childDst = Path.Combine(target, Path.GetFileName(child));
             Result r;
             if (ci.IsDirectory && !ci.IsLink)
@@ -444,12 +465,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private readonly HashSet<string> _enumerationFailed = new(PathUtil.SafetyComparer);
 
-    private IEnumerable<string> SafeChildren(string dir)
+    /// <summary>Children with the attributes, sizes, and times the enumeration already returned (no stat per item).</summary>
+    private List<FileSystemItemInfo> SafeChildren(string dir)
     {
-        List<string> children;
+        List<FileSystemItemInfo> children;
         try
         {
-            children = Directory.EnumerateFileSystemEntries(dir, "*", ChildOptions).ToList();
+            children = new DirectoryInfo(dir).EnumerateFileSystemInfos("*", ChildOptions).Select(fi => PortableFileOperations.FromInfo(fi)).ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -470,7 +492,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 Issue(IssueSeverity.Info, dir, "The source folder was kept because it still contains items (for example ones created during the move).", StepOutcome.Skipped);
                 return;
             }
-            int step = Journal.Intent("delete-empty-source-dir", dir);
+            // Removing an emptied folder loses nothing if interrupted: group-committed.
+            int step = Journal.Intent("delete-empty-source-dir", dir, null, null, durable: false);
             Fs.DeleteDirectory(dir);
             Journal.Done(step, StepOutcome.Committed);
         }
@@ -480,10 +503,18 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
     }
 
-    private Result CopyFileItem(string src, string dst, FileSystemItemInfo info)
+    /// <summary>
+    /// New files below this size are copied straight to their final name (plan §9.2 stages for replacement; a staged
+    /// rename per small file doubled copy time). Larger files and every replacement are staged and then published.
+    /// </summary>
+    internal const long DirectCopyLimit = 1024 * 1024;
+    private readonly HashSet<string> _fillDirs = new(PathUtil.SafetyComparer);
+
+    private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true)
     {
         Job.Checkpoint();
         Job.SetCurrent(src);
+        if (firstAttempt && TryFastDirectCopy(src, dst, info) is { } fast) return fast;
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
@@ -514,11 +545,47 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
         if (info.IsLink) return CopyLink(src, target, info, replace);
 
+        // PI-05: a move that would drop metadata the destination cannot store asks before anything irreversible.
+        bool keepSource = false;
+        if (Move && PredictMetadataLoss(src, target) is { } loss)
+        {
+            var d = Job.Ask(new ConfirmRequest("Moving would lose file metadata",
+                $"\"{Path.GetFileName(src)}\": {loss}. A move deletes the original afterwards, so they would be gone.", src, "metadata-loss",
+                [DecisionAction.Proceed, DecisionAction.KeepSource, DecisionAction.Skip, DecisionAction.CancelJob]) { ProceedLabel = "Move anyway" });
+            switch (d.Action)
+            {
+                case DecisionAction.Proceed:
+                    break;
+                case DecisionAction.KeepSource:
+                    keepSource = true;
+                    break;
+                case DecisionAction.Skip:
+                    Job.ItemSkipped();
+                    Issue(IssueSeverity.Info, src, "Skipped: moving it would have lost metadata the destination cannot store.", StepOutcome.Skipped);
+                    return Result.Skipped;
+                default:
+                    throw new OperationCanceledException();
+            }
+        }
+
+        // Where the bytes go: straight to the new name (small, new, and named like its source, so recovery can match
+        // it) or to a staged name that is published afterwards.
         var dir = Path.GetDirectoryName(target)!;
-        if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
-        var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _stagedCounter)}.tmp");
-        long baseBytes = Job.BytesDone;
+        bool direct = !replace && info.Size is >= 0 and < DirectCopyLimit &&
+                      string.Equals(Path.GetFileName(target), Path.GetFileName(src), StringComparison.Ordinal);
+        string writeTo;
+        if (direct)
+        {
+            if (_fillDirs.Add(dir)) Journal.Fill(Path.GetDirectoryName(src)!, dir);
+            writeTo = target;
+        }
+        else
+        {
+            if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
+            writeTo = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _stagedCounter)}.tmp");
+        }
         bool copied = false;
+        bool allowDecrypted = false;
         int quietRetries = 0;
         while (!copied)
         {
@@ -526,7 +593,16 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             var clock = Stopwatch.StartNew();
             try
             {
-                Fs.CopyFile(src, staged, new FileCopyOptions { CopyLinkAsLink = true, NoBuffering = info.Size > 256L * 1024 * 1024 }, (done, total) =>
+                var options = new FileCopyOptions
+                {
+                    CopyLinkAsLink = true,
+                    NoBuffering = info.Size > 256L * 1024 * 1024,
+                    DisablePreallocation = direct,
+                    AllowDecryptedDestination = allowDecrypted,
+                    // A move deletes the source next: the copy must be on the device first, not in the write cache.
+                    FlushDestination = Move,
+                };
+                Fs.CopyFile(src, writeTo, options, (done, total) =>
                 {
                     Job.AddBytes(done - reported);
                     reported = done;
@@ -538,14 +614,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
             catch (OperationCanceledException)
             {
+                // The copy engine removes the partial file it was writing; a staged name is cleaned up here as well.
                 Job.AddBytes(-reported);
-                TryDeleteStaged(staged);
+                if (!direct) TryDeleteStaged(writeTo);
                 throw;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 Job.AddBytes(-reported);
-                TryDeleteStaged(staged);
+                if (!direct) TryDeleteStaged(writeTo);
                 if (Job.IsCancellationRequested) throw new OperationCanceledException();
                 var cls = ErrorText.Classify(ex);
                 if (cls == "sharing" && quietRetries < 3)
@@ -554,6 +631,27 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     quietRetries++;
                     Job.Token.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(250 * quietRetries));
                     continue;
+                }
+                if (cls == "exists" && direct && firstAttempt)
+                {
+                    // Another program created the name meanwhile: treat it as the conflict it is (once; a name that
+                    // exists but cannot be inspected gets the ordinary question below).
+                    return CopyFileItem(src, dst, info, firstAttempt: false);
+                }
+                if (cls == "encryption" && !allowDecrypted)
+                {
+                    var d = Job.Ask(new ConfirmRequest("Encrypted file",
+                        $"\"{Path.GetFileName(src)}\" is encrypted with Windows EFS, and the destination cannot keep it encrypted. Copy it decrypted?",
+                        src, "decrypt", [DecisionAction.Proceed, DecisionAction.Skip, DecisionAction.CancelJob]) { ProceedLabel = "Copy decrypted" });
+                    if (d.Action == DecisionAction.Proceed)
+                    {
+                        allowDecrypted = true;
+                        continue;
+                    }
+                    if (d.Action != DecisionAction.Skip) throw new OperationCanceledException();
+                    Job.ItemSkipped();
+                    Issue(IssueSeverity.Warning, src, "Skipped: it is encrypted and the destination cannot keep it encrypted.", StepOutcome.Skipped);
+                    return Result.Skipped;
                 }
                 var decision = Job.Ask(new ErrorRequest("Could not copy the file", $"{Path.GetFileName(src)}: {ErrorText.Describe(ex)}", src, true, cls));
                 if (decision.Action == DecisionAction.Retry) continue;
@@ -566,44 +664,121 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 throw new OperationCanceledException();
             }
         }
+        if (allowDecrypted) Issue(IssueSeverity.Warning, src, "Copied decrypted: the destination cannot store EFS encryption.", StepOutcome.Committed);
 
-        // Verification at the selected profile.
-        var stagedInfo = Fs.TryGetInfo(staged);
-        if (stagedInfo is null || stagedInfo.Size != info.Size && info.Size >= 0)
+        // Verification at the selected profile. A copy that fails it is removed: this job created it.
+        var writtenInfo = Fs.TryGetInfo(writeTo);
+        if (writtenInfo is null || writtenInfo.Size != info.Size && info.Size >= 0)
         {
-            TryDeleteStaged(staged);
+            TryDeleteStaged(writeTo);
             Job.ItemFailed();
             Issue(IssueSeverity.Error, src, "The copy has a different size than the source; it was discarded.", StepOutcome.Failed);
             return Result.Failed;
         }
-        if (Options.Verify == VerifyMode.ReadBack && !ContentEqual(src, staged))
+        if (Options.Verify == VerifyMode.ReadBack && !ContentEqual(src, writeTo))
         {
-            TryDeleteStaged(staged);
+            TryDeleteStaged(writeTo);
             Job.ItemFailed();
             Issue(IssueSeverity.Error, src, "Read-back verification found different content; the copy was discarded.", StepOutcome.Failed);
             return Result.Failed;
         }
-        PreserveOrigin(src, staged, dst);
-        if (Options.PreserveAttributes) TrySetAttributes(staged, info.Attributes & ~FileAttributes.ReadOnly);
+        PreserveOrigin(src, writeTo, target);
+        if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes) TrySetAttributes(writeTo, info.Attributes & ~FileAttributes.ReadOnly);
 
-        // Publish: the only externally visible step, journaled synchronously first.
-        int step = Journal.Intent(replace ? "replace" : "publish", src, target, staged);
-        bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () => Fs.Move(staged, target, replace));
-        if (!published)
+        if (!direct)
         {
-            TryDeleteStaged(staged);
-            Journal.Done(step, StepOutcome.CanceledBeforeChange);
-            Job.ItemFailed();
-            return Result.Failed;
+            // Publish: replacing an existing item is journaled durably first; a new name is group-committed. A move
+            // writes the rename through, so the source is never deleted while its copy only exists under a staged
+            // name (which recovery would offer to delete).
+            int step = Journal.Intent(replace ? "replace" : "publish", src, target, writeTo, durable: replace);
+            bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () => Fs.Move(writeTo, target, replace, writeThrough: Move));
+            if (!published)
+            {
+                TryDeleteStaged(writeTo);
+                Journal.Done(step, StepOutcome.CanceledBeforeChange);
+                Job.ItemFailed();
+                return Result.Failed;
+            }
+            Journal.Done(step, StepOutcome.Committed);
         }
-        Journal.Done(step, StepOutcome.Committed);
-        if (Options.PreserveAttributes && (info.Attributes & FileAttributes.ReadOnly) != 0) TrySetAttributes(target, info.Attributes);
+        if (!Fs.CopyPreservesMetadata && Options.PreserveAttributes && (info.Attributes & FileAttributes.ReadOnly) != 0) TrySetAttributes(target, info.Attributes);
         if (!Move)
         {
             Job.ItemDone();
             return Result.Committed;
         }
+        if (keepSource)
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Info, src, "Copied; the original was kept because the destination cannot store all of its metadata.", StepOutcome.Skipped);
+            return Result.Skipped;
+        }
         return DeleteMovedSource(src, info);
+    }
+
+    /// <summary>
+    /// The common case of a small copy to a free name, without probing the destination first: the engine's
+    /// fail-if-exists flag detects a conflict. Any failure returns null, and the careful path (conflict prompts,
+    /// retries, explanations) runs from the start. Moves never take this path: they may need the metadata question.
+    /// </summary>
+    private Result? TryFastDirectCopy(string src, string dst, FileSystemItemInfo info)
+    {
+        if (Move || info.IsLink || info.Size is < 0 or >= DirectCopyLimit || Options.Verify != VerifyMode.Native) return null;
+        if (!string.Equals(Path.GetFileName(dst), Path.GetFileName(src), StringComparison.Ordinal)) return null; // recovery pairs by name
+        if (!Fs.CopyPreservesMetadata || !Volume(dst).SupportsNamedStreams) return null;
+        var dir = Path.GetDirectoryName(dst)!;
+        if (_fillDirs.Add(dir)) Journal.Fill(Path.GetDirectoryName(src)!, dir);
+        long reported = 0;
+        var clock = Stopwatch.StartNew();
+        try
+        {
+            Fs.CopyFile(src, dst, new FileCopyOptions { CopyLinkAsLink = true, DisablePreallocation = true }, (done, total) =>
+            {
+                Job.AddBytes(done - reported);
+                reported = done;
+                if (Job.IsPaused) Job.Checkpoint();
+                Job.Throttle(done, clock);
+                return Job.IsCancellationRequested ? CopyProgressAction.Cancel : CopyProgressAction.Continue;
+            }, Job.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Job.AddBytes(-reported);
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Job.AddBytes(-reported);
+            if (Job.IsCancellationRequested) throw new OperationCanceledException();
+            return null;
+        }
+        var written = Fs.TryGetInfo(dst);
+        if (written is null || written.Size != info.Size)
+        {
+            TryDeleteStaged(dst);
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, "The copy has a different size than the source; it was discarded.", StepOutcome.Failed);
+            return Result.Failed;
+        }
+        Job.ItemDone();
+        return Result.Committed;
+    }
+
+    /// <summary>Metadata a move to <paramref name="target"/> would lose, in plain words, or null (plan §8.1, PI-05).</summary>
+    private string? PredictMetadataLoss(string src, string target)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        var vol = Volume(target);
+        if (vol.SupportsNamedStreams) return null;
+        var streams = Fs.GetAlternateStreams(src);
+        if (streams.Count == 0) return null;
+        static bool IsZone(string s) => s.Equals("Zone.Identifier", StringComparison.OrdinalIgnoreCase);
+        var parts = new List<string>();
+        if (streams.Any(IsZone)) parts.Add("its download origin (Mark of the Web)");
+        var others = streams.Where(s => !IsZone(s)).ToList();
+        if (others.Count == 1) parts.Add($"an alternate data stream ({others[0]})");
+        else if (others.Count > 1) parts.Add($"{others.Count} alternate data streams ({string.Join(", ", others.Take(3))}{(others.Count > 3 ? ", …" : "")})");
+        return $"{vol.FileSystem ?? "The destination"} cannot store {string.Join(" or ", parts)}";
     }
 
     private Result DeleteMovedSource(string src, FileSystemItemInfo before)
@@ -760,6 +935,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private void PreserveOrigin(string src, string staged, string finalPath)
     {
         var vol = Volume(finalPath);
+        // The native engine copies streams (the download mark included) to volumes that store them: nothing to check.
+        if (Fs.CopyPreservesMetadata && vol.SupportsNamedStreams) return;
         if (!vol.SupportsNamedStreams && OperatingSystem.IsWindows())
         {
             // Other alternate data streams are dropped as well: name them instead of losing them silently (FS-002).

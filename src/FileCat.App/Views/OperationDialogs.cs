@@ -346,7 +346,8 @@ public static class OperationDialogs
         body.Children.Add(applyAll);
         var buttons = c.Actions.Select((a, i) => new DialogButton(a switch
         {
-            DecisionAction.Proceed => "Delete anyway",
+            DecisionAction.Proceed => c.ProceedLabel ?? "Delete anyway",
+            DecisionAction.KeepSource => "Copy instead (keep the original)",
             DecisionAction.Skip => "Skip",
             DecisionAction.FollowLink => "Copy the target's content",
             DecisionAction.CreateJunction => "Create a junction",

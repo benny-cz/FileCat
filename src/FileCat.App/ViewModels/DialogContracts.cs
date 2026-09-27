@@ -64,6 +64,8 @@ public interface IViewActions
     Task<string?> RenameInlineAsync(PromptOptions options);
     void FocusPathBox();
     void FocusCommandLine();
+    /// <summary>Closes the main window (used when the user chose to exit once operations finish).</summary>
+    void CloseWhenIdle();
     void OpenMenuBar();
     void ShowContextMenu();
     void ShowNotification(string message, bool isError = false);
