@@ -573,7 +573,7 @@ public sealed partial class MainViewModel
         }
         var steps = job.UndoSteps;
         var what = steps.Count == 1 ? Path.GetFileName(steps[0].To) : $"{steps.Count} items";
-        if (!await Dialogs.ConfirmAsync("Undo", $"Undo \"{job.Title}\"?\n\nFileCat restores {what} only where the current state still matches what the operation left; anything changed since is kept and reported.", "Undo"))
+        if (!await Dialogs.ConfirmAsync("Undo", $"Undo the last operation?\n{job.Title}\n\nFileCat restores {what} only where the current state still matches what the operation left; anything changed since is kept and reported.", "Undo"))
             return;
         var fs = Services.Platform.FileOperations;
         var report = await Task.Run(() => UndoService.Undo(job, fs));

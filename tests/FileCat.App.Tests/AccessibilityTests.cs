@@ -54,6 +54,7 @@ public sealed class AccessibilityTests
         return (services, vm, window, root);
     }
 
+
     private static void Close(AppServices services, Window window, string root)
     {
         window.Close();
@@ -69,13 +70,21 @@ public sealed class AccessibilityTests
         var (services, vm, window, root) = OpenMainWindow();
         try
         {
-            await Task.Delay(100, TestContext.Current.CancellationToken);
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            listing.SetFocus(1); // a file, so F5 and F8 open their dialogs
             Assert.Empty(Unnamed(window));
 
-            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.Delete, CommandIds.MakeDirectory, CommandIds.FindFiles, CommandIds.MarkSelectMask })
+            // Shift+F8 opens the delete dialog directly. (F8 in this portable test platform first asks "Delete permanently?",
+            // whose long wrapped message spins Avalonia's headless text layout; the native app renders it normally.)
+            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.DeletePermanent, CommandIds.MakeDirectory, CommandIds.FindFiles, CommandIds.MarkSelectMask })
             {
                 vm.Execute(command);
-                await Task.Delay(100, TestContext.Current.CancellationToken);
+                var dialogs = (OverlayDialogService)vm.Dialogs;
+                for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+                Assert.True(dialogs.IsOpen, command + " did not open a dialog");
+                await Task.Delay(50, TestContext.Current.CancellationToken);
                 // The dialog is really open: the audit must see its input controls.
                 Assert.Contains(window.GetVisualDescendants().OfType<Control>(), c => c is TextBox or CheckBox or ListBox);
                 var problems = Unnamed(window);
@@ -93,7 +102,7 @@ public sealed class AccessibilityTests
                     }
                 }
                 window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-                await Task.Delay(50, TestContext.Current.CancellationToken);
+                for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
             }
         }
         finally
@@ -108,7 +117,10 @@ public sealed class AccessibilityTests
         var (services, vm, window, root) = OpenMainWindow();
         try
         {
-            await Task.Delay(200, TestContext.Current.CancellationToken);
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(3, listing.VisibleCount);
             var list = window.ActiveList!;
             var peer = ControlAutomationPeer.CreatePeerForElement(list);
             Assert.Equal(AutomationControlType.List, peer.GetAutomationControlType());
