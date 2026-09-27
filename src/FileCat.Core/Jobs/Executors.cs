@@ -40,7 +40,8 @@ public static class JobExecutors
     }
 
     /// <summary>Executors contributed by first-party modules (archives, registry, remote) as they arrive.</summary>
-    public static Dictionary<JobKind, Func<Job, IFileSystemOperations, ProviderRegistry, JobJournal, IJobExecutor?>> ExtraExecutors { get; } = new();
+    /// <summary>Platform executors; concurrent because platforms register while other jobs may be starting.</summary>
+    public static System.Collections.Concurrent.ConcurrentDictionary<JobKind, Func<Job, IFileSystemOperations, ProviderRegistry, JobJournal, IJobExecutor?>> ExtraExecutors { get; } = new();
 
     private static string Unsupported(JobRequest r, ProviderRegistry providers)
     {
@@ -59,8 +60,8 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
 
     public abstract void Execute();
 
-    protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome) =>
-        Job.AddIssue(new JobIssue(severity, path, message, outcome));
+    protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
+        Job.AddIssue(new JobIssue(severity, path, message, outcome) { Cause = cause });
 
     /// <summary>Runs an I/O action; transient sharing violations (antivirus) retry briefly, others ask the user.</summary>
     protected bool TryIo(string path, string what, Action action)
@@ -94,7 +95,7 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
                         autoRetries = 0;
                         continue;
                     case DecisionAction.Skip:
-                        Issue(IssueSeverity.Error, path, $"Could not {what}: {ErrorText.Describe(ex)}", StepOutcome.Skipped);
+                        Issue(IssueSeverity.Error, path, $"Could not {what}: {ErrorText.Describe(ex)}", StepOutcome.Skipped, cls);
                         return false;
                     default:
                         throw new OperationCanceledException();

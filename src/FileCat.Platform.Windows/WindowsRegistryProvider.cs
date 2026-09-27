@@ -44,7 +44,9 @@ public sealed class WindowsRegistryProvider : ResourceProvider
           LocationCapabilities.Rename | LocationCapabilities.TransferTarget;
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) =>
-        "Registry data is typed; use its Registry commands rather than file operations.";
+        location.Path.Length == 0 ? "Choose a Registry root such as HKCU or HKLM first."
+        : RegistryAliases.IsAliasPath(location.Path) ? RegistryAliases.ReadOnlyReason
+        : "Registry data is typed; use its Registry commands rather than file operations.";
 
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) =>
         Task.Run(() => Enumerate(location, sink, ct), ct);
@@ -195,7 +197,10 @@ public static partial class RegistryRaw
     private const uint OpenLink = 0x00000008;
     private const int KeyRead = 0x20019;
     private const int KeyWriteAndRead = 0x2001F;
+    private const int KeyQueryValue = 0x0001;
+    private const int DeleteAccess = 0x00010000;
     private const int NoMoreItems = 259;
+    private const int FileNotFound = 2, PathNotFound = 3;
 
     public static IEnumerable<string> SubKeyNames(RegistryKey key) => EnumerateNames(key, values: false);
     public static IEnumerable<string> ValueNames(RegistryKey key) => EnumerateNames(key, values: true);
@@ -220,9 +225,20 @@ public static partial class RegistryRaw
         }
     }
 
+    /// <summary>
+    /// KEY_WOW64_64KEY/KEY_WOW64_32KEY: every open below a root must carry the view explicitly, otherwise a 64-bit
+    /// process silently reads the 64-bit view of redirected keys such as HKLM\SOFTWARE.
+    /// </summary>
+    internal static int ViewAccess(RegistryView view) => view switch
+    {
+        RegistryView.Registry64 => 0x0100,
+        RegistryView.Registry32 => 0x0200,
+        _ => 0,
+    };
+
     public static RegistryKey OpenNoLink(RegistryKey parent, string name, RegistryView view, bool writable)
     {
-        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, writable ? KeyWriteAndRead : KeyRead, out var handle);
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, (writable ? KeyWriteAndRead : KeyRead) | ViewAccess(view), out var handle);
         if (code != 0) throw new Win32Exception(code);
         var key = RegistryKey.FromHandle(handle, view);
         try
@@ -236,10 +252,45 @@ public static partial class RegistryRaw
 
     public static string? LinkTarget(RegistryKey parent, string name)
     {
-        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyRead, out var handle);
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyRead | ViewAccess(parent.View), out var handle);
         if (code != 0) throw new Win32Exception(code);
-        using var key = RegistryKey.FromHandle(handle);
+        using var key = RegistryKey.FromHandle(handle, parent.View);
         return ReadIfPresent(key, "SymbolicLinkValue", PreviewLimit) is { Type: 6 } link ? Preview(link) : null;
+    }
+
+    /// <summary>Whether a subkey or a Registry link with this name exists; a link is not followed.</summary>
+    public static bool SubKeyExists(RegistryKey parent, string name)
+    {
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyQueryValue | ViewAccess(parent.View), out var handle);
+        using (handle)
+        {
+            if (code == 0) return true;
+            if (code is FileNotFound or PathNotFound) return false;
+            throw new Win32Exception(code);
+        }
+    }
+
+    /// <summary>
+    /// Opens the key object itself for deletion. A Registry link opens as the link, never its target, so the caller
+    /// checks exactly what it deletes and <see cref="DeleteOpenKey"/> removes that object.
+    /// </summary>
+    public static RegistryKey OpenForDelete(RegistryKey parent, string name)
+    {
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, DeleteAccess | KeyRead | ViewAccess(parent.View), out var handle);
+        if (code != 0) throw new Win32Exception(code);
+        return RegistryKey.FromHandle(handle, parent.View);
+    }
+
+    public static bool IsLink(RegistryKey key) => ReadIfPresent(key, "SymbolicLinkValue", PreviewLimit) is { Type: 6 };
+
+    /// <summary>
+    /// Deletes the key behind this handle. RegDeleteKeyEx reopens by name and would follow a link to its target;
+    /// NtDeleteKey on a handle opened with REG_OPTION_OPEN_LINK removes the link itself.
+    /// </summary>
+    public static void DeleteOpenKey(RegistryKey key)
+    {
+        int status = NtDeleteKey(key.Handle);
+        if (status != 0) throw new Win32Exception(RtlNtStatusToDosError(status));
     }
 
     public static RegistryValueData Read(RegistryKey key, string name, int limit = EditLimit)
@@ -279,13 +330,6 @@ public static partial class RegistryRaw
     public static void Delete(RegistryKey key, string name)
     {
         int code = RegDeleteValue(key.Handle, name);
-        if (code != 0) throw new Win32Exception(code);
-    }
-
-    public static void DeleteKey(RegistryKey parent, string name, string? view)
-    {
-        uint flags = view switch { "32" => 0x0200u, "64" => 0x0100u, _ => 0u };
-        int code = RegDeleteKeyEx(parent.Handle, name, flags, 0);
         if (code != 0) throw new Win32Exception(code);
     }
 
@@ -335,12 +379,15 @@ public static partial class RegistryRaw
     [LibraryImport("advapi32.dll", EntryPoint = "RegOpenKeyExW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int RegOpenKeyEx(SafeRegistryHandle parent, string subKey, uint options, int access, out SafeRegistryHandle result);
 
-    [LibraryImport("advapi32.dll", EntryPoint = "RegDeleteKeyExW", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial int RegDeleteKeyEx(SafeRegistryHandle parent, string subKey, uint viewFlags, uint reserved);
-
     [LibraryImport("advapi32.dll", EntryPoint = "RegCreateKeyExW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int RegCreateKeyEx(SafeRegistryHandle parent, string subKey, uint reserved, string? className,
         uint options, int access, nint securityAttributes, out SafeRegistryHandle result, out uint disposition);
+
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtDeleteKey(SafeRegistryHandle key);
+
+    [LibraryImport("ntdll.dll")]
+    private static partial int RtlNtStatusToDosError(int status);
 
     [DllImport("advapi32.dll", EntryPoint = "RegEnumKeyExW", CharSet = CharSet.Unicode)]
     private static extern int RegEnumKeyEx(SafeRegistryHandle key, uint index, StringBuilder name, ref uint nameLength,

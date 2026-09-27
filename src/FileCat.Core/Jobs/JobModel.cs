@@ -135,6 +135,11 @@ public sealed class JobRequest
     public RegistryChange? Registry { get; init; }
     /// <summary>A previewed import plan, executed in order with per-step journal outcomes.</summary>
     public IReadOnlyList<RegistryChange> RegistryChanges { get; init; } = [];
+    /// <summary>
+    /// Registry plans normally stop at the first failed change. Independent steps (undo) are each attempted, and each
+    /// is still guarded by its own expected state.
+    /// </summary>
+    public bool IndependentSteps { get; init; }
 }
 
 public enum IssueSeverity
@@ -147,6 +152,8 @@ public enum IssueSeverity
 public sealed record JobIssue(IssueSeverity Severity, string Path, string Message, StepOutcome Outcome)
 {
     public DateTime TimeUtc { get; } = DateTime.UtcNow;
+    /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
+    public string? Cause { get; init; }
 }
 
 // ---- Decisions ------------------------------------------------------------------------------------------
@@ -218,11 +225,15 @@ public enum UndoKind
     RemoveEmptyDirectory,
     /// <summary>Delete a created empty file when unchanged.</summary>
     RemoveCreatedFile,
+    /// <summary>Apply the recorded inverse Registry change as a new job; its own expected-state guard decides eligibility.</summary>
+    RegistryInverse,
 }
 
 /// <param name="From">Current location of the item (the result of the operation).</param>
 /// <param name="To">Where undo puts it back.</param>
-public sealed record UndoStep(UndoKind Kind, string From, string To, long Size, long ModifiedTicks, string? RecycledId = null);
+/// <param name="Registry">For <see cref="UndoKind.RegistryInverse"/>: the guarded change that reverts one committed step.</param>
+public sealed record UndoStep(UndoKind Kind, string From, string To, long Size, long ModifiedTicks, string? RecycledId = null,
+    RegistryChange? Registry = null);
 
 /// <summary>Plain-language reasons for items the Recycle Bin cannot take (plan §5.3).</summary>
 public static class RecycleText

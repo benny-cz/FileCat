@@ -27,7 +27,11 @@ public partial class OperationsView : UserControl
 
     private void OnCancel(object? sender, RoutedEventArgs e) => JobOf(sender)?.Job.Cancel();
 
-    private void OnUndo(object? sender, RoutedEventArgs e) => Main?.Execute(CommandIds.Undo);
+    private async void OnUndo(object? sender, RoutedEventArgs e)
+    {
+        // The button undoes the job on its own row, never whichever operation happens to be newest.
+        if (JobOf(sender) is { } j && Main is { } main) await main.UndoJobAsync(j.Job);
+    }
 
     private void OnToggleDetails(object? sender, RoutedEventArgs e)
     {

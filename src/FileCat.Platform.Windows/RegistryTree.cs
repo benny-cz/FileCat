@@ -85,6 +85,12 @@ public static class RegistryTree
     public static string ValueHash(Location location)
     {
         using var key = WindowsRegistryProvider.Open(location, false);
+        return ValueHash(key);
+    }
+
+    /// <summary>Fingerprint of one key's values, read through an already open handle.</summary>
+    public static string ValueHash(RegistryKey key)
+    {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         int count = 0;
         foreach (var valueName in RegistryRaw.ValueNames(key).Take(MaxValues + 1).Order(StringComparer.OrdinalIgnoreCase))

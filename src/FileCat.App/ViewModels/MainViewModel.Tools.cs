@@ -24,6 +24,7 @@ public sealed partial class MainViewModel
             case CommandIds.FindFiles: await FindFilesAsync(); return true;
             case CommandIds.RegistryExport: await ExportRegistryAsync(); return true;
             case CommandIds.RegistryImport: await ImportRegistryAsync(); return true;
+            case CommandIds.RegistryWritable: await OpenWritableRegistryAsync(); return true;
             case CommandIds.HexEdit: EditHex(); return true;
             case CommandIds.HexRecovery: await RecoverHexAsync(); return true;
             case CommandIds.FlatView: FlatView(); return true;

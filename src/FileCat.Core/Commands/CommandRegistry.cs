@@ -122,6 +122,7 @@ public static class CommandIds
     public const string FindFiles = "search.find";
     public const string RegistryExport = "registry.export";
     public const string RegistryImport = "registry.import";
+    public const string RegistryWritable = "registry.writable";
     public const string HexEdit = "hex.edit";
     public const string HexRecovery = "hex.recovery";
     public const string CompareDirectories = "compare.dirs";
@@ -298,6 +299,7 @@ public sealed class CommandRegistry
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         Add(CommandIds.RegistryExport, "Export Registry selection to .reg…", F);
         Add(CommandIds.RegistryImport, "Import .reg into selected Registry scope…", F);
+        Add(CommandIds.RegistryWritable, "Open writable Registry location…", F);
         Add(CommandIds.HexEdit, "Edit file bytes in hex…", F);
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");

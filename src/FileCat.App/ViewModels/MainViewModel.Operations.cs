@@ -667,15 +667,56 @@ public sealed partial class MainViewModel
             Notify("There is no operation that can be undone safely. Permanent deletions, overwrites, and copies are never undone automatically.");
             return;
         }
+        await UndoJobAsync(job, last: true);
+    }
+
+    /// <summary>Undoes one specific finished operation (the Undo button on its row in the operations pane).</summary>
+    public async Task UndoJobAsync(Job job, bool last = false)
+    {
+        if (!job.CanUndo) return;
         var steps = job.UndoSteps;
+        if (steps.All(s => s.Kind == UndoKind.RegistryInverse))
+        {
+            await UndoRegistryAsync(job, steps);
+            return;
+        }
         var what = steps.Count == 1 ? Path.GetFileName(steps[0].To) : $"{steps.Count} items";
-        if (!await Dialogs.ConfirmAsync("Undo", $"Undo the last operation?\n{job.Title}\n\nFileCat restores {what} only where the current state still matches what the operation left; anything changed since is kept and reported.", "Undo"))
+        if (!await Dialogs.ConfirmAsync("Undo", $"Undo {(last ? "the last operation" : "this operation")}?\n{job.Title}\n\nFileCat restores {what} only where the current state still matches what the operation left; anything changed since is kept and reported.", "Undo"))
             return;
         var fs = Services.Platform.FileOperations;
         var report = await Task.Run(() => UndoService.Undo(job, fs));
         job.MarkUndone();
         RefreshAffected(job);
         await Dialogs.AlertAsync("Undo result", string.Join("\n", report.Take(30)) + (report.Count > 30 ? $"\n… {report.Count - 30} more" : ""));
+    }
+
+    /// <summary>
+    /// Registry undo runs the recorded inverse changes, newest first, as a new job. Each inverse is guarded by the
+    /// state the original change left, so anything changed since is kept and reported rather than overwritten.
+    /// </summary>
+    private async Task UndoRegistryAsync(Job job, IReadOnlyList<UndoStep> steps)
+    {
+        var inverses = steps.Reverse().Select(s => s.Registry!).ToList();
+        var lines = inverses.Take(12).Select(Platform.Windows.RegistryChangeRunner.Describe).ToList();
+        if (inverses.Count > lines.Count) lines.Add($"… {inverses.Count - lines.Count:N0} more");
+        int irreversible = job.Request.RegistryChanges.Count(c => c.Action == RegistryAction.DeleteKey) +
+                           (job.Request.Registry is { Action: RegistryAction.DeleteKey } ? 1 : 0);
+        if (!await Dialogs.ConfirmAsync("Undo Registry changes",
+                $"Undo \"{job.Title}\"? FileCat applies these changes only where the data is still exactly what the operation left:\n" +
+                string.Join("\n", lines) +
+                (irreversible > 0 ? $"\n\n{Formatters.Plural(irreversible, "deleted key subtree is", "deleted key subtrees are")} not restored: their data was not retained." : ""),
+                "Undo"))
+            return;
+        job.MarkUndone();
+        var undo = Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Registry,
+            RegistryChanges = inverses,
+            IndependentSteps = true,
+            Destination = inverses[0].Key,
+            Description = "Undo: " + job.Title,
+        });
+        if (ActiveTab is { } tab) Track(undo, tab);
     }
 
     // ---- View and edit ----------------------------------------------------------------------------------

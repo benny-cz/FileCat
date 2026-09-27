@@ -39,6 +39,13 @@ public sealed partial class MainViewModel
                 return loc?.Scheme == Schemes.Registry && loc.Path.Length > 0 &&
                     (caps & LocationCapabilities.CreateDirectory) != 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Open a concrete HKCU, HKLM, or HKU Registry key to import into its scope.");
+            case CommandIds.RegistryWritable:
+                return loc?.Scheme == Schemes.Registry && Platform.Windows.RegistryAliases.IsAliasPath(loc.Path)
+                    ? CommandAvailability.Yes
+                    : CommandAvailability.No("Only HKCR and HKCC are merged or alias views; other Registry keys are edited where they are shown.");
+            case CommandIds.Edit or CommandIds.Delete or CommandIds.DeletePermanent or CommandIds.Rename
+                when registryItem && Platform.Windows.RegistryAliases.IsAliasPath(focusedRegistry.Parent.Path):
+                return CommandAvailability.No(Platform.Windows.RegistryAliases.ReadOnlyReason);
             case CommandIds.HexEdit:
             {
                 if (tab is null || !tab.Listing.TryGetFocused(out var hexRow) || hexRow.IsContainer || hexRow.Kind == EntryKind.Parent)

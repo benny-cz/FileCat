@@ -415,12 +415,47 @@ public sealed partial class MainViewModel
         { Notify($"Cannot inspect Registry link: {ex.Message}", true); }
     }
 
+    /// <summary>
+    /// HKCR and HKCC are browsed read-only (plan §12.3); this names the concrete key behind the view (per-user or
+    /// machine registration, or the resolved hardware profile) and opens it, so the write target is always visible.
+    /// </summary>
+    private async Task OpenWritableRegistryAsync()
+    {
+        var tab = ActiveTab;
+        var alias = tab?.Location;
+        if (tab is null || alias?.Scheme != Schemes.Registry || !RegistryAliases.IsAliasPath(alias.Path)) return;
+        IReadOnlyList<RegistryWriteTarget> targets;
+        try { targets = await Task.Run(() => RegistryAliases.WritableTargets(alias)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Notify($"Cannot resolve the key behind {Services.Providers.Display(alias)}: {ex.Message}", true);
+            return;
+        }
+        if (targets.Count == 0)
+        {
+            Notify("This alias resolves outside the local machine and user hives, so FileCat does not open it for writing.", true);
+            return;
+        }
+        var chosen = targets[0];
+        if (targets.Count > 1)
+        {
+            var items = targets.Select(t => new ChoiceItem($"{t.Label} — {t.Target.Path}", (t.Exists ? "Exists. " : "Does not exist yet. ") + t.Note)).ToList();
+            var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Open writable Registry location", items)
+            {
+                Hint = "HKCR merges these keys; the per-user entry wins where both exist. Choose which one to edit.",
+            });
+            if (pick.Index < 0) return;
+            chosen = targets[pick.Index];
+        }
+        tab.Navigate(chosen.Existing);
+        Notify(chosen.Exists
+            ? $"Opened {Services.Providers.Display(chosen.Target)}, the {chosen.Label.ToLowerInvariant()} key behind the merged view."
+            : $"{chosen.Target.Path} does not exist yet; opened {chosen.Existing.Path}. Create the missing keys with F7.");
+    }
+
     private async Task OpenRegistryLinkAsync(string target, TabViewModel tab)
     {
-        string? path = target.StartsWith(@"\Registry\Machine\", StringComparison.OrdinalIgnoreCase)
-            ? "HKLM\\" + target[@"\Registry\Machine\".Length..]
-            : target.StartsWith(@"\Registry\User\", StringComparison.OrdinalIgnoreCase)
-                ? "HKU\\" + target[@"\Registry\User\".Length..] : null;
+        string? path = RegistryAliases.MapNativePath(target);
         if (path is null || !Services.Providers.For(tab.Location!).TryParse(path, tab.Location, out var location) || location is null)
         {
             await Dialogs.AlertAsync("Registry link", $"Target: {target}\n\nThis target cannot be opened as a local Registry location. No target was followed.");
