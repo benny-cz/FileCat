@@ -225,6 +225,115 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return tcs.Task;
     }
 
+    public Task<string?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands)
+    {
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var search = new TextBox { PlaceholderText = "Search command, shortcut, or command ID", MinWidth = 220 };
+        Avalonia.Automation.AutomationProperties.SetName(search, "Search keyboard reference");
+        var categories = new[] { "All categories" }.Concat(commands.Select(c => c.Category).Distinct().Order()).ToArray();
+        var category = new ComboBox { ItemsSource = categories, SelectedIndex = 0, MinWidth = 130, Margin = new Thickness(8, 0, 0, 0) };
+        Avalonia.Automation.AutomationProperties.SetName(category, "Command category");
+        var list = new ListBox
+        {
+            MinHeight = 180,
+            MaxHeight = 390,
+            MinWidth = 400,
+            Classes = { "choices" },
+            ItemTemplate = new FuncDataTemplate<KeyboardHelpEntry>((item, _) =>
+            {
+                var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(0, 2) };
+                var left = new StackPanel();
+                left.Children.Add(new TextBlock { Text = item?.Title, TextTrimming = TextTrimming.CharacterEllipsis });
+                left.Children.Add(new TextBlock { Text = item?.Category + " · " + item?.Id + (item?.Enabled == false ? " · unavailable" : string.Empty), Classes = { "muted", "small" }, TextTrimming = TextTrimming.CharacterEllipsis });
+                row.Children.Add(left);
+                var keys = new TextBlock { Text = string.IsNullOrEmpty(item?.Gestures) ? "Unbound" : item.Gestures, Classes = { "muted" }, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(keys, 1);
+                row.Children.Add(keys);
+                return row;
+            }),
+        };
+        Avalonia.Automation.AutomationProperties.SetName(list, "Commands and current shortcuts");
+        var detail = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, MinHeight = 24 };
+        var count = new TextBlock { Classes = { "muted", "small" } };
+        var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = true };
+        var close = new Button { Content = "Close", IsCancel = true };
+        var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        filters.Children.Add(search);
+        Grid.SetColumn(category, 1);
+        filters.Children.Add(category);
+        var body = new StackPanel { Spacing = 8 };
+        body.Children.Add(new TextBlock
+        {
+            Text = "Move: arrows, Page Up/Down, Home/End · Mark: Space or Insert · Shift+movement marks a range · Type to quick-search in a panel · Ctrl+0–9 opens a bookmark; Ctrl+Shift+0–9 sets one · Esc leaves search or stops loading.",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        body.Children.Add(filters);
+        body.Children.Add(count);
+        body.Children.Add(list);
+        body.Children.Add(detail);
+        body.Children.Add(new TextBlock { Text = "Shortcuts reflect your current settings. Select a command and press Enter to run it; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
+        Session? session = null;
+        void Finish(string? id)
+        {
+            if (tcs.Task.IsCompleted) return;
+            Close(session!);
+            tcs.TrySetResult(id);
+        }
+        void Accept()
+        {
+            if (list.SelectedItem is KeyboardHelpEntry { Enabled: true } selected) Finish(selected.Id);
+        }
+        void Apply()
+        {
+            var selectedId = (list.SelectedItem as KeyboardHelpEntry)?.Id;
+            var terms = (search.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var group = category.SelectedItem as string;
+            var filtered = commands.Where(c =>
+                (group == "All categories" || c.Category == group) &&
+                terms.All(t => (c.Title + " " + c.Category + " " + c.Gestures + " " + c.Id + " " + c.Description).Contains(t, StringComparison.CurrentCultureIgnoreCase)))
+                .OrderBy(c => c.Category).ThenBy(c => c.Title).ToArray();
+            list.ItemsSource = filtered;
+            list.SelectedItem = filtered.FirstOrDefault(c => c.Id == selectedId) ?? filtered.FirstOrDefault();
+            count.Text = $"{filtered.Length} of {commands.Count} commands";
+            run.IsEnabled = list.SelectedItem is KeyboardHelpEntry { Enabled: true };
+        }
+        search.TextChanged += (_, _) => Apply();
+        category.SelectionChanged += (_, _) => Apply();
+        list.SelectionChanged += (_, _) =>
+        {
+            var item = list.SelectedItem as KeyboardHelpEntry;
+            detail.Text = item is null ? "No matching command." :
+                !item.Enabled ? "Unavailable: " + (item.UnavailableReason ?? "not available here") :
+                string.IsNullOrWhiteSpace(item.Description) ? item.Title : item.Description;
+            run.IsEnabled = item?.Enabled == true;
+        };
+        search.KeyDown += (_, e) =>
+        {
+            int n = (list.ItemsSource as KeyboardHelpEntry[])?.Length ?? 0;
+            if (e.Key == Key.Enter) { e.Handled = true; Accept(); return; }
+            if (n == 0) return;
+            int next = e.Key switch
+            {
+                Key.Down => Math.Min(n - 1, list.SelectedIndex + 1),
+                Key.Up => Math.Max(0, list.SelectedIndex - 1),
+                Key.PageDown => Math.Min(n - 1, list.SelectedIndex + 10),
+                Key.PageUp => Math.Max(0, list.SelectedIndex - 10),
+                _ => -1,
+            };
+            if (next < 0) return;
+            list.SelectedIndex = next;
+            list.ScrollIntoView(next);
+            e.Handled = true;
+        };
+        list.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; Accept(); } };
+        list.DoubleTapped += (_, _) => Accept();
+        run.Click += (_, _) => Accept();
+        close.Click += (_, _) => Finish(null);
+        Apply();
+        session = Show(Card("Keyboard reference", body, ButtonRow(close, run), 840), search, top: false, () => Finish(null));
+        return tcs.Task;
+    }
+
     public Task<ChoiceResult> ChooseAsync(ChoiceOptions o)
     {
         var tcs = new TaskCompletionSource<ChoiceResult>();

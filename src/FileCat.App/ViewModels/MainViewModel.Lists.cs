@@ -201,23 +201,20 @@ public sealed partial class MainViewModel
 
     private async Task ShowKeyboardReferenceAsync()
     {
-        var items = new List<ChoiceItem>
-        {
-            new("Up/Down, PgUp/PgDn, Home/End", "Move focus", null) { IsHeader = false },
-            new("Shift+movement", "Mark or unmark the rows passed over"),
-            new("Letters", "Quick search by name prefix; * matches anywhere; Ctrl+Enter next match"),
-            new("Esc", "Leave quick search, clear filter, or stop loading"),
-        };
-        items.AddRange(Services.Commands.All
-            .Where(d => Services.Keymap.GetChords(d.Id).Count > 0 && !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal) && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal) && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
-            .Select(d => new ChoiceItem(string.Join(", ", Services.Keymap.GetChords(d.Id).Select(c => c.ToDisplayString())), d.Title, d.Category, d.Id)));
-        items.Add(new ChoiceItem("Ctrl+0–9 / Ctrl+Shift+0–9", "Go to / set numbered bookmark"));
-        items.Add(new ChoiceItem("Alt+0–9", "Column profile"));
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Keyboard reference", items) { Hint = "Type to filter · Enter runs the command" });
-        if (r.Index >= 0 && items[r.Index].Tag is string id)
-        {
-            View.FocusActivePanel();
-            await ExecuteAsync(id);
-        }
+        var commands = Services.Commands.All
+            .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+                && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
+                && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
+            .Select(d =>
+            {
+                var availability = GetAvailability(d.Id);
+                return new KeyboardHelpEntry(d.Id, d.Title, d.Category,
+                    Services.Keymap.GetGestureText(d.Id), d.Description, availability.Enabled, availability.Reason);
+            })
+            .ToArray();
+        var id = await Dialogs.KeyboardReferenceAsync(commands);
+        if (id is null) return;
+        View.FocusActivePanel();
+        await ExecuteAsync(id);
     }
 }
