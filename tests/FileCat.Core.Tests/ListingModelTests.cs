@@ -228,7 +228,28 @@ public sealed class ListingModelTests : IDisposable
         await _ui.InvokeAsync(model.Dispose);
     }
 
-    private sealed class GatedProvider : ResourceProvider
+
+    [Theory]
+    [InlineData(false, "alpha.txt")]
+    [InlineData(true, "zeta.txt")]
+    public async Task Untouched_cursor_stays_on_the_first_row_while_entries_stream_in(bool userMoved, string expected)
+    {
+        var provider = new GatedProvider("zeta.txt", "alpha.txt");
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        try
+        {
+            await _ui.WaitUntilAsync(() => model.VisibleCount == 1);
+            if (userMoved) await _ui.InvokeAsync(() => model.SetFocus(0));
+        }
+        finally { provider.Release(); }
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        Assert.Equal(["alpha.txt", "zeta.txt"], await VisibleNames(model));
+        Assert.True(await _ui.InvokeAsync(() => model.TryGetFocused(out var e) && e.Name == expected));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+    private sealed class GatedProvider(string first = "first.txt", string second = "second.txt") : ResourceProvider
     {
         private readonly ManualResetEventSlim _release = new();
         public override string Scheme => Schemes.FileSystem;
@@ -238,9 +259,9 @@ public sealed class ListingModelTests : IDisposable
         public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
         public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
         {
-            sink.AddBatch([new EntryData("first.txt", EntryKind.File)]);
+            sink.AddBatch([new EntryData(first, EntryKind.File)]);
             _release.Wait(ct);
-            sink.AddBatch([new EntryData("second.txt", EntryKind.File)]);
+            sink.AddBatch([new EntryData(second, EntryKind.File)]);
             return Task.CompletedTask;
         }
         public void Release() => _release.Set();

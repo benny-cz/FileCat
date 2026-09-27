@@ -41,7 +41,12 @@ public sealed class FileListControl : Control
     private const double ResizeGrip = 4;
 
     private readonly ScrollBar _vbar;
-    private readonly Dictionary<long, FormattedText> _textCache = new();
+    private readonly Dictionary<long, CellText> _textCache = new();
+    private SimpleGlyphs? _glyphs;
+    private SimpleGlyphs? _boldGlyphs;
+
+    /// <summary>Diagnostics hook (TV-01 benchmark): duration (ms) and UI-thread allocation (bytes) of each list render.</summary>
+    internal static Action<double, long>? RenderTimed;
     private ListingModel? _listing;
     private int _topRow;
     private double _rowHeight = 20;
@@ -310,7 +315,7 @@ public sealed class FileListControl : Control
                 tab.ColumnsChanged += OnColumnsChanged;
                 _columns = tab.Columns;
             }
-            _textCache.Clear();
+            ClearTextCache();
             _topRow = 0;
             EnsureFocusVisible();
             InvalidateMeasure();
@@ -336,14 +341,14 @@ public sealed class FileListControl : Control
     {
         if (Tab is null) return;
         _columns = Tab.Columns;
-        _textCache.Clear();
+        ClearTextCache();
         InvalidateArrange();
         InvalidateVisual();
     }
 
     private void OnThemeChanged()
     {
-        _textCache.Clear();
+        ClearTextCache();
         _linkOverlay = null;
         ResolveBrushes();
         InvalidateVisual();
@@ -370,6 +375,14 @@ public sealed class FileListControl : Control
         double size = FontSize > 0 ? FontSize : 13;
         _rowHeight = Math.Ceiling(size * 1.62);
         _headerHeight = Math.Ceiling(size * 1.75);
+        _glyphs = SimpleGlyphs.TryCreate(_typeface, size);
+        _boldGlyphs = SimpleGlyphs.TryCreate(_boldTypeface, size);
+        ClearTextCache();
+    }
+
+    private void ClearTextCache()
+    {
+        foreach (var cell in _textCache.Values) cell.Dispose();
         _textCache.Clear();
     }
 
@@ -412,7 +425,7 @@ public sealed class FileListControl : Control
         }
         if ((change & ListingChange.Reset) != 0)
         {
-            _textCache.Clear();
+            ClearTextCache();
             _topRow = 0;
             _anchorRow = -1;
             _cachedStore = _listing!.Store;
@@ -427,8 +440,8 @@ public sealed class FileListControl : Control
             _loadingHintTimer.Start();
         }
         EnsureCacheStore();
-        if ((change & (ListingChange.Rows | ListingChange.Marks)) != 0 && _textCache.Count > 4000) _textCache.Clear();
-        if ((change & ListingChange.Marks) != 0) _textCache.Clear();
+        if ((change & (ListingChange.Rows | ListingChange.Marks)) != 0 && _textCache.Count > 4000) ClearTextCache();
+        if ((change & ListingChange.Marks) != 0) ClearTextCache();
         if ((change & (ListingChange.Focus | ListingChange.Reset | ListingChange.Rows)) != 0) EnsureFocusVisible();
         UpdateScrollBar();
         InvalidateVisual();
@@ -438,7 +451,7 @@ public sealed class FileListControl : Control
     {
         if (_listing is not null && !ReferenceEquals(_listing.Store, _cachedStore))
         {
-            _textCache.Clear();
+            ClearTextCache();
             _cachedStore = _listing.Store;
         }
     }
@@ -526,6 +539,14 @@ public sealed class FileListControl : Control
 
     public override void Render(DrawingContext dc)
     {
+        long started = RenderTimed is null ? 0 : System.Diagnostics.Stopwatch.GetTimestamp();
+        long allocated = started == 0 ? 0 : GC.GetAllocatedBytesForCurrentThread();
+        RenderCore(dc);
+        if (started != 0) RenderTimed?.Invoke(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated);
+    }
+
+    private void RenderCore(DrawingContext dc)
+    {
         var bounds = new Rect(Bounds.Size);
         bool active = IsActivePanel;
         dc.FillRectangle(active ? _bg : _bgInactive, bounds);
@@ -539,6 +560,8 @@ public sealed class FileListControl : Control
         using (dc.PushClip(new Rect(0, _headerHeight, contentWidth, Math.Max(0, bounds.Height - _headerHeight))))
         {
             int cap = VisibleRowCapacity + 1;
+            // Scrolling must not keep every page it passed: a few pages of cells, so cached text dies young (GC).
+            if (_textCache.Count > cap * _columns.Length * 3) ClearTextCache();
             int focused = listing.FocusedIndex;
             var visible = new HashSet<int>();
             for (int row = _topRow; row < Math.Min(count, _topRow + cap); row++)
@@ -564,9 +587,9 @@ public sealed class FileListControl : Control
             var c = _columns[i];
             string title = c.Header;
             if (c.SortField is { } sf && sf == sort.Field && (sf != SortField.Metadata || sort.MetadataId == c.MetadataId)) title += sort.Descending ? " ▼" : " ▲";
-            var ft = MakeText(title, _headerText, _typeface, _columnW[i] - 2 * Padding);
+            using var ft = MakeText(title, _headerText, _typeface, _columnW[i] - 2 * Padding);
             double x = c.RightAlign ? _columnX[i] + _columnW[i] - Padding - ft.Width : _columnX[i] + Padding + (i == 0 ? IconSize + MarkGutter + 4 : 0);
-            dc.DrawText(ft, new Point(x, (_headerHeight - ft.Height) / 2));
+            ft.Draw(dc, new Point(x, (_headerHeight - ft.Height) / 2));
             if (i > 0) dc.FillRectangle(_grid, new Rect(_columnX[i], 4, 1, _headerHeight - 8));
         }
     }
@@ -628,21 +651,23 @@ public sealed class FileListControl : Control
                 bool pending = false;
                 var mtext = Tab is { } owner ? owner.GetMetadataText(e, storeIndex, metadataId, out pending) : string.Empty;
                 if (mtext.Length == 0) continue;
-                var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
+                using var mft = MakeText(mtext, pending ? _muted : textBrush, typeface, avail);
                 double mx = c.RightAlign ? colX + colW - Padding - mft.Width : textX;
-                dc.DrawText(mft, new Point(mx, y + (_rowHeight - mft.Height) / 2));
+                mft.Draw(dc, new Point(mx, y + (_rowHeight - mft.Height) / 2));
                 continue;
             }
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
-            if (!_textCache.TryGetValue(key, out var ft) || Math.Abs((ft.MaxTextWidth) - avail) > 0.5)
+            if (!_textCache.TryGetValue(key, out var ft) || Math.Abs(ft.MaxWidth - avail) > 0.5)
             {
-                var s = CellText(e, c.Field);
+                var s = CellString(e, c.Field);
+                ft?.Dispose();
+                _textCache.Remove(key);
                 if (s.Length == 0) continue;
                 ft = MakeText(s, textBrush, typeface, avail);
                 _textCache[key] = ft;
             }
             double x = c.RightAlign ? colX + colW - Padding - ft.Width : textX;
-            dc.DrawText(ft, new Point(x, y + (_rowHeight - ft.Height) / 2));
+            ft.Draw(dc, new Point(x, y + (_rowHeight - ft.Height) / 2));
         }
 
         if (focused)
@@ -689,15 +714,14 @@ public sealed class FileListControl : Control
         dc.DrawText(ft, new Point(20, Math.Min(top, Math.Max(_headerHeight, height / 2 - ft.Height))));
     }
 
-    private FormattedText MakeText(string s, IBrush brush, Typeface typeface, double maxWidth) =>
-        new(s, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, FontSize > 0 ? FontSize : 13, brush)
-        {
-            MaxTextWidth = Math.Max(1, maxWidth),
-            MaxLineCount = 1,
-            Trimming = TextTrimming.CharacterEllipsis,
-        };
+    /// <summary>Simple-script text becomes a glyph run; anything needing shaping or font fallback is formatted.</summary>
+    private CellText MakeText(string s, IBrush brush, Typeface typeface, double maxWidth)
+    {
+        var glyphs = typeface == _boldTypeface ? _boldGlyphs : _glyphs;
+        return glyphs?.TryLayout(s, brush, maxWidth) ?? Controls.CellText.Formatted(s, brush, typeface, FontSize > 0 ? FontSize : 13, maxWidth);
+    }
 
-    private string CellText(in EntryData e, ColumnField field) => field switch
+    private string CellString(in EntryData e, ColumnField field) => field switch
     {
         ColumnField.Name => DisplayName(e),
         ColumnField.Extension => e.IsContainer ? string.Empty : NameParts.GetExtension(e.Name),
@@ -886,7 +910,7 @@ public sealed class FileListControl : Control
         {
             double w = Math.Max(30, _resizeStartWidth + pos.X - _resizeStartX);
             _widthOverrides[_columns[_resizingColumn].Field] = w;
-            _textCache.Clear();
+            ClearTextCache();
             InvalidateArrange();
             InvalidateVisual();
             return;

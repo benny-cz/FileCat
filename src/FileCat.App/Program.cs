@@ -21,8 +21,28 @@ internal static class Program
         }
     }
 
-    public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>()
+    /// <summary>FILECAT_RENDERING=compat restores Avalonia's default composition (troubleshooting).</summary>
+    public static bool CompatibleRendering =>
+        string.Equals(Environment.GetEnvironmentVariable("FILECAT_RENDERING"), "compat", StringComparison.OrdinalIgnoreCase);
+
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .LogToTrace();
+        // TV-01: a low-latency swap chain keeps held-key scrolling at the display rate (continuous paging p95 frame
+        // interval 16.8 ms versus 19-21 ms with the default composition); the other modes remain fallbacks.
+        if (!CompatibleRendering)
+        {
+            builder = builder.With(new Win32PlatformOptions
+            {
+                CompositionMode =
+                [
+                    Win32CompositionMode.LowLatencyDxgiSwapChain, Win32CompositionMode.WinUIComposition,
+                    Win32CompositionMode.DirectComposition, Win32CompositionMode.RedirectionSurface,
+                ],
+            });
+        }
+        return builder;
+    }
 }

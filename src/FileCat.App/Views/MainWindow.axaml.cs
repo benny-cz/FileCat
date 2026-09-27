@@ -180,6 +180,9 @@ public partial class MainWindow : Window, IViewActions
     private PanelView? ActivePanelView() =>
         _vm.Workspace.ActivePanel is { } p && _panelViews.TryGetValue(p, out var v) ? v : null;
 
+    /// <summary>The active panel's file list (scripted input in the TV-01 benchmark).</summary>
+    internal Controls.FileListControl? ActiveList => ActivePanelView()?.List;
+
     private PanelView GetView(PanelViewModel p)
     {
         if (_panelViews.TryGetValue(p, out var v)) return v;

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.MemoryMappedFiles;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Listing;
@@ -36,6 +37,7 @@ public sealed class EntryStore : IDisposable
     private bool _hasPayload;
     private bool _disposed;
     private int _leases;
+    private volatile bool _spilled;
     private bool _disposeRequested;
 
     public EntryStore(string? scratchDirectory = null, long memoryBudgetBytes = long.MaxValue)
@@ -51,6 +53,9 @@ public sealed class EntryStore : IDisposable
         get { lock (_gate) return (_directories, _files, _knownFileBytes); }
     }
     public bool IsSpilled { get { lock (_gate) return _records is not null; } }
+
+    /// <summary>Lock-free spill check for hot paths (a sort switches to mapped reads when the store spills mid-sort).</summary>
+    internal bool HasSpilled => _spilled;
     public long SpillBytes { get { lock (_gate) return _records is null ? 0 : (long)_count * RecordSize + _nameLength; } }
 
     public EntryData this[int index] => Get(index);
@@ -163,6 +168,7 @@ public sealed class EntryStore : IDisposable
                 WriteBatch(batch, start);
             }
             _pages = [];
+            _spilled = true;
         }
         catch
         {
@@ -279,6 +285,88 @@ public sealed class EntryStore : IDisposable
         {
             if (path is null) continue;
             try { File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    /// <summary>
+    /// Read-only mappings of the spill files covering entries [0, <paramref name="count"/>), or null when the store
+    /// is in memory. Sorting reads records and names in place instead of one positioned read per entry.
+    /// </summary>
+    internal SpillReader? OpenSpillReader(int count)
+    {
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            if (_records is null || _names is null || count <= 0 || count > _count) return null;
+            return new SpillReader(_records, _names, count, _nameLength);
+        }
+    }
+
+    internal sealed unsafe class SpillReader : IDisposable
+    {
+        private readonly MemoryMappedFile _recordMap;
+        private readonly MemoryMappedViewAccessor _recordView;
+        private readonly MemoryMappedFile? _nameMap;
+        private readonly MemoryMappedViewAccessor? _nameView;
+        private readonly byte* _records;
+        private readonly byte* _names;
+        private readonly long _nameBytes;
+        private int _disposed;
+
+        public SpillReader(FileStream records, FileStream names, int count, long nameBytes)
+        {
+            Count = count;
+            _nameBytes = nameBytes;
+            long recordBytes = (long)count * RecordSize;
+            try
+            {
+                // The files keep growing while the listing loads: map them whole, view only the prefix in use.
+                _recordMap = MemoryMappedFile.CreateFromFile(records, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, leaveOpen: true);
+                _recordView = _recordMap.CreateViewAccessor(0, recordBytes, MemoryMappedFileAccess.Read);
+                byte* r = null;
+                _recordView.SafeMemoryMappedViewHandle.AcquirePointer(ref r);
+                _records = r + _recordView.PointerOffset;
+                if (nameBytes > 0)
+                {
+                    _nameMap = MemoryMappedFile.CreateFromFile(names, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, leaveOpen: true);
+                    _nameView = _nameMap.CreateViewAccessor(0, nameBytes, MemoryMappedFileAccess.Read);
+                    byte* n = null;
+                    _nameView.SafeMemoryMappedViewHandle.AcquirePointer(ref n);
+                    _names = n + _nameView.PointerOffset;
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        public int Count { get; }
+
+        public EntryView Get(int index)
+        {
+            if ((uint)index >= (uint)Count || Volatile.Read(ref _disposed) != 0) throw new ArgumentOutOfRangeException(nameof(index));
+            var record = new ReadOnlySpan<byte>(_records + (long)index * RecordSize, RecordSize);
+            long offset = BinaryPrimitives.ReadInt64LittleEndian(record);
+            int length = BinaryPrimitives.ReadInt32LittleEndian(record[8..]);
+            if (length < 0 || (length & 1) != 0 || offset < 0 || offset > _nameBytes - length)
+                throw new IOException("Invalid listing spill record.");
+            var name = length == 0 ? ReadOnlySpan<char>.Empty : new ReadOnlySpan<char>(_names + offset, length / 2);
+            return new EntryView(name, (EntryKind)record[12], (EntryFlags)BinaryPrimitives.ReadUInt16LittleEndian(record[13..]),
+                BinaryPrimitives.ReadInt64LittleEndian(record[16..]), BinaryPrimitives.ReadInt64LittleEndian(record[24..]),
+                BinaryPrimitives.ReadInt64LittleEndian(record[32..]), BinaryPrimitives.ReadUInt32LittleEndian(record[40..]));
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            if (_records is not null) _recordView?.SafeMemoryMappedViewHandle.ReleasePointer();
+            if (_names is not null) _nameView?.SafeMemoryMappedViewHandle.ReleasePointer();
+            _recordView?.Dispose();
+            _recordMap?.Dispose();
+            _nameView?.Dispose();
+            _nameMap?.Dispose();
         }
     }
 

@@ -41,10 +41,20 @@ public static class EntrySorter
         return (x, y) => Compare(store[x], store[y], spec, x, y);
     }
 
-    private static int CompareMetadata(EntryStore store, SortSpec spec, MetadataKeyProvider provider, string id, int x, int y)
+    /// <summary>
+    /// A comparison of store indices below <paramref name="count"/>. A spilled store is read in place through
+    /// mappings of its spill files, so a sort costs no system call or name string per comparison (a million-entry
+    /// spilled sort drops from about a minute to seconds). Dispose the result when the sort is done.
+    /// </summary>
+    public static EntryComparer CreateComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count) =>
+        new(store, spec, metadata, count);
+
+    private static int CompareMetadata(EntryStore store, SortSpec spec, MetadataKeyProvider provider, string id, int x, int y) =>
+        CompareMetadata(new EntryView(store[x]), new EntryView(store[y]), store, spec, provider, id, x, y);
+
+    internal static int CompareMetadata(scoped in EntryView a, scoped in EntryView b, EntryStore store, SortSpec spec,
+        MetadataKeyProvider provider, string id, int x, int y)
     {
-        var a = store[x];
-        var b = store[y];
         if (a.Kind == EntryKind.Parent) return b.Kind == EntryKind.Parent ? 0 : -1;
         if (b.Kind == EntryKind.Parent) return 1;
         if (spec.DirectoriesFirst && a.IsContainer != b.IsContainer) return a.IsContainer ? -1 : 1;
@@ -63,7 +73,10 @@ public static class EntrySorter
         return r != 0 ? r : x.CompareTo(y);
     }
 
-    public static int Compare(in EntryData a, in EntryData b, SortSpec spec, int ia, int ib)
+    public static int Compare(in EntryData a, in EntryData b, SortSpec spec, int ia, int ib) =>
+        Compare(new EntryView(a), new EntryView(b), spec, ia, ib);
+
+    internal static int Compare(scoped in EntryView a, scoped in EntryView b, SortSpec spec, int ia, int ib)
     {
         if (a.Kind == EntryKind.Parent) return b.Kind == EntryKind.Parent ? ia.CompareTo(ib) : -1;
         if (b.Kind == EntryKind.Parent) return 1;
@@ -87,18 +100,101 @@ public static class EntrySorter
         return r != 0 ? r : ia.CompareTo(ib);
     }
 
-    private static int CompareExtension(in EntryData a, in EntryData b, bool natural)
+    private static int CompareExtension(scoped in EntryView a, scoped in EntryView b, bool natural)
     {
         if (a.IsContainer || b.IsContainer) return 0;
         return NaturalCompare.CompareCore(NameParts.GetExtension(a.Name), NameParts.GetExtension(b.Name), natural);
     }
 
-    private static int CompareSize(in EntryData a, in EntryData b)
+    private static int CompareSize(scoped in EntryView a, scoped in EntryView b)
     {
         // Directories without an explicitly computed size keep name order (TC/Salamander behavior).
         if (a.IsContainer && b.IsContainer && (a.Size < 0 || b.Size < 0)) return 0;
         return a.Size.CompareTo(b.Size);
     }
+}
+
+/// <summary>
+/// A sort in progress over store indices below a count. Once the store has spilled (also when it spills while
+/// the sort runs) entries are read in place through mappings of the spill files; dispose it when the sort is done.
+/// </summary>
+public sealed class EntryComparer : IDisposable
+{
+    private readonly EntryStore _store;
+    private readonly SortSpec _spec;
+    private readonly MetadataKeyProvider? _metadata;
+    private readonly string? _metadataId;
+    private readonly int _count;
+    private EntryStore.SpillReader? _reader;
+
+    internal EntryComparer(EntryStore store, SortSpec spec, MetadataKeyProvider? metadata, int count)
+    {
+        _store = store;
+        _spec = spec;
+        _count = count;
+        if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
+        {
+            _metadata = metadata;
+            _metadataId = id;
+        }
+        Comparison = Compare;
+    }
+
+    public Comparison<int> Comparison { get; }
+
+    private int Compare(int x, int y)
+    {
+        var reader = _reader;
+        if (reader is null && _store.HasSpilled) reader = _reader = _store.OpenSpillReader(_count);
+        if (_metadata is not null)
+        {
+            return reader is not null
+                ? EntrySorter.CompareMetadata(reader.Get(x), reader.Get(y), _store, _spec, _metadata, _metadataId!, x, y)
+                : EntrySorter.CompareMetadata(new EntryView(_store[x]), new EntryView(_store[y]), _store, _spec, _metadata, _metadataId!, x, y);
+        }
+        return reader is not null
+            ? EntrySorter.Compare(reader.Get(x), reader.Get(y), _spec, x, y)
+            : EntrySorter.Compare(new EntryView(_store[x]), new EntryView(_store[y]), _spec, x, y);
+    }
+
+    public void Dispose() => Interlocked.Exchange(ref _reader, null)?.Dispose();
+}
+
+/// <summary>The fields sorting and filtering read, with the name as a span (spilled names stay in place).</summary>
+internal readonly ref struct EntryView
+{
+    public EntryView(in EntryData e)
+    {
+        Name = e.Name;
+        Kind = e.Kind;
+        Flags = e.Flags;
+        Size = e.Size;
+        Modified = e.Modified;
+        Created = e.Created;
+        Attributes = e.Attributes;
+    }
+
+    public EntryView(ReadOnlySpan<char> name, EntryKind kind, EntryFlags flags, long size, long modified, long created, uint attributes)
+    {
+        Name = name;
+        Kind = kind;
+        Flags = flags;
+        Size = size;
+        Modified = modified;
+        Created = created;
+        Attributes = attributes;
+    }
+
+    public ReadOnlySpan<char> Name { get; }
+    public EntryKind Kind { get; }
+    public EntryFlags Flags { get; }
+    public long Size { get; }
+    public long Modified { get; }
+    public long Created { get; }
+    public uint Attributes { get; }
+
+    public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Parent or EntryKind.Drive
+        or EntryKind.Server or EntryKind.Share or EntryKind.RegistryKey;
 }
 
 /// <summary>

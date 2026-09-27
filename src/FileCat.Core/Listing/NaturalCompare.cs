@@ -34,12 +34,20 @@ public static class NaturalCompare
         if (ReferenceEquals(a, b)) return 0;
         if (a is null) return -1;
         if (b is null) return 1;
+        return Compare(a.AsSpan(), b.AsSpan(), natural);
+    }
+
+    /// <summary>Span form (spilled names are compared in place, without allocating strings).</summary>
+    public static int Compare(ReadOnlySpan<char> a, ReadOnlySpan<char> b, bool natural = true)
+    {
         int r = CompareCore(a, b, natural);
-        return r != 0 ? r : string.CompareOrdinal(a, b);
+        return r != 0 ? r : a.SequenceCompareTo(b) switch { < 0 => -1, > 0 => 1, _ => 0 };
     }
 
     /// <summary>Comparison without the ordinal tie-break ("a" equals "A").</summary>
-    public static int CompareCore(string a, string b, bool natural)
+    public static int CompareCore(string a, string b, bool natural) => CompareCore(a.AsSpan(), b.AsSpan(), natural);
+
+    public static int CompareCore(ReadOnlySpan<char> a, ReadOnlySpan<char> b, bool natural)
     {
         int i = 0, j = 0;
         while (i < a.Length && j < b.Length)
@@ -74,7 +82,7 @@ public static class NaturalCompare
             }
             int ra = i; while (ra < a.Length && !(natural && char.IsAsciiDigit(a[ra]))) ra++;
             int rb = j; while (rb < b.Length && !(natural && char.IsAsciiDigit(b[rb]))) rb++;
-            int c = _culture.Compare(a.AsSpan(i, ra - i), b.AsSpan(j, rb - j), CultureOptions);
+            int c = _culture.Compare(a.Slice(i, ra - i), b.Slice(j, rb - j), CultureOptions);
             if (c != 0) return c < 0 ? -1 : 1;
             i = ra;
             j = rb;

@@ -20,7 +20,16 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         PlatformFactory.WindowsFactory = () => new Platform.Windows.WindowsPlatform();
-        var services = AppServices.Initialize(StartupOptions.Profile);
+        bool benchmark = StartupOptions.BenchmarkCount > 0;
+        // The TV-01 benchmark runs on isolated, temporary state with synthetic listings.
+        string? benchmarkRoot = benchmark ? Path.Combine(Path.GetTempPath(), "FileCat-benchmark-" + Guid.NewGuid().ToString("N")) : null;
+        var services = AppServices.Initialize(StartupOptions.Profile, benchmarkRoot);
+        string syntheticRoot = Path.Combine(benchmarkRoot ?? services.Paths.TempDirectory, "synthetic");
+        if (benchmark)
+        {
+            for (int i = 0; i < 4; i++) Directory.CreateDirectory(Path.Combine(syntheticRoot, "synthetic-" + i));
+            services.Providers.Register(new SyntheticListingProvider(services.Providers.Get(Core.Resources.Schemes.FileSystem), syntheticRoot, StartupOptions.BenchmarkCount));
+        }
         AppLog.Info($"FileCat starting on {services.Platform.Name}, profile {services.Paths.ProfileName}{(services.Paths.IsPortable ? " (portable)" : "")}");
         ThemeManager.Apply(services.Settings.Theme);
         if (PlatformSettings is { } ps)
@@ -54,14 +63,29 @@ public partial class App : Application
             vm.OpenArguments(StartupOptions, initial: true);
             desktop.MainWindow = window;
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
-            desktop.Exit += (_, _) => services.Dispose();
-            SingleInstance.ArgumentsReceived += args => Dispatcher.UIThread.Post(() =>
+            desktop.Exit += (_, _) =>
             {
-                vm.OpenArguments(StartupOptions.Parse(args));
-                if (window.WindowState == Avalonia.Controls.WindowState.Minimized) window.WindowState = Avalonia.Controls.WindowState.Normal;
-                window.Activate();
-            });
-            SingleInstance.StartServer(StartupOptions.Profile);
+                services.Dispose();
+                if (benchmarkRoot is not null)
+                {
+                    try { Directory.Delete(benchmarkRoot, recursive: true); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                }
+            };
+            if (benchmark)
+            {
+                window.Opened += async (_, _) => await NativeBenchmark.RunAsync(window, vm, services, StartupOptions, syntheticRoot);
+            }
+            else
+            {
+                SingleInstance.ArgumentsReceived += args => Dispatcher.UIThread.Post(() =>
+                {
+                    vm.OpenArguments(StartupOptions.Parse(args));
+                    if (window.WindowState == Avalonia.Controls.WindowState.Minimized) window.WindowState = Avalonia.Controls.WindowState.Normal;
+                    window.Activate();
+                });
+                SingleInstance.StartServer(StartupOptions.Profile);
+            }
         }
         base.OnFrameworkInitializationCompleted();
     }

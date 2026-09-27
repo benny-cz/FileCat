@@ -77,9 +77,10 @@ public sealed class AppServices : IDisposable
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     public static AppServices CreateForPaths(AppPaths paths) => new(paths);
 
-    public static AppServices Initialize(string? profile)
+    /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
+    public static AppServices Initialize(string? profile, string? overrideRoot = null)
     {
-        Current = new AppServices(AppPaths.Resolve(profile));
+        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot));
         return Current;
     }
 

@@ -149,6 +149,13 @@ public static class NameParts
         return dot <= 0 || dot == name.Length - 1 ? string.Empty : name[(dot + 1)..];
     }
 
+    /// <summary>Span form of <see cref="GetExtension(string)"/> (no allocation).</summary>
+    public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> name)
+    {
+        int dot = name.LastIndexOf('.');
+        return dot <= 0 || dot == name.Length - 1 ? ReadOnlySpan<char>.Empty : name[(dot + 1)..];
+    }
+
     public static string GetStem(string name)
     {
         int dot = name.LastIndexOf('.');

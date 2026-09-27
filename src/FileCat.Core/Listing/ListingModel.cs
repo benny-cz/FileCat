@@ -60,6 +60,8 @@ public sealed class ListingModel : IDisposable
     private bool _showHidden = true;
     private int _focusStore = -1;
     private int _focusVisibleHint;
+    /// <summary>The user (or a requested name) placed the cursor; until then it stays on the first row while entries stream in.</summary>
+    private bool _focusAnchored;
     private string? _pendingFocusName;
     private HashSet<string>? _pendingMarkNames;
     private readonly List<string> _issues = [];
@@ -194,6 +196,7 @@ public sealed class ListingModel : IDisposable
         visibleIndex = Math.Clamp(visibleIndex, 0, VisibleCount - 1);
         int store = VisibleAt(visibleIndex);
         _pendingFocusName = null;
+        _focusAnchored = true;
         if (store == _focusStore) return;
         _focusStore = store;
         _focusVisibleHint = visibleIndex;
@@ -228,6 +231,7 @@ public sealed class ListingModel : IDisposable
         _issues.Clear();
         _focusStore = HasParentRow ? 0 : -1;
         _focusVisibleHint = 0;
+        _focusAnchored = false;
         _pendingFocusName = focusName;
         _pendingMarkNames = null;
         _lastOperation = null;
@@ -365,7 +369,7 @@ public sealed class ListingModel : IDisposable
             if (i < _appliedCount) marked.Add(_store[i].Name);
         }
         string? focusName = null;
-        if (_focusStore >= 0 && _focusStore < _appliedCount) focusName = _store[_focusStore].Name;
+        if (_focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount) focusName = _store[_focusStore].Name;
         _pipeline?.Retire();
         _pipeline = p;
         _pendingRefresh = null;
@@ -411,12 +415,23 @@ public sealed class ListingModel : IDisposable
                 {
                     _focusStore = i;
                     _pendingFocusName = null;
+                    _focusAnchored = true;
                     change |= ListingChange.Focus;
                 }
             }
         }
 
-        if (_focusStore < 0 || GetVisibleIndex(_focusStore) < 0)
+        if (!_focusAnchored && _pendingFocusName is null)
+        {
+            // Entries stream in and re-sort: an untouched cursor stays on the first row, not on whichever entry
+            // happened to be first in the first batch.
+            if (VisibleCount > 0 && VisibleAt(0) != _focusStore)
+            {
+                _focusStore = VisibleAt(0);
+                change |= ListingChange.Focus;
+            }
+        }
+        else if (_focusStore < 0 || GetVisibleIndex(_focusStore) < 0)
         {
             // Fall back to the previous position; a pending focus name may still move focus when it arrives.
             if (VisibleCount > 0)
@@ -922,7 +937,8 @@ public sealed class ListingModel : IDisposable
                     // Geometric batches keep streaming merges and position rebuilds near O(n log n).
                     if (!done && applied is not null && applied.Version == spec.Version &&
                         n - sortedCount < Math.Max(64, sortedCount / 2)) continue;
-                    var cmp = EntrySorter.CreateComparison(Store, spec.Sort, _owner.MetadataKeys);
+                    using var comparer = EntrySorter.CreateComparer(Store, spec.Sort, _owner.MetadataKeys, n);
+                    var cmp = comparer.Comparison;
                     bool changed = false;
                     if (applied is null || applied.Sort != spec.Sort)
                     {
@@ -1016,12 +1032,15 @@ public sealed class ListingModel : IDisposable
             }
             var list = new List<int>(sorted.Length + 1);
             if (hasParent) list.Add(0);
+            int limit = 0;
+            foreach (int si in sorted) limit = Math.Max(limit, si + 1);
+            using var reader = Store.OpenSpillReader(limit);
             foreach (int si in sorted)
             {
-                var e = Store[si];
-                if (!spec.ShowHidden && (e.Flags & EntryFlags.Hidden) != 0) continue;
-                if (spec.Filter is not null && !spec.Filter.IsMatch(e.Name, e.IsContainer)) continue;
-                list.Add(si);
+                bool keep = reader is not null
+                    ? ExternalViewBuilder.Passes(reader.Get(si), spec.Filter, spec.ShowHidden)
+                    : ExternalViewBuilder.Passes(new EntryView(Store[si]), spec.Filter, spec.ShowHidden);
+                if (keep) list.Add(si);
             }
             return list.ToArray();
         }

@@ -108,5 +108,36 @@ public sealed class EntryStoreTests
         await ui.InvokeAsync(listing.Dispose);
         await ui.WaitUntilAsync(() => !Directory.EnumerateFiles(scratch.Path, "listing-*").Any());
     }
-}
 
+    [Theory]
+    [InlineData(SortField.Name, false)]
+    [InlineData(SortField.Size, true)]
+    [InlineData(SortField.Extension, false)]
+    [InlineData(SortField.Modified, true)]
+    public void Spilled_sort_reads_in_place_and_matches_the_in_memory_order(SortField field, bool descending)
+    {
+        using var scratch = new TempDir();
+        using var spilled = new EntryStore(scratch.Path, 1024);
+        using var memory = new EntryStore();
+        var random = new Random(7);
+        var entries = Enumerable.Range(0, 3000).Select(i => new EntryData(
+            $"{(char)('a' + random.Next(26))}name{random.Next(500)}.{(i % 3 == 0 ? "txt" : i % 3 == 1 ? "log" : "Ωmega")}",
+            i % 10 == 0 ? EntryKind.Directory : EntryKind.File, random.Next(100), random.Next(1000))).ToArray();
+        spilled.Append(entries);
+        memory.Append(entries);
+        Assert.True(spilled.IsSpilled);
+        var spec = new SortSpec(field, descending);
+        using (var reader = spilled.OpenSpillReader(spilled.Count - 100)) // a prefix of files that keep growing
+        {
+            Assert.NotNull(reader);
+            Assert.Equal(entries[17].Name, reader!.Get(17).Name.ToString());
+        }
+        var expected = Enumerable.Range(0, entries.Length).ToArray();
+        StableSort.Sort(expected, EntrySorter.CreateComparison(memory, spec));
+        var actual = Enumerable.Range(0, entries.Length).ToArray();
+        using (var comparer = EntrySorter.CreateComparer(spilled, spec, null, spilled.Count))
+            StableSort.Sort(actual, comparer.Comparison);
+        Assert.Equal(expected, actual);
+        Assert.Null(memory.OpenSpillReader(memory.Count));
+    }
+}

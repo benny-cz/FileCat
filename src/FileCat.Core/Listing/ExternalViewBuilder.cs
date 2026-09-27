@@ -17,7 +17,8 @@ internal static class ExternalViewBuilder
         try
         {
             int first = HasParent(store, count) ? 1 : 0;
-            var cmp = EntrySorter.CreateComparison(store, sort, metadataKeys);
+            using var comparer = EntrySorter.CreateComparer(store, sort, metadataKeys, count);
+            var cmp = comparer.Comparison;
             for (int from = first; from < count; from += ChunkSize)
             {
                 ct.ThrowIfCancellationRequested();
@@ -65,13 +66,16 @@ internal static class ExternalViewBuilder
                 visible.Write(visibleCount, 0);
                 positions.Write(0, ++visibleCount);
             }
+            // Without hiding or a filter every entry is visible: nothing needs to be read.
+            bool filtering = !showHidden || filter is not null;
+            using var reader = filtering ? store.OpenSpillReader(count) : null;
             for (int i = 0; i < order.Capacity; i++)
             {
                 if ((i & 4095) == 0) ct.ThrowIfCancellationRequested();
                 int index = order.Read(i);
-                var entry = store[index];
-                if ((!showHidden && (entry.Flags & EntryFlags.Hidden) != 0) ||
-                    (filter is not null && !filter.IsMatch(entry.Name, entry.IsContainer))) continue;
+                if (filtering && !(reader is not null
+                        ? Passes(reader.Get(index), filter, showHidden)
+                        : Passes(new EntryView(store[index]), filter, showHidden))) continue;
                 visible.Write(visibleCount, index);
                 positions.Write(index, ++visibleCount);
             }
@@ -86,6 +90,10 @@ internal static class ExternalViewBuilder
             positions?.Dispose();
         }
     }
+
+    /// <summary>Hidden-item and filter rules of a view (the name is materialized only when a filter is set).</summary>
+    internal static bool Passes(scoped in EntryView e, Mask? filter, bool showHidden) =>
+        (showHidden || (e.Flags & EntryFlags.Hidden) == 0) && (filter is null || filter.IsMatch(e.Name.ToString(), e.IsContainer));
 
     private static bool HasParent(EntryStore store, int count) => count > 0 && store[0].Kind == EntryKind.Parent;
 

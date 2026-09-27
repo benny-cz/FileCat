@@ -16,6 +16,13 @@ public sealed class StartupOptions
     public bool NewInstance { get; set; }
     public bool ResetLayout { get; set; }
 
+    /// <summary>TV-01 native benchmark: synthetic entries per panel (0 = off). Implies a new, isolated instance.</summary>
+    public int BenchmarkCount { get; set; }
+    public int BenchmarkPanels { get; set; } = 4;
+    public string? BenchmarkOut { get; set; }
+    /// <summary>Optional real directory whose first-rows time is measured three times.</summary>
+    public string? BenchmarkDirectory { get; set; }
+
     public static StartupOptions Parse(string[] args)
     {
         var o = new StartupOptions();
@@ -32,6 +39,14 @@ public sealed class StartupOptions
                 case "--list" or "--loadlist": o.ListFile = Next(); break;
                 case "--new-instance" or "/n": o.NewInstance = true; break;
                 case "--reset-layout": o.ResetLayout = true; break;
+                case "--benchmark":
+                    o.BenchmarkCount = int.TryParse(Next(), out int count) ? Math.Clamp(count, 1, 5_000_000) : 1_000_000;
+                    o.NewInstance = true;
+                    o.ResetLayout = true;
+                    break;
+                case "--benchmark-panels": o.BenchmarkPanels = int.TryParse(Next(), out int panels) ? panels : 4; break;
+                case "--benchmark-out": o.BenchmarkOut = Next(); break;
+                case "--benchmark-dir": o.BenchmarkDirectory = Next(); break;
                 case "/o": break; // forwarding is the default, accepted for Total Commander familiarity
                 default:
                     if (!a.StartsWith("--", StringComparison.Ordinal)) o.Locations.Add(a);

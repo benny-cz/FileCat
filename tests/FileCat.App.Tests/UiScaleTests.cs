@@ -26,7 +26,7 @@ public sealed class UiScaleTests
         try
         {
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
-            services.Providers.Register(new ScaleProvider(count));
+            services.Providers.Register(new SyntheticListingProvider(services.Providers.Get(Schemes.FileSystem), root, count));
             var workspace = new WorkspaceViewModel(services);
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*") };
             var tabs = new List<TabViewModel>();
@@ -81,31 +81,6 @@ public sealed class UiScaleTests
         finally
         {
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
-        }
-    }
-
-    private sealed class ScaleProvider(int count) : FileCat.Core.Resources.ResourceProvider
-    {
-        public override string Scheme => Schemes.FileSystem;
-        public override string GetDisplayPath(Location location) => location.Path;
-        public override Location? GetParent(Location location) => null;
-        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
-        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
-        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
-        {
-            var batch = new EntryData[512];
-            for (int from = 0; from < count; from += batch.Length)
-            {
-                ct.ThrowIfCancellationRequested();
-                int n = Math.Min(batch.Length, count - from);
-                for (int i = 0; i < n; i++)
-                {
-                    int sequence = count - from - i;
-                    batch[i] = new EntryData($"file-{sequence:0000000}-long-αβγ.txt", EntryKind.File, sequence);
-                }
-                sink.AddBatch(batch.AsSpan(0, n));
-            }
-            return Task.CompletedTask;
         }
     }
 }

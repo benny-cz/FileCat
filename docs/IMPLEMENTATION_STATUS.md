@@ -7,8 +7,9 @@ Work happens directly on `main`; every chunk is committed and pushed. Keep this 
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                   # Core 115, Windows integration 8, App headless 4 tests
+dotnet test FileCat.slnx                   # Core 121, Windows integration 8, App headless 4 tests
 $env:FILECAT_UI_SCALE_COUNT=1000000; dotnet test tests/FileCat.App.Tests --filter FullyQualifiedName~UiScale # optional TV-01 headless run
+FileCat.exe --benchmark 1000000 --benchmark-panels 4   # TV-01 native benchmark (isolated state, JSON results; docs/validation/TV-01.md)
 dotnet run --project src/FileCat.App        # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
 
@@ -35,16 +36,16 @@ Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs
 | Phase | Status |
 |---|---|
 | P1 walking slice | **Done**: browse, marks, quick search, F3 viewer, F4/Shift+F4 editor (TV-17 rules), F5/F6 Start/Queue, conflicts, F7, F8 recycle with preflight, Shift+F8, rename, undo, journal + interrupted-job review, drag & drop, clipboard |
-| P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: native UI TV-01. Done at scale: record/name spill, shared 512 MiB index cap with external sort/view tier, geometric batching, four-panel headless UI scale, bounded job overlap scopes/header, streaming journal recovery, huge selections captured as leased store-index snapshots (`SelectionSnapshot`; jobs stream them, outcomes are per-position bitsets, undo capped at 100k steps, recycle in 2,048-item chunks) |
+| P2 scalable workspace | **Nearly done** (pending: persisted column widths + user column profiles, next slice): tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. TV-01 executed (native 1M × 4: complete 2.9 s, re-sort 270 ms, held paging p95 16.9 ms; `docs/validation/TV-01.md`). At scale: mapped spill sorting, glyph-run cells, low-latency swap chain, record/name spill, shared 512 MiB index cap with external sort/view tier, geometric batching, four-panel headless UI scale, bounded job overlap scopes/header, streaming journal recovery, huge selections captured as leased store-index snapshots (`SelectionSnapshot`; jobs stream them, outcomes are per-position bitsets, undo capped at 100k steps, recycle in 2,048-item chunks) |
 | P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README, in-row rename, searchable F1 help + headless UI smoke |
 | P4–P10 | Pending |
 
-Scale on this Windows machine: core 1M × 1 first rows 75 ms, complete 61 s; core 1M × 4 first rows 1.1 s, complete 106 s, peak private 305 MiB. Headless UI 1M × 4 first rows 801 ms, complete 110 s, peak private 325 MiB, spill 374 MiB. Native UI TV-01 remains. Forced 1M × 1 external index: 73 s, peak private 132 MiB, index spill 11 MiB.
+Scale (this machine, details in `docs/validation/TV-01.md`): core 1M × 1 complete 1.6 s (in memory 1.4 s), forced external index 1.7 s, 1M × 4 2.3 s / peak private 348 MiB; native 1M × 4 first rows 566 ms, complete 2.9 s, cursor handler p95 0.2 ms, startup (R2R) ≈ 0.9 s.
 
 ## Resume here (next slices, in order)
 
-1. P2 leftover: run native UI TV-01. Core, headless UI, external-index scale, and streamed job sources are done.
-2. P3 polish: TV-10 accessibility pass; in-row rename, searchable F1 help, and headless smoke tests are done.
+1. P2 leftover: persist column widths per profile and let users edit column profiles (fields, order, widths) in Settings.
+2. P3 polish: TV-10 accessibility pass; robustness (ADS loss reporting, locked-file/permission/race tests, ZIP/mask/encoding fuzzing, shutdown handling); UX completeness (per-type associations, Alt+F8 history, opt-in update check, SECURITY.md).
 3. P4a Registry provider (typed values, views, F4 editors, export/import, search) + per-plan elevation broker (`FileCat.PrivilegedHost`).
 4. P4b fixed-length hex editing (patch overlay, undo, save strategies).
 5. P5 ZIP create/update + edit sessions; P6 SFTP; P7 diff/sync/inspectors; post-v1 slices (bulk rename, links, manifests); P8–P10.
