@@ -44,7 +44,6 @@ public sealed class ListingModel : IDisposable
     private readonly long _listingMemoryBudgetBytes;
 
     private EntryStore _store = new();
-    private int[] _sorted = [];
     private int[] _visible = [];
     private int[] _positions = [];
     private MarkSet _marks = new();
@@ -204,7 +203,6 @@ public sealed class ListingModel : IDisposable
         _store = CreateStore(location);
         HasParentRow = provider.GetParent(location) is not null;
         if (HasParentRow) _store.Append(new EntryData("..", EntryKind.Parent));
-        _sorted = [];
         _visible = HasParentRow ? [0] : [];
         _positions = HasParentRow ? [0] : [];
         _appliedCount = _store.Count;
@@ -336,7 +334,6 @@ public sealed class ListingModel : IDisposable
         _pipeline = p;
         _pendingRefresh = null;
         _store = p.Store;
-        _sorted = [];
         _visible = [];
         _positions = [];
         _marks = new MarkSet();
@@ -352,7 +349,6 @@ public sealed class ListingModel : IDisposable
     {
         int oldFocusVisible = FocusedIndex >= 0 ? FocusedIndex : _focusVisibleHint;
         int previousCount = _appliedCount;
-        _sorted = r.Sorted;
         _visible = r.Visible;
         _appliedCount = r.Count;
         _positions = BuildPositions(_visible, r.Count);
@@ -666,7 +662,7 @@ public sealed class ListingModel : IDisposable
     private sealed record ViewSpec(SortSpec Sort, Mask? Filter, bool ShowHidden, int Version);
 
     /// <param name="Completion">True exactly once per pipeline: the first result after enumeration ended.</param>
-    private sealed record PipelineResult(int[] Sorted, int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false);
+    private sealed record PipelineResult(int[] Visible, int Count, bool Done, Exception? Error, bool Canceled, bool Completion = false);
 
     private sealed class Pipeline
     {
@@ -674,6 +670,9 @@ public sealed class ListingModel : IDisposable
         private readonly ListingModel _owner;
         private readonly SemaphoreSlim _signal = new(0, int.MaxValue);
         private readonly object _issueLock = new();
+        private readonly object _resultLock = new();
+        private PipelineResult? _queuedResult;
+        private bool _resultPosted;
         private readonly List<string> _issues = [];
         private volatile ViewSpec _spec;
 
@@ -771,6 +770,9 @@ public sealed class ListingModel : IDisposable
                     var spec = _spec;
                     bool done = LoadDone;
                     int n = Store.Count;
+                    // Geometric batches keep streaming merges and position rebuilds near O(n log n).
+                    if (!done && applied is not null && applied.Version == spec.Version &&
+                        n - sortedCount < Math.Max(64, sortedCount / 2)) continue;
                     var cmp = EntrySorter.CreateComparison(Store, spec.Sort, _owner.MetadataKeys);
                     bool changed = false;
                     if (applied is null || applied.Sort != spec.Sort)
@@ -797,17 +799,21 @@ public sealed class ListingModel : IDisposable
                     {
                         changed = true;
                         // A size re-sort request arrives as a version bump with the same sort.
-                        if (spec.Sort.Field is SortField.Size or SortField.Metadata) StableSort.Sort(sorted, cmp);
+                        if (spec.Sort.Field is SortField.Size or SortField.Metadata)
+                        {
+                            sorted = (int[])sorted.Clone(); // UI may still hold the previous array.
+                            StableSort.Sort(sorted, cmp);
+                        }
                     }
                     sortedCount = n;
                     bool announceDone = done && !doneAnnounced;
                     if (!changed && !announceDone) continue;
 
                     var visible = BuildVisible(sorted, spec, firstIndex == 1);
-                    var result = new PipelineResult(sorted, visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone);
+                    var result = new PipelineResult(visible, n, done, done ? LoadError : null, done && LoadCanceled, announceDone);
                     applied = spec;
                     if (announceDone) doneAnnounced = true;
-                    _ui.Post(() => _owner.OnPipelineResult(this, result));
+                    Publish(result);
                 }
             }
             catch (OperationCanceledException)
@@ -815,8 +821,31 @@ public sealed class ListingModel : IDisposable
             }
             catch (Exception ex)
             {
-                _ui.Post(() => _owner.OnPipelineResult(this, new PipelineResult(sorted, [], sortedCount, true, ex, false, true)));
+                Publish(new PipelineResult([], sortedCount, true, ex, false, true));
             }
+        }
+
+        private void Publish(PipelineResult result)
+        {
+            lock (_resultLock)
+            {
+                if (_queuedResult is { Completion: true } && !result.Completion)
+                    result = result with { Completion = true };
+                _queuedResult = result;
+                if (_resultPosted) return;
+                _resultPosted = true;
+            }
+            _ui.Post(() =>
+            {
+                PipelineResult? latest;
+                lock (_resultLock)
+                {
+                    latest = _queuedResult;
+                    _queuedResult = null;
+                    _resultPosted = false;
+                }
+                if (latest is not null) _owner.OnPipelineResult(this, latest);
+            });
         }
 
         private int[] BuildVisible(int[] sorted, ViewSpec spec, bool hasParent)
@@ -853,7 +882,9 @@ public sealed class ListingModel : IDisposable
             public void AddBatch(ReadOnlySpan<EntryData> entries)
             {
                 owner.Cts.Token.ThrowIfCancellationRequested();
+                int before = owner.Store.Count;
                 owner.Store.Append(entries);
+                if (before < 64 || (before >> 12) != (owner.Store.Count >> 12)) owner.Signal();
             }
 
             public void ReportIssue(string message) => owner.AddIssue(message);

@@ -159,4 +159,41 @@ public sealed class ListingModelTests : IDisposable
         await _ui.InvokeAsync(() => m.Sort = new SortSpec(SortField.Name, Descending: true));
         await _ui.WaitUntilAsync(() => m.GetVisible(1).Name == "n3000.dat");
     }
+    [Fact]
+    public async Task Slow_provider_shows_first_rows_before_enumeration_completes()
+    {
+        var provider = new GatedProvider();
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        try
+        {
+            await _ui.WaitUntilAsync(() => model.VisibleCount == 1);
+            Assert.Equal(ListingState.Loading, await _ui.InvokeAsync(() => model.State));
+            Assert.Equal("first.txt", await _ui.InvokeAsync(() => model.GetVisible(0).Name));
+        }
+        finally { provider.Release(); }
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        Assert.Equal(2, await _ui.InvokeAsync(() => model.VisibleCount));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
+    private sealed class GatedProvider : ResourceProvider
+    {
+        private readonly ManualResetEventSlim _release = new();
+        public override string Scheme => Schemes.FileSystem;
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            sink.AddBatch([new EntryData("first.txt", EntryKind.File)]);
+            _release.Wait(ct);
+            sink.AddBatch([new EntryData("second.txt", EntryKind.File)]);
+            return Task.CompletedTask;
+        }
+        public void Release() => _release.Set();
+    }
+
 }

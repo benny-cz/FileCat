@@ -7,7 +7,7 @@ Work happens directly on `main`; every chunk is committed and pushed. Keep this 
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                   # Core 105 tests, Windows integration 8 (incl. real recycle/restore)
+dotnet test FileCat.slnx                   # Core 106 tests, Windows integration 8 (incl. real recycle/restore)
 dotnet run --project src/FileCat.App        # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
 
@@ -34,9 +34,11 @@ Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs
 | Phase | Status |
 |---|---|
 | P1 walking slice | **Done**: browse, marks, quick search, F3 viewer, F4/Shift+F4 editor (TV-17 rules), F5/F6 Start/Queue, conflicts, F7, F8 recycle with preflight, Shift+F8, rename, undo, journal + interrupted-job review, drag & drop, clipboard |
-| P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: bounded sort/view indexes and million-entry TV-01 validation (AI-10); record/name spill is implemented |
+| P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: bounded sort/view indexes and full UI TV-01 (AI-10); record/name spill and geometric result batching are implemented |
 | P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README |
 | P4–P10 | Pending |
+
+Synthetic core scale on this Windows machine: 1M entries/1 panel, first rows 75 ms, complete 61 s, 93.5 MiB spill, 55 MiB private after GC. Run with dotnet run --project eng/ListingScale -- [count] [panels]; full UI/peak-memory TV-01 remains.
 
 ## Resume here (next slices, in order)
 
