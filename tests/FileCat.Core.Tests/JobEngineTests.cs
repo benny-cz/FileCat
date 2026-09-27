@@ -52,6 +52,23 @@ public sealed class JobEngineTests : IDisposable
     }
 
     [Fact]
+    public void Huge_job_uses_bounded_overlap_scopes_and_recovery_source_sample()
+    {
+        var sources = Enumerable.Range(0, 5000)
+            .Select(i => ItemRef.ForFileSystemPath(Path.Combine(_src, $"f{i:0000}.txt"), EntryKind.File)).ToArray();
+        var request = new JobRequest { Kind = JobKind.Copy, Sources = sources, Destination = Location.FileSystem(_dst) };
+        var (title, device, reads, writes) = _jobs.Describe(request);
+        Assert.Single(reads);
+        Assert.Single(writes);
+        Assert.Equal(_src, reads[0]);
+        Assert.Equal(_dst, writes[0]);
+        var job = new Job(request, title, device, reads, writes);
+        using (JobJournal.Create(Path.Combine(_dir.Path, "journal"), job)) { }
+        var interrupted = Assert.Single(JournalRecovery.Scan(Path.Combine(_dir.Path, "journal")));
+        Assert.Equal(5000, interrupted.SourceCount);
+        Assert.Equal(64, interrupted.Sources.Count);
+    }
+    [Fact]
     public async Task Copies_tree_and_leaves_no_staged_files()
     {
         File.WriteAllText(Path.Combine(_src, "a.txt"), "alpha");

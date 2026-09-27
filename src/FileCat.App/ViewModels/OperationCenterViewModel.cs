@@ -78,9 +78,9 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
 {
     public InterruptedJob Job { get; } = job;
     public string Title => $"{Job.Title} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
-    public string Details => Job.OpenIntents.Count == 0
+    public string Details => $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
-        : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.";
+        : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.");
 }
 
 /// <summary>User-facing operation history and control (plan §19.2): not a dump of technical logs.</summary>

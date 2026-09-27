@@ -7,7 +7,7 @@ Work happens directly on `main`; every chunk is committed and pushed. Keep this 
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                   # Core 108, Windows integration 8, App headless 4 tests
+dotnet test FileCat.slnx                   # Core 109, Windows integration 8, App headless 4 tests
 $env:FILECAT_UI_SCALE_COUNT=1000000; dotnet test tests/FileCat.App.Tests --filter FullyQualifiedName~UiScale # optional TV-01 headless run
 dotnet run --project src/FileCat.App        # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -35,7 +35,7 @@ Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs
 | Phase | Status |
 |---|---|
 | P1 walking slice | **Done**: browse, marks, quick search, F3 viewer, F4/Shift+F4 editor (TV-17 rules), F5/F6 Start/Queue, conflicts, F7, F8 recycle with preflight, Shift+F8, rename, undo, journal + interrupted-job review, drag & drop, clipboard |
-| P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: native UI TV-01 and streaming huge selections; record/name spill, shared 512 MiB index cap with external sort/view tier, geometric batching, and four-panel headless UI scale are done |
+| P2 scalable workspace | **Mostly done**: tabs (lock/return-to-root, reopen, list, move/copy), multi-panel targets, bookmarks, named workspaces, single instance, persistence + autosave, watchers, metadata columns + analysis sort, settings dialog. **Pending**: native UI TV-01 and fully streamed huge job sources/recovery; record/name spill, shared 512 MiB index cap with external sort/view tier, geometric batching, four-panel headless UI scale, bounded job overlap scopes/header are done |
 | P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README, in-row rename, searchable F1 help + headless UI smoke |
 | P4–P10 | Pending |
 
@@ -43,7 +43,7 @@ Scale on this Windows machine: core 1M × 1 first rows 75 ms, complete 61 s; cor
 
 ## Resume here (next slices, in order)
 
-1. P2 leftover: stream huge operation selections and run native UI TV-01; core, headless UI, and external-index scale are measured.
+1. P2 leftover: stream huge job sources and recovery; run native UI TV-01. Core, headless UI, and external-index scale are measured.
 2. P3 polish: TV-10 accessibility pass; in-row rename, searchable F1 help, and headless smoke tests are done.
 3. P4a Registry provider (typed values, views, F4 editors, export/import, search) + per-plan elevation broker (`FileCat.PrivilegedHost`).
 4. P4b fixed-length hex editing (patch overlay, undo, save strategies).

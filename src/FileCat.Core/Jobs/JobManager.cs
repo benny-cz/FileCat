@@ -10,6 +10,8 @@ namespace FileCat.Core.Jobs;
 /// </summary>
 public sealed class JobManager
 {
+    private const int ExactScopeLimit = 4096;
+    private const string GlobalScope = "<all locations>";
     private readonly object _lock = new();
     private readonly List<Job> _jobs = [];
     private readonly IFileSystemOperations _fs;
@@ -177,15 +179,18 @@ public sealed class JobManager
     {
         foreach (var w in a.WriteSet)
         {
-            foreach (var x in b.WriteSet) if (PathUtil.SubtreesOverlap(w, x)) return true;
-            foreach (var x in b.ReadSet) if (PathUtil.SubtreesOverlap(w, x)) return true;
+            foreach (var x in b.WriteSet) if (ScopesOverlap(w, x)) return true;
+            foreach (var x in b.ReadSet) if (ScopesOverlap(w, x)) return true;
         }
         foreach (var r in a.ReadSet)
         {
-            foreach (var x in b.WriteSet) if (PathUtil.SubtreesOverlap(r, x)) return true;
+            foreach (var x in b.WriteSet) if (ScopesOverlap(r, x)) return true;
         }
         return false;
     }
+
+    private static bool ScopesOverlap(string a, string b) =>
+        a == GlobalScope || b == GlobalScope || PathUtil.SubtreesOverlap(a, b);
 
     private void Start(Job job)
     {
@@ -237,13 +242,34 @@ public sealed class JobManager
 
     // ---- Descriptions and read/write sets ----------------------------------------------------------------
 
-    private (string Title, string Device, IReadOnlyList<string> Reads, IReadOnlyList<string> Writes) Describe(JobRequest r)
+    internal (string Title, string Device, IReadOnlyList<string> Reads, IReadOnlyList<string> Writes) Describe(JobRequest r)
     {
         string What() => r.Sources.Count == 1 ? $"\"{r.Sources[0].Name}\"" : $"{r.Sources.Count:N0} items";
         string Dest() => r.Destination is null ? string.Empty : _providers.TryGet(r.Destination.Scheme, out var p) && p is not null ? p.GetDisplayPath(r.Destination) : r.Destination.Path;
         var reads = new List<string>();
         var writes = new List<string>();
+        bool large = r.Sources.Count > ExactScopeLimit;
         string P(ItemRef i) => i.FileSystemPath ?? i.Parent + "/" + i.Name;
+        void AddSourceScopes(List<string> destination)
+        {
+            if (!large) { destination.AddRange(r.Sources.Select(P)); return; }
+            var parents = new HashSet<string>(PathUtil.SafetyComparer);
+            foreach (var item in r.Sources)
+            {
+                if (!item.Parent.IsFileSystem) { destination.Add(GlobalScope); return; }
+                if (!parents.Add(item.Parent.Path)) continue;
+                if (parents.Count <= 128) continue;
+                destination.Add(GlobalScope);
+                return;
+            }
+            if (parents.Count == 0) destination.Add(GlobalScope);
+            else destination.AddRange(parents);
+        }
+        void AddDestinationScopes()
+        {
+            if (large) writes.Add(r.Destination is { IsFileSystem: true } dest ? dest.Path : GlobalScope);
+            else writes.AddRange(r.Sources.Select(s => D(r.Sources.Count == 1 && r.NewName is not null ? r.NewName : s.Name)));
+        }
         string D(string name) => r.Destination is { IsFileSystem: true } d ? Path.Join(d.Path, name) : (r.Destination?.ToString() ?? "") + "/" + name;
         string title;
         switch (r.Kind)
@@ -251,22 +277,22 @@ public sealed class JobManager
             case JobKind.Copy:
             case JobKind.Extract:
                 title = $"{(r.Kind == JobKind.Copy ? "Copy" : "Extract")} {What()} to {Dest()}";
-                reads.AddRange(r.Sources.Select(P));
-                writes.AddRange(r.Sources.Select(s => D(r.Sources.Count == 1 && r.NewName is not null ? r.NewName : s.Name)));
+                AddSourceScopes(reads);
+                AddDestinationScopes();
                 break;
             case JobKind.Move:
                 title = $"Move {What()} to {Dest()}";
-                reads.AddRange(r.Sources.Select(P));
-                writes.AddRange(r.Sources.Select(P));
-                writes.AddRange(r.Sources.Select(s => D(r.Sources.Count == 1 && r.NewName is not null ? r.NewName : s.Name)));
+                AddSourceScopes(reads);
+                AddSourceScopes(writes);
+                AddDestinationScopes();
                 break;
             case JobKind.Recycle:
                 title = $"Move {What()} to the Recycle Bin";
-                writes.AddRange(r.Sources.Select(P));
+                AddSourceScopes(writes);
                 break;
             case JobKind.Delete:
                 title = $"Delete {What()} permanently";
-                writes.AddRange(r.Sources.Select(P));
+                AddSourceScopes(writes);
                 break;
             case JobKind.CreateDirectory:
                 title = $"Create folder \"{r.NewName}\"";
@@ -278,7 +304,7 @@ public sealed class JobManager
                 break;
             case JobKind.Attributes:
                 title = $"Change attributes of {What()}";
-                writes.AddRange(r.Sources.Select(P));
+                AddSourceScopes(writes);
                 break;
             case JobKind.Rename:
                 title = $"Rename \"{r.Sources[0].Name}\" to \"{r.NewName}\"";
@@ -287,7 +313,7 @@ public sealed class JobManager
                 break;
             default:
                 title = r.Description ?? r.Kind.ToString();
-                reads.AddRange(r.Sources.Select(P));
+                AddSourceScopes(reads);
                 break;
         }
         var deviceLoc = r.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract or JobKind.CreateDirectory or JobKind.CreateFile

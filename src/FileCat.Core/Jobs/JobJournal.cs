@@ -41,7 +41,8 @@ public sealed class JobJournal : IDisposable
             ["kind"] = job.Kind.ToString(),
             ["title"] = job.Title,
             ["created"] = job.CreatedUtc.ToString("O"),
-            ["sources"] = new JsonArray(job.Request.Sources.Select(s => (JsonNode)(s.FileSystemPath ?? s.ToString())).ToArray()),
+            ["sources"] = new JsonArray(job.Request.Sources.Take(64).Select(s => (JsonNode)(s.FileSystemPath ?? s.ToString())).ToArray()),
+            ["sourceCount"] = job.Request.Sources.Count,
             ["dest"] = job.Request.Destination?.Serialize(),
             ["newName"] = job.Request.NewName,
         };
@@ -136,9 +137,9 @@ public sealed class JournalRecord(JsonObject node)
     public int Step => Node["n"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 0;
 }
 
-/// <summary>A job whose journal has no end record: the process stopped while it ran (Interrupted, not Canceled).</summary>
+/// <summary>An interrupted job. Sources is a bounded sample; SourceCount is the full count.</summary>
 public sealed record InterruptedJob(string JournalPath, string Kind, string Title, DateTime CreatedUtc,
-    IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps);
+    IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps, int SourceCount);
 
 /// <summary>An intent recorded without an outcome: reality must be inspected before anything is replayed.</summary>
 public sealed record PendingIntent(int Step, string Operation, string Path, string? Target, string? Staged);
@@ -176,10 +177,12 @@ public static class JournalRecovery
             var open = records.Where(r => r.Type == "intent" && !done.Contains(r.Step))
                 .Select(r => new PendingIntent(r.Step, r.Get("op") ?? "", r.Get("path") ?? "", r.Get("target"), r.Get("staged"))).ToList();
             var sources = begin.Node["sources"] is JsonArray arr ? arr.Select(x => x?.GetValue<string>() ?? "").ToList() : [];
+            int sourceCount = begin.Node["sourceCount"] is JsonValue countValue && countValue.TryGetValue<int>(out int declared)
+                ? declared : sources.Count;
             var dirs = records.Where(r => r.Type == "stagedir").Select(r => r.Get("path") ?? "").Where(p => p.Length > 0).Distinct().ToList();
             DateTime.TryParse(begin.Get("created"), null, System.Globalization.DateTimeStyles.RoundtripKind, out var created);
             result.Add(new InterruptedJob(f.FullName, begin.Get("kind") ?? "?", begin.Get("title") ?? "Operation", created, sources,
-                begin.Get("dest"), open, dirs, done.Count));
+                begin.Get("dest"), open, dirs, done.Count, sourceCount));
         }
         return result;
     }
