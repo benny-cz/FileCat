@@ -7,6 +7,7 @@ using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 using FileCat.Core.State;
+using FileCat.Platform.Windows;
 
 namespace FileCat.App.ViewModels;
 
@@ -101,6 +102,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     // ---- Change watching (plan §8.2): only the visible tab of each panel watches its folder ------------------
 
     private ChangeMonitor? _monitor;
+    private RegistryChangeMonitor? _registryMonitor;
+    private bool _registryDirty;
     private DateTime _folderStampAtLoad;
 
     partial void OnIsActiveTabChanged(bool value)
@@ -119,7 +122,21 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private void StartWatching()
     {
         StopWatching();
-        if (Location is not { IsFileSystem: true } loc || !IsActiveTab) return;
+        if (!IsActiveTab || Location is not { } loc) return;
+        if (loc.Scheme == Schemes.Registry && loc.Path.Length > 0)
+        {
+            _registryMonitor = new RegistryChangeMonitor(loc, () => Services.Ui.Post(() =>
+            {
+                if (_disposed || Location != loc) return;
+                if (Listing.State == ListingState.Complete && !Listing.IsRefreshing) Listing.Refresh();
+                else _registryDirty = true;
+            }), _ => Services.Ui.Post(() =>
+            {
+                if (!_disposed && Location == loc) { _registryDirty = true; Banner = "Registry notifications stopped. Reread this key to check for changes."; }
+            }));
+            return;
+        }
+        if (!loc.IsFileSystem) return;
         var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() =>
         {
             // The notification may arrive after the tab closed (the post outlives the watcher).
@@ -133,11 +150,19 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         _monitor?.Dispose();
         _monitor = null;
+        _registryMonitor?.Dispose();
+        _registryMonitor = null;
+        _registryDirty = false;
     }
 
     /// <summary>An inactive tab was not watched: a cheap folder timestamp check decides whether to refresh.</summary>
     private void RefreshIfFolderChanged()
     {
+        if (Location is { Scheme: Schemes.Registry } && Listing.State == ListingState.Complete)
+        {
+            Listing.Refresh();
+            return;
+        }
         if (Location is not { IsFileSystem: true } loc || Listing.State != ListingState.Complete) return;
         var device = Services.Providers.For(loc).GetDeviceKey(loc);
         var stamp = _folderStampAtLoad;
@@ -153,6 +178,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private void OnLoadCompleted()
     {
+        if (_registryDirty && Location?.Scheme == Schemes.Registry)
+        {
+            _registryDirty = false;
+            Services.Ui.Post(() => { if (!_disposed && !Listing.IsRefreshing) Listing.Refresh(); });
+        }
         if (_monitor is not null) _monitor.MinInterval = TimeSpan.FromMilliseconds(Math.Clamp(Listing.LastLoadDuration.TotalMilliseconds * 3, 300, 10_000));
         if (Location is { IsFileSystem: true } loc)
         {

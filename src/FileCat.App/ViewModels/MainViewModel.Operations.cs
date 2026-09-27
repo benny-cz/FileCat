@@ -676,12 +676,17 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (item.Parent.Scheme == Schemes.Registry && item.Kind == EntryKind.RegistryKey)
+        {
+            _ = ViewRegistryKeyAsync(item);
+            return;
+        }
         if (f.IsContainer)
         {
             Notify("F3 views files. Folder sizes are computed with Space.");
             return;
         }
-        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         if (item.Parent.Scheme == Schemes.Registry && item.Kind == EntryKind.RegistryValue)
         {
             ViewRegistryValue(item, hex);

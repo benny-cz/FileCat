@@ -6,6 +6,7 @@ using FileCat.App.Views;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Platform.Windows;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.ViewModels;
 
@@ -182,7 +183,7 @@ public sealed partial class MainViewModel
                 Notify("That value already exists. Select it and use F4 to edit it.", true);
                 return;
             }
-        var desired = await EditRegistryDialogAsync(named.Text, null);
+        var desired = await EditRegistryDialogAsync(named.Text, null, loc);
         if (desired is null) return;
         SubmitRegistry(new RegistryChange(RegistryAction.SetValue, loc, named.Text, Desired: desired),
             $"Create Registry value {(named.Text.Length == 0 ? "(Default)" : named.Text)}", focus: named.Text);
@@ -193,7 +194,7 @@ public sealed partial class MainViewModel
         try
         {
             var original = await Task.Run(() => ReadRegistrySnapshot(item));
-            var desired = await EditRegistryDialogAsync(item.Name, original);
+            var desired = await EditRegistryDialogAsync(item.Name, original, item.Parent);
             if (desired is null || desired.Type == original.Type && desired.Data.AsSpan().SequenceEqual(original.Data)) return;
             if (!await Dialogs.ConfirmAsync("Save Registry value",
                 $"Write {(item.Name.Length == 0 ? "(Default)" : item.Name)} in {Services.Providers.Display(item.Parent)}?\n\n" +
@@ -208,7 +209,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task<RegistryValueSnapshot?> EditRegistryDialogAsync(string name, RegistryValueSnapshot? original)
+    private async Task<RegistryValueSnapshot?> EditRegistryDialogAsync(string name, RegistryValueSnapshot? original, Location? watch = null)
     {
         var current = original is null ? null : new RegistryValueData(original.Type, original.Data, original.Data.Length);
         bool rawOnly = false;
@@ -223,6 +224,7 @@ public sealed partial class MainViewModel
         var reinterpret = new CheckBox { Content = "Reinterpret original bytes as the selected type", IsVisible = original is not null };
         var preview = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 650, Classes = { "muted" } };
         var issue = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" } };
+        var changed = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" } };
         var body = new StackPanel { Spacing = 8 };
         body.Children.Add(new TextBlock { Text = $"{(name.Length == 0 ? "(Default)" : name)} · choose a type and edit its stored data. Changes are not applied until you confirm.", TextWrapping = TextWrapping.Wrap });
         body.Children.Add(type);
@@ -230,6 +232,10 @@ public sealed partial class MainViewModel
         body.Children.Add(reinterpret);
         body.Children.Add(preview);
         body.Children.Add(issue);
+        body.Children.Add(changed);
+        using var monitor = watch is null ? null : new RegistryChangeMonitor(watch,
+            () => Services.Ui.Post(() => changed.Text = "This Registry key changed while the editor was open. Your input is preserved; save will recheck the original and may report a conflict."),
+            _ => Services.Ui.Post(() => changed.Text = "Change notifications stopped. Save will still recheck the original value."));
         RegistryValueSnapshot? parsed = null;
         void Refresh()
         {
@@ -365,6 +371,33 @@ public sealed partial class MainViewModel
     }
 
     private void ViewRegistryValue(ItemRef item, bool raw) => _ = ViewRegistryValueAsync(item, raw);
+
+    private async Task ViewRegistryKeyAsync(ItemRef item)
+    {
+        var location = item.Parent.WithPath(item.Parent.Path.Length == 0 ? item.Name : item.Parent.Path + "\\" + item.Name);
+        try
+        {
+            if ((item.Flags & EntryFlags.Link) != 0)
+            {
+                using var parent = WindowsRegistryProvider.Open(item.Parent, false);
+                string? target = await Task.Run(() => RegistryRaw.LinkTarget(parent, item.Name));
+                await Dialogs.AlertAsync("Registry link", $"{Services.Providers.Display(location)}\nTarget: {target ?? "unavailable"}\n\nOpen the target explicitly with Enter. Subtree operations do not follow it.");
+                return;
+            }
+            var details = await Task.Run(() =>
+            {
+                using var key = WindowsRegistryProvider.Open(location, false);
+                return (key.SubKeyCount, key.ValueCount, Acl: RegistryAcl.Inspect(location));
+            });
+            await Dialogs.AlertAsync("Registry key · read only",
+                $"{Services.Providers.Display(location)}\n{details.SubKeyCount:N0} direct subkeys · {details.ValueCount:N0} direct values\n\n" +
+                $"Owner SID: {details.Acl.OwnerSid ?? "not available"}\nGroup SID: {details.Acl.GroupSid ?? "not available"}\n" +
+                $"DACL: {details.Acl.AceCount:N0} access entries\nSDDL: {details.Acl.Sddl}\n\n" +
+                "The system audit ACL is not read; it requires extra privilege. Key ACL editing is not available here.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        { Notify($"Cannot inspect Registry key: {ex.Message}", true); }
+    }
 
     private async Task OpenRegistryLinkFromResultAsync(ItemRef item, TabViewModel tab)
     {

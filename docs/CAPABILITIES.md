@@ -25,7 +25,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 
 | Gap | Where it is explained | Planned |
 |---|---|---|
-| Registry browsing and typed value editing | Local Registry panels have explicit views, raw inspection, bounded search, guarded value and subtree jobs, and named `.reg` import/export. Import is scoped, previewed and non-atomic; `.reg` omits ACLs and the 32/64-bit view. Links are followed only on request; elevated retry remains | P4a |
+| Registry browsing and typed value editing | Local Registry panels have explicit views, raw inspection, bounded search, guarded jobs, scoped `.reg` import/export, change notifications, and read-only key ACL inspection. Import is non-atomic; `.reg` omits ACLs and the 32/64-bit view. Links are followed only on request; elevated retry remains | P4a |
 | Elevated operations (per-plan broker) | Access-denied messages suggest what to do | P4a; FileCat never runs elevated by itself and warns when it is started elevated |
 | Hex editing | Viewer is read-only | P4b |
 | Creating or updating ZIP archives; other archive formats | Opened through their system association | P5, P8 |

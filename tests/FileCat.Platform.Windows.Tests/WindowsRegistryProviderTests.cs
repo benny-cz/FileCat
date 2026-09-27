@@ -143,6 +143,40 @@ public sealed class WindowsRegistryProviderTests
     }
 
     [Fact]
+    public async Task Registry_change_monitor_reports_value_edits_and_stops()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            var noticed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var monitor = new RegistryChangeMonitor(new Location(Schemes.Registry, "HKCU\\" + path),
+                () => noticed.TrySetResult());
+            await monitor.Ready.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            fixture!.SetValue("changed", 1);
+            await noticed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        }
+        finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
+    }
+
+    [Fact]
+    public void Registry_acl_inspection_returns_owner_and_dacl_without_elevation()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            var acl = RegistryAcl.Inspect(new Location(Schemes.Registry, "HKCU\\" + path));
+            Assert.NotNull(acl.OwnerSid);
+            Assert.Contains("O:", acl.Sddl);
+            Assert.Contains("D:", acl.Sddl);
+        }
+        finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
+    }
+
+    [Fact]
     public async Task Registry_jobs_detect_stale_values_and_preserve_raw_bytes()
     {
         if (!OperatingSystem.IsWindows()) return;

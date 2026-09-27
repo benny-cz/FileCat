@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 167, Windows integration 21, App headless 13 tests
+dotnet test FileCat.slnx                              # Core 167, Windows integration 23, App headless 13 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -37,12 +37,12 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P2 scalable workspace | **Done.** Tabs, multi-panel targets, bookmarks, workspaces, single instance, persistence, watchers, metadata columns, column profiles (Settings → Columns, persisted widths). TV-01 ran natively at 4 × 1M: complete in 2.9 s, re-sort 270 ms, held paging p95 16.9 ms, peak private 504 MiB. |
 | P3 v1 | **Done (engineering scope).** SMB, command line, viewer, search and result sets, compare-and-mark, read-only ZIP, quick view, associations, Alt+F8, themes, diagnostics, packaging. Also: truthful outcomes (fault-injection tests), stream and Mark-of-the-Web loss reporting, fuzzing, shutdown block, update check (notify only), automated TV-10 pass, ADR and validation records. |
 | P1–P3 review loop | **Done (2026-09-27).** A: durable moves (flush + write-through before a source is deleted), tiered journal with fill records, direct small-file copies (100k × 4 KiB within the ≤25% budget), PI-05 metadata question, EFS/sparse, mount-point volumes, safe exit. C: bulk reads for whole-listing commands on spilled listings (see TV-01). B: history pins/clear, target-panel bookmarks, `.lnk` folders, guarded Space sizing, partial Ctrl+A and Ctrl+Shift+A, viewer list and go-to-line, Alt+F10 folder scan, Find within results, saved filters (`@name`), lossless F9 editing, "Run again…" with a durable source manifest. D: job routes, bounded drag-out, re-armed folder watches. |
-| P4 | **In progress.** Registry views/raw inspection, guarded value and subtree jobs, explicit links, bounded search with result sets, scoped `.reg` import/export. Notifications, ACL inspection, elevated retry, and hex editing remain. |
+| P4 | **In progress.** Registry views/raw inspection, guarded value and subtree jobs, explicit links, bounded search with result sets, scoped `.reg` import/export, notifications, and ACL inspection. Elevated retry and hex editing remain. |
 | P5–P10 | Pending |
 
 ## Resume here (next slices, in order)
 
-1. **P4a:** Registry notifications, ACL inspection, and per-plan elevation broker (`FileCat.PrivilegedHost`).
+1. **P4a:** Per-plan elevation broker (`FileCat.PrivilegedHost`).
 2. **P4b:** fixed-length hex editing (patch overlay, undo, save strategies).
 3. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 VM and hardware checks remain pending after code and automated tests.
 4. **Later:** P5 ZIP create/update and edit sessions; P6 SFTP; P7 diff, sync, and inspectors; post-v1 slices; P8–P10.
