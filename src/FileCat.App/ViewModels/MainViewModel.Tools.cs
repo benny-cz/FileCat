@@ -22,6 +22,7 @@ public sealed partial class MainViewModel
         switch (id)
         {
             case CommandIds.FindFiles: await FindFilesAsync(); return true;
+            case CommandIds.RegistryExport: await ExportRegistryAsync(); return true;
             case CommandIds.FlatView: FlatView(); return true;
             case CommandIds.CompareDirectories: await CompareDirectoriesAsync(); return true;
             case CommandIds.Unpack: await UnpackAsync(); return true;

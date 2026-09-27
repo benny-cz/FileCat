@@ -120,6 +120,7 @@ public static class CommandIds
     public const string AnalyzeFolder = "view.analyze";
 
     public const string FindFiles = "search.find";
+    public const string RegistryExport = "registry.export";
     public const string CompareDirectories = "compare.dirs";
     public const string CommandLineFocus = "cmdline.focus";
     public const string CommandHistory = "cmdline.history";
@@ -292,6 +293,7 @@ public sealed class CommandRegistry
         Add(CommandIds.AnalyzeFolder, "Analyze folder (complete metadata sort)", V);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
+        Add(CommandIds.RegistryExport, "Export Registry selection to .reg…", F);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");

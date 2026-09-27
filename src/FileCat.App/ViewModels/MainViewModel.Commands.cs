@@ -32,6 +32,9 @@ public sealed partial class MainViewModel
         bool registryItem = TryGetFocusedRegistryItem(out var focusedRegistry);
         switch (id)
         {
+            case CommandIds.RegistryExport:
+                return registryItem || loc?.Scheme == Schemes.Registry && loc.Path.Length > 0
+                    ? CommandAvailability.Yes : CommandAvailability.No("Choose a Registry key or value to export.");
             case CommandIds.Edit when registryItem && focusedRegistry.Kind != EntryKind.RegistryValue:
                 return CommandAvailability.No("Registry keys have no editable value data. Select a value, or use a named Registry command.");
             case CommandIds.Move when registryItem:

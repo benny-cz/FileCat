@@ -64,6 +64,33 @@ public sealed class WindowsRegistryProviderTests
     }
 
     [Fact]
+    public void Reg_export_preserves_raw_types_default_name_and_subkeys()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            RegistryRaw.Set(fixture!, "", 3, [0, 255, 17]);
+            using var child = fixture.CreateSubKey("child");
+            RegistryRaw.Set(child!, "str", 1, [0x41, 0, 0, 0]);
+            RegistryInterchange.Export(new Location(Schemes.Registry, "HKCU\\" + path, session: "64"), null, file);
+            var text = File.ReadAllText(file, System.Text.Encoding.Unicode);
+            Assert.Contains("Windows Registry Editor Version 5.00", text);
+            Assert.Contains("source view: 64-bit", text);
+            Assert.Contains("@=hex:00,ff,11", text);
+            Assert.Contains("\"str\"=hex(1):41,00,00,00", text);
+            Assert.Contains("[HKEY_CURRENT_USER\\" + path + "\\child]", text);
+        }
+        finally
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
+    [Fact]
     public async Task Registry_jobs_detect_stale_values_and_preserve_raw_bytes()
     {
         if (!OperatingSystem.IsWindows()) return;

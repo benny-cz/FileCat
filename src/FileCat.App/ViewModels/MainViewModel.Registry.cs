@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia;
+using Avalonia.Platform.Storage;
 using FileCat.App.Views;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -18,6 +19,50 @@ public sealed partial class MainViewModel
             return false;
         item = listing.GetItemRef(listing.FocusedStoreIndex);
         return item.Parent.Scheme == Schemes.Registry;
+    }
+
+    private async Task ExportRegistryAsync()
+    {
+        var location = ActiveTab?.Location;
+        ItemRef? selected = TryGetFocusedRegistryItem(out var item) ? item : null;
+        if (selected is null && (location?.Scheme != Schemes.Registry || location.Path.Length == 0)) return;
+        var choices = new List<ChoiceItem>();
+        if (location?.Scheme == Schemes.Registry && location.Path.Length > 0)
+            choices.Add(new ChoiceItem("Current key and subtree", Services.Providers.Display(location)));
+        if (selected is not null)
+            choices.Add(new ChoiceItem(selected.Kind == EntryKind.RegistryValue ? "Selected value" : "Selected key and subtree",
+                Services.Providers.Display(selected.Parent) + "\\" + (selected.Name.Length == 0 ? "(Default)" : selected.Name)));
+        var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Export Registry", choices.ToArray())
+        { Hint = "Exports raw types and bytes. .reg files do not contain ACLs or the 32/64-bit view." });
+        if (pick.Index < 0) return;
+        bool current = location?.Scheme == Schemes.Registry && location.Path.Length > 0 && pick.Index == 0;
+        var key = current ? location! : selected!.Kind == EntryKind.RegistryKey
+            ? selected.Parent.WithPath(selected.Parent.Path.Length == 0 ? selected.Name : selected.Parent.Path + "\\" + selected.Name)
+            : selected.Parent;
+        string? valueName = current || selected?.Kind != EntryKind.RegistryValue ? null : selected.Name;
+        string suggested = (valueName ?? key.Path[(key.Path.LastIndexOf('\\') + 1)..]).Replace(' ', '_') + ".reg";
+        var top = View.TopLevel;
+        if (top is null) return;
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export Registry to .reg",
+            SuggestedFileName = suggested,
+            DefaultExtension = "reg",
+            FileTypeChoices = [new FilePickerFileType("Registry files") { Patterns = ["*.reg"] }],
+        });
+        string? path = file?.TryGetLocalPath();
+        if (path is null) { if (file is not null) Notify("Choose a local file path for Registry export.", true); return; }
+        if (!path.EndsWith(".reg", StringComparison.OrdinalIgnoreCase)) path += ".reg";
+        if (File.Exists(path) && !await Dialogs.ConfirmAsync("Replace export file?",
+            $"Replace {path} with an export of {Services.Providers.Display(key)}?", "Replace file", danger: true)) return;
+        try
+        {
+            Notify("Exporting Registry selection…");
+            await Task.Run(() => RegistryInterchange.Export(key, valueName, path));
+            Notify($"Exported {Services.Providers.Display(key)} to {path}. Import must use the intended Registry view explicitly.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.ComponentModel.Win32Exception)
+        { Notify($"Registry export failed: {ex.Message}", true); }
     }
 
     private static string? RegistryNameError(string name, bool key) =>
