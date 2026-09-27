@@ -416,7 +416,7 @@ public sealed class FileListControl : Control
 
     private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active)
     {
-        ref var e = ref listing.GetVisible(row);
+        var e = listing.GetVisible(row);
         int storeIndex = listing.GetStoreIndex(row);
         bool marked = listing.IsMarked(storeIndex);
         var rowRect = new Rect(0, y, width, _rowHeight);

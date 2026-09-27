@@ -169,7 +169,7 @@ public sealed partial class MainViewModel
     {
         for (int i = 0; i < tab.Listing.Store.Count; i++)
         {
-            ref var e = ref tab.Listing.Store.GetRef(i);
+            var e = tab.Listing.Store[i];
             if (e.Name == item.Name && e.Tag is Core.Search.ResultTag r && r.Parent.Equals(item.Parent)) return r.RelativeFolder;
         }
         return string.Empty;

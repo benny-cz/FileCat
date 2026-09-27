@@ -40,6 +40,8 @@ public sealed class ListingModel : IDisposable
     private readonly ProviderRegistry _providers;
     private readonly DeviceIoScheduler _io;
     private readonly IUiDispatcher _ui;
+    private readonly string? _scratchDirectory;
+    private readonly long _listingMemoryBudgetBytes;
 
     private EntryStore _store = new();
     private int[] _sorted = [];
@@ -62,11 +64,14 @@ public sealed class ListingModel : IDisposable
     private readonly List<string> _issues = [];
     private bool _disposed;
 
-    public ListingModel(ProviderRegistry providers, DeviceIoScheduler io, IUiDispatcher ui)
+    public ListingModel(ProviderRegistry providers, DeviceIoScheduler io, IUiDispatcher ui,
+        string? scratchDirectory = null, long listingMemoryBudgetBytes = 96L * 1024 * 1024)
     {
         _providers = providers;
         _io = io;
         _ui = ui;
+        _scratchDirectory = scratchDirectory;
+        _listingMemoryBudgetBytes = listingMemoryBudgetBytes;
     }
 
     public event EventHandler<ListingChange>? Changed;
@@ -131,19 +136,20 @@ public sealed class ListingModel : IDisposable
 
     public int GetStoreIndex(int visibleIndex) => _visible[visibleIndex];
 
-    public ref EntryData GetVisible(int visibleIndex) => ref _store.GetRef(_visible[visibleIndex]);
+    public EntryData GetVisible(int visibleIndex) => _store[_visible[visibleIndex]];
 
     /// <summary>Visible position of a store index, or -1 when filtered out or not yet applied.</summary>
     public int GetVisibleIndex(int storeIndex) =>
         (uint)storeIndex < (uint)_positions.Length ? _positions[storeIndex] : -1;
 
-    public ItemRef GetItemRef(int storeIndex) => Provider!.GetItemRef(Location!, _store.GetRef(storeIndex));
+    public ItemRef GetItemRef(int storeIndex) => Provider!.GetItemRef(Location!, _store[storeIndex]);
 
     public int FindStoreIndex(string name)
     {
         for (int i = 0; i < _appliedCount; i++)
         {
-            if (string.Equals(_store.GetRef(i).Name, name, StringComparison.Ordinal) && _store.GetRef(i).Kind != EntryKind.Parent) return i;
+            var entry = _store[i];
+            if (entry.Kind != EntryKind.Parent && string.Equals(entry.Name, name, StringComparison.Ordinal)) return i;
         }
         return -1;
     }
@@ -195,7 +201,7 @@ public sealed class ListingModel : IDisposable
         var provider = _providers.For(location);
         Location = location;
         Provider = provider;
-        _store = new EntryStore();
+        _store = CreateStore(location);
         HasParentRow = provider.GetParent(location) is not null;
         if (HasParentRow) _store.Append(new EntryData("..", EntryKind.Parent));
         _sorted = [];
@@ -230,7 +236,7 @@ public sealed class ListingModel : IDisposable
             Load(Location, TryGetFocused(out var f) ? f.Name : null);
             return;
         }
-        var store = new EntryStore();
+        var store = CreateStore(Location);
         if (HasParentRow) store.Append(new EntryData("..", EntryKind.Parent));
         _pendingRefresh = StartPipeline(Location, Provider, store, isRefresh: true);
         Raise(ListingChange.State);
@@ -240,7 +246,7 @@ public sealed class ListingModel : IDisposable
     {
         if (State != ListingState.Loading && _pendingRefresh is null) return;
         _pipeline?.Cts.Cancel();
-        _pendingRefresh?.Cts.Cancel();
+        _pendingRefresh?.Retire();
         _pendingRefresh = null;
         if (State == ListingState.Loading)
         {
@@ -249,6 +255,11 @@ public sealed class ListingModel : IDisposable
         }
         Raise(ListingChange.State);
     }
+
+    private EntryStore CreateStore(Location location) =>
+        location.IsFileSystem && _scratchDirectory is not null
+            ? new EntryStore(_scratchDirectory, _listingMemoryBudgetBytes)
+            : new EntryStore();
 
     private Pipeline StartPipeline(Location location, ResourceProvider provider, EntryStore store, bool isRefresh)
     {
@@ -271,8 +282,9 @@ public sealed class ListingModel : IDisposable
 
     private void CancelPipelines()
     {
-        _pipeline?.Cts.Cancel();
-        _pendingRefresh?.Cts.Cancel();
+        if (_pipeline is null) _store.Dispose();
+        _pipeline?.Retire();
+        _pendingRefresh?.Retire();
         _pipeline = null;
         _pendingRefresh = null;
     }
@@ -299,6 +311,7 @@ public sealed class ListingModel : IDisposable
             {
                 // Refresh failed: keep the old rows and report instead of replacing them with an error view.
                 _pendingRefresh = null;
+                p.Retire();
                 _issues.Add($"Refresh failed: {r.Error.Message}");
                 Raise(ListingChange.State);
                 return;
@@ -315,11 +328,11 @@ public sealed class ListingModel : IDisposable
         var marked = new HashSet<string>(StringComparer.Ordinal);
         foreach (int i in _marks.Enumerate())
         {
-            if (i < _appliedCount) marked.Add(_store.GetRef(i).Name);
+            if (i < _appliedCount) marked.Add(_store[i].Name);
         }
         string? focusName = null;
-        if (_focusStore >= 0 && _focusStore < _appliedCount) focusName = _store.GetRef(_focusStore).Name;
-        _pipeline?.Cts.Cancel();
+        if (_focusStore >= 0 && _focusStore < _appliedCount) focusName = _store[_focusStore].Name;
+        _pipeline?.Retire();
         _pipeline = p;
         _pendingRefresh = null;
         _store = p.Store;
@@ -350,7 +363,7 @@ public sealed class ListingModel : IDisposable
         {
             for (int i = previousCount; i < r.Count; i++)
             {
-                ref var e = ref _store.GetRef(i);
+                var e = _store[i];
                 if (e.Kind == EntryKind.Parent) continue;
                 if (_pendingMarkNames is not null && _pendingMarkNames.Remove(e.Name))
                 {
@@ -438,7 +451,7 @@ public sealed class ListingModel : IDisposable
     {
         if ((uint)visibleIndex >= (uint)_visible.Length) return;
         int si = _visible[visibleIndex];
-        if (_store.GetRef(si).Kind == EntryKind.Parent) return;
+        if (_store[si].Kind == EntryKind.Parent) return;
         if (_marks.Set(si, value)) MarksChanged();
     }
 
@@ -451,14 +464,14 @@ public sealed class ListingModel : IDisposable
         for (int i = a; i <= b; i++)
         {
             int si = _visible[i];
-            if (_store.GetRef(si).Kind != EntryKind.Parent) changed |= _marks.Set(si, value);
+            if (_store[si].Kind != EntryKind.Parent) changed |= _marks.Set(si, value);
         }
         if (changed) MarksChanged();
     }
 
     /// <summary>Marks every visible item (the enumerated scope only while loading is incomplete).</summary>
     public void MarkAll(bool value, bool includeDirectories = true) =>
-        ApplyToVisible((ref EntryData e) => includeDirectories || !e.IsContainer, value);
+        ApplyToVisible(e => includeDirectories || !e.IsContainer, value);
 
     public void UnmarkEverything()
     {
@@ -472,7 +485,7 @@ public sealed class ListingModel : IDisposable
         bool changed = false;
         foreach (int si in _visible)
         {
-            ref var e = ref _store.GetRef(si);
+            var e = _store[si];
             if (e.Kind == EntryKind.Parent || !includeDirectories && e.IsContainer) continue;
             changed |= _marks.Set(si, !_marks.Get(si));
         }
@@ -485,7 +498,7 @@ public sealed class ListingModel : IDisposable
         bool changed = false;
         foreach (int si in _visible)
         {
-            ref var e = ref _store.GetRef(si);
+            var e = _store[si];
             if (e.Kind == EntryKind.Parent) continue;
             bool isDir = e.IsContainer;
             if (isDir && !includeDirectories && !MaskTargetsDirectories(mask)) continue;
@@ -503,14 +516,14 @@ public sealed class ListingModel : IDisposable
     {
         if (!TryGetFocused(out var f) || f.IsContainer) return;
         var ext = NameParts.GetExtension(f.Name);
-        ApplyToVisible((ref EntryData e) => !e.IsContainer && NameParts.GetExtension(e.Name).Equals(ext, StringComparison.OrdinalIgnoreCase), value);
+        ApplyToVisible(e => !e.IsContainer && NameParts.GetExtension(e.Name).Equals(ext, StringComparison.OrdinalIgnoreCase), value);
     }
 
     public void MarkSameName(bool value)
     {
         if (!TryGetFocused(out var f)) return;
         var stem = f.IsContainer ? f.Name : NameParts.GetStem(f.Name);
-        ApplyToVisible((ref EntryData e) => (e.IsContainer ? e.Name : NameParts.GetStem(e.Name)).Equals(stem, StringComparison.OrdinalIgnoreCase), value);
+        ApplyToVisible(e => (e.IsContainer ? e.Name : NameParts.GetStem(e.Name)).Equals(stem, StringComparison.OrdinalIgnoreCase), value);
     }
 
     public void MarkNames(IEnumerable<string> names, bool value)
@@ -519,7 +532,7 @@ public sealed class ListingModel : IDisposable
         bool changed = false;
         for (int i = 0; i < _appliedCount; i++)
         {
-            ref var e = ref _store.GetRef(i);
+            var e = _store[i];
             if (e.Kind != EntryKind.Parent && set.Contains(e.Name)) changed |= _marks.Set(i, value);
         }
         if (changed) MarksChanged();
@@ -542,15 +555,15 @@ public sealed class ListingModel : IDisposable
         if (changed) MarksChanged();
     }
 
-    private delegate bool EntryPredicate(ref EntryData e);
+    private delegate bool EntryPredicate(EntryData e);
 
     private void ApplyToVisible(EntryPredicate predicate, bool value)
     {
         bool changed = false;
         foreach (int si in _visible)
         {
-            ref var e = ref _store.GetRef(si);
-            if (e.Kind == EntryKind.Parent || !predicate(ref e)) continue;
+            var e = _store[si];
+            if (e.Kind == EntryKind.Parent || !predicate(e)) continue;
             changed |= _marks.Set(si, value);
         }
         if (changed) MarksChanged();
@@ -571,7 +584,7 @@ public sealed class ListingModel : IDisposable
         foreach (int si in _marks.Enumerate())
         {
             if (si >= _appliedCount) continue;
-            ref var e = ref _store.GetRef(si);
+            var e = _store[si];
             if (e.IsContainer)
             {
                 dirs++;
@@ -628,9 +641,10 @@ public sealed class ListingModel : IDisposable
     {
         int si = FindStoreIndex(name);
         if (si < 0) return;
-        ref var e = ref _store.GetRef(si);
+        var e = _store[si];
         e.Size = bytes;
         e.Flags = complete ? e.Flags | EntryFlags.SizeComputed : e.Flags & ~EntryFlags.SizeComputed;
+        _store.Update(si, e);
         _statsCache = null;
         if (_sort.Field == SortField.Size && complete) PushSpec();
         Raise(ListingChange.Rows | ListingChange.Marks);
@@ -687,6 +701,7 @@ public sealed class ListingModel : IDisposable
         public IEnumerationSink Sink { get; }
         public long StartedTimestamp { get; }
         public Task? LoadTask { get; set; }
+        public Task? WorkTask { get; private set; }
         public volatile bool LoadDone;
         public volatile bool LoadCanceled;
         public Exception? LoadError;
@@ -721,12 +736,24 @@ public sealed class ListingModel : IDisposable
             }
         }
 
-        public void Run() => Task.Run(LoopAsync);
+        public void Run() => WorkTask = Task.Run(LoopAsync);
+
+        public void Retire()
+        {
+            Cts.Cancel();
+            _ = Task.WhenAll(LoadTask ?? Task.CompletedTask, WorkTask ?? Task.CompletedTask)
+                .ContinueWith(_ =>
+                {
+                    Store.Dispose();
+                    Cts.Dispose();
+                    _signal.Dispose();
+                }, TaskScheduler.Default);
+        }
 
         private async Task LoopAsync()
         {
             var ct = Cts.Token;
-            int sortedCount = Store.Count > 0 && Store.GetRef(0).Kind == EntryKind.Parent ? 1 : 0;
+            int sortedCount = Store.Count > 0 && Store[0].Kind == EntryKind.Parent ? 1 : 0;
             int firstIndex = sortedCount;
             int[] sorted = [];
             ViewSpec? applied = null;
@@ -806,7 +833,7 @@ public sealed class ListingModel : IDisposable
             if (hasParent) list.Add(0);
             foreach (int si in sorted)
             {
-                ref var e = ref Store.GetRef(si);
+                var e = Store[si];
                 if (!spec.ShowHidden && (e.Flags & EntryFlags.Hidden) != 0) continue;
                 if (spec.Filter is not null && !spec.Filter.IsMatch(e.Name, e.IsContainer)) continue;
                 list.Add(si);

@@ -15,17 +15,22 @@ public sealed class AppPaths
         LocalDirectory = localDir;
         IsPortable = portable;
         ProfileName = profile;
+        var privateRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(privateRoot)) privateRoot = Path.GetTempPath();
+        ListingScratchDirectory = Path.Combine(privateRoot, "FileCat", "scratch", profile);
     }
 
     public string SettingsDirectory { get; }
     public string LocalDirectory { get; }
     public bool IsPortable { get; }
     public string ProfileName { get; }
+    /// <summary>User-local ephemeral listing data, including in portable mode.</summary>
+    public string ListingScratchDirectory { get; }
 
     public string JournalDirectory => Path.Combine(LocalDirectory, "journal");
     public string LogDirectory => Path.Combine(LocalDirectory, "diagnostics");
     public string CacheDirectory => Path.Combine(LocalDirectory, "cache");
-    /// <summary>Private scratch space (listing spill files, staged previews); never on a browsed volume.</summary>
+    /// <summary>Portable/local scratch for staged previews and tool argument files.</summary>
     public string TempDirectory => Path.Combine(LocalDirectory, "temp");
     public string SettingsFile => Path.Combine(SettingsDirectory, "settings.json");
     public string WorkspaceFile => Path.Combine(SettingsDirectory, "workspace.json");
@@ -54,8 +59,10 @@ public sealed class AppPaths
 
     private AppPaths Ensure()
     {
-        foreach (var d in new[] { SettingsDirectory, LocalDirectory, JournalDirectory, LogDirectory, CacheDirectory, TempDirectory, WorkspacesDirectory })
+        foreach (var d in new[] { SettingsDirectory, LocalDirectory, JournalDirectory, LogDirectory, CacheDirectory, TempDirectory, WorkspacesDirectory, ListingScratchDirectory })
             Directory.CreateDirectory(d);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(ListingScratchDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         return this;
     }
 

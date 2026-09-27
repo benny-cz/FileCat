@@ -20,7 +20,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private readonly List<Location> _back = [];
     private readonly List<Location> _forward = [];
     private int _columnProfile;
-    private (int Folders, int Files, long Bytes, int Generation) _totals = (0, 0, 0, -1);
     private long _freeBytes = -1;
     private string? _freeBytesDevice;
 
@@ -28,7 +27,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         Services = services;
         Panel = panel;
-        Listing = new ListingModel(services.Providers, services.Io, services.Ui)
+        Listing = new ListingModel(services.Providers, services.Io, services.Ui, services.Paths.ListingScratchDirectory)
         {
             ShowHidden = services.Settings.ShowHidden,
             Sort = new SortSpec(SortField.Name, false, !services.Settings.DirectoriesFirst, !services.Settings.NaturalSort),
@@ -343,7 +342,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         for (int n = 0; n < count; n++)
         {
             int i = forward ? (start + n) % count : ((start - n) % count + count) % count;
-            ref var e = ref Listing.GetVisible(i);
+            var e = Listing.GetVisible(i);
             if (e.Kind == EntryKind.Parent) continue;
             bool ok = wildcard ? Wildcard.IsMatch(e.Name, pattern)
                 : anywhere ? e.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase)
@@ -408,27 +407,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void UpdateStatus()
     {
         var l = Listing;
-        if (_totals.Generation != l.Generation || l.State == ListingState.Loading || (l.IsRefreshing is false && _totals.Folders + _totals.Files != l.TotalCount))
-        {
-            int folders = 0, files = 0;
-            long bytes = 0;
-            var store = l.Store;
-            int n = Math.Min(store.Count, l.TotalCount + (l.HasParentRow ? 1 : 0));
-            for (int i = 0; i < n; i++)
-            {
-                ref var e = ref store.GetRef(i);
-                if (e.Kind == EntryKind.Parent) continue;
-                if (e.IsContainer) folders++;
-                else
-                {
-                    files++;
-                    if (e.Size > 0) bytes += e.Size;
-                }
-            }
-            _totals = (folders, files, bytes, l.Generation);
-        }
-        var left = $"{Formatters.Plural(_totals.Folders, "folder", "folders")}, {Formatters.Plural(_totals.Files, "file", "files")}";
-        if (_totals.Bytes > 0) left += $" · {Formatters.SizeWithUnit(_totals.Bytes)}";
+        var totals = l.Store.Totals;
+        var left = $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}";
+        if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
         if (l.State == ListingState.Loading) left += " · loading…";
         else if (l.IsRefreshing) left += " · refreshing…";
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";

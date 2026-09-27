@@ -38,13 +38,13 @@ public static class EntrySorter
     {
         if (spec.Field == SortField.Metadata && metadata is not null && spec.MetadataId is { } id)
             return (x, y) => CompareMetadata(store, spec, metadata, id, x, y);
-        return (x, y) => Compare(ref store.GetRef(x), ref store.GetRef(y), spec, x, y);
+        return (x, y) => Compare(store[x], store[y], spec, x, y);
     }
 
     private static int CompareMetadata(EntryStore store, SortSpec spec, MetadataKeyProvider provider, string id, int x, int y)
     {
-        ref var a = ref store.GetRef(x);
-        ref var b = ref store.GetRef(y);
+        var a = store[x];
+        var b = store[y];
         if (a.Kind == EntryKind.Parent) return b.Kind == EntryKind.Parent ? 0 : -1;
         if (b.Kind == EntryKind.Parent) return 1;
         if (spec.DirectoriesFirst && a.IsContainer != b.IsContainer) return a.IsContainer ? -1 : 1;
@@ -63,7 +63,7 @@ public static class EntrySorter
         return r != 0 ? r : x.CompareTo(y);
     }
 
-    public static int Compare(ref EntryData a, ref EntryData b, SortSpec spec, int ia, int ib)
+    public static int Compare(in EntryData a, in EntryData b, SortSpec spec, int ia, int ib)
     {
         if (a.Kind == EntryKind.Parent) return b.Kind == EntryKind.Parent ? ia.CompareTo(ib) : -1;
         if (b.Kind == EntryKind.Parent) return 1;
@@ -75,10 +75,10 @@ public static class EntrySorter
         int r = spec.Field switch
         {
             SortField.Name => NaturalCompare.CompareCore(a.Name, b.Name, spec.Natural),
-            SortField.Extension => CompareExtension(ref a, ref b, spec.Natural),
+            SortField.Extension => CompareExtension(a, b, spec.Natural),
             SortField.Modified => a.Modified.CompareTo(b.Modified),
             SortField.Created => a.Created.CompareTo(b.Created),
-            SortField.Size => CompareSize(ref a, ref b),
+            SortField.Size => CompareSize(a, b),
             SortField.Attributes => a.Attributes.CompareTo(b.Attributes),
             _ => 0,
         };
@@ -87,13 +87,13 @@ public static class EntrySorter
         return r != 0 ? r : ia.CompareTo(ib);
     }
 
-    private static int CompareExtension(ref EntryData a, ref EntryData b, bool natural)
+    private static int CompareExtension(in EntryData a, in EntryData b, bool natural)
     {
         if (a.IsContainer || b.IsContainer) return 0;
         return NaturalCompare.CompareCore(NameParts.GetExtension(a.Name), NameParts.GetExtension(b.Name), natural);
     }
 
-    private static int CompareSize(ref EntryData a, ref EntryData b)
+    private static int CompareSize(in EntryData a, in EntryData b)
     {
         // Directories without an explicitly computed size keep name order (TC/Salamander behavior).
         if (a.IsContainer && b.IsContainer && (a.Size < 0 || b.Size < 0)) return 0;
