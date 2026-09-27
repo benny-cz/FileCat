@@ -325,7 +325,7 @@ public sealed class CommandRegistry
         Add(CommandIds.About, "About FileCat", A);
         Add(CommandIds.CheckUpdates, "Check for updates…", A);
         Add(CommandIds.ClearHistory, "Clear history…", A);
-        Add(CommandIds.ViewerWindows, "Viewer windows…", A, null, CommandContext.Global);
+        Add(CommandIds.ViewerWindows, "Viewer and editor windows…", A, null, CommandContext.Global);
         Add(CommandIds.SaveWorkspace, "Save workspace as…", A);
         Add(CommandIds.LoadWorkspace, "Open workspace…", A);
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);

@@ -70,6 +70,8 @@ public sealed class ViewerWindow : Window
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
 
         foreach (var (name, _) in TextDecoding.Choices) _encodingBox.Items.Add(name);
+        Avalonia.Automation.AutomationProperties.SetName(_search, "Find in file");
+        Avalonia.Automation.AutomationProperties.SetName(_encodingBox, "Text encoding");
         _wrap.IsChecked = services.Settings.ViewerWrap;
         _text.Wrap = services.Settings.ViewerWrap;
         _text.SetReader(_reader, _guess.Encoding, 0);
@@ -91,6 +93,13 @@ public sealed class ViewerWindow : Window
         checksum.Click += async (_, _) => await ChecksumAsync();
         toolbar.Children.Add(goTo);
         toolbar.Children.Add(checksum);
+        if (source.LocalPath is not null && OperatingSystem.IsWindows())
+        {
+            var editBytes = new Button { Content = "Edit bytes…" };
+            ToolTip.SetTip(editBytes, "Open this file in the hex editor at the current offset (F6)");
+            editBytes.Click += (_, _) => EditBytes();
+            toolbar.Children.Add(editBytes);
+        }
 
         var statusBar = new Border { Classes = { "status" }, Child = new DockPanel { Children = { _encodingInfo, _status } } };
         DockPanel.SetDock(_encodingInfo, Dock.Right);
@@ -229,6 +238,9 @@ public sealed class ViewerWindow : Window
             case Key.F4:
                 SetMode(!_isHex);
                 break;
+            case Key.F6 when _reader.Source.LocalPath is not null && OperatingSystem.IsWindows():
+                EditBytes();
+                break;
             case Key.F8:
                 _encodingBox.SelectedIndex = (_encodingBox.SelectedIndex + 1) % TextDecoding.Choices.Count;
                 break;
@@ -266,6 +278,13 @@ public sealed class ViewerWindow : Window
                 return;
         }
         e.Handled = true;
+    }
+
+    /// <summary>F6 (FAR's viewer-to-editor switch): the hex editor opens at this viewer's position.</summary>
+    private void EditBytes()
+    {
+        long offset = _isHex ? _hex.CursorOffset : _text.TopOffset;
+        if (HexEditorWindow.OpenOrActivate(_services, _reader.Source.LocalPath!, offset) is { } error) _status.Text = error;
     }
 
     private async Task FindAsync(bool forward)

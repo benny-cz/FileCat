@@ -40,9 +40,15 @@ public sealed partial class MainViewModel
                     (caps & LocationCapabilities.CreateDirectory) != 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Open a concrete HKCU, HKLM, or HKU Registry key to import into its scope.");
             case CommandIds.HexEdit:
-                return tab is not null && tab.Listing.TryGetFocused(out var hexRow) && !hexRow.IsContainer &&
-                    hexRow.Kind != EntryKind.Parent && tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is not null
-                    ? CommandAvailability.Yes : CommandAvailability.No("Select a local file to edit its bytes.");
+            {
+                if (tab is null || !tab.Listing.TryGetFocused(out var hexRow) || hexRow.IsContainer || hexRow.Kind == EntryKind.Parent)
+                    return CommandAvailability.No("Focus a file to edit its bytes.");
+                var hexPath = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath;
+                if (hexPath is null) return CommandAvailability.No("Only files on a drive can be edited byte by byte; extract or copy this item first.");
+                return PathUtil.IsUncPath(hexPath)
+                    ? CommandAvailability.No("Hex editing works on local drives, where other computers cannot write the file; copy it to a local drive first.")
+                    : CommandAvailability.Yes;
+            }
             case CommandIds.HexRecovery:
                 return CommandAvailability.Yes;
             case CommandIds.Edit when registryItem && focusedRegistry.Kind != EntryKind.RegistryValue:

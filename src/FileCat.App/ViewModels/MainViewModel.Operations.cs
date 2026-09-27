@@ -75,11 +75,12 @@ public sealed partial class MainViewModel
         return false;
     }
 
-    public bool CanCloseImmediately() => !Services.Jobs.HasActiveWork;
+    public bool CanCloseImmediately() => !Services.Jobs.HasActiveWork && UnsavedHexEditors().Count == 0;
 
-    /// <summary>Closing presents active work: finish, cancel safely, or keep the app open (plan §9.3).</summary>
+    /// <summary>Closing presents unsaved edits and active work: finish, cancel safely, or keep the app open (plan §9.3).</summary>
     public async Task<bool> ConfirmExitWithActiveWorkAsync()
     {
+        if (!await ConfirmCloseHexEditorsAsync()) return false;
         var active = Services.Jobs.Jobs.Where(j => !j.State.IsFinished()).ToList();
         if (active.Count == 0) return true;
         var list = ExactList(active.Select(j => $"{j.Title} — {j.State.Describe()}"));
@@ -602,18 +603,25 @@ public sealed partial class MainViewModel
         while (Services.Jobs.HasActiveWork && DateTime.UtcNow < deadline) Thread.Sleep(25);
     }
 
-    /// <summary>While jobs run: the optional keep-awake, and a shutdown-block reason naming them at sign-out.</summary>
+    /// <summary>
+    /// While jobs run or hex editors hold unsaved work: the optional keep-awake (jobs only), and a shutdown-block
+    /// reason naming them at sign-out.
+    /// </summary>
     private void UpdateJobActivity()
     {
         int active = Services.Jobs.Jobs.Count(j => !j.State.IsFinished());
+        int editors = UnsavedHexEditors().Count;
         Services.Shell.SetKeepAwake(Services.Settings.KeepAwakeDuringJobs && active > 0);
-        Services.Shell.SetShutdownBlock(NativeOwner(), active > 0
-            ? $"FileCat is running {Formatters.Plural(active, "file operation", "file operations")}. Signing out interrupts them; FileCat reviews them at the next start."
-            : null);
+        var reasons = new List<string>();
+        if (active > 0) reasons.Add($"FileCat is running {Formatters.Plural(active, "file operation", "file operations")}; signing out interrupts them and FileCat reviews them at the next start.");
+        if (editors > 0) reasons.Add($"{Formatters.Plural(editors, "hex editor has", "hex editors have")} unsaved changes.");
+        Services.Shell.SetShutdownBlock(NativeOwner(), reasons.Count > 0 ? string.Join(" ", reasons) : null);
     }
 
-    /// <summary>Windows asks before signing out or shutting down: running operations hold it so Windows can name them.</summary>
-    public bool ShouldBlockSessionEnd => Services.Jobs.HasActiveWork;
+    internal void RefreshSessionActivity() => UpdateJobActivity();
+
+    /// <summary>Windows asks before signing out or shutting down: running operations and unsaved edits hold it so Windows can name them.</summary>
+    public bool ShouldBlockSessionEnd => Services.Jobs.HasActiveWork || UnsavedHexEditors().Count > 0;
 
     // ---- Decisions ------------------------------------------------------------------------------------
 

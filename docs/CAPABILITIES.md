@@ -27,7 +27,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 |---|---|---|
 | Registry browsing and typed value editing | Local Registry panels have explicit views, raw inspection, bounded search, guarded jobs, scoped `.reg` import/export, change notifications, and read-only key ACL inspection. Import is non-atomic; `.reg` omits ACLs and the 32/64-bit view. Links are followed only on request; elevated retry remains | P4a |
 | Elevated operations (per-plan broker) | Access-denied messages suggest what to do | P4a; FileCat never runs elevated by itself and warns when it is started elevated |
-| Hex editing | Dedicated fixed-length local Windows editor with sparse edits, bounded undo/redo, protected baseline, journaled in-place save, Save As new file, patch export, and guarded crash recovery. Existing-target saves are non-atomic; remote and link targets remain read-only | P4b; TV-04 external fixtures pending |
+| Hex editing | Dedicated fixed-length editor for local Windows files (File menu, or F6 in the viewer): typing in hex and text columns, find, paste, bounded undo/redo, protected baseline, journaled in-place save with in-editor or later guarded recovery, sparse-aware Save As, and patch export/apply. Existing-target saves are non-atomic; network files and links are refused | P4b; TV-04 external fixtures pending |
 | Creating or updating ZIP archives; other archive formats | Opened through their system association | P5, P8 |
 | SFTP, FTP, FTPS | – | P6, P8 |
 | Per-file Shell thumbnails, properties, and context-menu handlers | Icons are by extension only (safety policy) | Out-of-process host, P7 |

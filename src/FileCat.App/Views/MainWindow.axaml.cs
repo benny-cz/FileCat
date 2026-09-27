@@ -99,6 +99,10 @@ public partial class MainWindow : Window, IViewActions
         CommandLine.AddHandler(KeyDownEvent, OnCommandLineKeyDown, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => _vm.UpdateKeyBar(KeyMods.None);
         _ = vm.Operations;
+        // Unsaved hex edits hold sign-out like running jobs (the static event is unsubscribed when this window closes).
+        Action editorsChanged = vm.RefreshSessionActivity;
+        HexEditorWindow.UnsavedStateChanged += editorsChanged;
+        Closed += (_, _) => HexEditorWindow.UnsavedStateChanged -= editorsChanged;
         Opened += (_, _) =>
         {
             if (OperatingSystem.IsWindows() && TryGetPlatformHandle()?.Handle is { } hwnd)
@@ -114,14 +118,16 @@ public partial class MainWindow : Window, IViewActions
     {
         var dir = _vm.Services.Paths.JournalDirectory;
         var interrupted = await Task.Run(() => Core.Jobs.JournalRecovery.Scan(dir));
+        var messages = new List<string>();
         if (interrupted.Count > 0)
         {
             _vm.Operations.LoadInterrupted(interrupted);
             _vm.Operations.IsOpen = true;
-            _vm.Notify($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.", true);
+            messages.Add($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.");
         }
-        var hex = await Task.Run(() => FileCat.Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
-        if (hex > 0) _vm.Notify($"{hex:N0} interrupted hex save journal(s) need review. Open Tools → Recover interrupted hex save.", true);
+        int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
+        if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");
+        if (messages.Count > 0) _vm.Notify(string.Join(" ", messages), true);
     }
 
     private const int MaxDragItems = 5000;

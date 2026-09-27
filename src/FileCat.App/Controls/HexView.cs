@@ -56,6 +56,40 @@ public sealed class HexView : Control
     /// <summary>Optional sparse edit marker; queried only for visible bytes.</summary>
     public Func<long, bool>? IsModified { get; set; }
 
+    /// <summary>Editing: the high nibble typed at the cursor, shown as "A_" until the low nibble arrives (-1: none).</summary>
+    public int PendingNibble
+    {
+        get => _pendingNibble;
+        set { _pendingNibble = value; InvalidateVisual(); }
+    }
+
+    /// <summary>Editing: typing goes to the text column; the cursor there is drawn as the stronger one.</summary>
+    public bool TextColumnActive
+    {
+        get => _textColumnActive;
+        set
+        {
+            if (_textColumnActive == value) return;
+            _textColumnActive = value;
+            InvalidateVisual();
+            CursorMoved?.Invoke();
+        }
+    }
+
+    /// <summary>Clicks choose the active column (hex or text) for an editor.</summary>
+    public bool TracksActiveColumn { get; set; }
+
+    private int _pendingNibble = -1;
+    private bool _textColumnActive;
+
+    public void ClearSelection()
+    {
+        if (_anchor < 0) return;
+        _anchor = -1;
+        InvalidateVisual();
+        CursorMoved?.Invoke();
+    }
+
     private HexViewAutomationPeer? _automationPeer;
 
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => _automationPeer = new HexViewAutomationPeer(this);
@@ -129,7 +163,7 @@ public sealed class HexView : Control
         _cursorBrush = B("FcFocusBorder", Brushes.Blue);
         _bg = B("FcPanel", Brushes.White);
         _hit = B("FcSearchHit", Brushes.Yellow);
-        _modified = B("FcModified", Brushes.Orange);
+        _modified = B("FcChangedByte", Brushes.Orange);
         InvalidateVisual();
     }
 
@@ -214,16 +248,29 @@ public sealed class HexView : Control
                     dc.FillRectangle(brush, new Rect(bx - 1, y, _charWidth * 2 + 2, _rowHeight));
                     dc.FillRectangle(brush, new Rect(tx, y, _charWidth, _rowHeight));
                 }
+                if (modified)
+                {
+                    // A non-color cue as well (plan PI-04): modified bytes are underlined in both columns.
+                    var mark = new Pen(_text, 1.5);
+                    dc.DrawLine(mark, new Point(bx, y + _rowHeight - 1.5), new Point(bx + _charWidth * 2, y + _rowHeight - 1.5));
+                    dc.DrawLine(mark, new Point(tx, y + _rowHeight - 1.5), new Point(tx + _charWidth, y + _rowHeight - 1.5));
+                }
                 if (pos == _cursor)
                 {
-                    dc.DrawRectangle(null, new Pen(_cursorBrush, 1.5), new Rect(bx - 1, y + 0.5, _charWidth * 2 + 2, _rowHeight - 1));
-                    dc.DrawRectangle(null, new Pen(_cursorBrush, 1), new Rect(tx, y + 0.5, _charWidth, _rowHeight - 1));
+                    double hexPen = TracksActiveColumn && _textColumnActive ? 1 : 1.5, textPen = TracksActiveColumn && _textColumnActive ? 2 : 1;
+                    dc.DrawRectangle(null, new Pen(_cursorBrush, hexPen), new Rect(bx - 1, y + 0.5, _charWidth * 2 + 2, _rowHeight - 1));
+                    dc.DrawRectangle(null, new Pen(_cursorBrush, textPen), new Rect(tx, y + 0.5, _charWidth, _rowHeight - 1));
                 }
-                if (i < n)
+                if (pos == _cursor && _pendingNibble >= 0)
+                {
+                    hex.Append(_pendingNibble.ToString("X", CultureInfo.InvariantCulture)).Append("_ ");
+                    text.Append(i < n ? Printable(buffer[i]) : '·');
+                }
+                else if (i < n)
                 {
                     byte b = buffer[i];
                     hex.Append(b.ToString("X2", CultureInfo.InvariantCulture)).Append(' ');
-                    text.Append(b is >= 0x20 and < 0x7F ? (char)b : b >= 0xA0 ? (char)b : '.');
+                    text.Append(Printable(b));
                 }
                 else
                 {
@@ -236,6 +283,8 @@ public sealed class HexView : Control
             DrawText(dc, text.ToString(), xText, y, ok ? _text : _muted);
         }
     }
+
+    private static char Printable(byte b) => b is >= 0x20 and < 0x7F ? (char)b : b >= 0xA0 ? (char)b : '.';
 
     private void DrawText(DrawingContext dc, string s, double x, double y, IBrush brush)
     {
@@ -307,6 +356,7 @@ public sealed class HexView : Control
         var p = e.GetPosition(this);
         long pos = HitTest(p);
         if (pos < 0) return;
+        if (TracksActiveColumn) _textColumnActive = p.X >= TextColumnX;
         if ((e.KeyModifiers & KeyModifiers.Shift) != 0)
         {
             if (_anchor < 0) _anchor = _cursor;
@@ -335,12 +385,14 @@ public sealed class HexView : Control
         e.Pointer.Capture(null);
     }
 
+    private double TextColumnX => (OffsetDigits + 2) * _charWidth + (BytesPerRow * 3 + 2) * _charWidth;
+
     private long HitTest(Point p)
     {
         if (_reader is null) return -1;
         long row = _topRow + (long)(p.Y / _rowHeight);
         double xHex = (OffsetDigits + 2) * _charWidth;
-        double xText = xHex + (BytesPerRow * 3 + 2) * _charWidth;
+        double xText = TextColumnX;
         int col;
         if (p.X >= xText) col = (int)((p.X - xText) / _charWidth);
         else

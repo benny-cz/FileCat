@@ -210,7 +210,7 @@ public sealed class WindowsRegistryProviderTests
             {
                 overlay.Write(2, [90]);
                 overlay.Write(20, [91]);
-                Assert.Throws<IOException>(() => HexSaveJournal.Save(protectedFile, overlay, journalDir,
+                Assert.Throws<HexSaveInterruptedException>(() => HexSaveJournal.Save(protectedFile, overlay, journalDir,
                     step => { if (step == 1) throw new IOException("simulated interruption"); }));
             }
             var pending = Assert.Single(HexSaveJournal.Pending(journalDir));
@@ -224,7 +224,7 @@ public sealed class WindowsRegistryProviderTests
             {
                 overlay.Write(2, [90]);
                 overlay.Write(20, [91]);
-                Assert.Throws<IOException>(() => HexSaveJournal.Save(protectedFile, overlay, journalDir,
+                Assert.Throws<HexSaveInterruptedException>(() => HexSaveJournal.Save(protectedFile, overlay, journalDir,
                     step => { if (step == 0) throw new IOException("simulated interruption before write"); }));
             }
             record = HexSaveJournal.Read(Assert.Single(HexSaveJournal.Pending(journalDir)));

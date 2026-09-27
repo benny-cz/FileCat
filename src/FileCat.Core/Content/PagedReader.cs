@@ -17,6 +17,8 @@ public sealed class PagedReader : IDisposable
     private readonly LinkedList<Page> _lru = new();
     private readonly HashSet<long> _loading = new();
     private long _length;
+    // Bumped whenever cached content is replaced; a load that started earlier must not insert its stale page.
+    private long _generation;
 
     private sealed record Page(long Index, byte[] Data, int Length);
 
@@ -112,9 +114,11 @@ public sealed class PagedReader : IDisposable
 
     private Page? LoadPage(long index)
     {
+        long generation;
         lock (_lock)
         {
             if (_pages.TryGetValue(index, out var existing)) return existing.Value;
+            generation = _generation;
         }
         var buffer = new byte[PageSize];
         int n;
@@ -130,6 +134,7 @@ public sealed class PagedReader : IDisposable
         lock (_lock)
         {
             if (_pages.TryGetValue(index, out var raced)) return raced.Value;
+            if (generation != _generation) return page;
             _pages[index] = _lru.AddFirst(page);
             while (_pages.Count > _maxPages)
             {
@@ -151,6 +156,7 @@ public sealed class PagedReader : IDisposable
         {
             lock (_lock)
             {
+                _generation++;
                 _pages.Clear();
                 _lru.Clear();
             }
@@ -158,6 +164,32 @@ public sealed class PagedReader : IDisposable
             Revision = rev;
         }
         return changed;
+    }
+
+    /// <summary>
+    /// Applies bytes just written through the source to cached pages without I/O, so an editor updates in place
+    /// instead of reloading (and briefly blanking) the view. Loads already in flight are discarded.
+    /// </summary>
+    public void Overwrite(long offset, ReadOnlySpan<byte> bytes)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        lock (_lock)
+        {
+            _generation++;
+            for (int done = 0; done < bytes.Length;)
+            {
+                long pos = offset + done;
+                long index = pos / PageSize;
+                int inPage = (int)(pos - index * PageSize);
+                int span = Math.Min(bytes.Length - done, PageSize - inPage);
+                if (_pages.TryGetValue(index, out var node))
+                {
+                    int copy = Math.Min(span, node.Value.Length - inPage);
+                    if (copy > 0) bytes.Slice(done, copy).CopyTo(node.Value.Data.AsSpan(inPage));
+                }
+                done += span;
+            }
+        }
     }
 
     public void Dispose() => _source.Dispose();

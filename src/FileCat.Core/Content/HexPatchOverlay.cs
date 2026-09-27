@@ -7,6 +7,9 @@ public sealed record HexPatchRange(long Offset, byte[] Original, byte[] Replacem
     public long End => checked(Offset + Original.Length);
 }
 
+/// <summary>A change seen through the overlay: new content at an offset, or (Bytes null) only a save-state change.</summary>
+public readonly record struct HexOverlayChange(long Offset, byte[]? Bytes);
+
 /// <summary>Fixed-length sparse byte overlay with bounded touched bytes and undo history.</summary>
 public sealed class HexPatchOverlay : IContentSource
 {
@@ -44,7 +47,9 @@ public sealed class HexPatchOverlay : IContentSource
     public bool CanUndo { get { lock (_gate) return _undo.Count > 0; } }
     public bool CanRedo { get { lock (_gate) return _redo.Count > 0; } }
     public bool IsModified(long offset) { lock (_gate) return _patch.ContainsKey(offset); }
-    public event Action? Changed;
+
+    /// <summary>Raised outside the lock on the thread that changed the overlay.</summary>
+    public event Action<HexOverlayChange>? Changed;
 
     public ContentRevision? GetRevision() => new(Length, Interlocked.Read(ref _revision), "hex-overlay");
 
@@ -100,39 +105,46 @@ public sealed class HexPatchOverlay : IContentSource
             }
             Interlocked.Increment(ref _revision);
         }
-        Changed?.Invoke();
+        Changed?.Invoke(new HexOverlayChange(offset, after));
     }
 
-    public bool Undo()
+    public bool Undo() => Undo(out _);
+
+    /// <summary>Reverts the last action; <paramref name="change"/> says where, so an editor can show it.</summary>
+    public bool Undo(out HexOverlayChange change)
     {
         lock (_gate)
         {
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
-            if (_undo.Last is null) return false;
+            if (_undo.Last is null) { change = default; return false; }
             var action = _undo.Last.Value;
             _undo.RemoveLast();
             _undoBytes -= action.Cost;
             Apply(action.Offset, action.Before);
             _redo.Push(action);
             Interlocked.Increment(ref _revision);
+            change = new HexOverlayChange(action.Offset, action.Before);
         }
-        Changed?.Invoke();
+        Changed?.Invoke(change);
         return true;
     }
 
-    public bool Redo()
+    public bool Redo() => Redo(out _);
+
+    public bool Redo(out HexOverlayChange change)
     {
         lock (_gate)
         {
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
-            if (_redo.Count == 0) return false;
+            if (_redo.Count == 0) { change = default; return false; }
             var action = _redo.Pop();
             Apply(action.Offset, action.After);
             _undo.AddLast(action);
             _undoBytes += action.Cost;
             Interlocked.Increment(ref _revision);
+            change = new HexOverlayChange(action.Offset, action.After);
         }
-        Changed?.Invoke();
+        Changed?.Invoke(change);
         return true;
     }
 
@@ -192,7 +204,7 @@ public sealed class HexPatchOverlay : IContentSource
             }
             _saving = false;
         }
-        if (committed) Changed?.Invoke();
+        if (committed) Changed?.Invoke(new HexOverlayChange(0, null));
     }
 
     /// <summary>Drop committed edits; subsequent undo applies only to the next unsaved session.</summary>
@@ -204,7 +216,7 @@ public sealed class HexPatchOverlay : IContentSource
             _patch.Clear(); _original.Clear(); _undo.Clear(); _redo.Clear(); _undoBytes = 0;
             Interlocked.Increment(ref _revision);
         }
-        Changed?.Invoke();
+        Changed?.Invoke(new HexOverlayChange(0, null));
     }
 
     public void Dispose() => _baseline.Dispose();
