@@ -1,5 +1,6 @@
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
 
@@ -81,7 +82,7 @@ public sealed class JobEngineTests : IDisposable
         Assert.Equal(100_000, new FileInfo(Path.Combine(_dst, "src", "sub", "deep", "b.bin")).Length);
         Assert.True(Directory.Exists(Path.Combine(_dst, "src", "empty")));
         Assert.Empty(Directory.GetFiles(_dst, JournalRecovery.StagedPrefix + "*", SearchOption.AllDirectories));
-        Assert.Single(job.CompletedRoots);
+        Assert.Equal([0], job.CompletedRootIndices);
     }
 
     [Theory]
@@ -273,5 +274,70 @@ public sealed class JobEngineTests : IDisposable
         Assert.NotNull(SafeNames.Validate("file.txt:stream"));
         Assert.NotNull(SafeNames.Validate(".."));
         Assert.Null(SafeNames.Validate("ok.txt"));
+    }
+
+    [Fact]
+    public async Task Captured_selection_runs_by_position_after_the_listing_moved_on()
+    {
+        File.WriteAllText(Path.Combine(_src, "a.txt"), "a");
+        File.WriteAllText(Path.Combine(_src, "b.txt"), "b");
+        var store = new EntryStore();
+        store.Append([new EntryData("a.txt", EntryKind.File, 1), new EntryData("missing.txt", EntryKind.File, 1), new EntryData("b.txt", EntryKind.File, 1)]);
+        var snapshot = new SelectionSnapshot(_providers.Get(Schemes.FileSystem), Location.FileSystem(_src), store, [2, 1, 0]);
+        store.Dispose(); // the listing navigated away; the lease keeps the capture readable
+        var job = await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = snapshot, Destination = Location.FileSystem(_dst) }));
+        Assert.Equal([0, 2], job.CompletedRootIndices);
+        Assert.Equal([1], job.FailedRootIndices);
+        Assert.Equal("b", File.ReadAllText(Path.Combine(_dst, "b.txt")));
+        Assert.Equal(Location.FileSystem(_src), Assert.Single(ItemSources.Parents(snapshot)!));
+        snapshot.Release();
+        Assert.Throws<ObjectDisposedException>(() => store[0]);
+        Assert.Throws<ObjectDisposedException>(() => snapshot[0]);
+        Assert.Equal(1, snapshot.GetStoreIndex(1)); // positions stay mappable for unmarking
+    }
+
+    [Fact]
+    public async Task Result_items_recreate_relative_folders_unless_flattened()
+    {
+        var deep = Directory.CreateDirectory(Path.Combine(_src, "x", "y")).FullName;
+        File.WriteAllText(Path.Combine(deep, "r.txt"), "r");
+        var item = new ItemRef(Location.FileSystem(deep), "r.txt", EntryKind.File) { RelativeFolder = Path.Combine("x", "y") };
+        Assert.Equal(item, new ItemRef(Location.FileSystem(deep), "r.txt", EntryKind.File)); // not part of identity
+        await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [item], Destination = Location.FileSystem(_dst) }));
+        Assert.True(File.Exists(Path.Combine(_dst, "x", "y", "r.txt")));
+        var flat = Path.Combine(_dir.Path, "flat");
+        await WaitAsync(_jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [item], Destination = Location.FileSystem(flat), Options = new TransferOptions { Flatten = true },
+        }));
+        Assert.True(File.Exists(Path.Combine(flat, "r.txt")));
+    }
+
+    [Fact]
+    public async Task Unrecyclable_items_are_left_alone_or_deleted_by_consent_with_positions()
+    {
+        // The portable layer has no Recycle Bin on Windows, so every item is classified as unrecyclable.
+        if (!OperatingSystem.IsWindows()) return;
+        var files = Enumerable.Range(0, 3).Select(i => Path.Combine(_src, $"u{i}.txt")).ToList();
+        foreach (var f in files) File.WriteAllText(f, "u");
+        var kept = await WaitAsync(Submit(JobKind.Recycle, files));
+        Assert.Equal([0, 1, 2], kept.FailedRootIndices);
+        Assert.All(files, f => Assert.True(File.Exists(f)));
+        Assert.Equal(3, kept.ItemsTotal);
+        var deleted = await WaitAsync(Submit(JobKind.Recycle, files, configure: o => o.PermanentlyDeleteUnrecyclable = true));
+        Assert.Equal([0, 1, 2], deleted.CompletedRootIndices);
+        Assert.All(files, f => Assert.False(File.Exists(f)));
+    }
+
+    [Fact]
+    public void Undo_is_not_recorded_partially_for_huge_operations()
+    {
+        var request = new JobRequest { Kind = JobKind.Move, Sources = [Item(_src)], Destination = Location.FileSystem(_dst) };
+        var job = new Job(request, "Move", "local", [], []);
+        for (int i = 0; i <= Job.UndoLimit; i++) job.AddUndo(new UndoStep(UndoKind.MoveBack, "a", "b", 0, 0));
+        Assert.True(job.UndoTruncated);
+        Assert.Empty(job.UndoSteps);
+        job.AddUndo(new UndoStep(UndoKind.MoveBack, "a", "b", 0, 0));
+        Assert.Empty(job.UndoSteps);
     }
 }

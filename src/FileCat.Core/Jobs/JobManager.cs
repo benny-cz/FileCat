@@ -253,17 +253,10 @@ public sealed class JobManager
         void AddSourceScopes(List<string> destination)
         {
             if (!large) { destination.AddRange(r.Sources.Select(P)); return; }
-            var parents = new HashSet<string>(PathUtil.SafetyComparer);
-            foreach (var item in r.Sources)
-            {
-                if (!item.Parent.IsFileSystem) { destination.Add(GlobalScope); return; }
-                if (!parents.Add(item.Parent.Path)) continue;
-                if (parents.Count <= 128) continue;
-                destination.Add(GlobalScope);
-                return;
-            }
-            if (parents.Count == 0) destination.Add(GlobalScope);
-            else destination.AddRange(parents);
+            // Huge selections are scoped by their parent folders; a captured listing answers without enumerating.
+            var parents = Listing.ItemSources.Parents(r.Sources, 128);
+            if (parents is null || parents.Count == 0 || parents.Any(p => !p.IsFileSystem)) destination.Add(GlobalScope);
+            else destination.AddRange(parents.Select(p => p.Path).Distinct(PathUtil.SafetyComparer));
         }
         void AddDestinationScopes()
         {

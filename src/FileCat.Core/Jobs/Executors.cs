@@ -165,12 +165,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 if (!TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
                 Journal.Note("created destination " + destDir);
             }
-            foreach (var root in Job.Request.Sources)
+            var sources = Job.Request.Sources;
+            for (int i = 0; i < sources.Count; i++)
             {
                 Job.Checkpoint();
-                var result = ProcessRoot(root, destDir);
-                if (result is Result.Committed) Job.RootCompleted(root);
-                else if (result is Result.Failed or Result.Skipped) Job.RootFailed(root);
+                var result = ProcessRoot(sources[i], destDir);
+                if (result is Result.Committed) Job.RootCompleted(i);
+                else if (result is Result.Failed or Result.Skipped) Job.RootFailed(i);
             }
         }
         finally
@@ -217,8 +218,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private string TargetDirectoryFor(ItemRef root, string destDir)
     {
-        if (Options.Flatten || Job.Request.RelativeFolders is null || !Job.Request.RelativeFolders.TryGetValue(root, out var rel) || string.IsNullOrEmpty(rel))
-            return destDir;
+        if (Options.Flatten || root.RelativeFolder is not { Length: > 0 } rel) return destDir;
         var dir = Path.Combine(destDir, rel);
         Directory.CreateDirectory(dir);
         return dir;
@@ -787,12 +787,17 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
 {
     private static readonly EnumerationOptions ChildOptions = new() { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 };
 
-    public override void Execute() => Run(Job.Request.Sources.Select(s => (s, s.FileSystemPath!)).ToList());
-
-    internal void Run(IReadOnlyList<(ItemRef Root, string Path)> roots)
+    public override void Execute()
     {
-        foreach (var (root, path) in roots) Job.AddTotals(1, 0);
-        foreach (var (root, path) in roots)
+        var sources = Job.Request.Sources;
+        Run(Enumerable.Range(0, sources.Count).Select(i => (i, sources[i].FileSystemPath!)), sources.Count);
+    }
+
+    /// <param name="roots">Positions in the request's sources with their paths, streamed.</param>
+    internal void Run(IEnumerable<(int Index, string Path)> roots, int count)
+    {
+        Job.AddTotals(count, 0);
+        foreach (var (index, path) in roots)
         {
             Job.Checkpoint();
             var info = Fs.TryGetInfo(path);
@@ -800,14 +805,14 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
             {
                 Job.ItemSkipped();
                 Issue(IssueSeverity.Info, path, "Already gone; nothing to delete.", StepOutcome.Skipped);
-                Job.RootCompleted(root);
+                Job.RootCompleted(index);
                 continue;
             }
             int step = Journal.Intent(info.IsDirectory && !info.IsLink ? "delete-tree" : "delete", path);
             bool ok = info.IsDirectory && !info.IsLink ? DeleteTree(path) : DeleteOne(path, info);
             Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.PartiallyApplied);
-            if (ok) Job.RootCompleted(root);
-            else Job.RootFailed(root);
+            if (ok) Job.RootCompleted(index);
+            else Job.RootFailed(index);
         }
     }
 
@@ -872,76 +877,94 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
 /// </summary>
 internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
+    /// <summary>Items per Shell operation: bounds memory for huge selections and gives cancellation points.</summary>
+    internal const int ChunkSize = 2048;
+
     public override void Execute()
     {
-        var recyclable = new List<(ItemRef Root, string Path)>();
-        var unrecyclable = new List<(ItemRef Root, string Path, RecycleClassification Why)>();
-        foreach (var s in Job.Request.Sources)
+        var sources = Job.Request.Sources;
+        var unrecyclable = new List<(int Index, RecycleClassification Why)>();
+        int unrecyclableTotal = 0;
+        for (int start = 0; start < sources.Count; start += ChunkSize)
         {
-            var p = s.FileSystemPath!;
-            var info = Fs.TryGetInfo(p);
-            if (info is null)
+            Job.Checkpoint();
+            var recyclable = new List<(int Index, string Path)>();
+            for (int i = start; i < Math.Min(sources.Count, start + ChunkSize); i++)
             {
-                Job.ItemSkipped();
-                Issue(IssueSeverity.Info, p, "Already gone; nothing to delete.", StepOutcome.Skipped);
-                Job.RootCompleted(s);
-                continue;
-            }
-            var c = Fs.ClassifyRecycle(p, info.IsDirectory ? -1 : info.Size);
-            if (c == RecycleClassification.Recyclable || c == RecycleClassification.Unknown) recyclable.Add((s, p));
-            else unrecyclable.Add((s, p, c));
-        }
-        Job.AddTotals(recyclable.Count + unrecyclable.Count, 0);
-        if (recyclable.Count > 0)
-        {
-            foreach (var (_, p) in recyclable) Journal.Intent("recycle", p);
-            var results = Fs.Recycle(recyclable.Select(r => r.Path).ToList(), started => Job.SetCurrent(started), Job.Token);
-            var byPath = recyclable.ToDictionary(r => r.Path, r => r.Root, PathUtil.SafetyComparer);
-            foreach (var r in results)
-            {
-                var root = byPath.GetValueOrDefault(r.Path);
-                switch (r.Outcome)
+                var p = sources[i].FileSystemPath!;
+                var info = Fs.TryGetInfo(p);
+                if (info is null)
                 {
-                    case RecycleOutcome.Recycled:
-                        Job.ItemDone();
-                        if (root is not null) Job.RootCompleted(root);
-                        if (r.RecycledId is not null) Job.AddUndo(new UndoStep(UndoKind.RestoreRecycled, r.RecycledId, r.Path, 0, 0, r.RecycledId));
-                        break;
-                    case RecycleOutcome.PermanentlyDeleted:
-                        Job.ItemDone();
-                        if (root is not null) Job.RootCompleted(root);
-                        Issue(IssueSeverity.Warning, r.Path, "Windows deleted this item permanently instead of moving it to the Recycle Bin.", StepOutcome.Committed);
-                        break;
-                    case RecycleOutcome.Aborted:
-                        Job.ItemSkipped();
-                        if (root is not null) Job.RootFailed(root);
-                        Issue(IssueSeverity.Warning, r.Path, "Not deleted: it would have been deleted permanently instead of recycled. " + r.Error, StepOutcome.CanceledBeforeChange);
-                        break;
-                    case RecycleOutcome.NotAttempted:
-                        if (root is not null) Job.RootFailed(root);
-                        break;
-                    default:
-                        Job.ItemFailed();
-                        if (root is not null) Job.RootFailed(root);
-                        Issue(IssueSeverity.Error, r.Path, "Could not recycle: " + r.Error, StepOutcome.Failed);
-                        break;
+                    Job.AddTotals(1, 0);
+                    Job.ItemSkipped();
+                    Issue(IssueSeverity.Info, p, "Already gone; nothing to delete.", StepOutcome.Skipped);
+                    Job.RootCompleted(i);
+                    continue;
+                }
+                var c = Fs.ClassifyRecycle(p, info.IsDirectory ? -1 : info.Size);
+                if (c == RecycleClassification.Recyclable || c == RecycleClassification.Unknown) recyclable.Add((i, p));
+                else
+                {
+                    unrecyclable.Add((i, c));
+                    unrecyclableTotal++;
                 }
             }
+            Job.AddTotals(recyclable.Count, 0);
+            if (recyclable.Count > 0) RecycleChunk(recyclable);
         }
         if (unrecyclable.Count > 0)
         {
             if (Job.Request.Options.PermanentlyDeleteUnrecyclable)
             {
-                new DeleteExecutor(Job, Fs, Journal).Run(unrecyclable.Select(u => (u.Root, u.Path)).ToList());
+                new DeleteExecutor(Job, Fs, Journal).Run(unrecyclable.Select(u => (u.Index, sources[u.Index].FileSystemPath!)), unrecyclableTotal);
             }
             else
             {
+                Job.AddTotals(unrecyclableTotal, 0);
                 foreach (var u in unrecyclable)
                 {
                     Job.ItemSkipped();
-                    Job.RootFailed(u.Root);
-                    Issue(IssueSeverity.Warning, u.Path, "Not deleted: " + RecycleText.Explain(u.Why) + " Nothing was changed.", StepOutcome.CanceledBeforeChange);
+                    Job.RootFailed(u.Index);
+                    Issue(IssueSeverity.Warning, sources[u.Index].FileSystemPath!, "Not deleted: " + RecycleText.Explain(u.Why) + " Nothing was changed.", StepOutcome.CanceledBeforeChange);
                 }
+            }
+        }
+    }
+
+    private void RecycleChunk(List<(int Index, string Path)> recyclable)
+    {
+        foreach (var (_, p) in recyclable) Journal.Intent("recycle", p);
+        var results = Fs.Recycle(recyclable.Select(r => r.Path).ToList(), started => Job.SetCurrent(started), Job.Token);
+        var byPath = new Dictionary<string, int>(recyclable.Count, PathUtil.SafetyComparer);
+        foreach (var (index, path) in recyclable) byPath.TryAdd(path, index);
+        foreach (var r in results)
+        {
+            int root = byPath.TryGetValue(r.Path, out int found) ? found : -1;
+            switch (r.Outcome)
+            {
+                case RecycleOutcome.Recycled:
+                    Job.ItemDone();
+                    if (root >= 0) Job.RootCompleted(root);
+                    if (r.RecycledId is not null) Job.AddUndo(new UndoStep(UndoKind.RestoreRecycled, r.RecycledId, r.Path, 0, 0, r.RecycledId));
+                    break;
+                case RecycleOutcome.PermanentlyDeleted:
+                    Job.ItemDone();
+                    if (root >= 0) Job.RootCompleted(root);
+                    Issue(IssueSeverity.Warning, r.Path, "Windows deleted this item permanently instead of moving it to the Recycle Bin.", StepOutcome.Committed);
+                    break;
+                case RecycleOutcome.Aborted:
+                    Job.ItemSkipped();
+                    if (root >= 0) Job.RootFailed(root);
+                    Issue(IssueSeverity.Warning, r.Path, "Not deleted: it would have been deleted permanently instead of recycled. " + r.Error, StepOutcome.CanceledBeforeChange);
+                    break;
+                case RecycleOutcome.NotAttempted:
+                    if (root >= 0) Job.RootFailed(root);
+                    break;
+                default:
+                    Job.ItemFailed();
+                    if (root >= 0) Job.RootFailed(root);
+                    Issue(IssueSeverity.Error, r.Path, "Could not recycle: " + r.Error, StepOutcome.Failed);
+                    break;
             }
         }
     }
@@ -1002,7 +1025,7 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         {
             Job.ItemFailed();
             Issue(IssueSeverity.Error, src, "The item no longer exists.", StepOutcome.Failed);
-            Job.RootFailed(root);
+            Job.RootFailed(0);
             return;
         }
         bool caseOnly = string.Equals(src, dst, StringComparison.OrdinalIgnoreCase);
@@ -1016,7 +1039,7 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
             else if (d.Action == DecisionAction.Skip)
             {
                 Job.ItemSkipped();
-                Job.RootFailed(root);
+                Job.RootFailed(0);
                 return;
             }
             else throw new OperationCanceledException();
@@ -1027,13 +1050,13 @@ internal sealed class RenameExecutor(Job job, IFileSystemOperations fs, JobJourn
         if (!ok)
         {
             Job.ItemFailed();
-            Job.RootFailed(root);
+            Job.RootFailed(0);
             return;
         }
         var after = Fs.TryGetInfo(dst);
         if (!replace) Job.AddUndo(new UndoStep(UndoKind.MoveBack, dst, src, after?.Size ?? info.Size, (after?.ModifiedUtc ?? info.ModifiedUtc).Ticks));
         Job.ItemDone();
-        Job.RootCompleted(root);
+        Job.RootCompleted(0);
     }
 }
 
@@ -1100,10 +1123,11 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
     public override void Execute()
     {
         var change = Job.Request.Attributes ?? throw new InvalidOperationException("No attribute change.");
-        foreach (var root in Job.Request.Sources)
+        var sources = Job.Request.Sources;
+        for (int i = 0; i < sources.Count; i++)
         {
             Job.Checkpoint();
-            var path = root.FileSystemPath!;
+            var path = sources[i].FileSystemPath!;
             bool ok = Apply(path, change);
             if (ok && change.Recursive && Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
             {
@@ -1113,8 +1137,8 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
                     ok &= Apply(child, change);
                 }
             }
-            if (ok) Job.RootCompleted(root);
-            else Job.RootFailed(root);
+            if (ok) Job.RootCompleted(i);
+            else Job.RootFailed(i);
         }
     }
 

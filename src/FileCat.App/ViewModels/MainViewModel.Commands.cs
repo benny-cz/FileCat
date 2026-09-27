@@ -286,8 +286,8 @@ public sealed partial class MainViewModel
             case CommandIds.MarkRestore:
                 if (listing is not null)
                 {
-                    if (listing.LastOperationNames.Count == 0) Notify("No earlier operation selection in this tab.");
-                    listing.RestoreSelection();
+                    if (!listing.HasLastOperation) Notify("No earlier operation selection in this tab.");
+                    else if (!listing.RestoreSelection()) Notify("The earlier operation selection is no longer available after the folder changed.");
                 }
                 break;
             case CommandIds.UnmarkHidden:
@@ -593,12 +593,20 @@ public sealed partial class MainViewModel
     /// <summary>File-operation commands are wired by the operations layer (see MainViewModel.Operations.cs).</summary>
     private partial Task<bool> ExecuteOperationCommandAsync(string id);
 
-    internal static string ExactList(IEnumerable<string> names, int max = 8)
+    /// <param name="total">The full count when <paramref name="names"/> holds only the first names.</param>
+    internal static string ExactList(IEnumerable<string> names, int max = 8, int total = -1)
     {
-        var list = names.ToList();
         var sb = new StringBuilder();
-        foreach (var n in list.Take(max)) sb.Append("  • ").AppendLine(Formatters.SafeName(n));
-        if (list.Count > max) sb.Append("  … and ").Append(list.Count - max).AppendLine(" more");
+        int shown = 0, count = 0;
+        foreach (var n in names)
+        {
+            count++;
+            if (shown == max) continue;
+            sb.Append("  • ").AppendLine(Formatters.SafeName(n));
+            shown++;
+        }
+        if (total >= 0) count = total;
+        if (count > shown) sb.Append("  … and ").Append((count - shown).ToString("N0")).AppendLine(" more");
         return sb.ToString();
     }
 }

@@ -112,6 +112,9 @@ public sealed class ItemRef : IEquatable<ItemRef>
     /// <summary>Distinguishes items that share a name in one container (duplicate archive entries).</summary>
     public int Ordinal { get; init; }
 
+    /// <summary>Folder relative to a result set's search root (keep-relative-paths copies). Not identity.</summary>
+    public string? RelativeFolder { get; init; }
+
     public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Drive or EntryKind.Share or EntryKind.RegistryKey;
 
     /// <summary>Full file-system path when the parent is a file-system location, otherwise null.</summary>

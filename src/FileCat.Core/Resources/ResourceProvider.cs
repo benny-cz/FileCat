@@ -83,6 +83,9 @@ public abstract class ResourceProvider
     /// <summary>Identity of an entry listed at <paramref name="listing"/>. Result sets override this.</summary>
     public virtual ItemRef GetItemRef(Location listing, in EntryData entry) => ItemRef.FromEntry(listing, entry);
 
+    /// <summary>True when every item of a listing has the listing itself as its parent (false for result sets).</summary>
+    public virtual bool ItemsShareListingParent => true;
+
     /// <summary>Opens item content for random-access reading, or null when unsupported.</summary>
     public virtual IContentSource? OpenContent(ItemRef item) => null;
 

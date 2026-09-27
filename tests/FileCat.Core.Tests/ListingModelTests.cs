@@ -174,7 +174,12 @@ public sealed class ListingModelTests : IDisposable
         Assert.Equal(2, n);
         await _ui.InvokeAsync(() => m.InvertMarks(includeDirectories: false));
         Assert.Equal(["c.log"], await _ui.InvokeAsync(() => m.GetSelection().Select(s => s.Name).ToArray()));
-        await _ui.InvokeAsync(() => { m.LastOperationNames = ["a.txt", "b.txt"]; m.UnmarkEverything(); m.RestoreSelection(); });
+        await _ui.InvokeAsync(() =>
+        {
+            m.RememberOperation([m.GetItemRef(m.FindStoreIndex("a.txt")), m.GetItemRef(m.FindStoreIndex("b.txt"))]);
+            m.UnmarkEverything();
+            Assert.True(m.RestoreSelection());
+        });
         Assert.Equal(2, await _ui.InvokeAsync(() => m.MarkedCount));
     }
 
@@ -241,4 +246,57 @@ public sealed class ListingModelTests : IDisposable
         public void Release() => _release.Set();
     }
 
+
+    [Fact]
+    public async Task Large_selection_is_a_leased_snapshot_that_survives_navigation()
+    {
+        for (int i = 0; i < 50; i++) _dir.File($"f{i:00}.txt");
+        var other = _dir.Dir("other");
+        var m = await LoadAsync(_dir.Path);
+        var sel = await _ui.InvokeAsync(() =>
+        {
+            m.SnapshotThreshold = 10;
+            m.MarkByMask(Mask.Parse("*.txt"), true, includeDirectories: false);
+            return m.GetSelection();
+        });
+        var snapshot = Assert.IsType<SelectionSnapshot>(sel);
+        Assert.Equal(50, snapshot.Count);
+        Assert.Equal(Location.FileSystem(_dir.Path), snapshot.CommonParent);
+        Assert.Equal(Enumerable.Range(0, 50).Select(i => $"f{i:00}.txt"), snapshot.Select(s => s.Name));
+        // Positions map straight to marks while the listing generation is current.
+        await _ui.InvokeAsync(() => m.MarkItems(snapshot, [0, 1], false));
+        Assert.Equal(48, await _ui.InvokeAsync(() => m.MarkedCount));
+        await _ui.InvokeAsync(() => m.RememberOperation(snapshot));
+        await _ui.InvokeAsync(() => m.Load(Location.FileSystem(other)));
+        await _ui.WaitUntilAsync(() => m.State == ListingState.Complete);
+        Assert.Equal("f49.txt", snapshot[49].Name);
+        Assert.False(await _ui.InvokeAsync(() => m.HasLastOperation)); // navigation forgets the operation selection
+        snapshot.Release();
+        await _ui.WaitUntilAsync(() =>
+        {
+            try { _ = snapshot.Store[0]; return false; }
+            catch (ObjectDisposedException) { return true; }
+        });
+    }
+
+    [Fact]
+    public async Task Completed_items_are_unmarked_by_identity_after_a_refresh()
+    {
+        _dir.File("a.txt");
+        _dir.File("b.txt");
+        var m = await LoadAsync(_dir.Path);
+        var sel = await _ui.InvokeAsync(() =>
+        {
+            m.SnapshotThreshold = 0;
+            m.MarkByMask(Mask.Parse("*.txt"), true, includeDirectories: false);
+            return m.GetSelection();
+        });
+        _dir.File("c.txt");
+        await _ui.InvokeAsync(() => m.Refresh());
+        await _ui.WaitUntilAsync(() => !m.IsRefreshing && m.TotalCount == 3);
+        Assert.Equal(2, await _ui.InvokeAsync(() => m.MarkedCount));
+        await _ui.InvokeAsync(() => m.MarkItems(sel, [1], false)); // b.txt completed
+        Assert.Equal(["a.txt"], await _ui.InvokeAsync(() => m.GetSelection().Select(s => s.Name).ToArray()));
+        ItemSources.Release(sel);
+    }
 }

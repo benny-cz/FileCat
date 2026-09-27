@@ -19,7 +19,8 @@ public sealed record TransferDialogInput(JobKind Kind, IReadOnlyList<ItemRef> It
 
 public sealed record TransferDialogResult(string Destination, TransferOptions Options, bool Queue, bool IncludeHidden);
 
-public sealed record DeleteDialogInput(IReadOnlyList<ItemRef> Items, string Summary, bool Permanent, int HiddenMarked, IReadOnlyList<(string Name, string Why)> Unrecyclable, bool FromResultSet)
+/// <param name="Unrecyclable">Examples (bounded); <paramref name="UnrecyclableCount"/> is the full count.</param>
+public sealed record DeleteDialogInput(IReadOnlyList<ItemRef> Items, string Summary, bool Permanent, int HiddenMarked, IReadOnlyList<(string Name, string Why)> Unrecyclable, bool FromResultSet, int UnrecyclableCount = 0)
 {
     public bool SkipDialog { get; init; }
 }
@@ -34,11 +35,11 @@ public static class OperationDialogs
     private static TextBlock Text(string text, bool bold = false) =>
         new() { Text = text, TextWrapping = TextWrapping.Wrap, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal, MaxWidth = 680 };
 
-    private static string NameList(IEnumerable<string> names, int max = 6)
+    /// <summary>The first names only: a captured selection may hold a million items.</summary>
+    private static string NameList(IReadOnlyList<ItemRef> items, int max = 6)
     {
-        var list = names.ToList();
-        var shown = string.Join(", ", list.Take(max).Select(n => "\"" + Formatters.SafeName(n) + "\""));
-        return list.Count > max ? $"{shown} and {list.Count - max} more" : shown;
+        var shown = string.Join(", ", Enumerable.Range(0, Math.Min(max, items.Count)).Select(i => "\"" + Formatters.SafeName(items[i].Name) + "\""));
+        return items.Count > max ? $"{shown} and {items.Count - max:N0} more" : shown;
     }
 
     // ---- Copy / move ------------------------------------------------------------------------------------
@@ -48,7 +49,7 @@ public static class OperationDialogs
         string verb = input.Kind == JobKind.Move ? "Move" : "Copy";
         var body = new StackPanel { Spacing = 6, MinWidth = 560 };
         body.Children.Add(Text($"{verb} {input.Summary}", bold: true));
-        body.Children.Add(Muted(NameList(input.Items.Select(i => i.Name))));
+        body.Children.Add(Muted(NameList(input.Items)));
         body.Children.Add(new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", Margin = new Thickness(0, 6, 0, 0) });
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
@@ -198,7 +199,7 @@ public static class OperationDialogs
         body.Children.Add(Text(input.Permanent
             ? $"Delete {what} permanently? This cannot be undone."
             : $"Move {what} to the Recycle Bin?", bold: true));
-        if (input.Items.Count > 1) body.Children.Add(Muted(NameList(input.Items.Select(i => i.Name), 8)));
+        if (input.Items.Count > 1) body.Children.Add(Muted(NameList(input.Items, 8)));
         if (input.FromResultSet) body.Children.Add(Text("These are the original items at their locations, not just entries of the result set. To only drop them from the set, use \"Remove from result set\"."));
         CheckBox? includeHidden = null;
         if (input.HiddenMarked > 0)
@@ -207,10 +208,11 @@ public static class OperationDialogs
             body.Children.Add(includeHidden);
         }
         RadioButton? deletePermanently = null;
-        if (input.Unrecyclable.Count > 0)
+        int unrecyclableCount = Math.Max(input.UnrecyclableCount, input.Unrecyclable.Count);
+        if (unrecyclableCount > 0)
         {
             var warn = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0) };
-            warn.Children.Add(new TextBlock { Text = $"{Formatters.Plural(input.Unrecyclable.Count, "item", "items")} cannot go to the Recycle Bin:", Classes = { "warning" }, FontWeight = FontWeight.SemiBold });
+            warn.Children.Add(new TextBlock { Text = $"{Formatters.Plural(unrecyclableCount, "item", "items")} cannot go to the Recycle Bin:", Classes = { "warning" }, FontWeight = FontWeight.SemiBold });
             foreach (var (name, why) in input.Unrecyclable.Take(6)) warn.Children.Add(Muted($"• {Formatters.SafeName(name)} — {why}"));
             var skip = new RadioButton { Content = "Leave those items untouched", IsChecked = true, GroupName = "unrecyclable" };
             deletePermanently = new RadioButton { Content = "Delete those items permanently", GroupName = "unrecyclable" };

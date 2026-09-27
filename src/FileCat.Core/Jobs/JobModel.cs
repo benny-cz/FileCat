@@ -117,8 +117,6 @@ public sealed class JobRequest
     public string? NewName { get; init; }
     public TransferOptions Options { get; init; } = new();
     public QueueMode Mode { get; init; } = QueueMode.Start;
-    /// <summary>Relative folders for result-set items (keep-relative-paths copies).</summary>
-    public IReadOnlyDictionary<ItemRef, string>? RelativeFolders { get; init; }
     public string? Description { get; init; }
     /// <summary>For <see cref="JobKind.Attributes"/>.</summary>
     public AttributeChangeSet? Attributes { get; init; }

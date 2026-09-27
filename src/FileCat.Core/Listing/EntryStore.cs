@@ -35,6 +35,8 @@ public sealed class EntryStore : IDisposable
     private long _knownFileBytes;
     private bool _hasPayload;
     private bool _disposed;
+    private int _leases;
+    private bool _disposeRequested;
 
     public EntryStore(string? scratchDirectory = null, long memoryBudgetBytes = long.MaxValue)
     {
@@ -280,20 +282,59 @@ public sealed class EntryStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Keeps the store readable after its listing has moved on (a job reading captured sources). Disposal
+    /// requested meanwhile happens when the last lease is released.
+    /// </summary>
+    public IDisposable Lease()
+    {
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            _leases++;
+        }
+        return new StoreLease(this);
+    }
+
+    private void ReleaseLease()
+    {
+        lock (_gate)
+        {
+            if (--_leases == 0 && _disposeRequested) DisposeLocked();
+        }
+    }
+
+    private sealed class StoreLease(EntryStore store) : IDisposable
+    {
+        private EntryStore? _store = store;
+
+        public void Dispose() => Interlocked.Exchange(ref _store, null)?.ReleaseLease();
+    }
+
     public void Dispose()
     {
         lock (_gate)
         {
             if (_disposed) return;
-            _disposed = true;
-            _records?.Dispose();
-            _names?.Dispose();
-            _records = null;
-            _names = null;
-            _pages = [];
-            _cache.Clear();
-            _cacheOrder.Clear();
-            DeleteScratch();
+            if (_leases > 0)
+            {
+                _disposeRequested = true;
+                return;
+            }
+            DisposeLocked();
         }
+    }
+
+    private void DisposeLocked()
+    {
+        _disposed = true;
+        _records?.Dispose();
+        _names?.Dispose();
+        _records = null;
+        _names = null;
+        _pages = [];
+        _cache.Clear();
+        _cacheOrder.Clear();
+        DeleteScratch();
     }
 }

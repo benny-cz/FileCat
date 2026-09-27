@@ -34,23 +34,25 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private string? _originMark;
 
     public static bool CanHandle(JobRequest r, ProviderRegistry providers) =>
-        r.Sources.Count > 0 && r.Sources.All(s => providers.IsRegistered(s.Parent.Scheme) &&
-            (providers.Get(s.Parent.Scheme).GetCapabilities(s.Parent) & LocationCapabilities.ReadContent) != 0);
+        r.Sources.Count > 0 && Listing.ItemSources.Parents(r.Sources)!.All(p => providers.IsRegistered(p.Scheme) &&
+            (providers.Get(p.Scheme).GetCapabilities(p) & LocationCapabilities.ReadContent) != 0);
 
     public override void Execute()
     {
         var destDir = Job.Request.Destination!.Path;
         if (!Directory.Exists(destDir) && !TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
         _originMark = FindOriginMark(Job.Request.Sources[0].Parent);
-        foreach (var root in Job.Request.Sources)
+        var sources = Job.Request.Sources;
+        for (int index = 0; index < sources.Count; index++)
         {
             Job.Checkpoint();
-            var name = Job.Request.Sources.Count == 1 && !string.IsNullOrEmpty(Job.Request.NewName) ? Job.Request.NewName! : root.Name;
+            var root = sources[index];
+            var name = sources.Count == 1 && !string.IsNullOrEmpty(Job.Request.NewName) ? Job.Request.NewName! : root.Name;
             if (SafeNames.Validate(name) is { } bad)
             {
                 Job.ItemFailed();
                 Issue(IssueSeverity.Error, root.Name, $"Not extracted: {bad}", StepOutcome.Failed);
-                Job.RootFailed(root);
+                Job.RootFailed(index);
                 continue;
             }
             var dst = Path.Combine(destDir, name);
@@ -58,12 +60,12 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 Job.ItemFailed();
                 Issue(IssueSeverity.Error, root.Name, "Not extracted: the name would escape the destination folder.", StepOutcome.Failed);
-                Job.RootFailed(root);
+                Job.RootFailed(index);
                 continue;
             }
             bool ok = root.IsContainer ? CopyContainer(root, dst, destDir) : CopyItem(root, dst);
-            if (ok) Job.RootCompleted(root);
-            else Job.RootFailed(root);
+            if (ok) Job.RootCompleted(index);
+            else Job.RootFailed(index);
         }
         Job.TotalsFinal = true;
         Job.SetCurrent(null);

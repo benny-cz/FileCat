@@ -101,8 +101,15 @@ public sealed class ListingModel : IDisposable
     /// <summary>Re-sorts with current keys, e.g. after an explicit metadata analysis completed.</summary>
     public void Resort() => PushSpec();
 
-    /// <summary>Names used by the last operation started from this listing (restore selection).</summary>
-    public IReadOnlyCollection<string> LastOperationNames { get; set; } = [];
+    /// <summary>Selections with more items than this are captured as a <see cref="SelectionSnapshot"/>.</summary>
+    public int SnapshotThreshold { get; set; } = 4096;
+
+    /// <summary>Items of the last operation started from this listing (restore selection, Num /).</summary>
+    private IReadOnlyList<ItemRef>? _lastOperation;
+
+    public bool HasLastOperation => _lastOperation is not null;
+
+    public void RememberOperation(IReadOnlyList<ItemRef> items) => _lastOperation = items.Count > 0 ? items : null;
 
     public SortSpec Sort
     {
@@ -223,7 +230,7 @@ public sealed class ListingModel : IDisposable
         _focusVisibleHint = 0;
         _pendingFocusName = focusName;
         _pendingMarkNames = null;
-        LastOperationNames = [];
+        _lastOperation = null;
         Error = null;
         State = ListingState.Loading;
         CompletedAtUtc = null;
@@ -568,11 +575,52 @@ public sealed class ListingModel : IDisposable
         if (changed) MarksChanged();
     }
 
-    /// <summary>Restores the set used by the previous operation (Num /).</summary>
-    public void RestoreSelection()
+    /// <summary>Restores the set used by the previous operation (Num /). False when it is no longer available.</summary>
+    public bool RestoreSelection()
     {
-        if (LastOperationNames.Count == 0) return;
-        MarkNames(LastOperationNames, true);
+        if (_lastOperation is not { } items) return false;
+        try
+        {
+            MarkItems(items, Enumerable.Range(0, items.Count), true);
+            return true;
+        }
+        catch (ObjectDisposedException)
+        {
+            // A captured selection of an earlier generation was released; its names are gone with it.
+            _lastOperation = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Marks or unmarks the items at <paramref name="positions"/> of an operation's sources (for example the roots
+    /// a job completed). A capture of the current generation maps by store index; otherwise items match by identity.
+    /// </summary>
+    public void MarkItems(IReadOnlyList<ItemRef> sources, IEnumerable<int> positions, bool value)
+    {
+        bool changed = false;
+        if (sources is SelectionSnapshot s && ReferenceEquals(s.Store, _store))
+        {
+            foreach (int p in positions)
+            {
+                int si = s.GetStoreIndex(p);
+                if (si < _appliedCount) changed |= _marks.Set(si, value);
+            }
+        }
+        else if (Provider is { } provider && Location is { } location)
+        {
+            var wanted = new HashSet<ItemRef>();
+            foreach (int p in positions) wanted.Add(sources[p]);
+            if (wanted.Count == 0) return;
+            // Unmarking only needs to look at marked entries.
+            IEnumerable<int> candidates = value ? Enumerable.Range(0, _appliedCount) : _marks.Enumerate().Where(i => i < _appliedCount).ToList();
+            foreach (int si in candidates)
+            {
+                var e = _store[si];
+                if (e.Kind != EntryKind.Parent && wanted.Contains(provider.GetItemRef(location, e))) changed |= _marks.Set(si, value);
+            }
+        }
+        if (changed) MarksChanged();
     }
 
     public void UnmarkHidden()
@@ -633,33 +681,38 @@ public sealed class ListingModel : IDisposable
         return stats;
     }
 
-    /// <summary>Marked items in display order (hidden marked items last), or the focused item when none are marked.</summary>
+    /// <summary>
+    /// Marked items in display order (hidden marked items last), or the focused item when none are marked. Large
+    /// selections come back as a <see cref="SelectionSnapshot"/> that the caller releases when done with it.
+    /// </summary>
     public IReadOnlyList<ItemRef> GetSelection(bool includeHiddenMarks = true)
     {
-        var result = new List<ItemRef>();
-        if (Provider is null || Location is null) return result;
+        if (Provider is null || Location is null) return [];
         if (_marks.Count > 0)
         {
-            var seen = new HashSet<int>();
+            var indices = new int[_marks.Count];
+            var seen = new ulong[(Math.Max(_appliedCount, _store.Count) + 63) >> 6];
+            int n = 0;
             foreach (int si in EnumerateVisible())
             {
-                if (_marks.Get(si))
-                {
-                    result.Add(GetItemRef(si));
-                    seen.Add(si);
-                }
+                if (!_marks.Get(si) || n == indices.Length) continue;
+                indices[n++] = si;
+                seen[si >> 6] |= 1UL << (si & 63);
             }
             if (includeHiddenMarks)
             {
                 foreach (int si in _marks.Enumerate())
                 {
-                    if (si < _appliedCount && !seen.Contains(si)) result.Add(GetItemRef(si));
+                    if (si < _appliedCount && n < indices.Length && (seen[si >> 6] & (1UL << (si & 63))) == 0) indices[n++] = si;
                 }
             }
-            return result;
+            if (n > SnapshotThreshold) return new SelectionSnapshot(Provider, Location, _store, n == indices.Length ? indices : indices[..n]);
+            var list = new List<ItemRef>(n);
+            for (int i = 0; i < n; i++) list.Add(GetItemRef(indices[i]));
+            return list;
         }
-        if (TryGetFocused(out var f) && f.Kind != EntryKind.Parent) result.Add(GetItemRef(_focusStore));
-        return result;
+        if (TryGetFocused(out var f) && f.Kind != EntryKind.Parent) return [GetItemRef(_focusStore)];
+        return [];
     }
 
     public bool HasMarks => _marks.Count > 0;

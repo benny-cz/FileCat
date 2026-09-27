@@ -131,7 +131,11 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
     }
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) =>
-        entry.Tag is ResultTag r ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) : base.GetItemRef(listing, entry);
+        entry.Tag is ResultTag r
+            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder }
+            : base.GetItemRef(listing, entry);
+
+    public override bool ItemsShareListingParent => false;
 
     public override Location? GetChildLocation(Location parent, in EntryData entry)
     {

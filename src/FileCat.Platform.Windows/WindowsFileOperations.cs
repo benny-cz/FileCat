@@ -70,22 +70,33 @@ public sealed partial class WindowsFileOperations : PortableFileOperations
 
     public override RecycleClassification ClassifyRecycle(string path, long size)
     {
-        if (!RecycleBinExists(path)) return RecycleClassification.NoRecycleBin;
+        var volume = RecycleVolume(path);
+        if (!volume.HasBin) return RecycleClassification.NoRecycleBin;
         // The bin stores items under "$Recycle.Bin\<SID>\$R……": names that are already near MAX_PATH do not fit.
         if (path.Length > 240 && !path.StartsWith(@"\\?\", StringComparison.Ordinal)) return RecycleClassification.NameTooLong;
-        if (size > 0)
-        {
-            var vol = GetVolumeInfo(path);
-            // The default quota is a share of the volume; items larger than a conservative 5% are deleted permanently by the Shell.
-            if (vol.FreeBytes > 0 && size > Math.Max(1L << 30, TotalBytes(path) / 20)) return RecycleClassification.TooLarge;
-        }
+        // The default quota is a share of the volume; items larger than a conservative 5% are deleted permanently by the Shell.
+        if (size > 0 && volume.FreeBytes > 0 && size > Math.Max(1L << 30, volume.TotalBytes / 20)) return RecycleClassification.TooLarge;
         return RecycleClassification.Recyclable;
     }
 
-    private static long TotalBytes(string path)
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Stamp, bool HasBin, long FreeBytes, long TotalBytes)> _recycleVolumes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Per-volume facts cached briefly, so classifying a million items does not cost millions of volume queries.</summary>
+    private (bool HasBin, long FreeBytes, long TotalBytes) RecycleVolume(string path)
     {
-        var root = Path.GetPathRoot(path);
-        return root is not null && GetDiskFreeSpaceEx(root, out _, out var total, out _) ? (long)Math.Min(total, long.MaxValue) : long.MaxValue;
+        var root = Path.GetPathRoot(path) ?? path;
+        long now = Environment.TickCount64;
+        if (_recycleVolumes.TryGetValue(root, out var cached) && now - cached.Stamp < 10_000) return (cached.HasBin, cached.FreeBytes, cached.TotalBytes);
+        bool bin = RecycleBinExists(path);
+        long free = -1, total = long.MaxValue;
+        if (bin && GetDiskFreeSpaceEx(root, out var available, out var totalBytes, out _))
+        {
+            free = (long)Math.Min(available, long.MaxValue);
+            total = (long)Math.Min(totalBytes, long.MaxValue);
+        }
+        _recycleVolumes[root] = (now, bin, free, total);
+        return (bin, free, total);
     }
 
     public override string? ReadOriginMark(string path)

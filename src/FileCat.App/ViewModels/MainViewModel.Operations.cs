@@ -85,7 +85,7 @@ public sealed partial class MainViewModel
 
     // ---- Selection helpers ----------------------------------------------------------------------------
 
-    private (TabViewModel Tab, IReadOnlyList<ItemRef> Items, int HiddenMarked)? SourceSelection()
+    private (TabViewModel Tab, IReadOnlyList<ItemRef> Items, int HiddenMarked, string Summary)? SourceSelection()
     {
         var tab = ActiveTab;
         if (tab?.Location is null) return null;
@@ -96,18 +96,26 @@ public sealed partial class MainViewModel
             Notify("Nothing is focused or marked.");
             return null;
         }
-        return (tab, items, stats.HiddenByFilter);
+        // A captured (huge) selection is exactly the marks: summarize from the cached statistics, not by enumerating.
+        var summary = items is SelectionSnapshot
+            ? SizeSummary(stats.Files, stats.Directories, stats.Bytes, stats.SizesIncomplete)
+            : SizeSummary(items);
+        return (tab, items, stats.HiddenByFilter, summary);
     }
 
-    private string SizeSummary(IReadOnlyList<ItemRef> items)
+    private static string SizeSummary(IReadOnlyList<ItemRef> items)
     {
         long bytes = items.Where(i => !i.IsContainer && i.Size > 0).Sum(i => i.Size);
         int dirs = items.Count(i => i.IsContainer);
-        int files = items.Count - dirs;
+        return SizeSummary(items.Count - dirs, dirs, bytes, dirs > 0);
+    }
+
+    private static string SizeSummary(int files, int dirs, long bytes, bool folderContentsExcluded)
+    {
         var parts = new List<string>();
         if (files > 0) parts.Add(Formatters.Plural(files, "file", "files"));
         if (dirs > 0) parts.Add(Formatters.Plural(dirs, "folder", "folders"));
-        return string.Join(" and ", parts) + (bytes > 0 ? $" ({Formatters.SizeWithUnit(bytes)}{(dirs > 0 ? " + folder contents" : "")})" : "");
+        return string.Join(" and ", parts) + (bytes > 0 ? $" ({Formatters.SizeWithUnit(bytes)}{(folderContentsExcluded ? " + folder contents" : "")})" : "");
     }
 
     // ---- Copy / move ---------------------------------------------------------------------------------
@@ -118,62 +126,69 @@ public sealed partial class MainViewModel
         if (sel is null && explicitItems is null) return;
         var tab = sel?.Tab ?? ActiveTab!;
         var items = explicitItems ?? sel!.Value.Items;
-        var source = tab.Location!;
-        var sourceCaps = Services.Providers.For(source).GetCapabilities(source);
-        if (kind == JobKind.Move && (sourceCaps & LocationCapabilities.MoveSource) == 0)
+        IReadOnlyList<ItemRef>? finalItems = null, submitted = null;
+        try
         {
-            Notify(Services.Providers.For(source).ExplainUnavailable(source, LocationCapabilities.MoveSource) + " Use F5 to copy instead.", true);
-            return;
+            var source = tab.Location!;
+            var sourceCaps = Services.Providers.For(source).GetCapabilities(source);
+            if (kind == JobKind.Move && (sourceCaps & LocationCapabilities.MoveSource) == 0)
+            {
+                Notify(Services.Providers.For(source).ExplainUnavailable(source, LocationCapabilities.MoveSource) + " Use F5 to copy instead.", true);
+                return;
+            }
+            var target = Workspace.ActiveTarget;
+            var destination = explicitDestination ?? target?.ActiveTab?.Location;
+            string destText = destination is { IsFileSystem: true } d ? AppendSeparator(d.Path) : destination is null ? string.Empty : Services.Providers.Display(destination);
+            if (items.Count == 1 && explicitDestination is null && destination is null) destText = string.Empty;
+            var summary = explicitItems is null ? sel!.Value.Summary : SizeSummary(items);
+            var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(
+                kind, items, summary, destText, target is null ? null : $"panel {target.Number}",
+                sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet));
+            if (request is null) return;
+            if (!ResolveDestination(request.Destination, items, out var destLocation, out var newName, out var error))
+            {
+                Notify(error!, true);
+                return;
+            }
+            // Hidden marks are excluded only when there are some and the user did not include them.
+            finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
+            if (kind == JobKind.Move && newName is null && destLocation is { } dl && ItemSources.Parents(finalItems)!.Contains(dl))
+            {
+                Notify("The items are already in that folder.");
+                return;
+            }
+            AppServices.RememberText(Services.History.CopyDestinations, request.Destination);
+            // Result-set items carry their relative folders; the executor recreates them unless flattening.
+            var job = Services.Jobs.Submit(new JobRequest
+            {
+                Kind = source.IsFileSystem || kind == JobKind.Move ? kind : JobKind.Copy,
+                Sources = finalItems,
+                Destination = destLocation,
+                NewName = newName,
+                Options = request.Options,
+                Mode = request.Queue ? QueueMode.Queue : QueueMode.Start,
+            });
+            submitted = finalItems;
+            Track(job, tab);
+            tab.Listing.RememberOperation(finalItems);
         }
-        var target = Workspace.ActiveTarget;
-        var destination = explicitDestination ?? target?.ActiveTab?.Location;
-        string destText = destination is { IsFileSystem: true } d ? AppendSeparator(d.Path) : destination is null ? string.Empty : Services.Providers.Display(destination);
-        if (items.Count == 1 && explicitDestination is null && destination is null) destText = string.Empty;
-        var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(
-            kind, items, SizeSummary(items), destText, target is null ? null : $"panel {target.Number}",
-            sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet));
-        if (request is null) return;
-        if (!ResolveDestination(request.Destination, items, out var destLocation, out var newName, out var error))
+        finally
         {
-            Notify(error!, true);
-            return;
+            ReleaseUnsubmitted(submitted, sel?.Items, finalItems);
         }
-        var finalItems = request.IncludeHidden ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
-        if (destLocation is { } dl && finalItems.Any(i => i.Parent.Equals(dl) && newName is null) && kind == JobKind.Move)
+    }
+
+    /// <summary>Releases captured selections that did not become a job's sources (the job's are released when it finishes).</summary>
+    private static void ReleaseUnsubmitted(IReadOnlyList<ItemRef>? submitted, params IReadOnlyList<ItemRef>?[] captured)
+    {
+        foreach (var c in captured)
         {
-            Notify("The items are already in that folder.");
-            return;
+            if (c is not null && !ReferenceEquals(c, submitted)) ItemSources.Release(c);
         }
-        AppServices.RememberText(Services.History.CopyDestinations, request.Destination);
-        IReadOnlyDictionary<ItemRef, string>? relative = null;
-        if (source.Scheme == Schemes.ResultSet && !request.Options.Flatten)
-            relative = finalItems.ToDictionary(i => i, i => tab.Listing.Store.Count > 0 ? RelativeFolderOf(tab, i) : string.Empty);
-        var job = Services.Jobs.Submit(new JobRequest
-        {
-            Kind = source.IsFileSystem || kind == JobKind.Move ? kind : JobKind.Copy,
-            Sources = finalItems,
-            Destination = destLocation,
-            NewName = newName,
-            Options = request.Options,
-            Mode = request.Queue ? QueueMode.Queue : QueueMode.Start,
-            RelativeFolders = relative,
-        });
-        Track(job, tab);
-        tab.Listing.LastOperationNames = finalItems.Select(i => i.Name).ToHashSet(StringComparer.Ordinal);
     }
 
     private static string AppendSeparator(string path) =>
         path.EndsWith(Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar;
-
-    private string RelativeFolderOf(TabViewModel tab, ItemRef item)
-    {
-        for (int i = 0; i < tab.Listing.Store.Count; i++)
-        {
-            var e = tab.Listing.Store[i];
-            if (e.Name == item.Name && e.Tag is Core.Search.ResultTag r && r.Parent.Equals(item.Parent)) return r.RelativeFolder;
-        }
-        return string.Empty;
-    }
 
     /// <summary>
     /// Destination text → location + optional new name: an existing folder receives the items; a path ending
@@ -342,52 +357,78 @@ public sealed partial class MainViewModel
     {
         var sel = SourceSelection();
         if (sel is null) return;
-        var (tab, items, hidden) = sel.Value;
-        var loc = tab.Location!;
-        var provider = Services.Providers.For(loc);
-        var caps = provider.GetCapabilities(loc);
-        if (loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0)
+        var (tab, items, hidden, summary) = sel.Value;
+        IReadOnlyList<ItemRef>? finalItems = null, submitted = null;
+        try
         {
-            Notify(provider.ExplainUnavailable(loc, LocationCapabilities.Delete), true);
-            return;
-        }
-        if (items.Any(i => !i.Parent.IsFileSystem))
-        {
-            Notify("Deleting is supported for file-system items here.", true);
-            return;
-        }
-        // Pre-classify items the Recycle Bin cannot take and ask before starting (plan §9.2).
-        var fs = Services.Platform.FileOperations;
-        var unrecyclable = new List<(ItemRef Item, RecycleClassification Why)>();
-        if (!permanent)
-        {
-            var classified = await Task.Run(() => items.Select(i => (i, fs.ClassifyRecycle(i.FileSystemPath!, i.IsContainer ? -1 : i.Size))).ToList());
-            unrecyclable = classified.Where(c => c.Item2 is not (RecycleClassification.Recyclable or RecycleClassification.Unknown)).ToList();
-            if (unrecyclable.Count == items.Count)
+            var loc = tab.Location!;
+            var provider = Services.Providers.For(loc);
+            var caps = provider.GetCapabilities(loc);
+            if (loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0)
             {
-                // No bin at all here: offer an explicit permanent deletion instead of a silent fallback.
-                var ok = await Dialogs.ConfirmAsync("Delete permanently?",
-                    $"{RecycleText.Explain(unrecyclable[0].Why)} These items cannot be recycled.\n\nDelete {SizeSummary(items)} permanently?\n{ExactList(items.Select(i => i.Name))}",
-                    "Delete permanently", danger: true);
-                if (!ok) return;
-                permanent = true;
+                Notify(provider.ExplainUnavailable(loc, LocationCapabilities.Delete), true);
+                return;
             }
+            if (ItemSources.Parents(items)!.Any(p => !p.IsFileSystem))
+            {
+                Notify("Deleting is supported for file-system items here.", true);
+                return;
+            }
+            // Pre-classify items the Recycle Bin cannot take and ask before starting (plan §9.2). Only a bounded
+            // set of examples is kept; the count is exact.
+            var fs = Services.Platform.FileOperations;
+            var examples = new List<(string Name, RecycleClassification Why)>();
+            int unrecyclable = 0;
+            bool confirmedPermanent = false;
+            if (!permanent)
+            {
+                if (items.Count > 10_000) Notify($"Checking {items.Count:N0} items for the Recycle Bin…");
+                unrecyclable = await Task.Run(() =>
+                {
+                    int count = 0;
+                    foreach (var i in items)
+                    {
+                        var why = fs.ClassifyRecycle(i.FileSystemPath!, i.IsContainer ? -1 : i.Size);
+                        if (why is RecycleClassification.Recyclable or RecycleClassification.Unknown) continue;
+                        count++;
+                        if (examples.Count < 100) examples.Add((i.Name, why));
+                    }
+                    return count;
+                });
+                if (unrecyclable == items.Count)
+                {
+                    // No bin at all here: offer an explicit permanent deletion instead of a silent fallback.
+                    var ok = await Dialogs.ConfirmAsync("Delete permanently?",
+                        $"{RecycleText.Explain(examples[0].Why)} These items cannot be recycled.\n\nDelete {summary} permanently?\n{ExactList(items.Take(8).Select(i => i.Name), total: items.Count)}",
+                        "Delete permanently", danger: true);
+                    if (!ok) return;
+                    permanent = true;
+                    confirmedPermanent = true;
+                }
+            }
+            var input = new DeleteDialogInput(items, summary, permanent, hidden, examples.Select(u => (u.Name, RecycleText.Explain(u.Why))).ToList(),
+                loc.Scheme == Schemes.ResultSet, permanent ? 0 : unrecyclable);
+            if (permanent) input = input with { Unrecyclable = [] };
+            // Already confirmed as a permanent deletion, or no confirmation wanted: ask again only about hidden marks.
+            if (hidden == 0 && (confirmedPermanent || !permanent && !Services.Settings.ConfirmRecycle && unrecyclable == 0))
+                input = input with { SkipDialog = true };
+            var choice = input.SkipDialog ? new DeleteDialogResult(false, false) : await OperationDialogs.ShowDeleteAsync(this, input);
+            if (choice is null) return;
+            finalItems = choice.IncludeHidden || hidden == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
+            var job = Services.Jobs.Submit(new JobRequest
+            {
+                Kind = permanent ? JobKind.Delete : JobKind.Recycle,
+                Sources = finalItems,
+                Options = new TransferOptions { PermanentlyDeleteUnrecyclable = choice.DeleteUnrecyclablePermanently },
+            });
+            submitted = finalItems;
+            Track(job, tab);
+            tab.Listing.RememberOperation(finalItems);
         }
-        var input = new DeleteDialogInput(items, SizeSummary(items), permanent, hidden, unrecyclable.Select(u => (u.Item.Name, RecycleText.Explain(u.Why))).ToList(),
-            loc.Scheme == Schemes.ResultSet);
-        if (!permanent && !Services.Settings.ConfirmRecycle && unrecyclable.Count == 0 && hidden == 0)
-            input = input with { SkipDialog = true };
-        var choice = input.SkipDialog ? new DeleteDialogResult(false, false) : await OperationDialogs.ShowDeleteAsync(this, input);
-        if (choice is null) return;
-        var finalItems = choice.IncludeHidden ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
-        var job = Services.Jobs.Submit(new JobRequest
+        finally
         {
-            Kind = permanent ? JobKind.Delete : JobKind.Recycle,
-            Sources = finalItems,
-            Options = new TransferOptions { PermanentlyDeleteUnrecyclable = choice.DeleteUnrecyclablePermanently },
-        });
-        Track(job, tab);
-        tab.Listing.LastOperationNames = finalItems.Select(i => i.Name).ToHashSet(StringComparer.Ordinal);
+            ReleaseUnsubmitted(submitted, items, finalItems);
+        }
     }
 
     private void RemoveFromResultSet()
@@ -410,14 +451,17 @@ public sealed partial class MainViewModel
             var tab = origin.Tab;
             if (tab.Location == origin.Location && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile))
             {
-                var completed = job.CompletedRoots.Select(r => r.Name).ToHashSet(StringComparer.Ordinal);
-                tab.Listing.MarkNames(completed, false);
+                // Unmark what the job finished; failed and skipped roots stay marked for a retry.
+                try { tab.Listing.MarkItems(job.Request.Sources, job.CompletedRootIndices, false); }
+                catch (ObjectDisposedException) { }
             }
             if (_focusAfter.Remove(job, out var focus) && job.State is JobState.Completed or JobState.CompletedWithIssues && tab.Location == origin.Location)
                 tab.Listing.Refresh();
             if (focus is not null) FocusWhenPresent(tab, focus);
         }
         RefreshAffected(job);
+        // The job captured its sources; nothing reads them after this point.
+        ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
         switch (job.State)
         {
@@ -451,13 +495,17 @@ public sealed partial class MainViewModel
     private void RefreshAffected(Job job)
     {
         var folders = new HashSet<Location>();
-        foreach (var s in job.Request.Sources) folders.Add(s.Parent);
+        // Watchers usually refresh these already; a job spread over very many folders refreshes every folder tab.
+        IReadOnlyCollection<Location>? parents;
+        try { parents = ItemSources.Parents(job.Request.Sources, 256); }
+        catch (ObjectDisposedException) { parents = null; } // released after the job finished (undo later)
+        if (parents is not null) folders.UnionWith(parents);
         if (job.Request.Destination is { } d) folders.Add(d);
         foreach (var p in Workspace.Panels)
         {
             foreach (var t in p.Tabs)
             {
-                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet)) t.Refresh();
+                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem)) t.Refresh();
             }
         }
     }
@@ -500,6 +548,13 @@ public sealed partial class MainViewModel
     private async Task UndoLastAsync()
     {
         var job = Services.Jobs.Jobs.Where(j => j.CanUndo).OrderByDescending(j => j.FinishedUtc).FirstOrDefault();
+        var latest = Services.Jobs.Jobs.Where(j => j.State.IsFinished()).OrderByDescending(j => j.FinishedUtc).FirstOrDefault();
+        if (latest is { UndoTruncated: true } && !ReferenceEquals(latest, job))
+        {
+            // Never silently undo an older operation when the latest one was too large to record.
+            Notify($"\"{latest.Title}\" changed more than {Job.UndoLimit:N0} items, so no undo steps were recorded for it. Recycled items can still be restored from the Recycle Bin.", true);
+            return;
+        }
         if (job is null)
         {
             Notify("There is no operation that can be undone safely. Permanent deletions, overwrites, and copies are never undone automatically.");

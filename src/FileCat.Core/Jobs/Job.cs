@@ -12,8 +12,9 @@ public sealed class Job
 {
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
-    private readonly HashSet<ItemRef> _completedRoots = [];
-    private readonly HashSet<ItemRef> _failedRoots = [];
+    private ulong[] _completedRoots = [];
+    private ulong[] _failedRoots = [];
+    private int _completedRootCount, _failedRootCount;
     private readonly List<UndoStep> _undo = [];
     private readonly ManualResetEventSlim _runGate = new(true);
     private readonly CancellationTokenSource _cts = new();
@@ -114,20 +115,49 @@ public sealed class Job
         }
     }
 
-    public IReadOnlyCollection<ItemRef> CompletedRoots
+    /// <summary>Positions in <see cref="JobRequest.Sources"/> of roots whose whole operation committed.</summary>
+    public IReadOnlyList<int> CompletedRootIndices
     {
         get
         {
-            lock (_lock) return _completedRoots.ToList();
+            lock (_lock) return Positions(_completedRoots);
         }
     }
 
-    public IReadOnlyCollection<ItemRef> FailedRoots
+    /// <summary>Positions of roots that failed or were skipped (partly or wholly).</summary>
+    public IReadOnlyList<int> FailedRootIndices
     {
         get
         {
-            lock (_lock) return _failedRoots.ToList();
+            lock (_lock) return Positions(_failedRoots);
         }
+    }
+
+    public int CompletedRootCount
+    {
+        get
+        {
+            lock (_lock) return _completedRootCount;
+        }
+    }
+
+    public int FailedRootCount
+    {
+        get
+        {
+            lock (_lock) return _failedRootCount;
+        }
+    }
+
+    private static List<int> Positions(ulong[] bits)
+    {
+        var list = new List<int>();
+        for (int w = 0; w < bits.Length; w++)
+        {
+            for (ulong word = bits[w]; word != 0; word &= word - 1)
+                list.Add((w << 6) + System.Numerics.BitOperations.TrailingZeroCount(word));
+        }
+        return list;
     }
 
     public IReadOnlyList<UndoStep> UndoSteps
@@ -138,7 +168,20 @@ public sealed class Job
         }
     }
 
-    public bool CanUndo => State is JobState.Completed or JobState.CompletedWithIssues && UndoSteps.Count > 0;
+    public bool CanUndo
+    {
+        get
+        {
+            if (State is not (JobState.Completed or JobState.CompletedWithIssues)) return false;
+            lock (_lock) return _undo.Count > 0;
+        }
+    }
+
+    /// <summary>Undo is recorded for at most this many steps; larger operations say why it is not offered.</summary>
+    public const int UndoLimit = 100_000;
+
+    /// <summary>Set when the operation was too large to record undo steps.</summary>
+    public bool UndoTruncated { get; private set; }
 
     public string Summary
     {
@@ -237,19 +280,43 @@ public sealed class Job
         Changed?.Invoke(this);
     }
 
-    internal void RootCompleted(ItemRef root)
+    /// <summary>Records the outcome of the root at <paramref name="index"/> in the request's sources.</summary>
+    internal void RootCompleted(int index)
     {
-        lock (_lock) _completedRoots.Add(root);
+        lock (_lock) SetBit(ref _completedRoots, index, ref _completedRootCount);
     }
 
-    internal void RootFailed(ItemRef root)
+    internal void RootFailed(int index)
     {
-        lock (_lock) _failedRoots.Add(root);
+        lock (_lock) SetBit(ref _failedRoots, index, ref _failedRootCount);
+    }
+
+    private static void SetBit(ref ulong[] bits, int index, ref int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        int word = index >> 6;
+        if (word >= bits.Length) Array.Resize(ref bits, Math.Max(word + 1, bits.Length * 2));
+        ulong bit = 1UL << (index & 63);
+        if ((bits[word] & bit) != 0) return;
+        bits[word] |= bit;
+        count++;
     }
 
     internal void AddUndo(UndoStep step)
     {
-        lock (_lock) _undo.Add(step);
+        lock (_lock)
+        {
+            if (UndoTruncated) return;
+            if (_undo.Count >= UndoLimit)
+            {
+                // A partial undo of a huge operation would be misleading; offer none and say why.
+                _undo.Clear();
+                _undo.TrimExcess();
+                UndoTruncated = true;
+                return;
+            }
+            _undo.Add(step);
+        }
     }
 
     /// <summary>Undo was performed (or attempted); the steps are not offered again.</summary>
