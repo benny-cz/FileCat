@@ -18,20 +18,28 @@ try
     var models = Enumerable.Range(0, panels)
         .Select(_ => new ListingModel(providers, io, ui, scratch)).ToArray();
     var clock = Stopwatch.StartNew();
+    var process = Process.GetCurrentProcess();
     long firstRowsMs = -1;
+    long peakPrivate = 0, peakManaged = 0, lastSampleMs = -100;
     foreach (var model in models) model.Load(Location.FileSystem(Path.Combine(scratch, "synthetic")));
     while (models.Any(m => m.State == ListingState.Loading))
     {
         ui.Pump(50);
         if (firstRowsMs < 0 && models.All(m => m.VisibleCount > 0)) firstRowsMs = clock.ElapsedMilliseconds;
+        if (clock.ElapsedMilliseconds - lastSampleMs >= 100)
+        {
+            lastSampleMs = clock.ElapsedMilliseconds;
+            process.Refresh();
+            peakPrivate = Math.Max(peakPrivate, process.PrivateMemorySize64);
+            peakManaged = Math.Max(peakManaged, GC.GetTotalMemory(false));
+        }
         if (clock.Elapsed > TimeSpan.FromMinutes(10)) throw new TimeoutException("Listing scale run exceeded ten minutes.");
     }
     ui.Pump(0);
-    var process = Process.GetCurrentProcess();
     process.Refresh();
     Console.WriteLine($"count={count} panels={panels} complete_ms={clock.ElapsedMilliseconds} first_rows_ms={firstRowsMs}");
     Console.WriteLine($"visible={string.Join(",", models.Select(m => m.VisibleCount))} spill_mib={models.Sum(m => m.Store.SpillBytes) / 1024.0 / 1024.0:F1}");
-    Console.WriteLine($"managed_mib={GC.GetTotalMemory(true) / 1024.0 / 1024.0:F1} private_mib={process.PrivateMemorySize64 / 1024.0 / 1024.0:F1}");
+    Console.WriteLine($"managed_mib={GC.GetTotalMemory(true) / 1024.0 / 1024.0:F1} private_mib={process.PrivateMemorySize64 / 1024.0 / 1024.0:F1} peak_managed_mib={peakManaged / 1024.0 / 1024.0:F1} peak_private_mib={peakPrivate / 1024.0 / 1024.0:F1}");
     foreach (var model in models)
     {
         if (model.Error is not null) throw new Exception(model.Error);

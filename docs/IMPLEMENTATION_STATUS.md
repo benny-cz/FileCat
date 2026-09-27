@@ -38,11 +38,11 @@ Portable mode: empty `FileCat.portable` next to the exe (state in `Data/`). Logs
 | P3 v1 | **Mostly done**: SMB shares/sign-in/connect, command line, viewer search/goto/checksums/encodings, history, themes, diagnostics export, user menu (F9), Alt+F7 search → result sets, Ctrl+B flat view, Ctrl+F10 compare-and-mark, read-only ZIP (browse, F3, F5/unpack, MotW), Ctrl+Q quick view, attributes job, icon, `eng/publish.ps1` (portable/fdd/SBOM), Inno Setup script, CI workflow, notices, README |
 | P4–P10 | Pending |
 
-Synthetic core scale on this Windows machine: 1M entries/1 panel, first rows 75 ms, complete 61 s, 93.5 MiB spill, 55 MiB private after GC. Run with dotnet run --project eng/ListingScale -- [count] [panels]; full UI/peak-memory TV-01 remains.
+Synthetic core scale on this Windows machine: 1M × 1 first rows 75 ms, complete 61 s; 1M × 4 first rows across all 1.1 s, complete 106 s, peak private 305 MiB, spill 374 MiB. Full UI TV-01 and shared index cap remain.
 
 ## Resume here (next slices, in order)
 
-1. P2 leftover: bound sorted/visible indexes and run TV-01 at million-entry scale; record/name spill works, but indexes remain in RAM.
+1. P2 leftover: enforce the shared index budget and run full UI TV-01; synthetic four-panel core scale is measured.
 2. P3 polish: in-row rename editor, keyboard-reference/help page, TV-10 accessibility pass, App.Tests (headless) smoke tests.
 3. P4a Registry provider (typed values, views, F4 editors, export/import, search) + per-plan elevation broker (`FileCat.PrivilegedHost`).
 4. P4b fixed-length hex editing (patch overlay, undo, save strategies).
