@@ -34,8 +34,10 @@ Canceled with completed work kept. A really locked file and a source deleted bef
 ## Small-file copy budget (plan §21: 100,000 × 4 KiB, ≤25% over CopyFile2, journaling included)
 
 `SmallFileCopyBenchmark` (Windows integration tests) alternates the order of a plain CopyFile2 loop and a FileCat copy
-job over the same fixture. On the development machine (NVMe, NTFS, Defender on): 100,000 files 10% and 21% (another
-project's test run in parallel); 20,000 files 16% and −2%; 10,000 files median 5% over four rounds. Pass.
+job over the same fixture. On the development machine (NVMe, NTFS, Defender on), the job took 57–63 s for 100,000
+files in every run. The plain loop varied from 52 s to 121 s between runs, so the overhead ranged from +10% and +21%
+(another project's tests running in parallel) to −50% and −53% (quiet machine). Smaller runs: 20,000 files +16% and
+−2%; 10,000 files median +5% over four rounds. Pass.
 
 What keeps it there: new small files go straight to their name without a staged rename, and journal intents for new
 names are group-committed. Each destination folder gets one durable fill record, and after a crash recovery compares

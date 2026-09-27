@@ -371,6 +371,37 @@ public sealed class EntryStore : IDisposable
     }
 
     /// <summary>
+    /// Reads for a whole-listing scan on the UI thread (mark all, masks, statistics, name lookup). A spilled store is
+    /// read through a mapped view instead of two positioned reads per entry; small scans and in-memory stores read
+    /// directly. The view covers the first <c>count</c> entries.
+    /// </summary>
+    internal sealed class Scan : IDisposable
+    {
+        private const int MappedFrom = 256;
+        private readonly EntryStore _store;
+        private readonly SpillReader? _spill;
+
+        public Scan(EntryStore store, int count, int expectedReads = int.MaxValue)
+        {
+            _store = store;
+            if (count <= 0 || Math.Min(count, expectedReads) < MappedFrom || !store.HasSpilled) return;
+            try
+            {
+                _spill = store.OpenSpillReader(count);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Per-entry reads still work.
+            }
+        }
+
+        public EntryView this[int index] =>
+            _spill is { } s && (uint)index < (uint)s.Count ? s.Get(index) : new EntryView(_store[index]);
+
+        public void Dispose() => _spill?.Dispose();
+    }
+
+    /// <summary>
     /// Keeps the store readable after its listing has moved on (a job reading captured sources). Disposal
     /// requested meanwhile happens when the last lease is released.
     /// </summary>

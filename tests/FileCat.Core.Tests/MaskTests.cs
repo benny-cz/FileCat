@@ -27,6 +27,31 @@ public class MaskTests
     public void Name_matching(string mask, string name, bool expected)
     {
         Assert.Equal(expected, Mask.Parse(mask).IsMatch(name));
+        Assert.Equal(expected, Mask.Parse(mask).IsMatch(name.AsSpan()));
+    }
+
+    [Fact]
+    public void Star_only_fast_path_agrees_with_the_general_matcher()
+    {
+        // Random star patterns over a small alphabet (case and non-ASCII included) against random names.
+        const string alphabet = "abAB.-7ßé";
+        var random = new Random(11);
+        string Random(int max)
+        {
+            var chars = new char[random.Next(max + 1)];
+            for (int i = 0; i < chars.Length; i++) chars[i] = alphabet[random.Next(alphabet.Length)];
+            return new string(chars);
+        }
+        for (int round = 0; round < 20_000; round++)
+        {
+            var parts = Enumerable.Range(0, random.Next(1, 5)).Select(_ => Random(3));
+            var pattern = string.Join("*", parts);
+            if (random.Next(4) == 0) pattern = "*" + pattern;
+            var name = Random(8);
+            Assert.True(Wildcard.IsStarMatch(name, pattern) == Wildcard.IsBacktrackingMatch(name, pattern), $"{pattern} vs {name}");
+        }
+        Assert.True(Wildcard.IsMatch("file-0000007-long-αβγ.txt", "*7-LONG*"));
+        Assert.False(Wildcard.IsMatch("a", "a*a"));
     }
 
     [Fact]

@@ -55,10 +55,30 @@ public sealed class Mask
         TryParse(text, out var m, out var error) ? m : throw new FormatException(error);
 
     /// <summary>Matches a single item name.</summary>
-    public bool IsMatch(string name, bool isDirectory = false)
+    public bool IsMatch(string name, bool isDirectory = false) => IsMatch(name.AsSpan(), isDirectory);
+
+    /// <summary>Matches a single item name in place (spilled listings are matched without building strings).</summary>
+    public bool IsMatch(ReadOnlySpan<char> name, bool isDirectory = false)
     {
-        bool included = _include.Length == 0 || Any(_include, name, isDirectory, pathMode: false);
-        return included && !Any(_exclude, name, isDirectory, pathMode: false);
+        bool included = _include.Length == 0 || AnyName(_include, name, isDirectory);
+        return included && !AnyName(_exclude, name, isDirectory);
+    }
+
+    private bool AnyName(MaskPart[] parts, ReadOnlySpan<char> name, bool isDirectory)
+    {
+        foreach (var p in parts)
+        {
+            if (p.DirectoriesOnly && !isDirectory) continue;
+            try
+            {
+                if (p.IsNameMatch(name)) return true;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                RegexTimedOut = true;
+            }
+        }
+        return false;
     }
 
     /// <summary>Matches a relative path ("src/app/x.cs") so that <c>**</c> spans directories.</summary>
@@ -173,15 +193,21 @@ public sealed class Mask
 
         public bool IsMatchAll => glob == "*" && !DirectoriesOnly;
 
+        private string? _nameGlob;
+
+        public bool IsNameMatch(ReadOnlySpan<char> name)
+        {
+            if (regex is not null) return regex.IsMatch(name);
+            var g = glob!;
+            if (g == "*.") return !name.Contains('.');
+            return Wildcard.IsMatch(name, _nameGlob ??= g.Replace("**", "*"));
+        }
+
         public bool IsMatch(string value, bool pathMode)
         {
+            if (!pathMode) return IsNameMatch(value);
             if (regex is not null) return regex.IsMatch(value);
             var g = glob!;
-            if (!pathMode)
-            {
-                if (g == "*.") return !value.Contains('.');
-                return Wildcard.IsMatch(value, g.Replace("**", "*"));
-            }
             // A mask without a separator matches the last path segment, like a name mask.
             if (!g.Contains('/') && !g.Contains('\\'))
             {
@@ -198,7 +224,14 @@ public sealed class Mask
 public static class Wildcard
 {
     /// <summary>Linear-time greedy matcher with single-star backtracking (names never contain separators here).</summary>
-    public static bool IsMatch(string text, string pattern)
+    public static bool IsMatch(string text, string pattern) => IsMatch(text.AsSpan(), pattern);
+
+    /// <summary>Span form of <see cref="IsMatch(string, string)"/>.</summary>
+    public static bool IsMatch(ReadOnlySpan<char> text, string pattern) =>
+        pattern.Contains('?') ? IsBacktrackingMatch(text, pattern) : IsStarMatch(text, pattern);
+
+    /// <summary>The general matcher (any mix of <c>*</c> and <c>?</c>).</summary>
+    internal static bool IsBacktrackingMatch(ReadOnlySpan<char> text, string pattern)
     {
         int t = 0, p = 0, starP = -1, starT = -1;
         while (t < text.Length)
@@ -225,6 +258,34 @@ public static class Wildcard
         }
         while (p < pattern.Length && pattern[p] == '*') p++;
         return p == pattern.Length;
+    }
+
+    /// <summary>
+    /// Star-only patterns (almost every mask): the literal runs between stars are found left to right with vectorized
+    /// ordinal-ignore-case searches, the same case folding as the general matcher. Masking a million names stays fast.
+    /// </summary>
+    internal static bool IsStarMatch(ReadOnlySpan<char> text, ReadOnlySpan<char> pattern)
+    {
+        int star = pattern.IndexOf('*');
+        if (star < 0) return text.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+        var head = pattern[..star];
+        if (!text.StartsWith(head, StringComparison.OrdinalIgnoreCase)) return false;
+        int lastStar = pattern.LastIndexOf('*');
+        var tail = pattern[(lastStar + 1)..];
+        if (text.Length - head.Length < tail.Length || !text.EndsWith(tail, StringComparison.OrdinalIgnoreCase)) return false;
+        var middle = text[head.Length..(text.Length - tail.Length)];
+        var rest = lastStar > star ? pattern[(star + 1)..lastStar] : ReadOnlySpan<char>.Empty;
+        while (!rest.IsEmpty)
+        {
+            int next = rest.IndexOf('*');
+            var segment = next < 0 ? rest : rest[..next];
+            rest = next < 0 ? ReadOnlySpan<char>.Empty : rest[(next + 1)..];
+            if (segment.IsEmpty) continue;
+            int at = middle.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
+            if (at < 0) return false;
+            middle = middle[(at + segment.Length)..];
+        }
+        return true;
     }
 
     /// <summary>

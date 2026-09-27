@@ -42,6 +42,34 @@ try
     Console.WriteLine($"count={count} panels={panels} complete_ms={clock.ElapsedMilliseconds} first_rows_ms={firstRowsMs}");
     Console.WriteLine($"visible={string.Join(",", models.Select(m => m.VisibleCount))} spill_mib={models.Sum(m => m.Store.SpillBytes) / 1024.0 / 1024.0:F1} external_index_mib={models.Sum(m => m.ExternalIndexBytes) / 1024.0 / 1024.0:F1} reserved_index_mib={indexes.ReservedBytes / 1024.0 / 1024.0:F1}");
     Console.WriteLine($"managed_mib={GC.GetTotalMemory(true) / 1024.0 / 1024.0:F1} private_mib={process.PrivateMemorySize64 / 1024.0 / 1024.0:F1} peak_managed_mib={peakManaged / 1024.0 / 1024.0:F1} peak_private_mib={peakPrivate / 1024.0 / 1024.0:F1}");
+    // Whole-listing commands on the first listing, twice each: the first pass includes mapping the spill files.
+    var first = models[0];
+    static string Time(Action action)
+    {
+        var runs = new List<double>();
+        for (int i = 0; i < 5; i++)
+        {
+            var sw = Stopwatch.StartNew();
+            action();
+            runs.Add(Math.Round(sw.Elapsed.TotalMilliseconds, 1));
+        }
+        return string.Join("/", runs);
+    }
+    Console.WriteLine($"external_index={first.HasExternalIndex} spilled={first.Store.IsSpilled}");
+    Console.WriteLine($"iterate_visible_ms={Time(() => first.FindVisible(0, true, _ => false))}");
+    Console.WriteLine($"quick_search_miss_ms={Time(() => first.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.OrdinalIgnoreCase)))}");
+    Console.WriteLine($"quick_search_miss_culture_ms={Time(() => first.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.CurrentCultureIgnoreCase)))}");
+    Console.WriteLine($"find_name_miss_ms={Time(() => first.FindStoreIndex("zz-none" + Guid.NewGuid()))}");
+    Console.WriteLine($"mark_by_mask_ms={Time(() => first.MarkByMask(FileCat.Core.Selection.Mask.Parse("*7-long*"), true, false))}");
+    var sample = Enumerable.Range(0, 1_000_000).Select(i => $"file-{i:0000000}-long-αβγ.txt").ToArray();
+    var parsed = FileCat.Core.Selection.Mask.Parse("*7-long*");
+    Console.WriteLine($"mask_only_ms={Time(() => { foreach (var n in sample) parsed.IsMatch(n.AsSpan()); })}");
+    Console.WriteLine($"indexof_only_ms={Time(() => { foreach (var n in sample) n.AsSpan().IndexOf("7-long", StringComparison.OrdinalIgnoreCase); })}");
+    Console.WriteLine($"indexof_ordinal_ms={Time(() => { foreach (var n in sample) n.AsSpan().IndexOf("7-long", StringComparison.Ordinal); })}");
+    Console.WriteLine($"scan_mask_only_ms={Time(() => first.FindVisible(0, true, n => parsed.IsMatch(n) && false))}");
+    Console.WriteLine($"mark_by_mask_again_ms={Time(() => first.MarkByMask(parsed, true, false))}");
+    Console.WriteLine($"mark_all_ms={Time(() => first.MarkAll(true))}");
+    Console.WriteLine($"mark_stats_ms={Time(() => { first.InvertMarks(true); first.InvertMarks(true); first.GetMarkStats(); })}");
     foreach (var model in models)
     {
         if (model.Error is not null) throw new Exception(model.Error);

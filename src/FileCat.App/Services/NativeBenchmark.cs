@@ -12,6 +12,7 @@ using FileCat.Core.Commands;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Selection;
 using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Services;
@@ -110,6 +111,27 @@ internal static class NativeBenchmark
         results["paging_rendered"] = await SequentialPagingAsync(window, 120);
         results["paging_frames"] = await ContinuousPagingAsync(window, 240);
         results["machine_cpu_busy_pct_interaction"] = cpu.BusyPercentSinceMark();
+
+        // Whole-listing commands on the (spilled) panel-1 listing, timed on the UI thread. Each includes the status
+        // line's mark statistics, which update inside the command.
+        var panelOne = tabs[0].Listing;
+        static double Time(Action action)
+        {
+            var sw = Stopwatch.StartNew();
+            action();
+            return Math.Round(sw.Elapsed.TotalMilliseconds, 1);
+        }
+        results["whole_listing_ms"] = new JsonObject
+        {
+            ["mark_all"] = Time(() => panelOne.MarkAll(true)),
+            ["invert"] = Time(() => panelOne.InvertMarks(includeDirectories: true)),
+            ["mark_by_mask"] = Time(() => panelOne.MarkByMask(Mask.Parse("*7-long*"), true, includeDirectories: false)),
+            // Quick search compares typed ASCII ordinally.
+            ["quick_search_miss"] = Time(() => panelOne.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.OrdinalIgnoreCase))),
+            ["find_name_miss"] = Time(() => panelOne.FindStoreIndex("zz-none")),
+            ["unmark_all"] = Time(panelOne.UnmarkEverything),
+        };
+        await SettleAsync(window);
 
         // Sort change on panel 1: by size puts the largest synthetic file first.
         workspace.Activate(workspace.Panels[0]);

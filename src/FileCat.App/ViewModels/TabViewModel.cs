@@ -356,17 +356,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         bool wildcard = text.Contains('*') || text.Contains('?');
         bool anywhere = Services.Settings.QuickSearchMatchAnywhere;
         string pattern = wildcard ? text.TrimEnd('*') + "*" : text;
-        for (int n = 0; n < count; n++)
-        {
-            int i = forward ? (start + n) % count : ((start - n) % count + count) % count;
-            var e = Listing.GetVisible(i);
-            if (e.Kind == EntryKind.Parent) continue;
-            bool ok = wildcard ? Wildcard.IsMatch(e.Name, pattern)
-                : anywhere ? e.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase)
-                : e.Name.StartsWith(text, StringComparison.CurrentCultureIgnoreCase);
-            if (ok) return i;
-        }
-        return -1;
+        // A keystroke without a match scans the whole listing (bulk reads, spilled listings included). Typed ASCII
+        // compares ordinally, which gives the same answer and is many times faster; other text compares linguistically.
+        var comparison = System.Text.Ascii.IsValid(text) ? StringComparison.OrdinalIgnoreCase : StringComparison.CurrentCultureIgnoreCase;
+        return Listing.FindVisible(start, forward, name =>
+            wildcard ? Wildcard.IsMatch(name, pattern)
+            : anywhere ? name.Contains(text, comparison)
+            : name.StartsWith(text, comparison));
     }
 
     public void OnUserMovedFocus()

@@ -163,7 +163,7 @@ public sealed class EntryComparer : IDisposable
 /// <summary>The fields sorting and filtering read, with the name as a span (spilled names stay in place).</summary>
 internal readonly ref struct EntryView
 {
-    public EntryView(in EntryData e)
+    public EntryView(scoped in EntryData e)
     {
         Name = e.Name;
         Kind = e.Kind;
@@ -195,6 +195,8 @@ internal readonly ref struct EntryView
 
     public bool IsContainer => Kind is EntryKind.Directory or EntryKind.Parent or EntryKind.Drive
         or EntryKind.Server or EntryKind.Share or EntryKind.RegistryKey;
+
+    public bool Has(EntryFlags flag) => (Flags & flag) != 0;
 }
 
 /// <summary>

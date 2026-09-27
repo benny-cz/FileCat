@@ -45,6 +45,14 @@ public sealed class SelectionSnapshot : IReadOnlyList<ItemRef>
 
     public int GetStoreIndex(int index) => _indices[index];
 
+    /// <summary>Adds the names at <paramref name="positions"/> with bulk reads of the store (no item per name).</summary>
+    internal void CopyNames(IEnumerable<int> positions, ISet<string> names)
+    {
+        if (Volatile.Read(ref _lease) is null) throw new ObjectDisposedException(nameof(SelectionSnapshot), "The captured selection was released.");
+        using var scan = new EntryStore.Scan(Store, Store.Count, positions is IReadOnlyCollection<int> c ? c.Count : int.MaxValue);
+        foreach (int p in positions) names.Add(scan[_indices[p]].Name.ToString());
+    }
+
     /// <summary>Allows the store to be discarded. Indices stay readable for mapping outcomes.</summary>
     public void Release() => Interlocked.Exchange(ref _lease, null)?.Dispose();
 

@@ -38,6 +38,76 @@ public sealed class ListingModelTests : IDisposable
         _ui.InvokeAsync(() => Enumerable.Range(0, m.VisibleCount).Select(i => m.GetVisible(i).Name).ToArray());
 
     [Fact]
+    public async Task Whole_listing_operations_on_a_spilled_listing_match_an_in_memory_one()
+    {
+        for (int i = 0; i < 400; i++) _dir.File($"n{i:000}.{(i % 3 == 0 ? "log" : "txt")}", new string('x', i % 7 + 1));
+        for (int i = 0; i < 20; i++) _dir.Dir($"d{i:00}");
+        using var scratch = new TempDir();
+        var spilled = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui, scratch.Path, listingMemoryBudgetBytes: 1024) { SnapshotThreshold = 10 });
+        var memory = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui) { SnapshotThreshold = 10 });
+        foreach (var m in new[] { spilled, memory })
+        {
+            await _ui.InvokeAsync(() => m.Load(Location.FileSystem(_dir.Path)));
+            await _ui.WaitUntilAsync(() => m.State == ListingState.Complete);
+        }
+        Assert.True(await _ui.InvokeAsync(() => spilled.Store.IsSpilled));
+        Assert.False(await _ui.InvokeAsync(() => memory.Store.IsSpilled));
+
+        Task<string[]> Marked(ListingModel m) =>
+            _ui.InvokeAsync(() => m.GetSelection().Select(i => i.Name).Order(StringComparer.Ordinal).ToArray());
+        async Task Same(Action<ListingModel> act)
+        {
+            await _ui.InvokeAsync(() =>
+            {
+                act(spilled);
+                act(memory);
+            });
+            Assert.Equal(await Marked(memory), await Marked(spilled));
+            Assert.Equal(await _ui.InvokeAsync(memory.GetMarkStats), await _ui.InvokeAsync(spilled.GetMarkStats));
+        }
+
+        await Same(m => m.MarkByMask(Mask.Parse("*1*.txt"), true, includeDirectories: false));
+        await Same(m => m.InvertMarks(includeDirectories: true));
+        await Same(m => m.MarkNames(new HashSet<string>(["n005.txt", "d03", "missing"], StringComparer.Ordinal), false));
+        await Same(m =>
+        {
+            m.UnmarkEverything();
+            m.FocusName("n003.log");
+            m.MarkSameExtension(true);
+        });
+        await Same(m => m.SetMarkRange(0, m.VisibleCount - 1, false));
+        Assert.Equal(["n003.log"], await Marked(spilled)); // nothing marked: the focused item
+
+        // Name lookups and quick search agree, in both directions.
+        int si = await _ui.InvokeAsync(() => spilled.FindStoreIndex("n124.txt"));
+        Assert.Equal("n124.txt", await _ui.InvokeAsync(() => spilled.Store[si].Name));
+        Assert.Equal(si, await _ui.InvokeAsync(() => spilled.FindStoreIndex("n124.txt")));
+        Assert.Equal(-1, await _ui.InvokeAsync(() => spilled.FindStoreIndex("missing")));
+        foreach (bool forward in new[] { true, false })
+        {
+            int Row(ListingModel m) => m.FindVisible(0, forward, n => n.EndsWith("7.log", StringComparison.Ordinal));
+            int row = await _ui.InvokeAsync(() => Row(spilled));
+            Assert.Equal(await _ui.InvokeAsync(() => Row(memory)), row);
+            Assert.Equal(forward ? "n027.log" : "n387.log", await _ui.InvokeAsync(() => spilled.GetVisible(row).Name));
+        }
+
+        // Outcomes still map back once a refresh replaced the store (names first, then identity).
+        await _ui.InvokeAsync(() => spilled.MarkByMask(Mask.Parse("n0*"), true, includeDirectories: false));
+        var captured = Assert.IsType<SelectionSnapshot>(await _ui.InvokeAsync(() => spilled.GetSelection()));
+        await _ui.InvokeAsync(spilled.Refresh);
+        await _ui.WaitUntilAsync(() => !spilled.IsRefreshing);
+        Assert.NotSame(captured.Store, await _ui.InvokeAsync(() => spilled.Store));
+        await _ui.InvokeAsync(() => spilled.MarkItems(captured, [0, 1, 2], false));
+        var left = await Marked(spilled);
+        Assert.Equal(97, left.Length);
+        Assert.DoesNotContain("n000.log", left);
+        Assert.Contains("n003.log", left);
+        captured.Release();
+        await _ui.InvokeAsync(spilled.Dispose);
+        await _ui.InvokeAsync(memory.Dispose);
+    }
+
+    [Fact]
     public async Task Tabs_share_the_index_reservation_and_release_it_on_close()
     {
         for (int i = 0; i < 200; i++) _dir.File($"f{i:000}.txt");

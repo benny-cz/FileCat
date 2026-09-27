@@ -161,4 +161,11 @@ public static class NameParts
         int dot = name.LastIndexOf('.');
         return dot <= 0 ? name : name[..dot];
     }
+
+    /// <summary>Span form of <see cref="GetStem(string)"/> (no allocation).</summary>
+    public static ReadOnlySpan<char> GetStem(ReadOnlySpan<char> name)
+    {
+        int dot = name.LastIndexOf('.');
+        return dot <= 0 ? name : name[..dot];
+    }
 }

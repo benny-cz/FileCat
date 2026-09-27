@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 155, Windows integration 11, App headless 12 tests
+dotnet test FileCat.slnx                              # Core 157, Windows integration 11, App headless 12 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -36,13 +36,12 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P1 walking slice | **Done** |
 | P2 scalable workspace | **Done.** Tabs, multi-panel targets, bookmarks, workspaces, single instance, persistence, watchers, metadata columns, column profiles (Settings → Columns, persisted widths). TV-01 ran natively at 4 × 1M: complete in 2.9 s, re-sort 270 ms, held paging p95 16.9 ms, peak private 504 MiB. |
 | P3 v1 | **Done (engineering scope).** SMB, command line, viewer, search and result sets, compare-and-mark, read-only ZIP, quick view, associations, Alt+F8, themes, diagnostics, packaging. Also: truthful outcomes (fault-injection tests), stream and Mark-of-the-Web loss reporting, fuzzing, shutdown block, update check (notify only), automated TV-10 pass, ADR and validation records. |
-| P1–P3 review loop | **In progress.** Batch A done: tiered journal durability (group commit, per-folder fill records, recovery of incomplete direct copies), direct small-file copies (100k × 4 KiB: 10–21% over CopyFile2, budget ≤25%), moves flush the copy and write the publish through before deleting a source, PI-05 question before a move drops metadata, EFS consent, sparse copies, mount-point-aware volumes (Windows and Unix), safe exit (stop at a safe step, or exit when jobs finish), canceled queued jobs finish at once, unwritable portable folder falls back to per-user state. Next: batch C (bulk reads for whole-listing scans of spilled listings), then batch B (missing P2/P3 commands, see below). |
+| P1–P3 review loop | **In progress.** Batch A done: tiered journal durability (group commit, per-folder fill records, recovery of incomplete direct copies), direct small-file copies (100k × 4 KiB: 10–21% over CopyFile2, budget ≤25%), moves flush the copy and write the publish through before deleting a source, PI-05 question before a move drops metadata, EFS consent, sparse copies, mount-point-aware volumes (Windows and Unix), safe exit (stop at a safe step, or exit when jobs finish), canceled queued jobs finish at once, unwritable portable folder falls back to per-user state. Batch C done: whole-listing commands read spilled listings in bulk (1M: mark all 30 ms, mask 75–90 ms, quick-search miss 50 ms; see TV-01). Next: batch B (missing P2/P3 commands, see below). |
 | P4–P10 | Pending |
 
 ## Resume here (next slices, in order)
 
 0. **Finish the P1–P3 review loop** (user request: check, fix, loop until solid):
-   - C: whole-listing scans on the UI thread (mark all/invert/mask, mark stats, name lookup, quick search) use mapped bulk reads when spilled.
    - B: history pinning, bookmark into the target panel, search within results, Alt+F10 folder tree, viewer window list, Enter on `.lnk`, Space sizing on network drives, panel minimum width, clear history, saved filters, F9 menu editing, ZIP test, viewer go-to-line, "run again for the rest" of an interrupted job.
    - D: verify the operation center shows source and destination; no drag-out from ZIP; F9 hierarchy rendering.
 1. **External P3 release gates.** These are manual and need infrastructure or people; see `docs/validation/P3-validations.md`.

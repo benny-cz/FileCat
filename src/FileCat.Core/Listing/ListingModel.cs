@@ -162,12 +162,49 @@ public sealed class ListingModel : IDisposable
 
     public ItemRef GetItemRef(int storeIndex) => Provider!.GetItemRef(Location!, _store[storeIndex]);
 
+    // Store entries never change identity, so a found index stays valid for the store's lifetime. Sizing progress
+    // looks the same name up many times a second.
+    private readonly Dictionary<string, int> _nameIndex = new(StringComparer.Ordinal);
+    private EntryStore? _nameIndexStore;
+
     public int FindStoreIndex(string name)
     {
+        if (!ReferenceEquals(_nameIndexStore, _store))
+        {
+            _nameIndex.Clear();
+            _nameIndexStore = _store;
+        }
+        if (_nameIndex.TryGetValue(name, out int known) && known < _appliedCount) return known;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
         for (int i = 0; i < _appliedCount; i++)
         {
-            var entry = _store[i];
-            if (entry.Kind != EntryKind.Parent && string.Equals(entry.Name, name, StringComparison.Ordinal)) return i;
+            var e = scan[i];
+            if (e.Kind == EntryKind.Parent || !e.Name.SequenceEqual(name)) continue;
+            if (_nameIndex.Count >= 256) _nameIndex.Clear();
+            _nameIndex[name] = i;
+            return i;
+        }
+        return -1;
+    }
+
+    /// <summary>Tests a name in place (spilled listings are searched without building strings).</summary>
+    public delegate bool NameMatch(ReadOnlySpan<char> name);
+
+    /// <summary>
+    /// The first visible row from <paramref name="start"/> onward (wrapping, in either direction) whose name matches,
+    /// or -1. The parent row never matches.
+    /// </summary>
+    public int FindVisible(int start, bool forward, NameMatch match)
+    {
+        int count = VisibleCount;
+        if (count == 0) return -1;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
+        for (int n = 0; n < count; n++)
+        {
+            int row = forward ? (start + n) % count : ((start - n) % count + count) % count;
+            if (row < 0) row += count;
+            var e = scan[VisibleAt(row)];
+            if (e.Kind != EntryKind.Parent && match(e.Name)) return row;
         }
         return -1;
     }
@@ -364,9 +401,12 @@ public sealed class ListingModel : IDisposable
     {
         // Carry marks and focus by exact name into the new generation.
         var marked = new HashSet<string>(StringComparer.Ordinal);
-        foreach (int i in _marks.Enumerate())
+        using (var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count))
         {
-            if (i < _appliedCount) marked.Add(_store[i].Name);
+            foreach (int i in _marks.Enumerate())
+            {
+                if (i < _appliedCount) marked.Add(scan[i].Name.ToString());
+            }
         }
         string? focusName = null;
         if (_focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount) focusName = _store[_focusStore].Name;
@@ -402,16 +442,18 @@ public sealed class ListingModel : IDisposable
         // Resolve names that were waiting for their entry to arrive.
         if (_pendingMarkNames is not null || _pendingFocusName is not null)
         {
+            using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
+            var pendingMarks = _pendingMarkNames?.GetAlternateLookup<ReadOnlySpan<char>>();
             for (int i = previousCount; i < r.Count; i++)
             {
-                var e = _store[i];
+                var e = scan[i];
                 if (e.Kind == EntryKind.Parent) continue;
-                if (_pendingMarkNames is not null && _pendingMarkNames.Remove(e.Name))
+                if (pendingMarks is { } lookup && lookup.Remove(e.Name))
                 {
                     _marks.Set(i, true);
                     change |= ListingChange.Marks;
                 }
-                if (_pendingFocusName is not null && string.Equals(e.Name, _pendingFocusName, StringComparison.Ordinal))
+                if (_pendingFocusName is not null && e.Name.SequenceEqual(_pendingFocusName))
                 {
                     _focusStore = i;
                     _pendingFocusName = null;
@@ -514,10 +556,11 @@ public sealed class ListingModel : IDisposable
         int a = Math.Clamp(Math.Min(fromVisible, toVisible), 0, VisibleCount - 1);
         int b = Math.Clamp(Math.Max(fromVisible, toVisible), 0, VisibleCount - 1);
         bool changed = false;
+        using var scan = new EntryStore.Scan(_store, _appliedCount, b - a + 1);
         for (int i = a; i <= b; i++)
         {
             int si = VisibleAt(i);
-            if (_store[si].Kind != EntryKind.Parent) changed |= _marks.Set(si, value);
+            if (scan[si].Kind != EntryKind.Parent) changed |= _marks.Set(si, value);
         }
         if (changed) MarksChanged();
     }
@@ -536,9 +579,10 @@ public sealed class ListingModel : IDisposable
     public void InvertMarks(bool includeDirectories)
     {
         bool changed = false;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
         foreach (int si in EnumerateVisible())
         {
-            var e = _store[si];
+            var e = scan[si];
             if (e.Kind == EntryKind.Parent || !includeDirectories && e.IsContainer) continue;
             changed |= _marks.Set(si, !_marks.Get(si));
         }
@@ -549,9 +593,10 @@ public sealed class ListingModel : IDisposable
     {
         int affected = 0;
         bool changed = false;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
         foreach (int si in EnumerateVisible())
         {
-            var e = _store[si];
+            var e = scan[si];
             if (e.Kind == EntryKind.Parent) continue;
             bool isDir = e.IsContainer;
             if (isDir && !includeDirectories && !MaskTargetsDirectories(mask)) continue;
@@ -579,14 +624,18 @@ public sealed class ListingModel : IDisposable
         ApplyToVisible(e => (e.IsContainer ? e.Name : NameParts.GetStem(e.Name)).Equals(stem, StringComparison.OrdinalIgnoreCase), value);
     }
 
+    /// <summary>Marks or unmarks the entries with exactly these names (compare results).</summary>
     public void MarkNames(IEnumerable<string> names, bool value)
     {
-        var set = names as ISet<string> ?? new HashSet<string>(names, StringComparer.Ordinal);
+        var set = names is HashSet<string> h && h.Comparer.Equals(StringComparer.Ordinal) ? h : new HashSet<string>(names, StringComparer.Ordinal);
+        if (set.Count == 0) return;
+        var lookup = set.GetAlternateLookup<ReadOnlySpan<char>>();
         bool changed = false;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
         for (int i = 0; i < _appliedCount; i++)
         {
-            var e = _store[i];
-            if (e.Kind != EntryKind.Parent && set.Contains(e.Name)) changed |= _marks.Set(i, value);
+            var e = scan[i];
+            if (e.Kind != EntryKind.Parent && lookup.Contains(e.Name)) changed |= _marks.Set(i, value);
         }
         if (changed) MarksChanged();
     }
@@ -625,15 +674,36 @@ public sealed class ListingModel : IDisposable
         }
         else if (Provider is { } provider && Location is { } location)
         {
-            var wanted = new HashSet<ItemRef>();
-            foreach (int p in positions) wanted.Add(sources[p]);
-            if (wanted.Count == 0) return;
+            // Names first: an entry is compared by full identity only when its name is wanted, so the scan builds no
+            // item per entry. A snapshot of one folder listing supplies its names through bulk reads of its store,
+            // and in a file-system folder the name is the identity.
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<ItemRef>? wanted = null;
+            if (sources is SelectionSnapshot { CommonParent: { } parent } snapshot && location.IsFileSystem)
+            {
+                if (!parent.Equals(location)) return;
+                snapshot.CopyNames(positions, names);
+            }
+            else
+            {
+                wanted = [];
+                foreach (int p in positions)
+                {
+                    var item = sources[p];
+                    wanted.Add(item);
+                    names.Add(item.Name);
+                }
+            }
+            if (names.Count == 0) return;
+            var lookup = names.GetAlternateLookup<ReadOnlySpan<char>>();
             // Unmarking only needs to look at marked entries.
             IEnumerable<int> candidates = value ? Enumerable.Range(0, _appliedCount) : _marks.Enumerate().Where(i => i < _appliedCount).ToList();
+            using var scan = new EntryStore.Scan(_store, _appliedCount, value ? _appliedCount : _marks.Count);
             foreach (int si in candidates)
             {
-                var e = _store[si];
-                if (e.Kind != EntryKind.Parent && wanted.Contains(provider.GetItemRef(location, e))) changed |= _marks.Set(si, value);
+                var e = scan[si];
+                if (e.Kind == EntryKind.Parent || !lookup.Contains(e.Name)) continue;
+                if (wanted is null || wanted.Contains(provider.GetItemRef(location, _store[si]))) changed |= _marks.Set(si, value);
             }
         }
         if (changed) MarksChanged();
@@ -649,14 +719,15 @@ public sealed class ListingModel : IDisposable
         if (changed) MarksChanged();
     }
 
-    private delegate bool EntryPredicate(EntryData e);
+    private delegate bool EntryPredicate(EntryView e);
 
     private void ApplyToVisible(EntryPredicate predicate, bool value)
     {
         bool changed = false;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
         foreach (int si in EnumerateVisible())
         {
-            var e = _store[si];
+            var e = scan[si];
             if (e.Kind == EntryKind.Parent || !predicate(e)) continue;
             changed |= _marks.Set(si, value);
         }
@@ -675,10 +746,11 @@ public sealed class ListingModel : IDisposable
         int files = 0, dirs = 0, hidden = 0;
         long bytes = 0;
         bool incomplete = false;
+        using var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count);
         foreach (int si in _marks.Enumerate())
         {
             if (si >= _appliedCount) continue;
-            var e = _store[si];
+            var e = scan[si];
             if (e.IsContainer)
             {
                 dirs++;
