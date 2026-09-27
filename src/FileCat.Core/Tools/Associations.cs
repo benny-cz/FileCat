@@ -56,12 +56,14 @@ public static class Associations
                 error = $"\"{line}\": the program is missing.";
                 return list;
             }
+            var executable = parts[2].Trim('"');
             list.Add(new ToolDefinition
             {
-                Name = Path.GetFileNameWithoutExtension(parts[2].Trim('"')),
+                // Display name from either separator: settings written on Windows stay readable everywhere.
+                Name = Path.GetFileNameWithoutExtension(executable[(executable.LastIndexOfAny(['\\', '/']) + 1)..]),
                 Mask = parts[0],
                 Intent = intent,
-                Executable = parts[2].Trim('"'),
+                Executable = executable,
                 Arguments = parts.Length > 3 && parts[3].Length > 0 ? parts[3].Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() : ["{file}"],
             });
         }
