@@ -743,6 +743,7 @@ public sealed class FileListControl : Control
 
     private string DisplayName(in EntryData e)
     {
+        if (e.Kind == EntryKind.RegistryValue && e.Name.Length == 0) return "(Default)";
         if (e.Kind == EntryKind.Drive && e.Tag is Core.FileSystem.DriveTag t)
             return string.IsNullOrEmpty(t.Label) ? $"{e.Name}  {t.DriveType}" : $"{e.Name}  {t.Label}";
         bool showExt = !_columns.Any(c => c.Field == ColumnField.Extension);
@@ -990,7 +991,7 @@ public sealed class FileListControl : Control
         var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
         if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e.Modified);
         var marked = _listing.IsMarked(_listing.FocusedStoreIndex) ? ", marked" : string.Empty;
-        return $"{e.Name}, {kind}{details}{marked}, {i} of {_listing.VisibleCount}";
+        return $"{DisplayName(e)}, {kind}{details}{marked}, {i} of {_listing.VisibleCount}";
     }
 }
 

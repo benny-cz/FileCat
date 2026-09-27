@@ -13,6 +13,13 @@ public enum EntryKind : byte
     RegistryValue = 7,
 }
 
+/// <summary>Provider-owned, safe single-line text for the Kind and Details columns.</summary>
+public interface IDisplayDetails
+{
+    string KindText { get; }
+    string DetailsText { get; }
+}
+
 [Flags]
 public enum EntryFlags : ushort
 {

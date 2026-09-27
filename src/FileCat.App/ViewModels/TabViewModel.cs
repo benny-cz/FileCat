@@ -619,10 +619,3 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     internal static string Invariant(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
 }
-
-/// <summary>Provider payloads that contribute Kind/Details columns (Registry values, archive members).</summary>
-public interface IDisplayDetails
-{
-    string KindText { get; }
-    string DetailsText { get; }
-}

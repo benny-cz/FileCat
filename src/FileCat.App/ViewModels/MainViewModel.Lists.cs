@@ -28,6 +28,12 @@ public sealed partial class MainViewModel
             Add(PathUtil.IsWindows ? root.TrimEnd('\\') : root, detail, Location.FileSystem(root));
         }
         Add("This PC", "All drives", new Location(Schemes.Computer, string.Empty));
+        if (Services.Providers.IsRegistered(Schemes.Registry))
+        {
+            foreach (var view in new[] { "default", "64", "32" })
+                Add($"Registry ({FileCat.Platform.Windows.WindowsRegistryProvider.ViewLabel(view)})",
+                    "Local Registry · keys and typed values", FileCat.Platform.Windows.WindowsRegistryProvider.Home(view));
+        }
         foreach (var (name, folder) in new[]
                  {
                      ("Home", Environment.SpecialFolder.UserProfile), ("Desktop", Environment.SpecialFolder.DesktopDirectory),

@@ -25,6 +25,7 @@ public sealed class WindowsPlatform : PortablePlatform
         base.RegisterProviders(registry);
         registry.Register(new WindowsComputerProvider());
         registry.Register(new NetworkShareProvider());
+        registry.Register(new WindowsRegistryProvider());
     }
 
     protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider();

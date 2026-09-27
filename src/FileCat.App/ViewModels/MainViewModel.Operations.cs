@@ -674,6 +674,11 @@ public sealed partial class MainViewModel
             return;
         }
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (item.Parent.Scheme == Schemes.Registry && item.Kind == EntryKind.RegistryValue)
+        {
+            ViewRegistryValue(item, hex);
+            return;
+        }
         var provider = Services.Providers.For(item.Parent);
         if (provider is Core.Search.ResultSetProvider) provider = Services.Providers.For(item.Parent);
         try
