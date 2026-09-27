@@ -45,13 +45,13 @@ public sealed partial class MainViewModel
         switch (id)
         {
             case CommandIds.Copy:
-                if (ActiveTab?.Location?.Scheme == Schemes.Registry) await CopyRegistryValueAsync();
+                if (TryGetFocusedRegistryItem(out _)) await CopyRegistryValueAsync();
                 else await TransferAsync(JobKind.Copy);
                 return true;
             case CommandIds.Move: await TransferAsync(JobKind.Move); return true;
             case CommandIds.Duplicate: await DuplicateAsync(); return true;
             case CommandIds.Rename:
-                if (ActiveTab?.Location?.Scheme == Schemes.Registry) await RenameRegistryAsync();
+                if (TryGetFocusedRegistryItem(out _)) await RenameRegistryAsync();
                 else await RenameAsync();
                 return true;
             case CommandIds.MakeDirectory: await MakeDirectoryAsync(); return true;
@@ -376,7 +376,7 @@ public sealed partial class MainViewModel
 
     private async Task DeleteAsync(bool permanent)
     {
-        if (ActiveTab?.Location?.Scheme == Schemes.Registry) { await DeleteRegistryAsync(); return; }
+        if (TryGetFocusedRegistryItem(out _)) { await DeleteRegistryAsync(); return; }
         var sel = SourceSelection();
         if (sel is null) return;
         var (tab, items, hidden, summary) = sel.Value;

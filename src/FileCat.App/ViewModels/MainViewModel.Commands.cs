@@ -29,8 +29,15 @@ public sealed partial class MainViewModel
         var loc = tab?.Location;
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);
         bool hasItem = tab is not null && tab.Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent || tab?.Listing.HasMarks == true;
+        bool registryItem = TryGetFocusedRegistryItem(out var focusedRegistry);
         switch (id)
         {
+            case CommandIds.Edit when registryItem && focusedRegistry.Kind != EntryKind.RegistryValue:
+                return CommandAvailability.No("Registry keys have no editable value data. Select a value, or use a named Registry command.");
+            case CommandIds.Move when registryItem:
+                return CommandAvailability.No("Moving a Registry item is not a single atomic operation. Use Copy, then review and delete the source explicitly.");
+            case CommandIds.Duplicate when registryItem:
+                return CommandAvailability.No("Choose a Registry key in the target panel, then use Copy.");
             case CommandIds.MakeDirectory:
                 if ((caps & LocationCapabilities.ReferenceContainer) != 0) return CommandAvailability.No("Result sets hold references to items elsewhere; create folders in a real location.");
                 return (caps & LocationCapabilities.CreateDirectory) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateDirectory));

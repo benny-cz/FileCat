@@ -47,6 +47,23 @@ public sealed class WindowsRegistryProviderTests
     }
 
     [Fact]
+    public void Native_create_rejects_existing_key_without_touching_its_values()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            using var first = RegistryRaw.CreateNewKey(fixture!, "child", "default");
+            first.SetValue("keep", 17);
+            Assert.Throws<RegistryConflictException>(() => RegistryRaw.CreateNewKey(fixture!, "child", "default"));
+            using var reopened = fixture!.OpenSubKey("child");
+            Assert.Equal(17, reopened!.GetValue("keep"));
+        }
+        finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
+    }
+
+    [Fact]
     public async Task Registry_jobs_detect_stale_values_and_preserve_raw_bytes()
     {
         if (!OperatingSystem.IsWindows()) return;

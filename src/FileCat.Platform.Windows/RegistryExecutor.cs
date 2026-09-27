@@ -99,8 +99,7 @@ internal sealed partial class RegistryExecutor(Job job, JobJournal journal) : IJ
                     throw new RegistryConflictException("Source values changed while copying. The partial destination was kept for review.");
                 var slash = targetLocation.Path.LastIndexOf('\\');
                 using var parent = WindowsRegistryProvider.Open(targetLocation.WithPath(targetLocation.Path[..slash]), writable: true);
-                using var target = parent.CreateSubKey(targetLocation.Path[(slash + 1)..], writable: true)
-                    ?? throw new IOException("Could not create a destination key.");
+                using var target = RegistryRaw.CreateNewKey(parent, targetLocation.Path[(slash + 1)..], c.TargetKey.Session);
                 created++;
                 foreach (var name in RegistryRaw.ValueNames(source))
                 {
@@ -155,7 +154,7 @@ internal sealed partial class RegistryExecutor(Job job, JobJournal journal) : IJ
         using (var existing = parent.OpenSubKey(c.Name))
             if (existing is not null) throw new RegistryConflictException("The key already exists.");
         int step = journal.Intent("reg-create-key", c.Key.ToString(), c.Name);
-        using var created = parent.CreateSubKey(c.Name, writable: true) ?? throw new IOException("The key could not be created.");
+        using var created = RegistryRaw.CreateNewKey(parent, c.Name, c.Key.Session);
         journal.Done(step, StepOutcome.Committed);
     }
 

@@ -289,6 +289,25 @@ public static partial class RegistryRaw
         if (code != 0) throw new Win32Exception(code);
     }
 
+    /// <summary>Create a single key only when it was absent at the native create call.</summary>
+    public static RegistryKey CreateNewKey(RegistryKey parent, string name, string? view)
+    {
+        int access = KeyWriteAndRead | (view switch { "32" => 0x0200, "64" => 0x0100, _ => 0 });
+        int code = RegCreateKeyEx(parent.Handle, name, 0, null, 0, access, 0, out var handle, out uint disposition);
+        if (code != 0) throw new Win32Exception(code);
+        if (disposition != 1)
+        {
+            handle.Dispose();
+            throw new RegistryConflictException("The destination key already exists.");
+        }
+        return RegistryKey.FromHandle(handle, view switch
+        {
+            "32" => RegistryView.Registry32,
+            "64" => RegistryView.Registry64,
+            _ => RegistryView.Default,
+        });
+    }
+
     public static string Preview(RegistryValueData value)
     {
         if (value.Data.Length < value.Length) return $"{value.Length:N0} bytes (open to inspect)";
@@ -318,6 +337,10 @@ public static partial class RegistryRaw
 
     [LibraryImport("advapi32.dll", EntryPoint = "RegDeleteKeyExW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int RegDeleteKeyEx(SafeRegistryHandle parent, string subKey, uint viewFlags, uint reserved);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "RegCreateKeyExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RegCreateKeyEx(SafeRegistryHandle parent, string subKey, uint reserved, string? className,
+        uint options, int access, nint securityAttributes, out SafeRegistryHandle result, out uint disposition);
 
     [DllImport("advapi32.dll", EntryPoint = "RegEnumKeyExW", CharSet = CharSet.Unicode)]
     private static extern int RegEnumKeyEx(SafeRegistryHandle key, uint index, StringBuilder name, ref uint nameLength,

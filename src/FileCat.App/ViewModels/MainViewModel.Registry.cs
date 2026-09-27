@@ -10,6 +10,16 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    private bool TryGetFocusedRegistryItem(out ItemRef item)
+    {
+        item = null!;
+        var listing = ActiveTab?.Listing;
+        if (listing is null || !listing.TryGetFocused(out var row) || row.Kind is not (EntryKind.RegistryKey or EntryKind.RegistryValue))
+            return false;
+        item = listing.GetItemRef(listing.FocusedStoreIndex);
+        return item.Parent.Scheme == Schemes.Registry;
+    }
+
     private static string? RegistryNameError(string name, bool key) =>
         name.Contains('\0') || name.Length > 16383 || key && (name.Length == 0 || name.Contains('\\'))
             ? "Enter a valid Registry name (keys cannot contain \\)." : null;
@@ -142,9 +152,7 @@ public sealed partial class MainViewModel
 
     private async Task DeleteRegistryAsync()
     {
-        var tab = ActiveTab;
-        if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
-        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (!TryGetFocusedRegistryItem(out var item)) return;
         if (item.Kind == EntryKind.RegistryKey)
         {
             if (item.Parent.Path.Length == 0) { Notify("Registry roots cannot be deleted.", true); return; }
@@ -179,9 +187,7 @@ public sealed partial class MainViewModel
 
     private async Task RenameRegistryAsync()
     {
-        var tab = ActiveTab;
-        if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
-        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (!TryGetFocusedRegistryItem(out var item)) return;
         var named = await Dialogs.PromptAsync(new PromptOptions("Rename Registry item", "New name in this key:")
         {
             Text = item.Name,
@@ -204,9 +210,7 @@ public sealed partial class MainViewModel
 
     private async Task CopyRegistryValueAsync()
     {
-        var tab = ActiveTab;
-        if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
-        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        if (!TryGetFocusedRegistryItem(out var item)) return;
         var target = Workspace.ActiveTarget?.ActiveTab?.Location;
         if (target?.Scheme != Schemes.Registry)
         {
