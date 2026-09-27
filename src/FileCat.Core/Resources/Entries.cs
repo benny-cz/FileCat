@@ -47,7 +47,8 @@ public enum EntryFlags : ushort
 
 /// <summary>
 /// Compact node descriptor stored by listings. <see cref="Name"/> is the exact raw name and the only
-/// identity-bearing field besides the listing location; everything else is presentation metadata.
+/// identity-bearing text besides the listing location. Kind also distinguishes typed namespaces
+/// (a Registry key and value can have the same name); everything else is presentation metadata.
 /// </summary>
 public struct EntryData
 {
@@ -94,7 +95,7 @@ public struct EntryData
 }
 
 /// <summary>
-/// Identity of one item: its container plus the exact raw name (PI-10). Size/time are revision
+/// Identity of one item: its container, kind, and exact raw name (PI-10). Size/time are revision
 /// evidence captured at selection time and are deliberately excluded from equality.
 /// </summary>
 public sealed class ItemRef : IEquatable<ItemRef>
@@ -136,12 +137,12 @@ public sealed class ItemRef : IEquatable<ItemRef>
         return new ItemRef(Location.FileSystem(parent), System.IO.Path.GetFileName(trimmed), kind);
     }
 
-    public bool Equals(ItemRef? other) => other is not null && Ordinal == other.Ordinal &&
+    public bool Equals(ItemRef? other) => other is not null && Kind == other.Kind && Ordinal == other.Ordinal &&
         string.Equals(Name, other.Name, StringComparison.Ordinal) && Parent.Equals(other.Parent);
 
     public override bool Equals(object? obj) => Equals(obj as ItemRef);
 
-    public override int GetHashCode() => HashCode.Combine(Parent, Name, Ordinal);
+    public override int GetHashCode() => HashCode.Combine(Parent, Name, Kind, Ordinal);
 
     public override string ToString() => $"{Parent} :: {Name}";
 }

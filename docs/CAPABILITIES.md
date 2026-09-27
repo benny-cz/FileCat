@@ -25,7 +25,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 
 | Gap | Where it is explained | Planned |
 |---|---|---|
-| Registry browsing and typed value editing | Local Registry panels have explicit views and raw inspection; value create/edit/copy/rename/delete and key create/rename use guarded jobs. Subtree work, import/export, search, and elevated retry remain | P4a |
+| Registry browsing and typed value editing | Local Registry panels have explicit views and raw inspection; guarded jobs handle values and bounded key subtree copy/delete. Links are shown and followed only on request. Import/export, search, and elevated retry remain | P4a |
 | Elevated operations (per-plan broker) | Access-denied messages suggest what to do | P4a; FileCat never runs elevated by itself and warns when it is started elevated |
 | Hex editing | Viewer is read-only | P4b |
 | Creating or updating ZIP archives; other archive formats | Opened through their system association | P5, P8 |

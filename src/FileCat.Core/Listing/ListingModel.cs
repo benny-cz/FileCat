@@ -63,7 +63,8 @@ public sealed class ListingModel : IDisposable
     /// <summary>The user (or a requested name) placed the cursor; until then it stays on the first row while entries stream in.</summary>
     private bool _focusAnchored;
     private string? _pendingFocusName;
-    private HashSet<string>? _pendingMarkNames;
+    private EntryKind? _pendingFocusKind;
+    private Dictionary<EntryKind, HashSet<string>>? _pendingMarks;
     private readonly List<string> _issues = [];
     private bool _disposed;
 
@@ -233,6 +234,7 @@ public sealed class ListingModel : IDisposable
         visibleIndex = Math.Clamp(visibleIndex, 0, VisibleCount - 1);
         int store = VisibleAt(visibleIndex);
         _pendingFocusName = null;
+        _pendingFocusKind = null;
         _focusAnchored = true;
         if (store == _focusStore) return;
         _focusStore = store;
@@ -270,7 +272,8 @@ public sealed class ListingModel : IDisposable
         _focusVisibleHint = 0;
         _focusAnchored = false;
         _pendingFocusName = focusName;
-        _pendingMarkNames = null;
+        _pendingFocusKind = null;
+        _pendingMarks = null;
         _lastOperation = null;
         Error = null;
         State = ListingState.Loading;
@@ -400,16 +403,27 @@ public sealed class ListingModel : IDisposable
     private void SwapToRefresh(Pipeline p)
     {
         // Carry marks and focus by exact name into the new generation.
-        var marked = new HashSet<string>(StringComparer.Ordinal);
+        var marked = new Dictionary<EntryKind, HashSet<string>>();
         using (var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count))
         {
             foreach (int i in _marks.Enumerate())
             {
-                if (i < _appliedCount) marked.Add(scan[i].Name.ToString());
+                if (i < _appliedCount)
+                {
+                    var entry = scan[i];
+                    if (!marked.TryGetValue(entry.Kind, out var names)) marked[entry.Kind] = names = new HashSet<string>(StringComparer.Ordinal);
+                    names.Add(entry.Name.ToString());
+                }
             }
         }
         string? focusName = null;
-        if (_focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount) focusName = _store[_focusStore].Name;
+        EntryKind? focusKind = null;
+        if (_focusAnchored && _focusStore >= 0 && _focusStore < _appliedCount)
+        {
+            var focused = _store[_focusStore];
+            focusName = focused.Name;
+            focusKind = focused.Kind;
+        }
         _pipeline?.Retire();
         _pipeline = p;
         _pendingRefresh = null;
@@ -422,8 +436,9 @@ public sealed class ListingModel : IDisposable
         _statsCache = null;
         _appliedCount = 0;
         _issues.Clear();
-        _pendingMarkNames = marked.Count > 0 ? marked : null;
+        _pendingMarks = marked.Count > 0 ? marked : null;
         _pendingFocusName = focusName;
+        _pendingFocusKind = focusKind;
         _focusStore = -1;
     }
 
@@ -440,23 +455,23 @@ public sealed class ListingModel : IDisposable
         var change = ListingChange.Rows;
 
         // Resolve names that were waiting for their entry to arrive.
-        if (_pendingMarkNames is not null || _pendingFocusName is not null)
+        if (_pendingMarks is not null || _pendingFocusName is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
-            var pendingMarks = _pendingMarkNames?.GetAlternateLookup<ReadOnlySpan<char>>();
             for (int i = previousCount; i < r.Count; i++)
             {
                 var e = scan[i];
                 if (e.Kind == EntryKind.Parent) continue;
-                if (pendingMarks is { } lookup && lookup.Remove(e.Name))
+                if (RemovePendingMark(e.Kind, e.Name))
                 {
                     _marks.Set(i, true);
                     change |= ListingChange.Marks;
                 }
-                if (_pendingFocusName is not null && e.Name.SequenceEqual(_pendingFocusName))
+                if (_pendingFocusName is not null && (_pendingFocusKind is null || _pendingFocusKind == e.Kind) && e.Name.SequenceEqual(_pendingFocusName))
                 {
                     _focusStore = i;
                     _pendingFocusName = null;
+                    _pendingFocusKind = null;
                     _focusAnchored = true;
                     change |= ListingChange.Focus;
                 }
@@ -488,8 +503,9 @@ public sealed class ListingModel : IDisposable
 
         if (r.Completion)
         {
-            _pendingMarkNames = null;
+            _pendingMarks = null;
             _pendingFocusName = null;
+            _pendingFocusKind = null;
             LastLoadDuration = Stopwatch.GetElapsedTime(p.StartedTimestamp);
             Diagnostics.FileCatEventSource.Log.ListingCompleted(TotalCount, LastLoadDuration.TotalMilliseconds);
             foreach (var issue in p.DrainIssues()) _issues.Add(issue);
@@ -513,6 +529,10 @@ public sealed class ListingModel : IDisposable
         }
         Raise(change);
     }
+
+    private bool RemovePendingMark(EntryKind kind, ReadOnlySpan<char> name) =>
+        _pendingMarks is not null && _pendingMarks.TryGetValue(kind, out var names) &&
+        names.GetAlternateLookup<ReadOnlySpan<char>>().Remove(name);
 
     private static int[] BuildPositions(int[] visible, int count)
     {

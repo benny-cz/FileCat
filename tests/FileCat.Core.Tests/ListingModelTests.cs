@@ -38,6 +38,43 @@ public sealed class ListingModelTests : IDisposable
         _ui.InvokeAsync(() => Enumerable.Range(0, m.VisibleCount).Select(i => m.GetVisible(i).Name).ToArray());
 
     [Fact]
+    public async Task Refresh_preserves_only_the_marked_kind_when_names_overlap()
+    {
+        _providers.Register(new SameNameProvider());
+        var location = new Location("regtest", "root");
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(location));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        await _ui.InvokeAsync(() =>
+        {
+            int row = Enumerable.Range(0, model.VisibleCount).First(i => model.GetVisible(i).Kind == EntryKind.RegistryValue);
+            model.SetFocus(row);
+            model.SetMark(row, true);
+            model.Refresh();
+        });
+        await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.State == ListingState.Complete);
+        var selected = await _ui.InvokeAsync(() => model.GetSelection());
+        Assert.Single(selected);
+        Assert.Equal(EntryKind.RegistryValue, selected[0].Kind);
+        Assert.Equal(EntryKind.RegistryValue, await _ui.InvokeAsync(() => model.TryGetFocused(out var e) ? e.Kind : EntryKind.Parent));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
+    private sealed class SameNameProvider : ResourceProvider
+    {
+        public override string Scheme => "regtest";
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            sink.AddBatch([new EntryData("same", EntryKind.RegistryKey), new EntryData("same", EntryKind.RegistryValue)]);
+            return Task.CompletedTask;
+        }
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+    }
+
+    [Fact]
     public async Task Whole_listing_operations_on_a_spilled_listing_match_an_in_memory_one()
     {
         for (int i = 0; i < 400; i++) _dir.File($"n{i:000}.{(i % 3 == 0 ? "log" : "txt")}", new string('x', i % 7 + 1));

@@ -16,7 +16,7 @@ internal sealed partial class RegistryExecutor(Job job, JobJournal journal) : IJ
         if (change.Key.Scheme != Schemes.Registry || change.TargetKey is { Scheme: not Schemes.Registry })
             throw new ArgumentException("Registry plans require Registry locations.");
         ValidateName(change.Name, change.Action is RegistryAction.CreateKey or RegistryAction.RenameKey or RegistryAction.DeleteKey);
-        if (change.TargetName is { } targetName) ValidateName(targetName, change.Action == RegistryAction.RenameKey);
+        if (change.TargetName is { } targetName) ValidateName(targetName, change.Action is RegistryAction.RenameKey or RegistryAction.CopyKey);
         job.AddTotals(1, change.Desired?.Data.Length ?? 0);
         job.Checkpoint();
         switch (change.Action)
@@ -27,10 +27,104 @@ internal sealed partial class RegistryExecutor(Job job, JobJournal journal) : IJ
             case RegistryAction.RenameKey: RenameKey(change); break;
             case RegistryAction.CopyValue: CopyValue(change, removeSource: false); break;
             case RegistryAction.RenameValue: CopyValue(change, removeSource: true); break;
+            case RegistryAction.CopyKey: CopyKey(change); break;
+            case RegistryAction.DeleteKey: DeleteKey(change); break;
             default: throw new NotSupportedException($"{change.Action} is not validated for Registry jobs.");
         }
         job.ItemDone();
         job.RootCompleted(0);
+    }
+
+    private void DeleteKey(RegistryChange c)
+    {
+        var root = c.Key.WithPath(c.Key.Path + "\\" + c.Name);
+        var snapshot = RegistryTree.Scan(root, job.Token);
+        if (c.TreeDigest is null || !string.Equals(c.TreeDigest, RegistryTree.Digest(snapshot), StringComparison.Ordinal))
+            throw new RegistryConflictException("The key subtree changed since confirmation. Review its scope again.");
+        int step = journal.Intent("reg-delete-key", root.ToString());
+        int removed = 0;
+        try
+        {
+            foreach (var entry in snapshot.Keys.Reverse())
+            {
+                job.Checkpoint();
+                var location = entry.RelativePath.Length == 0 ? root : root.WithPath(root.Path + "\\" + entry.RelativePath);
+                var slash = location.Path.LastIndexOf('\\');
+                var parentLocation = location.WithPath(location.Path[..slash]);
+                var name = location.Path[(slash + 1)..];
+                using var parent = WindowsRegistryProvider.Open(parentLocation, writable: true);
+                var linkNow = RegistryRaw.LinkTarget(parent, name);
+                if (entry.IsLink != (linkNow is not null)) throw new RegistryConflictException("A key changed into or out of a Registry link during deletion.");
+                if (!entry.IsLink && RegistryTree.ValueHash(location) != entry.ValueHash)
+                    throw new RegistryConflictException("A key's values changed during deletion. Remaining keys were kept.");
+                RegistryRaw.DeleteKey(parent, name, c.Key.Session);
+                removed++;
+            }
+            journal.Done(step, StepOutcome.Committed);
+        }
+        catch
+        {
+            journal.Done(step, removed > 0 ? StepOutcome.PartiallyApplied : StepOutcome.Failed,
+                $"{removed} of {snapshot.KeyCount} keys removed");
+            if (removed > 0) job.AddIssue(new JobIssue(IssueSeverity.Error, root.ToString(),
+                $"Deleted {removed} of {snapshot.KeyCount} keys before stopping. Inspect the remaining subtree.", StepOutcome.PartiallyApplied));
+            throw;
+        }
+    }
+
+    private void CopyKey(RegistryChange c)
+    {
+        if (c.TargetKey is null || c.TargetName is null) throw new ArgumentException("A destination key and name are required.");
+        var sourceRoot = c.Key.WithPath(c.Key.Path + "\\" + c.Name);
+        var snapshot = RegistryTree.Scan(sourceRoot, job.Token);
+        if (snapshot.LinkCount > 0) throw new NotSupportedException("This subtree contains Registry links. It was not copied; links are never traversed implicitly.");
+        if (c.TreeDigest is null || !string.Equals(c.TreeDigest, RegistryTree.Digest(snapshot), StringComparison.Ordinal))
+            throw new RegistryConflictException("The source subtree changed since confirmation. Review it again.");
+        using var targetParent = WindowsRegistryProvider.Open(c.TargetKey, writable: true);
+        using (var existing = targetParent.OpenSubKey(c.TargetName))
+            if (existing is not null) throw new RegistryConflictException("The destination key already exists.");
+        var targetRoot = c.TargetKey.WithPath(c.TargetKey.Path + "\\" + c.TargetName);
+        int step = journal.Intent("reg-copy-key", sourceRoot.ToString(), targetRoot.ToString());
+        int created = 0;
+        try
+        {
+            foreach (var entry in snapshot.Keys)
+            {
+                job.Checkpoint();
+                var relative = entry.RelativePath;
+                var sourceLocation = relative.Length == 0 ? sourceRoot : sourceRoot.WithPath(sourceRoot.Path + "\\" + relative);
+                var targetLocation = relative.Length == 0 ? targetRoot : targetRoot.WithPath(targetRoot.Path + "\\" + relative);
+                using var source = WindowsRegistryProvider.Open(sourceLocation, false);
+                if (RegistryTree.ValueHash(sourceLocation) != entry.ValueHash)
+                    throw new RegistryConflictException("Source values changed while copying. The partial destination was kept for review.");
+                var slash = targetLocation.Path.LastIndexOf('\\');
+                using var parent = WindowsRegistryProvider.Open(targetLocation.WithPath(targetLocation.Path[..slash]), writable: true);
+                using var target = parent.CreateSubKey(targetLocation.Path[(slash + 1)..], writable: true)
+                    ?? throw new IOException("Could not create a destination key.");
+                created++;
+                foreach (var name in RegistryRaw.ValueNames(source))
+                {
+                    var value = RegistryRaw.Read(source, name);
+                    if (value.Data.Length != value.Length) throw new IOException("A value is too large to copy safely.");
+                    RegistryRaw.Set(target, name, value.Type, value.Data);
+                    var verified = RegistryRaw.Read(target, name);
+                    if (verified.Type != value.Type || !verified.Data.AsSpan().SequenceEqual(value.Data))
+                        throw new IOException("Copied Registry value could not be verified.");
+                }
+            }
+            var after = RegistryTree.Scan(sourceRoot, job.Token);
+            if (RegistryTree.Digest(after) != c.TreeDigest)
+                throw new RegistryConflictException("Source changed during copy. The destination is a partial snapshot; source was kept.");
+            journal.Done(step, StepOutcome.Committed);
+        }
+        catch
+        {
+            journal.Done(step, created > 0 ? StepOutcome.PartiallyApplied : StepOutcome.Failed,
+                $"{created} of {snapshot.KeyCount} keys created");
+            if (created > 0) job.AddIssue(new JobIssue(IssueSeverity.Error, targetRoot.ToString(),
+                $"Created {created} of {snapshot.KeyCount} destination keys. The source was kept; inspect the destination before retrying.", StepOutcome.PartiallyApplied));
+            throw;
+        }
     }
 
     private void SetValue(RegistryChange c)

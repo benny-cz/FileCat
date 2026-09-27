@@ -24,6 +24,8 @@ public sealed class WindowsRegistryProviderTests
             await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
             Assert.Contains(sink.Items, e => e.Kind == EntryKind.RegistryKey && e.Name == "Named");
             Assert.Contains(sink.Items, e => e.Kind == EntryKind.RegistryValue && e.Name == "Named");
+            var sameName = sink.Items.Where(e => e.Name == "Named").Select(e => ItemRef.FromEntry(location, e)).ToArray();
+            Assert.NotEqual(sameName[0], sameName[1]);
             Assert.Contains(sink.Items, e => e.Kind == EntryKind.RegistryValue && e.Name == "");
             using var opened = WindowsRegistryProvider.Open(location, false);
             var raw = RegistryRaw.Read(opened, "Named");
@@ -76,6 +78,23 @@ public sealed class WindowsRegistryProviderTests
             Assert.Equal(JobState.Failed, stale.State);
             using (var opened = WindowsRegistryProvider.Open(key, false))
                 Assert.Equal(new byte[] { 9 }, RegistryRaw.Read(opened, "blob").Data);
+            using (var tree = fixture.CreateSubKey("tree"))
+            {
+                tree!.SetValue("number", 42, RegistryValueKind.DWord);
+                using var child = tree.CreateSubKey("child");
+                child!.SetValue("text", "abc", RegistryValueKind.String);
+            }
+            var treeLocation = key.WithPath(key.Path + @"\tree");
+            var scope = RegistryTree.Scan(treeLocation);
+            Assert.Equal(2, scope.KeyCount);
+            Assert.Equal(2, scope.ValueCount);
+            var copy = await Run(new RegistryChange(RegistryAction.CopyKey, key, "tree", TargetKey: key,
+                TargetName: "tree-copy", TreeDigest: RegistryTree.Digest(scope)));
+            Assert.Equal(JobState.Completed, copy.State);
+            Assert.Equal(RegistryTree.Digest(scope), RegistryTree.Digest(RegistryTree.Scan(key.WithPath(key.Path + @"\tree-copy"))));
+            var delete = await Run(new RegistryChange(RegistryAction.DeleteKey, key, "tree", TreeDigest: RegistryTree.Digest(scope)));
+            Assert.Equal(JobState.Completed, delete.State);
+            Assert.Null(fixture.OpenSubKey("tree"));
             Directory.Delete(journals, recursive: true);
         }
         finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
@@ -92,10 +111,27 @@ public sealed class WindowsRegistryProviderTests
         Assert.Equal(uint.MaxValue, BitConverter.ToUInt32(bytes));
     }
 
+    [Fact]
+    public async Task CurrentControlSet_is_not_followed_implicitly()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var location = new Location(Schemes.Registry, @"HKLM\SYSTEM\CurrentControlSet", session: "default");
+        var ex = Record.Exception(() => WindowsRegistryProvider.Open(location, false));
+        Assert.IsType<RegistryLinkException>(ex);
+        var provider = new WindowsRegistryProvider();
+        var parent = new Location(Schemes.Registry, @"HKLM\SYSTEM", session: "default");
+        var sink = new Sink();
+        await provider.EnumerateAsync(parent, sink, TestContext.Current.CancellationToken);
+        var row = Assert.Single(sink.Items, e => e.Name == "CurrentControlSet" && e.Kind == EntryKind.RegistryKey);
+        Assert.True(row.Has(EntryFlags.Link));
+        Assert.Null(provider.GetChildLocation(parent, row));
+    }
+
     private sealed class Sink : IEnumerationSink
     {
         public List<EntryData> Items { get; } = [];
+        public List<string> Issues { get; } = [];
         public void AddBatch(ReadOnlySpan<EntryData> entries) => Items.AddRange(entries.ToArray());
-        public void ReportIssue(string message) => throw new Xunit.Sdk.XunitException(message);
+        public void ReportIssue(string message) => Issues.Add(message);
     }
 }

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using FileCat.Core.Resources;
@@ -9,6 +10,7 @@ namespace FileCat.Platform.Windows;
 /// <summary>Typed, local Registry navigation. A location's session is its explicit WOW64 view.</summary>
 public sealed class WindowsRegistryProvider : ResourceProvider
 {
+    public const int MaxListingEntries = 250_000;
     private static readonly (string Name, RegistryHive Hive)[] Roots =
     [
         ("HKCU", RegistryHive.CurrentUser), ("HKLM", RegistryHive.LocalMachine),
@@ -59,21 +61,43 @@ public sealed class WindowsRegistryProvider : ResourceProvider
         }
         using var key = Open(location, writable: false);
         var batch = new List<EntryData>(128);
+        int listed = 0;
         void Add(EntryData entry)
         {
+            if (listed++ >= MaxListingEntries)
+                throw new RegistryListingLimitException($"This key has more than {MaxListingEntries:N0} entries. The listing is incomplete; use Registry search to narrow it.");
             batch.Add(entry);
             if (batch.Count < 128) return;
             sink.AddBatch(CollectionsMarshal.AsSpan(batch));
             batch.Clear();
         }
-        foreach (var name in key.GetSubKeyNames())
+        foreach (var name in RegistryRaw.SubKeyNames(key))
         {
             ct.ThrowIfCancellationRequested();
-            Add(new EntryData(name, EntryKind.RegistryKey) { Tag = new RegistryRowInfo("Key", "") });
+            if (listed >= MaxListingEntries) { sink.ReportIssue($"Listing stopped at {MaxListingEntries:N0} entries; use Registry search to narrow it."); break; }
+            try
+            {
+                var link = RegistryRaw.LinkTarget(key, name);
+                Add(new EntryData(name, EntryKind.RegistryKey)
+                {
+                    Flags = link is null ? EntryFlags.None : EntryFlags.Link,
+                    Tag = new RegistryRowInfo(link is null ? "Key" : "Link", link ?? "", link),
+                });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+            {
+                Add(new EntryData(name, EntryKind.RegistryKey)
+                {
+                    Flags = EntryFlags.Unavailable,
+                    Tag = new RegistryRowInfo("Key", "Cannot inspect link or access rights"),
+                });
+                sink.ReportIssue($"Cannot inspect Registry key '{name}': {ex.Message}");
+            }
         }
-        foreach (var name in key.GetValueNames())
+        foreach (var name in RegistryRaw.ValueNames(key))
         {
             ct.ThrowIfCancellationRequested();
+            if (listed >= MaxListingEntries) { sink.ReportIssue($"Listing stopped at {MaxListingEntries:N0} entries; use Registry search to narrow it."); break; }
             try
             {
                 var value = RegistryRaw.Read(key, name, RegistryRaw.PreviewLimit);
@@ -90,7 +114,7 @@ public sealed class WindowsRegistryProvider : ResourceProvider
         if (batch.Count > 0) sink.AddBatch(CollectionsMarshal.AsSpan(batch));
     }
 
-    public override Location? GetChildLocation(Location parent, in EntryData entry) => entry.Kind == EntryKind.RegistryKey
+    public override Location? GetChildLocation(Location parent, in EntryData entry) => entry.Kind == EntryKind.RegistryKey && !entry.Has(EntryFlags.Link | EntryFlags.Unavailable)
         ? parent.WithPath(parent.Path.Length == 0 ? entry.Name : parent.Path + "\\" + entry.Name) : null;
 
     public override bool TryParse(string text, Location? current, out Location? location)
@@ -131,16 +155,26 @@ public sealed class WindowsRegistryProvider : ResourceProvider
             null or "default" => RegistryView.Default,
             _ => throw new ArgumentException("Unsupported Registry view.", nameof(location)),
         };
-        var baseKey = RegistryKey.OpenBaseKey(hive, view);
-        if (split < 0) return baseKey;
-        try { return baseKey.OpenSubKey(location.Path[(split + 1)..], writable) ?? throw new IOException("Registry key no longer exists."); }
-        finally { baseKey.Dispose(); }
+        var key = RegistryKey.OpenBaseKey(hive, view);
+        if (split < 0) return key;
+        try
+        {
+            foreach (var part in location.Path[(split + 1)..].Split('\\'))
+            {
+                if (part.Length == 0) throw new ArgumentException("Empty Registry path component.", nameof(location));
+                var child = RegistryRaw.OpenNoLink(key, part, view, writable);
+                key.Dispose();
+                key = child;
+            }
+            return key;
+        }
+        catch { key.Dispose(); throw; }
     }
 
     public static string ViewLabel(string? view) => view switch { "32" => "32-bit", "64" => "64-bit", _ => "default view" };
 }
 
-public sealed record RegistryRowInfo(string KindText, string DetailsText) : IDisplayDetails;
+public sealed record RegistryRowInfo(string KindText, string DetailsText, string? LinkTarget = null) : IDisplayDetails;
 
 /// <summary>Raw Registry value. Type and bytes are retained even for unknown or malformed data.</summary>
 public sealed record RegistryValueData(uint Type, byte[] Data, int Length)
@@ -158,6 +192,55 @@ public static partial class RegistryRaw
     public const int PreviewLimit = 4096;
     public const int EditLimit = 64 * 1024 * 1024;
     private const int MoreData = 234;
+    private const uint OpenLink = 0x00000008;
+    private const int KeyRead = 0x20019;
+    private const int KeyWriteAndRead = 0x2001F;
+    private const int NoMoreItems = 259;
+
+    public static IEnumerable<string> SubKeyNames(RegistryKey key) => EnumerateNames(key, values: false);
+    public static IEnumerable<string> ValueNames(RegistryKey key) => EnumerateNames(key, values: true);
+
+    private static IEnumerable<string> EnumerateNames(RegistryKey key, bool values)
+    {
+        for (uint index = 0; ; index++)
+        {
+            int capacity = 256;
+            while (true)
+            {
+                var buffer = new StringBuilder(capacity);
+                uint length = (uint)capacity;
+                int code = values ? RegEnumValue(key.Handle, index, buffer, ref length, 0, 0, 0, 0)
+                    : RegEnumKeyEx(key.Handle, index, buffer, ref length, 0, 0, 0, 0);
+                if (code == NoMoreItems) yield break;
+                if (code == MoreData && capacity < 32768) { capacity *= 2; continue; }
+                if (code != 0) throw new Win32Exception(code);
+                yield return buffer.ToString(0, checked((int)length));
+                break;
+            }
+        }
+    }
+
+    public static RegistryKey OpenNoLink(RegistryKey parent, string name, RegistryView view, bool writable)
+    {
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, writable ? KeyWriteAndRead : KeyRead, out var handle);
+        if (code != 0) throw new Win32Exception(code);
+        var key = RegistryKey.FromHandle(handle, view);
+        try
+        {
+            if (ReadIfPresent(key, "SymbolicLinkValue", PreviewLimit) is { Type: 6 } link)
+                throw new RegistryLinkException(Preview(link));
+            return key;
+        }
+        catch { key.Dispose(); throw; }
+    }
+
+    public static string? LinkTarget(RegistryKey parent, string name)
+    {
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyRead, out var handle);
+        if (code != 0) throw new Win32Exception(code);
+        using var key = RegistryKey.FromHandle(handle);
+        return ReadIfPresent(key, "SymbolicLinkValue", PreviewLimit) is { Type: 6 } link ? Preview(link) : null;
+    }
 
     public static RegistryValueData Read(RegistryKey key, string name, int limit = EditLimit)
     {
@@ -199,6 +282,13 @@ public static partial class RegistryRaw
         if (code != 0) throw new Win32Exception(code);
     }
 
+    public static void DeleteKey(RegistryKey parent, string name, string? view)
+    {
+        uint flags = view switch { "32" => 0x0200u, "64" => 0x0100u, _ => 0u };
+        int code = RegDeleteKeyEx(parent.Handle, name, flags, 0);
+        if (code != 0) throw new Win32Exception(code);
+    }
+
     public static string Preview(RegistryValueData value)
     {
         if (value.Data.Length < value.Length) return $"{value.Length:N0} bytes (open to inspect)";
@@ -222,4 +312,25 @@ public static partial class RegistryRaw
 
     [LibraryImport("advapi32.dll", EntryPoint = "RegDeleteValueW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int RegDeleteValue(SafeRegistryHandle key, string valueName);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "RegOpenKeyExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RegOpenKeyEx(SafeRegistryHandle parent, string subKey, uint options, int access, out SafeRegistryHandle result);
+
+    [LibraryImport("advapi32.dll", EntryPoint = "RegDeleteKeyExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RegDeleteKeyEx(SafeRegistryHandle parent, string subKey, uint viewFlags, uint reserved);
+
+    [DllImport("advapi32.dll", EntryPoint = "RegEnumKeyExW", CharSet = CharSet.Unicode)]
+    private static extern int RegEnumKeyEx(SafeRegistryHandle key, uint index, StringBuilder name, ref uint nameLength,
+        nint reserved, nint className, nint classLength, nint lastWrite);
+
+    [DllImport("advapi32.dll", EntryPoint = "RegEnumValueW", CharSet = CharSet.Unicode)]
+    private static extern int RegEnumValue(SafeRegistryHandle key, uint index, StringBuilder name, ref uint nameLength,
+        nint reserved, nint type, nint data, nint dataLength);
 }
+
+public sealed class RegistryLinkException(string target) : IOException($"Registry link; open its target explicitly: {target}")
+{
+    public string Target { get; } = target;
+}
+
+public sealed class RegistryListingLimitException(string message) : IOException(message);

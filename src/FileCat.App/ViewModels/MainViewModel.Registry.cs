@@ -145,7 +145,29 @@ public sealed partial class MainViewModel
         var tab = ActiveTab;
         if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        if (item.Kind != EntryKind.RegistryValue) { Notify("Key deletion needs a subtree review and is not available yet.", true); return; }
+        if (item.Kind == EntryKind.RegistryKey)
+        {
+            if (item.Parent.Path.Length == 0) { Notify("Registry roots cannot be deleted.", true); return; }
+            RegistryTreeSnapshot scope;
+            try
+            {
+                Notify("Inspecting the Registry subtree before deletion…");
+                scope = await Task.Run(() => RegistryTree.Scan(item.Parent.WithPath(item.Parent.Path + "\\" + item.Name)));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                Notify($"Cannot inspect the full key subtree: {ex.Message}. Nothing was deleted.", true);
+                return;
+            }
+            if (!await Dialogs.ConfirmAsync("Delete Registry key permanently",
+                $"Delete {Services.Providers.Display(item.Parent)}\\{item.Name} and all {scope.KeyCount:N0} keys and {scope.ValueCount:N0} values beneath it? " +
+                $"The values contain {scope.DataBytes:N0} bytes. {scope.LinkCount:N0} Registry links will be deleted as links; their targets are never followed. " +
+                "This cannot be sent to the Recycle Bin. FileCat checks the captured subtree again before starting and stops on detected changes, but deletion of multiple keys is not atomic.",
+                "Delete subtree", danger: true)) return;
+            SubmitRegistry(new RegistryChange(RegistryAction.DeleteKey, item.Parent, item.Name,
+                TreeDigest: RegistryTree.Digest(scope)), $"Delete Registry subtree {item.Name}", item);
+            return;
+        }
         var original = await Task.Run(() => ReadRegistrySnapshot(item));
         if (!await Dialogs.ConfirmAsync("Delete Registry value permanently",
             $"Delete {(item.Name.Length == 0 ? "(Default)" : item.Name)} from {Services.Providers.Display(item.Parent)}?\n\n" +
@@ -185,11 +207,41 @@ public sealed partial class MainViewModel
         var tab = ActiveTab;
         if (tab?.Location?.Scheme != Schemes.Registry || !tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        if (item.Kind != EntryKind.RegistryValue) { Notify("Key subtree copy needs a scope review and is not available yet.", true); return; }
         var target = Workspace.ActiveTarget?.ActiveTab?.Location;
         if (target?.Scheme != Schemes.Registry)
         {
             Notify("Choose a Registry key in the target panel. Export to a file is a separate named command.");
+            return;
+        }
+        if (item.Kind == EntryKind.RegistryKey)
+        {
+            RegistryTreeSnapshot scope;
+            try
+            {
+                Notify("Inspecting the Registry subtree before copying…");
+                scope = await Task.Run(() => RegistryTree.Scan(item.Parent.WithPath(item.Parent.Path + "\\" + item.Name)));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                Notify($"Cannot inspect the full key subtree: {ex.Message}. Nothing was copied.", true);
+                return;
+            }
+            if (scope.LinkCount > 0)
+            {
+                Notify($"This subtree contains {scope.LinkCount:N0} Registry links. FileCat will not copy links or follow their targets implicitly.", true);
+                return;
+            }
+            var targetName = await Dialogs.PromptAsync(new PromptOptions("Copy Registry key", $"Destination: {Services.Providers.Display(target)}\nNew key name:")
+            {
+                Text = item.Name, Validate = n => RegistryNameError(n, true), ConfirmText = "Review copy",
+            });
+            if (targetName is null) return;
+            if (!await Dialogs.ConfirmAsync("Copy Registry subtree",
+                $"Copy {scope.KeyCount:N0} keys and {scope.ValueCount:N0} values ({scope.DataBytes:N0} bytes) to {Services.Providers.Display(target)}\\{targetName.Text}? " +
+                "The destination inherits its parent's permissions. Existing keys are not merged or overwritten. A partial copy remains visible if work stops.", "Copy subtree")) return;
+            SubmitRegistry(new RegistryChange(RegistryAction.CopyKey, item.Parent, item.Name,
+                TargetKey: target, TargetName: targetName.Text, TreeDigest: RegistryTree.Digest(scope)),
+                $"Copy Registry subtree {item.Name}", item);
             return;
         }
         var name = await Dialogs.PromptAsync(new PromptOptions("Copy Registry value", $"Destination: {Services.Providers.Display(target)}\nName:")
@@ -205,6 +257,22 @@ public sealed partial class MainViewModel
     }
 
     private void ViewRegistryValue(ItemRef item, bool raw) => _ = ViewRegistryValueAsync(item, raw);
+
+    private async Task OpenRegistryLinkAsync(string target, TabViewModel tab)
+    {
+        string? path = target.StartsWith(@"\Registry\Machine\", StringComparison.OrdinalIgnoreCase)
+            ? "HKLM\\" + target[@"\Registry\Machine\".Length..]
+            : target.StartsWith(@"\Registry\User\", StringComparison.OrdinalIgnoreCase)
+                ? "HKU\\" + target[@"\Registry\User\".Length..] : null;
+        if (path is null || !Services.Providers.For(tab.Location!).TryParse(path, tab.Location, out var location) || location is null)
+        {
+            await Dialogs.AlertAsync("Registry link", $"Target: {target}\n\nThis target cannot be opened as a local Registry location. No target was followed.");
+            return;
+        }
+        if (await Dialogs.ConfirmAsync("Follow Registry link?",
+            $"This key is a Registry link to:\n{target}\n\nOpen {Services.Providers.Display(location)} explicitly? Subtree jobs never follow Registry links.", "Open target"))
+            tab.Navigate(location);
+    }
 
     private async Task ViewRegistryValueAsync(ItemRef item, bool raw)
     {
