@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 158, Windows integration 12, App headless 13 tests
+dotnet test FileCat.slnx                              # Core 163, Windows integration 12, App headless 13 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -42,8 +42,8 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 ## Resume here (next slices, in order)
 
 0. **Finish the P1–P3 review loop** (user request: check, fix, loop until solid):
-   - B done: history pins (Insert), Clear history, Alt+Shift+0–9 bookmarks into the target panel, Enter on a folder `.lnk`, Space mark-only on network/removable drives, Ctrl+A partial count and Ctrl+Shift+A (select all once complete), chooser Ctrl+Del.
-   - B left: search within results, Alt+F10 bounded folder scan, viewer window list, panel minimum width, saved filters, F9 menu submenus, viewer go-to-line, "run again for the rest" of an interrupted job.
+   - B done: history pins (Insert), Clear history, Alt+Shift+0–9 bookmarks into the target panel, Enter on a folder `.lnk`, Space mark-only on network/removable drives, Ctrl+A partial count and Ctrl+Shift+A (select all once complete), chooser Ctrl+Del, viewer window list, panel minimum width, Alt+F10 bounded folder scan, Find within a result set, viewer go-to-line (sparse line index).
+   - B left: saved filters, F9 menu submenus, "run again for the rest" of an interrupted job.
    - D: verify the operation center shows source and destination; no drag-out from ZIP; F9 hierarchy rendering.
 1. **External P3 release gates.** These are manual and need infrastructure or people; see `docs/validation/P3-validations.md`.
    - SignPath signing (ADR-15).

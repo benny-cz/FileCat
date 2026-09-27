@@ -33,10 +33,17 @@ public static class SearchDialog
         public override string ToString() => Item.Name;
     }
 
-    public static async Task<SearchDialogResult> ShowAsync(MainViewModel vm, string root)
+    /// <param name="within">A result set to search within (the active tab shows it): matches form a narrower set.</param>
+    public static async Task<SearchDialogResult> ShowAsync(MainViewModel vm, string root, ResultSet? within = null)
     {
         var history = vm.Services.History;
-        var roots = new TextBox { Text = root, MinWidth = 560 };
+        var withinItems = within?.Snapshot();
+        var roots = new TextBox
+        {
+            Text = withinItems is null ? root : $"{within!.Title} ({withinItems.Count:N0} items)",
+            IsReadOnly = withinItems is not null,
+            MinWidth = 560,
+        };
         var names = new TextBox { Text = history.SearchNames.FirstOrDefault() ?? "*", PlaceholderText = "* (mask: *.cs;*.axaml|*Test*, /regex/)" };
         var text = new TextBox { Text = string.Empty, PlaceholderText = "text inside files (optional)" };
         var matchCase = new CheckBox { Content = "Match case" };
@@ -85,7 +92,8 @@ public static class SearchDialog
             grid.Children.Add(l);
             grid.Children.Add(c);
         }
-        Row(0, "Search in:", roots);
+        Row(0, withinItems is null ? "Search in:" : "Search within:", roots);
+        if (withinItems is not null) subfolders.IsEnabled = false;
         Row(1, "Names:", names);
         Row(2, "Containing:", text);
         var options = new WrapPanel { ItemSpacing = 10, LineSpacing = 4 };
@@ -132,9 +140,9 @@ public static class SearchDialog
                 error.IsVisible = true;
                 return;
             }
-            var rootList = (roots.Text ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            var rootList = withinItems is not null ? [] : (roots.Text ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             var missing = rootList.FirstOrDefault(r => !Directory.Exists(r));
-            if (rootList.Count == 0 || missing is not null)
+            if (withinItems is null && (rootList.Count == 0 || missing is not null))
             {
                 error.Text = rootList.Count == 0 ? "Enter a folder to search." : $"\"{missing}\" is not a folder.";
                 error.IsVisible = true;
@@ -153,6 +161,7 @@ public static class SearchDialog
                 MinSize = Kb(minKb),
                 MaxSize = Kb(maxKb),
                 ModifiedAfterUtc = int.TryParse(days.Text, out var d) && d > 0 ? DateTime.UtcNow.AddDays(-d) : null,
+                WithinResults = withinItems,
             };
             if (!SearchSession.TryValidate(query, out var qerr))
             {
@@ -183,7 +192,7 @@ public static class SearchDialog
             if (e.Key == Key.Enter && list.SelectedItem is Row) e.Handled = true;
         };
 
-        var result = await vm.Dialogs.ShowCustomAsync("Find files", body,
+        var result = await vm.Dialogs.ShowCustomAsync(withinItems is null ? "Find files" : "Find within results", body,
             [new DialogButton("Close", SearchDialogOutcome.Closed, IsCancel: true), new DialogButton("Go to", SearchDialogOutcome.GoTo), new DialogButton("Show in panel", SearchDialogOutcome.ShowInPanel)],
             names);
         timer.Stop();

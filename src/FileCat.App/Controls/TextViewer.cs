@@ -65,6 +65,9 @@ public sealed class TextViewer : Control
 
     public long TopOffset => _topLine;
 
+    /// <summary>Where the text starts (after a byte-order mark).</summary>
+    public long ContentStart => _start;
+
     public bool Wrap
     {
         get => _wrap;

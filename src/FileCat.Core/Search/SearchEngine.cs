@@ -23,6 +23,12 @@ public sealed class SearchQuery
     public DateTime? ModifiedAfterUtc { get; init; }
     public DateTime? ModifiedBeforeUtc { get; init; }
 
+    /// <summary>
+    /// Searches these earlier results instead of folders: each item is tested against the criteria as it is now,
+    /// nothing is entered, and matches keep their relative folder (plan §11: searching within results narrows the set).
+    /// </summary>
+    public IReadOnlyList<(ItemRef Item, string Relative)>? WithinResults { get; init; }
+
     public string Describe()
     {
         var parts = new List<string>();
@@ -31,6 +37,7 @@ public sealed class SearchQuery
         if (MinSize is not null || MaxSize is not null) parts.Add("size filter");
         if (ModifiedAfterUtc is not null || ModifiedBeforeUtc is not null) parts.Add("date filter");
         var what = parts.Count == 0 ? "all items" : string.Join(", ", parts);
+        if (WithinResults is { } within) return $"{what} within {within.Count:N0} earlier results";
         return $"{what} in {string.Join("; ", Roots)}{(Recursive ? "" : " (top level only)")}";
     }
 }
@@ -50,6 +57,7 @@ public sealed class SearchSession
     private volatile string? _skip;
     private readonly object _issuesLock = new();
     private readonly List<string> _inaccessible = [];
+    private readonly List<string> _gone = [];
 
     public SearchSession(SearchQuery query, ResultSet results)
     {
@@ -96,10 +104,17 @@ public sealed class SearchSession
     {
         try
         {
-            foreach (var root in _query.Roots)
+            if (_query.WithinResults is { } within)
             {
-                ct.ThrowIfCancellationRequested();
-                Walk(root, root, 0, ct);
+                Narrow(within, ct);
+            }
+            else
+            {
+                foreach (var root in _query.Roots)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    Walk(root, root, 0, ct);
+                }
             }
             _results.IsComplete = true;
         }
@@ -114,8 +129,30 @@ public sealed class SearchSession
             {
                 _results.Issues.Clear();
                 _results.Issues.AddRange(_inaccessible.Take(50).Select(p => "Not searched (inaccessible): " + p));
+                _results.Issues.AddRange(_gone.Take(50).Select(p => "No longer exists (not searched): " + p));
             }
             _results.NotifyChanged();
+        }
+    }
+
+    private void Narrow(IReadOnlyList<(ItemRef Item, string Relative)> items, CancellationToken ct)
+    {
+        foreach (var (item, relative) in items)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (item.FileSystemPath is not { } path) continue;
+            CurrentFolder = item.Parent.Path;
+            FileSystemInfo info = item.IsContainer ? new DirectoryInfo(path) : new FileInfo(path);
+            if (!info.Exists)
+            {
+                lock (_issuesLock)
+                {
+                    if (_gone.Count < 1000) _gone.Add(path);
+                }
+                continue;
+            }
+            if ((info.Attributes & FileAttributes.Hidden) != 0 && !_query.IncludeHidden) continue;
+            if (IsMatch(info, item.IsContainer, ct)) AddResult(info, item.IsContainer, relative);
         }
     }
 
@@ -243,9 +280,15 @@ public sealed class SearchSession
         var parentPath = Path.GetDirectoryName(info.FullName) ?? root;
         var rel = Path.GetRelativePath(root, parentPath);
         if (rel == ".") rel = string.Empty;
+        AddResult(info, isDir, rel);
+    }
+
+    private void AddResult(FileSystemInfo info, bool isDir, string relativeFolder)
+    {
+        var parentPath = Path.GetDirectoryName(info.FullName) ?? info.FullName;
         var item = new ItemRef(Location.FileSystem(parentPath), info.Name, isDir ? EntryKind.Directory : EntryKind.File,
             isDir ? -1 : ((FileInfo)info).Length, info.LastWriteTimeUtc.Ticks);
-        _results.Add(item, rel);
+        _results.Add(item, relativeFolder);
         long m = Interlocked.Increment(ref Matches);
         if (m < 50 || m % 200 == 0) _results.NotifyChanged();
     }

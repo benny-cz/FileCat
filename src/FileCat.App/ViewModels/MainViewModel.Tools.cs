@@ -38,7 +38,9 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         var root = tab?.Location is { IsFileSystem: true } l ? l.Path : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var r = await SearchDialog.ShowAsync(this, root);
+        // In a result set, Find searches within its items and the matches form a narrower set (plan §11).
+        var within = tab?.Location is { Scheme: Schemes.ResultSet } rl ? Services.ResultSets.Get(rl) : null;
+        var r = await SearchDialog.ShowAsync(this, root, within);
         switch (r.Outcome)
         {
             case SearchDialogOutcome.GoTo when r.Item is { } item:

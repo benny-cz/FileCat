@@ -7,6 +7,26 @@ namespace FileCat.Core.Tests;
 public class PathAndStateTests
 {
     [Fact]
+    public void Folder_scan_is_breadth_first_bounded_and_skips_hidden_folders()
+    {
+        using var dir = new TempDir();
+        dir.Dir(Path.Combine("a", "deep", "deeper"));
+        dir.Dir("b");
+        var hidden = dir.Dir(".secret"); // hidden on Unix by its name, on Windows by the attribute
+        File.SetAttributes(hidden, FileAttributes.Directory | FileAttributes.Hidden);
+        dir.Dir(Path.Combine(".secret", "inside"));
+
+        var all = Core.FileSystem.FolderScan.Run(dir.Path, 100, TimeSpan.FromSeconds(10));
+        Assert.False(all.Stopped);
+        Assert.Equal(["a", "b", Path.Combine("a", "deep"), Path.Combine("a", "deep", "deeper")],
+            all.Folders.Select(f => Path.GetRelativePath(dir.Path, f)));
+
+        var first = Core.FileSystem.FolderScan.Run(dir.Path, 2, TimeSpan.FromSeconds(10));
+        Assert.True(first.Stopped);
+        Assert.Equal(["a", "b"], first.Folders.Select(f => Path.GetRelativePath(dir.Path, f)));
+    }
+
+    [Fact]
     public void Containment_is_segment_aware()
     {
         var root = Path.Combine(Path.GetTempPath(), "abc");

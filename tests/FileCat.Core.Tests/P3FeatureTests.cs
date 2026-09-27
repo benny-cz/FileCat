@@ -39,6 +39,30 @@ public sealed class P3FeatureTests : IDisposable
     }
 
     [Fact]
+    public void Searching_within_results_narrows_the_set_and_reports_vanished_items()
+    {
+        _dir.File("a/one.cs", "class One { }");
+        _dir.File("a/b/two.cs", "class Two { // needle }");
+        _dir.File("a/b/gone.cs", "needle");
+        _dir.File("a/three.txt", "needle");
+        var all = new ResultSet("all", "t", "p");
+        new SearchSession(new SearchQuery { Roots = [_dir.Path], Names = Mask.Parse("*.cs") }, all).Run(CancellationToken.None);
+        Assert.Equal(3, all.Count);
+        File.Delete(Path.Combine(_dir.Path, "a", "b", "gone.cs"));
+
+        var narrowed = new ResultSet("narrow", "t", "p");
+        var query = new SearchQuery { Roots = [], Text = "needle", WithinResults = all.Snapshot() };
+        Assert.Contains("within 3 earlier results", query.Describe());
+        new SearchSession(query, narrowed).Run(CancellationToken.None);
+        // three.txt contains the text too, but it was never among the results.
+        var hit = Assert.Single(narrowed.Snapshot());
+        Assert.Equal("two.cs", hit.Item.Name);
+        Assert.Equal(Path.Combine("a", "b"), hit.Relative);
+        Assert.True(narrowed.IsComplete);
+        Assert.Contains(narrowed.Issues, i => i.StartsWith("No longer exists", StringComparison.Ordinal) && i.EndsWith("gone.cs", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compare_marks_differences_on_both_sides_with_time_tolerance()
     {
         var t = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc).Ticks;

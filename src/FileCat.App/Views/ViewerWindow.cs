@@ -44,11 +44,22 @@ public sealed class ViewerWindow : Window
     private CancellationTokenSource? _searchCts;
     private long _lastHit = -1;
     private int _lastHitLength;
+    private LineIndex? _lines;
+    private CancellationTokenSource? _lineCts;
+    private static readonly List<ViewerWindow> s_open = [];
+
+    /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
+    public static IReadOnlyList<ViewerWindow> OpenWindows => s_open;
+
+    /// <summary>The viewed item's full path or provider path.</summary>
+    public string DisplayName => _displayName;
 
     public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex)
     {
         _services = services;
         _displayName = displayName;
+        s_open.Add(this);
+        Closed += (_, _) => s_open.Remove(this);
         _reader = new PagedReader(source);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
         Width = 980;
@@ -207,6 +218,10 @@ public sealed class ViewerWindow : Window
         if (FocusManager?.GetFocusedElement() is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
         switch (e.Key)
         {
+            case Key.Escape when _lineCts is not null:
+                // Esc first stops a running "go to line" scan.
+                _lineCts.Cancel();
+                break;
             case Key.Escape:
             case Key.F10:
                 Close();
@@ -318,7 +333,7 @@ public sealed class ViewerWindow : Window
 
     private async Task GoToAsync()
     {
-        var box = new TextBox { PlaceholderText = "0x1F00, 7936, or 50%" };
+        var box = new TextBox { PlaceholderText = "0x1F00, 7936, 50%, or L1200 (line)" };
         var dialog = new Window
         {
             Title = "Go to",
@@ -330,7 +345,7 @@ public sealed class ViewerWindow : Window
             {
                 Margin = new Thickness(16),
                 Spacing = 8,
-                Children = { new TextBlock { Text = "Offset (hex with 0x, decimal) or percentage:" }, box },
+                Children = { new TextBlock { Text = "Offset (hex with 0x, decimal), percentage, or line (L1200):" }, box },
             },
         };
         string? result = null;
@@ -343,6 +358,11 @@ public sealed class ViewerWindow : Window
         await dialog.ShowDialog(this);
         if (string.IsNullOrWhiteSpace(result)) return;
         var t = result.Trim();
+        if (TryParseLine(t, out long line))
+        {
+            await GoToLineAsync(line);
+            return;
+        }
         long len = _reader.Length;
         long offset;
         if (t.EndsWith('%') && double.TryParse(t[..^1], NumberStyles.Float, CultureInfo.CurrentCulture, out var pct)) offset = (long)(len * Math.Clamp(pct, 0, 100) / 100);
@@ -356,6 +376,62 @@ public sealed class ViewerWindow : Window
         if (_isHex) _hex.GoTo(offset);
         else _text.ScrollToOffset(offset);
         UpdateStatus();
+    }
+
+    /// <summary>"L1200", "line 1200", or ":1200".</summary>
+    private static bool TryParseLine(string text, out long line)
+    {
+        line = 0;
+        var t = text.Trim();
+        if (t.StartsWith("line", StringComparison.OrdinalIgnoreCase)) t = t[4..];
+        else if (t.StartsWith('L') || t.StartsWith('l') || t.StartsWith(':')) t = t[1..];
+        else return false;
+        return long.TryParse(t.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out line) && line > 0;
+    }
+
+    /// <summary>
+    /// Far-away lines need counting from the start (or the nearest checkpoint): the scan runs in the background, shows
+    /// its progress, and Esc stops it (plan §13.1).
+    /// </summary>
+    private async Task GoToLineAsync(long line)
+    {
+        if (!_reader.Source.CanSeek)
+        {
+            _status.Text = "Going to a line needs content that can be read at any position.";
+            return;
+        }
+        if (_isHex) SetMode(false);
+        if (_lines is null || !ReferenceEquals(_lines.Encoding, _text.Encoding)) _lines = new LineIndex(_reader.Source, _text.Encoding, _text.ContentStart);
+        _lineCts?.Cancel();
+        var cts = _lineCts = new CancellationTokenSource();
+        var index = _lines;
+        var progress = new Progress<long>(bytes => _status.Text = $"Counting lines to {line:N0}… {bytes / (1024.0 * 1024):N0} MB read (Esc stops)");
+        try
+        {
+            var start = await Task.Run(() => index.FindLineStart(line, progress, cts.Token), cts.Token);
+            if (start is { } offset)
+            {
+                _text.ScrollToOffset(offset);
+                UpdateStatus();
+                _status.Text = $"Line {line:N0}. " + _status.Text;
+            }
+            else
+            {
+                _status.Text = $"The file has only {index.TotalLines:N0} lines.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _status.Text = "Going to the line was stopped.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _status.Text = "The file could not be read: " + ex.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_lineCts, cts)) _lineCts = null;
+        }
     }
 
     private async Task CopyAsync()

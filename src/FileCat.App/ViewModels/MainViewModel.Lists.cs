@@ -70,6 +70,7 @@ public sealed partial class MainViewModel
             items.Add(new ChoiceItem(Services.Providers.Display(h.Location!), h.LastUsedUtc.ToLocalTime().ToString("g"), h.Pinned ? "pinned" : null) { Pinned = h.Pinned });
             locs.Add(h.Location!);
         }
+        int scanIndex = -1;
         if (findFolder)
         {
             foreach (var b in bookmarks)
@@ -77,8 +78,14 @@ public sealed partial class MainViewModel
                 items.Add(new ChoiceItem(Services.Providers.Display(b.Location!), "bookmark"));
                 locs.Add(b.Location!);
             }
+            if (ActiveTab?.Location is { IsFileSystem: true } here)
+            {
+                scanIndex = items.Count;
+                items.Add(new ChoiceItem("Scan folders below this folder…", Services.Providers.Display(here), "bounded"));
+                locs.Add(here);
+            }
         }
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions(findFolder ? "Find folder (history and bookmarks)" : "Folder history", items)
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions(findFolder ? "Find folder (history, bookmarks, or a folder scan)" : "Folder history", items)
         {
             Hint = "Type to filter · Enter opens · Shift+Enter opens in the target panel · Insert pins · Ctrl+Del removes",
             AllowDelete = true,
@@ -86,9 +93,40 @@ public sealed partial class MainViewModel
         });
         ApplyHistoryEdits(Services.History.Folders, entries, r);
         if (r.Index < 0) return;
+        if (r.Index == scanIndex)
+        {
+            await ScanFoldersAsync(locs[r.Index]);
+            return;
+        }
         var panel = r.Alternate ? RequireTarget() : Workspace.ActivePanel;
         panel?.ActiveTab?.Navigate(locs[r.Index]);
     }
+
+    /// <summary>
+    /// Find folder's explicit, bounded scan (plan §11): folders below <paramref name="root"/>, off the UI thread, at
+    /// most <see cref="FolderScan.DefaultLimit"/> folders or five seconds, then a type-to-filter list.
+    /// </summary>
+    private async Task ScanFoldersAsync(Location root)
+    {
+        Notify($"Scanning folders below {Services.Providers.Display(root)}…");
+        var (folders, stopped, unreadable) = await Task.Run(() => FolderScan.Run(root.Path, FolderScan.DefaultLimit, TimeSpan.FromSeconds(5)));
+        if (folders.Count == 0)
+        {
+            Notify(stopped ? "The folder scan stopped before finding a folder." : "There are no folders below this one.");
+            return;
+        }
+        var items = folders.Select(f => new ChoiceItem(Path.GetRelativePath(root.Path, f), null)).ToList();
+        var scope = stopped ? $"the first {folders.Count:N0} found (the scan stopped at its limit)" : $"{folders.Count:N0}";
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions($"Folders below {Services.Providers.Display(root)}: {scope}", items)
+        {
+            Hint = "Type parts of the path · Enter opens · Shift+Enter opens in the target panel"
+                + (unreadable > 0 ? $" · {Formatters.Plural(unreadable, "folder", "folders")} could not be read" : string.Empty),
+        });
+        if (r.Index < 0) return;
+        var panel = r.Alternate ? RequireTarget() : Workspace.ActivePanel;
+        panel?.ActiveTab?.Navigate(Location.FileSystem(folders[r.Index]));
+    }
+
 
     private async Task ShowFileHistoryAsync()
     {

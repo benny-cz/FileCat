@@ -147,6 +147,7 @@ public static class CommandIds
     public const string About = "app.about";
     public const string CheckUpdates = "app.checkUpdates";
     public const string ClearHistory = "app.clearHistory";
+    public const string ViewerWindows = "app.viewerWindows";
     public const string SaveWorkspace = "app.saveWorkspace";
     public const string LoadWorkspace = "app.loadWorkspace";
     public const string DiagnosticsExport = "app.diagnostics";
@@ -316,6 +317,7 @@ public sealed class CommandRegistry
         Add(CommandIds.About, "About FileCat", A);
         Add(CommandIds.CheckUpdates, "Check for updates…", A);
         Add(CommandIds.ClearHistory, "Clear history…", A);
+        Add(CommandIds.ViewerWindows, "Viewer windows…", A, null, CommandContext.Global);
         Add(CommandIds.SaveWorkspace, "Save workspace as…", A);
         Add(CommandIds.LoadWorkspace, "Open workspace…", A);
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);

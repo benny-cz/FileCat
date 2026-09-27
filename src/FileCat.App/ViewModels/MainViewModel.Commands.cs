@@ -237,6 +237,12 @@ public sealed partial class MainViewModel
                 }
                 break;
             case CommandIds.AddPanel:
+                // Every panel keeps a usable width: names, sizes, and dates must stay readable (plan §4.2).
+                if (View.TopLevel is { } top && top.Bounds.Width / (Workspace.Panels.Count + 1) < MinimumPanelWidth)
+                {
+                    Notify($"There is no room for another panel: each would be narrower than {MinimumPanelWidth} pixels. Widen the window or close a panel first.");
+                    break;
+                }
                 Workspace.Activate(Workspace.AddPanel());
                 View.FocusActivePanel();
                 break;
@@ -384,6 +390,9 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.ClearHistory:
                 await ClearHistoryAsync();
+                break;
+            case CommandIds.ViewerWindows:
+                await ShowViewerWindowsAsync();
                 break;
             case CommandIds.About:
                 await Dialogs.AlertAsync("About FileCat", $"FileCat {typeof(MainViewModel).Assembly.GetName().Version}\nMIT-licensed file manager and system-resource navigator.\nPlatform: {Services.Platform.Name}\nProfile: {Services.Paths.ProfileName}{(Services.Paths.IsPortable ? " (portable)" : "")}\nData: {Services.Paths.SettingsDirectory}");
@@ -621,6 +630,25 @@ public sealed partial class MainViewModel
             Notify($"Selected all {listing.MarkedCount:N0} items.{incomplete}");
         }
         listing.Changed += Handler;
+    }
+
+    private const double MinimumPanelWidth = 300;
+
+    /// <summary>Lists open viewer windows; Enter brings one to the front (FAR's screen switcher, plan §4.1).</summary>
+    private async Task ShowViewerWindowsAsync()
+    {
+        var windows = FileCat.App.Views.ViewerWindow.OpenWindows.ToList();
+        if (windows.Count == 0)
+        {
+            Notify("No viewer windows are open. F3 opens the focused file in one.");
+            return;
+        }
+        var items = windows.Select(w => new ChoiceItem(Path.GetFileName(w.DisplayName.TrimEnd('\\', '/')), w.DisplayName)).ToList();
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Viewer windows", items) { Hint = "Type to filter · Enter switches to the viewer · Esc closes" });
+        if (r.Index < 0 || r.Index >= windows.Count) return;
+        var chosen = windows[r.Index];
+        if (chosen.WindowState == Avalonia.Controls.WindowState.Minimized) chosen.WindowState = Avalonia.Controls.WindowState.Normal;
+        chosen.Activate();
     }
 
     private async Task ClearHistoryAsync()

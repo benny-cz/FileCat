@@ -20,6 +20,43 @@ public class ContentAndToolTests
         Assert.Contains("UTF-16 LE", TextDecoding.Detect(utf16).Evidence);
     }
 
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    public void Line_index_finds_far_lines_from_checkpoints_and_reports_short_files(string encodingName)
+    {
+        var encoding = Encoding.GetEncoding(encodingName);
+        var preamble = encoding.GetPreamble();
+        var text = string.Join("\r\n", Enumerable.Range(1, 10_000).Select(i => $"line {i} ž")) + "\r\n";
+        var data = preamble.Concat(encoding.GetBytes(text)).ToArray();
+        var index = new LineIndex(new MemoryContentSource("m", data), encoding, preamble.Length);
+        long? scannedMax = null;
+        var progress = new SynchronousProgress(b => scannedMax = b);
+
+        string LineAt(long offset)
+        {
+            int end = data.AsSpan((int)offset).IndexOf(encoding.GetBytes("\r\n"));
+            return encoding.GetString(data, (int)offset, end);
+        }
+        Assert.Equal(preamble.Length, index.FindLineStart(1, progress, default));
+        Assert.Equal("line 2 ž", LineAt(index.FindLineStart(2, progress, default)!.Value));
+        Assert.Equal("line 9000 ž", LineAt(index.FindLineStart(9000, progress, default)!.Value));
+        Assert.Equal("line 4097 ž", LineAt(index.FindLineStart(LineIndex.Stride + 1, null, default)!.Value)); // a checkpoint
+        Assert.Equal("line 4500 ž", LineAt(index.FindLineStart(4500, null, default)!.Value));
+        Assert.Null(index.FindLineStart(20_000, progress, default));
+        Assert.Equal(10_001, index.TotalLines); // the empty line after the final break
+        Assert.NotNull(scannedMax);
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        Assert.Throws<OperationCanceledException>(() => new LineIndex(new MemoryContentSource("m", data), encoding, preamble.Length).FindLineStart(9000, null, canceled.Token));
+    }
+
+    private sealed class SynchronousProgress(Action<long> report) : IProgress<long>
+    {
+        public void Report(long value) => report(value);
+    }
+
     [Fact]
     public void Search_finds_matches_across_chunk_boundaries()
     {
