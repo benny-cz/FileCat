@@ -478,6 +478,12 @@ public sealed partial class MainViewModel
                 _ = OpenRegistryLinkAsync(linkInfo.LinkTarget, tab);
                 return;
             }
+            if (item is { Kind: EntryKind.RegistryKey, Flags: var flags } &&
+                item.Parent.Scheme == Schemes.Registry && (flags & EntryFlags.Link) != 0)
+            {
+                _ = OpenRegistryLinkFromResultAsync(item, tab);
+                return;
+            }
             if (item is { Kind: EntryKind.RegistryValue }) { ViewFocused(hex: false); return; }
             _ = OpenNonFileSystemItemAsync(tab, item);
             return;

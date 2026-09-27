@@ -37,6 +37,24 @@ public sealed partial class MainViewModel
     private async Task FindFilesAsync()
     {
         var tab = ActiveTab;
+        if (tab?.Location is { Scheme: Schemes.Registry } registryRoot)
+        {
+            if (registryRoot.Path.Length == 0)
+            {
+                var roots = new[] { "HKCU", "HKLM", "HKCR", "HKU", "HKCC" };
+                var picked = await Dialogs.ChooseAsync(new ChoiceOptions("Search Registry root",
+                    roots.Select(r => new ChoiceItem(r)).ToArray()));
+                if (picked.Index < 0) return;
+                registryRoot = registryRoot.WithPath(roots[picked.Index]);
+            }
+            var registryResult = await RegistrySearchDialog.ShowAsync(this, registryRoot);
+            if (registryResult.Outcome == SearchDialogOutcome.GoTo && registryResult.Item is { } found)
+                tab.Navigate(found.Parent, found.Name);
+            else if (registryResult.Outcome == SearchDialogOutcome.ShowInPanel && registryResult.Set is { } set)
+                OpenResultSet(set, registryResult.Running);
+            View.FocusActivePanel();
+            return;
+        }
         var root = tab?.Location is { IsFileSystem: true } l ? l.Path : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         // In a result set, Find searches within its items and the matches form a narrower set (plan §11).
         var within = tab?.Location is { Scheme: Schemes.ResultSet } rl ? Services.ResultSets.Get(rl) : null;

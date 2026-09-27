@@ -114,9 +114,9 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
             var info = item.FileSystemPath is { } p ? fs.TryGetInfo(p) : null;
             var e = new EntryData(item.Name, item.Kind, info?.Size ?? item.Size, info?.ModifiedUtc.Ticks ?? item.Modified)
             {
-                Tag = new ResultTag(item.Parent, rel),
+                Tag = new ResultTag(item.Parent, rel, item.Kind),
                 Attributes = info is null ? 0 : (uint)info.Attributes,
-                Flags = info is null && item.FileSystemPath is not null ? EntryFlags.Unavailable : info is null ? EntryFlags.None : LocalFileSystemProvider.MapFlags(info.Attributes),
+                Flags = info is null && item.FileSystemPath is not null ? EntryFlags.Unavailable : info is null ? item.Flags : LocalFileSystemProvider.MapFlags(info.Attributes),
             };
             if (info is not null && info.IsDirectory) e.Size = -1;
             batch.Add(e);
@@ -132,7 +132,7 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) =>
         entry.Tag is ResultTag r
-            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder }
+            ? new ItemRef(r.Parent, entry.Name, entry.Kind, entry.Size, entry.Modified) { RelativeFolder = r.RelativeFolder, Flags = entry.Flags }
             : base.GetItemRef(listing, entry);
 
     public override bool ItemsShareListingParent => false;

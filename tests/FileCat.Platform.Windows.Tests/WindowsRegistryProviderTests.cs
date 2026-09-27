@@ -127,6 +127,41 @@ public sealed class WindowsRegistryProviderTests
         Assert.Null(provider.GetChildLocation(parent, row));
     }
 
+    [Fact]
+    public void Search_distinguishes_names_typed_data_and_raw_bytes()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            fixture!.SetValue("Needle", new byte[] { 0, 255, 17 }, RegistryValueKind.Binary);
+            fixture.SetValue("Text", "stored-needle", RegistryValueKind.ExpandString);
+            using var child = fixture.CreateSubKey("Needle");
+            child!.SetValue("child", 1234, RegistryValueKind.DWord);
+            var root = new Location(Schemes.Registry, "HKCU\\" + path);
+            List<ItemRef> Find(RegistrySearchQuery query)
+            {
+                var found = new List<ItemRef>();
+                var issues = new List<string>();
+                var report = RegistrySearch.Run(query, (item, _) => found.Add(item), issues.Add, TestContext.Current.CancellationToken);
+                Assert.False(report.StoppedAtLimit);
+                Assert.Empty(issues);
+                return found;
+            }
+            var names = Find(new RegistrySearchQuery(root, "Needle", true, true, false, null, false, true));
+            Assert.Contains(names, i => i.Kind == EntryKind.RegistryKey && i.Name == "Needle");
+            Assert.Contains(names, i => i.Kind == EntryKind.RegistryValue && i.Name == "Needle");
+            var stored = Find(new RegistrySearchQuery(root, "stored-needle", false, false, true, null, false, true));
+            Assert.Single(stored);
+            Assert.Equal("Text", stored[0].Name);
+            var bytes = Find(new RegistrySearchQuery(root, "", false, false, false, [0, 255, 17], false, true));
+            Assert.Single(bytes);
+            Assert.Equal("Needle", bytes[0].Name);
+        }
+        finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
+    }
+
     private sealed class Sink : IEnumerationSink
     {
         public List<EntryData> Items { get; } = [];

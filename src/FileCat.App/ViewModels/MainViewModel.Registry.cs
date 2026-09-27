@@ -258,6 +258,22 @@ public sealed partial class MainViewModel
 
     private void ViewRegistryValue(ItemRef item, bool raw) => _ = ViewRegistryValueAsync(item, raw);
 
+    private async Task OpenRegistryLinkFromResultAsync(ItemRef item, TabViewModel tab)
+    {
+        try
+        {
+            var target = await Task.Run(() =>
+            {
+                using var parent = WindowsRegistryProvider.Open(item.Parent, false);
+                return RegistryRaw.LinkTarget(parent, item.Name);
+            });
+            if (target is null) { Notify("This Registry key is no longer a link. Refresh the results."); return; }
+            await OpenRegistryLinkAsync(target, tab);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        { Notify($"Cannot inspect Registry link: {ex.Message}", true); }
+    }
+
     private async Task OpenRegistryLinkAsync(string target, TabViewModel tab)
     {
         string? path = target.StartsWith(@"\Registry\Machine\", StringComparison.OrdinalIgnoreCase)

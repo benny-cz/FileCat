@@ -81,6 +81,7 @@ public static class ColumnProfiles
     public static ColumnSpec[] ResultSet { get; } =
     [
         new(ColumnField.Name, "Name", 180, Star: true),
+        new(ColumnField.Kind, "Kind", 70),
         new(ColumnField.Folder, "Folder", 220, Star: true),
         new(ColumnField.Size, "Size", 86, RightAlign: true),
         new(ColumnField.Modified, "Modified", 128),

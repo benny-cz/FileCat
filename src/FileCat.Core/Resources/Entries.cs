@@ -117,6 +117,9 @@ public sealed class ItemRef : IEquatable<ItemRef>
     public long Size { get; }
     public long Modified { get; }
 
+    /// <summary>Captured presentation/safety flags; not part of identity.</summary>
+    public EntryFlags Flags { get; init; }
+
     /// <summary>Distinguishes items that share a name in one container (duplicate archive entries).</summary>
     public int Ordinal { get; init; }
 
@@ -128,7 +131,7 @@ public sealed class ItemRef : IEquatable<ItemRef>
     /// <summary>Full file-system path when the parent is a file-system location, otherwise null.</summary>
     public string? FileSystemPath => Parent.IsFileSystem ? System.IO.Path.Join(Parent.Path, Name) : null;
 
-    public static ItemRef FromEntry(Location parent, in EntryData e) => new(parent, e.Name, e.Kind, e.Size, e.Modified);
+    public static ItemRef FromEntry(Location parent, in EntryData e) => new(parent, e.Name, e.Kind, e.Size, e.Modified) { Flags = e.Flags };
 
     public static ItemRef ForFileSystemPath(string fullPath, EntryKind kind)
     {
