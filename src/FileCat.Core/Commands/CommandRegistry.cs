@@ -119,6 +119,7 @@ public static class CommandIds
     public const string FindFiles = "search.find";
     public const string CompareDirectories = "compare.dirs";
     public const string CommandLineFocus = "cmdline.focus";
+    public const string CommandHistory = "cmdline.history";
     public const string InsertName = "cmdline.insertName";
     public const string InsertPath = "cmdline.insertPath";
     public const string OpenTerminal = "terminal.open";
@@ -141,6 +142,7 @@ public static class CommandIds
     public const string Help = "app.help";
     public const string Exit = "app.exit";
     public const string About = "app.about";
+    public const string CheckUpdates = "app.checkUpdates";
     public const string SaveWorkspace = "app.saveWorkspace";
     public const string LoadWorkspace = "app.loadWorkspace";
     public const string DiagnosticsExport = "app.diagnostics";
@@ -274,6 +276,7 @@ public sealed class CommandRegistry
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
+        Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
         Add(CommandIds.InsertPath, "Insert focused path into command line", C, null, CommandContext.Panel, "Ctrl+Shift+Enter");
         Add(CommandIds.OpenTerminal, "Open terminal here", C, null, CommandContext.Panel, "Ctrl+`");
@@ -294,6 +297,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Help, "Keyboard reference", A, "Help", CommandContext.Global, "F1");
         Add(CommandIds.Exit, "Exit", A, "Quit", CommandContext.Global, "Alt+F4");
         Add(CommandIds.About, "About FileCat", A);
+        Add(CommandIds.CheckUpdates, "Check for updates…", A);
         Add(CommandIds.SaveWorkspace, "Save workspace as…", A);
         Add(CommandIds.LoadWorkspace, "Open workspace…", A);
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);

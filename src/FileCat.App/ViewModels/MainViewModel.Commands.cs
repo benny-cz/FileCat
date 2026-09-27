@@ -351,6 +351,9 @@ public sealed partial class MainViewModel
                 ShowCommandLine = true;
                 View.FocusCommandLine();
                 break;
+            case CommandIds.CommandHistory:
+                await ShowCommandHistoryAsync();
+                break;
             case CommandIds.InsertName:
             case CommandIds.InsertPath:
                 InsertIntoCommandLine(full: id == CommandIds.InsertPath);
@@ -364,6 +367,9 @@ public sealed partial class MainViewModel
             case CommandIds.OpenTerminal:
                 if (tab?.Location is { IsFileSystem: true } tl) Services.Shell.OpenTerminal(tl.Path, Services.Settings.Terminal.Shell);
                 else Notify("A terminal can be opened only in a file-system folder.");
+                break;
+            case CommandIds.CheckUpdates:
+                await CheckForUpdatesAsync();
                 break;
             case CommandIds.About:
                 await Dialogs.AlertAsync("About FileCat", $"FileCat {typeof(MainViewModel).Assembly.GetName().Version}\nMIT-licensed file manager and system-resource navigator.\nPlatform: {Services.Platform.Name}\nProfile: {Services.Paths.ProfileName}{(Services.Paths.IsPortable ? " (portable)" : "")}\nData: {Services.Paths.SettingsDirectory}");
@@ -398,6 +404,28 @@ public sealed partial class MainViewModel
     private string DisplayPathOf(ItemRef item) =>
         item.FileSystemPath ?? Services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "\\" + item.Name;
 
+
+    /// <summary>Help → Check for updates: an explicit request, so it runs even with the automatic check off.</summary>
+    private async Task CheckForUpdatesAsync()
+    {
+        Notify("Checking for a newer FileCat release…");
+        var r = await UpdateCheck.CheckAsync();
+        ClearNotification();
+        if (r.Newer && r.Url is { } url)
+        {
+            if (await Dialogs.ConfirmAsync("Update available", $"FileCat {r.Latest} is available; this is {r.Current}.\n\nFileCat never downloads or installs updates itself. Open the release page?", "Open release page"))
+                Services.Shell.Open(url);
+            return;
+        }
+        await Dialogs.AlertAsync("Check for updates", r.Error ?? $"FileCat {r.Current} is the latest release.");
+    }
+
+    /// <summary>The daily check at startup, only when enabled in Settings → Privacy.</summary>
+    public async Task CheckForUpdatesOnStartupAsync()
+    {
+        var r = await UpdateCheck.RunScheduledAsync(Services.Settings, Services.SaveSettings);
+        if (r is { Newer: true }) Notify($"FileCat {r.Latest} is available (this is {r.Current}). Help → Check for updates opens its release page.");
+    }
     private void OpenFocused(bool withSystem)
     {
         var tab = ActiveTab;
@@ -423,6 +451,11 @@ public sealed partial class MainViewModel
         if (path is null)
         {
             _ = OpenNonFileSystemItemAsync(tab, item);
+            return;
+        }
+        if (!withSystem && !e.IsContainer && TryLaunchAssociation(Core.Tools.Associations.Open, path))
+        {
+            Services.RecordFile(tab.Location!, e.Name);
             return;
         }
         try

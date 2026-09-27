@@ -50,6 +50,33 @@ public sealed partial class MainViewModel
         }
     }
 
+    /// <summary>Alt+F8 (TC/FAR): pick an earlier command; Enter puts it on the command line, Shift+Enter runs it.</summary>
+    private async Task ShowCommandHistoryAsync()
+    {
+        var history = Services.History.CommandLine;
+        if (history.Count == 0)
+        {
+            Notify("No commands yet. The command line (Ctrl+E) remembers what you run.");
+            return;
+        }
+        var items = history.Select(c => new ChoiceItem(c)).ToList();
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Command history", items)
+        {
+            Hint = "Type to filter · Enter puts it on the command line · Shift+Enter runs it · Del removes",
+            AllowDelete = true,
+        });
+        string? chosen = r.Index >= 0 ? items[r.Index].Title : null;
+        foreach (var d in r.Deleted.OrderByDescending(i => i))
+        {
+            if (d < history.Count) history.RemoveAt(d);
+        }
+        if (chosen is null) return;
+        ShowCommandLine = true;
+        CommandLineText = chosen;
+        if (r.Alternate) RunCommandLine();
+        else View.FocusCommandLine();
+    }
+
     /// <summary>Up/Down in the command line walk its history.</summary>
     public void CommandLineHistory(int delta)
     {

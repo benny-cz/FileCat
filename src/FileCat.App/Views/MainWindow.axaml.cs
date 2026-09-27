@@ -47,7 +47,7 @@ public partial class MainWindow : Window, IViewActions
             CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemeCycle]),
         ("_Tools", [CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
             CommandIds.DiagnosticsExport]),
-        ("_Help", [CommandIds.Help, CommandIds.About]),
+        ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),
     ];
 
     private readonly MainViewModel _vm;

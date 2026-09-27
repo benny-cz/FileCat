@@ -64,3 +64,6 @@ Every binding can be changed in Settings (Ctrl+,).
 - Design: `docs/design/FILECAT_PRODUCT_ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md`
 - Implementation status: `docs/IMPLEMENTATION_STATUS.md`
 - Third-party notices: `THIRD-PARTY-NOTICES.md`
+- Security policy and vulnerability reporting: `SECURITY.md`
+- Release servicing (no updater; security-release cadence): `docs/SERVICING.md`
+- Validation records: `docs/validation/` (TV-01 scale and latency)

@@ -16,6 +16,8 @@ public sealed class ToolDefinition
     /// <summary>Explicitly accepts running through a shell (enables .cmd/.bat with metacharacters).</summary>
     public bool ShellMode { get; set; }
     public string? Hotkey { get; set; }
+    /// <summary>For per-type associations: "view" (F3), "edit" (F4), or "open" (Enter).</summary>
+    public string? Intent { get; set; }
     /// <summary>Optional masks for per-type associations ("*.log;*.txt").</summary>
     public string? Mask { get; set; }
     /// <summary>Items in a user-command submenu.</summary>
@@ -76,6 +78,7 @@ public sealed class AppSettings : IVersionedState
     public List<ColumnProfile> ColumnProfiles { get; set; } = [];
     public bool KeepAwakeDuringJobs { get; set; }
     public bool CheckForUpdates { get; set; }
+    public DateTime? LastUpdateCheckUtc { get; set; }
     public bool DiagnosticMode { get; set; }
     public int RecentlyClosedTabs { get; set; } = 25;
     public int HistorySize { get; set; } = 200;

@@ -51,10 +51,21 @@ public static class SettingsDialog
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = string.Join(Environment.NewLine, s.UserCommands.Select(u => $"{u.Name} | {u.Executable} | {string.Join(" ", u.Arguments)}")),
         };
+        var associations = new TextBox
+        {
+            AcceptsReturn = true,
+            MinHeight = 90,
+            MinWidth = 460,
+            FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
+            Text = Core.Tools.Associations.Format(s.Associations),
+            PlaceholderText = @"*.pdf | view | C:\Tools\SumatraPDF.exe | {file}",
+        };
         tabs.Items.Add(new TabItem
         {
             Header = "Tools",
             Content = Form(("Editor (F4) program", editorExe), ("Editor arguments", editorArgs), ("Command line shell", shell), ("User commands (F9)", userCommands),
+                ("Associations", associations),
+                ("", Note("Associations, one per line: mask | view, edit, or open | program | arguments. F3, F4, and Enter use the first matching line; Alt+F3 always opens the internal viewer.")),
                 ("", Note("One command per line: Name | program | arguments. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters."))),
         });
 
@@ -99,7 +110,9 @@ public static class SettingsDialog
                 tabs.SelectedIndex = 4;
                 continue;
             }
+            var parsedAssociations = Core.Tools.Associations.Parse(associations.Text, out var associationError);
             var parsedCommands = ParseUserCommands(userCommands.Text, out var commandError);
+            commandError ??= associationError;
             if (commandError is not null)
             {
                 error.Text = commandError;
@@ -131,6 +144,7 @@ public static class SettingsDialog
             };
             s.Terminal.Shell = shell.SelectedItem as string ?? s.Terminal.Shell;
             s.UserCommands = parsedCommands;
+            s.Associations = parsedAssociations;
             s.KeyBindings = parsedBindings;
             s.DiagnosticMode = diag.IsChecked == true;
             s.CheckForUpdates = updates.IsChecked == true;

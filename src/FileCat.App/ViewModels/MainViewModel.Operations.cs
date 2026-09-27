@@ -598,6 +598,8 @@ public sealed partial class MainViewModel
         if (provider is Core.Search.ResultSetProvider) provider = Services.Providers.For(item.Parent);
         try
         {
+            // F3 honors a per-type View association; Alt+F3 always uses the internal viewer.
+            if (!hex && item.FileSystemPath is { } viewPath && TryLaunchAssociation(Associations.View, viewPath)) return;
             if (item.FileSystemPath is null && Services.Providers.For(item.Parent).OpenContent(item) is null)
             {
                 Notify("This item has no viewable content.", true);
@@ -633,7 +635,7 @@ public sealed partial class MainViewModel
 
     private void LaunchEditor(string path)
     {
-        var tool = Services.Settings.Editor ?? ToolLauncher.DetectEditor();
+        var tool = Associations.Find(Services.Settings.Associations, Associations.Edit, Path.GetFileName(path)) ?? Services.Settings.Editor ?? ToolLauncher.DetectEditor();
         try
         {
             var result = ToolLauncher.Launch(tool, new ToolContext([path], Path.GetDirectoryName(path)!, ActiveTarget()?.Path), Services.Paths.TempDirectory);
@@ -646,6 +648,22 @@ public sealed partial class MainViewModel
     }
 
     private Location? ActiveTarget() => Workspace.ActiveTarget?.ActiveTab?.Location;
+
+    /// <summary>Runs the per-type association for an intent when one matches the file name; false otherwise.</summary>
+    internal bool TryLaunchAssociation(string intent, string path)
+    {
+        if (Associations.Find(Services.Settings.Associations, intent, Path.GetFileName(path)) is not { } tool) return false;
+        try
+        {
+            var result = ToolLauncher.Launch(tool, new ToolContext([path], Path.GetDirectoryName(path)!, ActiveTarget()?.Path), Services.Paths.TempDirectory);
+            if (result.Warning is not null) Notify(result.Warning);
+        }
+        catch (ToolLaunchException ex)
+        {
+            Notify(ex.Message, true);
+        }
+        return true;
+    }
 
     // ---- Clipboard ---------------------------------------------------------------------------------------
 
