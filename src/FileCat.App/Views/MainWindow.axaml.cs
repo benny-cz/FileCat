@@ -47,7 +47,7 @@ public partial class MainWindow : Window, IViewActions
             CommandIds.OpenInNewTargetTab]),
         ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
-            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemeCycle]),
+            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemePick, CommandIds.ThemeCycle]),
         ("_Tools", [CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
             CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
         ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),
@@ -102,7 +102,22 @@ public partial class MainWindow : Window, IViewActions
         AddHandler(KeyUpEvent, OnPreviewKeyUp, RoutingStrategies.Tunnel);
         AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
         CommandLine.AddHandler(KeyDownEvent, OnCommandLineKeyDown, RoutingStrategies.Tunnel);
-        Deactivated += (_, _) => _vm.UpdateKeyBar(KeyMods.None);
+        Deactivated += (_, _) =>
+        {
+            _vm.UpdateKeyBar(KeyMods.None);
+            ThemeAnimation.SetActive(false);
+        };
+        Activated += (_, _) => ThemeAnimation.SetActive(true);
+        // The steampunk glass fills the space above the panels and below them.
+        LayoutUpdated += (_, _) =>
+        {
+            var bands = (MainMenu.Bounds.Bottom, WorkspaceHost.Bounds.Bottom + WorkspaceHost.Margin.Bottom);
+            if (Backdrop.GlassBands != bands)
+            {
+                Backdrop.GlassBands = bands;
+                Backdrop.InvalidateVisual();
+            }
+        };
         _ = vm.Operations;
         // Unsaved hex edits hold sign-out like running jobs (the static event is unsubscribed when this window closes).
         Action editorsChanged = vm.RefreshSessionActivity;

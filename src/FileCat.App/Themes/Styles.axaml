@@ -5,6 +5,7 @@
   <Style Selector="Window">
     <Setter Property="Background" Value="{DynamicResource FcWindow}" />
     <Setter Property="Foreground" Value="{DynamicResource FcText}" />
+    <Setter Property="FontFamily" Value="{DynamicResource FcFontFamily}" />
   </Style>
 
   <Style Selector="Border.panel">
@@ -101,6 +102,13 @@
     <Setter Property="Focusable" Value="False" />
     <Setter Property="MinHeight" Value="22" />
   </Style>
+  <!-- A disabled key keeps the bar's background (not Fluent's translucent one); only its text dims. -->
+  <Style Selector="Button.fkey:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FcKeyBarBackground}" />
+  </Style>
+  <Style Selector="Button.fkey:disabled TextBlock">
+    <Setter Property="Opacity" Value="0.5" />
+  </Style>
   <Style Selector="TextBlock.fkeynum">
     <Setter Property="Foreground" Value="{DynamicResource FcKeyBarKey}" />
     <Setter Property="FontWeight" Value="Bold" />
@@ -184,6 +192,7 @@
   </Style>
 
   <Style Selector="Menu">
-    <Setter Property="Background" Value="{DynamicResource FcWindow}" />
+    <!-- Transparent in most themes: the window (or a theme's stained glass) shows through. -->
+    <Setter Property="Background" Value="{DynamicResource FcMenuBackground}" />
   </Style>
 </Styles>

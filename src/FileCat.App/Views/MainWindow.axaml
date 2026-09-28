@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FileCat.App.ViewModels"
         xmlns:local="using:FileCat.App.Views"
+        xmlns:controls="using:FileCat.App.Controls"
         x:Class="FileCat.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="FileCat"
@@ -9,9 +10,15 @@
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/filecat.ico">
   <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
+    <!-- Behind everything: what the theme draws (Matrix rain, psychedelic light, steampunk iron and glass). -->
+    <controls:ThemeBackdrop x:Name="Backdrop" Grid.Row="0" Grid.RowSpan="5" />
+
     <Menu x:Name="MainMenu" Grid.Row="0" />
 
     <Grid x:Name="WorkspaceHost" Grid.Row="1" Margin="4,2,4,2" />
+
+    <!-- Over the panels: the psychedelic theme's rare glitches. -->
+    <controls:ThemeGlitchOverlay Grid.Row="1" />
 
     <Border x:Name="MaximizedStrip" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
             Classes="notification" Margin="0,4,12,0" IsVisible="False">

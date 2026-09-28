@@ -81,7 +81,7 @@ public sealed class IconProvider
         if (UseNativeIcons && Native is not null && e.Kind is EntryKind.File or EntryKind.Directory or EntryKind.Drive)
         {
             var img = Native.GetIcon(e, folder);
-            if (img is not null) return img;
+            if (img is not null) return ThemeManager.Current.IconTint is { } tint ? Tinted(img, tint) : img;
         }
         var kind = Classify(e);
         return _vector.GetOrAdd((kind, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
@@ -91,6 +91,45 @@ public sealed class IconProvider
     {
         _vector.Clear();
         _vectorOverlay = null;
+        _tinted = new();
+    }
+
+    private System.Runtime.CompilerServices.ConditionalWeakTable<IImage, IImage> _tinted = new();
+
+    /// <summary>
+    /// A theme's one-color version of a native icon (a phosphor screen): each pixel's brightness in the tint's color,
+    /// its transparency kept. Made once per icon and theme.
+    /// </summary>
+    private IImage Tinted(IImage image, string tint)
+    {
+        if (image is not Avalonia.Media.Imaging.WriteableBitmap source) return image;
+        return _tinted.GetValue(image, _ =>
+        {
+            var color = Color.Parse(tint);
+            var size = source.PixelSize;
+            var result = new Avalonia.Media.Imaging.WriteableBitmap(size, source.Dpi, Avalonia.Platform.PixelFormat.Bgra8888, Avalonia.Platform.AlphaFormat.Premul);
+            using var from = source.Lock();
+            using var to = result.Lock();
+            bool premultiplied = source.AlphaFormat == Avalonia.Platform.AlphaFormat.Premul;
+            var row = new byte[size.Width * 4];
+            for (int y = 0; y < size.Height; y++)
+            {
+                System.Runtime.InteropServices.Marshal.Copy(from.Address + y * from.RowBytes, row, 0, row.Length);
+                for (int x = 0; x < row.Length; x += 4)
+                {
+                    int a = row[x + 3];
+                    if (a == 0) continue;
+                    double b = row[x], g = row[x + 1], r = row[x + 2];
+                    if (premultiplied) (b, g, r) = (b * 255 / a, g * 255 / a, r * 255 / a);
+                    double light = 0.35 + 0.65 * (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+                    row[x] = (byte)(color.B * light * a / 255);
+                    row[x + 1] = (byte)(color.G * light * a / 255);
+                    row[x + 2] = (byte)(color.R * light * a / 255);
+                }
+                System.Runtime.InteropServices.Marshal.Copy(row, 0, to.Address + y * to.RowBytes, row.Length);
+            }
+            return result;
+        });
     }
 
     /// <summary>The display's scaling where rows are drawn: native icons are made at 16 times this many pixels.</summary>

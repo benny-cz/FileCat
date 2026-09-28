@@ -36,15 +36,15 @@ string state = Path.Combine(Path.GetTempPath(), "filecat-shots", Guid.NewGuid().
 var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: state));
 services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures) ?? MacIconSource.TryCreate() ?? FreedesktopIconSource.TryCreate();
 
+// The dispatcher's own loop runs (so timers fire: animations, glitches), with a render tick every 16 ms.
 void Pump(TimeSpan duration)
 {
-    var until = DateTime.UtcNow + duration;
-    while (DateTime.UtcNow < until)
-    {
-        Dispatcher.UIThread.RunJobs();
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        Thread.Sleep(15);
-    }
+    using var stop = new CancellationTokenSource(duration);
+    var render = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) => AvaloniaHeadlessPlatform.ForceRenderTimerTick());
+    render.Start();
+    Dispatcher.UIThread.MainLoop(stop.Token);
+    render.Stop();
+    AvaloniaHeadlessPlatform.ForceRenderTimerTick();
 }
 
 foreach (var theme in themes)
@@ -61,6 +61,12 @@ foreach (var theme in themes)
     for (int frame = 0; frame < frames; frame++)
     {
         if (frame > 0) Pump(TimeSpan.FromMilliseconds(every));
+        // --glitch: the psychedelic theme's glitch starts just before each frame.
+        if (args.Contains("--glitch"))
+        {
+            ThemeAnimation.TriggerGlitch();
+            Pump(TimeSpan.FromMilliseconds(120));
+        }
         using var bitmap = window.CaptureRenderedFrame();
         string file = Path.Combine(output, frames == 1 ? $"{theme}.png" : $"{theme}-{frame + 1}.png");
         bitmap?.Save(file);

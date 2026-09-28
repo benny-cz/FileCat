@@ -18,13 +18,20 @@ public static class SettingsDialog
         var tabs = new TabControl { MinWidth = 720, MinHeight = 420 };
 
         // ---- Appearance
-        var theme = new ComboBox { ItemsSource = new[] { "System", "Classic", "ClassicDark", "Cyberpunk", "Psychedelic", "HighContrast" }, SelectedItem = s.Theme, MinWidth = 220 };
+        // Choosing a theme shows it at once; Cancel goes back to the one in use.
+        var themeNames = ThemeManager.Names;
+        var theme = new ComboBox { ItemsSource = themeNames.Select(ThemeManager.DisplayName).ToList(), SelectedIndex = Math.Max(0, themeNames.ToList().IndexOf(s.Theme)), MinWidth = 220 };
+        theme.SelectionChanged += (_, _) =>
+        {
+            if (theme.SelectedIndex >= 0) ThemeManager.Apply(themeNames[theme.SelectedIndex]);
+        };
+        var animations = new CheckBox { Content = "Animated themes move (rain, drifting light, glitches)", IsChecked = s.ThemeAnimations };
         var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, MinWidth = 120 };
         var keyBar = new CheckBox { Content = "Show the function-key bar", IsChecked = s.ShowFunctionKeyBar };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         var dateFormat = new ComboBox { ItemsSource = new[] { "Culture", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" }, SelectedItem = s.DateFormat, MinWidth = 220 };
-        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", cmdLine),
-            ("", Note("Classic follows the system light or dark mode. When Windows high contrast is on, FileCat always uses its high-contrast theme."))) });
+        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", cmdLine),
+            ("", Note("View → Theme… shows every theme with a preview. When Windows high contrast is on, FileCat always uses its high-contrast theme; the system's reduce-motion setting stops animations."))) });
 
         // ---- Behavior
         var hidden = new CheckBox { Content = "Show hidden and system items (dimmed)", IsChecked = s.ShowHidden };
@@ -128,7 +135,11 @@ public static class SettingsDialog
         while (true)
         {
             var r = await vm.Dialogs.ShowCustomAsync("Settings", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true)]);
-            if (r as string != "ok") return;
+            if (r as string != "ok")
+            {
+                ThemeManager.Apply(s.Theme);
+                return;
+            }
 
             var parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
             if (bindingError is not null)
@@ -157,7 +168,8 @@ public static class SettingsDialog
                 continue;
             }
 
-            s.Theme = theme.SelectedItem as string ?? "System";
+            s.Theme = theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System";
+            s.ThemeAnimations = animations.IsChecked == true;
             s.FontSize = (double)(fontSize.Value ?? 13);
             s.DateFormat = dateFormat.SelectedItem as string ?? "Culture";
             s.ShowFunctionKeyBar = keyBar.IsChecked == true;

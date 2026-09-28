@@ -421,11 +421,15 @@ public sealed partial class MainViewModel
             case CommandIds.Menu:
                 View.OpenMenuBar();
                 break;
+            case CommandIds.ThemePick:
+                await ChooseThemeAsync();
+                break;
             case CommandIds.ThemeCycle:
                 Services.Settings.Theme = ThemeManager.NextThemeName(Services.Settings.Theme);
                 ThemeManager.Apply(Services.Settings.Theme);
                 Services.Icons.ClearCache();
-                Notify($"Theme: {ThemeManager.Current.Name}{(Services.Settings.Theme == "System" ? " (follows the system)" : "")}");
+                Services.SaveSettings();
+                Notify($"Theme: {ThemeManager.DisplayName(Services.Settings.Theme)}. View → Theme… shows them all with a preview.");
                 break;
             case CommandIds.CommandLineFocus:
                 ShowCommandLine = true;

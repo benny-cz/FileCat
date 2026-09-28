@@ -136,7 +136,6 @@ public sealed class FileListControl : Control
         };
         VisualChildren.Add(_renameErrorBox);
         LogicalChildren.Add(_renameErrorBox);
-        ThemeManager.ThemeChanged += OnThemeChanged;
         _metadataHandler = () => Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
         UpdateTypefaces();
     }
@@ -349,6 +348,8 @@ public sealed class FileListControl : Control
         InvalidateVisual();
     }
 
+    private void OnPaletteTick() => InvalidateVisual();
+
     private void OnThemeChanged()
     {
         ClearTextCache();
@@ -359,12 +360,17 @@ public sealed class FileListControl : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        // Static events: subscribed while shown, so a closed list is not kept alive by them.
+        ThemeManager.ThemeChanged += OnThemeChanged;
+        ThemeManager.PaletteTick += OnPaletteTick;
         ResolveBrushes();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        ThemeManager.ThemeChanged -= OnThemeChanged;
+        ThemeManager.PaletteTick -= OnPaletteTick;
         _loadingHintTimer?.Stop();
         FinishRename(null, restoreFocus: false);
     }

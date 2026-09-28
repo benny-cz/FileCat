@@ -55,8 +55,10 @@ public sealed class AppSettings : IVersionedState
     public const int CurrentSchema = 1;
 
     public int SchemaVersion { get; set; } = CurrentSchema;
-    /// <summary>"Classic", "ClassicDark", "Cyberpunk", "Psychedelic", "HighContrast", or "System".</summary>
+    /// <summary>"Classic", "ClassicDark", "Cyberpunk", "Psychedelic", "Steampunk", "HighContrast", or "System".</summary>
     public string Theme { get; set; } = "System";
+    /// <summary>Animated themes move (rain, drifting light, glitches); off, they stand still. The system's reduce-motion setting also stops them.</summary>
+    public bool ThemeAnimations { get; set; } = true;
     public bool ShowHidden { get; set; } = true;
     public bool NaturalSort { get; set; } = true;
     public bool DirectoriesFirst { get; set; } = true;

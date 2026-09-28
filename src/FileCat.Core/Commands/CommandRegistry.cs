@@ -171,6 +171,7 @@ public static class CommandIds
     public const string LoadWorkspace = "app.loadWorkspace";
     public const string DiagnosticsExport = "app.diagnostics";
     public const string ThemeCycle = "app.themeCycle";
+    public const string ThemePick = "app.themePick";
 }
 
 public sealed class CommandRegistry
@@ -358,6 +359,7 @@ public sealed class CommandRegistry
         Add(CommandIds.SaveWorkspace, "Save workspace as…", A);
         Add(CommandIds.LoadWorkspace, "Open workspace…", A);
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);
+        Add(CommandIds.ThemePick, "Theme…", A);
         Add(CommandIds.ThemeCycle, "Next theme", A);
         return r;
     }

@@ -15,6 +15,7 @@ public sealed partial class MainViewModel
     {
         var s = Services.Settings;
         ThemeManager.Apply(s.Theme);
+        ThemeAnimation.SetAllowed(s.ThemeAnimations);
         Services.Icons.ClearCache();
         ListFontSize = s.FontSize;
         ShowKeyBar = s.ShowFunctionKeyBar;
