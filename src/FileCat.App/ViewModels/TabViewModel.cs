@@ -503,7 +503,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         var l = Listing;
         var totals = l.Store.Totals;
-        var left = $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}";
+        // Counted in the location's own words: keys and values in the Registry, drives in This PC.
+        var left = Location?.Scheme switch
+        {
+            Schemes.Registry => $"{Formatters.Plural(totals.Directories, "key", "keys")}, {Formatters.Plural(totals.Files, "value", "values")}",
+            Schemes.Computer => Formatters.Plural(totals.Directories + totals.Files, "item", "items"),
+            _ => $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}",
+        };
         if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
         if (l.State == ListingState.Loading) left += " · " + (l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) left += " · " + (l.LoadingProgress ?? "refreshing…");

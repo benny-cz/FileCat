@@ -22,9 +22,12 @@ public sealed class WindowsRegistryProvider : ResourceProvider
 
     public static Location Home(string view = "default") => new(Schemes.Registry, "", session: view);
 
-    public override string GetDisplayPath(Location location) =>
-        location.Path.Length == 0 ? $"Registry [{ViewLabel(location.Session)}]" :
-        $"Registry [{ViewLabel(location.Session)}] \\{location.Path}";
+    /// <summary>"Registry › HKCU\Software", naming the view when it is not the default ("Registry (32-bit view) › …").</summary>
+    public override string GetDisplayPath(Location location)
+    {
+        string registry = location.Session is null or "default" ? "Registry" : $"Registry ({ViewLabel(location.Session)} view)";
+        return location.Path.Length == 0 ? registry : $"{registry} › {location.Path}";
+    }
 
     public override Location? GetParent(Location location)
     {
