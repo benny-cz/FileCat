@@ -210,11 +210,13 @@ public sealed partial class MainViewModel
         var size = new CheckBox { Content = "Size", IsChecked = true };
         var time = new CheckBox { Content = "Modification time", IsChecked = true };
         var content = new CheckBox { Content = "Content (reads both files; slower)" };
+        var recursive = new CheckBox { Content = "Include subfolders: a preview of every difference below, marking nothing" };
         var body = new StackPanel { Spacing = 6, Children =
         {
             new TextBlock { Text = $"Compare {left.DisplayPath}\nwith {right.DisplayPath}", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
             new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { size, time, content } },
-            new TextBlock { Text = "Names always match; folders compare by presence. Items that differ or exist on one side only are marked in both panels.", Classes = { "muted", "small" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+            recursive,
+            new TextBlock { Text = "Names always match; folders compare by presence. Without subfolders, items that differ or exist on one side only are marked in both panels.", Classes = { "muted", "small" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
         } };
         var go = await Dialogs.ShowCustomAsync("Compare directories", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Compare", "ok", IsDefault: true)]);
         if (go as string != "ok") return;
@@ -235,6 +237,11 @@ public sealed partial class MainViewModel
             tol = a > b ? a : b;
             if (tol < TimeSpan.FromSeconds(1)) tol = TimeSpan.FromSeconds(1);
         }
+        if (recursive.IsChecked == true)
+        {
+            CompareTrees(left, right, criteria, tol);
+            return;
+        }
         if ((criteria & CompareCriteria.Content) != 0) Notify("Comparing contents…");
         var result = await Task.Run(() => DirectoryCompare.Compare(leftEntries, rightEntries, criteria, tol, (ln, rn) =>
         {
@@ -250,6 +257,43 @@ public sealed partial class MainViewModel
         left.ComparisonLabel = label;
         right.ComparisonLabel = label;
         Notify(result.LeftMarks.Count + result.RightMarks.Count == 0 ? "The folders match." : label);
+    }
+
+    /// <summary>
+    /// Recursive comparison (plan §16.2): a preview window that changes nothing; each side's differences open as a result
+    /// set in that side's panel, for the usual commands.
+    /// </summary>
+    private void CompareTrees(TabViewModel left, TabViewModel right, CompareCriteria criteria, TimeSpan tolerance)
+    {
+        var lloc = left.Location!;
+        var rloc = right.Location!;
+        var leftPanel = left.Panel;
+        var rightPanel = right.Panel;
+        var how = new List<string> { "name" };
+        if ((criteria & CompareCriteria.Size) != 0) how.Add("size");
+        if ((criteria & CompareCriteria.Time) != 0) how.Add($"time ±{tolerance.TotalSeconds:0.#} s");
+        if ((criteria & CompareCriteria.Content) != 0) how.Add("content");
+        bool caseInsensitive = OperatingSystem.IsWindows() && lloc.IsFileSystem && rloc.IsFileSystem;
+        Views.DirectoryDiffWindow.Start(left.DisplayPath, right.DisplayPath,
+            $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed.",
+            (progress, ct) => TreeCompare.Compare(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress),
+            (entries, leftSide) =>
+            {
+                var set = Services.ResultSets.Create($"{(leftSide ? "Left" : "Right")} differences: {Path.GetFileName((leftSide ? left : right).DisplayPath.TrimEnd('\\', '/'))}",
+                    $"Items that differ between {left.DisplayPath} and {right.DisplayPath}");
+                foreach (var e in entries)
+                {
+                    var data = leftSide ? e.Left : e.Right;
+                    var folder = leftSide ? e.LeftFolder : e.RightFolder;
+                    if (data is not { } d || folder is null) continue;
+                    int slash = e.RelativePath.LastIndexOf('/');
+                    set.Add(Services.Providers.For(folder).GetItemRef(folder, d), slash < 0 ? "" : e.RelativePath[..slash]);
+                }
+                set.IsComplete = true;
+                var panel = leftSide ? leftPanel : rightPanel;
+                panel.OpenTab(ResultSetProvider.LocationOf(set));
+                Workspace.Activate(panel);
+            });
     }
 
     private static List<EntryData> Snapshot(ListingModel listing)
