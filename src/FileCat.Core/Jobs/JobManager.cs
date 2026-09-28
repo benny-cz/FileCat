@@ -14,6 +14,7 @@ public sealed class JobManager
     private const string GlobalScope = "<all locations>";
     private readonly object _lock = new();
     private readonly List<Job> _jobs = [];
+    private readonly HashSet<Job> _starting = []; // chosen to start, not yet Running: no other Schedule may choose them
     private readonly IFileSystemOperations _fs;
     private readonly ProviderRegistry _providers;
     private readonly string _journalDirectory;
@@ -117,8 +118,9 @@ public sealed class JobManager
         var canceled = new List<Job>();
         lock (_lock)
         {
-            int running = _jobs.Count(j => j.State.IsActive());
-            foreach (var job in _jobs.Where(j => j.State == JobState.Queued).OrderBy(j => j.QueueOrder).ToList())
+            // Schedule runs on the submitting thread and on every finishing job's thread; a job is chosen by one of them.
+            int running = _jobs.Count(j => j.State.IsActive() || _starting.Contains(j));
+            foreach (var job in _jobs.Where(j => j.State == JobState.Queued && !_starting.Contains(j)).OrderBy(j => j.QueueOrder).ToList())
             {
                 if (job.IsCancellationRequested)
                 {
@@ -158,6 +160,7 @@ public sealed class JobManager
                 job.WaitingFor = null;
                 job.WaitReason = null;
                 running++;
+                _starting.Add(job);
                 toStart.Add(job);
             }
         }
@@ -198,6 +201,7 @@ public sealed class JobManager
     private void Start(Job job)
     {
         job.SetState(JobState.Running);
+        lock (_lock) _starting.Remove(job);
         var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
         thread.Start();
     }

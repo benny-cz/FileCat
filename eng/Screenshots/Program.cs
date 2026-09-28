@@ -10,9 +10,11 @@ using FileCat.Core.Platform;
 using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
 
-// Renders FileCat's main window off-screen to PNG files, one per theme, for visual checks of icons and themes.
+// Renders FileCat's main window off-screen to PNG files, one per theme, for visual checks of the whole app.
 // Usage: Screenshots <out-folder> <left> [<right>] [--themes Classic,Cyberpunk] [--size 1400x900] [--wait 3]
 //        [--frames 3 --every 700]   (several frames per theme, for animated themes)
+//        [--focus name] [--focus-right name] [--mark a;b] [--commands id,id]   (a scene: focus and mark items in the
+//        left panel (the right one's focus too), run commands; every window a command opens is captured as well)
 if (args.Length < 2)
 {
     Console.Error.WriteLine("Screenshots <out-folder> <left-folder> [<right-folder>] [--themes a,b] [--size WxH] [--wait seconds] [--frames n --every ms]");
@@ -40,6 +42,10 @@ var size = Option("--size", "1400x900").Split('x');
 double wait = double.Parse(Option("--wait", "3"), System.Globalization.CultureInfo.InvariantCulture);
 int frames = int.Parse(Option("--frames", "1"), System.Globalization.CultureInfo.InvariantCulture);
 int every = int.Parse(Option("--every", "700"), System.Globalization.CultureInfo.InvariantCulture);
+string? focusLeft = Option("--focus", "") is { Length: > 0 } fl ? fl : null;
+string? focusRight = Option("--focus-right", "") is { Length: > 0 } fr ? fr : null;
+var marks = Option("--mark", "").Split(';', StringSplitOptions.RemoveEmptyEntries);
+var commands = Option("--commands", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 if (OperatingSystem.IsWindows()) PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
@@ -58,6 +64,22 @@ void Pump(TimeSpan duration)
     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
 }
 
+// Windows a command opens (viewer, compare, hex editor, …) are captured next to the main window.
+var opened = new List<Avalonia.Controls.Window>();
+Avalonia.Controls.Window.WindowOpenedEvent.AddClassHandler<Avalonia.Controls.Window>((w, _) => opened.Add(w));
+
+static void Focus(FileCat.Core.Listing.ListingModel listing, string name, bool mark)
+{
+    for (int i = 0; i < listing.VisibleCount; i++)
+    {
+        if (!string.Equals(listing.GetVisible(i).Name, name, StringComparison.OrdinalIgnoreCase)) continue;
+        listing.SetFocus(i);
+        if (mark) listing.ToggleMark(i);
+        return;
+    }
+    Console.Error.WriteLine($"\"{name}\" is not in the panel.");
+}
+
 foreach (var theme in themes)
 {
     ThemeManager.Apply(theme);
@@ -67,8 +89,20 @@ foreach (var theme in themes)
     var panels = vm.Workspace.Panels;
     panels[0].ActiveTab?.Navigate(left);
     if (panels.Count > 1) panels[1].ActiveTab?.Navigate(right);
+    opened.Clear();
     window.Show();
     Pump(TimeSpan.FromSeconds(wait));
+    if (panels.Count > 1 && focusRight is not null && panels[1].ActiveTab is { } rightTab) Focus(rightTab.Listing, focusRight, mark: false);
+    if (panels[0].ActiveTab is { } leftTab)
+    {
+        foreach (var name in marks) Focus(leftTab.Listing, name, mark: true);
+        if (focusLeft is not null) Focus(leftTab.Listing, focusLeft, mark: false);
+    }
+    foreach (var command in commands)
+    {
+        vm.Execute(command);
+        Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
+    }
     for (int frame = 0; frame < frames; frame++)
     {
         if (frame > 0) Pump(TimeSpan.FromMilliseconds(every));
@@ -82,7 +116,16 @@ foreach (var theme in themes)
         string file = Path.Combine(output, frames == 1 ? $"{theme}.png" : $"{theme}-{frame + 1}.png");
         bitmap?.Save(file);
         Console.WriteLine(bitmap is null ? $"{theme}: nothing rendered" : file);
+        foreach (var other in opened.Where(w => w != window && w.IsVisible).ToList())
+        {
+            using var shot = other.CaptureRenderedFrame();
+            string name = string.Concat((other.Title ?? "window").Split(Path.GetInvalidFileNameChars())).Trim();
+            string otherFile = Path.Combine(output, $"{theme}-{name}{(frames == 1 ? "" : $"-{frame + 1}")}.png");
+            shot?.Save(otherFile);
+            Console.WriteLine(shot is null ? $"{theme} / {name}: nothing rendered" : otherFile);
+        }
     }
+    foreach (var other in opened.Where(w => w != window).ToList()) other.Close();
     window.Close();
     foreach (var tab in panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();
 }
