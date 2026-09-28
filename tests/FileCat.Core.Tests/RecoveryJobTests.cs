@@ -105,6 +105,33 @@ public sealed class RecoveryJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_file_whose_start_is_a_guess_is_recovered_with_a_warning_that_says_so()
+    {
+        // Windows erased half of its start, and nothing around it tells which place is right (ErasedFatStartTests).
+        var image = new Fat32Image();
+        var data = Fat32Image.Data(600, 6);
+        image.Put(2, Fat32Image.Deleted("LONE    BIN", 0x10000 + 500, data));
+        image.Put(0x10000 + 500, data);
+        string path = Path.Combine(_dir.Path, "erased.img");
+        image.Save(path);
+        var root = RecoveryProvider.ForImage(path, 1);
+        var row = (await ListAsync(root)).Entries.Single();
+        Assert.Equal("Uncertain", ((IDisplayDetails)row.Tag!).KindText);
+        Assert.False(row.Has(EntryFlags.Unavailable));
+
+        var target = _dir.Dir("guessed");
+        var job = await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [_recovery.GetItemRef(root, row)], Destination = Location.FileSystem(target) }));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Equal(data, File.ReadAllBytes(Path.Combine(target, row.Name)));
+        Assert.StartsWith(RecoveryItem.UncertainStart, Assert.Single(job.Issues).Message, StringComparison.Ordinal);
+
+        // Dragging would hand the file over without that warning: it goes through F5.
+        var (staged, refusal) = FileCat.Core.Operations.DragStaging.Stage([_recovery.GetItemRef(root, row)], _providers, new PortableFileOperations(), _dir.Dir("drag"), TestContext.Current.CancellationToken);
+        Assert.Null(staged);
+        Assert.Contains("is a guess", refusal, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Overwritten_items_are_listed_but_never_copied()
     {
         var root = RecoveryProvider.ForImage(RecoveryFixtures.Image("fat16"), 1);

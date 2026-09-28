@@ -9,6 +9,12 @@ public enum RecoveryState
     /// <summary>Every byte lies where the file system recorded it, in space nothing uses now.</summary>
     Recoverable,
 
+    /// <summary>
+    /// Where the content starts is FileCat's best guess, because the file system kept only part of it (Windows erases half
+    /// of a deleted FAT32 entry's first cluster number): what is there may not be this item.
+    /// </summary>
+    Uncertain,
+
     /// <summary>Some of the content's space is used by other data now, or cannot be read.</summary>
     Partial,
 
@@ -85,6 +91,9 @@ public sealed class RecoveryItem
     /// <summary>Part of the name is lost (a deleted FAT short name loses its first letter).</summary>
     public bool NameUncertain { get; init; }
 
+    /// <summary>Where the content starts is a best guess (see <see cref="RecoveryState.Uncertain"/>).</summary>
+    public bool StartGuessed { get; set; }
+
     /// <summary>Items with the same name in one folder are told apart by this (0 for the first).</summary>
     public int Ordinal { get; set; }
 
@@ -121,7 +130,7 @@ public sealed class RecoveryItem
         long total = Extents.Sum(e => e.Length);
         if (lost == 0)
         {
-            State = RecoveryState.Recoverable;
+            State = StartGuessed ? RecoveryState.Uncertain : RecoveryState.Recoverable;
         }
         else if (lost >= total || Extents[0].State is ExtentState.InUse or ExtentState.Unreadable && Extents.Count == 1)
         {
@@ -130,10 +139,13 @@ public sealed class RecoveryItem
         }
         else
         {
-            State = RecoveryState.Partial;
+            State = StartGuessed ? RecoveryState.Uncertain : RecoveryState.Partial;
             Evidence.Insert(0, $"{Bytes(lost)} of {Bytes(total)} are in use by other data now or cannot be read; those bytes come back as zeros.");
         }
+        if (State == RecoveryState.Uncertain) Evidence.Insert(0, UncertainStart);
     }
+
+    internal const string UncertainStart = "Where it starts is FileCat's best guess, so this may not be its data: check the file after recovering it.";
 
     internal static string Bytes(long n) => n < 1024 ? $"{n} bytes" : n < 1024 * 1024 ? $"{n / 1024.0:0.#} KiB" : $"{n / (1024.0 * 1024):0.#} MiB";
 }

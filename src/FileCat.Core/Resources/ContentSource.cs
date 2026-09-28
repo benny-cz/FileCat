@@ -33,6 +33,9 @@ public interface IPartialContent
 {
     /// <summary>The ranges that read as zeros only because their data is lost, in content order (may grow while reading).</summary>
     IReadOnlyList<(long Offset, long Length)> MissingRanges { get; }
+
+    /// <summary>Why even the bytes that are there may not be the item's (a recovered file whose start is a guess), or null.</summary>
+    string? Caveat => null;
 }
 
 public static class PartialContent

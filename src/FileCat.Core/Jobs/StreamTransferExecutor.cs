@@ -232,6 +232,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
         long written = 0;
         IReadOnlyList<(long Offset, long Length)>? lost = null;
+        string? caveat = null;
         // A source that can be read at any offset and describes its version can resume after a dropped connection or a
         // phone that locked part way; any other source fails the item as before.
         var revision = content.GetRevision();
@@ -269,6 +270,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     Job.Throttle(written, clock);
                 }
                 lost = (content as IPartialContent)?.MissingRanges;
+                caveat = (content as IPartialContent)?.Caveat;
                 // Through the open handle: no second open, and later writes on it cannot change the time.
                 if (item.Modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(item.Modified, DateTimeKind.Utc));
             }
@@ -302,7 +304,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         Job.ItemDone();
         // A recovered file with lost parts is still worth having, but never passed off as complete (plan §17.1).
-        if (lost is { Count: > 0 })
+        if (caveat is not null)
+            Issue(IssueSeverity.Warning, item.Name, caveat + (lost is { Count: > 0 } ? " " + PartialContent.Describe(lost, written) : ""), StepOutcome.Committed);
+        else if (lost is { Count: > 0 })
             Issue(IssueSeverity.Warning, item.Name, PartialContent.Describe(lost, written) + " Check the file before relying on it.", StepOutcome.Committed);
         return true;
     }

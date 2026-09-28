@@ -60,6 +60,8 @@ public static class DragStaging
                 // Lost bytes would travel unannounced: those items go through F5, whose report names them.
                 if (content is IPartialContent { MissingRanges.Count: > 0 })
                     return Fail(folder, $"Parts of \"{item.Name}\" are lost, so it is recovered with F5, which says which bytes are zeros.");
+                if (content is IPartialContent { Caveat: not null })
+                    return Fail(folder, $"Where \"{item.Name}\" starts is a guess, so it is recovered with F5, whose report says so.");
                 if (item.Modified > 0) File.SetLastWriteTimeUtc(target, new DateTime(item.Modified, DateTimeKind.Utc));
                 if (OriginMark(item.Parent, fs, providers) is { } mark) fs.WriteOriginMark(target, mark);
                 File.SetAttributes(target, File.GetAttributes(target) | FileAttributes.ReadOnly); // a copy to hand over, not to edit here

@@ -116,12 +116,13 @@ public sealed class ViewerWindow : Window
 
         // Recovered content with lost parts: say which bytes are zeros only because their data is gone (plan §17.1).
         Border? lostNotice = null;
-        if (source is IPartialContent { MissingRanges.Count: > 0 } partial)
+        if (source is IPartialContent partial && (partial.MissingRanges.Count > 0 || partial.Caveat is not null))
         {
+            string notice = string.Join(" ", new[] { partial.Caveat, partial.MissingRanges.Count > 0 ? PartialContent.Describe(partial.MissingRanges, source.Length) : null }.Where(t => t is not null));
             lostNotice = new Border
             {
                 Padding = new Thickness(8, 4),
-                Child = new TextBlock { Text = PartialContent.Describe(partial.MissingRanges, source.Length), Classes = { "warning" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                Child = new TextBlock { Text = notice, Classes = { "warning" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
             };
             DockPanel.SetDock(lostNotice, Dock.Top);
         }

@@ -7,13 +7,18 @@ namespace FileCat.Recovery;
 /// FAT12, FAT16, and FAT32 (Microsoft FAT specification). A deleted entry keeps its size and first cluster, but its first
 /// short-name byte becomes 0xE5 and its cluster chain is freed, so FAT no longer says where a deleted file's other pieces
 /// were: FileCat reads a deleted file as one run from its first cluster and says so. Long names come from the long-name
-/// entries in front of the short one; their checksum also restores the short name's lost first letter.
+/// entries in front of the short one; their checksum also restores the short name's lost first letter. On FAT32, Windows
+/// also erases the upper half of the first cluster number: where the item listed before ends, a folder's "." entry, and
+/// the data's own signature then tell which of the places the lower half allows is the item's, or the item says its start
+/// is a guess. A deleted folder's listing goes on where the files written meanwhile end, and is followed there.
 /// </summary>
 internal sealed class FatScanner
 {
     private const int MaxDepth = 256;
     private const int MaxDirectoryClusters = 65536;
     private const long MaxFatBytes = 64L * 1024 * 1024; // 16 million clusters
+    private const int MaxWeighed = 16; // places weighed by their data for one file
+    private const int MaxSniffs = 4096; // and for the whole scan (each reads one cached block)
 
     private readonly IBlockSource _volume;
     private readonly int _bits;
@@ -24,6 +29,7 @@ internal sealed class FatScanner
     private readonly HashSet<uint> _directories = [];
     private readonly RecoveryVolume _result;
     private string? _label;
+    private int _sniffs;
 
     private FatScanner(IBlockSource volume, byte[] boot, VolumeSlot slot)
     {
@@ -71,17 +77,17 @@ internal sealed class FatScanner
     public static RecoveryVolume Scan(IBlockSource volume, byte[] boot, VolumeSlot slot, CancellationToken ct)
     {
         var scanner = new FatScanner(volume, boot, slot);
-        byte[] root;
         if (scanner._bits == 32)
         {
             scanner._directories.Add(scanner.RootCluster);
-            root = scanner.ReadChain(scanner.RootCluster, MaxDirectoryClusters);
+            scanner.Placed(scanner.RootCluster, scanner._clusterSize, known: true);
+            scanner.ParseChain(scanner._result.Root, scanner.RootCluster, depth: 0, ct, root: true);
         }
         else
         {
-            root = volume.ReadExactly(scanner.RootOffset, scanner.RootBytes);
+            scanner.ParseEntries(scanner._result.Root, volume.ReadExactly(scanner.RootOffset, scanner.RootBytes), new Listing(0), insideDeleted: false, depth: 0, ct);
         }
-        scanner.ParseDirectory(scanner._result.Root, root, insideDeleted: false, depth: 0, ct);
+        scanner.ResolvePending();
         scanner._result.Label = scanner._label;
         return scanner._result;
     }
@@ -108,38 +114,51 @@ internal sealed class FatScanner
 
     private long ClusterOffset(uint cluster) => _dataOffset + (long)(cluster - 2) * _clusterSize;
 
-    /// <summary>An allocated chain, as the table records it; stops at the end mark, a bad link, or a loop.</summary>
-    private byte[] ReadChain(uint start, int maxClusters)
+    private uint FirstCluster(ReadOnlySpan<byte> entry) =>
+        BinaryPrimitives.ReadUInt16LittleEndian(entry[26..]) | (_bits == 32 ? (uint)BinaryPrimitives.ReadUInt16LittleEndian(entry[20..]) << 16 : 0);
+
+    /// <summary>
+    /// A folder's entries, read a cluster at a time (a long name can run on into the next one); <see cref="Folder"/> is
+    /// the folder's first cluster, which its subfolders' ".." entries name (0 for the root).
+    /// </summary>
+    private sealed class Listing(uint folder)
     {
-        var clusters = new List<uint>();
-        var seen = new HashSet<uint>();
-        for (uint c = start; Valid(c) && clusters.Count < maxClusters && seen.Add(c); c = _fat[c])
-        {
-            clusters.Add(c);
-            if (IsEnd(_fat[c]) || _fat[c] == 0) break;
-        }
-        var data = new byte[clusters.Count * _clusterSize];
-        for (int i = 0; i < clusters.Count; i++)
-        {
-            int n = _volume.Read(ClusterOffset(clusters[i]), data.AsSpan(i * _clusterSize, _clusterSize));
-            if (n < _clusterSize) return data[..(i * _clusterSize + Math.Max(0, n))];
-        }
-        return data;
+        public uint Folder { get; } = folder;
+        public List<byte[]> LongName { get; } = [];
     }
 
-    private void ParseDirectory(RecoveryItem folder, byte[] data, bool insideDeleted, int depth, CancellationToken ct)
+    private bool TooDeep(int depth)
     {
-        if (depth > MaxDepth)
+        if (depth <= MaxDepth) return false;
+        const string warning = "Folders are nested deeper than FileCat follows; deeper deleted items are not listed.";
+        if (!_result.Warnings.Contains(warning)) _result.Warnings.Add(warning);
+        return true;
+    }
+
+    /// <summary>An existing folder, cluster by cluster along its chain (its later clusters sit among the files written meanwhile).</summary>
+    private void ParseChain(RecoveryItem folder, uint start, int depth, CancellationToken ct, bool root = false)
+    {
+        if (TooDeep(depth)) return;
+        var listing = new Listing(root ? 0 : start);
+        var cluster = new byte[_clusterSize];
+        var seen = new HashSet<uint>();
+        for (uint c = start; Valid(c) && seen.Count < MaxDirectoryClusters && seen.Add(c); c = _fat[c])
         {
-            _result.Warnings.Add("Folders are nested deeper than FileCat follows; deeper deleted items are not listed.");
-            return;
+            if (c != start) Placed(c, _clusterSize, known: true);
+            int n = Math.Max(0, _volume.Read(ClusterOffset(c), cluster));
+            if (!ParseEntries(folder, cluster.AsSpan(0, n), listing, insideDeleted: false, depth, ct) || n < _clusterSize || IsEnd(_fat[c]) || _fat[c] == 0) break;
         }
-        var longName = new List<byte[]>();
+    }
+
+    /// <summary>Adds a folder's entries from one piece of its listing; false once the listing's end mark is reached.</summary>
+    private bool ParseEntries(RecoveryItem folder, ReadOnlySpan<byte> data, Listing listing, bool insideDeleted, int depth, CancellationToken ct)
+    {
+        var longName = listing.LongName;
         for (int at = 0; at + 32 <= data.Length; at += 32)
         {
             ct.ThrowIfCancellationRequested();
-            var e = data.AsSpan(at, 32);
-            if (e[0] == 0x00) break; // the end of the directory
+            var e = data.Slice(at, 32);
+            if (e[0] == 0x00) return false; // the end of the directory
             byte attributes = e[11];
             if ((attributes & 0x3F) == 0x0F)
             {
@@ -157,17 +176,24 @@ internal sealed class FatScanner
             }
             var (text, uncertain) = Name(name, e[12], longName);
             longName.Clear();
-            uint start = BinaryPrimitives.ReadUInt16LittleEndian(e[26..]) | (_bits == 32 ? (uint)BinaryPrimitives.ReadUInt16LittleEndian(e[20..]) << 16 : 0);
+            uint start = FirstCluster(e);
             uint size = BinaryPrimitives.ReadUInt32LittleEndian(e[28..]);
             bool isDirectory = (attributes & 0x10) != 0;
             var modified = DosTime(BinaryPrimitives.ReadUInt16LittleEndian(e[24..]), BinaryPrimitives.ReadUInt16LittleEndian(e[22..]), 0);
             var created = DosTime(BinaryPrimitives.ReadUInt16LittleEndian(e[16..]), BinaryPrimitives.ReadUInt16LittleEndian(e[14..]), e[13]);
             if (!deleted)
             {
-                if (!isDirectory || !Valid(start) || !_directories.Add(start)) continue;
+                if (!isDirectory)
+                {
+                    // Not listed, but where it lies tells where the next deleted file probably starts.
+                    if (size > 0 && Valid(start)) Placed(start, size, known: true);
+                    continue;
+                }
+                if (!Valid(start) || !_directories.Add(start)) continue;
                 var existing = new RecoveryItem { Name = text, IsDirectory = true, ModifiedUtc = modified, CreatedUtc = created };
                 folder.Children.Add(existing);
-                ParseDirectory(existing, ReadChain(start, MaxDirectoryClusters), insideDeleted: false, depth + 1, ct);
+                Placed(start, _clusterSize, known: true);
+                ParseChain(existing, start, depth + 1, ct);
                 continue;
             }
             var item = new RecoveryItem
@@ -182,13 +208,201 @@ internal sealed class FatScanner
             };
             if (uncertain) item.Evidence.Add("The first letter of the name is lost (FAT overwrites it when a file is deleted); it is shown as _.");
             folder.Children.Add(item);
-            if (isDirectory) DeletedDirectory(item, start, depth, ct);
+            // Windows erases the upper half of a deleted FAT32 entry's first cluster number (it keeps it apart from the lower).
+            bool erased = _bits == 32 && start <= 0xFFFF;
+            if (isDirectory) DeletedDirectory(item, start, erased, listing.Folder, depth, ct);
+            else if (erased && size > 0 && Starts(start, erased: true).Count > 1) PlaceErased(item, start, size);
             else Locate(item, start, size);
         }
+        return true;
+    }
+
+    /// <summary>
+    /// The first clusters an entry allows: its own, or, when the upper half of the number may have been erased, every
+    /// cluster whose lower half is the one recorded.
+    /// </summary>
+    private List<uint> Starts(uint start, bool erased)
+    {
+        var starts = new List<uint>();
+        if (!erased)
+        {
+            if (Valid(start)) starts.Add(start);
+            return starts;
+        }
+        for (ulong c = start; c < _clusterCount + 2UL; c += 0x10000)
+            if (c >= 2) starts.Add((uint)c);
+        return starts;
+    }
+
+    /// <summary>
+    /// Where an item's content lies, in listing order. A copy writes one item after another, so a deleted file whose start
+    /// was erased most likely lies right after the item listed before it, or right before the one listed after it. Only the
+    /// places next to such files are kept (<see cref="Previous"/>, <see cref="Next"/>).
+    /// </summary>
+    private sealed class Placement
+    {
+        public uint Start; // 0: unknown
+        public uint Clusters;
+        public bool Known; // certain rather than guessed
+        public Pending? Pending; // a deleted file whose place is still open
+        public Placement? Previous, Next;
+    }
+
+    /// <summary>A deleted file whose start is undecided until its neighbors are known: the places allowed, and the likeliest.</summary>
+    private sealed record Pending(RecoveryItem Item, uint Low, uint Size, List<uint> Starts, uint Guess, string Why);
+
+    private Placement? _last;
+    private readonly List<Placement> _pending = [];
+
+    /// <summary>Where the next item probably starts (0: unknown), and whether that follows from a certain place.</summary>
+    private uint Expected => _last is { Start: > 0 } last ? last.Start + last.Clusters : 0;
+
+    private bool ExpectedKnown => _last is { Known: true, Start: > 0 };
+
+    private uint ClustersOf(long bytes) => (uint)Math.Max(1, (bytes + _clusterSize - 1) / _clusterSize);
+
+    /// <summary>Records where an item's content lies; <paramref name="known"/> says whether it is certain rather than guessed.</summary>
+    private void Placed(uint start, long bytes, bool known, Pending? pending = null)
+    {
+        var placement = new Placement { Start = start, Clusters = ClustersOf(bytes), Known = known, Pending = pending };
+        if (_last is { } last && (last.Pending is not null || pending is not null))
+        {
+            placement.Previous = last;
+            last.Next = placement;
+        }
+        if (pending is not null) _pending.Add(placement);
+        _last = placement;
+    }
+
+    /// <summary>An item whose place is unknown: the next one is expected after it, had it been where expected.</summary>
+    private void Skipped(long bytes) => Placed(Expected, bytes, known: false);
+
+    private const string ErasedLead = "FAT32 records where a file starts in two halves, and Windows erases one of them when it deletes the file.";
+
+    /// <summary>
+    /// A deleted FAT32 file whose first cluster number lost its upper half: each place the lower half allows is weighed.
+    /// Certain are the place right where the item listed before it ends or right before the one listed after it starts
+    /// (the half that is left confirms either, which chance would do about once in 30,000), and the only free place whose
+    /// data starts the way the file's type does. Otherwise the file waits for its neighbors (<see cref="ResolvePending"/>),
+    /// and at the end the likeliest free place, nearest the items around it, is taken as a guess that the item states.
+    /// </summary>
+    private void PlaceErased(RecoveryItem item, uint low, uint size)
+    {
+        var starts = Starts(low, erased: true);
+        uint hint = Expected;
+        if (ExpectedKnown)
+        {
+            foreach (uint c in starts)
+            {
+                if (c != hint && c != hint + 1) continue; // + 1: a folder's next cluster may sit in between
+                Settle(item, low, c, size, "The half that is left matches where the item listed before it ends, so it starts there.");
+                Placed(c, size, known: true);
+                return;
+            }
+        }
+        var free = starts.Where(c => _fat[c] == 0).OrderBy(c => hint == 0 ? 0 : c > hint ? c - hint : hint - c).ThenBy(c => c).ToList();
+        if (free.Count == 0)
+        {
+            item.Evidence.Add(ErasedLead + $" All {starts.Count} places the other half allows are in use by other data now.");
+            item.Classify(_clusterSize);
+            item.State = RecoveryState.Overwritten;
+            Skipped(size);
+            return;
+        }
+        string type = TypeText(item.Name);
+        var weighed = free.Take(MaxWeighed).Select(c => (Start: c, Fit: Sniff(item.Name, c, size))).ToList();
+        var matches = weighed.Count(w => w.Fit == ContentFit.Match);
+        var best = weighed.OrderByDescending(w => w.Fit).First(); // stable: the nearest among the best fits
+        if (matches == 1 && weighed.Count == free.Count)
+        {
+            string why = $"Of the {starts.Count} places the other half allows, only one holds data that begins like {type}, so it starts there.";
+            if (best.Start != low) item.Evidence.Add(ErasedLead + " " + why);
+            SetExtents(item, best.Start, size, guessed: false);
+            Placed(best.Start, size, known: true);
+            return;
+        }
+        string guess = ErasedLead + (matches > 1
+            ? $" {matches} of the {starts.Count} places the other half allows hold data that begins like {type}; FileCat took the one nearest the items listed around it."
+            : $" None of the {free.Count} free places the other half allows is clearly this file's; FileCat took the likeliest, nearest the items listed around it.");
+        Placed(best.Start, size, known: false, new Pending(item, low, size, starts, best.Start, guess));
+    }
+
+    private static string TypeText(string name) => Path.GetExtension(name) is { Length: > 1 } e ? "a " + e.ToLowerInvariant() + " file" : "its type";
+
+    /// <summary>A file placed with certainty: why (when the erased half moved it), whether its data looks like it, and its extents.</summary>
+    private void Settle(RecoveryItem item, uint low, uint start, uint size, string why)
+    {
+        // Where the entry itself points needs no word; a place the erased half moved it to does.
+        if (start != low) item.Evidence.Add(ErasedLead + " " + why);
+        if (_fat[start] == 0 && Sniff(item.Name, start, size) == ContentFit.Mismatch)
+            item.Evidence.Add($"Its data does not begin like {TypeText(item.Name)}; other data may have been written there since it was deleted.");
+        SetExtents(item, start, size, guessed: false);
+    }
+
+    /// <summary>
+    /// Decides the files that waited for their neighbors: a place right after a certain one, or right before one, settles
+    /// it, which may settle the next in turn; the rest keep their likeliest place, as a stated guess.
+    /// </summary>
+    private void ResolvePending()
+    {
+        for (bool changed = true; changed;)
+        {
+            changed = false;
+            for (int i = _pending.Count - 1; i >= 0; i--) changed |= TrySettle(_pending[i]);
+            foreach (var placement in _pending) changed |= TrySettle(placement);
+        }
+        foreach (var placement in _pending)
+        {
+            if (placement.Pending is not { } pending) continue;
+            pending.Item.Evidence.Add(pending.Why);
+            SetExtents(pending.Item, pending.Guess, pending.Size, guessed: true);
+            placement.Pending = null;
+        }
+        _pending.Clear();
+    }
+
+    private bool TrySettle(Placement placement)
+    {
+        if (placement.Pending is not { } pending) return false;
+        foreach (uint c in pending.Starts)
+        {
+            string? why =
+                placement.Previous is { Known: true, Start: > 0 } before && (c == before.Start + before.Clusters || c == before.Start + before.Clusters + 1)
+                    ? "The half that is left matches where the item listed before it ends, so it starts there."
+                : placement.Next is { Known: true, Start: > 0 } after && (c + placement.Clusters == after.Start || c + placement.Clusters + 1 == after.Start)
+                    ? "The half that is left matches where the item listed after it starts, so it ends right there."
+                : null;
+            if (why is null) continue;
+            Settle(pending.Item, pending.Low, c, pending.Size, why);
+            placement.Start = c;
+            placement.Known = true;
+            placement.Pending = null;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>How the data at a cluster fits a file's type (one sector's worth; a bounded number per scan).</summary>
+    private ContentFit Sniff(string name, uint cluster, long size)
+    {
+        if (_sniffs >= MaxSniffs) return ContentFit.Unknown;
+        _sniffs++;
+        var head = new byte[(int)Math.Clamp(size, 1, 512)];
+        int n = _volume.Read(ClusterOffset(cluster), head);
+        return ContentSignature.Check(name, head.AsSpan(0, Math.Max(0, n)), size);
+    }
+
+    /// <summary>A deleted file whose recorded start is all there is to go on.</summary>
+    private void Locate(RecoveryItem item, uint start, uint size)
+    {
+        SetExtents(item, start, size, guessed: false);
+        if (size == 0) return;
+        if (Valid(start)) Placed(start, size, known: true);
+        else Skipped(size);
     }
 
     /// <summary>A deleted file's content, read as one run from its first cluster (FAT forgets the rest of the chain).</summary>
-    private void Locate(RecoveryItem item, uint start, uint size)
+    private void SetExtents(RecoveryItem item, uint start, uint size, bool guessed)
     {
         if (size == 0)
         {
@@ -216,59 +430,108 @@ internal sealed class FatScanner
         if (needed > 1) item.Evidence.Add("FAT keeps no list of a deleted file's pieces: FileCat reads it as one continuous run from its first cluster.");
         if (extents.Any(e => e.State == ExtentState.InUse) && needed > 1 && extents[0].State == ExtentState.Free)
             item.Evidence.Add("Either the file was stored in pieces, or other data has taken part of its space since.");
+        item.StartGuessed = guessed;
         item.Classify(_clusterSize);
     }
 
-    private void DeletedDirectory(RecoveryItem item, uint start, int depth, CancellationToken ct)
+    private void DeletedDirectory(RecoveryItem item, uint start, bool erased, uint parent, int depth, CancellationToken ct)
     {
         item.Classify(_clusterSize);
-        if (!Valid(start) || _fat[start] != 0)
+        // A deleted folder's first cluster must still read as that folder: "." pointing to itself and ".." to the folder
+        // listing it. When the upper half of its number was erased, that also picks the folder's own among the places the
+        // lower half allows (another deleted folder's start passes "." but not "..").
+        var cluster = new byte[_clusterSize];
+        uint found = 0;
+        bool anyFree = false;
+        foreach (uint c in Starts(start, erased))
         {
-            item.Evidence.Add("Its list of contents is gone: the space it used is in use by other data now.");
+            if (_fat[c] != 0) continue;
+            anyFree = true;
+            if (_volume.Read(ClusterOffset(c), cluster) == _clusterSize && IsFolderStart(cluster, c, parent))
+            {
+                found = c;
+                break;
+            }
+        }
+        if (found == 0)
+        {
+            item.Evidence.Add(anyFree ? "Its list of contents has been overwritten." : "Its list of contents is gone: the space it used is in use by other data now.");
+            Skipped(_clusterSize);
             return;
         }
-        // A deleted folder's first cluster must still read as that folder: "." pointing to itself.
-        var first = new byte[_clusterSize];
-        if (_volume.Read(ClusterOffset(start), first) < _clusterSize || !IsDotEntry(first.AsSpan(0, 32), ".") || !IsDotEntry(first.AsSpan(32, 32), "..") ||
-            (BinaryPrimitives.ReadUInt16LittleEndian(first.AsSpan(26)) | (_bits == 32 ? (uint)BinaryPrimitives.ReadUInt16LittleEndian(first.AsSpan(20)) << 16 : 0)) != start)
+        if (!_directories.Add(found) || TooDeep(depth + 1)) return;
+        Placed(found, _clusterSize, known: true);
+        var listing = new Listing(found);
+        bool ended = false;
+        uint current = found;
+        for (int clusters = 1; ; clusters++)
         {
-            item.Evidence.Add("Its list of contents has been overwritten.");
-            return;
+            if (!ParseEntries(item, cluster, listing, insideDeleted: true, depth + 1, ct))
+            {
+                ended = true;
+                break;
+            }
+            // FAT no longer says where the listing goes on: in the next cluster if that holds more entries, else where the
+            // copy that filled the folder put it, right after the last item listed so far.
+            if (clusters >= MaxDirectoryClusters || NextListingCluster(current, cluster) is not { } next) break;
+            _directories.Add(next);
+            Placed(next, _clusterSize, known: true);
+            current = next;
         }
-        if (!_directories.Add(start)) return;
-        // Following clusters belong to it while they are free and still hold entries (a folder rarely spans many).
-        var data = new List<byte>(first);
-        for (uint c = start + 1; Valid(c) && _fat[c] == 0 && data.Count / _clusterSize < MaxDirectoryClusters; c++)
-        {
-            if (data.Count >= 32 && Terminated(data)) break;
-            var next = new byte[_clusterSize];
-            if (_volume.Read(ClusterOffset(c), next) < _clusterSize || !LooksLikeEntries(next)) break;
-            data.AddRange(next);
-        }
-        ParseDirectory(item, data.ToArray(), insideDeleted: true, depth + 1, ct);
-        item.Evidence.Add(item.Children.Count > 0 ? "Its list of contents survives." : "Its list of contents survives but is empty.");
+        item.Evidence.Add(item.Children.Count == 0 ? "Its list of contents survives but is empty."
+            : ended ? "Its list of contents survives."
+            : "Its list of contents survives, perhaps not all of it: FAT no longer records where more of it would be.");
     }
 
-    private static bool Terminated(List<byte> data)
+    /// <summary>The cluster that carries on a deleted folder's listing, read into <paramref name="buffer"/>; null when none is found.</summary>
+    private uint? NextListingCluster(uint current, byte[] buffer)
     {
-        for (int at = 0; at + 32 <= data.Count; at += 32)
-            if (data[at] == 0) return true;
-        return false;
+        uint expected = Expected;
+        uint[] places = expected != 0 ? [current + 1, expected, expected + 1] : [current + 1];
+        for (int i = 0; i < places.Length; i++)
+        {
+            uint c = places[i];
+            if (Array.IndexOf(places, c) < i || !Valid(c) || _fat[c] != 0 || _directories.Contains(c)) continue;
+            if (_volume.Read(ClusterOffset(c), buffer) == _clusterSize && LooksLikeMoreEntries(buffer)) return c;
+        }
+        return null;
     }
 
-    private static bool LooksLikeEntries(byte[] cluster)
+    /// <summary>A folder's first cluster: "." names itself, ".." its parent (0 for the root, which some systems write as its cluster).</summary>
+    private bool IsFolderStart(ReadOnlySpan<byte> cluster, uint c, uint parent) =>
+        IsDotEntry(cluster[..32], ".") && IsDotEntry(cluster.Slice(32, 32), "..") && FirstCluster(cluster[..32]) == c &&
+        FirstCluster(cluster.Slice(32, 32)) is var up && (up == parent || parent == 0 && _bits == 32 && up == RootCluster);
+
+    /// <summary>
+    /// Whether a cluster carries on a folder's listing (it is not a folder's start): every entry up to the end mark is a
+    /// well-formed long-name piece or short entry, and at least one short entry carries a valid date. File data almost
+    /// never passes: that takes 32-byte records with the fixed fields right, all through the cluster.
+    /// </summary>
+    internal static bool LooksLikeMoreEntries(ReadOnlySpan<byte> cluster)
     {
-        // Entries start with a name byte or a deletion mark and have sensible attributes; anything else is file data.
+        bool dated = false;
         for (int at = 0; at + 32 <= cluster.Length; at += 32)
         {
-            byte b = cluster[at];
-            if (b == 0) return at > 0;
-            byte attributes = cluster[at + 11];
-            if ((attributes & 0xC0) != 0) return false;
-            if (b < 0x20 && b != 0x05) return false;
+            var e = cluster.Slice(at, 32);
+            if (e[0] == 0) return dated;
+            if ((e[11] & 0x3F) == 0x0F)
+            {
+                // A long-name piece: order 1–20 (0x40 marks the last), type 0, and no cluster.
+                int order = e[0] == 0xE5 ? 1 : e[0] & 0xBF;
+                if (order is < 1 or > 20 || e[12] != 0 || e[26] != 0 || e[27] != 0) return false;
+                continue;
+            }
+            if ((e[11] & 0xC0) != 0 || (e[12] & ~0x18) != 0 || e[0] == 0x20 || at == 0 && e[0] == (byte)'.') return false;
+            for (int i = e[0] is 0xE5 or 0x05 ? 1 : 0; i < 11; i++)
+                if (!ShortNameByte(e[i])) return false;
+            if (DosTime(BinaryPrimitives.ReadUInt16LittleEndian(e[24..]), BinaryPrimitives.ReadUInt16LittleEndian(e[22..]), 0) is not null) dated = true;
         }
-        return true;
+        return dated;
     }
+
+    private static bool ShortNameByte(byte b) =>
+        b >= 0x20 && b != 0x7F && b is not ((byte)'"' or (byte)'*' or (byte)'+' or (byte)',' or (byte)'.' or (byte)'/' or (byte)':' or (byte)';' or
+            (byte)'<' or (byte)'=' or (byte)'>' or (byte)'?' or (byte)'[' or (byte)'\\' or (byte)']' or (byte)'|') && b is not (>= (byte)'a' and <= (byte)'z');
 
     private static bool IsDotEntry(ReadOnlySpan<byte> e, string dots) =>
         (e[11] & 0x10) != 0 && e[..dots.Length].SequenceEqual(Encoding.ASCII.GetBytes(dots)) && e[dots.Length..11].IndexOfAnyExcept((byte)' ') < 0;

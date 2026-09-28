@@ -35,6 +35,8 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
     public bool CanSeek => true;
     public string? LocalPath => null;
 
+    public string? Caveat => _item.State == RecoveryState.Uncertain ? RecoveryItem.UncertainStart : null;
+
     public IReadOnlyList<(long Offset, long Length)> MissingRanges
     {
         get

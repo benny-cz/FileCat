@@ -48,6 +48,37 @@ runs elevated, and the helper reads bounded, sector-aligned ranges of one device
 - Helper tests: exact reads at any offset and size, a scan through the helper equal to a scan of the file, a read
   plan naming one device only, unknown requests ending the session, and destinations judged by physical disk.
 
+## A real drive: a USB stick that held Windows setup (2026-09-28)
+
+An 8 GB USB stick (FAT32, 4 KiB clusters, 1.9 million clusters), onto which a Windows installation medium had been
+written, then everything deleted in Windows. `LiveDriveRecoveryTests` (Windows integration tests, opt-in) scans it
+through the helper's read protocol, recovers every signed program and library to another disk, and checks each by its
+Authenticode signature, which verifies only over the exact bytes that were signed. The test refuses any drive but a USB
+disk with the serial number given.
+
+```
+FILECAT_RECOVERY_LIVE=G: FILECAT_RECOVERY_LIVE_SERIAL=<disk serial> dotnet test tests/FileCat.Platform.Windows.Tests --filter LiveDriveRecoveryTests --logger "console;verbosity=detailed"
+```
+
+The first run found a truthfulness bug: of 58 programs FileCat called recoverable, 23 were other data. Windows erases
+the upper half of a deleted FAT32 entry's first cluster number, so every file beyond cluster 65,535 was read from the
+wrong place. FileCat now weighs each place the lower half allows: right where the item listed before it ends or right
+before the one listed after it starts (the half that is left confirms either), a folder's "." and ".." entries, and
+the data's own signature. What none of these settles is shown as **Uncertain**, with the reason, and F5 says so for
+each such file. A deleted folder's listing is also followed into its next cluster where the files written meanwhile end.
+
+| Run | Deleted files found | States | Signed programs recovered | Signatures |
+|---|---|---|---|---|
+| Before | 143 | 142 Recoverable, 1 Partly lost | 58 (28.5 MiB) | 31 valid, 23 not even a program, 4 unsigned (catalog-signed .mui) |
+| After | 431 | 426 Recoverable, 5 Uncertain | 153 (35.7 MiB) | 101 valid, 2 valid but test-signed, 50 unsigned (.mui), **none altered** |
+
+The scan took 2 s, and recovering the 153 files 1.4 s, through the helper's pipe. Unit tests build FAT32 volumes in
+memory with the same deletions (`ErasedFatStartTests`).
+
+Still missing: the `sources` folder lists 59 items, but its listing goes on in two clusters near the end of the volume
+(found by reading all 7.4 GiB of free space: 4.5 minutes), including the split install image. Nothing FAT keeps points
+there, so only a search of free space finds them.
+
 ## Pending (manual)
 
 - Elevated read of a real drive in the installed build: consent prompt, a scan of a secondary USB drive, and recovery

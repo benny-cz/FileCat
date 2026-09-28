@@ -11,6 +11,7 @@ public sealed record RecoveryEntryTag(RecoveryState? State, string Reasons, int 
     public string KindText => State switch
     {
         RecoveryState.Recoverable => "Recoverable",
+        RecoveryState.Uncertain => "Uncertain",
         RecoveryState.Partial => "Partly lost",
         RecoveryState.Overwritten => "Overwritten",
         RecoveryState.NameOnly => "Name only",
