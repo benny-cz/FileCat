@@ -16,6 +16,13 @@ internal static class WindowsContextMenu
     internal const string HostArgument = "--native-context-menu";
     internal const int MaxItems = 128;
     internal enum Result { Handled, FileCatActions, ActionFailed, Failed }
+    private static int _openHosts;
+    private static long _lastHostClosedAt;
+
+    // The Shell popup briefly owns foreground focus. Returning from our own popup is not a reason to
+    // rescan every panel's Git state as if the user had switched back from another application.
+    internal static bool IsOpenOrRecentlyClosed => Volatile.Read(ref _openHosts) > 0 ||
+        _lastHostClosedAt != 0 && Stopwatch.GetElapsedTime(Volatile.Read(ref _lastHostClosedAt)) < TimeSpan.FromMilliseconds(750);
 
     internal static bool CanShow(IReadOnlyList<string?> paths)
     {
@@ -35,6 +42,7 @@ internal static class WindowsContextMenu
     internal static async Task<Result> ShowAsync(IReadOnlyList<string?> paths, int x, int y)
     {
         if (!CanShow(paths)) return Result.Failed;
+        Interlocked.Increment(ref _openHosts);
         try
         {
             var start = HostStartInfo();
@@ -58,6 +66,11 @@ internal static class WindowsContextMenu
         {
             AppLog.Warn("Windows context menu helper could not start: " + ex.GetType().Name);
             return Result.Failed;
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _lastHostClosedAt, Stopwatch.GetTimestamp());
+            Interlocked.Decrement(ref _openHosts);
         }
     }
 

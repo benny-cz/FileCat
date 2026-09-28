@@ -98,6 +98,7 @@ public sealed class FileListControl : Control
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
     private GitStatusSnapshot? _gitStatuses;
+    private string? _gitStatusFolder;
     private CancellationTokenSource? _gitStatusCancel;
     private int _gitStatusGeneration;
 
@@ -407,6 +408,7 @@ public sealed class FileListControl : Control
         _gitStatusCancel?.Cancel();
         _gitStatusCancel = null;
         _gitStatuses = null;
+        _gitStatusFolder = null;
         _loadingHintTimer?.Stop();
         FinishRename(null, restoreFocus: false);
     }
@@ -543,8 +545,17 @@ public sealed class FileListControl : Control
     {
         _gitStatusGeneration++;
         _gitStatusCancel?.Cancel();
-        _gitStatuses = null;
-        if (VisualRoot is null || Tab?.Location is not { IsFileSystem: true } location) return;
+        if (VisualRoot is null || Tab?.Location is not { IsFileSystem: true } location)
+        {
+            _gitStatuses = null;
+            _gitStatusFolder = null;
+            return;
+        }
+        // A focus return or filesystem notification can refresh the same folder repeatedly. Keep the
+        // existing badges on screen until the replacement snapshot is ready; only navigation clears them.
+        if (!string.Equals(_gitStatusFolder, location.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            _gitStatuses = null;
+        _gitStatusFolder = location.Path;
         var cancellation = new CancellationTokenSource();
         _gitStatusCancel = cancellation;
         int generation = _gitStatusGeneration;
