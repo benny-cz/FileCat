@@ -110,6 +110,54 @@ public sealed class ColumnProfileTests
         }
     }
 
+    /// <summary>Dates fit whatever the date format: a longer format widens the date columns, and only them.</summary>
+    [AvaloniaFact]
+    public void Date_columns_widen_for_longer_date_formats()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(root, "files");
+        Directory.CreateDirectory(folder);
+        string format = Formatters.DateFormat;
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            var tab = panel.OpenTab(Location.FileSystem(folder));
+            var list = new FileListControl { Tab = tab };
+            var window = new Window { Width = 1400, Height = 400, Content = list };
+            window.Show();
+            try
+            {
+                int modified = Array.FindIndex(tab.Columns, c => c.Field == ColumnField.Modified);
+                double Width(int column) => list.ColumnRightEdge(column) - list.ColumnRightEdge(column - 1);
+                Formatters.DateFormat = "dd.MM.yyyy HH:mm"; // what the widths were set for
+                window.CaptureRenderedFrame();
+                double set = Width(modified), extension = Width(1);
+                Assert.Equal(list.WidthScale, list.DateScale, 3);
+
+                Formatters.DateFormat = "yyyy-MM-dd HH:mm:ss"; // "2026-12-28 22:58:58": three characters more
+                window.CaptureRenderedFrame();
+                Assert.True(Width(modified) > set * 1.1, $"{Width(modified)} is not wider than {set}.");
+                Assert.Equal(extension, Width(1), 1);
+
+                Formatters.DateFormat = "MM/dd/yyyy h:mm tt"; // "12/28/2026 10:58 AM"
+                window.CaptureRenderedFrame();
+                Assert.True(Width(modified) > set * 1.1, $"{Width(modified)} is not wider than {set}.");
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+        finally
+        {
+            Formatters.DateFormat = format;
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
     /// <summary>The x position of the right border of <paramref name="column"/> (public layout via the test hook).</summary>
     private static double FindBorder(FileListControl list, int column) => list.ColumnRightEdge(column);
 }

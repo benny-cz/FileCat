@@ -8,7 +8,22 @@ namespace FileCat.App.Services;
 /// <summary>Culture-aware display formatting only; nothing here is persisted (plan §19.4).</summary>
 public static class Formatters
 {
-    public static string DateFormat { get; set; } = "Culture";
+    private static string _dateFormat = "Culture";
+
+    /// <summary>"Culture" (the system's short date and time) or a .NET date format.</summary>
+    public static string DateFormat
+    {
+        get => _dateFormat;
+        set
+        {
+            if (_dateFormat == value) return;
+            _dateFormat = value;
+            DateFormatChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Raised when dates are shown differently: lists redraw them (and widen their date columns as needed).</summary>
+    public static event Action? DateFormatChanged;
 
     public static string Size(long bytes)
     {
@@ -31,14 +46,11 @@ public static class Formatters
     public static string ExactSize(long bytes) =>
         bytes < 0 ? "unknown" : bytes.ToString("N0", CultureInfo.CurrentCulture) + (bytes == 1 ? " byte" : " bytes");
 
-    public static string Date(long utcTicks)
-    {
-        if (utcTicks <= 0) return string.Empty;
-        var local = new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime();
-        return DateFormat == "Culture"
-            ? local.ToString("g", CultureInfo.CurrentCulture)
-            : local.ToString(DateFormat, CultureInfo.InvariantCulture);
-    }
+    public static string Date(long utcTicks) => utcTicks <= 0 ? string.Empty : Date(new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime());
+
+    /// <summary>A local time as the date columns show it.</summary>
+    public static string Date(DateTime local) =>
+        DateFormat == "Culture" ? local.ToString("g", CultureInfo.CurrentCulture) : local.ToString(DateFormat, CultureInfo.InvariantCulture);
 
     public static string Attributes(in EntryData e)
     {

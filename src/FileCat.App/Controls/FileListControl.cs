@@ -67,13 +67,28 @@ public sealed class FileListControl : Control
     private readonly Dictionary<int, double> _widthOverrides = new();
 
     /// <summary>
-    /// Fixed column widths are set for the default 13-pixel UI font; a larger size or a wider font (a theme's monospace)
-    /// widens them in proportion, so dates and sizes still fit. Never below 1: a narrower font keeps the widths set.
+    /// Fixed column widths are set for Segoe UI at 13 pixels; a larger size or a wider font (DejaVu Sans on Linux, a
+    /// theme's monospace) widens them in proportion, so dates and sizes still fit. Never below 1: a narrower font keeps
+    /// the widths set.
     /// </summary>
     private double _widthScale = 1;
 
+    /// <summary>
+    /// Date columns also follow the date format: widths are set for "28.09.2026 19:39", and "12/28/2026 10:58 PM" or a
+    /// format with seconds needs more.
+    /// </summary>
+    private double _dateScale = 1;
+
+    /// <summary>What <see cref="SampleWidth"/> measures in Segoe UI at 13 pixels, the font the fixed widths were set for.</summary>
+    private const double ReferenceSampleWidth = 162.86;
+
     /// <summary>How much wider than set the fixed columns are drawn for the current font (tests).</summary>
     internal double WidthScale => _widthScale;
+
+    /// <summary>How much wider than set the date columns are drawn for the current font and date format (tests).</summary>
+    internal double DateScale => _dateScale;
+
+    private double ScaleOf(ColumnSpec column) => column.Field is ColumnField.Modified or ColumnField.Created ? _dateScale : _widthScale;
     private bool _resizeInverse;
     private Point? _dragStart;
     private PointerPressedEventArgs? _pressArgs;
@@ -372,6 +387,8 @@ public sealed class FileListControl : Control
         // Static events: subscribed while shown, so a closed list is not kept alive by them.
         ThemeManager.ThemeChanged += OnThemeChanged;
         ThemeManager.PaletteTick += OnPaletteTick;
+        Formatters.DateFormatChanged += OnDateFormatChanged;
+        UpdateDateScale(); // the format may have changed while this list was not shown
         ResolveBrushes();
     }
 
@@ -380,6 +397,7 @@ public sealed class FileListControl : Control
         base.OnDetachedFromVisualTree(e);
         ThemeManager.ThemeChanged -= OnThemeChanged;
         ThemeManager.PaletteTick -= OnPaletteTick;
+        Formatters.DateFormatChanged -= OnDateFormatChanged;
         _loadingHintTimer?.Stop();
         FinishRename(null, restoreFocus: false);
     }
@@ -394,17 +412,34 @@ public sealed class FileListControl : Control
         _headerHeight = Math.Ceiling(size * 1.75);
         _glyphs = SimpleGlyphs.TryCreate(_typeface, size);
         _boldGlyphs = SimpleGlyphs.TryCreate(_boldTypeface, size);
-        _widthScale = Math.Max(1, SampleWidth(_typeface, size) / SampleWidth(new Typeface(FontFamily.Default), 13));
+        _widthScale = Math.Max(1, SampleWidth(_typeface, size) / ReferenceSampleWidth);
+        UpdateDateScale();
         ClearTextCache();
         InvalidateArrange();
     }
 
-    /// <summary>What a date and a size take in a font: the widest cells the fixed columns hold.</summary>
-    private static double SampleWidth(Typeface typeface, double size)
+    private void UpdateDateScale()
     {
-        var text = new FormattedText("28.09.2026 19:39 12 345 678", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, size, Brushes.Black);
-        return Math.Max(1, text.Width);
+        double size = FontSize > 0 ? FontSize : 13;
+        // Two-digit months, days, and hours, afternoon and morning (AM is the wider designator), with seconds.
+        double widest = Math.Max(TextWidth(Formatters.Date(new DateTime(2026, 12, 28, 22, 58, 58)), _typeface, size),
+                                 TextWidth(Formatters.Date(new DateTime(2026, 12, 28, 10, 58, 58)), _typeface, size));
+        _dateScale = _widthScale * Math.Max(1, widest / TextWidth("28.09.2026 19:39", _typeface, size));
     }
+
+    private void OnDateFormatChanged()
+    {
+        UpdateDateScale();
+        ClearTextCache();
+        InvalidateArrange();
+        InvalidateVisual();
+    }
+
+    /// <summary>What a date and a size take in a font: the widest cells the fixed columns hold.</summary>
+    private static double SampleWidth(Typeface typeface, double size) => TextWidth("28.09.2026 19:39 12 345 678", typeface, size);
+
+    private static double TextWidth(string text, Typeface typeface, double size) =>
+        Math.Max(1, new FormattedText(text, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, size, Brushes.Black).Width);
 
     /// <summary>Where the focused row is drawn (in this control), or null when it is scrolled out of view.</summary>
     public Rect? FocusedRowBounds()
@@ -556,7 +591,7 @@ public sealed class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Star ? c.Width : c.Width * _widthScale;
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Star ? c.Width : c.Width * ScaleOf(c);
             if (c.Star && !_widthOverrides.ContainsKey(i)) starSum += w;
             else fixedSum += w;
         }
@@ -566,7 +601,7 @@ public sealed class FileListControl : Control
         {
             var c = _columns[i];
             double w = _widthOverrides.TryGetValue(i, out var ow) ? ow
-                : c.Star ? starSpace * (c.Width / Math.Max(1, starSum)) : c.Width * _widthScale;
+                : c.Star ? starSpace * (c.Width / Math.Max(1, starSum)) : c.Width * ScaleOf(c);
             _columnX[i] = x;
             _columnW[i] = Math.Max(24, w);
             x += _columnW[i];
@@ -991,7 +1026,8 @@ public sealed class FileListControl : Control
             e.Pointer.Capture(null);
             // The profile keeps the width for every tab using it (and across restarts).
             // Stored at the default font's scale (the width the user sees is the stored one times the font's).
-            if (_widthOverrides.TryGetValue(column, out var width)) Tab?.SetColumnWidth(column, width / _widthScale);
+            if (_widthOverrides.TryGetValue(column, out var width) && column < _columns.Length)
+                Tab?.SetColumnWidth(column, width / ScaleOf(_columns[column]));
         }
     }
 
