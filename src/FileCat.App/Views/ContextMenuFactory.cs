@@ -11,20 +11,38 @@ public static class ContextMenuFactory
     private static readonly string[] Items =
     [
         CommandIds.Open, CommandIds.OpenWithSystem, CommandIds.View, CommandIds.Edit, "-",
-        CommandIds.Copy, CommandIds.Move, CommandIds.Rename, CommandIds.Duplicate, CommandIds.Delete, CommandIds.DeletePermanent, "-",
-        CommandIds.CopyToClipboard, CommandIds.CutToClipboard, CommandIds.PasteFromClipboard, CommandIds.CopyPaths, CommandIds.CopyNames, "-",
-        CommandIds.OpenInNewTab, CommandIds.OpenInTarget, CommandIds.Reveal, CommandIds.OpenTerminal, "-", CommandIds.Checksum, CommandIds.Properties,
+        CommandIds.Copy, CommandIds.Move, CommandIds.Rename, CommandIds.Delete, "-",
+        CommandIds.CutToClipboard, CommandIds.CopyToClipboard, CommandIds.PasteFromClipboard, "-",
+        CommandIds.OpenInTarget, CommandIds.Reveal, CommandIds.CopyPaths, "-",
+        CommandIds.Properties, "more",
+    ];
+
+    private static readonly string[] MoreItems =
+    [
+        CommandIds.Duplicate, CommandIds.DeletePermanent, "-",
+        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum,
     ];
 
     public static ContextMenu Build(MainViewModel vm)
     {
-        var menu = new ContextMenu();
+        return new ContextMenu { ItemsSource = BuildItems(vm, Items) };
+    }
+
+    private static List<Control> BuildItems(MainViewModel vm, IReadOnlyList<string> items)
+    {
         var list = new List<Control>();
-        foreach (var id in Items)
+        foreach (var id in items)
         {
             if (id == "-")
             {
                 if (list.Count > 0 && list[^1] is not Separator) list.Add(new Separator());
+                continue;
+            }
+            if (id == "more")
+            {
+                var extra = BuildItems(vm, MoreItems);
+                if (extra.Count > 0)
+                    list.Add(new MenuItem { Header = "More FileCat actions", Icon = MenuIconFactory.Create("menu.more"), ItemsSource = extra });
                 continue;
             }
             var def = vm.Services.Commands.Get(id);
@@ -37,7 +55,7 @@ public static class ContextMenuFactory
             mi.Click += (_, _) => vm.Execute(id);
             list.Add(mi);
         }
-        menu.ItemsSource = list;
-        return menu;
+        if (list.Count > 0 && list[^1] is Separator) list.RemoveAt(list.Count - 1);
+        return list;
     }
 }

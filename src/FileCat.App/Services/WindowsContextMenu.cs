@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using FileCat.Core.Diagnostics;
 
 namespace FileCat.App.Services;
 
@@ -22,8 +23,8 @@ internal static class WindowsContextMenu
         string? folder = null;
         foreach (string? path in paths)
         {
-            if (path is null || !Path.IsPathFullyQualified(path) || path.Contains('\0') ||
-                !File.Exists(path) && !Directory.Exists(path)) return false;
+            // Existence checks can deny access to protected junctions that the Shell can still display.
+            if (path is null || !Path.IsPathFullyQualified(path) || path.Contains('\0')) return false;
             string? parent = Path.GetDirectoryName(path);
             if (parent is null || folder is not null && !string.Equals(parent, folder, StringComparison.OrdinalIgnoreCase)) return false;
             folder = parent;
@@ -36,25 +37,45 @@ internal static class WindowsContextMenu
         if (!CanShow(paths)) return Result.Failed;
         try
         {
-            string? process = Environment.ProcessPath;
-            if (process is null) return Result.Failed;
-            string assembly = typeof(Program).Assembly.Location;
-            var start = new ProcessStartInfo(process) { UseShellExecute = false, CreateNoWindow = true };
-            if (Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
-                start.ArgumentList.Add(assembly);
+            var start = HostStartInfo();
+            if (start is null) return Result.Failed;
+            start.RedirectStandardError = true;
             start.ArgumentList.Add(HostArgument);
             start.ArgumentList.Add(x.ToString(CultureInfo.InvariantCulture));
             start.ArgumentList.Add(y.ToString(CultureInfo.InvariantCulture));
             foreach (string? path in paths) start.ArgumentList.Add(path!);
             using var child = Process.Start(start);
             if (child is null) return Result.Failed;
+            Task<string> readErrors = child.StandardError.ReadToEndAsync();
             await child.WaitForExitAsync();
+            string details = await readErrors;
+            if (child.ExitCode is not (0 or 10 or 11))
+                AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
+                    (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
             return child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, _ => Result.Failed };
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
         {
+            AppLog.Warn("Windows context menu helper could not start: " + ex.GetType().Name);
             return Result.Failed;
         }
+    }
+
+    private static ProcessStartInfo? HostStartInfo()
+    {
+        string assembly = typeof(Program).Assembly.Location;
+        string? appHost = assembly.Length == 0 ? null : Path.Combine(Path.GetDirectoryName(assembly)!, "FileCat.exe");
+        string? process = Environment.ProcessPath;
+        // The UI can also be hosted by dotnet or an offscreen harness. Never re-launch that unrelated host.
+        string? executable = appHost is not null && File.Exists(appHost) ? appHost
+            : process is not null && Path.GetFileName(process).Equals("FileCat.exe", StringComparison.OrdinalIgnoreCase) ? process
+            : null;
+        if (executable is not null) return new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
+        if (assembly.Length == 0) return null;
+        var start = new ProcessStartInfo(process is not null && Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
+            ? process : "dotnet") { UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add(assembly);
+        return start;
     }
 
     // Test/probe mode constructs the real menu without displaying it or invoking a verb.
@@ -70,6 +91,7 @@ internal static class WindowsContextMenu
         try { return Display(paths, probe, probe ? 0 : int.Parse(args[1], CultureInfo.InvariantCulture), probe ? 0 : int.Parse(args[2], CultureInfo.InvariantCulture)); }
         catch (Exception ex) when (ex is COMException or ExternalException or Win32Exception or ArgumentException or InvalidOperationException)
         {
+            Console.Error.WriteLine(ex.GetType().Name + " 0x" + ex.HResult.ToString("X8", CultureInfo.InvariantCulture));
             return 1;
         }
     }
@@ -100,9 +122,9 @@ internal static class WindowsContextMenu
             finally { Marshal.Release(menuPointer); }
 
             popup = CreatePopupMenu();
-            if (popup == 0) return 1;
+            if (popup == 0) { Console.Error.WriteLine("CreatePopupMenu failed"); return 1; }
             int hr = menu.QueryContextMenu(popup, 0, ShellFirst, ShellLast, 0);
-            if (hr < 0 || GetMenuItemCount(popup) < 1) return 1;
+            if (hr < 0 || GetMenuItemCount(popup) < 1) { Console.Error.WriteLine("QueryContextMenu failed 0x" + hr.ToString("X8", CultureInfo.InvariantCulture)); return 1; }
             if (probe)
             {
                 for (int i = 0; i < GetMenuItemCount(popup); i++)
@@ -111,7 +133,6 @@ internal static class WindowsContextMenu
                     GetMenuStringW(popup, (uint)i, label, label.Capacity, 0x400);
                     if (label.Length > 0) Console.WriteLine(label);
                 }
-                return 0;
             }
 
             AppendMenuW(popup, 0x800, 0, null); // Separator before FileCat's own commands.
@@ -124,9 +145,10 @@ internal static class WindowsContextMenu
                 hInstance = GetModuleHandleW(null),
                 lpszClassName = windowClass,
             };
-            if (RegisterClassExW(ref wc) == 0) return 1;
+            if (RegisterClassExW(ref wc) == 0) { Console.Error.WriteLine("RegisterClassEx failed"); return 1; }
             owner = CreateWindowExW(0x80, windowClass, "", 0x80000000, x, y, 1, 1, 0, 0, wc.hInstance, 0);
-            if (owner == 0) return 1;
+            if (owner == 0) { Console.Error.WriteLine("CreateWindowEx failed"); return 1; }
+            if (probe) return 0; // Validate the popup owner too, without taking focus or showing a menu.
             _menu3 = menu as IContextMenu3;
             _menu2 = menu as IContextMenu2;
             previousWindow = GetForegroundWindow();

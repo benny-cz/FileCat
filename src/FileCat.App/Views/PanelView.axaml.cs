@@ -10,6 +10,10 @@ namespace FileCat.App.Views;
 
 public partial class PanelView : UserControl
 {
+    private static ContextMenu? _openItemMenu;
+    private static long _menuRequest;
+    private static bool _nativeMenuWarningShown;
+
     public PanelView()
     {
         InitializeComponent();
@@ -205,10 +209,15 @@ public partial class PanelView : UserControl
     }
 
     /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
-    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null) =>
-        _ = ShowContextMenuAsync(atFocus, point);
+    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null)
+    {
+        long request = ++_menuRequest;
+        _openItemMenu?.Close();
+        _openItemMenu = null;
+        _ = ShowContextMenuAsync(atFocus, point, request);
+    }
 
-    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point)
+    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, long request)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
         if (OperatingSystem.IsWindows() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
@@ -221,6 +230,7 @@ public partial class PanelView : UserControl
                     ? new Avalonia.Point(bounds.Left + 12, bounds.Bottom) : new Avalonia.Point(0, 0));
                 var screen = List.PointToScreen(anchor);
                 var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y);
+                if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
                 if (result == WindowsContextMenu.Result.ActionFailed)
                 {
@@ -228,14 +238,22 @@ public partial class PanelView : UserControl
                     return;
                 }
                 if (result == WindowsContextMenu.Result.FileCatActions) atFocus = point is null;
+                if (result == WindowsContextMenu.Result.Failed && !_nativeMenuWarningShown)
+                {
+                    _nativeMenuWarningShown = true;
+                    vm.Notify("Windows menu unavailable here; showing FileCat actions.", true);
+                }
             }
         }
+        if (request != _menuRequest) return;
         var menu = ContextMenuFactory.Build(vm);
         if (atFocus && List.FocusedRowBounds() is { } row)
         {
             menu.Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft;
             menu.PlacementRect = row;
         }
+        _openItemMenu = menu;
+        menu.Closed += (_, _) => { if (ReferenceEquals(_openItemMenu, menu)) _openItemMenu = null; };
         menu.Open(List);
     }
 }

@@ -28,6 +28,9 @@ public sealed class KeyBarTests
             Assert.Contains("Copy…", titles);
             Assert.DoesNotContain("Open focused folder in new tab", titles);
             Assert.All(actions, item => Assert.IsType<Avalonia.Controls.Image>(item.Icon));
+            var more = Assert.Single(actions, m => Equals(m.Header, "More FileCat actions"));
+            var moreTitles = ((IEnumerable<object>)more.ItemsSource!).OfType<Avalonia.Controls.MenuItem>().Select(m => m.Header as string);
+            Assert.Contains("Delete permanently…", moreTitles);
         }
         finally
         {

@@ -35,6 +35,7 @@ internal static class MenuIconFactory
             CommandIds.OpenTerminal => "M2,3 L14,3 L14,13 L2,13 Z M4,6 L6.5,8 L4,10 M8,10.5 L12,10.5",
             CommandIds.Checksum => "M5.5,2.5 L4.5,13.5 M10.5,2.5 L9.5,13.5 M2.5,6 L13.5,6 M2,10 L13,10",
             CommandIds.Properties => "M3,3 L13,3 L13,13 L3,13 Z M5,6 L11,6 M5,8 L11,8 M5,10 L9,10",
+            "menu.more" => "M3,8 L3.1,8 M8,8 L8.1,8 M13,8 L13.1,8",
             "tab.close" or "tab.closeOthers" => "M3,3 L13,13 M13,3 L3,13",
             "tab.lock" => "M4,7 L12,7 L12,14 L4,14 Z M5.5,7 L5.5,5 A2.5,2.5 0 0 1 10.5,5 L10.5,7 M8,10 L8,12",
             "tab.left" => "M13,8 L3,8 M6,5 L3,8 L6,11",
