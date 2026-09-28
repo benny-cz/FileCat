@@ -365,6 +365,49 @@ public sealed partial class MainViewModel
         Track(job, tab);
     }
 
+    /// <summary>
+    /// Open terminal on a server's folder (plan §14.1: an explicit SSH terminal): the OpenSSH client connects with its own
+    /// known_hosts and lands in the folder. The host follows "--" so a name can never become an ssh option, and the
+    /// folder is quoted for the server's shell.
+    /// </summary>
+    private void OpenSshTerminal(Location location)
+    {
+        if (location.Session is not { } id || Services.FindRemoteProfile(id) is not { } profile) return;
+        string? ssh = Core.Tools.ToolLauncher.FindOnPath("ssh");
+        if (ssh is null)
+        {
+            Notify(OperatingSystem.IsWindows()
+                ? "The OpenSSH client (ssh) was not found. Add it in Windows Settings → System → Optional features, then try again."
+                : "The OpenSSH client (ssh) was not found on PATH.", true);
+            return;
+        }
+        var args = new List<string> { "-t" };
+        if (profile.Port != 22) args.AddRange(["-p", profile.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+        if (profile.Auth == RemoteAuth.Key && profile.KeyFile is { Length: > 0 } key) args.AddRange(["-i", key]);
+        args.AddRange(["-l", profile.User, "--", profile.Host]);
+        string folder = Services.SftpProvider.Resolve(location);
+        if (folder.StartsWith('/')) args.Add("cd " + Core.Tools.ShellQuoting.QuotePosix(folder) + " && exec \"${SHELL:-sh}\" -l");
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                // A console program started from a window gets its own console window.
+                var psi = new System.Diagnostics.ProcessStartInfo(ssh) { UseShellExecute = false, CreateNoWindow = false };
+                foreach (var a in args) psi.ArgumentList.Add(a);
+                System.Diagnostics.Process.Start(psi)?.Dispose();
+            }
+            else
+            {
+                string command = string.Join(' ', new[] { ssh }.Concat(args).Select(Core.Tools.ShellQuoting.QuotePosix));
+                Services.Shell.RunInTerminal(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), command, Services.Settings.Terminal.Shell);
+            }
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            Notify("The SSH terminal could not be started: " + ex.Message, true);
+        }
+    }
+
     /// <summary>Closes the connections of the active tab's server; tabs keep their locations and reconnect on refresh.</summary>
     private void DisconnectSftp()
     {

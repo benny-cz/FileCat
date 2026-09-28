@@ -423,7 +423,8 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.OpenTerminal:
                 if (tab?.Location is { IsFileSystem: true } tl) Services.Shell.OpenTerminal(tl.Path, Services.Settings.Terminal.Shell);
-                else Notify("A terminal can be opened only in a file-system folder.");
+                else if (tab?.Location is { Scheme: Schemes.Sftp } remote) OpenSshTerminal(remote);
+                else Notify("A terminal opens in a folder on disk, or as an SSH session on an SFTP server.");
                 break;
             case CommandIds.CheckUpdates:
                 await CheckForUpdatesAsync();

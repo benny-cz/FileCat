@@ -78,6 +78,37 @@ public sealed class SftpConnectTests
     }
 
     [AvaloniaFact]
+    public async Task F4_edits_a_server_file_in_a_session_and_commits_it_explicitly()
+    {
+        var s = await ConnectAsync();
+        try
+        {
+            // No real editor in tests: a program that exits at once.
+            s.Services.Settings.Editor = new Core.State.ToolDefinition { Name = "none", Executable = Path.Combine(Environment.SystemDirectory, "cmd.exe"), Arguments = ["/c", "exit"] };
+            Assert.True(s.Remote.Listing.FocusName("remote.txt"));
+            s.Vm.Execute(CommandIds.Edit);
+            Core.Edit.EditSessionRecord? session = null;
+            await WaitAsync(() => (session = s.Services.EditSessions.FindRemote(s.Remote.Location!.Session!, "/home/user/remote.txt")) is not null);
+            Assert.NotNull(session);
+            Assert.Equal("hello", File.ReadAllText(session!.WorkingPath));
+            Assert.Equal("hello", s.Server.Read("/home/user/remote.txt"));
+
+            File.WriteAllText(session.WorkingPath, "hello, edited");
+            s.Vm.Execute(CommandIds.Edit);
+            await Click(s.Window, "Commit");
+            var job = await LastJobAsync(s.Services, 1);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal("hello, edited", s.Server.Read("/home/user/remote.txt"));
+            await WaitAsync(() => s.Services.EditSessions.StateOf(s.Services.EditSessions.LoadAll().Single()) == Core.Edit.EditState.Unchanged);
+            Assert.Equal(Core.Edit.EditState.Unchanged, s.Services.EditSessions.StateOf(s.Services.EditSessions.LoadAll().Single()));
+        }
+        finally
+        {
+            AccessibilityTests.Close(s.Services, s.Window, s.Root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task F7_F8_and_F5_work_on_the_server()
     {
         var s = await ConnectAsync();

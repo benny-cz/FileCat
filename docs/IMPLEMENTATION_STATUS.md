@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 198, Windows integration 46, App headless 20, Remote 23 tests
+dotnet test FileCat.slnx                              # Core 198, Windows integration 46, App headless 21, Remote 25 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -27,7 +27,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | `src/FileCat.PrivilegedHost` | Per-plan administrator broker (installed builds only; ADR-14) |
 | `src/FileCat.Remote` | SFTP over SSH.NET: channel, host-key trust, connection leases, provider, jobs (P6) |
 | `src/FileCat.App` | Avalonia 12.1 UI: glyph-run `FileListControl`, panels, tabs, workspace, overlay dialogs, operation center, viewers, settings (column profiles, associations), themes, benchmark |
-| `docs/adr/` | Decided ADRs: 02, 03, 04 (append-only journal instead of SQLite), 05, 07, 10, 14, 15, 16. The plan's §26 points to them. |
+| `docs/adr/` | Decided ADRs: 02, 03, 04 (append-only journal instead of SQLite), 05, 07, 10, 14, 15, 16, 17. The plan's §26 points to them. |
 | `docs/validation/` | TV-01 (scale and latency) and the P3 validations (TV-03/07/10/13/14/16/17 plus truthful outcomes) |
 | `docs/CAPABILITIES.md`, `docs/SERVICING.md`, `SECURITY.md` | What works where; release servicing; vulnerability reporting |
 
@@ -42,14 +42,14 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P4 | **Done (engineering scope, 2026-09-28).** P4a: Registry views (explicit 32/64-bit), guarded jobs with undo, link-safe subtree delete, HKCR/HKCC writable route, search, `.reg` import/export, notifications, ACL inspection, and the per-plan administrator broker (`FileCat.PrivilegedHost`, ADR-14: "Retry as administrator" for access-denied items). P4b: fixed-length hex editor (ADR-05). TV-04/05/15 VM and hardware checks remain. |
 | P5 | **Done (engineering scope, 2026-09-28).** ZIP pack (Alt+F5), add (F5), delete (F8), rename (F2), folder entries (F7), and Test by staged, verified rebuilds with parent-version checks (ADR-07); nested archives read-only; F4 edit sessions with explicit, guarded commit that survive restarts. TV-07 native-engine parts wait for P8. |
 | Post-v1 slices | Bulk rename (Ctrl+M, OPS-007): masks, counters, regex, case, live preview blocking collisions, editor round-trip, swaps and chains through journaled temporary names (Operations can finish an interrupted rename), Undo guarded by identity. Create link (File menu): symbolic links (probed right, relative option), junctions, and hard links, checked per drive and target type before creation; Undo removes links that are unchanged (hard links only while provably another name of the file). Checksum manifests (§9.4): GNU, BSD-tagged, and SFV formats are recognized, never hashed automatically; verification is a read-only job with byte progress, per-file results, refused absolute and `..` paths, and failing files openable as a result set; the checksum dialog saves manifests. Apply command (Ctrl+G, FAR): one command per item with placeholders, split into tokens before substitution, previewed exactly, refusing option-like names, BatBadBut, and shells as programs (shell mode quotes names instead); a sequential job records each exit code with the output's tail. Dialogs confirm only a preview of the current input. |
-| P6 | **In progress.** Done: SFTP provider over SSH.NET (lstat listings; changes only through fresh listing entries, since SSH.NET's path-based delete and rename follow links), host keys (own known_hosts seeded by OpenSSH's; changed keys never auto-accepted), saved connections with secrets in Windows Credential Manager, connect UI, F3, downloads with origin marks, uploads through temporary names, moves, delete, rename, and new folder. Pending: SFTP edit sessions (F4), SSH terminal, ADR-17. |
+| P6 | **Done (engineering scope, 2026-09-28).** SFTP over SSH.NET (ADR-17): lstat listings, remote changes only through fresh listing entries (SSH.NET's path operations follow links), host keys in FileCat's own known_hosts seeded by OpenSSH's, saved connections with secrets in Windows Credential Manager, connect UI, F3, downloads with origin marks, uploads through temporary names, moves, delete, rename, new folder, F4 edit sessions with guarded commit, SSH terminal. Pending: SSH agent sign-in; TV-12 with varied servers. |
 | P7–P10 | Pending |
 
 ## Resume here (next slices, in order)
 
-1. **P6 (rest):** F4 edit sessions for SFTP files (generalize P5 sessions: remote baseline, commit through a temporary name), explicit SSH terminal, SSH agent sign-in, ADR-17 record and plan updates.
-2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 VM and hardware checks remain pending after code and automated tests.
-3. **Later:** P7 diff, sync, and inspectors; P8–P10.
+1. **P7:** recursive directory diff, synchronization preview, inspectors (plan §23); SSH agent sign-in (SshNet.Agent evaluation) can join any slice.
+2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 and P6 TV-12 checks remain pending after code and automated tests.
+3. **Later:** P8–P10.
 
 ## Notes for the next session
 

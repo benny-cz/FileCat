@@ -382,7 +382,20 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool replace = false;
-        if (existing is not null)
+        if (Job.Request.ExpectedTarget is { } expected)
+        {
+            // An edit commit: replace exactly the version the edit started from, never someone else's newer one.
+            if (existing is null || existing.IsLink || existing.IsDirectory || existing.Size != expected.Length || existing.ModifiedUtc.Ticks != expected.ModifiedTicks)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, dst, existing is null ? "Not written: the file is gone from the server."
+                    : existing.IsLink ? "Not written: on the server this name is a link, and FileCat does not write through links; your edit is kept."
+                    : "Not written: the file changed on the server after the edit started; your edit is kept.", StepOutcome.Failed, "conflict");
+                return false;
+            }
+            replace = true;
+        }
+        else if (existing is not null)
         {
             switch (ResolveConflict(sourceDisplay, dst, incoming, existing, destFolder))
             {

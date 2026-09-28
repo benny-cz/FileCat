@@ -863,9 +863,14 @@ public sealed partial class MainViewModel
             await EditArchiveMemberAsync(item);
             return;
         }
+        if (item.Parent.Scheme == Schemes.Sftp)
+        {
+            await EditRemoteFileAsync(item);
+            return;
+        }
         if (item.FileSystemPath is not { } path)
         {
-            Notify("Editing items inside archives or remote locations uses explicit edit sessions, which are not available for this location yet. Copy the item out with F5 to edit it.", true);
+            Notify("This location has no editable files. Copy the item to a folder with F5 to edit it.", true);
             return;
         }
         LaunchEditor(path);

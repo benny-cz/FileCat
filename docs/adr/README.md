@@ -14,5 +14,6 @@ The IDs and rationale are the plan's.
 | [ADR-14](ADR-14-privileged-broker.md) | Per-plan administrator broker: one UAC consent per displayed plan, closed verb set, link-refusing handle-relative steps, installed builds only | Decided for P4a; TV-15 VM checks pending |
 | [ADR-15](ADR-15-installation-signing-servicing.md) | Per-machine installer plus portable and framework-dependent ZIPs; SignPath signing; notify-only update check | Decided; signing pending |
 | [ADR-16](ADR-16-keyboard-model.md) | Agreement-first keymap with recorded additions (no Ctrl+Alt+letter chords) | Decided for v1; TV-10 manual part pending |
+| [ADR-17](ADR-17-sftp-engine.md) | SFTP over SSH.NET behind a narrow channel; remote changes only through listing entries (SSH.NET's path operations follow links); own known_hosts seeded by OpenSSH's; temporary-name publishing | Decided for P6; TV-12 external checks pending |
 
 The other ADRs (01, 06, 08, 09, 11–13) stay open until their phases produce evidence.

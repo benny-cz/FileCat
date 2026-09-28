@@ -37,6 +37,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 | ZIP updates | Each change rebuilds the archive beside itself and replaces it only when verified and unchanged since you saw it; encrypted archives and archives inside archives are read-only; there is no undo | – (by design; see ADR-07) |
 | FTP, FTPS | – | P8 |
 | Per-file Shell thumbnails, properties, and context-menu handlers | Icons are by extension only (safety policy) | Out-of-process host, P7 |
-| Editing remote files | "Copy the item out with F5 to edit it" | Edit sessions for SFTP, P6 |
+| Editing files on servers | F4 on a file on an SFTP server edits a private copy in your editor; Commit (F4 again, or File → Edit sessions) writes it back only while the server file is still the version the edit started from, and a changed file is never overwritten without an explicit choice | P6 (done) |
+| SSH terminal | Open terminal on an SFTP panel starts the OpenSSH client in that folder; it checks host keys against OpenSSH's own known_hosts. SSH agent sign-in in FileCat itself is not supported yet | P6 (done); agent later |
 | Translations | English only. Command titles and key-bar labels can already be translated with `lang/<culture>.json` next to the executable. | Other UI text once translators and QA exist |
 | Alternate data streams on FAT and exFAT | Each lost stream (and a lost download mark) is named per file | – (file-system limit) |

@@ -9,17 +9,38 @@ using FileCat.Core.Resources;
 namespace FileCat.Core.Edit;
 
 /// <summary>
-/// One external edit of an archive member (plan §14.2, NET-003): the member's origin and version evidence, a private
-/// working copy, and what was last written back. It survives navigation, tab closing, and restarts; only an explicit
-/// Commit writes to the archive and only Discard deletes the working copy.
+/// One external edit of an archive member or a file on a server (plan §14.2, NET-003): its origin and version
+/// evidence, a private working copy, and what was last written back. It survives navigation, tab closing, and
+/// restarts; only an explicit Commit writes back and only Discard deletes the working copy.
 /// </summary>
 public sealed record EditSessionRecord
 {
     public const int CurrentVersion = 1;
+    public const string ArchiveKind = "archive";
+    public const string RemoteKind = "sftp";
     public int Version { get; init; } = CurrentVersion;
     public string Id { get; init; } = "";
+    /// <summary><see cref="ArchiveKind"/> (the default of records written before servers had sessions) or <see cref="RemoteKind"/>.</summary>
+    public string Kind { get; init; } = ArchiveKind;
     public DateTime CreatedUtc { get; init; }
     public string ArchivePath { get; init; } = "";
+    /// <summary>For a server file: the connection profile, its display ("user@host"), and the absolute remote path.</summary>
+    public string ProfileId { get; init; } = "";
+    public string ServerDisplay { get; init; } = "";
+    public string RemotePath { get; init; } = "";
+    /// <summary>For a server file: the revision the working copy is based on (updated after each commit).</summary>
+    public ContentRevision RemoteBaseline { get; init; }
+
+    public bool IsRemote => Kind == RemoteKind;
+
+    /// <summary>The edited file's own name.</summary>
+    public string DisplayName => IsRemote ? RemotePath[(RemotePath.LastIndexOf('/') + 1)..] : Path.GetFileName(MemberPath);
+
+    /// <summary>Where it lives: the member in its archive, or the server and path.</summary>
+    public string DisplayContainer => IsRemote ? $"{ServerDisplay}:{RemotePath}" : $"{MemberPath} in {ArchivePath}";
+
+    /// <summary>What a commit writes to: the archive's file name, or the server.</summary>
+    public string DisplayTarget => IsRemote ? ServerDisplay : Path.GetFileName(ArchivePath);
     public string MemberPath { get; init; } = "";
     /// <summary>The archive version the working copy is based on (updated after each commit).</summary>
     public ArchiveBaseline Baseline { get; init; } = new(0, 0);
@@ -76,8 +97,89 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     }
 
     public EditSessionRecord? Find(string archivePath, string memberPath) =>
-        LoadAll().FirstOrDefault(s => string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
+        LoadAll().FirstOrDefault(s => !s.IsRemote && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
                                       s.MemberPath == memberPath);
+
+    public EditSessionRecord? FindRemote(string profileId, string remotePath) =>
+        LoadAll().FirstOrDefault(s => s.IsRemote && s.ProfileId == profileId && s.RemotePath == remotePath);
+
+    /// <summary>
+    /// Copies a server file into a new private working copy, marked as coming from the server, with the revision it was
+    /// read at as the base that commits are checked against.
+    /// </summary>
+    public EditSessionRecord CreateRemote(string profileId, string serverDisplay, string remotePath, IContentSource source, ContentRevision revision,
+        string? originMark)
+    {
+        if (revision.Length > MaxMemberBytes)
+            throw new IOException($"Files over {MaxMemberBytes / (1024 * 1024 * 1024)} GiB are not edited through sessions; copy the file with F5 instead.");
+        string name = remotePath[(remotePath.LastIndexOf('/') + 1)..];
+        return CreateSession(name, working => WriteWorkingCopy(source, working), working =>
+        {
+            if (originMark is not null) fs.WriteOriginMark(working, originMark);
+            return new EditSessionRecord
+            {
+                Kind = EditSessionRecord.RemoteKind,
+                ProfileId = profileId,
+                ServerDisplay = serverDisplay,
+                RemotePath = remotePath,
+                RemoteBaseline = revision,
+                BaseSha256 = Hash(working),
+                WorkingPath = working,
+            };
+        });
+    }
+
+    /// <summary>
+    /// Whether a commit would replace exactly the server file the edit started from; <paramref name="now"/> is its
+    /// revision now, or null when it is gone.
+    /// </summary>
+    public static CommitCheck CheckRemote(EditSessionRecord record, ContentRevision? now) =>
+        now is not { } current ? CommitCheck.ArchiveMissing
+        : current.Length == record.RemoteBaseline.Length && current.ModifiedTicks == record.RemoteBaseline.ModifiedTicks ? CommitCheck.Ready
+        : CommitCheck.MemberChanged;
+
+    /// <summary>After a successful commit to the server: what was written and its new revision become the base.</summary>
+    public EditSessionRecord CommittedRemote(EditSessionRecord record, string committedSha256, ContentRevision revision)
+    {
+        var updated = record with { RemoteBaseline = revision, BaseSha256 = committedSha256, LastCommitUtc = DateTime.UtcNow };
+        Save(updated);
+        return updated;
+    }
+
+    /// <summary>A session folder with the working copy under the edited file's own name (or a safe stand-in).</summary>
+    private EditSessionRecord CreateSession(string fileName, Action<string> write, Func<string, EditSessionRecord> describe)
+    {
+        string id = Guid.NewGuid().ToString("N");
+        string dir = Path.Combine(Root, id);
+        Directory.CreateDirectory(dir);
+        string working = Path.Combine(dir, SafeNames.Validate(fileName) is null ? fileName : "file" + Path.GetExtension(fileName));
+        try
+        {
+            write(working);
+            var record = describe(working) with { Id = id, CreatedUtc = DateTime.UtcNow };
+            Save(record);
+            return record;
+        }
+        catch
+        {
+            try { Directory.Delete(dir, recursive: true); }
+            catch (IOException) { }
+            throw;
+        }
+    }
+
+    private static void WriteWorkingCopy(IContentSource source, string working)
+    {
+        using var output = new FileStream(working, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        var buffer = new byte[1024 * 1024];
+        for (long offset = 0; ;)
+        {
+            int n = source.Read(offset, buffer);
+            if (n <= 0) break;
+            output.Write(buffer, 0, n);
+            offset += n;
+        }
+    }
 
     /// <summary>
     /// Extracts <paramref name="member"/> into a new private working copy. The copy carries the archive's download mark,
@@ -90,31 +192,18 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         string archive = Path.GetFullPath(archiveFile.Path);
         string memberPath = member.Parent.Path.Length == 0 ? member.Name : member.Parent.Path + "/" + member.Name;
         var baseline = ArchiveBaseline.Of(archive);
-        string id = Guid.NewGuid().ToString("N");
-        string dir = Path.Combine(Root, id);
-        Directory.CreateDirectory(dir);
-        string working = Path.Combine(dir, SafeNames.Validate(member.Name) is null ? member.Name : "member" + Path.GetExtension(member.Name));
-        try
+        return CreateSession(member.Name, working =>
         {
-            using (var source = zip.OpenContent(member) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here."))
-            {
-                if (source.Length > MaxMemberBytes) throw new IOException($"Members over {MaxMemberBytes / (1024 * 1024 * 1024)} GiB are not edited through sessions; extract it with F5 instead.");
-                using var output = new FileStream(working, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                var buffer = new byte[1024 * 1024];
-                for (long offset = 0; ;)
-                {
-                    int n = source.Read(offset, buffer);
-                    if (n <= 0) break;
-                    output.Write(buffer, 0, n);
-                    offset += n;
-                }
-            }
+            using var source = zip.OpenContent(member) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
+            if (source.Length > MaxMemberBytes)
+                throw new IOException($"Members over {MaxMemberBytes / (1024 * 1024 * 1024)} GiB are not edited through sessions; extract it with F5 instead.");
+            WriteWorkingCopy(source, working);
+        }, working =>
+        {
             if (fs.ReadOriginMark(archive) is { } mark) fs.WriteOriginMark(working, mark);
             var (crc, length) = Checksum(working);
-            var record = new EditSessionRecord
+            return new EditSessionRecord
             {
-                Id = id,
-                CreatedUtc = DateTime.UtcNow,
                 ArchivePath = archive,
                 MemberPath = memberPath,
                 Baseline = baseline,
@@ -123,15 +212,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
                 BaseSha256 = Hash(working),
                 WorkingPath = working,
             };
-            Save(record);
-            return record;
-        }
-        catch
-        {
-            try { Directory.Delete(dir, recursive: true); }
-            catch (IOException) { }
-            throw;
-        }
+        });
     }
 
     public void Save(EditSessionRecord record)

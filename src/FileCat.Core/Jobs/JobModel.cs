@@ -159,6 +159,11 @@ public sealed class JobRequest
     public IReadOnlyList<string>? NewNames { get; init; }
     /// <summary>For <see cref="JobKind.CreateLink"/>: which kind of link, and whether symbolic link targets are relative.</summary>
     public Operations.LinkOptions? Link { get; init; }
+    /// <summary>
+    /// For a copy that replaces one file (an edit commit): the destination must still have this revision, or nothing
+    /// is replaced. Null means no destination is expected: then an existing one is not replaced either.
+    /// </summary>
+    public Resources.ContentRevision? ExpectedTarget { get; init; }
     /// <summary>For <see cref="JobKind.ApplyCommand"/>: the previewed invocations, one per source, run as shown.</summary>
     public IReadOnlyList<Tools.ApplyInvocation>? Invocations { get; init; }
     /// <summary>For <see cref="JobKind.ArchiveUpdate"/>: the archive and its changes.</summary>

@@ -6,13 +6,16 @@ using FileCat.Core.Archives;
 using FileCat.Core.Edit;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Remote.Sftp;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.ViewModels;
 
 /// <summary>
-/// External edit sessions for archive members (plan §14.2, NET-003): F4 edits a private copy in the configured editor;
-/// nothing is written back until an explicit Commit, which is guarded by the archive's version. Sessions survive
-/// navigation, tab closing, and restarts; conflicts keep the edit and offer Save copy or an explicit rebase.
+/// External edit sessions for archive members and files on servers (plan §14.2, NET-003): F4 edits a private copy in
+/// the configured editor; nothing is written back until an explicit Commit, which is guarded by the version the edit
+/// started from. Sessions survive navigation, tab closing, and restarts; conflicts keep the edit and offer Save copy or
+/// an explicit overwrite.
 /// </summary>
 public sealed partial class MainViewModel
 {
@@ -27,7 +30,7 @@ public sealed partial class MainViewModel
         foreach (var s in sessions) Watch(s);
         int modified = sessions.Count(s => Services.EditSessions.StateOf(s) == EditState.Modified);
         return modified == 0 ? null
-            : $"{Formatters.Plural(modified, "archive edit has", "archive edits have")} changes that are not committed yet. Review them in File → Edit sessions.";
+            : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet. Review them in File → Edit sessions.";
     }
 
     private async Task EditArchiveMemberAsync(ItemRef item)
@@ -67,6 +70,39 @@ public sealed partial class MainViewModel
         Notify($"Editing a copy of \"{item.Name}\" from {Path.GetFileName(session.ArchivePath)}. Save in the editor, then commit with F4 on the member again (or File → Edit sessions). Nothing is written to the archive until you commit.");
     }
 
+    /// <summary>F4 on a file on a server: a private copy, read once, edited in the configured editor.</summary>
+    private async Task EditRemoteFileAsync(ItemRef item)
+    {
+        if (item.Parent.Session is not { } profileId || Services.FindRemoteProfile(profileId) is not { } profile) return;
+        string remotePath = Services.SftpProvider.PathOf(item);
+        var existing = Services.EditSessions.FindRemote(profileId, remotePath);
+        if (existing is not null)
+        {
+            if (Services.EditSessions.StateOf(existing) == EditState.Modified) await ShowSessionAsync(existing);
+            else OpenSessionEditor(existing);
+            return;
+        }
+        EditSessionRecord session;
+        try
+        {
+            Notify($"Copying \"{item.Name}\" from {profile.Display} for editing…");
+            session = await Task.Run(() =>
+            {
+                using var content = Services.SftpProvider.OpenContent(item) ?? throw new IOException("This item has no content to edit.");
+                var revision = content.GetRevision() ?? new ContentRevision(content.Length, 0);
+                return Services.EditSessions.CreateRemote(profileId, profile.Display, remotePath, content, revision, Services.SftpProvider.GetOriginMark(item.Parent));
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            Notify($"Cannot edit \"{item.Name}\": {ex.Message}", true);
+            return;
+        }
+        Watch(session);
+        OpenSessionEditor(session);
+        Notify($"Editing a copy of \"{item.Name}\" from {profile.Display}. Save in the editor, then commit with F4 on the file again (or File → Edit sessions). Nothing is written to the server until you commit.");
+    }
+
     private void OpenSessionEditor(EditSessionRecord session)
     {
         if (!File.Exists(session.WorkingPath))
@@ -93,7 +129,7 @@ public sealed partial class MainViewModel
             await Task.Delay(750); // let the editor finish writing
             var current = Services.EditSessions.LoadAll().FirstOrDefault(s => s.Id == session.Id);
             if (current is null || Services.EditSessions.StateOf(current) != EditState.Modified || !_announcedEdits.Add(current.Id)) return;
-            Notify($"\"{Path.GetFileName(current.MemberPath)}\" changed in the editor. Commit it to {Path.GetFileName(current.ArchivePath)} with F4 on the member, or File → Edit sessions.");
+            Notify($"\"{current.DisplayName}\" changed in the editor. Commit it to {current.DisplayTarget} with F4 on the file, or File → Edit sessions.");
         });
         watcher.Changed += Changed;
         watcher.Created += Changed;
@@ -108,17 +144,16 @@ public sealed partial class MainViewModel
         _announcedEdits.Remove(id);
     }
 
-    /// <summary>File → Edit sessions: every open archive edit with its state.</summary>
+    /// <summary>File → Edit sessions: every open edit with its state.</summary>
     private async Task ShowEditSessionsAsync()
     {
         var sessions = Services.EditSessions.LoadAll();
         if (sessions.Count == 0)
         {
-            Notify("No archive edits are open. F4 on a member of a ZIP archive starts one.");
+            Notify("No edits are open. F4 on a member of a ZIP archive or on a file on a server starts one.");
             return;
         }
-        var items = sessions.Select(s => new ChoiceItem(Path.GetFileName(s.MemberPath),
-            $"{Describe(Services.EditSessions.StateOf(s))} · {s.MemberPath} in {s.ArchivePath}")).ToList();
+        var items = sessions.Select(s => new ChoiceItem(s.DisplayName, $"{Describe(Services.EditSessions.StateOf(s))} · {s.DisplayContainer}")).ToList();
         var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
         {
             Hint = "Enter shows the actions: commit, reopen the editor, save a copy, or discard.",
@@ -137,7 +172,7 @@ public sealed partial class MainViewModel
     {
         var state = Services.EditSessions.StateOf(session);
         var body = new StackPanel { Spacing = 6 };
-        body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"{session.MemberPath} in {session.ArchivePath}" });
+        body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = session.DisplayContainer });
         body.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
@@ -147,7 +182,7 @@ public sealed partial class MainViewModel
         var buttons = new List<DialogButton> { new("Close", "close", IsCancel: true), new("Discard…", "discard", IsDanger: true), new("Save copy…", "copy") };
         if (state != EditState.Missing) buttons.Add(new DialogButton("Reopen editor", "reopen", IsDefault: state != EditState.Modified));
         if (state == EditState.Modified) buttons.Add(new DialogButton("Commit", "commit", IsDefault: true));
-        var answer = await Dialogs.ShowCustomAsync("Archive edit", body, buttons);
+        var answer = await Dialogs.ShowCustomAsync(session.IsRemote ? "Server file edit" : "Archive edit", body, buttons);
         switch (answer as string)
         {
             case "commit": await CommitSessionAsync(session); break;
@@ -159,6 +194,11 @@ public sealed partial class MainViewModel
 
     private async Task CommitSessionAsync(EditSessionRecord session)
     {
+        if (session.IsRemote)
+        {
+            await CommitRemoteAsync(session);
+            return;
+        }
         var check = await Task.Run(() => Services.EditSessions.Check(session));
         bool rebase = false;
         switch (check)
@@ -212,11 +252,90 @@ public sealed partial class MainViewModel
         if (ActiveTab is { } tab) Track(job, tab);
     }
 
+    /// <summary>
+    /// Commits to the server: the file must still be the version the edit started from (checked now, and again by the
+    /// job just before it replaces the file). A changed or missing file asks first and never overwrites silently.
+    /// </summary>
+    private async Task CommitRemoteAsync(EditSessionRecord session)
+    {
+        if (Services.FindRemoteProfile(session.ProfileId) is not { } profile)
+        {
+            if (await Dialogs.ConfirmAsync("Connection not found",
+                    $"The connection to {session.ServerDisplay} was removed, so the edit cannot be committed. Save your working copy somewhere else?", "Save copy…"))
+                await SaveSessionCopyAsync(session);
+            return;
+        }
+        var folder = SftpProvider.At(profile, RemotePath.Parent(session.RemotePath) ?? "/");
+        ContentRevision? now;
+        try { now = await Task.Run(() => RemoteRevision(folder, session.RemotePath)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            Notify($"Cannot reach {profile.Display}: {ex.Message} Your edit is kept.", true);
+            return;
+        }
+        ContentRevision? expected = session.RemoteBaseline;
+        switch (EditSessionStore.CheckRemote(session, now))
+        {
+            case CommitCheck.ArchiveMissing:
+                var gone = await Dialogs.ShowCustomAsync("File not on the server",
+                    new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"\"{session.RemotePath}\" is no longer on {profile.Display}. Your edit is kept." },
+                    [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Save my copy…", "copy"), new DialogButton("Create it again", "create", IsDefault: true)]);
+                if (gone as string == "copy") await SaveSessionCopyAsync(session);
+                if (gone as string != "create") return;
+                expected = null;
+                break;
+            case CommitCheck.MemberChanged:
+                var answer = await Dialogs.ShowCustomAsync("Edit conflict",
+                    new TextBlock
+                    {
+                        TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
+                        Text = $"\"{session.RemotePath}\" changed on {profile.Display} after you started editing. Committing would overwrite that change. Your edit is kept either way.",
+                    },
+                    [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Overwrite their change", "overwrite", IsDanger: true),
+                     new DialogButton("Save my copy…", "copy", IsDefault: true)]);
+                if (answer as string == "copy") await SaveSessionCopyAsync(session);
+                if (answer as string != "overwrite") return;
+                expected = now;
+                break;
+        }
+        string sha;
+        try { sha = await Task.Run(() => EditSessionStore.Hash(session.WorkingPath)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Notify($"Cannot read the working copy: {ex.Message}. Close it in the editor and try again.", true);
+            return;
+        }
+        var job = Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(session.WorkingPath, EntryKind.File)],
+            Destination = folder,
+            NewName = session.DisplayName,
+            ExpectedTarget = expected,
+            Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
+            Description = $"Commit \"{session.DisplayName}\" to {profile.Display}",
+        });
+        _sessionCommits[job] = (session.Id, sha);
+        if (ActiveTab is { } tab) Track(job, tab);
+    }
+
+    /// <summary>The server file's revision now (links followed), or null when it is gone.</summary>
+    private ContentRevision? RemoteRevision(Location folder, string path)
+    {
+        using var lease = Services.SftpProvider.Lease(folder, CancellationToken.None);
+        return lease.Channel.Stat(path) is { IsDirectory: false } st ? new ContentRevision(st.Size, st.ModifiedUtc.Ticks) : null;
+    }
+
     private void OnEditCommitFinished(Job job)
     {
         if (!_sessionCommits.Remove(job, out var commit)) return;
         var session = Services.EditSessions.LoadAll().FirstOrDefault(s => s.Id == commit.SessionId);
         if (session is null) return;
+        if (session.IsRemote)
+        {
+            _ = OnRemoteCommitFinishedAsync(job, session, commit.Sha256);
+            return;
+        }
         if (job.State == JobState.Completed)
         {
             try
@@ -230,12 +349,34 @@ public sealed partial class MainViewModel
         else Notify($"\"{Path.GetFileName(session.MemberPath)}\" was not committed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
     }
 
+    private async Task OnRemoteCommitFinishedAsync(Job job, EditSessionRecord session, string sha)
+    {
+        if (job.State != JobState.Completed)
+        {
+            Notify($"\"{session.DisplayName}\" was not committed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
+            return;
+        }
+        try
+        {
+            // The new version on the server becomes the base for the next commit.
+            var folder = job.Request.Destination!;
+            var revision = await Task.Run(() => RemoteRevision(folder, session.RemotePath));
+            if (revision is { } r) Services.EditSessions.CommittedRemote(session, sha, r);
+            _announcedEdits.Remove(session.Id);
+            Notify($"Committed \"{session.DisplayName}\" to {session.ServerDisplay}. The edit stays open for more changes; discard it when you are done.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            Notify($"The commit finished, but the session could not be updated: {ex.Message}", true);
+        }
+    }
+
     private async Task SaveSessionCopyAsync(EditSessionRecord session)
     {
         if (View.TopLevel is not { } top || !File.Exists(session.WorkingPath)) return;
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save a copy of the edited member",
+            Title = "Save a copy of the edited file",
             SuggestedFileName = Path.GetFileName(session.WorkingPath),
         });
         string? path = file?.TryGetLocalPath();
@@ -252,8 +393,8 @@ public sealed partial class MainViewModel
     {
         if (!await Dialogs.ConfirmAsync("Discard edit",
                 state == EditState.Modified
-                    ? $"Discard your uncommitted changes to \"{session.MemberPath}\"? The working copy is deleted; the archive keeps its current content."
-                    : $"Close the edit of \"{session.MemberPath}\" and delete its working copy?",
+                    ? $"Discard your uncommitted changes to \"{session.DisplayName}\"? The working copy is deleted; {session.DisplayTarget} keeps its current content."
+                    : $"Close the edit of \"{session.DisplayName}\" and delete its working copy?",
                 "Discard", danger: state == EditState.Modified))
             return;
         Unwatch(session.Id);
