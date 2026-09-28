@@ -33,6 +33,19 @@ public interface IRemoteInteraction
 
     /// <summary>Keyboard-interactive answers, one per prompt; null when the user cancels.</summary>
     IReadOnlyList<string>? AnswerPrompts(RemoteProfile profile, string instruction, IReadOnlyList<(string Prompt, bool Echo)> prompts);
+
+    /// <summary>An FTPS certificate the OS does not accept (self-signed, wrong name, changed since pinned).</summary>
+    HostKeyDecision DecideCertificate(RemoteProfile profile, Ftp.CertificateCheck check) => HostKeyDecision.Reject;
+
+    /// <summary>Unencrypted FTP to a server the user did not choose it for knowingly; false cancels.</summary>
+    bool AllowUnencrypted(RemoteProfile profile) => false;
+}
+
+/// <summary>SFTP profiles connect over SSH, FTP ones over FTP or FTPS.</summary>
+public sealed class ProtocolConnector(ISftpConnector ssh, ISftpConnector ftp) : ISftpConnector
+{
+    public ISftpChannel Connect(RemoteProfile profile, ConnectContext context, CancellationToken ct) =>
+        (profile.IsFtp ? ftp : ssh).Connect(profile, context, ct);
 }
 
 /// <summary>The callbacks a connector uses while it connects one channel.</summary>
@@ -40,6 +53,9 @@ public sealed class ConnectContext
 {
     /// <summary>The server's host key blob; true lets the connection continue.</summary>
     public required Func<byte[], bool> ApproveHostKey { get; init; }
+
+    /// <summary>An FTPS server's certificate (with the OS's objections, if any); true lets the connection continue.</summary>
+    public Func<Ftp.CertificateInfo, bool> ApproveCertificate { get; init; } = info => info.Problems.Count == 0;
 
     /// <summary>A password or passphrase (argument: passphrase?); null cancels.</summary>
     public required Func<bool, string?> GetSecret { get; init; }
@@ -76,6 +92,8 @@ public sealed class PromptDeferredException(string message) : IOException(messag
 public sealed class SftpConnections : IDisposable
 {
     public const int MaxPerServer = 4;
+    /// <summary>FTP servers often allow only a few connections per address.</summary>
+    public const int MaxPerFtpServer = 2;
     /// <summary>Unused connections close after this long (plan §14.1: close idle sessions).</summary>
     public static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(10);
     private const int MaxAuthenticationAttempts = 3;
@@ -84,16 +102,19 @@ public sealed class SftpConnections : IDisposable
     private readonly Func<string, RemoteProfile?> _profiles;
     private readonly ISftpConnector _connector;
     private readonly HostKeyTrust _trust;
+    private readonly Ftp.CertificateTrust? _certificates;
+    private readonly ConcurrentDictionary<string, bool> _plainAllowed = new(StringComparer.Ordinal);
     private readonly ISecretStore _secrets;
     private readonly ConcurrentDictionary<string, Pool> _pools = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _sessionSecrets = new(StringComparer.Ordinal);
 
     public SftpConnections(Func<string, RemoteProfile?> profiles, ISftpConnector connector, HostKeyTrust trust, ISecretStore secrets,
-        IRemoteInteraction interaction)
+        IRemoteInteraction interaction, Ftp.CertificateTrust? certificates = null)
     {
         _profiles = profiles;
         _connector = connector;
         _trust = trust;
+        _certificates = certificates;
         _secrets = secrets;
         Interaction = interaction;
         _sweeper = new Timer(_ => CloseIdle(DateTime.UtcNow), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -130,9 +151,9 @@ public sealed class SftpConnections : IDisposable
     public SftpLease Lease(string profileId, CancellationToken ct)
     {
         var profile = _profiles(profileId) ?? throw new IOException("This connection is not configured any more.");
-        var pool = _pools.GetOrAdd(profileId, _ => new Pool());
+        var pool = _pools.GetOrAdd(profileId, _ => new Pool(profile.IsFtp ? MaxPerFtpServer : MaxPerServer));
         if (!pool.Slots.Wait(TimeSpan.FromMinutes(2), ct))
-            throw new IOException($"All {MaxPerServer} connections to {profile.Display} are busy; try again when a transfer finishes.");
+            throw new IOException($"All {pool.Size} connections to {profile.Display} are busy; try again when a transfer finishes.");
         try
         {
             ISftpChannel? channel = null;
@@ -193,6 +214,12 @@ public sealed class SftpConnections : IDisposable
 
     private ISftpChannel Connect(RemoteProfile profile, CancellationToken ct)
     {
+        // Unencrypted FTP is only ever a knowing choice: in the connection dialog, or asked once per session.
+        if (profile.Protocol == RemoteProtocols.Ftp && !profile.PlainTextAccepted && !_plainAllowed.ContainsKey(profile.Id))
+        {
+            if (!Interaction.AllowUnencrypted(profile)) throw new ConnectCanceledException();
+            _plainAllowed[profile.Id] = true;
+        }
         string? known = _sessionSecrets.GetValueOrDefault(profile.Id);
         if (known is null && profile.SaveSecret)
         {
@@ -211,6 +238,7 @@ public sealed class SftpConnections : IDisposable
                     rejectedHostKey |= !ok;
                     return ok;
                 },
+                ApproveCertificate = certificate => ApproveCertificate(profile, certificate),
                 GetSecret = passphrase =>
                 {
                     if (!retry && known is not null) return known;
@@ -257,6 +285,17 @@ public sealed class SftpConnections : IDisposable
         }
     }
 
+    private bool ApproveCertificate(RemoteProfile profile, Ftp.CertificateInfo certificate)
+    {
+        var trust = _certificates;
+        if (trust is null) return certificate.Problems.Count == 0;
+        var check = trust.Check(profile.Host, profile.Port, certificate);
+        if (check.Status is Ftp.CertificateStatus.Valid or Ftp.CertificateStatus.Pinned) return true;
+        var decision = Interaction.DecideCertificate(profile, check);
+        if (decision == HostKeyDecision.AcceptAndRemember) trust.Remember(profile.Host, profile.Port, certificate.Sha256);
+        return decision != HostKeyDecision.Reject;
+    }
+
     private bool ApproveHostKey(RemoteProfile profile, byte[] key)
     {
         var check = _trust.Check(profile.Host, profile.Port, key);
@@ -285,9 +324,10 @@ public sealed class SftpConnections : IDisposable
         }
     }
 
-    internal sealed class Pool
+    internal sealed class Pool(int size)
     {
-        public readonly SemaphoreSlim Slots = new(MaxPerServer, MaxPerServer);
+        public readonly int Size = size;
+        public readonly SemaphoreSlim Slots = new(size, size);
         public readonly SemaphoreSlim Connecting = new(1, 1);
         public readonly Stack<(ISftpChannel Channel, DateTime Since)> Idle = new();
         public volatile string? Home;

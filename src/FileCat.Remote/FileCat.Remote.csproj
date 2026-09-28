@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Remote providers (plan §14.1): SFTP over SSH.NET (MIT). Core stays free of third-party packages. -->
+  <!-- Remote providers (plan §14.1): SFTP over SSH.NET (MIT), FTP and FTPS over FluentFTP (MIT, P8). Core stays free of third-party packages. -->
   <PropertyGroup>
     <RootNamespace>FileCat.Remote</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
     <PackageReference Include="SSH.NET" />
+    <PackageReference Include="FluentFTP" />
     <InternalsVisibleTo Include="FileCat.Remote.Tests" />
   </ItemGroup>
 </Project>

@@ -30,6 +30,11 @@ public sealed partial class MainViewModel
         public IReadOnlyList<string>? AnswerPrompts(RemoteProfile profile, string instruction, IReadOnlyList<(string Prompt, bool Echo)> prompts) =>
             OnUi(() => vm.AnswerPromptsAsync(profile, instruction, prompts), null);
 
+        public HostKeyDecision DecideCertificate(RemoteProfile profile, FileCat.Remote.Ftp.CertificateCheck check) =>
+            OnUi(() => vm.DecideCertificateAsync(profile, check), HostKeyDecision.Reject);
+
+        public bool AllowUnencrypted(RemoteProfile profile) => OnUi(() => vm.AllowUnencryptedAsync(profile), false);
+
         private T OnUi<T>(Func<Task<T>> ask, T refused)
         {
             // Tabs restored at startup reconnect silently when they can, but never open questions nobody asked for.
@@ -111,6 +116,48 @@ public sealed partial class MainViewModel
         };
     }
 
+    /// <summary>An FTPS certificate the OS does not accept: its problems and fingerprint; Cancel by default.</summary>
+    internal async Task<HostKeyDecision> DecideCertificateAsync(RemoteProfile profile, FileCat.Remote.Ftp.CertificateCheck check)
+    {
+        var c = check.Certificate;
+        string server = profile.Host + (profile.Port == RemoteProtocols.DefaultPort(profile.Protocol) ? "" : ":" + profile.Port);
+        var body = new StackPanel { Spacing = 8 };
+        bool changed = check.Status == FileCat.Remote.Ftp.CertificateStatus.Changed;
+        if (changed)
+        {
+            body.Children.Add(Para($"The certificate of {server} is not the one you trusted. Someone may be intercepting the connection, or the server's certificate was replaced.", "error"));
+            body.Children.Add(Para("Trusted (SHA-256):"));
+            body.Children.Add(Mono(check.PinnedSha256 ?? "?"));
+            body.Children.Add(Para("Offered now (SHA-256):"));
+        }
+        else
+        {
+            body.Children.Add(Para($"FileCat cannot verify the certificate of {server}:"));
+            foreach (var problem in c.Problems) body.Children.Add(Para("• " + problem));
+            body.Children.Add(Para("SHA-256 fingerprint:"));
+        }
+        body.Children.Add(Mono(c.Sha256));
+        body.Children.Add(Para($"Issued to {c.Subject} by {c.Issuer}, valid {c.NotBeforeUtc.ToLocalTime():d} to {c.NotAfterUtc.ToLocalTime():d}.", "muted"));
+        body.Children.Add(Para("Trust it only if the fingerprint matches what the server's administrator gives you.", "muted"));
+        var answer = await Dialogs.ShowCustomAsync(changed ? "Server certificate changed" : "Unverified server certificate", body,
+        [
+            new DialogButton("Cancel", "cancel", IsDefault: true, IsCancel: true), new DialogButton("Connect once", "once"),
+            new DialogButton(changed ? "Trust the new certificate and connect" : "Trust this certificate", "trust", IsDanger: changed),
+        ]);
+        return (answer as string) switch
+        {
+            "trust" => HostKeyDecision.AcceptAndRemember,
+            "once" => HostKeyDecision.AcceptOnce,
+            _ => HostKeyDecision.Reject,
+        };
+    }
+
+    /// <summary>Unencrypted FTP to a server typed as ftp://: an explicit choice, asked once per session.</summary>
+    internal async Task<bool> AllowUnencryptedAsync(RemoteProfile profile) =>
+        await Dialogs.ConfirmAsync("Connect without encryption?",
+            $"FTP sends your password and files to {profile.Host} unencrypted: anyone on the network path can read or change them. " +
+            "If the server supports TLS, use an ftpes:// or ftps:// address instead.", "Connect unencrypted", danger: true);
+
     internal async Task<SecretAnswer?> AskSecretAsync(RemoteProfile profile, SecretRequest request)
     {
         string what = request.Passphrase ? "Key passphrase" : "Password";
@@ -164,9 +211,10 @@ public sealed partial class MainViewModel
             await EditSftpConnectionAsync(null, panel);
             return;
         }
-        var items = saved.Select(p => new ChoiceItem(p.Name.Length > 0 ? p.Name : p.Display, p.Display + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""))).ToList();
-        items.Add(new ChoiceItem("New connection…", "Server, user, and how to sign in"));
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Connect to an SFTP server", items)
+        var items = saved.Select(p => new ChoiceItem(p.Name.Length > 0 ? p.Name : p.Display,
+            $"{RemoteProtocols.Describe(p.Protocol)} · {p.Display}" + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""))).ToList();
+        items.Add(new ChoiceItem("New connection…", "SFTP, FTPS, or FTP: server, user, and how to sign in"));
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Connect to a server", items)
         {
             Hint = "Type to filter · Enter connects · Shift+Enter edits · Ctrl+Del removes",
             AllowDelete = true,
@@ -215,6 +263,16 @@ public sealed partial class MainViewModel
         }
         var name = Box(existing?.Name, "Connection name");
         var host = Box(existing?.Host, "Server");
+        string[] protocols = [RemoteProtocols.Sftp, RemoteProtocols.FtpExplicitTls, RemoteProtocols.FtpImplicitTls, RemoteProtocols.Ftp];
+        var protocol = new ComboBox
+        {
+            ItemsSource = new[] { "SFTP (SSH)", "FTPS: FTP with explicit TLS (usually port 21)", "FTPS: implicit TLS (usually port 990)", "FTP without encryption" },
+            MinWidth = 360,
+            SelectedIndex = Math.Max(0, Array.IndexOf(protocols, existing?.Protocol ?? RemoteProtocols.Sftp)),
+        };
+        Avalonia.Automation.AutomationProperties.SetName(protocol, "Protocol");
+        string Protocol() => protocols[Math.Max(0, protocol.SelectedIndex)];
+        var plainWarning = Para("FTP without encryption sends your password and files in the clear: anyone on the network path can read or change them. Prefer FTPS or SFTP.", "warning");
         var port = Box((existing?.Port ?? 22).ToString(System.Globalization.CultureInfo.InvariantCulture), "Port", 70);
         var user = Box(existing?.User ?? Environment.UserName, "User name", 160);
         var auth = new ComboBox { ItemsSource = new[] { "Password", "Private key file", "Keyboard-interactive (codes, prompts)" }, MinWidth = 260 };
@@ -234,8 +292,24 @@ public sealed partial class MainViewModel
             IsEnabled = persistent,
         };
         var problem = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 };
-        void UpdateKey() => keyRow.IsVisible = auth.SelectedIndex == 1;
+        var authRow = new StackPanel { Spacing = 2, Children = { new TextBlock { Text = "Sign in with:" }, auth } };
+        void UpdateKey()
+        {
+            bool ftp = RemoteProtocols.IsFtp(Protocol());
+            authRow.IsVisible = !ftp; // FTP signs in with a password (or anonymously)
+            keyRow.IsVisible = !ftp && auth.SelectedIndex == 1;
+            plainWarning.IsVisible = Protocol() == RemoteProtocols.Ftp;
+        }
         auth.SelectionChanged += (_, _) => UpdateKey();
+        string previousProtocol = Protocol();
+        protocol.SelectionChanged += (_, _) =>
+        {
+            // The port follows the protocol unless the user chose a different one.
+            if (port.Text == RemoteProtocols.DefaultPort(previousProtocol).ToString(System.Globalization.CultureInfo.InvariantCulture))
+                port.Text = RemoteProtocols.DefaultPort(Protocol()).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            previousProtocol = Protocol();
+            UpdateKey();
+        };
         UpdateKey();
         browse.Click += async (_, _) =>
         {
@@ -246,10 +320,10 @@ public sealed partial class MainViewModel
         string? Validate()
         {
             if (string.IsNullOrWhiteSpace(host.Text)) return "Enter the server's name or address.";
-            if (host.Text.Contains("://", StringComparison.Ordinal) || host.Text.Contains('/') || host.Text.Contains('@')) return "Enter only the server's name (without sftp://, user, or path).";
+            if (host.Text.Contains("://", StringComparison.Ordinal) || host.Text.Contains('/') || host.Text.Contains('@')) return "Enter only the server's name (without sftp:// or ftp://, user, or path).";
             if (!int.TryParse(port.Text, out int p) || p is < 1 or > 65535) return "The port is a number from 1 to 65535.";
             if (string.IsNullOrWhiteSpace(user.Text)) return "Enter the user name.";
-            if (auth.SelectedIndex == 1 && !File.Exists(keyFile.Text)) return "The private key file does not exist.";
+            if (!RemoteProtocols.IsFtp(Protocol()) && auth.SelectedIndex == 1 && !File.Exists(keyFile.Text)) return "The private key file does not exist.";
             return null;
         }
         void Refresh() => problem.Text = Validate() ?? "";
@@ -269,15 +343,17 @@ public sealed partial class MainViewModel
             Children =
             {
                 Row("Name (optional):", name),
+                Row("Protocol:", protocol),
+                plainWarning,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Row("Server:", host), Row("Port:", port), Row("User:", user) } },
-                Row("Sign in with:", auth),
+                authRow,
                 keyRow,
                 Row("Start folder (optional):", folder),
                 save,
                 problem,
             },
         };
-        var answer = await Dialogs.ShowCustomAsync(existing is null ? "New SFTP connection" : "Edit SFTP connection", body,
+        var answer = await Dialogs.ShowCustomAsync(existing is null ? "New connection" : "Edit connection", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Save", "save"), new DialogButton("Connect", "connect", IsDefault: true)], host,
             () => Validate() is null);
         if (answer as string is not ("save" or "connect") || Validate() is not null) return;
@@ -285,8 +361,9 @@ public sealed partial class MainViewModel
         var profile = existing ?? new RemoteProfile();
         string newHost = host.Text!.Trim(), newUser = user.Text!.Trim();
         int newPort = int.Parse(port.Text!, System.Globalization.CultureInfo.InvariantCulture);
-        // A saved password belongs to one server and user: never send it anywhere else.
-        if (existing is not null && (!string.Equals(existing.Host, newHost, StringComparison.OrdinalIgnoreCase) || existing.Port != newPort || existing.User != newUser))
+        // A saved password belongs to one server, user, and protocol: never send it anywhere else.
+        if (existing is not null && (!string.Equals(existing.Host, newHost, StringComparison.OrdinalIgnoreCase) || existing.Port != newPort || existing.User != newUser ||
+                                     existing.Protocol != Protocol()))
         {
             Services.Sftp.ForgetSecret(existing);
             existing.SaveSecret = false;
@@ -295,7 +372,10 @@ public sealed partial class MainViewModel
         profile.Host = newHost;
         profile.Port = newPort;
         profile.User = newUser;
-        profile.Auth = auth.SelectedIndex switch { 1 => RemoteAuth.Key, 2 => RemoteAuth.KeyboardInteractive, _ => RemoteAuth.Password };
+        profile.Protocol = Protocol();
+        // Chosen here with the warning in view: connecting does not ask again.
+        profile.PlainTextAccepted = profile.Protocol == RemoteProtocols.Ftp;
+        profile.Auth = RemoteProtocols.IsFtp(profile.Protocol) ? RemoteAuth.Password : auth.SelectedIndex switch { 1 => RemoteAuth.Key, 2 => RemoteAuth.KeyboardInteractive, _ => RemoteAuth.Password };
         profile.KeyFile = profile.Auth == RemoteAuth.Key ? keyFile.Text!.Trim() : null;
         profile.InitialPath = string.IsNullOrWhiteSpace(folder.Text) ? null : folder.Text.Trim();
         bool keep = save.IsChecked == true && persistent;
@@ -382,6 +462,11 @@ public sealed partial class MainViewModel
     private void OpenSshTerminal(Location location)
     {
         if (location.Session is not { } id || Services.FindRemoteProfile(id) is not { } profile) return;
+        if (profile.IsFtp)
+        {
+            Notify("FTP servers have no terminal: SSH terminals open on SFTP connections.");
+            return;
+        }
         string? ssh = Core.Tools.ToolLauncher.FindOnPath("ssh");
         if (ssh is null)
         {

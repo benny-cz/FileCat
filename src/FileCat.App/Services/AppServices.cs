@@ -52,8 +52,11 @@ public sealed class AppServices : IDisposable
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
-        Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile, sftpConnector ?? new Remote.Sftp.SshNetConnector(),
-            new Remote.Sftp.HostKeyTrust(Path.Combine(paths.LocalDirectory, "known_hosts")), Platform.Secrets, new RefusingInteraction());
+        // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
+        Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,
+            new Remote.Sftp.ProtocolConnector(sftpConnector ?? new Remote.Sftp.SshNetConnector(), new Remote.Ftp.FluentFtpConnector()),
+            new Remote.Sftp.HostKeyTrust(Path.Combine(paths.LocalDirectory, "known_hosts")), Platform.Secrets, new RefusingInteraction(),
+            new Remote.Ftp.CertificateTrust(Path.Combine(paths.LocalDirectory, "trusted_certificates")));
         Sftp.ProfileChanged += p =>
         {
             if (!p.Temporary) SaveSettings();

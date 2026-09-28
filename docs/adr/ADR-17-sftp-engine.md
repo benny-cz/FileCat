@@ -1,4 +1,4 @@
-# ADR-17: SFTP engine and remote-change safety
+# ADR-17: SFTP engine and remote-change safety (with the FTP/FTPS addendum)
 
 **Status:** Decided for P6 (2026-09-28). TV-12 checks against varied servers (other implementations, reconnects under
 load, host-key rotation in production) remain external.
@@ -75,3 +75,47 @@ therefore cannot become an ssh option. The session lands in the panel's folder, 
   addresses, leases, every job, and edit sessions.
 - The real-server tests start a user-mode sshd on Linux and macOS CI (Windows skips them).
 - Headless UI tests cover connecting (key and password prompts), F7, F5 to the server, F8, and F4 with commit.
+
+## Addendum: FTP and FTPS (P8, 2026-09-28)
+
+**Same channel, different engine.** FTP servers use FluentFTP 55.0.0 (MIT) behind the same `ISftpChannel`. Listings,
+transfers, uploads through temporary names, moves, deletes, and edit sessions therefore behave as they do on SFTP
+servers. FTP profiles carry a protocol:
+
+- `ftpes`: explicit TLS (AUTH TLS), required, never downgraded.
+- `ftps`: implicit TLS.
+- `ftp`: unencrypted.
+
+A `ProtocolConnector` chooses SSH or FTP per profile. Locations keep the remote scheme; display paths and origin marks
+show `ftp://`, `ftpes://`, or `ftps://`.
+
+**Certificates.** A certificate the OS validates for the host is accepted. Any other is shown with its problems, subject,
+issuer, validity, and SHA-256 fingerprint. The user may cancel (the default), connect once, or trust it, which pins the
+fingerprint per host and port in `trusted_certificates`. A pinned server offering another certificate is reported as
+changed, and Cancel is the default.
+
+**Unencrypted FTP is explicit.** It is chosen in the connection dialog with a warning in view. For a typed `ftp://`
+address, FileCat confirms once per session.
+
+**Protocol differences, handled explicitly:**
+
+- **No exclusive create, and RNTO may overwrite.** FileCat checks names before creating or renaming. Its own temporary
+  names are random.
+- **No atomic replace.** Publishing deletes the old file just before renaming the new one, and the job says so.
+- **Names with CR or LF are refused**, because FTP commands end at a line break.
+- **Folders are removed with RMD**, never FluentFTP's recursive delete.
+- **Transfers are binary.** A seek in the viewer ends the current transfer and resumes at the offset (REST).
+- **At most 2 connections per FTP server.**
+- **Time precision depends on the server's listing.** MLSD times are exact UTC; older LIST times may be minute-precise
+  or in the server's time zone.
+
+**Evidence.** pyftpdlib (MIT) serves plain FTP and explicit FTPS in tests on all CI platforms. The tests cover:
+
+- consent for plain FTP;
+- listing, stat, reads at offsets, times (MFMT), exclusive create, rename refusal, and link-safe deletes;
+- the refusal of names with line breaks;
+- pinning and a changed certificate;
+- no fallback from FTPS to plain FTP;
+- an upload job that replaces a file with the non-atomic notice, and a marked download;
+- the protocol, port, and user of typed addresses.
+

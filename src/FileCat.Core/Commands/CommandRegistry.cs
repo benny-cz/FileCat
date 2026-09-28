@@ -338,8 +338,8 @@ public sealed class CommandRegistry
         Add(CommandIds.CopyUncPaths, "Copy UNC paths", C, null, CommandContext.Panel, "Ctrl+Shift+U");
         Add(CommandIds.ConnectNetworkDrive, "Connect network drive…", C);
         Add(CommandIds.DisconnectNetworkDrive, "Disconnect network drive…", C);
-        Add(CommandIds.SftpConnect, "Connect to SFTP server…", C);
-        Add(CommandIds.SftpDisconnect, "Disconnect from SFTP server", C);
+        Add(CommandIds.SftpConnect, "Connect to a server (SFTP, FTPS, FTP)…", C);
+        Add(CommandIds.SftpDisconnect, "Disconnect from the server", C);
 
         Add(CommandIds.Palette, "Command palette…", A, null, CommandContext.Global, "Ctrl+Shift+P");
         Add(CommandIds.Operations, "Operations", A, null, CommandContext.Global, "Ctrl+J");

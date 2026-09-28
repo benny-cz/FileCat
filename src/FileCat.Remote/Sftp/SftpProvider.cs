@@ -51,7 +51,8 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
     public override string GetDisplayPath(Location location)
     {
         string path = Resolve(location);
-        return "sftp://" + (Profile(location)?.Display ?? "(closed connection)") + (path.StartsWith('/') ? path : "/" + path);
+        var profile = Profile(location);
+        return (profile?.Protocol ?? RemoteProtocols.Sftp) + "://" + (profile?.Display ?? "(closed connection)") + (path.StartsWith('/') ? path : "/" + path);
     }
 
     public override string GetDisplayName(Location location)
@@ -76,7 +77,7 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
 
     /// <summary>One queue per server: its bandwidth and connection limit are what jobs share.</summary>
     public override string GetDeviceKey(Location location) =>
-        Profile(location) is { } p ? $"sftp://{p.Host.ToLowerInvariant()}:{p.Port}" : "sftp";
+        Profile(location) is { } p ? $"{p.Protocol}://{p.Host.ToLowerInvariant()}:{p.Port}" : "sftp";
 
     public override LocationCapabilities GetCapabilities(Location location) =>
         LocationCapabilities.Enumerate | LocationCapabilities.ReadContent | LocationCapabilities.CreateDirectory | LocationCapabilities.Delete |
@@ -93,28 +94,35 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
 
     /// <summary>
     /// sftp://[user@]host[:port][/path] (the IETF SFTP URI draft): the path is absolute, "/~/…" is inside the home
-    /// folder, and no path opens the home folder. A password in the address is ignored, never stored.
+    /// folder, and no path opens the home folder. A password in the address is ignored, never stored. FTP servers use
+    /// ftpes:// (explicit TLS), ftps:// (implicit TLS), or ftp:// (unencrypted, confirmed before connecting), as in
+    /// FileZilla and WinSCP.
     /// </summary>
     public override bool TryParse(string text, Location? current, out Location? location)
     {
         location = null;
         var t = text.Trim();
-        if (!t.StartsWith("sftp://", StringComparison.OrdinalIgnoreCase)) return false;
+        int colon = t.IndexOf("://", StringComparison.Ordinal);
+        if (colon <= 0) return false;
+        string protocol = t[..colon].ToLowerInvariant();
+        if (protocol is not (RemoteProtocols.Sftp or RemoteProtocols.FtpExplicitTls or RemoteProtocols.FtpImplicitTls or RemoteProtocols.Ftp)) return false;
         if (!Uri.TryCreate(t, UriKind.Absolute, out var uri) || uri.Host.Length == 0) return false;
         string user = Uri.UnescapeDataString(uri.UserInfo.Split(':')[0]);
-        int port = uri.Port > 0 ? uri.Port : 22;
+        int port = uri.Port > 0 && !uri.IsDefaultPort ? uri.Port : RemoteProtocols.DefaultPort(protocol);
         string host = uri.IdnHost.Trim('[', ']');
         string path = Uri.UnescapeDataString(uri.AbsolutePath);
         if (path is "" or "/" || path == "/~") path = Home;
         else if (path.StartsWith("/~/", StringComparison.Ordinal)) path = path[1..];
-        var saved = _savedProfiles().FirstOrDefault(p => string.Equals(p.Host, host, StringComparison.OrdinalIgnoreCase) && p.Port == port &&
+        var saved = _savedProfiles().FirstOrDefault(p => p.Protocol == protocol && string.Equals(p.Host, host, StringComparison.OrdinalIgnoreCase) && p.Port == port &&
                                                          (user.Length == 0 || string.Equals(p.User, user, StringComparison.Ordinal)));
         var profile = saved ?? _addTemporary(new RemoteProfile
         {
             Name = (user.Length > 0 ? user + "@" : "") + host,
             Host = host,
             Port = port,
-            User = user.Length > 0 ? user : Environment.UserName,
+            Protocol = protocol,
+            // FTP without a user name signs in anonymously; SFTP uses the local user name, like ssh.
+            User = user.Length > 0 ? user : RemoteProtocols.IsFtp(protocol) ? "anonymous" : Environment.UserName,
             Temporary = true,
         });
         location = At(profile, path);
@@ -201,7 +209,7 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
 
     /// <summary>Downloads are marked as coming from the internet (ZoneId 3), naming the server but never the user.</summary>
     public string? GetOriginMark(Location container) =>
-        Profile(container) is { } p ? $"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=sftp://{p.Host}{(p.Port == 22 ? "" : ":" + p.Port)}/\r\n" : "[ZoneTransfer]\r\nZoneId=3\r\n";
+        Profile(container) is { } p ? $"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl={p.Protocol}://{p.Host}{(p.Port == RemoteProtocols.DefaultPort(p.Protocol) ? "" : ":" + p.Port)}/\r\n" : "[ZoneTransfer]\r\nZoneId=3\r\n";
 }
 
 /// <summary>Random-access content of a remote file over one leased connection.</summary>

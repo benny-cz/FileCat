@@ -39,6 +39,10 @@ public sealed class RemoteProfile
     public string Name { get; set; } = string.Empty;
     public string Host { get; set; } = string.Empty;
     public int Port { get; set; } = 22;
+    /// <summary>"sftp" (default), "ftpes" (FTP with explicit TLS), "ftps" (implicit TLS), or "ftp" (unencrypted).</summary>
+    public string Protocol { get; set; } = RemoteProtocols.Sftp;
+    /// <summary>The user chose unencrypted FTP knowingly (in the connection dialog), so connecting does not ask again.</summary>
+    public bool PlainTextAccepted { get; set; }
     public string User { get; set; } = string.Empty;
     /// <summary>"password", "key", or "keyboard-interactive".</summary>
     public string Auth { get; set; } = RemoteAuth.Password;
@@ -54,7 +58,33 @@ public sealed class RemoteProfile
 
     public string SecretKey => "FileCat/sftp/" + Id;
 
-    public string Display => (User.Length > 0 ? User + "@" : "") + Host + (Port == 22 ? "" : ":" + Port);
+    public string Display => (User.Length > 0 ? User + "@" : "") + Host + (Port == RemoteProtocols.DefaultPort(Protocol) ? "" : ":" + Port);
+
+    public bool IsFtp => RemoteProtocols.IsFtp(Protocol);
+}
+
+public static class RemoteProtocols
+{
+    public const string Sftp = "sftp";
+    /// <summary>FTP upgraded to TLS with AUTH TLS (FileZilla and WinSCP call this ftpes://).</summary>
+    public const string FtpExplicitTls = "ftpes";
+    /// <summary>FTP inside TLS from the first byte, usually on port 990 (ftps://).</summary>
+    public const string FtpImplicitTls = "ftps";
+    /// <summary>Unencrypted FTP: passwords and files travel in the clear, so it is only ever an explicit choice.</summary>
+    public const string Ftp = "ftp";
+
+    public static bool IsFtp(string protocol) => protocol is FtpExplicitTls or FtpImplicitTls or Ftp;
+
+    public static int DefaultPort(string protocol) => protocol switch { FtpImplicitTls => 990, FtpExplicitTls or Ftp => 21, _ => 22 };
+
+    /// <summary>What users read: "SFTP", "FTPS (explicit TLS)", "FTPS (implicit TLS)", "FTP (unencrypted)".</summary>
+    public static string Describe(string protocol) => protocol switch
+    {
+        FtpExplicitTls => "FTPS (explicit TLS)",
+        FtpImplicitTls => "FTPS (implicit TLS)",
+        Ftp => "FTP (unencrypted)",
+        _ => "SFTP",
+    };
 }
 
 public static class RemoteAuth
