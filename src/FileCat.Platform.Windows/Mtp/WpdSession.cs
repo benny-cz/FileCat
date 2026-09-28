@@ -279,7 +279,10 @@ public sealed class WpdSession : IDisposable
         }
     });
 
-    /// <summary>A new file of exactly <paramref name="size"/> bytes (MTP needs the size first); disposing the stream commits it.</summary>
+    /// <summary>
+    /// A new file of exactly <paramref name="size"/> bytes (MTP needs the size first). Disposing the stream commits the file
+    /// only when all of it was written; anything less (a cancel, an error part way) is reverted, so no truncated file is left.
+    /// </summary>
     public Stream CreateFile(string parentId, string name, long size) => Call("create the file", () =>
     {
         var values = ObjectValues(parentId, name, Wpd.ContentGenericFile, Wpd.FormatUnspecified, (ulong)size);
@@ -287,7 +290,7 @@ public sealed class WpdSession : IDisposable
         {
             uint optimal = 0;
             _content.CreateObjectWithPropertiesAndData(values, out var stream, ref optimal, IntPtr.Zero);
-            return (Stream)new ComStream(this, stream, writable: true);
+            return (Stream)new ComStream(this, stream, writable: true, size);
         }
         finally
         {
@@ -378,8 +381,8 @@ public sealed class WpdSession : IDisposable
         }
     }
 
-    /// <summary>An IStream from the device as a .NET stream; a write stream commits when disposed.</summary>
-    private sealed class ComStream(WpdSession owner, IStream stream, bool writable) : Stream
+    /// <summary>An IStream from the device as a .NET stream; a write stream commits when disposed, if it is complete.</summary>
+    private sealed class ComStream(WpdSession owner, IStream stream, bool writable, long expected = -1) : Stream
     {
         private bool _closed;
         private long _position;
@@ -429,8 +432,16 @@ public sealed class WpdSession : IDisposable
                     {
                         lock (owner._lock)
                         {
-                            try { stream.Commit(0); }
-                            catch (COMException ex) { throw owner.Translate(ex, "finish writing the file"); }
+                            if (_position == expected)
+                            {
+                                try { stream.Commit(0); }
+                                catch (COMException ex) { throw owner.Translate(ex, "finish writing the file"); }
+                            }
+                            else
+                            {
+                                try { stream.Revert(); }
+                                catch (COMException) { } // the caller removes whatever the device kept anyway
+                            }
                         }
                     }
                 }

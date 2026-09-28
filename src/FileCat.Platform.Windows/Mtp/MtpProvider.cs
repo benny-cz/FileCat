@@ -180,6 +180,21 @@ public sealed class MtpProvider : ResourceProvider
         };
     }
 
+    /// <summary>
+    /// The item a new or renamed item named <paramref name="name"/> would collide with. Phones' storage usually ignores
+    /// letter case while MTP lists names as given, so "Photo.jpg" and "photo.jpg" are one file there: writing one would
+    /// overwrite the other. Null when there is none; an exact match wins over case variants.
+    /// </summary>
+    internal PortableObject? FindSameName(Location folder, string name)
+    {
+        var session = Session(folder.Session!);
+        var matches = session.Children(Resolve(folder), CancellationToken.None).Where(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count <= 1) return matches.FirstOrDefault();
+        var exact = matches.Where(m => m.Name == name).ToList();
+        return exact.Count == 1 ? exact[0]
+            : throw new IOException($"Several items on the device are named \"{name}\" in different letter case; FileCat cannot tell which one is meant.");
+    }
+
     /// <summary>Forgets remembered object IDs below a folder after a change there.</summary>
     internal void Changed(Location folder)
     {

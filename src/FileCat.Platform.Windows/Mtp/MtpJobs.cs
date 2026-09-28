@@ -40,6 +40,11 @@ internal abstract class MtpExecutorBase(Job job, IFileSystemOperations fs, JobJo
 
     protected static string Display(Location folder, string name) => folder.Path.Length == 0 ? name : folder.Path + "/" + name;
 
+    /// <summary>Why a wanted name is taken by <paramref name="existing"/>: exactly, or in another letter case.</summary>
+    protected static string Taken(string existing, string wanted) => existing == wanted
+        ? $"an item named \"{wanted}\" is already there."
+        : $"\"{existing}\" is already there, and the device's storage does not tell names apart by letter case.";
+
     /// <summary>Why a name cannot be used on a device, or null (MTP names are one path part).</summary>
     protected static string? BadName(string name) =>
         name.Length == 0 ? "The name is empty." : name.Contains('/') || name.Contains('\\') ? "The name contains a slash." : null;
@@ -99,7 +104,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             return false;
         }
         PortableObject? existing = null;
-        if (!TryIo(target, "read the device folder", () => existing = Mtp.Find(folder, name))) return false;
+        if (!TryIo(target, "read the device folder", () => existing = Mtp.FindSameName(folder, name))) return false;
         if (info.IsDirectory)
         {
             if (existing is { IsFolder: false })
@@ -110,7 +115,8 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             }
             if (existing is null && !TryIo(target, "create the folder", () => Mtp.Session(folder.Session!).CreateFolder(Mtp.Resolve(folder), name))) return false;
             Mtp.Changed(folder);
-            var child = folder.WithPath(Display(folder, name));
+            // A folder whose name differs only in letter case is the same folder there: merge into it, under its own name.
+            var child = folder.WithPath(Display(folder, existing?.Name ?? name));
             bool all = true;
             foreach (var entry in Directory.EnumerateFileSystemEntries(source))
             {
@@ -120,6 +126,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             if (all && Moving) TryIo(source, "remove the moved folder", () => Directory.Delete(source, recursive: false));
             return all;
         }
+        PortableObject? replacing = null;
         if (existing is not null)
         {
             switch (Conflict(source, target, info, existing))
@@ -131,8 +138,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
                         Issue(IssueSeverity.Error, target, "A folder on the device has this name; it was not replaced.", StepOutcome.Failed, "conflict-type");
                         return false;
                     }
-                    if (!TryIo(target, "remove the old copy", () => Mtp.Session(folder.Session!).Delete(existing.Id, recursive: false))) return false;
-                    Mtp.Changed(folder);
+                    replacing = existing;
                     break;
                 case DecisionAction.KeepBothRenameIncoming:
                     name = UniqueName(folder, name);
@@ -148,29 +154,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         }
         Job.SetCurrent(target);
         int step = Journal.Intent(Moving ? "device-upload-move" : "device-upload", source, target);
-        long written = 0;
-        bool ok = TryIo(target, "copy the file to the device", () =>
-        {
-            Job.AddBytes(-written);
-            written = 0;
-            using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
-            using (var output = Mtp.Session(folder.Session!).CreateFile(Mtp.Resolve(folder), name, input.Length))
-            {
-                var buffer = new byte[BufferSize];
-                int n;
-                while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    Job.Checkpoint();
-                    output.Write(buffer, 0, n);
-                    written += n;
-                    Job.AddBytes(n);
-                }
-            }
-            Mtp.Changed(folder);
-            // The device reports what it stored; a short copy is an error, never a success.
-            var stored = Mtp.Find(folder, name);
-            if (stored is null || stored.Size != written) throw new IOException($"The device holds {(stored?.Size ?? 0):N0} of {written:N0} bytes, so the copy is incomplete.");
-        });
+        bool ok = replacing is null ? Send(source, folder, name, target) : Replace(source, folder, name, target, replacing);
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {
@@ -185,6 +169,95 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         return true;
     }
 
+    private long _sent;
+
+    /// <summary>
+    /// Writes the file under <paramref name="name"/> and checks that the device holds all of it. A cancel or a failure part
+    /// way leaves nothing: the device reverts the unfinished file, and whatever it kept anyway is removed.
+    /// </summary>
+    private bool Send(string source, Location folder, string name, string target)
+    {
+        bool ok = TryIo(target, "copy the file to the device", () =>
+        {
+            Job.AddBytes(-_sent);
+            _sent = 0;
+            try
+            {
+                using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
+                using (var output = Mtp.Session(folder.Session!).CreateFile(Mtp.Resolve(folder), name, input.Length))
+                {
+                    var buffer = new byte[BufferSize];
+                    int n;
+                    while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        Job.Checkpoint();
+                        output.Write(buffer, 0, n);
+                        _sent += n;
+                        Job.AddBytes(n);
+                    }
+                }
+                Mtp.Changed(folder);
+                // The device reports what it stored; a short copy is an error, never a success.
+                var stored = Mtp.Find(folder, name);
+                if (stored is null || stored.Size != _sent) throw new IOException($"The device holds {(stored?.Size ?? 0):N0} of {_sent:N0} bytes, so the copy is incomplete.");
+            }
+            catch
+            {
+                RemoveUnfinished(folder, name);
+                throw;
+            }
+        });
+        _sent = 0;
+        return ok;
+    }
+
+    /// <summary>After a cancel or failure: a file the device kept under a name this step created is removed.</summary>
+    private void RemoveUnfinished(Location folder, string name)
+    {
+        try
+        {
+            Mtp.Changed(folder);
+            if (Mtp.Find(folder, name) is { IsFolder: false } leftover) Mtp.Session(folder.Session!).Delete(leftover.Id, recursive: false);
+            Mtp.Changed(folder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>
+    /// Replacing keeps the old file until the new one is complete on the device: it is written under a temporary name,
+    /// then the old file is removed and the new one takes the name. A device that cannot rename gets a second copy under
+    /// the real name before the temporary one goes, so the data exists on the device at every moment.
+    /// </summary>
+    private bool Replace(string source, Location folder, string name, string target, PortableObject old)
+    {
+        string temporary = "~filecat-" + Guid.NewGuid().ToString("N")[..8] + ".part";
+        if (!Send(source, folder, temporary, Display(folder, temporary))) return false;
+        if (!TryIo(target, "remove the old copy", () => Mtp.Session(folder.Session!).Delete(old.Id, recursive: false)))
+        {
+            RemoveUnfinished(folder, temporary);
+            return false;
+        }
+        Mtp.Changed(folder);
+        bool renamed = false;
+        try
+        {
+            var written = Mtp.Find(folder, temporary) ?? throw new IOException("The new copy is no longer on the device.");
+            Mtp.Session(folder.Session!).Rename(written.Id, name);
+            Mtp.Changed(folder);
+            renamed = Mtp.Find(folder, name) is not null;
+        }
+        catch (IOException) { Mtp.Changed(folder); }
+        if (renamed) return true;
+        // No rename on this device: write the file again under its own name, then drop the temporary copy.
+        if (!Send(source, folder, name, target))
+        {
+            Issue(IssueSeverity.Error, target, $"The device does not allow renaming, and writing the new copy under its own name failed: it is on the device as \"{temporary}\".", StepOutcome.PartiallyApplied);
+            return false;
+        }
+        RemoveUnfinished(folder, temporary);
+        return true;
+    }
+
     private DecisionAction Conflict(string source, string target, FileSystemItemInfo incoming, PortableObject existing)
     {
         bool newer = existing.ModifiedUtc > DateTime.MinValue && incoming.ModifiedUtc - existing.ModifiedUtc > TimeSpan.FromSeconds(2);
@@ -196,7 +269,10 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             case ConflictPolicy.KeepBothRenameIncoming or ConflictPolicy.KeepBothRenameExisting: return DecisionAction.KeepBothRenameIncoming;
         }
         var existingInfo = new FileSystemItemInfo(target, existing.IsFolder, false, existing.Size, existing.ModifiedUtc, existing.ModifiedUtc, FileAttributes.Normal);
-        var d = Job.Ask(new ConflictRequest(existing.IsFolder ? "A folder on the device has this name" : "An item with this name is on the device",
+        string title = existing.Name != Path.GetFileName(target)
+            ? $"\"{existing.Name}\" is on the device: its name differs only in letter case, which the device's storage ignores"
+            : existing.IsFolder ? "A folder on the device has this name" : "An item with this name is on the device";
+        var d = Job.Ask(new ConflictRequest(title,
             Path.GetFileName(target), incoming, existingInfo, source, target, CanReplace: !existing.IsFolder, SameItem: false, TypeMismatch: existing.IsFolder,
             IncomingIsNewer: newer, SuggestedIncomingName: null, SuggestedExistingName: null));
         return d.Action switch
@@ -213,7 +289,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         for (int i = 2; i < 10_000; i++)
         {
             string candidate = ext.Length == 0 ? $"{stem} ({i})" : $"{stem} ({i}).{ext}";
-            if (Mtp.Find(folder, candidate) is null) return candidate;
+            if (Mtp.FindSameName(folder, candidate) is null) return candidate;
         }
         throw new IOException("No free name was found.");
     }
@@ -275,13 +351,24 @@ internal sealed class MtpRenameExecutor(Job job, IFileSystemOperations fs, JobJo
             return;
         }
         PortableObject? obj = null, clash = null;
-        bool ok = TryIo(target, "rename the item", () =>
+        bool ok = TryIo(target, "read the device folder", () =>
         {
-            obj = Mtp.Find(item.Parent, item.Name) ?? throw new FileNotFoundException("The item is no longer on the device.");
-            clash = Mtp.Find(item.Parent, newName);
-            if (clash is not null) throw new IOException($"An item named \"{newName}\" is already there.");
-            Mtp.Session(item.Parent.Session!).Rename(obj.Id, newName);
+            obj = Mtp.Find(item.Parent, item.Name);
+            clash = Mtp.FindSameName(item.Parent, newName);
         });
+        // A taken name is not something a retry fixes: it fails at once, with the reason (renaming to the item's own
+        // name in another letter case is fine).
+        string? refusal = !ok ? null : obj is null ? "the item is no longer on the device."
+            : clash is not null && clash.Id != obj.Id ? Taken(clash.Name, newName) : null;
+        if (refusal is not null)
+        {
+            Issue(IssueSeverity.Error, target, "Not renamed: " + refusal, StepOutcome.Failed, "conflict");
+            ok = false;
+        }
+        else if (ok)
+        {
+            ok = TryIo(target, "rename the item", () => Mtp.Session(item.Parent.Session!).Rename(obj!.Id, newName));
+        }
         Mtp.Changed(item.Parent);
         if (ok)
         {
@@ -311,11 +398,17 @@ internal sealed class MtpCreateDirectoryExecutor(Job job, IFileSystemOperations 
             Issue(IssueSeverity.Error, target, "Not created: " + bad, StepOutcome.Failed);
             return;
         }
-        bool ok = TryIo(target, "create the folder", () =>
+        PortableObject? clash = null;
+        bool ok = TryIo(target, "read the device folder", () => clash = Mtp.FindSameName(folder, name));
+        if (ok && clash is not null)
         {
-            if (Mtp.Find(folder, name) is not null) throw new IOException("An item with this name is already there.");
-            Mtp.Session(folder.Session!).CreateFolder(Mtp.Resolve(folder), name);
-        });
+            Issue(IssueSeverity.Error, target, "Not created: " + Taken(clash.Name, name), StepOutcome.Failed, "conflict");
+            ok = false;
+        }
+        else if (ok)
+        {
+            ok = TryIo(target, "create the folder", () => Mtp.Session(folder.Session!).CreateFolder(Mtp.Resolve(folder), name));
+        }
         Mtp.Changed(folder);
         if (ok) Job.ItemDone();
         else Job.ItemFailed();

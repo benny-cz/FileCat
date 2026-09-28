@@ -8,8 +8,12 @@ namespace FileCat.Platform.Windows.Tests;
 /// MTP through Windows Portable Devices. Listing devices always runs; the device scenario runs only with
 /// FILECAT_MTP_TEST=1 and works exclusively inside a folder named FileCat-test on the first storage, which it removes.
 /// </summary>
+[Collection(Device)]
 public sealed class MtpTests
 {
+    /// <summary>Device tests share one phone and its FileCat-test folder, so they run one after another.</summary>
+    public const string Device = "MTP device";
+
     public const string TestFolder = "FileCat-test";
 
     [Fact]
