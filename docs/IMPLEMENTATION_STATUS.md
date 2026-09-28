@@ -52,7 +52,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 
 ## Resume here (next slices, in order)
 
-1. **Plan complete in engineering scope (P1–P10).** Remaining work is external validation and polish: whole-disk recovery (deleted partitions); Linux/macOS drive reading (needs a helper there).
+1. **Plan complete in engineering scope (P1–P10), all ADRs decided.** Beyond the plan, if wanted later: searching whole disks for deleted partitions, drive reading on Linux/macOS (the plan gives them image workflows), aligned binary comparison, Windows ARM64 packages (PLATFORM-002).
 2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15, P6 TV-12, P9 TV-10/13, and P10 (the elevated read on real drives) remain pending after code and automated tests.
 
 ## Notes for the next session
