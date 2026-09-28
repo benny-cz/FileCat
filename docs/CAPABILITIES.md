@@ -18,7 +18,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 | SMB shares (`\\server\share`, mapped drives) | Yes (sign-in prompt when needed) | Yes | Yes | Yes | Yes | Yes | Permanent delete only (no Recycle Bin; asked explicitly) | Yes (best effort) |
 | Network servers (`\\server`) | Share list | – | – | – | – | – | – | – |
 | This PC | Drives | – | – | – | – | – | – | – |
-| ZIP archives (read-only) | Yes, including duplicates and unsafe names shown as unavailable | Yes | Yes (extract, with Mark-of-the-Web) | No: ZIP writing is P5 | No | No | No | – |
+| ZIP archives | Yes, including duplicates and unsafe names shown as unavailable; archives inside archives open read-only | Yes | Yes (extract, with Mark-of-the-Web from the outermost file) | Yes (F5 and Alt+F5 add; existing names ask once) | Rename (F2); moving out is copy then delete | Folder entries (F7); F4 edits a member through an explicit edit session | Yes (members, one duplicate copy at a time) | – |
 | Search results and flat view | Yes | Yes | Yes (keeps relative folders unless you flatten) | No | Acts on the original items | No | Acts on the originals; removing from the set never deletes | – |
 
 ## Known gaps in v1 (planned later)
@@ -28,9 +28,10 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 | Registry browsing and typed value editing | Local Registry panels with explicit 32/64-bit views (switchable in place), raw inspection, bounded search, guarded jobs on marked items with Undo, `.reg` backups before key deletion, scoped `.reg` import/export (F5 to a folder offers it), binary save/load of value data, HKCR/HKCC writable-location route, change notifications, read-only key ACL inspection, and administrator retry. Import is non-atomic; `.reg` omits ACLs and the view; links are followed only on request | P4a |
 | Elevated operations (per-plan broker) | Installed builds: "Retry as administrator" for items that failed with access denied (Registry changes, delete, copy, move within a drive, rename, create folder, attributes). One UAC approval per plan; the helper shows the exact steps, refuses links, and exits. Portable ZIP: none | P4a; TV-15 VM checks pending. FileCat never runs elevated by itself and warns when started elevated |
 | Hex editing | Dedicated fixed-length editor for local Windows files (File menu, or F6 in the viewer): typing in hex and text columns, find, paste, bounded undo/redo, protected baseline, journaled in-place save with in-editor or later guarded recovery, sparse-aware Save As, and patch export/apply. Existing-target saves are non-atomic; network files and links are refused | P4b; TV-04 external fixtures pending |
-| Creating or updating ZIP archives; other archive formats | Opened through their system association | P5, P8 |
+| Other archive formats (TAR, 7z, RAR, ISO) | Opened through their system association | P8 |
+| ZIP updates | Each change rebuilds the archive beside itself and replaces it only when verified and unchanged since you saw it; encrypted archives and archives inside archives are read-only; there is no undo | – (by design; see ADR-07) |
 | SFTP, FTP, FTPS | – | P6, P8 |
 | Per-file Shell thumbnails, properties, and context-menu handlers | Icons are by extension only (safety policy) | Out-of-process host, P7 |
-| Editing inside archives or remote locations | "Copy the item out with F5 to edit it" | Edit sessions, P5–P6 |
+| Editing remote files | "Copy the item out with F5 to edit it" | Edit sessions for SFTP, P6 |
 | Translations | English only. Command titles and key-bar labels can already be translated with `lang/<culture>.json` next to the executable. | Other UI text once translators and QA exist |
 | Alternate data streams on FAT and exFAT | Each lost stream (and a lost download mark) is named per file | – (file-system limit) |
