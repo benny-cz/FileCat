@@ -12,10 +12,11 @@ namespace FileCat.Core.Archives;
 public sealed record ZipMemberTag(string FullName, int EntryIndex, long CompressedSize, uint Crc, bool Encrypted, int DuplicateOrdinal, string? UnsafeReason);
 
 /// <summary>
-/// Read-only ZIP browsing and extraction (plan §15, D-39) with in-box System.IO.Compression, parsed in-process
-/// under enforced limits on entry count, expanded size, expansion ratio, and time. Members are shown as archive
-/// members, not files; duplicate names stay distinct; encrypted entries are listed but not extracted; nested
-/// archives open after extraction. Mark-of-the-Web propagates through <see cref="StreamTransferExecutor"/>.
+/// ZIP browsing, extraction, and (with <see cref="ZipUpdateExecutor"/>) updates (plan §15, D-39) with in-box
+/// System.IO.Compression, parsed in-process under enforced limits on entry count, expanded size, expansion ratio, and time.
+/// Members are shown as archive members, not files; duplicate names stay distinct; encrypted entries are listed but not
+/// extracted; archives inside archives open read-only from a private spool. Mark-of-the-Web propagates through
+/// <see cref="StreamTransferExecutor"/> from the outermost marked file.
 /// </summary>
 public sealed class ZipProvider : ResourceProvider, IContainerDetector
 {
@@ -46,28 +47,113 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     // ---- Navigation --------------------------------------------------------------------------------------
 
-    private static string ZipPath(Location l) => l.Container?.Path ?? throw new InvalidOperationException("ZIP location without its archive.");
+    /// <summary>
+    /// The local file of the archive a location is inside. For an archive nested in an archive, the location's container
+    /// is the member location in the outer archive, and the inner archive is read from a private spool (plan §15).
+    /// </summary>
+    private string ZipPath(Location l) => ArchiveFile(l, 0);
+
+    /// <summary>What users see: "C:\x\outer.zip\dir\inner.zip\sub", never a spool path.</summary>
+    private static string DisplayArchive(Location l)
+    {
+        var container = l.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
+        if (container.IsFileSystem) return container.Path;
+        return Path.Combine(DisplayArchive(container), container.Path.Replace('/', Path.DirectorySeparatorChar));
+    }
+
+    /// <summary>The file on disk that ultimately holds the (possibly nested) archive.</summary>
+    private static string OutermostFile(Location l)
+    {
+        var c = l.Container;
+        while (c is not null && !c.IsFileSystem) c = c.Container;
+        return c?.Path ?? throw new InvalidOperationException("ZIP location without its archive.");
+    }
 
     public override string GetDisplayPath(Location location)
     {
         var inner = location.Path.Replace('/', Path.DirectorySeparatorChar);
-        return inner.Length == 0 ? ZipPath(location) : Path.Combine(ZipPath(location), inner);
+        return inner.Length == 0 ? DisplayArchive(location) : Path.Combine(DisplayArchive(location), inner);
     }
 
     public override string GetDisplayName(Location location) =>
-        location.Path.Length == 0 ? Path.GetFileName(ZipPath(location)) : location.Path[(location.Path.LastIndexOf('/') + 1)..];
+        location.Path.Length == 0 ? Path.GetFileName(DisplayArchive(location)) : location.Path[(location.Path.LastIndexOf('/') + 1)..];
 
     public override Location? GetParent(Location location)
     {
-        if (location.Path.Length == 0) return Location.FileSystem(Path.GetDirectoryName(ZipPath(location)) ?? ZipPath(location));
+        if (location.Path.Length == 0)
+        {
+            var container = location.Container!;
+            if (container.IsFileSystem) return Location.FileSystem(Path.GetDirectoryName(container.Path) ?? container.Path);
+            // The folder of the outer archive that holds this inner archive.
+            int at = container.Path.LastIndexOf('/');
+            return container.WithPath(at < 0 ? string.Empty : container.Path[..at]);
+        }
         int slash = location.Path.LastIndexOf('/');
         return location.WithPath(slash < 0 ? string.Empty : location.Path[..slash]);
     }
 
     public override string? GetNameInParent(Location location) =>
-        location.Path.Length == 0 ? Path.GetFileName(ZipPath(location)) : location.Path[(location.Path.LastIndexOf('/') + 1)..];
+        location.Path.Length == 0 ? Path.GetFileName(DisplayArchive(location)) : location.Path[(location.Path.LastIndexOf('/') + 1)..];
 
-    public override string GetDeviceKey(Location location) => PathUtil.GetDeviceKey(ZipPath(location));
+    public override string GetDeviceKey(Location location) => PathUtil.GetDeviceKey(OutermostFile(location));
+
+    // ---- Nested archives ------------------------------------------------------------------------------------
+
+    public const int MaxNestedSpools = 4;
+    public const int MaxNestingDepth = 8;
+    private readonly ConcurrentDictionary<string, NestedSpool> _nested = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _nestedLock = new();
+
+    /// <summary>An inner archive spooled privately; the file is deleted when the holder closes (also after a crash).</summary>
+    private sealed class NestedSpool(string path, FileStream holder) : IDisposable
+    {
+        public string Path { get; } = path;
+        public DateTime LastUsed { get; set; } = DateTime.UtcNow;
+        public void Dispose() => holder.Dispose();
+    }
+
+    private string ArchiveFile(Location location, int depth)
+    {
+        var container = location.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
+        if (container.IsFileSystem) return container.Path;
+        if (container.Scheme != Schemes.Zip) throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from.");
+        if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
+        string outer = ArchiveFile(container, depth + 1);
+        var info = new FileInfo(outer);
+        string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}";
+        lock (_nestedLock)
+        {
+            if (_nested.TryGetValue(key, out var cached))
+            {
+                cached.LastUsed = DateTime.UtcNow;
+                return cached.Path;
+            }
+            int slash = container.Path.LastIndexOf('/');
+            var folder = container.WithPath(slash < 0 ? string.Empty : container.Path[..slash]);
+            string name = container.Path[(slash + 1)..];
+            var index = GetIndex(folder);
+            var node = index.Children.GetValueOrDefault(folder.Path)?.Where(n => !n.IsDirectory && n.Name == name).ToList() ?? [];
+            if (node.Count == 0) throw new FileNotFoundException($"\"{container.Path}\" is not in the archive.");
+            if (node.Count > 1) throw new NotSupportedException("Several members share this name; extract the one you want with F5, then open it.");
+            var tag = node[0].Tag!;
+            if (tag.Encrypted) throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
+            if (tag.UnsafeReason is not null) throw new InvalidDataException("The inner archive has an unsafe name: " + tag.UnsafeReason);
+            Directory.CreateDirectory(_tempDirectory);
+            string spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}.zip");
+            var holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
+            try { index.CopyMember(tag, holder); }
+            catch { holder.Dispose(); throw; }
+            _nested[key] = new NestedSpool(spoolPath, holder);
+            while (_nested.Count > MaxNestedSpools)
+            {
+                var oldest = _nested.OrderBy(kv => kv.Value.LastUsed).First();
+                if (!_nested.TryRemove(oldest.Key, out var evicted)) break;
+                Release(evicted.Path);
+                evicted.Dispose();
+            }
+            return spoolPath;
+        }
+    }
 
     /// <summary>
     /// What changes a location allows. The answer comes from the already opened index (no I/O on a keypress): an archive
@@ -120,7 +206,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         {
             if (File.Exists(probe) && IsContainer(Path.GetFileName(probe)))
             {
-                location = new Location(Schemes.Zip, string.Join('/', rest), Location.FileSystem(probe));
+                location = Descend(new Location(Schemes.Zip, string.Empty, Location.FileSystem(probe)), rest);
                 return true;
             }
             if (Directory.Exists(probe)) return false;
@@ -128,6 +214,33 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             probe = Path.GetDirectoryName(probe) ?? string.Empty;
         }
         return false;
+    }
+
+    /// <summary>Walks typed path parts inside an archive, stepping into archive members ("…\outer.zip\inner.zip\dir").</summary>
+    private Location Descend(Location archiveRoot, IEnumerable<string> parts)
+    {
+        var archive = archiveRoot;
+        string inner = string.Empty;
+        foreach (var part in parts)
+        {
+            string candidate = inner.Length == 0 ? part : inner + "/" + part;
+            if (IsContainer(part))
+            {
+                try
+                {
+                    var here = archive.WithPath(inner);
+                    if (GetIndex(here).Children.TryGetValue(inner, out var nodes) && nodes.Count(n => !n.IsDirectory && n.Name == part) == 1)
+                    {
+                        archive = new Location(Schemes.Zip, string.Empty, archive.WithPath(candidate));
+                        inner = string.Empty;
+                        continue;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { }
+            }
+            inner = candidate;
+        }
+        return archive.WithPath(inner);
     }
 
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
@@ -156,8 +269,12 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public override Location? GetChildLocation(Location parent, in EntryData entry)
     {
         if (entry.Kind == EntryKind.Parent) return GetParent(parent);
-        if (entry.Kind == EntryKind.Directory) return parent.WithPath(parent.Path.Length == 0 ? entry.Name : parent.Path + "/" + entry.Name);
-        return null; // nested archives open after extraction (plan §15)
+        string member = parent.Path.Length == 0 ? entry.Name : parent.Path + "/" + entry.Name;
+        if (entry.Kind == EntryKind.Directory) return parent.WithPath(member);
+        // An archive inside the archive opens read-only; its container is its member location here (plan §15).
+        if (entry.Has(EntryFlags.Container) && entry.Tag is ZipMemberTag { Encrypted: false, UnsafeReason: null, DuplicateOrdinal: 0 })
+            return new Location(Schemes.Zip, string.Empty, parent.WithPath(member));
+        return null;
     }
 
     public override ItemRef GetItemRef(Location listing, in EntryData entry) =>
@@ -329,33 +446,15 @@ internal sealed class ZipIndex : IDisposable
         {
             var entry = _entries[tag.EntryIndex];
             long declared = Math.Max(0, entry.Length);
-            long compressed = Math.Max(1, entry.CompressedLength);
-            // Declared sizes are untrusted: enforce the ratio and a hard cap on what is actually produced.
-            long cap = Math.Min(ZipProvider.MaxSpooledMember, Math.Max(declared + 1024 * 1024, 0));
-            using var src = entry.Open();
             Stream dst;
-            string? spoolPath = null;
             if (declared <= ZipProvider.MaxMemberInMemory) dst = new MemoryStream((int)declared);
             else
             {
                 Directory.CreateDirectory(tempDirectory);
-                spoolPath = Path.Combine(tempDirectory, $"zipmember-{Guid.NewGuid():N}.tmp");
+                string spoolPath = Path.Combine(tempDirectory, $"zipmember-{Guid.NewGuid():N}.tmp");
                 dst = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 1, FileOptions.DeleteOnClose);
             }
-            var buffer = new byte[256 * 1024];
-            long total = 0;
-            int n;
-            try
-            {
-                while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    total += n;
-                    if (total > cap) throw new InvalidDataException("The member expands beyond its declared size; extraction was stopped.");
-                    if (total > 64L * 1024 * 1024 && total / compressed > ZipProvider.MaxExpansionRatio)
-                        throw new InvalidDataException("The member exceeds the expansion-ratio limit (possible decompression bomb); extraction was stopped.");
-                    dst.Write(buffer, 0, n);
-                }
-            }
+            try { CopyBounded(entry, dst); }
             catch
             {
                 dst.Dispose();
@@ -364,6 +463,37 @@ internal sealed class ZipIndex : IDisposable
             if (dst is MemoryStream ms) return new MemoryContentSource(tag.FullName, ms.ToArray());
             dst.Position = 0;
             return new StreamContentSource(tag.FullName, (FileStream)dst);
+        }
+    }
+
+    /// <summary>Writes one member into <paramref name="destination"/> under the same limits (a nested archive's spool).</summary>
+    public void CopyMember(ZipMemberTag tag, Stream destination)
+    {
+        LastUsed = DateTime.UtcNow;
+        lock (_lock)
+        {
+            CopyBounded(_entries[tag.EntryIndex], destination);
+            destination.Flush();
+        }
+    }
+
+    /// <summary>Declared sizes are untrusted: the ratio and a hard cap on what is actually produced are enforced.</summary>
+    private static void CopyBounded(ZipArchiveEntry entry, Stream dst)
+    {
+        long declared = Math.Max(0, entry.Length);
+        long compressed = Math.Max(1, entry.CompressedLength);
+        long cap = Math.Min(ZipProvider.MaxSpooledMember, Math.Max(declared + 1024 * 1024, 0));
+        using var src = entry.Open();
+        var buffer = new byte[256 * 1024];
+        long total = 0;
+        int n;
+        while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            total += n;
+            if (total > cap) throw new InvalidDataException("The member expands beyond its declared size; extraction was stopped.");
+            if (total > 64L * 1024 * 1024 && total / compressed > ZipProvider.MaxExpansionRatio)
+                throw new InvalidDataException("The member exceeds the expansion-ratio limit (possible decompression bomb); extraction was stopped.");
+            dst.Write(buffer, 0, n);
         }
     }
 
