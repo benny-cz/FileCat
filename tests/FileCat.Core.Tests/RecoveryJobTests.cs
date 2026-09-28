@@ -83,6 +83,7 @@ public sealed class RecoveryJobTests : IDisposable
         var rows = await ListAsync(root);
         Assert.Contains(rows.Entries, e => e.Name == "docs" && e.Kind == EntryKind.Directory);
         var photos = rows.Entries.Single(e => e.Name == "photos");
+        Assert.Equal("Deleted folder", ((IDisplayDetails)photos.Tag!).KindText); // its items carry their own states
         var frag = rows.Entries.Single(e => e.Name == "frag-a.bin");
         Assert.Equal("Partly lost", ((IDisplayDetails)frag.Tag!).KindText);
         Assert.Contains("one continuous run", ((IDisplayDetails)frag.Tag!).DetailsText, StringComparison.Ordinal);

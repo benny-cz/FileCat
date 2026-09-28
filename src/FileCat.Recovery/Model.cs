@@ -147,7 +147,8 @@ public sealed class RecoveryItem
 
     internal const string UncertainStart = "Where it starts is FileCat's best guess, so this may not be its data: check the file after recovering it.";
 
-    internal static string Bytes(long n) => n < 1024 ? $"{n} bytes" : n < 1024 * 1024 ? $"{n / 1024.0:0.#} KiB" : $"{n / (1024.0 * 1024):0.#} MiB";
+    internal static string Bytes(long n) => n < 1024 ? $"{n} bytes" : n < 1024 * 1024 ? $"{n / 1024.0:0.#} KiB"
+        : n < 1024L * 1024 * 1024 ? $"{n / (1024.0 * 1024):0.#} MiB" : $"{n / (1024.0 * 1024 * 1024):0.#} GiB";
 }
 
 public enum CompressedUnitKind : byte

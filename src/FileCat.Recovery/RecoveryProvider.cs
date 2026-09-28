@@ -5,10 +5,13 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Recovery;
 
-/// <summary>What a recovery row shows in the Kind and Details columns: the state, and why.</summary>
-public sealed record RecoveryEntryTag(RecoveryState? State, string Reasons, int Ordinal, bool Uncertain) : IDisplayDetails
+/// <summary>
+/// What a recovery row shows in the Kind and Details columns: the state, and why. A deleted folder has no content of its
+/// own to judge: it says so, and its items carry their own states.
+/// </summary>
+public sealed record RecoveryEntryTag(RecoveryState? State, string Reasons, int Ordinal, bool Uncertain, bool DeletedFolder = false) : IDisplayDetails
 {
-    public string KindText => State switch
+    public string KindText => DeletedFolder ? "Deleted folder" : State switch
     {
         RecoveryState.Recoverable => "Recoverable",
         RecoveryState.Uncertain => "Uncertain",
@@ -200,7 +203,7 @@ public sealed class RecoveryProvider : ResourceProvider
             batch.Add(new EntryData(item.Name, item.IsDirectory ? EntryKind.Directory : EntryKind.File, item.IsDirectory ? -1 : item.Size, item.ModifiedUtc?.Ticks ?? 0)
             {
                 Created = item.CreatedUtc?.Ticks ?? 0,
-                Tag = new RecoveryEntryTag(item.IsDeleted ? item.State : null, string.Join(" ", item.Evidence), item.Ordinal, item.NameUncertain),
+                Tag = new RecoveryEntryTag(item.IsDeleted ? item.State : null, string.Join(" ", item.Evidence), item.Ordinal, item.NameUncertain, item.IsDirectory && item.IsDeleted),
                 Flags = lost ? EntryFlags.Unavailable : EntryFlags.None,
             });
         }

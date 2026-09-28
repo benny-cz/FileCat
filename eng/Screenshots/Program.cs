@@ -11,7 +11,7 @@ using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
 
 // Renders FileCat's main window off-screen to PNG files, one per theme, for visual checks of icons and themes.
-// Usage: Screenshots <out-folder> <left-folder> [<right-folder>] [--themes Classic,Cyberpunk] [--size 1400x900] [--wait 3]
+// Usage: Screenshots <out-folder> <left> [<right>] [--themes Classic,Cyberpunk] [--size 1400x900] [--wait 3]
 //        [--frames 3 --every 700]   (several frames per theme, for animated themes)
 if (args.Length < 2)
 {
@@ -19,8 +19,19 @@ if (args.Length < 2)
     return 2;
 }
 string output = Directory.CreateDirectory(args[0]).FullName;
-// "computer" shows the drives (This PC); anything else is a folder.
-Location Place(string arg) => arg == "computer" ? new Location(FileCat.Core.Resources.Schemes.Computer, string.Empty) : Location.FileSystem(Path.GetFullPath(arg));
+// "computer" shows the drives (This PC); "recovery:<image>[|<folder>]" a disk image's deleted items (its first volume);
+// anything else is a folder.
+Location Place(string arg)
+{
+    if (arg == "computer") return new Location(FileCat.Core.Resources.Schemes.Computer, string.Empty);
+    if (arg.StartsWith("recovery:", StringComparison.Ordinal))
+    {
+        var parts = arg["recovery:".Length..].Split('|');
+        var volume = FileCat.Recovery.RecoveryProvider.ForImage(Path.GetFullPath(parts[0]), 1);
+        return parts.Length > 1 ? volume.WithPath(parts[1]) : volume;
+    }
+    return Location.FileSystem(Path.GetFullPath(arg));
+}
 var left = Place(args[1]);
 var right = args.Length > 2 && !args[2].StartsWith("--", StringComparison.Ordinal) ? Place(args[2]) : left;
 string Option(string name, string fallback) => Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : fallback;
