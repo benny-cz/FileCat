@@ -28,6 +28,8 @@ public sealed partial class MainViewModel
             Add(PathUtil.IsWindows ? root.TrimEnd('\\') : root, detail, Location.FileSystem(root));
         }
         Add("This PC", "All drives", new Location(Schemes.Computer, string.Empty));
+        if (Services.Providers.IsRegistered(Schemes.Mtp))
+            Add("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices);
         int workingSets = Services.WorkingSets.All.Count;
         Add("Working sets", workingSets == 0 ? "Collect items from many folders (references, never copies)" : $"{Formatters.Plural(workingSets, "set", "sets")} of items collected from many folders",
             Core.Search.ResultSetProvider.WorkingSetList);

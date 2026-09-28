@@ -335,7 +335,7 @@ public sealed partial class MainViewModel
             await RenameArchiveMemberAsync(tab, loc);
             return;
         }
-        if (loc.Scheme == Schemes.Sftp)
+        if (loc.Scheme is Schemes.Sftp or Schemes.Mtp)
         {
             await RenameRemoteAsync(tab, f);
             return;
@@ -370,7 +370,7 @@ public sealed partial class MainViewModel
             await CreateArchiveFolderAsync(tab, archiveFolder);
             return;
         }
-        if (tab?.Location is { Scheme: Schemes.Sftp } remoteFolder)
+        if (tab?.Location is { Scheme: Schemes.Sftp or Schemes.Mtp } remoteFolder && (Services.Providers.For(remoteFolder).GetCapabilities(remoteFolder) & LocationCapabilities.CreateDirectory) != 0)
         {
             await CreateRemoteFolderAsync(tab, remoteFolder);
             return;
@@ -434,7 +434,7 @@ public sealed partial class MainViewModel
                 await DeleteArchiveMembersAsync(loc, items.ToList());
                 return;
             }
-            if (loc.Scheme == Schemes.Sftp)
+            if (loc.Scheme is Schemes.Sftp or Schemes.Mtp)
             {
                 await DeleteRemoteAsync(tab, items, summary);
                 return;

@@ -31,6 +31,9 @@ public sealed class WindowsPlatform : PortablePlatform
         registry.Register(new WindowsComputerProvider());
         registry.Register(new NetworkShareProvider());
         registry.Register(new WindowsRegistryProvider());
+        // Phones and cameras over MTP (P8), with uploads, deletes, renames, and folders as jobs.
+        registry.Register(new Mtp.MtpProvider());
+        Mtp.MtpJobs.Register();
     }
 
     protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider();

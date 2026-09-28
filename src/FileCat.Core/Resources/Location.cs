@@ -19,6 +19,8 @@ public static class Schemes
     public const string Sftp = "sftp";
     public const string Ftp = "ftp";
     public const string Recovery = "recovery";
+    /// <summary>Phones, cameras, and players over MTP (Windows Portable Devices, P8).</summary>
+    public const string Mtp = "mtp";
 }
 
 /// <summary>

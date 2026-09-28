@@ -443,11 +443,13 @@ public sealed partial class MainViewModel
     private async Task DeleteRemoteAsync(TabViewModel tab, IReadOnlyList<Core.Resources.ItemRef> items, string summary)
     {
         // The server by its short name: a whole address is one long unbreakable word in wrapped dialog text.
-        string server = tab.Location!.Session is { } id && Services.FindRemoteProfile(id) is { } profile ? profile.Display : "the server";
+        bool device = tab.Location!.Scheme == Core.Resources.Schemes.Mtp;
+        string server = device ? Services.Providers.For(tab.Location).GetDisplayName(tab.Location.WithPath(string.Empty))
+            : tab.Location.Session is { } id && Services.FindRemoteProfile(id) is { } profile ? profile.Display : "the server";
         var names = items.Take(8).Select(i => "• " + Formatters.SafeName(i.Name)).ToList();
         if (items.Count > 8) names.Add($"… and {items.Count - 8:N0} more");
         if (!await Dialogs.ConfirmAsync("Delete permanently?",
-                $"Servers have no Recycle Bin. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
+                $"{(device ? "Phones and cameras" : "Servers")} have no Recycle Bin. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
                 "Delete permanently", danger: true))
             return;
         var job = Services.Jobs.Submit(new Core.Jobs.JobRequest { Kind = Core.Jobs.JobKind.Delete, Sources = items });
