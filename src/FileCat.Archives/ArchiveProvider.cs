@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using FileCat.Core.Archives;
+using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -257,7 +258,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
                 _spools[key] = existing with { Used = DateTime.UtcNow };
                 return existing.Path;
             }
-            using var source = provider.OpenContent(new ItemRef(folder, name, EntryKind.File))
+            using var source = ProgressiveContent.Sequential(provider.OpenContent(new ItemRef(folder, name, EntryKind.File)))
                                ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
             Directory.CreateDirectory(_tempDirectory);
             string spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}{Path.GetExtension(name)}");
@@ -407,15 +408,30 @@ internal sealed class ArchiveIndex : IDisposable
         return new ArchiveIndex(reader, archiveLength, children, warnings);
     }
 
-    /// <summary>Extracts one member: small ones stay in memory, larger ones spool privately; sizes are never trusted.</summary>
+    /// <summary>
+    /// Opens one member. Small ones, and ones whose size the format does not tell, are extracted at once (into memory, or
+    /// privately spooled); larger ones are decompressed as they are read (<see cref="ProgressiveContent"/>), so the first
+    /// bytes are there at once. Sizes are never trusted.
+    /// </summary>
     public IContentSource Extract(ArchiveMemberTag tag, string tempDirectory)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
+            if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             long declared = tag.Size;
+            var limits = MemberLimits.Of(declared, tag.CompressedSize > 0 ? tag.CompressedSize : _archiveLength, ArchiveProvider.MaxSpooledMember,
+                ArchiveProvider.MaxExpansionRatio);
+            if (declared > ArchiveProvider.MaxMemberInMemory)
+            {
+                _leases++;
+                ProgressiveContent? content = null;
+                content = new ProgressiveContent(tag.FullName, _lock, () => new DamageReportingStream(OpenFor(content, tag.Index)), limits,
+                    ArchiveProvider.MaxSpooledMember, tempDirectory, () => Returned(content!));
+                return content;
+            }
             Stream dst;
-            if (declared is >= 0 and <= ArchiveProvider.MaxMemberInMemory) dst = new MemoryStream((int)declared);
+            if (declared >= 0) dst = new MemoryStream((int)declared);
             else
             {
                 Directory.CreateDirectory(tempDirectory);
@@ -424,8 +440,8 @@ internal sealed class ArchiveIndex : IDisposable
             }
             try
             {
-                using var src = _reader.Open(tag.Index, CancellationToken.None);
-                CopyBounded(src, dst, declared, tag.CompressedSize > 0 ? tag.CompressedSize : _archiveLength);
+                using var src = new DamageReportingStream(OpenFor(null, tag.Index));
+                limits.CopyAll(src, dst);
             }
             catch (Exception ex)
             {
@@ -439,28 +455,78 @@ internal sealed class ArchiveIndex : IDisposable
         }
     }
 
-    /// <summary>A declared size caps what is produced (plus slack); without one, the ratio and an absolute cap apply.</summary>
-    private static void CopyBounded(Stream src, Stream dst, long declared, long compressed)
+    // The progressively read member that holds a shared forward cursor (compressed TAR, 7z, solid RAR, single files).
+    private ProgressiveContent? _cursorOwner;
+
+    /// <summary>
+    /// A member's stream (under the lock). Where members share one forward cursor, opening one invalidates the stream
+    /// handed out before, so the member that held it gives it up first and reopens it when it needs more.
+    /// </summary>
+    private Stream OpenFor(ProgressiveContent? content, int index)
     {
-        long cap = declared >= 0 ? Math.Min(ArchiveProvider.MaxSpooledMember, declared + 1024 * 1024) : ArchiveProvider.MaxSpooledMember;
-        var buffer = new byte[256 * 1024];
-        long total = 0;
-        int n;
-        while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+        if (_cursorOwner is { } previous && !ReferenceEquals(previous, content)) previous.Abandon();
+        _cursorOwner = _reader.SharesCursor ? content : null;
+        return _reader.Open(index, CancellationToken.None);
+    }
+
+    // Members being read keep the archive open: an index dropped from the cache closes when the last one is disposed.
+    private int _leases;
+    private bool _closing;
+
+    private void Returned(ProgressiveContent content)
+    {
+        lock (_lock)
         {
-            total += n;
-            if (total > cap)
-                throw new InvalidDataException(declared >= 0 ? "The member expands beyond its declared size; extraction was stopped." : "The member is larger than FileCat extracts in one piece.");
-            if (total > 64L * 1024 * 1024 && total / Math.Max(1, compressed) > ArchiveProvider.MaxExpansionRatio)
-                throw new InvalidDataException("The member exceeds the expansion-ratio limit (possible decompression bomb); extraction was stopped.");
-            dst.Write(buffer, 0, n);
+            if (ReferenceEquals(_cursorOwner, content)) _cursorOwner = null;
+            if (--_leases == 0 && _closing) _reader.Dispose();
         }
-        if (declared >= 0 && total != declared && total < declared)
-            throw new InvalidDataException($"The member ended after {total:N0} of {declared:N0} bytes; the archive is damaged.");
     }
 
     public void Dispose()
     {
-        lock (_lock) _reader.Dispose();
+        lock (_lock)
+        {
+            if (_closing) return;
+            _closing = true;
+            if (_leases == 0) _reader.Dispose();
+        }
+    }
+}
+
+/// <summary>
+/// Reports a decompressor's own error types as damage (<see cref="InvalidDataException"/>), which every reader of
+/// content handles; I/O errors and cancellation pass through.
+/// </summary>
+internal sealed class DamageReportingStream(Stream inner) : Stream
+{
+    public override bool CanRead => true;
+    public override bool CanSeek => inner.CanSeek;
+    public override bool CanWrite => false;
+    public override long Length => inner.Length;
+    public override long Position { get => inner.Position; set => inner.Position = value; }
+
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
+    {
+        try
+        {
+            return inner.Read(buffer);
+        }
+        catch (Exception ex) when (ex is not (IOException or InvalidDataException or OperationCanceledException or ObjectDisposedException or UnauthorizedAccessException))
+        {
+            throw new InvalidDataException("The member could not be decompressed: " + ex.Message, ex);
+        }
+    }
+
+    public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+    public override void Flush() { }
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) inner.Dispose();
+        base.Dispose(disposing);
     }
 }

@@ -169,6 +169,11 @@ public sealed class ViewerWindow : Window
         };
         _text.PositionChanged += UpdateStatus;
         _hex.CursorMoved += UpdateStatus;
+        // Damage found while reading (an archive member, part way) shows in the status line as soon as it is known.
+        _reader.PageLoaded += () =>
+        {
+            if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
+        };
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
         _changeTimer = new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, (_, _) => CheckForChanges());
         Opened += async (_, _) =>
@@ -265,7 +270,8 @@ public sealed class ViewerWindow : Window
         long pos = _isHex ? _hex.CursorOffset : _text.TopOffset;
         double pct = len > 0 ? 100.0 * pos / len : 0;
         var sel = _hex.Selection;
-        _status.Text = $"{Formatters.ExactSize(len)} · offset 0x{pos:X} ({pos.ToString("N0", CultureInfo.CurrentCulture)}) · {pct:0.#}%" +
+        _status.Text = (_reader.ReadError is { } error ? "Not all of the content could be read: " + error + " · " : string.Empty) +
+                       $"{Formatters.ExactSize(len)} · offset 0x{pos:X} ({pos.ToString("N0", CultureInfo.CurrentCulture)}) · {pct:0.#}%" +
                        (_isHex && sel.Length > 1 ? $" · selected {sel.Length.ToString("N0", CultureInfo.CurrentCulture)} bytes" : string.Empty);
     }
 

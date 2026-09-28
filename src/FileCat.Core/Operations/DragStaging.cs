@@ -41,7 +41,7 @@ public static class DragStaging
                 ct.ThrowIfCancellationRequested();
                 if (SafeNames.Validate(item.Name) is { } bad) return Fail(folder, $"\"{item.Name}\" cannot be dragged: {bad}");
                 var provider = providers.Get(item.Parent.Scheme);
-                using var content = provider.OpenContent(item);
+                using var content = Content.ProgressiveContent.Sequential(provider.OpenContent(item));
                 if (content is null) return Fail(folder, $"\"{item.Name}\" has no readable content (for example an encrypted archive entry).");
                 string target = Unique(folder, item.Name);
                 using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan))

@@ -211,7 +211,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         IContentSource? content;
         try
         {
-            content = provider.OpenContent(item);
+            // Read once from start to end: a large archive member is then decompressed straight into the copy.
+            content = Content.ProgressiveContent.Sequential(provider.OpenContent(item));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {

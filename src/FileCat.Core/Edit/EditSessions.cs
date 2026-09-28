@@ -194,7 +194,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         var baseline = ArchiveBaseline.Of(archive);
         return CreateSession(member.Name, working =>
         {
-            using var source = zip.OpenContent(member) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
+            using var source = Content.ProgressiveContent.Sequential(zip.OpenContent(member)) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
             if (source.Length > MaxMemberBytes)
                 throw new IOException($"Members over {MaxMemberBytes / (1024 * 1024 * 1024)} GiB are not edited through sessions; extract it with F5 instead.");
             WriteWorkingCopy(source, working);

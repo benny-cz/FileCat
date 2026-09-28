@@ -34,6 +34,9 @@ public sealed class PagedReader : IDisposable
     public long Length => Interlocked.Read(ref _length);
     public ContentRevision? Revision { get; private set; }
 
+    /// <summary>Why content could not be read (for example an archive member found damaged part way), or null.</summary>
+    public string? ReadError { get; private set; }
+
     /// <summary>Raised on a pool thread when a background page load finishes.</summary>
     public event Action? PageLoaded;
 
@@ -126,8 +129,9 @@ public sealed class PagedReader : IDisposable
         {
             n = _source.Read(index * PageSize, buffer);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ObjectDisposedException)
         {
+            if (ex is not ObjectDisposedException) ReadError = ex.Message;
             return null;
         }
         var page = new Page(index, buffer, n);

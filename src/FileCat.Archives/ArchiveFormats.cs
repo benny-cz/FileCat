@@ -35,6 +35,9 @@ public interface IMemberReader : IDisposable
 
     /// <summary>The content of member <paramref name="index"/>; valid until the next call. Disposing it is allowed.</summary>
     Stream Open(int index, CancellationToken ct);
+
+    /// <summary>Members share one forward cursor: opening one invalidates a stream opened before.</summary>
+    bool SharesCursor { get; }
 }
 
 /// <summary>Formats FileCat reads (ADR-07, P8), recognized by name or by signature, all read-only.</summary>
@@ -134,10 +137,14 @@ internal sealed class SliceStream(Stream inner, long start, long length) : Strea
     private long _position;
 
     public override bool CanRead => true;
-    public override bool CanSeek => false;
+    public override bool CanSeek => true;
     public override bool CanWrite => false;
     public override long Length => length;
-    public override long Position { get => _position; set => throw new NotSupportedException(); }
+    public override long Position
+    {
+        get => _position;
+        set => _position = value >= 0 ? value : throw new ArgumentOutOfRangeException(nameof(value));
+    }
 
     public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
 
@@ -153,7 +160,14 @@ internal sealed class SliceStream(Stream inner, long start, long length) : Strea
     }
 
     public override void Flush() { }
-    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+    public override long Seek(long offset, SeekOrigin origin) => Position = origin switch
+    {
+        SeekOrigin.Begin => offset,
+        SeekOrigin.Current => _position + offset,
+        _ => length + offset,
+    };
+
     public override void SetLength(long value) => throw new NotSupportedException();
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
@@ -227,6 +241,8 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
     private int _cursorIndex = -1;
 
     public string Format => format;
+
+    public bool SharesCursor => decompress is not null;
 
     private (FileStream File, Stream Data) OpenStream()
     {
@@ -334,6 +350,8 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 
     public string Format => format;
 
+    public bool SharesCursor => true;
+
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
     {
         // The stream must at least start like its format; the content itself is only read when opened.
@@ -401,6 +419,8 @@ internal sealed class SharpArchiveReader : IMemberReader
     }
 
     public string Format { get; }
+
+    public bool SharesCursor => _sequential;
 
     public static SharpArchiveReader Open(string path, bool rar)
     {
@@ -536,6 +556,8 @@ internal sealed class DiscImageReader : IMemberReader
     }
 
     public string Format { get; }
+
+    public bool SharesCursor => false;
 
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
     {

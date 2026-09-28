@@ -112,15 +112,26 @@ public sealed class ArchiveBenchmark : IDisposable
         return (first, clock.Elapsed, sink.Count);
     }
 
-    /// <summary>The first 64 KiB of the last large member, from a fresh provider (what F3 waits for).</summary>
-    private static TimeSpan FirstMember(ResourceProvider provider, Location root, long size)
+    /// <summary>
+    /// The first 64 KiB of the last large member (what F3 waits for): from a fresh provider, which reads the archive's
+    /// structure first, and again once it has.
+    /// </summary>
+    private static (TimeSpan Cold, TimeSpan Warm) FirstMember(ResourceProvider provider, Location root, long size)
     {
-        var clock = Stopwatch.StartNew();
-        using var content = provider.OpenContent(new ItemRef(root.WithPath("large"), $"large-{LargeFiles - 1}.bin", EntryKind.File, size))!;
-        var buffer = new byte[64 * 1024];
-        Assert.Equal(buffer.Length, content.Read(0, buffer));
-        return clock.Elapsed;
+        var item = new ItemRef(root.WithPath("large"), $"large-{LargeFiles - 1}.bin", EntryKind.File, size);
+        TimeSpan Once()
+        {
+            var clock = Stopwatch.StartNew();
+            using var content = provider.OpenContent(item)!;
+            var buffer = new byte[64 * 1024];
+            Assert.Equal(buffer.Length, content.Read(0, buffer));
+            return clock.Elapsed;
+        }
+        var cold = Once();
+        return (cold, Once());
     }
+
+    private static string Ms(TimeSpan t) => t.TotalMilliseconds.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) + " ms";
 
     [Fact]
     public async Task Archives_scan_open_extract_and_update_within_budgets()
@@ -157,7 +168,9 @@ public sealed class ArchiveBenchmark : IDisposable
             var (zipFirst, zipAll, zipEntries) = Scan(new ZipProvider(_spool), zipRoot);
             Assert.Equal(Folders * NotesPerFolder + LargeFiles + Folders + 1, zipEntries);
             var zipMember = FirstMember(new ZipProvider(_spool), zipRoot, largeBytes);
-            results.Add($"ZIP scan: root listed in {zipFirst.TotalMilliseconds:F0} ms, all {Folders + 2} folders in {zipAll.TotalMilliseconds:F0} ms; first 64 KiB of a {largeMiB} MiB member in {zipMember.TotalMilliseconds:F0} ms.");
+            results.Add($"ZIP scan: root listed in {zipFirst.TotalMilliseconds:F0} ms, all {Folders + 2} folders in {zipAll.TotalMilliseconds:F0} ms; first 64 KiB of a {largeMiB} MiB member in {Ms(zipMember.Cold)} cold, {Ms(zipMember.Warm)} warm.");
+            // Budgets: generous for shared machines, tight enough to catch a regression like the per-file flushes found here.
+            Assert.True(zipMember.Warm < TimeSpan.FromMilliseconds(250), $"First page of a large member: {zipMember.Warm}."); // plan §21.2
 
             string zipOut = _dir.Dir("zip-out");
             var zipProvider = _providers.Get(Schemes.Zip);
@@ -176,6 +189,8 @@ public sealed class ArchiveBenchmark : IDisposable
             ZipFile.ExtractToDirectory(zip, zipBaselineOut);
             var extractBaseline = clock.Elapsed;
             results.Add($"ZIP extract (F5): {extract.Elapsed.TotalSeconds:F1} s, ZipFile.ExtractToDirectory {extractBaseline.TotalSeconds:F1} s ({extract.Elapsed / extractBaseline:F2}×); peak private spool {MiB(extract.PeakScratch)}.");
+            Assert.True(extract.Elapsed < extractBaseline * 4, $"Extracting took {extract.Elapsed}, the in-box extractor {extractBaseline}.");
+            Assert.Equal(0, extract.PeakScratch); // copies decompress straight into their files
 
             string note = _dir.File("added.txt", "one more note");
             long zipBytes = new FileInfo(zip).Length;
@@ -186,6 +201,7 @@ public sealed class ArchiveBenchmark : IDisposable
             }, _dir.Path, ".filecat-zip-*");
             Assert.Equal(JobState.Completed, update.Job.State);
             results.Add($"ZIP update (add one small file to {MiB(zipBytes)}): {update.Elapsed.TotalSeconds:F1} s; peak scratch beside the archive {MiB(update.PeakScratch)}.");
+            Assert.True(update.PeakScratch <= zipBytes + 1024 * 1024, $"Updating used {update.PeakScratch} bytes of scratch.");
         }
 
         // ---- TAR.GZ: a forward-only format -------------------------------------------------------------------------
@@ -216,8 +232,10 @@ public sealed class ArchiveBenchmark : IDisposable
             using (var gz = new GZipStream(file, CompressionMode.Decompress))
                 TarFile.ExtractToDirectory(gz, tgzBaselineOut, overwriteFiles: false);
             var tgzBaseline = clock.Elapsed;
-            results.Add($"TAR.GZ ({MiB(new FileInfo(tgz).Length)}): root listed in {tgzFirst.TotalMilliseconds:F0} ms, all folders in {tgzAll.TotalMilliseconds:F0} ms; first 64 KiB of the last member in {tgzMember.TotalMilliseconds:F0} ms; " +
+            results.Add($"TAR.GZ ({MiB(new FileInfo(tgz).Length)}): root listed in {tgzFirst.TotalMilliseconds:F0} ms, all folders in {tgzAll.TotalMilliseconds:F0} ms; first 64 KiB of the last member in {Ms(tgzMember.Cold)} cold, {Ms(tgzMember.Warm)} warm; " +
                         $"extract {tgzExtract.Elapsed.TotalSeconds:F1} s, TarFile.ExtractToDirectory {tgzBaseline.TotalSeconds:F1} s ({tgzExtract.Elapsed / tgzBaseline:F2}×); peak spool {MiB(tgzExtract.PeakScratch)}.");
+            Assert.True(tgzExtract.Elapsed < tgzBaseline * 4, $"Extracting took {tgzExtract.Elapsed}, the in-box extractor {tgzBaseline}.");
+            Assert.Equal(0, tgzExtract.PeakScratch);
         }
 
         // ---- 7z (solid), when 7-Zip is installed ----------------------------------------------------------------
@@ -256,8 +274,10 @@ public sealed class ArchiveBenchmark : IDisposable
                     await p.WaitForExitAsync(TestContext.Current.CancellationToken);
                 }
                 var native7 = clock.Elapsed;
-                results.Add($"7z solid ({MiB(new FileInfo(solid).Length)}): root listed in {first7.TotalMilliseconds:F0} ms, all folders in {all7.TotalMilliseconds:F0} ms; first 64 KiB of the last member in {member7.TotalMilliseconds:F0} ms; " +
+                results.Add($"7z solid ({MiB(new FileInfo(solid).Length)}): root listed in {first7.TotalMilliseconds:F0} ms, all folders in {all7.TotalMilliseconds:F0} ms; first 64 KiB of the last member in {Ms(member7.Cold)} cold, {Ms(member7.Warm)} warm; " +
                             $"extract {extract7.Elapsed.TotalSeconds:F1} s, native 7-Zip {native7.TotalSeconds:F1} s; peak spool {MiB(extract7.PeakScratch)}.");
+                Assert.True(extract7.Elapsed < native7 * 5, $"Extracting took {extract7.Elapsed}, native 7-Zip {native7}.");
+                Assert.Equal(0, extract7.PeakScratch);
             }
         }
 
@@ -272,7 +292,8 @@ public sealed class ArchiveBenchmark : IDisposable
             var (isoFirst, isoAll, isoEntries) = Scan(new ArchiveProvider(_spool, _providers), isoRoot);
             Assert.Equal(Folders * NotesPerFolder + LargeFiles + Folders + 1, isoEntries);
             var isoMember = FirstMember(new ArchiveProvider(_spool, _providers), isoRoot, largeBytes);
-            results.Add($"ISO ({MiB(new FileInfo(iso).Length)}): root listed in {isoFirst.TotalMilliseconds:F0} ms, all folders in {isoAll.TotalMilliseconds:F0} ms; first 64 KiB of the last member in {isoMember.TotalMilliseconds:F0} ms.");
+            results.Add($"ISO ({MiB(new FileInfo(iso).Length)}): root listed in {isoFirst.TotalMilliseconds:F0} ms, all folders in {isoAll.TotalMilliseconds:F0} ms; first 64 KiB of the last member in {Ms(isoMember.Cold)} cold, {Ms(isoMember.Warm)} warm.");
+            Assert.True(isoMember.Warm < TimeSpan.FromMilliseconds(250), $"First page of a disc image's file: {isoMember.Warm}.");
         }
 
         foreach (var line in results) Log?.WriteLine(line);

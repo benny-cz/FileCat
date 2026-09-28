@@ -462,31 +462,27 @@ internal sealed class ZipIndex : IDisposable
         return new ZipIndex(fs, archive, entries, children, warning, readOnly);
     }
 
-    /// <summary>Extracts one member with expansion limits; small members stay in memory, larger ones spool privately.</summary>
+    /// <summary>
+    /// Opens one member. Small ones are extracted into memory at once; larger ones are decompressed as they are read
+    /// (<see cref="ProgressiveContent"/>), so the first bytes are there at once. Either way the declared size is not
+    /// trusted and the member's checksum is verified (.NET does not check it).
+    /// </summary>
     public IContentSource Extract(ZipMemberTag tag, string tempDirectory)
     {
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
+            if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             var entry = _entries[tag.EntryIndex];
-            long declared = Math.Max(0, entry.Length);
-            Stream dst;
-            if (declared <= ZipProvider.MaxMemberInMemory) dst = new MemoryStream((int)declared);
-            else
+            var limits = Limits(entry);
+            if (entry.Length > ZipProvider.MaxMemberInMemory)
             {
-                Directory.CreateDirectory(tempDirectory);
-                string spoolPath = Path.Combine(tempDirectory, $"zipmember-{Guid.NewGuid():N}.tmp");
-                dst = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 1, FileOptions.DeleteOnClose);
+                _leases++;
+                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember, tempDirectory, Returned);
             }
-            try { CopyBounded(entry, dst); }
-            catch
-            {
-                dst.Dispose();
-                throw;
-            }
-            if (dst is MemoryStream ms) return new MemoryContentSource(tag.FullName, ms.ToArray());
-            dst.Position = 0;
-            return new StreamContentSource(tag.FullName, (FileStream)dst);
+            var memory = new MemoryStream((int)Math.Max(0, entry.Length));
+            using (var source = entry.Open()) limits.CopyAll(source, memory);
+            return new MemoryContentSource(tag.FullName, memory.ToArray());
         }
     }
 
@@ -496,28 +492,25 @@ internal sealed class ZipIndex : IDisposable
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
-            CopyBounded(_entries[tag.EntryIndex], destination);
+            var entry = _entries[tag.EntryIndex];
+            if (entry.Length > ZipProvider.MaxSpooledMember) throw new InvalidDataException("The inner archive is larger than FileCat opens in place; extract it with F5.");
+            using (var source = entry.Open()) Limits(entry).CopyAll(source, destination);
             destination.Flush();
         }
     }
 
-    /// <summary>Declared sizes are untrusted: the ratio and a hard cap on what is actually produced are enforced.</summary>
-    private static void CopyBounded(ZipArchiveEntry entry, Stream dst)
+    private static MemberLimits Limits(ZipArchiveEntry entry) =>
+        MemberLimits.Of(Math.Max(0, entry.Length), entry.CompressedLength, ZipProvider.MaxSpooledMember, ZipProvider.MaxExpansionRatio, entry.Crc32);
+
+    // Members being read keep the archive open: an index dropped from the cache closes when the last one is disposed.
+    private int _leases;
+    private bool _closing;
+
+    private void Returned()
     {
-        long declared = Math.Max(0, entry.Length);
-        long compressed = Math.Max(1, entry.CompressedLength);
-        long cap = Math.Min(ZipProvider.MaxSpooledMember, Math.Max(declared + 1024 * 1024, 0));
-        using var src = entry.Open();
-        var buffer = new byte[256 * 1024];
-        long total = 0;
-        int n;
-        while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+        lock (_lock)
         {
-            total += n;
-            if (total > cap) throw new InvalidDataException("The member expands beyond its declared size; extraction was stopped.");
-            if (total > 64L * 1024 * 1024 && total / compressed > ZipProvider.MaxExpansionRatio)
-                throw new InvalidDataException("The member exceeds the expansion-ratio limit (possible decompression bomb); extraction was stopped.");
-            dst.Write(buffer, 0, n);
+            if (--_leases == 0 && _closing) Close();
         }
     }
 
@@ -525,9 +518,16 @@ internal sealed class ZipIndex : IDisposable
     {
         lock (_lock)
         {
-            _archive.Dispose();
-            _stream.Dispose();
+            if (_closing) return;
+            _closing = true;
+            if (_leases == 0) Close();
         }
+    }
+
+    private void Close()
+    {
+        _archive.Dispose();
+        _stream.Dispose();
     }
 }
 
