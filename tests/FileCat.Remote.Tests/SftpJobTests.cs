@@ -84,6 +84,63 @@ public sealed class SftpJobTests : IDisposable
 
     private IEnumerable<string> Names(string folder) => _server.Lookup(folder, true)!.Children.Keys;
 
+    /// <summary>"Resume where safe" (P6): a dropped upload continues where the server's copy ends, once it is checked.</summary>
+    [Fact]
+    public async Task A_dropped_upload_continues_after_its_partial_copy_is_checked()
+    {
+        var data = new byte[5 * 1024 * 1024 + 99];
+        new Random(8).NextBytes(data);
+        string big = Path.Combine(_local, "big.bin");
+        File.WriteAllBytes(big, data);
+        _server.Dir("/up");
+        _server.DropAfterBytes = 2 * 1024 * 1024 + 17;
+        var job = _jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)], Destination = Remote("/up") });
+        int asked = 0;
+        while (!job.State.IsFinished())
+        {
+            if (job.Decision is { } d)
+            {
+                asked++;
+                _server.Down = false; // the connection is back
+                d.Resolve(new Decision(DecisionAction.Retry));
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(1, asked);
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(data, _server.Lookup("/up/big.bin", true)!.Data);
+        Assert.Equal([2L * 1024 * 1024 + 17], _server.WritesAt);
+        Assert.Contains(job.Issues, i => i.Message.Contains("continued at", StringComparison.Ordinal));
+        Assert.Equal(["big.bin"], Names("/up")); // no temporary file left
+        Assert.Equal(data.Length, job.BytesDone);
+    }
+
+    [Fact]
+    public async Task A_dropped_upload_whose_source_changed_starts_again()
+    {
+        string big = Path.Combine(_local, "big.bin");
+        File.WriteAllBytes(big, new byte[3 * 1024 * 1024]);
+        _server.Dir("/up");
+        _server.DropAfterBytes = 1024 * 1024;
+        var job = _jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)], Destination = Remote("/up") });
+        var changed = Enumerable.Repeat((byte)7, 3 * 1024 * 1024).ToArray();
+        while (!job.State.IsFinished())
+        {
+            if (job.Decision is { } d)
+            {
+                File.WriteAllBytes(big, changed); // edited while the connection was down
+                File.SetLastWriteTimeUtc(big, DateTime.UtcNow.AddMinutes(1));
+                _server.Down = false;
+                d.Resolve(new Decision(DecisionAction.Retry));
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(changed, _server.Lookup("/up/big.bin", true)!.Data);
+        Assert.Empty(_server.WritesAt); // nothing was continued: the whole file went again
+        Assert.Equal(["big.bin"], Names("/up"));
+    }
+
     [Fact]
     public async Task Uploads_publish_files_and_folders_through_temporary_names()
     {

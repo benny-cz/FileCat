@@ -224,6 +224,16 @@ internal sealed class FtpChannel : ISftpChannel
         return new FtpWriteStream(this, _client, stream);
     }
 
+    /// <summary>FTP continues only at the end of a file (APPE), which the caller has checked is where the break was.</summary>
+    public Stream OpenWriteAt(string path, long offset)
+    {
+        Safe(path);
+        var stat = Stat(path) ?? throw new FileNotFoundException("The file is not on the server.", path);
+        if (stat.Size != offset) throw new NotSupportedException("FTP continues a file only at its end.");
+        var stream = Run(() => _client.OpenAppend(path, FtpDataType.Binary, false));
+        return new FtpWriteStream(this, _client, stream);
+    }
+
     public void CreateDirectory(string path)
     {
         Safe(path);

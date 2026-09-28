@@ -193,6 +193,10 @@ public sealed class FtpIntegrationTests : IDisposable
             channel.SetModified("/dir/a.txt", stamp);
             Assert.Equal(stamp, channel.Stat("/dir/a.txt")!.Value.ModifiedUtc);
             using (var s = channel.CreateNew("/dir/b.txt")) s.Write("b"u8);
+            // An interrupted upload continues at the end of the file (APPE); anywhere else FTP cannot, and FileCat restarts.
+            using (var more = channel.OpenWriteAt("/dir/b.txt", 1)) more.Write("cd"u8);
+            Assert.Equal("bcd", File.ReadAllText(Path.Combine(server.Root, "dir", "b.txt")));
+            Assert.Throws<NotSupportedException>(() => channel.OpenWriteAt("/dir/b.txt", 1).Dispose());
             Assert.ThrowsAny<IOException>(() => channel.Rename("/dir/a.txt", "/dir/b.txt"));
             Assert.False(channel.TryReplace("/dir/a.txt", "/dir/b.txt"));
             channel.List("/dir", ct).Single(e => e.Name == "a.txt").MoveTo("/dir/c.txt");

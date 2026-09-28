@@ -173,6 +173,13 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
 
     public Stream CreateNew(string path) => Wrap<Stream>(() => new ChannelStream(client.Open(path, FileMode.CreateNew, FileAccess.Write)));
 
+    public Stream OpenWriteAt(string path, long offset) => Wrap<Stream>(() =>
+    {
+        var stream = client.Open(path, FileMode.Open, FileAccess.Write); // never truncates
+        stream.Seek(offset, SeekOrigin.Begin);
+        return new ChannelStream(stream);
+    });
+
     public void CreateDirectory(string path) => Wrap(() => client.CreateDirectory(path));
 
     public void Rename(string source, string target) => Wrap(() => client.RenameFile(source, target, isPosix: false));

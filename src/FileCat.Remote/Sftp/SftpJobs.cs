@@ -321,7 +321,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool ok = UploadFile(() => new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 1, FileOptions.SequentialScan),
-            info, local, destFolder, name);
+            info, local, destFolder, name, unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc);
         if (ok && Moving)
         {
             // The copy is published and its size checked: only now may the source go.
@@ -371,7 +371,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name);
     }
 
-    private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name)
+    /// <param name="unchanged">Whether the source is still the file the upload started with; without it, uploads restart after a break.</param>
+    private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name, Func<bool>? unchanged = null)
     {
         Job.SetCurrent(sourceDisplay);
         string dst = RemotePath.Combine(destFolder, name);
@@ -429,13 +430,23 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         long written = 0;
         bool ok = Remote(dst, "copy the file to the server", () =>
         {
-            DiscardTemp(destFolder, temp);
-            temp = TempName(destFolder);
-            Job.AddBytes(-written);
-            written = 0;
-            using (var input = openSource())
-            using (var output = Channel.CreateNew(temp))
+            // After a break, the upload continues where the server's copy ends, once that copy is checked; else anew.
+            long start = temp is not null && written > 0 && unchanged is not null && unchanged() ? ResumePoint(temp, openSource, incoming.Size) : 0;
+            if (start == 0)
             {
+                DiscardTemp(destFolder, temp);
+                temp = TempName(destFolder);
+            }
+            else
+            {
+                Issue(IssueSeverity.Info, dst, $"The upload was interrupted and continued at {start:N0} bytes, after the part already on the server was checked.", StepOutcome.Committed);
+            }
+            Job.AddBytes(start - written);
+            written = start;
+            using (var input = openSource())
+            using (var output = start == 0 ? Channel.CreateNew(temp!) : Channel.OpenWriteAt(temp!, start))
+            {
+                if (start > 0) input.Seek(start, SeekOrigin.Begin);
                 var buffer = new byte[BufferSize];
                 var clock = Stopwatch.StartNew();
                 int n;
@@ -448,11 +459,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     Job.Throttle(written, clock);
                 }
             }
-            if (incoming.ModifiedUtc > DateTime.MinValue) Channel.SetModified(temp, incoming.ModifiedUtc);
-            var stat = Channel.Stat(temp);
+            if (incoming.ModifiedUtc > DateTime.MinValue) Channel.SetModified(temp!, incoming.ModifiedUtc);
+            var stat = Channel.Stat(temp!);
             if (stat is not { } s || s.Size != written)
                 throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
-            Publish(destFolder, name, temp, replace);
+            Publish(destFolder, name, temp!, replace);
             temp = null;
         });
         if (!ok)
@@ -496,6 +507,41 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             _notedNonAtomic = true;
             Issue(IssueSeverity.Info, dst, "This server cannot replace a file in one step, so each old file was deleted just before its new copy took the name.", StepOutcome.Committed);
+        }
+    }
+
+    private const int ResumeCheckBytes = 64 * 1024;
+
+    /// <summary>
+    /// Where an interrupted upload can continue (plan §14: partial content is verified before reuse): the size the server
+    /// holds of this job's temporary file, when the last 64 KiB there read the same as the source. The server may hold part
+    /// of the write that failed, so the bound is the source's length; the check proves those bytes are the source's own.
+    /// 0 means starting again.
+    /// </summary>
+    private long ResumePoint(string temp, Func<Stream> openSource, long sourceLength)
+    {
+        try
+        {
+            if (Channel.Stat(temp) is not { IsDirectory: false } stat || stat.Size <= 0 || stat.Size > sourceLength) return 0;
+            int n = (int)Math.Min(ResumeCheckBytes, stat.Size);
+            var theirs = new byte[n];
+            var ours = new byte[n];
+            using (var remote = Channel.OpenRead(temp))
+            {
+                remote.Position = stat.Size - n;
+                remote.ReadExactly(theirs);
+            }
+            using (var local = openSource())
+            {
+                if (!local.CanSeek) return 0;
+                local.Position = stat.Size - n;
+                local.ReadExactly(ours);
+            }
+            return theirs.AsSpan().SequenceEqual(ours) ? stat.Size : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or EndOfStreamException)
+        {
+            return 0;
         }
     }
 

@@ -170,6 +170,14 @@ public sealed class OpenSshIntegrationTests : IDisposable
             Assert.Equal("world", Encoding.ASCII.GetString(buffer));
         }
         Assert.ThrowsAny<IOException>(() => channel.CreateNew(root + "/existing.txt").Dispose());
+        // An interrupted upload continues at an offset: nothing before it is truncated or rewritten.
+        using (var more = channel.OpenWriteAt(root + "/new.txt", 5)) more.Write(", resumed"u8);
+        Assert.Equal("hello, resumed", File.ReadAllText(Path.Combine(root, "new.txt")));
+        using (var tail = channel.OpenWriteAt(root + "/new.txt", 5)) tail.Write(" world"u8);
+        Assert.Equal("hello worldmed", File.ReadAllText(Path.Combine(root, "new.txt")));
+        using (var fix = channel.CreateNew(root + "/fixed.txt")) fix.Write("hello world"u8);
+        channel.List(root, TestContext.Current.CancellationToken).Single(e => e.Name == "new.txt").Delete();
+        channel.Rename(root + "/fixed.txt", root + "/new.txt");
         Assert.ThrowsAny<IOException>(() => channel.Rename(root + "/new.txt", root + "/existing.txt"));
         Assert.True(channel.TryReplace(root + "/new.txt", root + "/existing.txt"));
         Assert.Equal("hello world", File.ReadAllText(Path.Combine(root, "existing.txt")));

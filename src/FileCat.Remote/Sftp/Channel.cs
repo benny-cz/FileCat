@@ -48,6 +48,12 @@ public interface ISftpChannel : IDisposable
     /// <summary>Creates a new file; fails when the name exists.</summary>
     Stream CreateNew(string path);
 
+    /// <summary>
+    /// Continues writing a file this job created, from <paramref name="offset"/> (an interrupted upload). Throws
+    /// <see cref="NotSupportedException"/> where the server cannot, and the upload then starts again.
+    /// </summary>
+    Stream OpenWriteAt(string path, long offset);
+
     void CreateDirectory(string path);
 
     /// <summary>Renames a file this job created (never a link) to a name that does not exist.</summary>

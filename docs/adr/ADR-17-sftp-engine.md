@@ -61,8 +61,12 @@ therefore cannot become an ssh option. The session lands in the panel's folder, 
 
 ## Consequences and limits
 
-- No resume of partial files across interruptions: a retry reconnects and restarts the file, which is always safe. A
-  temporary file left by a crash is named in the job's issues but is not cleaned up automatically.
+- Resume where safe (2026-09-28), within a job. A download that breaks keeps FileCat's own staged copy. After
+  reconnecting, it continues only if the source has the same size and time and its last 64 KiB before the break read the
+  same. An upload continues this job's temporary file where the server's copy ends, once those bytes match the source
+  there and the local file is unchanged (SFTP at any offset; FTP at the end, with APPE). Otherwise the file starts
+  again, and the job says which happened. A download's first break retries on its own after a second. A temporary
+  file left by a crash is named in the job's issues but is not reused or cleaned up automatically.
 - No server-side copy; copies within a server stream through FileCat.
 - SFTP version 3 times have one-second precision; "newer" comparisons allow two seconds.
 - SSH agent sign-in (2026-09-28) needs no package: FileCat speaks the agent protocol itself (list keys, sign) to

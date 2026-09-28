@@ -229,21 +229,38 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
         long written = 0;
         IReadOnlyList<(long Offset, long Length)>? lost = null;
+        // A source that can be read at any offset and describes its version can resume after a dropped connection or a
+        // phone that locked part way; any other source fails the item as before.
+        var revision = content.GetRevision();
+        bool resumable = content.CanSeek && revision is not null && content is not IPartialContent;
+        int failures = 0;
         try
         {
-            using (content)
-            using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan))
+            using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
             {
                 var buffer = new byte[BufferSize];
                 var clock = System.Diagnostics.Stopwatch.StartNew();
-                long offset = 0;
                 while (true)
                 {
                     Job.Checkpoint();
-                    int n = content.Read(offset, buffer);
+                    int n;
+                    try
+                    {
+                        n = content!.Read(written, buffer);
+                    }
+                    catch (Exception ex) when (resumable && ex is IOException or UnauthorizedAccessException)
+                    {
+                        content?.Dispose();
+                        content = Resume(provider, item, ex, ++failures, revision!.Value, outStream, ref written);
+                        if (content is null)
+                        {
+                            // Skipped: the item fails, and its partial copy goes.
+                            throw new SkippedTransferException(ex);
+                        }
+                        continue;
+                    }
                     if (n <= 0) break;
                     outStream.Write(buffer, 0, n);
-                    offset += n;
                     written += n;
                     Job.AddBytes(n);
                     Job.Throttle(written, clock);
@@ -260,8 +277,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             try { if (File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
             if (ex is OperationCanceledException) throw;
             Job.ItemFailed();
-            Issue(IssueSeverity.Error, item.Name, "Could not extract: " + ErrorText.Describe(ex), StepOutcome.Failed);
+            if (ex is SkippedTransferException skipped)
+                Issue(IssueSeverity.Error, item.Name, "Not copied: the transfer stopped part way and was skipped: " + ErrorText.Describe(skipped.InnerException!), StepOutcome.Skipped);
+            else Issue(IssueSeverity.Error, item.Name, "Could not extract: " + ErrorText.Describe(ex), StepOutcome.Failed);
             return false;
+        }
+        finally
+        {
+            content?.Dispose();
         }
         int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged);
         bool ok = TryIo(target, "publish the extracted item", () => Fs.Move(staged, target, replace));
@@ -278,6 +301,81 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Issue(IssueSeverity.Warning, item.Name, PartialContent.Describe(lost, written) + " Check the file before relying on it.", StepOutcome.Committed);
         return true;
     }
+
+    private const int ResumeCheckBytes = 64 * 1024;
+
+    /// <summary>
+    /// After the source failed part way (plan §14: "verify resumable partial content before reuse"): the first failure
+    /// retries on its own after a second, later ones ask. The part already copied is kept only when the source is
+    /// provably the same file: the same size and time, and the last 64 KiB before the break read the same. Otherwise the
+    /// copy starts again from the beginning, and the job says so. Returns null when the user skips.
+    /// </summary>
+    private IContentSource? Resume(ResourceProvider provider, ItemRef item, Exception error, int failures, ContentRevision revision, FileStream staged, ref long written)
+    {
+        while (true)
+        {
+            if (failures > 1)
+            {
+                var d = Job.Ask(new ErrorRequest("The transfer stopped part way",
+                    $"{ErrorText.Describe(error)} {written:N0} of {revision.Length:N0} bytes were copied. Retry continues where it stopped once FileCat has checked that the file is unchanged.",
+                    item.Name, CanRetry: true, "transfer"));
+                if (d.Action == DecisionAction.Skip) return null;
+                if (d.Action != DecisionAction.Retry) throw new OperationCanceledException();
+            }
+            else
+            {
+                Job.Token.WaitHandle.WaitOne(TimeSpan.FromSeconds(1));
+            }
+            Job.Checkpoint();
+            IContentSource? next = null;
+            try
+            {
+                next = provider.OpenContent(item) ?? throw new IOException("The item has no readable content any more.");
+                if (Unchanged(next, revision, staged, written))
+                {
+                    staged.Position = written;
+                    Issue(IssueSeverity.Info, item.Name, $"The transfer was interrupted and resumed at {written:N0} bytes, after the part already copied was checked against the source.", StepOutcome.Committed);
+                }
+                else
+                {
+                    Job.AddBytes(-written);
+                    written = 0;
+                    staged.SetLength(0);
+                    staged.Position = 0;
+                    Issue(IssueSeverity.Info, item.Name, "The transfer was interrupted, and the file could not be shown to be unchanged at its source, so it was copied again from the start.", StepOutcome.Committed);
+                }
+                return next;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                next?.Dispose();
+                error = ex;
+                failures = Math.Max(failures + 1, 2);
+            }
+        }
+    }
+
+    /// <summary>The same size and time, and the bytes just before <paramref name="written"/> read the same from both.</summary>
+    private static bool Unchanged(IContentSource source, ContentRevision revision, FileStream staged, long written)
+    {
+        if (source.GetRevision() is not { } now || now.Length != revision.Length || now.ModifiedTicks != revision.ModifiedTicks || written > now.Length) return false;
+        int n = (int)Math.Min(ResumeCheckBytes, written);
+        if (n == 0) return true;
+        var theirs = new byte[n];
+        var ours = new byte[n];
+        for (int done = 0; done < n;)
+        {
+            int got = source.Read(written - n + done, theirs.AsSpan(done));
+            if (got <= 0) return false;
+            done += got;
+        }
+        staged.Position = written - n;
+        staged.ReadExactly(ours);
+        return theirs.AsSpan().SequenceEqual(ours);
+    }
+
+    /// <summary>The user skipped an item whose transfer stopped part way.</summary>
+    private sealed class SkippedTransferException(Exception inner) : IOException(inner.Message, inner);
 
     private string Unique(string path)
     {

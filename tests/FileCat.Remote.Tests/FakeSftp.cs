@@ -32,6 +32,12 @@ internal sealed class FakeSftpServer
     /// <summary>When set, every channel operation fails as if the connection dropped.</summary>
     public bool Down { get; set; }
 
+    /// <summary>Drops the connection once a written file would pass this many bytes (what arrived before stays).</summary>
+    public long? DropAfterBytes { get; set; }
+
+    /// <summary>The offsets uploads were continued at.</summary>
+    public List<long> WritesAt { get; } = [];
+
     public FakeSftpServer() => Dir(Home);
 
     public static byte[] KeyBlob(string type, byte seed)
@@ -139,6 +145,8 @@ internal sealed class FakeConnector(FakeSftpServer server) : ISftpConnector
 
 internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
 {
+    public FakeSftpServer Server => server;
+
     private bool _closed;
 
     public bool IsConnected => !_closed && !server.Down;
@@ -193,6 +201,19 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
             var node = new FakeSftpServer.Node { Name = name };
             parent.Children[name] = node;
             return new CommitStream(this, node);
+        }
+    }
+
+    public Stream OpenWriteAt(string path, long offset)
+    {
+        Check();
+        lock (server.Lock)
+        {
+            var node = server.Lookup(path, followFinal: false) ?? throw new FileNotFoundException("No such file: " + path);
+            server.WritesAt.Add(offset);
+            var stream = new CommitStream(this, node);
+            stream.Write(node.Data.AsSpan(0, (int)Math.Min(offset, node.Data.Length)));
+            return stream;
         }
     }
 
@@ -298,6 +319,16 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         public override void Write(byte[] buffer, int offset, int count)
         {
             channel.Check();
+            // A scripted drop: the server keeps what arrived before the connection went.
+            if (channel.Server.DropAfterBytes is { } limit && Length + count > limit)
+            {
+                int kept = (int)Math.Max(0, limit - Length);
+                base.Write(buffer, offset, kept);
+                node.Data = ToArray();
+                channel.Server.DropAfterBytes = null;
+                channel.Server.Down = true;
+                throw new RemoteDisconnectedException("The connection to the server was lost.");
+            }
             base.Write(buffer, offset, count);
             node.Data = ToArray();
         }
