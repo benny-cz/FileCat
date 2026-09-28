@@ -58,6 +58,14 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build
+      # P9: the UI runs headless on Linux and macOS too (non-blocking until the lane is green).
+      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx"
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-test-results-${{ matrix.os }}
+          path: "**/TestResults/*.trx"
 
   package:
     name: Package (tags only)
