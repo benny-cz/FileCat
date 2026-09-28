@@ -91,14 +91,16 @@ internal static class PictureWorker
         float scale = Math.Min(1f, (float)maxSide / Math.Max(shownW, shownH));
         // JPEG decodes at 1/2, 1/4, 1/8 directly; the rest is scaled when drawn.
         var decodedSize = codec.GetScaledDimensions(scale);
-        var decodeInfo = new SKImageInfo(decodedSize.Width, decodedSize.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        // Decoded into sRGB: a picture with its own color profile (Adobe RGB, Display P3) keeps its colors on screen.
+        using var srgb = SKColorSpace.CreateSrgb();
+        var decodeInfo = new SKImageInfo(decodedSize.Width, decodedSize.Height, SKColorType.Bgra8888, SKAlphaType.Premul, srgb);
         using var decoded = new SKBitmap(decodeInfo);
         var result = codec.GetPixels(decodeInfo, decoded.GetPixels());
         bool incomplete = result is SKCodecResult.IncompleteInput or SKCodecResult.ErrorInInput;
         if (result != SKCodecResult.Success && !incomplete) throw new InvalidDataException($"it could not be decoded ({result})");
 
         int outW = Math.Clamp((int)Math.Round(shownW * scale), 1, maxSide), outH = Math.Clamp((int)Math.Round(shownH * scale), 1, maxSide);
-        using var shown = new SKBitmap(new SKImageInfo(outW, outH, SKColorType.Bgra8888, SKAlphaType.Premul));
+        using var shown = new SKBitmap(new SKImageInfo(outW, outH, SKColorType.Bgra8888, SKAlphaType.Premul, srgb));
         using (var canvas = new SKCanvas(shown))
         {
             canvas.Clear(SKColors.Transparent);

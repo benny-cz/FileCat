@@ -96,6 +96,24 @@ public sealed class PictureViewerTests
     }
 
     [AvaloniaFact]
+    public void A_picture_with_its_own_color_profile_keeps_its_colors()
+    {
+        // Display P3 values are not sRGB values: shown without the conversion, the orange below would look different.
+        using var p3 = SKColorSpace.CreateRgb(SKColorSpaceTransferFn.Srgb, SKColorSpaceXyz.DisplayP3);
+        using var bitmap = new SKBitmap(new SKImageInfo(8, 8, SKColorType.Rgba8888, SKAlphaType.Premul, p3));
+        // The stored values themselves (Erase would convert an sRGB color into P3 first).
+        var raw = bitmap.GetPixelSpan();
+        for (int i = 0; i < raw.Length; i += 4) { raw[i] = 200; raw[i + 1] = 100; raw[i + 2] = 50; raw[i + 3] = 255; }
+        using var pixels = bitmap.PeekPixels();
+        using var encoded = pixels.Encode(new SKPngEncoderOptions(SKPngEncoderFilterFlags.AllFilters, 6));
+        var png = encoded!.ToArray();
+        Assert.Contains("iCCP", System.Text.Encoding.ASCII.GetString(png), StringComparison.Ordinal); // the profile travels with the picture
+        var shown = PixelAt(png, 100, 4, 4);
+        int difference = Math.Abs(shown.Red - 200) + Math.Abs(shown.Green - 100) + Math.Abs(shown.Blue - 50);
+        Assert.True(difference > 10, $"{shown} is the file's own values: the profile was ignored.");
+    }
+
+    [AvaloniaFact]
     public void What_cannot_be_shown_says_why()
     {
         var noise = new byte[5000];
