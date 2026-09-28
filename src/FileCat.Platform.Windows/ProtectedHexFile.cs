@@ -106,7 +106,7 @@ public sealed partial class ProtectedHexFile : IContentSource
                 "Another program has this file open for writing, or is deleting it. Close that program, then open the hex editor again."),
             AccessDenied when File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReadOnly) != 0 =>
                 new UnauthorizedAccessException("The file is read-only. Clear its read-only attribute first (File → Change attributes and times…), then open the hex editor again."),
-            AccessDenied => new UnauthorizedAccessException("You do not have permission to change this file."),
+            AccessDenied => new UnauthorizedAccessException("You do not have permission to change this file. To patch a protected file, edit a copy, then copy it back; if that copy is denied, the operations pane offers Retry as administrator."),
             _ => new Win32Exception(error),
         };
     }

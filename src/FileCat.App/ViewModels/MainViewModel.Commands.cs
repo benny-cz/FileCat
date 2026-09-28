@@ -39,6 +39,11 @@ public sealed partial class MainViewModel
                 return loc?.Scheme == Schemes.Registry && loc.Path.Length > 0 &&
                     (caps & LocationCapabilities.CreateDirectory) != 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Open a concrete HKCU, HKLM, or HKU Registry key to import into its scope.");
+            case CommandIds.RegistrySaveData:
+                return registryItem && focusedRegistry.Kind == EntryKind.RegistryValue ? CommandAvailability.Yes : CommandAvailability.No("Focus a Registry value to save its raw data.");
+            case CommandIds.RegistryLoadData:
+                if (loc?.Scheme != Schemes.Registry || loc.Path.Length == 0) return CommandAvailability.No("Open a Registry key to load value data into it.");
+                return Platform.Windows.RegistryAliases.IsAliasPath(loc.Path) ? CommandAvailability.No(Platform.Windows.RegistryAliases.ReadOnlyReason) : CommandAvailability.Yes;
             case CommandIds.RegistryView:
                 return loc?.Scheme == Schemes.Registry ? CommandAvailability.Yes : CommandAvailability.No("Open a Registry location first.");
             case CommandIds.RegistryWritable:

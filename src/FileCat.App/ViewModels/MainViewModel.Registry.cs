@@ -626,6 +626,105 @@ public sealed partial class MainViewModel
         { Notify($"Cannot inspect Registry link: {ex.Message}", true); }
     }
 
+    /// <summary>Explicit conversion (REG-003): a value's stored bytes, exactly, into a file. The type is not part of the file.</summary>
+    private async Task SaveRegistryDataAsync()
+    {
+        if (!TryGetFocusedRegistryItem(out var item) || item.Kind != EntryKind.RegistryValue) return;
+        RegistryValueSnapshot value;
+        try { value = await Task.Run(() => ReadRegistrySnapshot(item)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Notify($"Cannot read the value: {ex.Message}", true);
+            return;
+        }
+        if (View.TopLevel is not { } top) return;
+        string stem = string.Concat(Label(item).Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save the value's raw data",
+            SuggestedFileName = (stem.Length == 0 ? "value" : stem) + ".bin",
+        });
+        string? path = file?.TryGetLocalPath();
+        if (path is null) return;
+        try
+        {
+            await Task.Run(() =>
+            {
+                string temp = path + ".filecat-" + Guid.NewGuid().ToString("N") + ".tmp";
+                File.WriteAllBytes(temp, value.Data);
+                File.Move(temp, path, overwrite: true);
+            });
+            Notify($"Saved {value.Data.Length:N0} bytes of {RegistryValueCodec.TypeName(value.Type)} data to {path}. The file holds the stored bytes exactly; the value type is not part of it.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Notify($"Cannot save the value data: {ex.Message}", true);
+        }
+    }
+
+    /// <summary>
+    /// Explicit conversion (REG-003): a file's bytes become a value's stored data, unchanged. An existing value keeps its
+    /// type and is guarded by its captured data; a new value is REG_BINARY.
+    /// </summary>
+    private async Task LoadRegistryDataAsync()
+    {
+        var key = ActiveTab?.Location;
+        if (key?.Scheme != Schemes.Registry || key.Path.Length == 0 || RegistryAliases.IsAliasPath(key.Path)) return;
+        ItemRef? existing = TryGetFocusedRegistryItem(out var focused) && focused.Kind == EntryKind.RegistryValue && Equals(focused.Parent, key) ? focused : null;
+        string name;
+        RegistryValueSnapshot? expected = null;
+        if (existing is not null)
+        {
+            name = existing.Name;
+            try { expected = await Task.Run(() => ReadRegistrySnapshot(existing)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                Notify($"Cannot read the value: {ex.Message}", true);
+                return;
+            }
+        }
+        else
+        {
+            var named = await Dialogs.PromptAsync(new PromptOptions("Load value data", "Name of the new REG_BINARY value (empty for the default value):")
+            {
+                Validate = n => RegistryNameError(n, false),
+                ConfirmText = "Choose file",
+            });
+            if (named is null) return;
+            name = named.Text;
+        }
+        if (View.TopLevel is not { } top) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Load value data from a file", AllowMultiple = false });
+        string? path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (path is null) return;
+        byte[] data;
+        try
+        {
+            var info = new FileInfo(path);
+            if (info.Length > RegistryRaw.EditLimit)
+            {
+                Notify($"The file is {info.Length:N0} bytes; Registry values are limited to {RegistryRaw.EditLimit:N0} bytes here.", true);
+                return;
+            }
+            data = await Task.Run(() => File.ReadAllBytes(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Notify($"Cannot read the file: {ex.Message}", true);
+            return;
+        }
+        uint type = expected?.Type ?? 3;
+        string label = name.Length == 0 ? "(Default)" : name;
+        if (!await Dialogs.ConfirmAsync("Load value data",
+                $"Store the {data.Length:N0} bytes of {Path.GetFileName(path)} as the data of {label} ({RegistryValueCodec.TypeName(type)}) in {Services.Providers.Display(key)}?" +
+                (expected is null ? " A new value is created." : $" This replaces its {expected.Data.Length:N0} bytes; FileCat checks they are unchanged first, and Undo restores them.") +
+                (data.Length > 1024 * 1024 ? " Values over 1 MB slow down Windows; programs usually keep such data in files." : ""),
+                expected is null ? "Create value" : "Replace data"))
+            return;
+        SubmitRegistry(new RegistryChange(RegistryAction.SetValue, key, name, expected, new RegistryValueSnapshot(type, data)),
+            $"Load data into Registry value {label}", existing, name);
+    }
+
     /// <summary>
     /// Switches the explicit WOW64 view while keeping the current path (plan §12.1): the view is part of the location,
     /// never a detour through Wow6432Node. A path missing in the other view opens its nearest existing parent.

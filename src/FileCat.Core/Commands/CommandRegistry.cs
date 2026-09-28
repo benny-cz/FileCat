@@ -124,6 +124,8 @@ public static class CommandIds
     public const string RegistryImport = "registry.import";
     public const string RegistryWritable = "registry.writable";
     public const string RegistryView = "registry.view";
+    public const string RegistrySaveData = "registry.savedata";
+    public const string RegistryLoadData = "registry.loaddata";
     public const string HexEdit = "hex.edit";
     public const string HexRecovery = "hex.recovery";
     public const string CompareDirectories = "compare.dirs";
@@ -302,6 +304,8 @@ public sealed class CommandRegistry
         Add(CommandIds.RegistryImport, "Import .reg into selected Registry scope…", F);
         Add(CommandIds.RegistryWritable, "Open writable Registry location…", F);
         Add(CommandIds.RegistryView, "Switch Registry view (default, 64-bit, 32-bit)…", F);
+        Add(CommandIds.RegistrySaveData, "Save Registry value data to a file…", F);
+        Add(CommandIds.RegistryLoadData, "Load Registry value data from a file…", F);
         Add(CommandIds.HexEdit, "Edit file bytes in hex…", F);
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
