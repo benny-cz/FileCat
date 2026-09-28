@@ -37,7 +37,7 @@ public static unsafe partial class WindowsIcons
 {
     // SHSTOCKICONID values (shellapi.h).
     public const int StockFolder = 3, StockRemovableDrive = 7, StockFixedDrive = 8, StockNetworkDrive = 9, StockNetworkDriveOffline = 10,
-        StockOpticalDrive = 11, StockRamDrive = 12, StockServer = 15, StockLink = 29, StockServerShare = 51, StockUnknownDrive = 58, StockPhone = 75;
+        StockOpticalDrive = 11, StockRamDrive = 12, StockServer = 15, StockLink = 29, StockServerShare = 51, StockUnknownDrive = 58, StockPhone = 99;
 
     /// <summary>Extracts one icon at <paramref name="size"/> pixels as straight (not premultiplied) BGRA.</summary>
     public static bool TryExtract(IconLocation location, int size, out int width, out int height, out byte[] bgra)

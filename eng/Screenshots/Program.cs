@@ -27,6 +27,7 @@ string output = Directory.CreateDirectory(args[0]).FullName;
 Location Place(string arg)
 {
     if (arg == "computer") return new Location(FileCat.Core.Resources.Schemes.Computer, string.Empty);
+    if (arg == "phones") return FileCat.Platform.Windows.Mtp.MtpProvider.Devices;
     if (arg.StartsWith("reg:", StringComparison.Ordinal))
         return new FileCat.Platform.Windows.WindowsRegistryProvider().TryParse(arg, null, out var key) && key is not null ? key : throw new ArgumentException("Not a Registry key: " + arg);
     if (arg.StartsWith("recovery:", StringComparison.Ordinal))

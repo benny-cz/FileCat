@@ -87,6 +87,8 @@ public sealed class NativeIconSource : INativeIconSource
             case EntryKind.Share:
                 return Shared("stock:" + WindowsIcons.StockServerShare);
             case EntryKind.Directory:
+                // A phone's storage ("Internal shared storage", an SD card) looks like the drive it is.
+                if (entry.Tag is FileCat.Platform.Windows.Mtp.MtpObjectTag { IsStorage: true }) return Shared("stock:" + WindowsIcons.StockFixedDrive);
                 if (path is not null && IsKnownFolderName(entry.Name) && KnownFolder(path) is { } known) return Shared("res:" + known);
                 if (path is not null && ((FileAttributes)entry.Attributes & (FileAttributes.System | FileAttributes.ReadOnly)) != 0 && FromPlan(CustomFolder(path, entry)) is { } custom)
                     return custom;
