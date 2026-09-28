@@ -89,6 +89,51 @@ public class ContentAndToolTests
         Assert.Equal(0, reader.Read(data.Length + 10, buf));
     }
 
+    /// <summary>Content whose second page is damaged (an archive member found broken part way).</summary>
+    private sealed class DamagedSecondPage(byte[] data) : IContentSource
+    {
+        public int Reads;
+        public string DisplayName => "damaged";
+        public long Length => data.Length;
+        public bool CanSeek => true;
+        public string? LocalPath => null;
+        public ContentRevision? GetRevision() => null;
+        public void Dispose() { }
+
+        public int Read(long offset, Span<byte> buffer)
+        {
+            Interlocked.Increment(ref Reads);
+            if (offset >= PagedReader.PageSize) throw new InvalidDataException("The member is damaged: its checksum does not match its content.");
+            int n = (int)Math.Min(buffer.Length, PagedReader.PageSize - offset);
+            data.AsSpan((int)offset, n).CopyTo(buffer);
+            return n;
+        }
+    }
+
+    [Fact]
+    public async Task Paged_reader_shows_content_ending_at_a_damaged_page_and_says_why()
+    {
+        var source = new DamagedSecondPage(new byte[3 * PagedReader.PageSize]);
+        using var reader = new PagedReader(source);
+        var loaded = new SemaphoreSlim(0);
+        reader.PageLoaded += () => loaded.Release();
+        var buffer = new byte[2 * PagedReader.PageSize];
+        // The first view asks for both pages; the second one fails.
+        Assert.False(reader.TryRead(0, buffer, out _));
+        await loaded.WaitAsync(TestContext.Current.CancellationToken);
+        Assert.False(reader.TryRead(0, buffer, out _));
+        await loaded.WaitAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("checksum", reader.ReadError);
+        // Now the content ends where it could not be read, instead of loading forever and asking on every render.
+        int reads = source.Reads;
+        for (int i = 0; i < 10; i++)
+        {
+            Assert.True(reader.TryRead(0, buffer, out int n));
+            Assert.Equal(PagedReader.PageSize, n);
+        }
+        Assert.Equal(reads, source.Reads);
+    }
+
     [Fact]
     public void Tool_launcher_refuses_batch_files_with_metacharacters()
     {

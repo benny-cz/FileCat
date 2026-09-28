@@ -16,6 +16,10 @@ public sealed class PagedReader : IDisposable
     private readonly Dictionary<long, LinkedListNode<Page>> _pages = new();
     private readonly LinkedList<Page> _lru = new();
     private readonly HashSet<long> _loading = new();
+    // Pages that could not be read, and when: views show the content as ending there (ReadError says why) instead of
+    // asking for the page on every render, and try again after a pause, in case the cause was passing.
+    private readonly Dictionary<long, DateTime> _failed = new();
+    private static readonly TimeSpan RetryFailedAfter = TimeSpan.FromSeconds(2);
     private long _length;
     // Bumped whenever cached content is replaced; a load that started earlier must not insert its stale page.
     private long _generation;
@@ -64,6 +68,7 @@ public sealed class PagedReader : IDisposable
             }
             if (page is null)
             {
+                if (RecentlyFailed(index)) break;
                 RequestPage(index);
                 complete = false;
                 break;
@@ -95,6 +100,11 @@ public sealed class PagedReader : IDisposable
             total += n;
         }
         return total;
+    }
+
+    private bool RecentlyFailed(long index)
+    {
+        lock (_lock) return _failed.TryGetValue(index, out var when) && DateTime.UtcNow - when < RetryFailedAfter;
     }
 
     private void RequestPage(long index)
@@ -132,11 +142,13 @@ public sealed class PagedReader : IDisposable
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ObjectDisposedException)
         {
             if (ex is not ObjectDisposedException) ReadError = ex.Message;
+            lock (_lock) _failed[index] = DateTime.UtcNow;
             return null;
         }
         var page = new Page(index, buffer, n);
         lock (_lock)
         {
+            _failed.Remove(index);
             if (_pages.TryGetValue(index, out var raced)) return raced.Value;
             if (generation != _generation) return page;
             _pages[index] = _lru.AddFirst(page);
