@@ -24,7 +24,7 @@ public partial class MainWindow : Window, IViewActions
     [
         ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, "-", CommandIds.Copy, CommandIds.Duplicate,
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
-            CommandIds.Pack, CommandIds.Unpack, CommandIds.Checksum, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename,
+            CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive, CommandIds.Checksum, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename,
             CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
             CommandIds.RegistryWritable, CommandIds.RegistryView, "-",
             CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),

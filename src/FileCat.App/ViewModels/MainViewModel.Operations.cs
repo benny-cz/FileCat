@@ -166,13 +166,26 @@ public sealed partial class MainViewModel
                 kind, items, summary, destText, target is null ? null : $"panel {target.Number}",
                 sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet));
             if (request is null) return;
-            if (!ResolveDestination(request.Destination, items, out var destLocation, out var newName, out var error))
+            Location? destLocation;
+            string? newName = null;
+            if (destination is { IsFileSystem: false } && request.Destination == destText)
+            {
+                // An unchanged non-folder destination (an archive folder, say) is used as shown: re-parsing its display
+                // text could name a different kind of location (an archive root's text is the archive file's path).
+                destLocation = destination;
+            }
+            else if (!ResolveDestination(request.Destination, items, out destLocation, out newName, out var error))
             {
                 Notify(error!, true);
                 return;
             }
             // Hidden marks are excluded only when there are some and the user did not include them.
             finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
+            if (destLocation?.Scheme == Schemes.Zip)
+            {
+                await AddToArchiveAsync(kind, finalItems.ToList(), destLocation, request.Options);
+                return;
+            }
             if (kind == JobKind.Move && newName is null && destLocation is { } dl && ItemSources.Parents(finalItems)!.Contains(dl))
             {
                 Notify("The items are already in that folder.");
@@ -306,6 +319,11 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location is not { } loc || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
+        if (loc.Scheme == Schemes.Zip)
+        {
+            await RenameArchiveMemberAsync(tab, loc);
+            return;
+        }
         var caps = Services.Providers.For(loc).GetCapabilities(loc);
         if ((caps & LocationCapabilities.Rename) == 0 || !loc.IsFileSystem && loc.Scheme != Schemes.ResultSet)
         {
@@ -331,6 +349,11 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location?.Scheme == Schemes.Registry) { await CreateRegistryAsync(); return; }
+        if (tab?.Location is { Scheme: Schemes.Zip } archiveFolder)
+        {
+            await CreateArchiveFolderAsync(tab, archiveFolder);
+            return;
+        }
         if (tab?.Location is not { IsFileSystem: true } loc) return;
         var r = await Dialogs.PromptAsync(new PromptOptions("Create folder", "Folder name (use \\ for nested folders):")
         {
@@ -385,6 +408,11 @@ public sealed partial class MainViewModel
         try
         {
             var loc = tab.Location!;
+            if (loc.Scheme == Schemes.Zip)
+            {
+                await DeleteArchiveMembersAsync(loc, items.ToList());
+                return;
+            }
             var provider = Services.Providers.For(loc);
             var caps = provider.GetCapabilities(loc);
             if (loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0)
@@ -525,11 +553,15 @@ public sealed partial class MainViewModel
         catch (ObjectDisposedException) { parents = null; } // released after the job finished (undo later)
         if (parents is not null) folders.UnionWith(parents);
         if (job.Request.Destination is { } d) folders.Add(d);
+        // A rebuilt archive changes every folder shown inside it.
+        string? archive = job.Request.Archive?.ArchivePath is { } a ? Path.GetFullPath(a) : null;
         foreach (var p in Workspace.Panels)
         {
             foreach (var t in p.Tabs)
             {
-                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem)) t.Refresh();
+                if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem ||
+                                            archive is not null && l.Scheme == Schemes.Zip && string.Equals(l.Container?.Path, archive, StringComparison.OrdinalIgnoreCase)))
+                    t.Refresh();
             }
         }
     }

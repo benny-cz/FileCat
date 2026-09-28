@@ -69,14 +69,42 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     public override string GetDeviceKey(Location location) => PathUtil.GetDeviceKey(ZipPath(location));
 
-    public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate | LocationCapabilities.ReadContent;
+    /// <summary>
+    /// What changes a location allows. The answer comes from the already opened index (no I/O on a keypress): an archive
+    /// in a folder can be updated unless it is read-only or has encrypted members, which a rebuild cannot re-create.
+    /// </summary>
+    public override LocationCapabilities GetCapabilities(Location location)
+    {
+        var caps = LocationCapabilities.Enumerate | LocationCapabilities.ReadContent;
+        if (WhyReadOnly(location) is null)
+            caps |= LocationCapabilities.CreateDirectory | LocationCapabilities.Delete | LocationCapabilities.Rename |
+                    LocationCapabilities.TransferTarget | LocationCapabilities.ExternalEdit;
+        return caps;
+    }
+
+    /// <summary>How many file members in this folder share the name (duplicates are legal in ZIP and listed separately).</summary>
+    public int CopiesOf(Location folder, string name) =>
+        GetIndex(folder).Children.TryGetValue(folder.Path, out var list) ? list.Count(n => !n.IsDirectory && n.Name == name) : 0;
+
+    /// <summary>Why the archive cannot be changed here, or null when it can.</summary>
+    public string? WhyReadOnly(Location location)
+    {
+        if (location.Container is not { IsFileSystem: true } container)
+            return "Archives inside archives are read-only; extract the inner archive with F5 to change it.";
+        var index = _cache.Where(kv => kv.Key.StartsWith(container.Path + "|", StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Value).FirstOrDefault();
+        if (index is null) return null;
+        if (index.ReadOnly) return "The archive file is read-only; clear its read-only attribute to change it.";
+        if (index.HasEncrypted) return "The archive has encrypted members, which FileCat cannot re-create, so it cannot be changed here. Extract what you need with F5.";
+        return null;
+    }
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
     {
-        LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename
-            or LocationCapabilities.TransferTarget or LocationCapabilities.MoveSource or LocationCapabilities.Recycle =>
-            "ZIP archives are read-only in this version. Extract items with F5, then change them in a folder.",
-        LocationCapabilities.ExternalEdit => "Editing inside archives needs an explicit edit session (planned). Extract the item with F5 to edit it.",
+        LocationCapabilities.CreateDirectory or LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.TransferTarget
+            or LocationCapabilities.ExternalEdit when WhyReadOnly(location) is { } reason => reason,
+        LocationCapabilities.CreateFile => "New empty files cannot be created inside an archive; create the file in a folder and copy it in with F5.",
+        LocationCapabilities.MoveSource => "Moving out of an archive is not supported: copy (extract) with F5, then delete the members with F8. Rename a member with F2.",
+        LocationCapabilities.Recycle => "Archive members do not go to the Recycle Bin; deleting them rewrites the archive.",
         _ => base.ExplainUnavailable(location, capability),
     };
 
@@ -194,19 +222,25 @@ internal sealed class ZipIndex : IDisposable
 
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ZipMemberTag? Tag);
 
-    private ZipIndex(FileStream stream, ZipArchive archive, List<ZipArchiveEntry> entries, Dictionary<string, List<Node>> children, string? warning)
+    private ZipIndex(FileStream stream, ZipArchive archive, List<ZipArchiveEntry> entries, Dictionary<string, List<Node>> children, string? warning,
+        bool readOnly)
     {
         _stream = stream;
         _archive = archive;
         _entries = entries;
         Children = children;
         Warning = warning;
+        ReadOnly = readOnly;
+        HasEncrypted = entries.Any(e => e.IsEncrypted);
         LastUsed = DateTime.UtcNow;
     }
 
     public Dictionary<string, List<Node>> Children { get; }
     public string? Warning { get; }
     public DateTime LastUsed { get; private set; }
+    /// <summary>The archive file had the read-only attribute when it was opened.</summary>
+    public bool ReadOnly { get; }
+    public bool HasEncrypted { get; }
 
     public static ZipIndex Build(string path, Encoding? nameEncoding)
     {
@@ -281,7 +315,10 @@ internal sealed class ZipIndex : IDisposable
         }
         if (seen.Values.Any(v => v > 0))
             warning ??= "The archive contains duplicate names; each copy is listed separately.";
-        return new ZipIndex(fs, archive, entries, children, warning);
+        bool readOnly;
+        try { readOnly = (File.GetAttributes(path) & FileAttributes.ReadOnly) != 0; }
+        catch (IOException) { readOnly = false; }
+        return new ZipIndex(fs, archive, entries, children, warning, readOnly);
     }
 
     /// <summary>Extracts one member with expansion limits; small members stay in memory, larger ones spool privately.</summary>

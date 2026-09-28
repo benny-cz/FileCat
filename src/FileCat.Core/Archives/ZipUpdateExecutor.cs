@@ -165,46 +165,71 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
     private static List<string?> PlanNames(ArchivePlan plan, List<ZipArchiveEntry> existing, List<Addition> additions,
         out Dictionary<int, Addition> replaceWith, out HashSet<string> skipped)
     {
+        // Lookups are by name and by ancestor folder, so a plan over a huge archive stays linear in its members.
+        var deleteAll = new HashSet<string>(StringComparer.Ordinal);
+        var deleteCopy = new HashSet<(string, int)>();
+        var renames = new Dictionary<string, string>(StringComparer.Ordinal);
+        var replacements = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var c in plan.Changes)
+        {
+            string path = ArchivePaths.Normalize(c.MemberPath);
+            switch (c.Kind)
+            {
+                case ArchiveChangeKind.Delete when c.Ordinal is { } which: deleteCopy.Add((path, which)); break;
+                case ArchiveChangeKind.Delete: deleteAll.Add(path); break;
+                case ArchiveChangeKind.Rename: renames[path] = ArchivePaths.Normalize(c.NewMemberPath!); break;
+                case ArchiveChangeKind.Replace: replacements.Add(path); break;
+            }
+        }
         var names = new List<string?>(existing.Count);
+        var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var entry in existing)
         {
             string name = ArchivePaths.Normalize(entry.FullName);
             string trimmed = name.TrimEnd('/');
-            if (plan.Changes.Any(c => c.Kind == ArchiveChangeKind.Delete && Covers(ArchivePaths.Normalize(c.MemberPath), trimmed)))
+            int occurrence = occurrences.TryGetValue(name, out var seen) ? seen + 1 : 0;
+            occurrences[name] = occurrence;
+            if (deleteCopy.Contains((name, occurrence)) || Ancestors(trimmed).Any(deleteAll.Contains))
             {
                 names.Add(null);
                 continue;
             }
-            foreach (var rename in plan.Changes.Where(c => c.Kind == ArchiveChangeKind.Rename))
-            {
-                string from = ArchivePaths.Normalize(rename.MemberPath), to = ArchivePaths.Normalize(rename.NewMemberPath!);
-                if (Covers(from, trimmed))
-                {
-                    name = to + name[from.Length..];
-                    break;
-                }
-            }
+            // The innermost renamed folder (or the member itself) decides the new name.
+            if (Ancestors(trimmed).FirstOrDefault(renames.ContainsKey) is { } from)
+                name = renames[from] + name[from.Length..];
             names.Add(name);
         }
-        var originals = existing.Select(e => ArchivePaths.Normalize(e.FullName)).ToList();
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var n in names.OfType<string>()) counts[n] = counts.GetValueOrDefault(n) + 1;
         for (int i = 0; i < names.Count; i++)
-            if (names[i] is { } n && n != originals[i] && names.Where((other, j) => j != i && other == n).Any())
+            if (names[i] is { } n && counts[n] > 1 && n != ArchivePaths.Normalize(existing[i].FullName))
                 throw new IOException($"Renaming would create two members named \"{n}\"; nothing was changed.");
+        var firstByName = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < names.Count; i++)
+            if (names[i] is { } n) firstByName.TryAdd(n.TrimEnd('/'), i);
         replaceWith = [];
         skipped = [];
         foreach (var addition in additions)
         {
-            string key = addition.FolderEntry ? addition.Member + "/" : addition.Member;
-            int at = names.FindIndex(n => n is not null && (n == key || n.TrimEnd('/') == addition.Member));
-            if (at < 0) continue;
-            bool explicitReplace = plan.Changes.Any(c => c.Kind == ArchiveChangeKind.Replace && ArchivePaths.Normalize(c.MemberPath) == addition.Member);
-            if (addition.FolderEntry || !(explicitReplace || plan.ReplaceExisting) || names[at]!.EndsWith('/')) skipped.Add(addition.Member);
-            else replaceWith[at] = addition;
+            if (!firstByName.TryGetValue(addition.Member, out int at)) continue;
+            bool replaceable = !addition.FolderEntry && !names[at]!.EndsWith('/') && (replacements.Contains(addition.Member) || plan.ReplaceExisting);
+            if (replaceable) replaceWith[at] = addition;
+            else skipped.Add(addition.Member);
         }
         return names;
     }
 
-    private static bool Covers(string path, string member) => member == path || member.StartsWith(path + "/", StringComparison.Ordinal);
+    /// <summary>The member itself, then each folder above it ("a/b/c", "a/b", "a").</summary>
+    private static IEnumerable<string> Ancestors(string member)
+    {
+        for (string path = member; path.Length > 0;)
+        {
+            yield return path;
+            int slash = path.LastIndexOf('/');
+            if (slash < 0) yield break;
+            path = path[..slash];
+        }
+    }
 
     private List<Addition> ExpandAdditions(IReadOnlyList<ArchiveChange> changes)
     {

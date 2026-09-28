@@ -19,7 +19,8 @@ public enum ArchiveChangeKind
 }
 
 /// <summary>One change to an archive. Member paths use '/' and no leading slash; a folder path has no trailing slash.</summary>
-public sealed record ArchiveChange(ArchiveChangeKind Kind, string MemberPath, string? SourcePath = null, string? NewMemberPath = null);
+/// <param name="Ordinal">For a delete of a file member whose name is duplicated: which copy (0 = first); null means every copy.</param>
+public sealed record ArchiveChange(ArchiveChangeKind Kind, string MemberPath, string? SourcePath = null, string? NewMemberPath = null, int? Ordinal = null);
 
 /// <summary>The archive as the plan saw it; any later change makes the update refuse instead of losing that change.</summary>
 public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks)

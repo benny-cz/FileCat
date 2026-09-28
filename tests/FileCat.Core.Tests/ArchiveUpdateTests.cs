@@ -184,6 +184,28 @@ public sealed class ArchiveUpdateTests : IDisposable
     }
 
     [Fact]
+    public async Task Large_archives_plan_in_linear_time()
+    {
+        string zip = Path.Combine(_dir.Path, "large.zip");
+        using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+            for (int i = 0; i < 20_000; i++)
+            {
+                using var writer = new StreamWriter(archive.CreateEntry($"d{i % 100}/f{i}.txt", CompressionLevel.NoCompression).Open());
+                writer.Write(i);
+            }
+        var changes = Enumerable.Range(50, 50).Select(d => new ArchiveChange(ArchiveChangeKind.Delete, $"d{d}"))
+            .Append(new ArchiveChange(ArchiveChangeKind.Rename, "d1", NewMemberPath: "renamed")).ToList();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip), changes, CompressionLevel.Fastest));
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"took {clock.Elapsed}");
+        using var result = ZipFile.OpenRead(zip);
+        Assert.Equal(10_000, result.Entries.Count);
+        Assert.Equal(200, result.Entries.Count(e => e.FullName.StartsWith("renamed/", StringComparison.Ordinal)));
+        Assert.DoesNotContain(result.Entries, e => e.FullName.StartsWith("d1/", StringComparison.Ordinal) || e.FullName.StartsWith("d77/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Member_paths_are_checked()
     {
         Assert.Null(ArchivePaths.Problem("a/b.txt"));

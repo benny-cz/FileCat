@@ -35,7 +35,8 @@ public sealed partial class MainViewModel
             case CommandIds.Unpack: await UnpackAsync(); return true;
             case CommandIds.QuickView: ToggleQuickView(); return true;
             case CommandIds.Attributes: await ChangeAttributesAsync(); return true;
-            case CommandIds.Pack: Notify("Creating and updating archives arrives with the archive-editing slice (P5); extracting and browsing ZIP works now."); return true;
+            case CommandIds.Pack: await PackAsync(); return true;
+            case CommandIds.TestArchive: TestArchives(); return true;
         }
         return false;
     }
