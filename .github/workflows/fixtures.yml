@@ -1,0 +1,26 @@
+name: Recovery fixtures
+
+# Builds the disk images the recovery tests read (P10) with real file-system drivers on a disposable runner. Download
+# the artifact and commit its files under tests/FileCat.Recovery.Tests/TestData/ when the scenario changes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Build disk images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Make the images
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends dosfstools exfatprogs ntfs-3g
+          sudo modprobe exfat || true
+          sudo bash eng/make-recovery-fixtures.sh fixtures
+      - uses: actions/upload-artifact@v7
+        with:
+          name: recovery-fixtures
+          path: fixtures/*.img.gz
