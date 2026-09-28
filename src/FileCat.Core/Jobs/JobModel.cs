@@ -20,6 +20,10 @@ public enum JobKind
     Checksum,
     Attributes,
     Registry,
+    /// <summary>Create or update a ZIP by a staged rebuild (plan §15).</summary>
+    ArchiveUpdate,
+    /// <summary>Decompress every member and compare its checksum (the archive "test" command).</summary>
+    ArchiveTest,
     /// <summary>A plan run by the per-plan administrator broker after one consent (ADR-14).</summary>
     Elevated,
 }
@@ -142,6 +146,8 @@ public sealed class JobRequest
     /// is still guarded by its own expected state.
     /// </summary>
     public bool IndependentSteps { get; init; }
+    /// <summary>For <see cref="JobKind.ArchiveUpdate"/>: the archive and its changes.</summary>
+    public Archives.ArchivePlan? Archive { get; init; }
     /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>
     public ElevationPlan? Elevation { get; init; }
 }

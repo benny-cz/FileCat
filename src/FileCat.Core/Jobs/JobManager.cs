@@ -307,6 +307,19 @@ public sealed class JobManager
                 writes.Add(P(r.Sources[0]));
                 if (r.Sources[0].FileSystemPath is { } rp) writes.Add(Path.Join(Path.GetDirectoryName(rp), r.NewName));
                 break;
+            case JobKind.ArchiveUpdate:
+            {
+                var archive = r.Archive ?? throw new ArgumentException("An archive plan is required.", nameof(r));
+                title = r.Description ?? $"Update \"{Path.GetFileName(archive.ArchivePath)}\"";
+                foreach (var source in archive.Changes.Select(c => c.SourcePath).OfType<string>()) reads.Add(source);
+                // The archive is rewritten as a whole: any job reading or writing it overlaps.
+                writes.Add(Path.GetFullPath(archive.ArchivePath));
+                break;
+            }
+            case JobKind.ArchiveTest:
+                title = r.Description ?? $"Test {What()}";
+                AddSourceScopes(reads);
+                break;
             case JobKind.Elevated:
                 // Sources and destination are the original (display) locations, so overlap checks see the same
                 // paths as ordinary jobs; the plan itself carries the volume-GUID paths the broker runs.
@@ -333,6 +346,7 @@ public sealed class JobManager
         }
         var deviceLoc = r.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract or JobKind.CreateDirectory or JobKind.CreateFile
             ? r.Destination
+            : r.Kind == JobKind.ArchiveUpdate && r.Archive is { } plan ? Location.FileSystem(Path.GetDirectoryName(Path.GetFullPath(plan.ArchivePath)) ?? plan.ArchivePath)
             : r.Kind == JobKind.Registry ? r.Registry?.Key ?? r.RegistryChanges.FirstOrDefault()?.Key : r.Sources.FirstOrDefault()?.Parent;
         string device = deviceLoc is not null && _providers.TryGet(deviceLoc.Scheme, out var prov) && prov is not null ? prov.GetDeviceKey(deviceLoc) : "local";
         return (r.Description ?? title, device, reads, writes);

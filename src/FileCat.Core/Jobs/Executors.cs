@@ -29,6 +29,10 @@ public static class JobExecutors
                 return new RecycleExecutor(job, fs, journal);
             case JobKind.CreateDirectory or JobKind.CreateFile when r.Destination is { IsFileSystem: true }:
                 return new CreateExecutor(job, fs, journal);
+            case JobKind.ArchiveUpdate when r.Archive is not null:
+                return new Archives.ZipUpdateExecutor(job, fs, journal);
+            case JobKind.ArchiveTest when fsSources:
+                return new Archives.ZipTestExecutor(job, fs, journal);
             case JobKind.Attributes when fsSources:
                 return new AttributesExecutor(job, fs, journal);
             case JobKind.Rename when fsSources:
