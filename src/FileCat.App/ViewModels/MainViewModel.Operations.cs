@@ -566,8 +566,8 @@ public sealed partial class MainViewModel
                 break;
             case JobState.CompletedWithIssues:
             case JobState.Failed:
-                var first = job.Issues.FirstOrDefault(i => i.Severity >= IssueSeverity.Warning);
-                Notify($"{job.Title}: {job.State.Describe().ToLowerInvariant()} — {first?.Message ?? job.Summary}  (Ctrl+J shows details)", job.State == JobState.Failed || job.ItemsFailed > 0);
+                Notify($"{job.Title}: {job.State.Describe().ToLowerInvariant()} — {JobIssue.Summarize(job.Issues) ?? job.Summary}  (Ctrl+J shows details)",
+                    job.State == JobState.Failed || job.ItemsFailed > 0);
                 break;
             case JobState.Canceled:
                 Notify($"{job.Title}: canceled. {job.Summary}. Steps already completed were kept.");

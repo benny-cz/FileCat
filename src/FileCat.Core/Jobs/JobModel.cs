@@ -184,6 +184,32 @@ public sealed record JobIssue(IssueSeverity Severity, string Path, string Messag
     public DateTime TimeUtc { get; } = DateTime.UtcNow;
     /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
     public string? Cause { get; init; }
+
+    /// <summary>
+    /// One line for a finished job's notice: its most serious issue (the first error, else the first warning), how many
+    /// items share that message, and how many other issues there are. Null when there is nothing worse than information.
+    /// </summary>
+    public static string? Summarize(IReadOnlyList<JobIssue> issues)
+    {
+        var serious = issues.Where(i => i.Severity >= IssueSeverity.Warning).ToList();
+        if (serious.Count == 0) return null;
+        var worst = serious.FirstOrDefault(i => i.Severity == IssueSeverity.Error) ?? serious[0];
+        int same = serious.Count(i => i.Message == worst.Message);
+        int others = serious.Count - same;
+        var text = worst.Message.TrimEnd('.');
+        if (same > 1) text += $" ({same:N0} items)";
+        else if (worst.Path.Length > 0 && !worst.Message.Contains(worst.Path, StringComparison.Ordinal)) text += $" ({Leaf(worst.Path)})";
+        if (others > 0) text += $"; {others:N0} other {(others == 1 ? "issue" : "issues")}";
+        return text + ".";
+    }
+
+    /// <summary>The last part of a local or remote path ("C:\a\b.txt" and "/a/b.txt" both give "b.txt").</summary>
+    private static string Leaf(string path)
+    {
+        var trimmed = path.TrimEnd('/', '\\');
+        int cut = trimmed.LastIndexOfAny(['/', '\\']);
+        return cut >= 0 && cut < trimmed.Length - 1 ? trimmed[(cut + 1)..] : path;
+    }
 }
 
 // ---- Decisions ------------------------------------------------------------------------------------------
