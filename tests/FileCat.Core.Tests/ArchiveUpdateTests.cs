@@ -65,9 +65,9 @@ public sealed class ArchiveUpdateTests : IDisposable
     public async Task Pack_creates_an_archive_of_files_and_folders_with_empty_folders_kept()
     {
         string src = _dir.Dir("pack");
-        _dir.File(@"pack\a.txt", "alpha");
-        _dir.File(@"pack\sub\b.txt", "beta");
-        _dir.Dir(@"pack\empty");
+        _dir.File("pack/a.txt", "alpha");
+        _dir.File("pack/sub/b.txt", "beta");
+        _dir.Dir("pack/empty");
         string single = _dir.File("single.txt", "one");
         string zip = Path.Combine(_dir.Path, "new.zip");
         var job = await RunAsync(new ArchivePlan(zip, null,
