@@ -42,6 +42,7 @@ public sealed class AppPaths
     public string SettingsFile => Path.Combine(SettingsDirectory, "settings.json");
     public string WorkspaceFile => Path.Combine(SettingsDirectory, "workspace.json");
     public string HistoryFile => Path.Combine(SettingsDirectory, "history.json");
+    public string WorkingSetsFile => Path.Combine(SettingsDirectory, "working-sets.json");
     public string WorkspacesDirectory => Path.Combine(SettingsDirectory, "workspaces");
 
     public static AppPaths Resolve(string? profile = null, string? baseDirectory = null, string? overrideRoot = null)

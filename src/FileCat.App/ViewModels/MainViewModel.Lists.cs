@@ -28,6 +28,9 @@ public sealed partial class MainViewModel
             Add(PathUtil.IsWindows ? root.TrimEnd('\\') : root, detail, Location.FileSystem(root));
         }
         Add("This PC", "All drives", new Location(Schemes.Computer, string.Empty));
+        int workingSets = Services.WorkingSets.All.Count;
+        Add("Working sets", workingSets == 0 ? "Collect items from many folders (references, never copies)" : $"{Formatters.Plural(workingSets, "set", "sets")} of items collected from many folders",
+            Core.Search.ResultSetProvider.WorkingSetList);
         if (Services.Providers.IsRegistered(Schemes.Registry))
         {
             foreach (var view in new[] { "default", "64", "32" })

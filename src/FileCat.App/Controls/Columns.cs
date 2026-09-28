@@ -87,6 +87,14 @@ public static class ColumnProfiles
         new(ColumnField.Modified, "Modified", 128),
     ];
 
+    /// <summary>The list of working sets: each set's name, size in items, and when it last changed.</summary>
+    public static ColumnSpec[] WorkingSetList { get; } =
+    [
+        new(ColumnField.Name, "Working set", 240, Star: true),
+        new(ColumnField.Details, "Items", 110),
+        new(ColumnField.Modified, "Changed", 128),
+    ];
+
     public static ColumnSpec[] Registry { get; } =
     [
         new(ColumnField.Name, "Name", 200, Star: true),

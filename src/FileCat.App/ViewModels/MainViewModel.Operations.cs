@@ -42,8 +42,11 @@ public sealed partial class MainViewModel
 
     private partial async Task<bool> ExecuteOperationCommandAsync(string id)
     {
+        if (Core.Search.ResultSetProvider.IsWorkingSetList(ActiveTab?.Location) && await WorkingSetListCommandAsync(id)) return true;
         switch (id)
         {
+            case CommandIds.AddToWorkingSet: await AddToWorkingSetAsync(); return true;
+            case CommandIds.WorkingSets: OpenWorkingSets(); return true;
             case CommandIds.Copy:
                 if (TryGetFocusedRegistryItem(out _)) await CopyRegistryAsync();
                 else await TransferAsync(JobKind.Copy);
@@ -161,6 +164,12 @@ public sealed partial class MainViewModel
             }
             var target = Workspace.ActiveTarget;
             var destination = explicitDestination ?? target?.ActiveTab?.Location;
+            if (explicitDestination is null && Core.Search.ResultSetProvider.IsPersistent(destination))
+            {
+                // Toward a working set F5 and F6 collect references (FAR's Temporary Panel); nothing is copied or moved.
+                await AddToTargetWorkingSetAsync(kind, items, destination!, sel?.Summary ?? SizeSummary(items));
+                return;
+            }
             string destText = destination is { IsFileSystem: true } d ? AppendSeparator(d.Path) : destination is null ? string.Empty : Services.Providers.Display(destination);
             if (items.Count == 1 && explicitDestination is null && destination is null) destText = string.Empty;
             var summary = explicitItems is null ? sel!.Value.Summary : SizeSummary(items);
@@ -504,9 +513,12 @@ public sealed partial class MainViewModel
         var tab = ActiveTab;
         if (tab?.Location is not { Scheme: Schemes.ResultSet } || Services.Providers.For(tab.Location) is not Core.Search.ResultSetProvider rs) return;
         var sel = tab.Listing.GetSelection();
+        var set = rs.Get(tab.Location);
         int n = rs.Remove(tab.Location, sel);
         tab.Refresh();
-        Notify($"Removed {Formatters.Plural(n, "item", "items")} from the result set. Nothing was deleted.");
+        if (set is { IsWorkingSet: true }) RefreshWorkingSetViews();
+        Notify($"Removed {Formatters.Plural(n, "item", "items")} from {(set is { IsWorkingSet: true } w ? $"the working set \"{w.Title}\"" : "the result set")}. Nothing was deleted."
+               + (set is { IsWorkingSet: true } ? WorkingSetsReadOnlyNote : string.Empty));
     }
 
     // ---- Job completion ---------------------------------------------------------------------------------
@@ -523,6 +535,7 @@ public sealed partial class MainViewModel
         if (_jobOrigins.Remove(job, out var origin))
         {
             var tab = origin.Tab;
+            if (origin.Location.Scheme == Schemes.ResultSet) FollowSetChanges(job, origin.Location);
             if (tab.Location == origin.Location && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile))
             {
                 // Unmark what the job finished; failed and skipped roots stay marked for a retry.

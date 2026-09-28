@@ -52,6 +52,8 @@ public static class CommandIds
     public const string BulkRename = "file.bulkRename";
     public const string ApplyCommand = "file.applyCommand";
     public const string RemoveFromSet = "file.removeFromSet";
+    public const string AddToWorkingSet = "file.addToWorkingSet";
+    public const string WorkingSets = "navigate.workingSets";
 
     public const string MarkToggleDown = "mark.toggleDown";
     public const string MarkToggle = "mark.toggle";
@@ -234,7 +236,8 @@ public sealed class CommandRegistry
         Add(CommandIds.CreateLink, "Create link…", F);
         Add(CommandIds.BulkRename, "Bulk rename…", F, null, CommandContext.Panel, "Ctrl+M");
         Add(CommandIds.ApplyCommand, "Run a command for each item…", F, null, CommandContext.Panel, "Ctrl+G");
-        Add(CommandIds.RemoveFromSet, "Remove from result set", F);
+        Add(CommandIds.AddToWorkingSet, "Add to working set…", F, null, CommandContext.Panel, "Ctrl+Shift+W");
+        Add(CommandIds.RemoveFromSet, "Remove from set (keeps the items)", F, null, CommandContext.Panel, "Ctrl+Delete");
 
         Add(CommandIds.MarkToggleDown, "Mark and move down", M, null, CommandContext.Panel, "Insert");
         Add(CommandIds.MarkToggle, "Mark (sizes a folder)", M, null, CommandContext.Panel, "Space");
@@ -273,6 +276,7 @@ public sealed class CommandRegistry
         }
         Add(CommandIds.ToggleHidden, "Show hidden and system items", N, null, CommandContext.Panel, "Ctrl+H");
         Add(CommandIds.Home, "Go to home folder", N);
+        Add(CommandIds.WorkingSets, "Working sets", N);
 
         Add(CommandIds.SwitchPanel, "Switch to target panel", P, null, CommandContext.Panel, "Tab");
         Add(CommandIds.SwitchPanelBack, "Switch to previous panel", P, null, CommandContext.Panel, "Shift+Tab");

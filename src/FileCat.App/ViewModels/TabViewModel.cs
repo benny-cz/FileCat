@@ -2,6 +2,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FileCat.App.Controls;
 using FileCat.App.Services;
+using FileCat.Core.Commands;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
@@ -75,7 +76,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
-    public ColumnSpec[] Columns => Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
+    public ColumnSpec[] Columns => Core.Search.ResultSetProvider.IsWorkingSetList(Location)
+        ? ColumnProfiles.WorkingSetList
+        : Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
 
     /// <summary>Stores a dragged column width in the active profile (dedicated layouts keep it for this view only).</summary>
     public bool SetColumnWidth(int column, double width)
@@ -228,7 +231,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         EndQuickSearch();
         ComparisonLabel = null;
-        Banner = null;
+        Banner = LocationBanner(location);
         Listing.Load(location, focusName);
         if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
@@ -280,10 +283,24 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         EndQuickSearch();
         ComparisonLabel = null;
+        Banner = LocationBanner(target);
         Listing.Load(target);
         if (IsActiveTab) StartWatching();
         UpdateTitle();
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>What a location is and how its keys differ, for places whose rules are not a folder's.</summary>
+    private string? LocationBanner(Location location)
+    {
+        string Key(string id, string fallback) => Services.Keymap.GetGestureText(id) is { Length: > 0 } g ? g.Split(',')[0].Trim() : fallback;
+        if (Core.Search.ResultSetProvider.IsWorkingSetList(location))
+            return $"Working sets · Enter opens a set · {Key(CommandIds.MakeDirectory, "F7")} creates · {Key(CommandIds.Rename, "F2")} renames · " +
+                   $"{Key(CommandIds.Delete, "F8")} deletes a set, never the items it refers to";
+        if (Core.Search.ResultSetProvider.IsWorkingSet(location))
+            return $"Working set: references to items in other places · F5 from another panel adds · {Key(CommandIds.RemoveFromSet, "Remove from set")} removes " +
+                   $"from the set (never deletes) · {Key(CommandIds.Delete, "F8")} deletes the originals";
+        return null;
     }
 
     public void GoUp()
@@ -518,7 +535,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public string GetFolderText(in EntryData e) => e.Tag switch
     {
-        Core.Search.ResultTag r => r.RelativeFolder,
+        Core.Search.ResultTag r => r.Folder ?? r.RelativeFolder,
         _ => string.Empty,
     };
 
@@ -645,7 +662,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var focus = Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? f.Name : null;
         return new TabState
         {
-            Location = Location is { Scheme: Schemes.ResultSet } ? null : Location,
+            // Working sets outlive the session; search results and other result sets do not.
+            Location = Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ? null : Location,
             Locked = IsLocked,
             ReturnToRoot = ReturnToRoot,
             LockedRoot = LockedRoot,
@@ -654,7 +672,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Filter = Listing.Filter?.Text,
             ColumnProfile = ColumnProfile,
             FocusName = focus,
-            BackHistory = _back.TakeLast(10).Where(l => l.Scheme != Schemes.ResultSet).ToList(),
+            BackHistory = _back.TakeLast(10).Where(l => l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)).ToList(),
         };
     }
 

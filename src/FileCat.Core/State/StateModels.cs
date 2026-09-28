@@ -187,4 +187,5 @@ public sealed class HistoryState : IVersionedState
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(WorkspaceState))]
 [JsonSerializable(typeof(HistoryState))]
+[JsonSerializable(typeof(Search.WorkingSetState))]
 public sealed partial class StateJsonContext : JsonSerializerContext;

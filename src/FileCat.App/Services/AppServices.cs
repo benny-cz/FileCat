@@ -40,6 +40,7 @@ public sealed class AppServices : IDisposable
         Platform.RegisterProviders(Providers);
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
+        WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
         Zip = new Core.Archives.ZipProvider(paths.TempDirectory);
         Providers.Register(Zip);
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = Zip;
@@ -112,6 +113,8 @@ public sealed class AppServices : IDisposable
     /// <summary>Persistent external edits of archive members (plan §14.2).</summary>
     public Core.Edit.EditSessionStore EditSessions { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }
+    /// <summary>Named, persistent reference sets (P7).</summary>
+    public Core.Search.WorkingSets WorkingSets { get; }
 
     public static AppServices Current { get; private set; } = null!;
 
@@ -179,7 +182,7 @@ public sealed class AppServices : IDisposable
 
     public void RecordFolder(Location location)
     {
-        if (location.Scheme is Schemes.ResultSet) return;
+        if (location.Scheme is Schemes.ResultSet && !Core.Search.ResultSetProvider.IsPersistent(location)) return;
         var list = History.Folders;
         list.RemoveAll(h => h.Location == location && !h.Pinned);
         var existing = list.FirstOrDefault(h => h.Location == location);
@@ -218,6 +221,7 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        WorkingSets.Dispose();
         Sftp.Dispose();
         Io.Dispose();
         Platform.Dispose();

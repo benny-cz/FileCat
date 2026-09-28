@@ -30,8 +30,25 @@ public sealed partial class MainViewModel
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);
         bool hasItem = tab is not null && tab.Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent || tab?.Listing.HasMarks == true;
         bool registryItem = TryGetFocusedRegistryItem(out var focusedRegistry);
+        if (Core.Search.ResultSetProvider.IsWorkingSetList(loc))
+        {
+            // The list of working sets: file commands act on the sets themselves.
+            switch (id)
+            {
+                case CommandIds.MakeDirectory:
+                    return CommandAvailability.Yes;
+                case CommandIds.Rename or CommandIds.Delete or CommandIds.DeletePermanent:
+                    return hasItem ? CommandAvailability.Yes : CommandAvailability.No("No working set is focused. F7 creates one.");
+            }
+        }
         switch (id)
         {
+            case CommandIds.RemoveFromSet:
+                return (caps & LocationCapabilities.ReferenceContainer) != 0 && hasItem
+                    ? CommandAvailability.Yes
+                    : CommandAvailability.No("Remove from set works in search results and working sets; it never deletes anything.");
+            case CommandIds.AddToWorkingSet:
+                return hasItem || Core.Search.ResultSetProvider.IsWorkingSetList(loc) ? CommandAvailability.Yes : CommandAvailability.No("Nothing is focused or marked.");
             case CommandIds.RegistryExport:
                 return registryItem || loc?.Scheme == Schemes.Registry && loc.Path.Length > 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Choose a Registry key or value to export.");
@@ -72,7 +89,10 @@ public sealed partial class MainViewModel
             case CommandIds.Duplicate when registryItem:
                 return CommandAvailability.No("Choose a Registry key in the target panel, then use Copy.");
             case CommandIds.MakeDirectory:
-                if ((caps & LocationCapabilities.ReferenceContainer) != 0) return CommandAvailability.No("Result sets hold references to items elsewhere; create folders in a real location.");
+                if ((caps & LocationCapabilities.ReferenceContainer) != 0)
+                    return CommandAvailability.No(Core.Search.ResultSetProvider.IsWorkingSet(loc)
+                        ? "A working set holds references to items elsewhere; create folders in a real location. F7 in the list of working sets (Backspace) creates another set."
+                        : "Result sets hold references to items elsewhere; create folders in a real location.");
                 return (caps & LocationCapabilities.CreateDirectory) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateDirectory));
             case CommandIds.EditNew:
                 return (caps & LocationCapabilities.CreateFile) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateFile));
