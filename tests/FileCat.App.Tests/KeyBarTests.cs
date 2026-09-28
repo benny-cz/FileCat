@@ -23,9 +23,11 @@ public sealed class KeyBarTests
             Assert.True(vm.GetAvailability(Core.Commands.CommandIds.OpenInNewTab).Enabled);
             listing.SetFocus(1);
             var menu = Views.ContextMenuFactory.Build(vm);
-            var titles = ((IEnumerable<object>)menu.ItemsSource!).OfType<Avalonia.Controls.MenuItem>().Select(m => m.Header as string).ToList();
+            var actions = ((IEnumerable<object>)menu.ItemsSource!).OfType<Avalonia.Controls.MenuItem>().ToList();
+            var titles = actions.Select(m => m.Header as string).ToList();
             Assert.Contains("Copy…", titles);
             Assert.DoesNotContain("Open focused folder in new tab", titles);
+            Assert.All(actions, item => Assert.IsType<Avalonia.Controls.Image>(item.Icon));
         }
         finally
         {

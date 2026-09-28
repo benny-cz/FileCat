@@ -111,7 +111,11 @@ public partial class MainWindow : Window, IViewActions
             _vm.UpdateKeyBar(KeyMods.None);
             ThemeAnimation.SetActive(false);
         };
-        Activated += (_, _) => ThemeAnimation.SetActive(true);
+        Activated += (_, _) =>
+        {
+            ThemeAnimation.SetActive(true);
+            foreach (var panel in _panelViews.Values) panel.List.RefreshGitStatuses();
+        };
         // The steampunk canopy ends above the panels; its lower rail begins below them.
         LayoutUpdated += (_, _) =>
         {

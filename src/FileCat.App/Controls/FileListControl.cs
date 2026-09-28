@@ -97,6 +97,9 @@ public sealed class FileListControl : Control
     private bool _showLoadingHint;
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
+    private GitStatusSnapshot? _gitStatuses;
+    private CancellationTokenSource? _gitStatusCancel;
+    private int _gitStatusGeneration;
 
     private readonly TextBox _renameEditor;
     private readonly Border _renameErrorBox;
@@ -343,6 +346,7 @@ public sealed class FileListControl : Control
             ClearTextCache();
             _topRow = 0;
             EnsureFocusVisible();
+            RefreshGitStatuses();
             InvalidateMeasure();
             InvalidateVisual();
         }
@@ -390,6 +394,7 @@ public sealed class FileListControl : Control
         Formatters.DateFormatChanged += OnDateFormatChanged;
         UpdateDateScale(); // the format may have changed while this list was not shown
         ResolveBrushes();
+        RefreshGitStatuses();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -398,6 +403,10 @@ public sealed class FileListControl : Control
         ThemeManager.ThemeChanged -= OnThemeChanged;
         ThemeManager.PaletteTick -= OnPaletteTick;
         Formatters.DateFormatChanged -= OnDateFormatChanged;
+        _gitStatusGeneration++;
+        _gitStatusCancel?.Cancel();
+        _gitStatusCancel = null;
+        _gitStatuses = null;
         _loadingHintTimer?.Stop();
         FinishRename(null, restoreFocus: false);
     }
@@ -498,6 +507,7 @@ public sealed class FileListControl : Control
         }
         if ((change & ListingChange.Reset) != 0)
         {
+            RefreshGitStatuses();
             ClearTextCache();
             _topRow = 0;
             _anchorRow = -1;
@@ -527,6 +537,44 @@ public sealed class FileListControl : Control
             ClearTextCache();
             _cachedStore = _listing.Store;
         }
+    }
+
+    internal void RefreshGitStatuses()
+    {
+        _gitStatusGeneration++;
+        _gitStatusCancel?.Cancel();
+        _gitStatuses = null;
+        if (VisualRoot is null || Tab?.Location is not { IsFileSystem: true } location) return;
+        var cancellation = new CancellationTokenSource();
+        _gitStatusCancel = cancellation;
+        int generation = _gitStatusGeneration;
+        string folder = location.Path;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Coalesce rapid navigation and filesystem notifications before launching Git.
+                await Task.Delay(250, cancellation.Token);
+                var snapshot = await GitStatusReader.ReadAsync(folder, cancellation.Token);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (generation != _gitStatusGeneration || Tab?.Location?.Path != folder) return;
+                    _gitStatuses = snapshot;
+                    InvalidateVisual();
+                    _automationPeer?.AnnounceFocus();
+                }, DispatcherPriority.Background);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { FileCat.Core.Diagnostics.AppLog.Warn("Git icon status: " + ex.Message); }
+            finally
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (ReferenceEquals(_gitStatusCancel, cancellation)) _gitStatusCancel = null;
+                    cancellation.Dispose();
+                }, DispatcherPriority.Background);
+            }
+        });
     }
 
     public void EnsureFocusVisible()
@@ -712,6 +760,8 @@ public sealed class FileListControl : Control
                         dc.DrawImage(icon, iconRect);
                     }
                     if (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e)) dc.DrawImage(icons!.LinkOverlay, iconRect);
+                    if (e.Kind is EntryKind.File or EntryKind.Directory && icons?.GitOverlay(_gitStatuses?.ForName(e.Name) ?? GitStatusKind.None) is { } gitOverlay)
+                        dc.DrawImage(gitOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
                 avail = colX + colW - textX - Padding;
@@ -1059,8 +1109,17 @@ public sealed class FileListControl : Control
         var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
         if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e.Modified);
         var marked = _listing.IsMarked(_listing.FocusedStoreIndex) ? ", marked" : string.Empty;
+        var git = _gitStatuses?.ForName(e.Name) switch
+        {
+            GitStatusKind.Clean => ", Git clean",
+            GitStatusKind.Untracked => ", Git untracked",
+            GitStatusKind.Added => ", Git added",
+            GitStatusKind.Modified => ", Git changed",
+            GitStatusKind.Conflict => ", Git conflict",
+            _ => string.Empty,
+        };
         var spokenName = e.Kind == EntryKind.RegistryValue && e.Name.Length == 0 ? "(Default)" : e.Name;
-        return $"{spokenName}, {kind}{details}{marked}, {i} of {_listing.VisibleCount}";
+        return $"{spokenName}, {kind}{details}{marked}{git}, {i} of {_listing.VisibleCount}";
     }
 }
 

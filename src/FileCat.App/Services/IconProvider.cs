@@ -41,6 +41,7 @@ public sealed class IconProvider
     private static readonly HashSet<string> VideoExt = new(StringComparer.OrdinalIgnoreCase) { "mp4", "mkv", "avi", "mov", "wmv", "webm", "m4v", "mpg", "mpeg" };
 
     private readonly ConcurrentDictionary<(IconKind, string), IImage> _vector = new();
+    private readonly ConcurrentDictionary<(GitStatusKind, string), IImage> _gitOverlays = new();
 
     /// <summary>Optional native provider (Windows extension icons); returns null to fall back to vectors.</summary>
     public INativeIconSource? Native { get; set; }
@@ -90,6 +91,7 @@ public sealed class IconProvider
     public void ClearCache()
     {
         _vector.Clear();
+        _gitOverlays.Clear();
         _vectorOverlay = null;
         _tinted = new();
     }
@@ -144,6 +146,10 @@ public sealed class IconProvider
 
     /// <summary>The arrow drawn over links and shortcuts: the platform's where it has one, else FileCat's own.</summary>
     public IImage LinkOverlay => (UseNativeIcons ? Native?.LinkOverlay : null) ?? (_vectorOverlay ??= VectorIcons.LinkOverlay());
+
+    /// <summary>A small, high-contrast Git state mark at the lower right of the ordinary file icon.</summary>
+    internal IImage? GitOverlay(GitStatusKind status) => status == GitStatusKind.None ? null
+        : _gitOverlays.GetOrAdd((status, ThemeManager.Current.Name), key => VectorIcons.GitOverlay(key.Item1));
 }
 
 public interface INativeIconSource
@@ -229,6 +235,38 @@ public static class VectorIcons
         {
             Geometry = Geometry.Parse("M2,14 L5,11 M3,11 L5,11 L5,13"),
             Pen = new Pen(new SolidColorBrush(color), 1.1, lineCap: PenLineCap.Round),
+        });
+        return new DrawingImage(g);
+    }
+
+    internal static IImage GitOverlay(GitStatusKind status)
+    {
+        var palette = ThemeManager.Current;
+        var fill = Color.Parse(status switch
+        {
+            GitStatusKind.Clean => palette.Success,
+            GitStatusKind.Modified => palette.Warning,
+            GitStatusKind.Added => palette.Progress,
+            GitStatusKind.Untracked => palette.TextLink,
+            GitStatusKind.Conflict => palette.Error,
+            _ => palette.TextMuted,
+        });
+        string mark = status switch
+        {
+            GitStatusKind.Clean => "M10.4,12.3 L11.8,13.8 L14.5,10.8",
+            GitStatusKind.Modified => "M12.5,10.5 L12.5,12.9 M12.5,14.1 L12.5,14.2",
+            GitStatusKind.Added => "M12.5,10.5 L12.5,14.5 M10.5,12.5 L14.5,12.5",
+            GitStatusKind.Untracked => "M11,11.5 C11,10 14,10 14,11.5 C14,12.2 12.5,12.4 12.5,13.2 M12.5,14.2 L12.5,14.3",
+            _ => "M10.7,10.7 L14.3,14.3 M14.3,10.7 L10.7,14.3",
+        };
+        var g = new DrawingGroup();
+        g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
+        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(8.5, 8.5, 8, 8)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
+        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(9.2, 9.2, 6.6, 6.6)), Brush = new SolidColorBrush(fill) });
+        g.Children.Add(new GeometryDrawing
+        {
+            Geometry = Geometry.Parse(mark),
+            Pen = new Pen(Brushes.White, 1.05, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
         });
         return new DrawingImage(g);
     }

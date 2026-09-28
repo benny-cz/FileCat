@@ -202,4 +202,17 @@
     <!-- Transparent in most themes: the window (or a theme's stained glass) shows through. -->
     <Setter Property="Background" Value="{DynamicResource FcMenuBackground}" />
   </Style>
+
+  <Style Selector="ContextMenu">
+    <Setter Property="Background" Value="{DynamicResource FcCard}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem">
+    <Setter Property="Foreground" Value="{DynamicResource FcText}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:pointerover">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+  </Style>
+  <Style Selector="ContextMenu Separator">
+    <Setter Property="Background" Value="{DynamicResource FcBorder}" />
+  </Style>
 </Styles>

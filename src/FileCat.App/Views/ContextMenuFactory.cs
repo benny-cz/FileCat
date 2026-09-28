@@ -31,7 +31,7 @@ public static class ContextMenuFactory
             if (def is null) continue;
             var a = vm.GetAvailability(id);
             if (!a.Enabled) continue;
-            var mi = new MenuItem { Header = def.Title };
+            var mi = new MenuItem { Header = def.Title, Icon = MenuIconFactory.Create(id) };
             var chord = vm.Services.Keymap.GetChords(id).FirstOrDefault();
             if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } g) mi.InputGesture = g;
             mi.Click += (_, _) => vm.Execute(id);

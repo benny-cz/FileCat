@@ -25,6 +25,8 @@ what failed, and what remains uncertain.
 - **Windows integration**: native CopyFile2 (keeps ReFS block cloning and SMB offload), SMB share
   listing with credential prompts, terminals, reveal in Explorer, extension-only icons (no
   third-party Shell handlers run inside FileCat).
+- **Git state on icons**: clean, changed, added, untracked, and conflicted items in local Git folders
+  get small badges. Status loads in the background and refreshes with the folder or when FileCat regains focus.
 - **Themes**: Classic (follows light/dark), Cyberpunk, Psychedelic, and High Contrast (automatic with
   the OS setting).
 

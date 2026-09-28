@@ -124,9 +124,9 @@ public partial class PanelView : UserControl
     {
         var ws = panel.Workspace;
         var items = new List<Control>();
-        void Add(string header, Action action, bool enabled = true)
+        void Add(string header, string icon, Action action, bool enabled = true)
         {
-            var mi = new MenuItem { Header = header, IsEnabled = enabled };
+            var mi = new MenuItem { Header = header, Icon = MenuIconFactory.Create(icon), IsEnabled = enabled };
             mi.Click += (_, _) =>
             {
                 action();
@@ -134,12 +134,12 @@ public partial class PanelView : UserControl
             };
             items.Add(mi);
         }
-        Add("Close tab", () => panel.CloseTab(tab), panel.Tabs.Count > 1);
-        Add("Close other tabs", () =>
+        Add("Close tab", "tab.close", () => panel.CloseTab(tab), panel.Tabs.Count > 1);
+        Add("Close other tabs", "tab.closeOthers", () =>
         {
             foreach (var t in panel.Tabs.Where(t => !ReferenceEquals(t, tab) && !t.IsLocked).ToList()) panel.CloseTab(t);
         }, panel.Tabs.Count > 1);
-        Add("Duplicate tab", () =>
+        Add("Duplicate tab", "tab.duplicate", () =>
         {
             if (tab.Location is null) return;
             var dup = panel.OpenTab(tab.Location);
@@ -148,14 +148,14 @@ public partial class PanelView : UserControl
             dup.ApplyState(s);
         });
         items.Add(new Separator());
-        Add(tab.IsLocked && !tab.ReturnToRoot ? "Unlock tab" : "Lock tab (navigation opens new tabs)", () =>
+        Add(tab.IsLocked && !tab.ReturnToRoot ? "Unlock tab" : "Lock tab (navigation opens new tabs)", "tab.lock", () =>
         {
             bool lockIt = !(tab.IsLocked && !tab.ReturnToRoot);
             tab.IsLocked = lockIt;
             tab.ReturnToRoot = false;
             tab.LockedRoot = lockIt ? tab.Location : null;
         });
-        Add(tab.IsLocked && tab.ReturnToRoot ? "Unlock tab" : "Lock tab at root (returns here when revisited)", () =>
+        Add(tab.IsLocked && tab.ReturnToRoot ? "Unlock tab" : "Lock tab at root (returns here when revisited)", "tab.lock", () =>
         {
             bool lockIt = !(tab.IsLocked && tab.ReturnToRoot);
             tab.IsLocked = lockIt;
@@ -164,19 +164,19 @@ public partial class PanelView : UserControl
         });
         items.Add(new Separator());
         var target = ws.GetTarget(panel);
-        Add(target is null ? "Move tab to target panel (no target)" : $"Move tab to panel {target.Number}", () =>
+        Add(target is null ? "Move tab to target panel (no target)" : $"Move tab to panel {target.Number}", "tab.moveTarget", () =>
         {
             if (target is null || panel.Tabs.Count <= 1) return;
             target.AttachTab(panel.DetachTab(tab));
             ws.Activate(target);
         }, target is not null && panel.Tabs.Count > 1);
-        Add(target is null ? "Copy tab to target panel (no target)" : $"Copy tab to panel {target.Number}", () =>
+        Add(target is null ? "Copy tab to target panel (no target)" : $"Copy tab to panel {target.Number}", "tab.copyTarget", () =>
         {
             if (target is not null && tab.Location is { } l) target.OpenTab(l);
         }, target is not null);
         int index = panel.Tabs.IndexOf(tab);
-        Add("Move tab left", () => panel.Tabs.Move(index, index - 1), index > 0);
-        Add("Move tab right", () => panel.Tabs.Move(index, index + 1), index < panel.Tabs.Count - 1);
+        Add("Move tab left", "tab.left", () => panel.Tabs.Move(index, index - 1), index > 0);
+        Add("Move tab right", "tab.right", () => panel.Tabs.Move(index, index + 1), index < panel.Tabs.Count - 1);
         return new ContextMenu { ItemsSource = items };
     }
 
