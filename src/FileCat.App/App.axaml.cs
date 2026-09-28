@@ -39,7 +39,7 @@ public partial class App : Application
                 if (services.Settings.Theme == "System") Dispatcher.UIThread.Post(() => ThemeManager.Apply("System"));
             };
         }
-        services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures);
+        services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures) ?? FreedesktopIconSource.TryCreate();
 
         var vm = new MainViewModel(services);
         WorkspaceState? state = null;

@@ -34,7 +34,7 @@ AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatfo
 if (OperatingSystem.IsWindows()) PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
 string state = Path.Combine(Path.GetTempPath(), "filecat-shots", Guid.NewGuid().ToString("N"));
 var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: state));
-services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures);
+services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures) ?? FreedesktopIconSource.TryCreate();
 
 void Pump(TimeSpan duration)
 {
