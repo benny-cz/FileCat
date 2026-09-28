@@ -69,7 +69,7 @@ writes can overwrite what is listed.
 
 ## Consequences
 
-- Disk images (raw `.img`/`.dd`/`.bin`, fixed `.vhd`) open with Commands → Find deleted files in a disk image. Dynamic
+- Disk images (raw `.img`/`.dd`/`.bin`, fixed `.vhd`) open with Commands → Find deleted files (disk image or drive). Dynamic
   VHDs and VHDX images are refused with a conversion hint.
 - ext4 and APFS stay research tracks, as the plan says; no undelete is promised for them.
 - Fragmented FAT files are the known weak spot: FAT keeps no record of their pieces once deleted. The state says "Partly

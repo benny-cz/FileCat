@@ -327,7 +327,7 @@ public sealed class CommandRegistry
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CompareFiles, "Compare files…", C);
-        Add(CommandIds.FindDeleted, "Find deleted files in a disk image…", C);
+        Add(CommandIds.FindDeleted, "Find deleted files (disk image or drive)…", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
