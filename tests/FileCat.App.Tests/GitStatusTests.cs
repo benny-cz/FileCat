@@ -30,4 +30,14 @@ public sealed class GitStatusTests
         Assert.Equal(GitStatusKind.Modified, snapshot.ForName("old.cs"));
         Assert.Equal(GitStatusKind.Untracked, snapshot.ForName("unknown.cs"));
     }
+
+    [Fact]
+    public async Task Missing_git_executable_leaves_badges_unavailable_without_failing_the_list()
+    {
+        string absent = Path.Join(AppContext.BaseDirectory, "missing-git-" + Guid.NewGuid().ToString("N"));
+
+        var snapshot = await GitStatusReader.ReadAsync(AppContext.BaseDirectory, CancellationToken.None, absent);
+
+        Assert.Null(snapshot);
+    }
 }

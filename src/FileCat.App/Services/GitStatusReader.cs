@@ -66,7 +66,7 @@ internal static class GitStatusReader
     private const int MaxOutputChars = 4_000_000;
     private static readonly SemaphoreSlim Gate = new(2);
 
-    internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken)
+    internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string gitExecutable = "git")
     {
         if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder) || OperatingSystem.IsWindows() && !WindowsIcons.IsLocal(folder)) return null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -76,9 +76,9 @@ internal static class GitStatusReader
             await Gate.WaitAsync(timeout.Token).ConfigureAwait(false);
             try
             {
-                string? status = await RunAsync(folder, timeout.Token, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--", ".").ConfigureAwait(false);
+                string? status = await RunAsync(folder, timeout.Token, gitExecutable, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--", ".").ConfigureAwait(false);
                 if (status is null) return null;
-                string? tracked = await RunAsync(folder, timeout.Token, "ls-files", "--cached", "-z", "--", ".").ConfigureAwait(false);
+                string? tracked = await RunAsync(folder, timeout.Token, gitExecutable, "ls-files", "--cached", "-z", "--", ".").ConfigureAwait(false);
                 return tracked is null ? null : GitStatusSnapshot.Parse(tracked, status);
             }
             finally { Gate.Release(); }
@@ -89,9 +89,9 @@ internal static class GitStatusReader
         catch (Win32Exception) { return null; } // Git is optional.
     }
 
-    private static async Task<string?> RunAsync(string folder, CancellationToken cancellationToken, params string[] arguments)
+    private static async Task<string?> RunAsync(string folder, CancellationToken cancellationToken, string gitExecutable, params string[] arguments)
     {
-        var start = new ProcessStartInfo("git")
+        var start = new ProcessStartInfo(gitExecutable)
         {
             WorkingDirectory = folder,
             UseShellExecute = false,
