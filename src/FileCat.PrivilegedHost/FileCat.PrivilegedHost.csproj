@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Per-plan administrator broker (ADR-14). Windows only, requires elevation through its manifest, loads no UI
+    framework, and exists only in the installed per-machine build (Program Files).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>FileCat.PrivilegedHost</RootNamespace>
+    <AssemblyName>FileCat.PrivilegedHost</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\FileCat.App\Assets\filecat.ico</ApplicationIcon>
+    <Description>FileCat administrator helper: runs one approved plan, then exits</Description>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
+    <ProjectReference Include="..\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
+  </ItemGroup>
+</Project>

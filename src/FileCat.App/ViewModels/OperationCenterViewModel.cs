@@ -56,6 +56,7 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _canPause;
     [ObservableProperty] private bool _canResume;
     [ObservableProperty] private bool _canUndo;
+    [ObservableProperty] private bool _canRetryElevated;
     [ObservableProperty] private bool _hasIssues;
     [ObservableProperty] private bool _needsDecision;
     [ObservableProperty] private string _severity = "info";
@@ -70,6 +71,7 @@ public sealed partial class JobViewModel : ObservableObject
         CanPause = j.State is JobState.Running or JobState.Queued && !j.IsPaused;
         CanResume = j.IsPaused || j.State is JobState.Paused or JobState.Pausing;
         CanUndo = j.CanUndo;
+        CanRetryElevated = OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
         int issues = j.IssueCount;
         HasIssues = issues > 0;
         Severity = j.State == JobState.Failed || j.ItemsFailed > 0 ? "error" : j.State == JobState.CompletedWithIssues ? "warning" : j.State == JobState.Completed ? "ok" : "info";

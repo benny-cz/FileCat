@@ -35,6 +35,15 @@ dotnet publish $project -c $Configuration -r $Runtime --self-contained false -p:
     -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
 if ($LASTEXITCODE -ne 0) { throw "framework-dependent publish failed" }
 
+# The per-plan administrator helper (ADR-14) sits beside FileCat.exe; it runs only from Program Files.
+$broker = Join-Path $root "src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj"
+dotnet publish $broker -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
+    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $publish
+if ($LASTEXITCODE -ne 0) { throw "administrator helper publish failed" }
+dotnet publish $broker -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
+    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
+if ($LASTEXITCODE -ne 0) { throw "framework-dependent administrator helper publish failed" }
+
 foreach ($dir in @($publish, $fdd)) {
     Copy-Item (Join-Path $root "LICENSE") $dir -Force
     Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force
@@ -45,6 +54,8 @@ $portableStage = Join-Path $artifacts "stage-portable"
 Remove-Item -Recurse -Force $portableStage -ErrorAction SilentlyContinue
 Copy-Item -Recurse $publish $portableStage
 New-Item -ItemType File -Path (Join-Path $portableStage "FileCat.portable") -Force | Out-Null
+# Portable mode has no administrator retry: a helper in a user-writable folder could be replaced (ADR-14).
+Remove-Item (Join-Path $portableStage "FileCat.PrivilegedHost.*") -Force
 $portableZip = Join-Path $artifacts "FileCat-$Version-$Runtime-portable.zip"
 Remove-Item $portableZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $portableStage "*") -DestinationPath $portableZip

@@ -20,6 +20,8 @@ public enum JobKind
     Checksum,
     Attributes,
     Registry,
+    /// <summary>A plan run by the per-plan administrator broker after one consent (ADR-14).</summary>
+    Elevated,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -140,6 +142,8 @@ public sealed class JobRequest
     /// is still guarded by its own expected state.
     /// </summary>
     public bool IndependentSteps { get; init; }
+    /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>
+    public ElevationPlan? Elevation { get; init; }
 }
 
 public enum IssueSeverity

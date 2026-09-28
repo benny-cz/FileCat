@@ -33,6 +33,11 @@ public partial class OperationsView : UserControl
         if (JobOf(sender) is { } j && Main is { } main) await main.UndoJobAsync(j.Job);
     }
 
+    private async void OnRetryElevated(object? sender, RoutedEventArgs e)
+    {
+        if (JobOf(sender) is { } j && Main is { } main) await main.RetryElevatedAsync(j.Job);
+    }
+
     private void OnToggleDetails(object? sender, RoutedEventArgs e)
     {
         if (Center is { } c) c.IsOpen = !c.IsOpen;

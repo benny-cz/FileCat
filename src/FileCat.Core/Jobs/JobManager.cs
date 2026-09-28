@@ -307,6 +307,15 @@ public sealed class JobManager
                 writes.Add(P(r.Sources[0]));
                 if (r.Sources[0].FileSystemPath is { } rp) writes.Add(Path.Join(Path.GetDirectoryName(rp), r.NewName));
                 break;
+            case JobKind.Elevated:
+                // Sources and destination are the original (display) locations, so overlap checks see the same
+                // paths as ordinary jobs; the plan itself carries the volume-GUID paths the broker runs.
+                title = r.Description ?? r.Elevation?.Title ?? "Run as administrator";
+                AddSourceScopes(writes);
+                if (r.Destination is not null) AddDestinationScopes();
+                foreach (var step in r.Elevation?.Steps ?? [])
+                    if (step.Registry is { } reg) writes.Add("reg:" + reg.KeyPath + "/" + reg.Name);
+                break;
             case JobKind.Registry:
                 title = r.Description ?? "Change Registry data";
                 var registryChanges = r.RegistryChanges.Count > 0 ? r.RegistryChanges :

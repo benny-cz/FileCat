@@ -317,6 +317,9 @@ public static class OperationDialogs
         var applyAll = new CheckBox { Content = "Skip similar problems in this operation automatically" };
         body.Children.Add(applyAll);
         bool isAuth = e.ErrorClass == "access" && PathUtil.IsUncPath(e.Path);
+        if (e.ErrorClass == "access" && !isAuth && OperatingSystem.IsWindows() &&
+            Platform.Windows.Elevation.ElevationBroker.Locate(vm.Services.Paths.IsPortable, out _) is not null)
+            body.Children.Add(Muted("To retry as administrator, choose Skip (with the checkbox for similar problems); when the operation ends, use Retry as administrator in the operations pane (Ctrl+J). One approval then covers every skipped item."));
         var buttons = new List<DialogButton>
         {
             new("Retry", DecisionAction.Retry, IsDefault: true),

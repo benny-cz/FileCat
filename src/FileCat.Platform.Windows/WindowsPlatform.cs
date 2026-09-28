@@ -13,6 +13,8 @@ public sealed class WindowsPlatform : PortablePlatform
         Shell = new WindowsShellServices();
         FileOperations = new WindowsFileOperations();
         Core.Jobs.Junctions.CreateHandler = Junction.Create;
+        Core.Jobs.JobExecutors.ExtraExecutors[Core.Jobs.JobKind.Elevated] =
+            (job, _, _, journal) => new Elevation.ElevatedJobExecutor(job, journal);
         Core.Jobs.JobExecutors.ExtraExecutors[Core.Jobs.JobKind.Registry] =
             (job, _, _, journal) => new RegistryExecutor(job, journal);
     }

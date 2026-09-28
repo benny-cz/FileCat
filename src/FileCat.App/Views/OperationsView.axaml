@@ -25,6 +25,8 @@
           <Button Classes="flat" Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
           <Button Classes="flat" Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="Stops at the next safe step; completed steps are kept" />
           <Button Classes="flat" Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+          <Button Classes="flat" Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
+                  ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
           <TextBlock Text="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).Summary}" VerticalAlignment="Center" Classes="small muted" />
           <Button Classes="flat" Content="Details (Ctrl+J)" Click="OnToggleDetails" />
         </StackPanel>
@@ -86,6 +88,8 @@
             <Button Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />
             <Button Content="Cancel" IsVisible="{Binding !IsFinished}" Click="OnCancel" />
             <Button Content="Undo" IsVisible="{Binding CanUndo}" Click="OnUndo" />
+            <Button Content="Retry as administrator…" IsVisible="{Binding CanRetryElevated}" Click="OnRetryElevated"
+                    ToolTip.Tip="Windows asks for approval; the FileCat administrator window then shows the exact steps before they run" />
             <Button Content="Move up" Click="OnMoveUp" IsVisible="{Binding !IsActive}" />
             <Button Content="Limit speed…" Click="OnLimit" IsVisible="{Binding !IsFinished}" />
             <Button Content="Remove" IsVisible="{Binding IsFinished}" Click="OnRemove" />

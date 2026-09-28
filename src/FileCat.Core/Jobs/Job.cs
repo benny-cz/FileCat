@@ -328,6 +328,15 @@ public sealed class Job
         Changed?.Invoke(this);
     }
 
+    /// <summary>An administrator retry of this job's failed items was started; it is not offered twice.</summary>
+    public bool RetriedAsAdministrator { get; private set; }
+
+    public void MarkRetriedAsAdministrator()
+    {
+        RetriedAsAdministrator = true;
+        Changed?.Invoke(this);
+    }
+
     /// <summary>Asks the user (or a remembered "apply to all" answer) and blocks the job thread until answered.</summary>
     internal Decision Ask(DecisionRequest request)
     {
