@@ -84,6 +84,27 @@ their WIM signature). The first part is honestly *Partly lost*: read as one run 
 of the volume, so it was stored in pieces. The search asks more of a cluster than the quick scan does (every entry
 marked deleted, every short entry dated): before that, x64 machine code spelled a few "listings".
 
+An image of the stick in this state (7.8 GB, SHA-256 `42eb936a…52cb00`) keeps the scenario:
+`FILECAT_RECOVERY_LIVE_IMAGE=<image>` runs the same checks on it, with the same results (the free-space search takes
+1.4 s from a local disk).
+
+## A real drive with known contents (destructive, 2026-09-28)
+
+`LiveDriveScenarioTests` (opt-in: `FILECAT_RECOVERY_LIVE_DESTRUCTIVE=1` on top of the USB-and-serial guard) formats the
+stick, writes a 300 MiB file that stays (so what follows lies beyond cluster 65,535), a folder of 300 files with long
+names and a subfolder (a listing of many clusters among their data), three large files, and files around a deleted
+gap; Windows deletes them (`Directory.Delete`, `File.Delete`), and the volume's cache is flushed. FileCat scans the
+drive through the helper's read protocol and every recovered byte is compared with what was written.
+
+| File system (Windows format) | Scan | Deleted files back exactly | Space reused by a later file |
+|---|---|---|---|
+| FAT32, 4 KiB clusters | 0.9 s | 325 of 325 | *Overwritten*; its bytes not passed off |
+| exFAT, 32 KiB clusters | 0.1 s | 325 of 325 | *Overwritten* |
+| NTFS, 4 KiB clusters | < 0.1 s | 325 of 325 | not listed: its MFT record was reused too |
+
+Windows' FAT and exFAT allocators did not fill the deleted gap here, so the "fragmented" file was stored in one piece;
+FAT's honest *Partly lost* for files in pieces is covered by the fixture images from the Linux driver.
+
 ## Pending (manual)
 
 - Elevated read of a real drive in the installed build: consent prompt, a scan of a secondary USB drive, and recovery

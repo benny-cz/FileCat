@@ -11,6 +11,7 @@ namespace FileCat.Platform.Windows.Tests;
 /// FILECAT_RECOVERY_LIVE_SERIAL its disk's serial number; the test refuses any drive that is not a USB disk with exactly
 /// that serial. The volume is served by the helper's read protocol, as in the product. Signed programs are recovered to
 /// the temporary folder on another disk and checked by their Authenticode signatures, which only an exact copy keeps.
+/// FILECAT_RECOVERY_LIVE_IMAGE runs the same checks on an image of such a drive instead (docs/validation/P10-recovery.md).
 /// </summary>
 public sealed class LiveDriveRecoveryTests : IDisposable
 {
@@ -56,8 +57,14 @@ public sealed class LiveDriveRecoveryTests : IDisposable
     [InlineData(true)]
     public async Task A_usb_drive_is_scanned_through_the_helper_protocol_and_signed_files_recover_exactly(bool searchFreeSpace)
     {
+        // An image of the drive, made before it was used for something else, keeps its scenario for later runs.
+        if (Environment.GetEnvironmentVariable("FILECAT_RECOVERY_LIVE_IMAGE") is { Length: > 0 } image)
+        {
+            using var file = new ImageFileSource(image);
+            Check(file, Path.GetFileName(image), searchFreeSpace);
+            return;
+        }
         string drive = GuardedDrive();
-        var log = TestContext.Current.TestOutputHelper;
         var ct = TestContext.Current.CancellationToken;
         string device = DeviceTopology.VolumeDevice(drive + "\\") ?? throw new InvalidOperationException("No volume device for " + drive);
         // The recovered files go to another disk than the one read (plan §17.2).
@@ -77,71 +84,77 @@ public sealed class LiveDriveRecoveryTests : IDisposable
         var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
         await client.ConnectAsync(5000, ct);
         using (var source = new PipeDeviceSource(client, drive))
+            Check(source, drive, searchFreeSpace);
+        TestContext.Current.TestOutputHelper?.WriteLine("Helper session: " + await serving);
+    }
+
+    /// <summary>Scans a source, recovers every recoverable signed program to another disk, and checks the signatures.</summary>
+    private void Check(IBlockSource source, string name, bool searchFreeSpace)
+    {
+        var log = TestContext.Current.TestOutputHelper;
+        var ct = TestContext.Current.CancellationToken;
+        var clock = Stopwatch.StartNew();
+        long lastReport = 0;
+        var volumes = RecoveryScanner.Scan(source, ct, new RecoveryScanOptions
         {
-            var clock = Stopwatch.StartNew();
-            long lastReport = 0;
-            var volumes = RecoveryScanner.Scan(source, ct, new RecoveryScanOptions
+            SearchFreeSpace = searchFreeSpace,
+            Progress = (done, total) =>
             {
-                SearchFreeSpace = searchFreeSpace,
-                Progress = (done, total) =>
-                {
-                    if (done - lastReport < total / 4 && done < total) return;
-                    lastReport = done;
-                    log?.WriteLine($"  free space searched: {done / (1024 * 1024)} of {total / (1024 * 1024)} MiB after {clock.Elapsed.TotalSeconds:F0} s");
-                },
-            });
-            var scan = clock.Elapsed;
-            var volume = Assert.Single(volumes, v => v.FileSystem != "Unknown");
-            var items = All(volume.Root).Where(i => i.IsDeleted && !i.IsDirectory).ToList();
-            log?.WriteLine($"{drive} ({volume.FileSystem}, {source.Length / (1024 * 1024)} MiB, sector {source.SectorSize}): scanned in {scan.TotalSeconds:F1} s; " +
-                           $"{items.Count:N0} deleted files ({items.Sum(i => i.Size) / (1024 * 1024)} MiB): " +
-                           string.Join(", ", items.GroupBy(i => i.State).Select(g => $"{g.Count():N0} {g.Key}")));
-            foreach (var top in volume.Root.Children.Take(20)) log?.WriteLine($"  {(top.IsDirectory ? "[" + top.Name + "]" : top.Name)} {(top.IsDeleted ? top.State.ToString() : "")}");
-            foreach (var folder in All(volume.Root).Where(i => i.IsDirectory && i.IsDeleted))
-                log?.WriteLine($"  folder {PathOf(folder)}: {folder.Children.Count} items. {folder.Evidence.LastOrDefault()}");
-            foreach (var uncertain in items.Where(i => i.State != RecoveryState.Recoverable).Take(15))
-                log?.WriteLine($"  {PathOf(uncertain)} ({uncertain.State}): {string.Join(" ", uncertain.Evidence)}");
-            foreach (var large in items.Where(i => i.Size > 100L * 1024 * 1024))
-                log?.WriteLine($"  large: {PathOf(large)} ({large.Size / (1024 * 1024)} MiB, {large.State}): {string.Join(" ", large.Evidence)}");
-            Assert.NotEmpty(items);
+                if (done - lastReport < total / 4 && done < total) return;
+                lastReport = done;
+                log?.WriteLine($"  free space searched: {done / (1024 * 1024)} of {total / (1024 * 1024)} MiB after {clock.Elapsed.TotalSeconds:F0} s");
+            },
+        });
+        var scan = clock.Elapsed;
+        var volume = Assert.Single(volumes, v => v.FileSystem != "Unknown");
+        var items = All(volume.Root).Where(i => i.IsDeleted && !i.IsDirectory).ToList();
+        log?.WriteLine($"{name} ({volume.FileSystem}, {source.Length / (1024 * 1024)} MiB): scanned in {scan.TotalSeconds:F1} s; " +
+                       $"{items.Count:N0} deleted files ({items.Sum(i => i.Size) / (1024 * 1024)} MiB): " +
+                       string.Join(", ", items.GroupBy(i => i.State).Select(g => $"{g.Count():N0} {g.Key}")));
+        foreach (var top in volume.Root.Children.Take(20)) log?.WriteLine($"  {(top.IsDirectory ? "[" + top.Name + "]" : top.Name)} {(top.IsDeleted ? top.State.ToString() : "")}");
+        foreach (var folder in All(volume.Root).Where(i => i.IsDirectory && i.IsDeleted))
+            log?.WriteLine($"  folder {PathOf(folder)}: {folder.Children.Count} items. {folder.Evidence.LastOrDefault()}");
+        foreach (var uncertain in items.Where(i => i.State != RecoveryState.Recoverable).Take(15))
+            log?.WriteLine($"  {PathOf(uncertain)} ({uncertain.State}): {string.Join(" ", uncertain.Evidence)}");
+        foreach (var large in items.Where(i => i.Size > 100L * 1024 * 1024))
+            log?.WriteLine($"  large: {PathOf(large)} ({large.Size / (1024 * 1024)} MiB, {large.State}): {string.Join(" ", large.Evidence)}");
+        Assert.NotEmpty(items);
 
-            // Every recoverable signed program (and a sample of the rest) is copied off the drive.
-            var signed = items.Where(i => i.State == RecoveryState.Recoverable && Path.GetExtension(i.Name).ToLowerInvariant() is ".exe" or ".dll" or ".efi" or ".sys" or ".mui" && i.Size > 0 && i.Size < 64L * 1024 * 1024)
-                .Take(400).ToList();
-            var window = new WindowSource(source, volume.Offset, volume.Length, "volume");
-            clock.Restart();
-            long copied = 0;
-            foreach (var item in signed)
+        // Every recoverable signed program (and a sample of the rest) is copied off the drive.
+        var signed = items.Where(i => i.State == RecoveryState.Recoverable && Path.GetExtension(i.Name).ToLowerInvariant() is ".exe" or ".dll" or ".efi" or ".sys" or ".mui" && i.Size > 0 && i.Size < 64L * 1024 * 1024)
+            .Take(400).ToList();
+        var window = new WindowSource(source, volume.Offset, volume.Length, "volume");
+        clock.Restart();
+        long copied = 0;
+        foreach (var item in signed)
+        {
+            using var content = new RecoveryContent(window, item);
+            string target = Path.Combine(_output, $"{copied}-{item.Name}");
+            using (var output = File.Create(target))
             {
-                using var content = new RecoveryContent(window, item);
-                string target = Path.Combine(_output, $"{copied}-{item.Name}");
-                using (var output = File.Create(target))
+                var buffer = new byte[1024 * 1024];
+                for (long at = 0; at < content.Length;)
                 {
-                    var buffer = new byte[1024 * 1024];
-                    for (long at = 0; at < content.Length;)
-                    {
-                        int n = content.Read(at, buffer);
-                        if (n <= 0) break;
-                        output.Write(buffer, 0, n);
-                        at += n;
-                    }
+                    int n = content.Read(at, buffer);
+                    if (n <= 0) break;
+                    output.Write(buffer, 0, n);
+                    at += n;
                 }
-                copied++;
             }
-            var read = clock.Elapsed;
-            long bytes = signed.Sum(i => i.Size);
-            log?.WriteLine($"Recovered {signed.Count:N0} programs and libraries ({bytes / (1024 * 1024.0):F1} MiB) in {read.TotalSeconds:F1} s.");
-
-            // Authenticode: a signature only verifies over the exact bytes that were signed.
-            var results = Directory.GetFiles(_output).Select(f => (File: Path.GetFileName(f), Result: Authenticode.Verify(f))).ToList();
-            var statuses = results.GroupBy(r => r.Result).ToDictionary(g => g.Key, g => g.Count());
-            log?.WriteLine("Signatures of the recovered files: " + string.Join(", ", statuses.Select(s => $"{s.Key} {s.Value}")));
-            foreach (var group in results.Where(r => r.Result != "valid").GroupBy(r => r.Result))
-                log?.WriteLine($"  {group.Key}: {string.Join(", ", group.Take(8).Select(r => r.File))}");
-            Assert.True(statuses.GetValueOrDefault("valid") > 0, "No recovered program had a valid signature.");
-            Assert.Equal(0, statuses.GetValueOrDefault("altered"));
+            copied++;
         }
-        log?.WriteLine("Helper session: " + await serving);
+        var read = clock.Elapsed;
+        long bytes = signed.Sum(i => i.Size);
+        log?.WriteLine($"Recovered {signed.Count:N0} programs and libraries ({bytes / (1024 * 1024.0):F1} MiB) in {read.TotalSeconds:F1} s.");
+
+        // Authenticode: a signature only verifies over the exact bytes that were signed.
+        var results = Directory.GetFiles(_output).Select(f => (File: Path.GetFileName(f), Result: Authenticode.Verify(f))).ToList();
+        var statuses = results.GroupBy(r => r.Result).ToDictionary(g => g.Key, g => g.Count());
+        log?.WriteLine("Signatures of the recovered files: " + string.Join(", ", statuses.Select(s => $"{s.Key} {s.Value}")));
+        foreach (var group in results.Where(r => r.Result != "valid").GroupBy(r => r.Result))
+            log?.WriteLine($"  {group.Key}: {string.Join(", ", group.Take(8).Select(r => r.File))}");
+        Assert.True(statuses.GetValueOrDefault("valid") > 0, "No recovered program had a valid signature.");
+        Assert.Equal(0, statuses.GetValueOrDefault("altered"));
     }
 
     private static IEnumerable<RecoveryItem> All(RecoveryItem node) => node.Children.SelectMany(c => c.IsDirectory ? All(c).Prepend(c) : [c]);
