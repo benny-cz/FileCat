@@ -25,7 +25,10 @@ internal sealed class TestFtpServer : IDisposable
     }
 
     private const string Script = """
-        import sys
+        import logging, os, sys
+        # FILECAT_FTP_LOG names a file for the server's command log (diagnostics); otherwise only warnings.
+        log = os.environ.get("FILECAT_FTP_LOG")
+        logging.basicConfig(level=logging.DEBUG if log else logging.WARNING, filename=log or None)
         from pyftpdlib.authorizers import DummyAuthorizer
         from pyftpdlib.servers import FTPServer
         root, user, password, cert = sys.argv[1], sys.argv[2], sys.argv[3], (sys.argv[4] if len(sys.argv) > 4 else "")
@@ -84,6 +87,9 @@ internal sealed class TestFtpServer : IDisposable
             try { process.Kill(true); } catch (InvalidOperationException) { }
             return null; // pyftpdlib without TLS support (pyOpenSSL) cannot run the TLS server
         }
+        // The server logs to its output streams: unread, a full pipe buffer would stop it after a few hundred transfers.
+        _ = process.StandardOutput.ReadToEndAsync();
+        _ = process.StandardError.ReadToEndAsync();
         return new TestFtpServer(process, root, int.Parse(line[6..]));
     }
 

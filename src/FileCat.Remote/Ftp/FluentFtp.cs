@@ -189,12 +189,24 @@ internal sealed class FtpChannel : ISftpChannel
     public RemoteStat? Stat(string path) => Run(() =>
     {
         Safe(path);
-        // MLST where the server has it (FluentFTP answers null otherwise), then SIZE, MDTM, and CWD.
+        // MLST where the server has it (FluentFTP answers null otherwise), then SIZE, MDTM, and CWD. Each is a round trip,
+        // and a copy stats every file a few times, so MLST's own answer is used whenever there is one.
         FtpListItem? info;
-        try { info = _client.GetObjectInfo(path, true); }
+        try { info = _client.GetObjectInfo(path, false); }
         catch (FtpCommandException) { info = null; }
         if (info is not null)
-            return new RemoteStat(info.Type == FtpObjectType.Directory, info.Type == FtpObjectType.Link, info.Type == FtpObjectType.Directory ? 0 : info.Size, Utc(info.Modified));
+        {
+            // MLST's "modify" fact is the time in UTC (RFC 3659); MDTM only when a server leaves it out.
+            var modified = info.Modified;
+            if (modified == DateTime.MinValue && info.Type == FtpObjectType.File)
+            {
+                try { modified = _client.GetModifiedTime(path); }
+                catch (FtpCommandException) { }
+            }
+            return new RemoteStat(info.Type == FtpObjectType.Directory, info.Type == FtpObjectType.Link, info.Type == FtpObjectType.Directory ? 0 : info.Size, Utc(modified));
+        }
+        // A server with MLST describes every path it has: no answer means nothing by this name (SIZE and CWD would agree).
+        if (_client.HasFeature(FtpCapability.MLST)) return null;
         long size = _client.GetFileSize(path, -1);
         if (size >= 0)
         {

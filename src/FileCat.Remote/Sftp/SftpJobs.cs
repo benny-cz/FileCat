@@ -37,13 +37,16 @@ public static class SftpJobs
 
 /// <summary>
 /// Shared plumbing: one leased connection per job (re-established after a break when the user retries), and folder
-/// listings that are refreshed after every change so remote items are always changed through current entries.
+/// listings that are refreshed after every change so remote items are always changed through current entries. A name
+/// the job itself added does not refresh its folder's listing for every other name (copying many files into one folder
+/// would list the growing folder once per file).
 /// </summary>
 internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp) : ExecutorBase(job, fs, journal)
 {
     protected readonly SftpProvider Sftp = sftp;
     private SftpLease? _lease;
     private readonly Dictionary<string, Dictionary<string, IRemoteEntry>> _listings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> _added = new(StringComparer.Ordinal);
 
     protected ISftpChannel Channel => (_lease ??= Sftp.Lease(ConnectionLocation, Job.Token)).Channel;
 
@@ -65,10 +68,30 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
         _lease.Broken = true;
         _lease.Dispose();
         _lease = null;
-        _listings.Clear();
+        ForgetListings();
     }
 
+    private void ForgetListings()
+    {
+        _listings.Clear();
+        _added.Clear();
+    }
+
+    /// <summary>A folder's entries, listed again when the job added names since it was listed.</summary>
     protected IReadOnlyDictionary<string, IRemoteEntry> Entries(string folder)
+    {
+        if (_added.ContainsKey(folder)) Changed(folder);
+        return Listing(folder);
+    }
+
+    /// <summary>One entry: its folder is listed again only when the job itself added this name since.</summary>
+    protected IRemoteEntry? Entry(string folder, string name)
+    {
+        if (_added.TryGetValue(folder, out var names) && names.Contains(name)) Changed(folder);
+        return Listing(folder).GetValueOrDefault(name);
+    }
+
+    private Dictionary<string, IRemoteEntry> Listing(string folder)
     {
         if (!_listings.TryGetValue(folder, out var map))
         {
@@ -79,8 +102,6 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
         return map;
     }
 
-    protected IRemoteEntry? Entry(string folder, string name) => Entries(folder).GetValueOrDefault(name);
-
     /// <summary>An entry from a listing made now: what a change must act on.</summary>
     protected IRemoteEntry? FreshEntry(string folder, string name)
     {
@@ -88,7 +109,19 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
         return Entry(folder, name);
     }
 
-    protected void Changed(string folder) => _listings.Remove(folder);
+    protected void Changed(string folder)
+    {
+        _listings.Remove(folder);
+        _added.Remove(folder);
+    }
+
+    /// <summary>The job created <paramref name="name"/> in a folder: the folder's listing stays valid for every other name.</summary>
+    protected void Added(string folder, string name)
+    {
+        if (!_listings.ContainsKey(folder)) return;
+        if (!_added.TryGetValue(folder, out var names)) _added[folder] = names = new HashSet<string>(StringComparer.Ordinal);
+        names.Add(name);
+    }
 
     /// <summary>
     /// Runs a remote step; failures ask Retry/Skip/Cancel like local ones, and a retry after a lost connection
@@ -117,7 +150,7 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
                 {
                     case DecisionAction.Retry:
                         if (lost || _lease is { Channel.IsConnected: false }) Reconnect();
-                        _listings.Clear();
+                        ForgetListings();
                         continue;
                     case DecisionAction.Skip:
                         Issue(IssueSeverity.Error, path, $"Could not {what}: {ErrorText.Describe(ex)}", StepOutcome.Skipped, lost ? "disconnected" : ErrorText.Classify(ex));
@@ -187,6 +220,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     : SftpExecutorBase(job, fs, journal, sftp)
 {
     private const int BufferSize = 256 * 1024;
+    private byte[]? _buffer;
     private int _temp;
     private bool _notedNonAtomic;
 
@@ -307,7 +341,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool made = Remote(dst, "create a folder", () => Channel.CreateDirectory(dst));
-        Changed(destFolder);
+        if (made) Added(destFolder, name);
+        else Changed(destFolder);
         return made;
     }
 
@@ -425,7 +460,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     throw new OperationCanceledException();
             }
         }
-        int step = Journal.Intent(Moving ? "upload-move" : "upload", sourceDisplay, dst);
+        // A new file is group-committed like local copies (plan §9.3); a move (its source goes) or a replacement is flushed first.
+        int step = Journal.Intent(Moving ? "upload-move" : "upload", sourceDisplay, dst, null, durable: Moving || replace);
         string? temp = null;
         long written = 0;
         bool ok = Remote(dst, "copy the file to the server", () =>
@@ -447,7 +483,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             using (var output = start == 0 ? Channel.CreateNew(temp!) : Channel.OpenWriteAt(temp!, start))
             {
                 if (start > 0) input.Seek(start, SeekOrigin.Begin);
-                var buffer = new byte[BufferSize];
+                var buffer = _buffer ??= new byte[BufferSize];
                 var clock = Stopwatch.StartNew();
                 int n;
                 while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
@@ -481,12 +517,13 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     private void Publish(string folder, string name, string temp, bool replace)
     {
         string dst = RemotePath.Combine(folder, name);
-        Changed(folder);
         if (!replace)
         {
             Channel.Rename(temp, dst);
+            Added(folder, name);
             return;
         }
+        Changed(folder);
         var current = Entry(folder, name);
         if (current is { IsLink: true })
         {
