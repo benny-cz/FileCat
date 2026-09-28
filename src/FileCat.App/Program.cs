@@ -7,6 +7,8 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // The picture decoder (a process of its own for each picture the viewer shows): no window, no instance check.
+        if (args.Length > 0 && args[0] == Services.PictureWorker.Argument) return Services.PictureWorker.Run(args);
         // Answered before any window or instance check: packages are smoke-tested this way on machines without a display.
         if (args is ["--version"] or ["-v"])
         {

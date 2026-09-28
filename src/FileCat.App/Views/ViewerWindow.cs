@@ -19,7 +19,9 @@ namespace FileCat.App.Views;
 /// <summary>
 /// F3 viewer in its own top-level window (plan §4.1, §16.1): one viewer with text and hex modes (F4 toggles),
 /// encoding chosen with visible evidence (F8 cycles), search (Ctrl+F, F3/Shift+F3), go to (Ctrl+G), range
-/// checksums, and follow mode for growing logs. Opened with full sharing, so other programs keep working.
+/// checksums, and follow mode for growing logs. Pictures open in a picture mode (Ctrl+P returns to it; Z switches between
+/// fitted and actual size), decoded in a separate worker process (<see cref="PictureDecoder"/>). Opened with full
+/// sharing, so other programs keep working.
 /// </summary>
 public sealed class ViewerWindow : Window
 {
@@ -36,6 +38,15 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
     private readonly ToggleButton _modeInfo = new() { Content = "Info" };
+    private readonly ToggleButton _modePicture = new() { Content = "Picture", IsVisible = false };
+    private readonly ToggleButton _actualSize = new() { Content = "Actual size", IsVisible = false };
+    private readonly PictureView _picture = new() { IsVisible = false };
+    private bool _isPicture;
+    private Task? _pictureLoad;
+    private readonly List<Control> _textOnly = []; // toolbar parts that mean nothing for a picture
+
+    /// <summary>The longest side a picture is decoded to (actual size beyond it shows the scaled picture, and says so).</summary>
+    private const int PictureSide = 4096;
     private readonly TextBox _info = new()
     {
         IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, IsVisible = false,
@@ -88,23 +99,23 @@ public sealed class ViewerWindow : Window
         _hex.SetReader(_reader);
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
+        toolbar.Children.Add(_modePicture);
         toolbar.Children.Add(_modeText);
         toolbar.Children.Add(_modeHex);
         toolbar.Children.Add(_modeInfo);
+        toolbar.Children.Add(_actualSize);
+        ToolTip.SetTip(_modePicture, "The picture (Ctrl+P)");
+        ToolTip.SetTip(_actualSize, "Actual size or fitted to the window (Z)");
+        Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
-        toolbar.Children.Add(new TextBlock { Text = "Encoding:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
-        toolbar.Children.Add(_encodingBox);
-        toolbar.Children.Add(_wrap);
-        toolbar.Children.Add(_follow);
-        toolbar.Children.Add(_search);
-        toolbar.Children.Add(_matchCase);
-        toolbar.Children.Add(_hexSearch);
+        var encodingLabel = new TextBlock { Text = "Encoding:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
         var goTo = new Button { Content = "Go to…" };
         goTo.Click += async (_, _) => await GoToAsync();
+        _textOnly.AddRange([encodingLabel, _encodingBox, _wrap, _follow, _search, _matchCase, _hexSearch, goTo, _encodingInfo]);
+        foreach (var part in _textOnly.Take(8)) toolbar.Children.Add(part);
         var checksum = new Button { Content = "Checksum…" };
         checksum.Click += async (_, _) => await ChecksumAsync();
-        toolbar.Children.Add(goTo);
         toolbar.Children.Add(checksum);
         if (source.LocalPath is not null && OperatingSystem.IsWindows())
         {
@@ -128,7 +139,7 @@ public sealed class ViewerWindow : Window
         }
         var statusBar = new Border { Classes = { "status" }, Child = new DockPanel { Children = { _encodingInfo, _status } } };
         DockPanel.SetDock(_encodingInfo, Dock.Right);
-        var content = new Panel { Children = { _text, _hex, _info } };
+        var content = new Panel { Children = { _text, _hex, _info, _picture } };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
@@ -141,6 +152,13 @@ public sealed class ViewerWindow : Window
         _modeText.Click += (_, _) => SetMode(false);
         _modeHex.Click += (_, _) => SetMode(true);
         _modeInfo.Click += async (_, _) => await ShowInfoAsync();
+        _modePicture.Click += (_, _) => ShowPicture();
+        _actualSize.IsCheckedChanged += (_, _) =>
+        {
+            _picture.Fit = _actualSize.IsChecked != true;
+            Dispatcher.UIThread.Post(UpdateStatus, DispatcherPriority.Background);
+        };
+        _picture.SizeChanged += (_, _) => { if (_isPicture) UpdateStatus(); };
         _wrap.IsCheckedChanged += (_, _) =>
         {
             _text.Wrap = _wrap.IsChecked == true;
@@ -206,13 +224,68 @@ public sealed class ViewerWindow : Window
         _text.SetEncoding(_guess.Encoding, _guess.PreambleLength);
         _encodingBox.SelectedIndex = index >= 0 ? index : 0;
         _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
-        if (_guess.LooksBinary && forceHexIfBinary) SetMode(true);
+        // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
+        _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
+        if (_modePicture.IsVisible && forceHexIfBinary) ShowPicture();
+        else if (_guess.LooksBinary && forceHexIfBinary) SetMode(true);
         UpdateStatus();
+    }
+
+    /// <summary>The picture mode: decoded once, by the worker, while the window stays responsive.</summary>
+    public void ShowPicture()
+    {
+        if (!_modePicture.IsVisible) return;
+        _isPicture = true;
+        _isInfo = false;
+        _picture.IsVisible = true;
+        _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
+        _modePicture.IsChecked = true;
+        _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
+        _actualSize.IsVisible = true;
+        foreach (var part in _textOnly) part.IsVisible = false;
+        _wrap.IsEnabled = false;
+        _picture.Focus();
+        _pictureLoad ??= LoadPictureAsync();
+        UpdateStatus();
+    }
+
+    /// <summary>The picture once it has loaded (tests).</summary>
+    public Task? PictureLoad => _pictureLoad;
+
+    public DecodedPicture? Picture => _picture.Picture;
+
+    private async Task LoadPictureAsync()
+    {
+        _picture.ShowMessage("Decoding the picture…");
+        try
+        {
+            var picture = await PictureDecoder.DecodeAsync(_source, PictureSide, _closing.Token);
+            _picture.Show(picture);
+        }
+        catch (Exception) when (_closing.IsCancellationRequested)
+        {
+            return; // the window closed meanwhile
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or TimeoutException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            _picture.ShowMessage($"This picture cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers.");
+        }
+        UpdateStatus();
+    }
+
+    private void LeavePicture()
+    {
+        _isPicture = false;
+        _picture.IsVisible = false;
+        _modePicture.IsChecked = false;
+        _actualSize.IsVisible = false;
+        foreach (var part in _textOnly) part.IsVisible = true;
     }
 
     /// <summary>The Info mode: what a static inspector reads from the file's structure (plan §16.1), computed once.</summary>
     public async Task ShowInfoAsync()
     {
+        LeavePicture();
         _isInfo = true;
         _info.IsVisible = true;
         _text.IsVisible = _hex.IsVisible = false;
@@ -244,6 +317,7 @@ public sealed class ViewerWindow : Window
 
     private void SetMode(bool hex)
     {
+        LeavePicture();
         _isInfo = false;
         _info.IsVisible = false;
         _modeInfo.IsChecked = false;
@@ -261,12 +335,23 @@ public sealed class ViewerWindow : Window
 
     private void FocusContent()
     {
-        if (_isHex) _hex.Focus();
+        if (_isPicture) _picture.Focus();
+        else if (_isHex) _hex.Focus();
         else _text.Focus();
     }
 
     private void UpdateStatus()
     {
+        if (_isPicture)
+        {
+            _status.Text = _picture.Picture is { } p
+                ? $"{p.Format} · {p.Width:N0} × {p.Height:N0} pixels · {(_picture.Fit ? "fitted, " : "")}{_picture.Zoom * 100:0}%" +
+                  (p.Frames > 1 ? $" · animated, {p.Frames:N0} frames: the first is shown" : "") +
+                  (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
+                  $" · {Formatters.ExactSize(_reader.Length)}"
+                : Formatters.ExactSize(_reader.Length);
+            return;
+        }
         long len = _reader.Length;
         long pos = _isHex ? _hex.CursorOffset : _text.TopOffset;
         double pct = len > 0 ? 100.0 * pos / len : 0;
@@ -308,7 +393,13 @@ public sealed class ViewerWindow : Window
                 Close();
                 break;
             case Key.F4:
-                SetMode(_isInfo ? false : !_isHex);
+                SetMode(_isInfo || _isPicture ? _isPicture : !_isHex);
+                break;
+            case Key.P when e.KeyModifiers == KeyModifiers.Control && _modePicture.IsVisible:
+                ShowPicture();
+                break;
+            case Key.Z when e.KeyModifiers == KeyModifiers.None && _isPicture:
+                _actualSize.IsChecked = _actualSize.IsChecked != true;
                 break;
             case Key.I when e.KeyModifiers == KeyModifiers.Control:
                 _ = ShowInfoAsync();
