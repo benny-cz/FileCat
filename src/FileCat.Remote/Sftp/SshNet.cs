@@ -46,9 +46,10 @@ public sealed class SshNetConnector : ISftpConnector
             key = null;
             return channel;
         }
-        catch (Exception ex) when (Unwrap(ex) is ConnectCanceledException canceled)
+        catch (Exception ex) when (Unwrap(ex) is ConnectCanceledException or PromptDeferredException)
         {
-            throw canceled;
+            // A question was declined or deferred: that, not SSH.NET's wrapping, is what the user should see.
+            throw Unwrap(ex);
         }
         catch (SshAuthenticationException ex)
         {
@@ -79,7 +80,7 @@ public sealed class SshNetConnector : ISftpConnector
 
     private static Exception Unwrap(Exception ex)
     {
-        while (ex is not ConnectCanceledException && ex.InnerException is { } inner) ex = inner;
+        while (ex is not (ConnectCanceledException or PromptDeferredException) && ex.InnerException is { } inner) ex = inner;
         return ex;
     }
 

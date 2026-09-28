@@ -63,6 +63,12 @@ public sealed class HostKeyRejectedException(string message) : IOException(messa
 public sealed class ConnectCanceledException() : OperationCanceledException("Connecting was canceled.");
 
 /// <summary>
+/// Connecting needed a question the UI does not ask right now (tabs restored at startup): an error the panel shows,
+/// with the way to connect.
+/// </summary>
+public sealed class PromptDeferredException(string message) : IOException(message);
+
+/// <summary>
 /// Connections per server (plan §14.1): leased by tabs, viewers, and jobs, reused within a bound, re-established when
 /// broken, and closed on request. Host identity is verified on every new connection; secrets typed during the session
 /// stay in memory, and are saved only where the user asked and an OS store exists.
@@ -70,7 +76,10 @@ public sealed class ConnectCanceledException() : OperationCanceledException("Con
 public sealed class SftpConnections : IDisposable
 {
     public const int MaxPerServer = 4;
+    /// <summary>Unused connections close after this long (plan §14.1: close idle sessions).</summary>
+    public static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(10);
     private const int MaxAuthenticationAttempts = 3;
+    private readonly Timer _sweeper;
 
     private readonly Func<string, RemoteProfile?> _profiles;
     private readonly ISftpConnector _connector;
@@ -87,6 +96,22 @@ public sealed class SftpConnections : IDisposable
         _trust = trust;
         _secrets = secrets;
         Interaction = interaction;
+        _sweeper = new Timer(_ => CloseIdle(DateTime.UtcNow), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    /// <summary>Closes connections nobody has used for <see cref="IdleTimeout"/>; tabs reconnect when they refresh.</summary>
+    internal void CloseIdle(DateTime now)
+    {
+        foreach (var pool in _pools.Values)
+        {
+            lock (pool)
+            {
+                var keep = pool.Idle.Where(i => now - i.Since < IdleTimeout).Reverse().ToList();
+                foreach (var stale in pool.Idle.Where(i => now - i.Since >= IdleTimeout)) stale.Channel.Dispose();
+                pool.Idle.Clear();
+                foreach (var i in keep) pool.Idle.Push(i);
+            }
+        }
     }
 
     public IRemoteInteraction Interaction { get; set; }
@@ -115,8 +140,8 @@ public sealed class SftpConnections : IDisposable
             {
                 while (pool.Idle.TryPop(out var idle))
                 {
-                    if (idle.IsConnected) { channel = idle; break; }
-                    idle.Dispose();
+                    if (idle.Channel.IsConnected) { channel = idle.Channel; break; }
+                    idle.Channel.Dispose();
                 }
             }
             if (channel is null)
@@ -141,7 +166,7 @@ public sealed class SftpConnections : IDisposable
     {
         if (!broken && channel.IsConnected && !pool.Closed)
         {
-            lock (pool) pool.Idle.Push(channel);
+            lock (pool) pool.Idle.Push((channel, DateTime.UtcNow));
         }
         else channel.Dispose();
         pool.Slots.Release();
@@ -154,7 +179,7 @@ public sealed class SftpConnections : IDisposable
         pool.Closed = true;
         lock (pool)
         {
-            while (pool.Idle.TryPop(out var c)) c.Dispose();
+            while (pool.Idle.TryPop(out var c)) c.Channel.Dispose();
         }
     }
 
@@ -249,12 +274,13 @@ public sealed class SftpConnections : IDisposable
 
     public void Dispose()
     {
+        _sweeper.Dispose();
         foreach (var pool in _pools.Values)
         {
             pool.Closed = true;
             lock (pool)
             {
-                while (pool.Idle.TryPop(out var c)) c.Dispose();
+                while (pool.Idle.TryPop(out var c)) c.Channel.Dispose();
             }
         }
     }
@@ -263,7 +289,7 @@ public sealed class SftpConnections : IDisposable
     {
         public readonly SemaphoreSlim Slots = new(MaxPerServer, MaxPerServer);
         public readonly SemaphoreSlim Connecting = new(1, 1);
-        public readonly Stack<ISftpChannel> Idle = new();
+        public readonly Stack<(ISftpChannel Channel, DateTime Since)> Idle = new();
         public volatile string? Home;
         public volatile bool Closed;
     }

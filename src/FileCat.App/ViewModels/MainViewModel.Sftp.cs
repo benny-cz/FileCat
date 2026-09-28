@@ -30,8 +30,11 @@ public sealed partial class MainViewModel
         public IReadOnlyList<string>? AnswerPrompts(RemoteProfile profile, string instruction, IReadOnlyList<(string Prompt, bool Echo)> prompts) =>
             OnUi(() => vm.AnswerPromptsAsync(profile, instruction, prompts), null);
 
-        private static T OnUi<T>(Func<Task<T>> ask, T refused)
+        private T OnUi<T>(Func<Task<T>> ask, T refused)
         {
+            // Tabs restored at startup reconnect silently when they can, but never open questions nobody asked for.
+            if (vm.QuietConnect)
+                throw new PromptDeferredException("Not connected yet: FileCat asks for server keys and passwords only after you start working. Press Ctrl+R to connect.");
             // Blocking the UI thread for its own dialog would hang it: such a request is refused (and is a bug).
             if (Dispatcher.UIThread.CheckAccess())
             {
@@ -43,6 +46,12 @@ public sealed partial class MainViewModel
     }
 
     private void AttachRemoteInteraction() => Services.Sftp.Interaction = new WindowInteraction(this);
+
+    /// <summary>
+    /// True from startup until the user's first key press, click, or command: connections that need a question fail
+    /// with a hint instead of asking.
+    /// </summary>
+    public bool QuietConnect { get; set; }
 
     private static TextBlock Para(string text, params string[] classes)
     {

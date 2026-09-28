@@ -69,6 +69,9 @@ public partial class MainWindow : Window, IViewActions
         _dialogs = new OverlayDialogService(OverlayHost, () => ActivePanelView()?.List);
         vm.Dialogs = _dialogs;
         vm.View = this;
+        // The user's first key press or click ends the quiet startup: connections may ask questions from then on.
+        AddHandler(KeyDownEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, (_, _) => vm.QuietConnect = false, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
         _notificationTimer.Tick += (_, _) =>
         {

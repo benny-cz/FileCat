@@ -113,6 +113,7 @@ public sealed partial class MainViewModel
 
     public async Task ExecuteAsync(string id)
     {
+        QuietConnect = false;
         var availability = GetAvailability(id);
         if (!availability.Enabled)
         {

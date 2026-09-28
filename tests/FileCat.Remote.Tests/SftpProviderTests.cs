@@ -196,6 +196,40 @@ public sealed class SftpProviderTests : IDisposable
     }
 
     [Fact]
+    public void Idle_connections_close_and_the_next_use_reconnects()
+    {
+        _ui.Secrets.Enqueue("secret");
+        var ct = TestContext.Current.CancellationToken;
+        using (_connections.Lease(_profile.Id, ct)) { }
+        Assert.Equal(1, _server.ActiveChannels);
+        _connections.CloseIdle(DateTime.UtcNow + TimeSpan.FromMinutes(5));
+        Assert.Equal(1, _server.ActiveChannels);
+        _connections.CloseIdle(DateTime.UtcNow + SftpConnections.IdleTimeout + TimeSpan.FromMinutes(1));
+        Assert.Equal(0, _server.ActiveChannels);
+        using (_connections.Lease(_profile.Id, ct)) { }
+        Assert.Equal(2, _server.Connects);
+        // The password typed earlier in the session is reused: no second question.
+        Assert.Single(_ui.SecretQuestions);
+    }
+
+    private sealed class DeferringInteraction : IRemoteInteraction
+    {
+        public HostKeyDecision DecideHostKey(RemoteProfile profile, HostKeyCheck check) => throw new PromptDeferredException("Press Ctrl+R to connect.");
+        public SecretAnswer? AskSecret(RemoteProfile profile, SecretRequest request) => throw new PromptDeferredException("Press Ctrl+R to connect.");
+        public IReadOnlyList<string>? AnswerPrompts(RemoteProfile profile, string instruction, IReadOnlyList<(string Prompt, bool Echo)> prompts) =>
+            throw new PromptDeferredException("Press Ctrl+R to connect.");
+    }
+
+    [Fact]
+    public async Task A_deferred_question_becomes_an_error_the_panel_can_show()
+    {
+        _connections.Interaction = new DeferringInteraction();
+        var error = await Assert.ThrowsAsync<PromptDeferredException>(() => ListAsync(SftpProvider.At(_profile)));
+        Assert.Contains("Ctrl+R", error.Message);
+        Assert.Equal(0, _server.Connects);
+    }
+
+    [Fact]
     public async Task Leases_reuse_connections_and_close_broken_ones()
     {
         _ui.Secrets.Enqueue("secret");

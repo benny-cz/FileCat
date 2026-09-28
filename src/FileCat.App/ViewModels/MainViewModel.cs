@@ -63,6 +63,7 @@ public sealed partial class MainViewModel : ObservableObject
         ShowKeyBar = Services.Settings.ShowFunctionKeyBar;
         ListFontSize = Services.Settings.FontSize;
         ShowCommandLine = Services.Settings.ShowCommandLine;
+        QuietConnect = state is not null;
         Workspace.LoadState(state);
         if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)
             Notify("Settings were written by a newer FileCat and are opened read-only; changes will not be saved.", true);
