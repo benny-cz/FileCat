@@ -35,9 +35,42 @@ public sealed partial class MainViewModel : ObservableObject
             if (e.PropertyName is nameof(WorkspaceViewModel.ActivePanel) or nameof(WorkspaceViewModel.ActiveTab))
             {
                 OnPropertyChanged(nameof(CommandLinePrompt));
+                FollowActiveListing();
                 UpdateKeyBar(_mods);
             }
         };
+        FollowActiveListing();
+    }
+
+    private Core.Listing.ListingModel? _keyBarListing;
+    private bool _keyBarPending;
+
+    /// <summary>
+    /// The key bar follows the active listing: F3, F5, F8 and the rest apply only to a focused or marked item, so their
+    /// state changes as focus moves off "..", marks come and go, and a listing loads.
+    /// </summary>
+    private void FollowActiveListing()
+    {
+        var listing = Workspace.ActiveTab?.Listing;
+        if (ReferenceEquals(listing, _keyBarListing)) return;
+        if (_keyBarListing is not null) _keyBarListing.Changed -= OnActiveListingChanged;
+        _keyBarListing = listing;
+        if (listing is not null) listing.Changed += OnActiveListingChanged;
+    }
+
+    private void OnActiveListingChanged(object? sender, Core.Listing.ListingChange change)
+    {
+        const Core.Listing.ListingChange relevant = Core.Listing.ListingChange.Focus | Core.Listing.ListingChange.Marks |
+                                                    Core.Listing.ListingChange.Reset | Core.Listing.ListingChange.State;
+        if ((change & relevant) == 0 || _keyBarPending) return;
+        // A burst (holding an arrow key) updates the bar once.
+        _keyBarPending = true;
+        Services.Ui.Post(() =>
+        {
+            _keyBarPending = false;
+            // The tab may have closed meanwhile (with its listing).
+            if (_keyBarListing is { IsDisposed: false }) UpdateKeyBar(_mods);
+        });
     }
 
     public AppServices Services { get; }

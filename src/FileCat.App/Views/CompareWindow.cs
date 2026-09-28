@@ -117,6 +117,9 @@ public sealed class CompareWindow : Window
 
     public IReadOnlyList<object> Rows => _rows.ItemsSource as IReadOnlyList<object> ?? [];
 
+    /// <summary>The row the comparison shows as current (the first difference when it opens).</summary>
+    public int CurrentRow => _rows.SelectedIndex;
+
     private void OnKey(object? sender, KeyEventArgs e)
     {
         switch (e.Key)
@@ -139,6 +142,20 @@ public sealed class CompareWindow : Window
     }
 
     /// <summary>Moves to the next or previous difference after the selected row.</summary>
+    /// <summary>A comparison opens on its first difference: the equal lines before it are what the user did not come for.</summary>
+    private void ShowFirstDifference()
+    {
+        if (_differenceRows.Count == 0) return;
+        int first = _differenceRows[0];
+        // After layout, so the list can scroll there.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_differenceRows.Count == 0 || _differenceRows[0] != first) return;
+            _rows.SelectedIndex = first;
+            _rows.ScrollIntoView(first);
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
     public void Go(int direction)
     {
         if (_differenceRows.Count == 0) return;
@@ -212,6 +229,7 @@ public sealed class CompareWindow : Window
         }
         _rows.ItemsSource = rows;
         _differenceRows = diff;
+        ShowFirstDifference();
         string note = _textProblem is { } p && _leftText is null ? " " + p : "";
         _summary.Text = bytes.Equal
             ? $"Identical: every byte was compared ({bytes.LeftLength:N0} bytes).{note}"
@@ -278,6 +296,7 @@ public sealed class CompareWindow : Window
         }
         _rows.ItemsSource = rows;
         _differenceRows = diff;
+        ShowFirstDifference();
         var summary = new StringBuilder();
         if (bytes.Equal) summary.Append($"Identical: every byte was compared ({bytes.LeftLength:N0} bytes).");
         else if (result.Identical)

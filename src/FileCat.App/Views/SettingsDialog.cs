@@ -26,7 +26,7 @@ public static class SettingsDialog
             if (theme.SelectedIndex >= 0) ThemeManager.Apply(themeNames[theme.SelectedIndex]);
         };
         var animations = new CheckBox { Content = "Animated themes move (rain, drifting light, glitches)", IsChecked = s.ThemeAnimations };
-        var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, MinWidth = 120 };
+        var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, Width = 130, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         var keyBar = new CheckBox { Content = "Show the function-key bar", IsChecked = s.ShowFunctionKeyBar };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         var dateFormat = new ComboBox { ItemsSource = new[] { "Culture", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" }, SelectedItem = s.DateFormat, MinWidth = 220 };

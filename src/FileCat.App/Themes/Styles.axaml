@@ -191,6 +191,13 @@
     <Setter Property="Padding" Value="8,3" />
   </Style>
 
+  <!-- Dialog tabs (Settings): header text at the size of the rest of the dialog, not Fluent's page-title size. -->
+  <Style Selector="TabItem">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Padding" Value="10,2" />
+  </Style>
+
   <Style Selector="Menu">
     <!-- Transparent in most themes: the window (or a theme's stained glass) shows through. -->
     <Setter Property="Background" Value="{DynamicResource FcMenuBackground}" />

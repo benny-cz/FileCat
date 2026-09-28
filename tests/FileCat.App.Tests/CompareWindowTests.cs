@@ -57,6 +57,23 @@ public sealed class CompareWindowTests
     }
 
     [AvaloniaFact]
+    public async Task A_comparison_opens_on_its_first_difference()
+    {
+        string same = string.Concat(Enumerable.Range(0, 400).Select(i => $"line {i}\n"));
+        var diff = await OpenAsync(same + "only left\n", same);
+        try
+        {
+            for (int i = 0; i < 100 && diff.CurrentRow < 0; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(400, diff.CurrentRow);
+            Assert.Equal(DiffKind.LeftOnly, ((CompareRow)diff.Rows[diff.CurrentRow]).Kind);
+        }
+        finally
+        {
+            diff.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Compare_files_opens_the_two_marked_files()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

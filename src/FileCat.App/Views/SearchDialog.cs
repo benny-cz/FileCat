@@ -52,7 +52,7 @@ public static class SearchDialog
         var hidden = new CheckBox { Content = "Hidden items", IsChecked = vm.Services.Settings.ShowHidden };
         var minKb = new TextBox { PlaceholderText = "min KB", Width = 90 };
         var maxKb = new TextBox { PlaceholderText = "max KB", Width = 90 };
-        var days = new TextBox { PlaceholderText = "any age", Width = 90 };
+        var days = new TextBox { PlaceholderText = "any", Width = 60 };
         var start = new Button { Content = "Search", Classes = { "primary" }, IsDefault = true };
         var stop = new Button { Content = "Stop", IsEnabled = false };
         var skip = new Button { Content = "Skip current folder", IsEnabled = false };
@@ -97,8 +97,11 @@ public static class SearchDialog
         Row(1, "Names:", names);
         Row(2, "Containing:", text);
         var options = new WrapPanel { ItemSpacing = 10, LineSpacing = 4 };
-        foreach (var c in new Control[] { matchCase, regex, subfolders, hidden, new TextBlock { Text = "Size:", VerticalAlignment = VerticalAlignment.Center }, minKb, maxKb,
-                     new TextBlock { Text = "Modified in last days:", VerticalAlignment = VerticalAlignment.Center }, days })
+        // Each range stays on one line: "Size: [min] – [max]", "Modified in the last [n] days".
+        static TextBlock Word(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center };
+        var size = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { Word("Size:"), minKb, Word("–"), maxKb } };
+        var age = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { Word("Modified in the last"), days, Word("days") } };
+        foreach (var c in new Control[] { matchCase, regex, subfolders, hidden, size, age })
             options.Children.Add(c);
         Row(3, "Options:", options);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { start, stop, skip } };

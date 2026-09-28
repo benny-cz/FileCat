@@ -98,6 +98,9 @@ public sealed class ListingModel : IDisposable
     public TimeSpan LastLoadDuration { get; private set; }
     public bool IsRefreshing => _pendingRefresh is not null;
 
+    /// <summary>Closed with its tab: nothing may read it any more.</summary>
+    public bool IsDisposed => _disposed;
+
     /// <summary>What the provider says a long load or refresh is doing, or null.</summary>
     public string? LoadingProgress => State == ListingState.Loading || IsRefreshing ? (_pendingRefresh ?? _pipeline)?.Progress : null;
 
