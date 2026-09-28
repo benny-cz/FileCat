@@ -45,7 +45,7 @@ public sealed partial class MainViewModel
         switch (id)
         {
             case CommandIds.Copy:
-                if (TryGetFocusedRegistryItem(out _)) await CopyRegistryValueAsync();
+                if (TryGetFocusedRegistryItem(out _)) await CopyRegistryAsync();
                 else await TransferAsync(JobKind.Copy);
                 return true;
             case CommandIds.Move: await TransferAsync(JobKind.Move); return true;

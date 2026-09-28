@@ -39,6 +39,8 @@ public sealed partial class MainViewModel
                 return loc?.Scheme == Schemes.Registry && loc.Path.Length > 0 &&
                     (caps & LocationCapabilities.CreateDirectory) != 0
                     ? CommandAvailability.Yes : CommandAvailability.No("Open a concrete HKCU, HKLM, or HKU Registry key to import into its scope.");
+            case CommandIds.RegistryView:
+                return loc?.Scheme == Schemes.Registry ? CommandAvailability.Yes : CommandAvailability.No("Open a Registry location first.");
             case CommandIds.RegistryWritable:
                 return loc?.Scheme == Schemes.Registry && Platform.Windows.RegistryAliases.IsAliasPath(loc.Path)
                     ? CommandAvailability.Yes

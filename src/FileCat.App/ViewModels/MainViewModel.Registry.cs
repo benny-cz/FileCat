@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia;
 using Avalonia.Platform.Storage;
+using FileCat.App.Services;
 using FileCat.App.Views;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -260,39 +261,134 @@ public sealed partial class MainViewModel
         return result as string == "save" ? parsed : null;
     }
 
+    private const int MaxRegistryBatch = 1000;
+
+    /// <summary>Marked Registry items, or the focused one when none are marked (plan §4.3); null with a reason otherwise.</summary>
+    private IReadOnlyList<ItemRef>? RegistryBatch(string verb)
+    {
+        var sel = SourceSelection();
+        if (sel is null) return null;
+        var items = sel.Value.Items;
+        if (items.Count > MaxRegistryBatch)
+        {
+            Notify($"{verb} at most {MaxRegistryBatch:N0} Registry items at a time; narrow the selection or use a key's subtree.", true);
+            return null;
+        }
+        var list = items.ToList();
+        if (list.Any(i => i.Parent.Scheme != Schemes.Registry || i.Kind is not (EntryKind.RegistryKey or EntryKind.RegistryValue))) return null;
+        if (list.Any(i => i.Kind == EntryKind.RegistryKey && i.Parent.Path.Length == 0))
+        {
+            Notify("Registry roots are not items you can delete or copy; open one and work inside it.", true);
+            return null;
+        }
+        return list;
+    }
+
+    private static Location KeyOf(ItemRef item) => item.Parent.WithPath(item.Parent.Path.Length == 0 ? item.Name : item.Parent.Path + "\\" + item.Name);
+
+    private static string Label(ItemRef item) => item.Kind == EntryKind.RegistryValue && item.Name.Length == 0 ? "(Default)" : item.Name;
+
+    private sealed record RegistryPreflight(List<RegistryChange> Changes, int Keys, int Values, int NestedKeys, int NestedValues, long Bytes, int Links);
+
+    /// <summary>Captures what F8 will delete: each value's exact data, each subtree's fingerprint (guards in the job).</summary>
+    private RegistryPreflight PreflightDelete(IReadOnlyList<ItemRef> items)
+    {
+        var changes = new List<RegistryChange>();
+        int keys = 0, values = 0, nestedKeys = 0, nestedValues = 0, links = 0;
+        long bytes = 0;
+        foreach (var item in items)
+        {
+            if (item.Kind == EntryKind.RegistryValue)
+            {
+                var snapshot = ReadRegistrySnapshot(item);
+                changes.Add(new RegistryChange(RegistryAction.DeleteValue, item.Parent, item.Name, snapshot));
+                values++;
+                bytes += snapshot.Data.Length;
+                continue;
+            }
+            var scope = RegistryTree.Scan(KeyOf(item));
+            changes.Add(new RegistryChange(RegistryAction.DeleteKey, item.Parent, item.Name, TreeDigest: RegistryTree.Digest(scope)));
+            keys++;
+            nestedKeys += scope.KeyCount - 1;
+            nestedValues += scope.ValueCount;
+            bytes += scope.DataBytes;
+            links += scope.LinkCount;
+        }
+        return new RegistryPreflight(changes, keys, values, nestedKeys, nestedValues, bytes, links);
+    }
+
     private async Task DeleteRegistryAsync()
     {
-        if (!TryGetFocusedRegistryItem(out var item)) return;
-        if (item.Kind == EntryKind.RegistryKey)
+        var items = RegistryBatch("Delete");
+        if (items is null) return;
+        if (items.Any(i => RegistryAliases.IsAliasPath(i.Parent.Path))) { Notify(RegistryAliases.ReadOnlyReason, true); return; }
+        RegistryPreflight plan;
+        try
         {
-            if (item.Parent.Path.Length == 0) { Notify("Registry roots cannot be deleted.", true); return; }
-            RegistryTreeSnapshot scope;
-            try
-            {
-                Notify("Inspecting the Registry subtree before deletion…");
-                scope = await Task.Run(() => RegistryTree.Scan(item.Parent.WithPath(item.Parent.Path + "\\" + item.Name)));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
-            {
-                Notify($"Cannot inspect the full key subtree: {ex.Message}. Nothing was deleted.", true);
-                return;
-            }
-            if (!await Dialogs.ConfirmAsync("Delete Registry key permanently",
-                $"Delete {Services.Providers.Display(item.Parent)}\\{item.Name} and all {scope.KeyCount:N0} keys and {scope.ValueCount:N0} values beneath it? " +
-                $"The values contain {scope.DataBytes:N0} bytes. {scope.LinkCount:N0} Registry links will be deleted as links; their targets are never followed. " +
-                "This cannot be sent to the Recycle Bin. FileCat checks the captured subtree again before starting and stops on detected changes, but deletion of multiple keys is not atomic.",
-                "Delete subtree", danger: true)) return;
-            SubmitRegistry(new RegistryChange(RegistryAction.DeleteKey, item.Parent, item.Name,
-                TreeDigest: RegistryTree.Digest(scope)), $"Delete Registry subtree {item.Name}", item);
+            Notify("Inspecting the Registry items before deletion…");
+            plan = await Task.Run(() => PreflightDelete(items));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or System.Security.SecurityException)
+        {
+            Notify($"Cannot inspect everything that would be deleted: {ex.Message}. Nothing was deleted.", true);
             return;
         }
-        var original = await Task.Run(() => ReadRegistrySnapshot(item));
-        if (!await Dialogs.ConfirmAsync("Delete Registry value permanently",
-            $"Delete {(item.Name.Length == 0 ? "(Default)" : item.Name)} from {Services.Providers.Display(item.Parent)}?\n\n" +
-            $"{RegistryValueCodec.TypeName(original.Type)}, {original.Data.Length:N0} bytes. Registry values do not go to the Recycle Bin.",
-            "Delete value", danger: true)) return;
-        SubmitRegistry(new RegistryChange(RegistryAction.DeleteValue, item.Parent, item.Name, original),
-            $"Delete Registry value {(item.Name.Length == 0 ? "(Default)" : item.Name)}", item);
+        string what = items.Count == 1
+            ? $"{Services.Providers.Display(items[0].Parent)}\\{Label(items[0])}" + (plan.Keys == 1 ? $" and everything beneath it ({plan.NestedKeys:N0} keys, {plan.NestedValues:N0} values)" : "")
+            : $"{Formatters.Plural(plan.Values, "value", "values")} and {Formatters.Plural(plan.Keys, "key", "keys")}" +
+              (plan.Keys > 0 ? $" with {plan.NestedKeys:N0} keys and {plan.NestedValues:N0} values beneath them" : "");
+        var body = new StackPanel { Spacing = 8 };
+        body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"Delete {what} ({plan.Bytes:N0} bytes of data) permanently?" });
+        body.Children.Add(new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
+            Text = "Registry data does not go to the Recycle Bin. Undo (Ctrl+Z) restores deleted values while nothing else changed them; deleted keys can be restored only from a backup. " +
+                   "FileCat checks everything again right before deleting and stops at the first change it finds; deleting several items is not atomic." +
+                   (plan.Links > 0 ? $" {Formatters.Plural(plan.Links, "Registry link is", "Registry links are")} deleted as links; their targets are kept." : ""),
+        });
+        var backup = new CheckBox
+        {
+            Content = $"Save a .reg backup first (in {Services.Paths.RegistryBackupDirectory})",
+            IsChecked = plan.Keys > 0 && plan.Links == 0,
+            IsVisible = plan.Links == 0,
+        };
+        body.Children.Add(backup);
+        if (plan.Links > 0)
+            body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" }, Text = "No backup is offered: a .reg file cannot represent Registry links." });
+        var answer = await Dialogs.ShowCustomAsync("Delete from the Registry", body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Delete permanently", "delete", IsDefault: true, IsDanger: true)]);
+        if (answer as string != "delete") return;
+        string? backupPath = null;
+        if (backup.IsChecked == true && backup.IsVisible)
+        {
+            string stem = string.Concat(Label(items[0]).Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+            backupPath = Path.Combine(Services.Paths.RegistryBackupDirectory, $"{DateTime.Now:yyyyMMdd-HHmmss} {(stem.Length == 0 ? "Default" : stem)}.reg");
+            try
+            {
+                Notify("Saving the .reg backup…");
+                await Task.Run(() => RegistryInterchange.ExportMany(
+                    items.Select(i => i.Kind == EntryKind.RegistryKey ? (KeyOf(i), (string?)null) : (i.Parent, (string?)i.Name)).ToList(), backupPath));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.ComponentModel.Win32Exception)
+            {
+                if (!await Dialogs.ConfirmAsync("Backup failed", $"The .reg backup could not be saved: {ex.Message}\n\nDelete without a backup?", "Delete without backup", danger: true))
+                    return;
+                backupPath = null;
+            }
+        }
+        var job = Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Registry,
+            RegistryChanges = plan.Changes,
+            Sources = items,
+            Destination = items[0].Parent,
+            Description = items.Count == 1
+                ? $"Delete Registry {(plan.Keys == 1 ? "subtree" : "value")} {Label(items[0])}"
+                : $"Delete {items.Count:N0} Registry items",
+        });
+        if (ActiveTab is { } tab) Track(job, tab);
+        if (backupPath is not null)
+            Notify($"Backup saved to {backupPath}. To restore, open the parent key and use File → Import .reg.");
     }
 
     private async Task RenameRegistryAsync()
@@ -318,15 +414,130 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task CopyRegistryValueAsync()
+    private async Task CopyRegistryAsync()
     {
-        if (!TryGetFocusedRegistryItem(out var item)) return;
+        var items = RegistryBatch("Copy");
+        if (items is null) return;
         var target = Workspace.ActiveTarget?.ActiveTab?.Location;
-        if (target?.Scheme != Schemes.Registry)
+        if (target is { IsFileSystem: true })
         {
-            Notify("Choose a Registry key in the target panel. Export to a file is a separate named command.");
+            // Typed Registry data never becomes a byte file silently; the named export is offered instead (plan §12.1).
+            await ExportRegistryToFolderAsync(items, target);
             return;
         }
+        if (target?.Scheme != Schemes.Registry || target.Path.Length == 0)
+        {
+            Notify("Choose a Registry key (or a folder, to export a .reg file) in the target panel.");
+            return;
+        }
+        if (RegistryAliases.IsAliasPath(target.Path)) { Notify(RegistryAliases.ReadOnlyReason, true); return; }
+        if (items.Count == 1) await CopyOneRegistryItemAsync(items[0], target);
+        else await CopyRegistryBatchAsync(items, target);
+    }
+
+    private async Task ExportRegistryToFolderAsync(IReadOnlyList<ItemRef> items, Location folder)
+    {
+        if (items.Select(i => i.Parent.Session ?? "default").Distinct().Count() > 1)
+        {
+            Notify("A .reg file holds one Registry view; export each view separately.", true);
+            return;
+        }
+        string stem = items.Count == 1 ? Label(items[0]) : Path.GetFileName(items[0].Parent.Path);
+        stem = string.Concat(stem.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        var named = await Dialogs.PromptAsync(new PromptOptions("Export to a .reg file",
+            $"Registry data is typed, so F5 does not copy it into a folder. Export {(items.Count == 1 ? Label(items[0]) : Formatters.Plural(items.Count, "item", "items"))} as a .reg file in {folder.Path}:")
+        {
+            Text = (stem.Length == 0 ? "registry" : stem) + ".reg",
+            SelectStem = true,
+            ConfirmText = "Export",
+            Validate = n => n.EndsWith(".reg", StringComparison.OrdinalIgnoreCase) && n.Length > 4 && n.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+                ? null : "Enter a file name ending in .reg.",
+        });
+        if (named is null) return;
+        string path = Path.Combine(folder.Path, named.Text);
+        if (File.Exists(path) && !await Dialogs.ConfirmAsync("Replace export file?", $"Replace {path} with the export?", "Replace file", danger: true)) return;
+        try
+        {
+            Notify("Exporting to .reg…");
+            await Task.Run(() => RegistryInterchange.ExportMany(
+                items.Select(i => i.Kind == EntryKind.RegistryKey ? (KeyOf(i), (string?)null) : (i.Parent, (string?)i.Name)).ToList(), path));
+            Notify($"Exported to {path}. It holds raw types and data, not permissions or the 32/64-bit view.");
+            RefreshTabsShowing(folder.Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.ComponentModel.Win32Exception)
+        {
+            Notify($"Registry export failed: {ex.Message}", true);
+        }
+    }
+
+    /// <summary>Several items keep their names; existing destination items are reported and never overwritten.</summary>
+    private async Task CopyRegistryBatchAsync(IReadOnlyList<ItemRef> items, Location target)
+    {
+        (List<RegistryChange> Changes, List<ItemRef> Copied, List<string> Existing, int NestedKeys, int NestedValues, int Links) plan;
+        try
+        {
+            Notify("Inspecting the Registry items before copying…");
+            plan = await Task.Run(() =>
+            {
+                var changes = new List<RegistryChange>();
+                var copied = new List<ItemRef>();
+                var existing = new List<string>();
+                int nestedKeys = 0, nestedValues = 0, links = 0;
+                using var destination = WindowsRegistryProvider.Open(target, writable: false);
+                foreach (var item in items)
+                {
+                    if (item.Kind == EntryKind.RegistryValue)
+                    {
+                        if (RegistryRaw.ReadIfPresent(destination, item.Name, RegistryRaw.PreviewLimit) is not null) { existing.Add(Label(item)); continue; }
+                        changes.Add(new RegistryChange(RegistryAction.CopyValue, item.Parent, item.Name, ReadRegistrySnapshot(item), TargetKey: target, TargetName: item.Name));
+                    }
+                    else
+                    {
+                        if (RegistryRaw.SubKeyExists(destination, item.Name)) { existing.Add(item.Name); continue; }
+                        var scope = RegistryTree.Scan(KeyOf(item));
+                        if (scope.LinkCount > 0) { links += scope.LinkCount; continue; }
+                        nestedKeys += scope.KeyCount - 1;
+                        nestedValues += scope.ValueCount;
+                        changes.Add(new RegistryChange(RegistryAction.CopyKey, item.Parent, item.Name, TargetKey: target, TargetName: item.Name,
+                            TreeDigest: RegistryTree.Digest(scope)));
+                    }
+                    copied.Add(item);
+                }
+                return (changes, copied, existing, nestedKeys, nestedValues, links);
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or System.Security.SecurityException)
+        {
+            Notify($"Cannot inspect everything that would be copied: {ex.Message}. Nothing was copied.", true);
+            return;
+        }
+        if (plan.Changes.Count == 0)
+        {
+            Notify(plan.Existing.Count > 0 ? "Every selected name already exists at the destination; nothing was copied." :
+                "The selected keys contain Registry links, which FileCat does not copy or follow; nothing was copied.", true);
+            return;
+        }
+        var notes = new List<string>();
+        if (plan.Existing.Count > 0) notes.Add($"{Formatters.Plural(plan.Existing.Count, "name already exists", "names already exist")} at the destination and {(plan.Existing.Count == 1 ? "is" : "are")} skipped: {string.Join(", ", plan.Existing.Take(5))}{(plan.Existing.Count > 5 ? ", …" : "")}.");
+        if (plan.Links > 0) notes.Add("Keys containing Registry links are skipped; links are never copied or followed.");
+        if (!await Dialogs.ConfirmAsync("Copy Registry items",
+                $"Copy {Formatters.Plural(plan.Changes.Count, "item", "items")}" +
+                (plan.NestedKeys + plan.NestedValues > 0 ? $" (with {plan.NestedKeys:N0} keys and {plan.NestedValues:N0} values beneath them)" : "") +
+                $" to {Services.Providers.Display(target)}? The copies inherit the destination's permissions. " + string.Join(" ", notes), "Copy"))
+            return;
+        var job = Services.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Registry,
+            RegistryChanges = plan.Changes,
+            Sources = plan.Copied,
+            Destination = target,
+            Description = $"Copy {plan.Changes.Count:N0} Registry items",
+        });
+        if (ActiveTab is { } tab) Track(job, tab);
+    }
+
+    private async Task CopyOneRegistryItemAsync(ItemRef item, Location target)
+    {
         if (item.Kind == EntryKind.RegistryKey)
         {
             RegistryTreeSnapshot scope;
@@ -413,6 +624,47 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         { Notify($"Cannot inspect Registry link: {ex.Message}", true); }
+    }
+
+    /// <summary>
+    /// Switches the explicit WOW64 view while keeping the current path (plan §12.1): the view is part of the location,
+    /// never a detour through Wow6432Node. A path missing in the other view opens its nearest existing parent.
+    /// </summary>
+    private async Task SwitchRegistryViewAsync()
+    {
+        var tab = ActiveTab;
+        var current = tab?.Location;
+        if (tab is null || current?.Scheme != Schemes.Registry) return;
+        string[] views = ["default", "64", "32"];
+        var items = views.Select(v => new ChoiceItem($"{WindowsRegistryProvider.ViewLabel(v)}{((current.Session ?? "default") == v ? " (current)" : "")}",
+            v switch
+            {
+                "64" => "The 64-bit keys, as 64-bit programs see them.",
+                "32" => "The 32-bit keys (WOW64), as 32-bit programs see them.",
+                _ => "The view of FileCat's own process.",
+            })).ToList();
+        var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Registry view", items)
+        {
+            SelectedIndex = Math.Max(0, Array.IndexOf(views, current.Session ?? "default")),
+            Hint = "Keys such as HKLM\\SOFTWARE differ between the 32-bit and 64-bit views; the view is shown in the path.",
+        });
+        if (pick.Index < 0 || views[pick.Index] == (current.Session ?? "default")) return;
+        var target = new Location(Schemes.Registry, current.Path, session: views[pick.Index]);
+        var existing = await Task.Run(() =>
+        {
+            for (var probe = target; ; probe = probe.WithPath(probe.Path[..probe.Path.LastIndexOf('\\')]))
+            {
+                if (probe.Path.Length == 0 || !probe.Path.Contains('\\')) return probe;
+                try
+                {
+                    using (WindowsRegistryProvider.Open(probe, false)) return probe;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { }
+            }
+        });
+        tab.Navigate(existing);
+        if (!Equals(existing, target))
+            Notify($"{current.Path} does not exist in the {WindowsRegistryProvider.ViewLabel(views[pick.Index])}; opened {existing.Path} instead.");
     }
 
     /// <summary>

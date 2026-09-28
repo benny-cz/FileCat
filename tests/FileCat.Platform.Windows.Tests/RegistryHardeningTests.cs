@@ -153,6 +153,35 @@ public sealed partial class RegistryHardeningTests
         Assert.False(RegistryAliases.IsAliasPath(@"HKCRX"));
     }
 
+    [Fact]
+    public void Several_keys_and_values_export_to_one_reg_file_of_one_view()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path)!;
+        string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
+        try
+        {
+            using (var a = fixture.CreateSubKey("alpha")) a!.SetValue("inside", 5, RegistryValueKind.DWord);
+            using (var b = fixture.CreateSubKey(@"beta\nested")) b!.SetValue("deep", "x");
+            fixture.SetValue("loose", new byte[] { 1, 2 }, RegistryValueKind.Binary);
+            var key = new Location(Schemes.Registry, @"HKCU\" + path, session: "default");
+            RegistryInterchange.ExportMany([(key.WithPath(key.Path + @"\alpha"), null), (key.WithPath(key.Path + @"\beta"), null), (key, "loose")], file);
+            string text = File.ReadAllText(file);
+            Assert.Contains($@"[HKEY_CURRENT_USER\{path}\alpha]", text);
+            Assert.Contains($@"[HKEY_CURRENT_USER\{path}\beta\nested]", text);
+            Assert.Contains("\"inside\"=dword:00000005", text);
+            Assert.Contains("\"loose\"=hex:01,02", text);
+            Assert.Throws<ArgumentException>(() => RegistryInterchange.ExportMany(
+                [(key, "loose"), (new Location(Schemes.Registry, key.Path, session: "32"), "loose")], file));
+        }
+        finally
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
+            File.Delete(file);
+        }
+    }
+
     private static async Task<Job> Run(JobManager jobs, Location key, IReadOnlyList<RegistryChange> changes, bool independent = false)
     {
         var done = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);

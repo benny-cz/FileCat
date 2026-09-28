@@ -35,6 +35,8 @@ public sealed class AppPaths
     public string JournalDirectory => Path.Combine(LocalDirectory, "journal");
     public string LogDirectory => Path.Combine(LocalDirectory, "diagnostics");
     public string CacheDirectory => Path.Combine(LocalDirectory, "cache");
+    /// <summary>.reg backups taken before Registry subtrees are deleted (plan §12.2: recoverable original data).</summary>
+    public string RegistryBackupDirectory => Path.Combine(LocalDirectory, "registry-backups");
     /// <summary>Portable/local scratch for staged previews and tool argument files.</summary>
     public string TempDirectory => Path.Combine(LocalDirectory, "temp");
     public string SettingsFile => Path.Combine(SettingsDirectory, "settings.json");
