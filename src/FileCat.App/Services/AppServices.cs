@@ -45,6 +45,7 @@ public sealed class AppServices : IDisposable
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = Zip;
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
+        EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         Columns = new Controls.ColumnProfileSet(Settings.ColumnProfiles);
         // Widths chosen by dragging and edited profiles persist immediately.
@@ -68,6 +69,8 @@ public sealed class AppServices : IDisposable
     public Core.Archives.ZipProvider Zip { get; private set; } = null!;
 
     public Core.Jobs.JobManager Jobs { get; }
+    /// <summary>Persistent external edits of archive members (plan §14.2).</summary>
+    public Core.Edit.EditSessionStore EditSessions { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }
 
     public static AppServices Current { get; private set; } = null!;

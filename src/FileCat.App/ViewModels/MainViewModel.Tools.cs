@@ -37,6 +37,7 @@ public sealed partial class MainViewModel
             case CommandIds.Attributes: await ChangeAttributesAsync(); return true;
             case CommandIds.Pack: await PackAsync(); return true;
             case CommandIds.TestArchive: TestArchives(); return true;
+            case CommandIds.EditSessions: await ShowEditSessionsAsync(); return true;
         }
         return false;
     }

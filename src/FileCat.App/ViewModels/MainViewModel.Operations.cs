@@ -496,6 +496,12 @@ public sealed partial class MainViewModel
 
     private void OnJobFinished(Job job)
     {
+        OnEditCommitFinished(job);
+        OnJobFinishedCore(job);
+    }
+
+    private void OnJobFinishedCore(Job job)
+    {
         Operations.UpdateSummary();
         if (_jobOrigins.Remove(job, out var origin))
         {
@@ -807,6 +813,11 @@ public sealed partial class MainViewModel
         if (f.IsContainer)
         {
             Notify("F4 edits files. Folders have no content to edit.");
+            return;
+        }
+        if (item.Parent.Scheme == Schemes.Zip)
+        {
+            await EditArchiveMemberAsync(item);
             return;
         }
         if (item.FileSystemPath is not { } path)

@@ -22,7 +22,7 @@ public partial class MainWindow : Window, IViewActions
 {
     private static readonly (string Header, string[] Items)[] MenuLayout =
     [
-        ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, "-", CommandIds.Copy, CommandIds.Duplicate,
+        ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, CommandIds.EditSessions, "-", CommandIds.Copy, CommandIds.Duplicate,
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
             CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive, CommandIds.Checksum, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename,
             CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
@@ -128,6 +128,7 @@ public partial class MainWindow : Window, IViewActions
         }
         int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
         if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");
+        if (_vm.RestoreEditSessions() is { } sessions) messages.Add(sessions);
         if (messages.Count > 0) _vm.Notify(string.Join(" ", messages), true);
     }
 

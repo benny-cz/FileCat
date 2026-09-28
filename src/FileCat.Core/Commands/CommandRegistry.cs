@@ -44,6 +44,7 @@ public static class CommandIds
     public const string Pack = "file.pack";
     public const string Unpack = "file.unpack";
     public const string TestArchive = "file.testarchive";
+    public const string EditSessions = "file.editsessions";
     public const string Undo = "file.undo";
     public const string Attributes = "file.attributes";
     public const string CreateLink = "file.createLink";
@@ -221,6 +222,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Pack, "Pack into ZIP…", F, "Pack", CommandContext.Panel, "Alt+F5");
         Add(CommandIds.Unpack, "Unpack…", F, "Unpack", CommandContext.Panel, "Alt+F6", "Alt+F9");
         Add(CommandIds.TestArchive, "Test archive integrity", F);
+        Add(CommandIds.EditSessions, "Edit sessions…", F);
         Add(CommandIds.Undo, "Undo last operation…", F, null, CommandContext.Panel, "Ctrl+Z");
         Add(CommandIds.Attributes, "Change attributes and times…", F);
         Add(CommandIds.CreateLink, "Create link…", F);
