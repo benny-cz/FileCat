@@ -16,6 +16,12 @@ public enum ElevatedVerb
     CreateDirectory,
     /// <summary>Set or clear ordinary attributes of one item.</summary>
     SetAttributes,
+    /// <summary>
+    /// Read one volume or disk for a recovery session (P10, ADR-08): the broker serves bounded reads of that device to the
+    /// requesting FileCat over a private pipe until it disconnects. There is no write request; parsing stays in FileCat.
+    /// <see cref="ElevatedStep.Path"/> is the device (\\?\Volume{…} or \\.\PhysicalDriveN), <see cref="ElevatedStep.Name"/> the pipe.
+    /// </summary>
+    ReadDevice,
 }
 
 /// <summary>A Registry change in wire form: explicit HKLM or HKU paths, the view, and exact bytes (base64).</summary>

@@ -1,6 +1,7 @@
 # ADR-08: Recovery engine and privilege split
 
-**Status:** Decided for disk images (P10, 2026-09-28). Devices follow through the read-only broker described below.
+**Status:** Decided (P10, 2026-09-28): disk images, and drives through the read-only helper session. The elevated read on
+real removable and fixed drives is a manual check of the installed build (TV-09).
 
 ## Decision
 
@@ -42,10 +43,27 @@ rights, the same stance ADR-07 takes for managed archive readers, because a disk
 read. The source is opened read-only and shared; nothing in the engine can write, and tests confirm the image's bytes
 and time stamp are unchanged after a scan and a recovery.
 
-**Devices (next).** Raw volumes and disks need administrator rights on Windows. They will be read through a narrow broker:
-started for one device identity, with a read-ranges verb only (no write verb exists), bounded request sizes, and no
-parsing: parsing stays in FileCat, unelevated. Recovering from a device additionally requires a destination on another
-physical disk, because writing to the source can overwrite exactly what is being recovered.
+**Drives: a read session through the administrator helper.** Raw volumes need administrator rights on Windows. FileCat
+asks the ADR-14 helper for a plan with a single `ReadDevice` step, so the same checks apply as for every elevated plan:
+the installed program folder, a hashed single-use plan from the installed FileCat of the named user, and the helper's own
+consent window, which names the drive and says nothing is written. After consent, the helper:
+
+- opens only that device (a `\\?\Volume{…}` or `\\.\PhysicalDriveN`, matched exactly), for reading;
+- creates one pipe with a random name that only the requesting user can open, and serves only the requesting
+  process ID (a second instance or another client ends the session);
+- answers three requests: describe (length, sector size), read (at most 4 MiB, rounded to whole sectors, clipped at the
+  end), and close. There is no request that writes or names another device, and no parsing: the engine runs in FileCat,
+  unelevated;
+- exits when FileCat closes the session, disconnects, or exits.
+
+Reread scans again through the same session, so one approval covers a drive until its recovery view is closed. Drive
+locations are not restored at startup, so FileCat never asks for approval that nobody requested.
+
+**A drive is recovered only to another disk.** Before any copy starts, the source may refuse the destination
+(`ResourceProvider.CheckTransferDestination`): FileCat compares physical disk numbers
+(`IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS`) and refuses a destination on the drive's disk, and also one whose disk it cannot
+determine. Network shares are accepted. The scan's first message says the drive is in use: it is a snapshot, and new
+writes can overwrite what is listed.
 
 ## Consequences
 
@@ -60,4 +78,8 @@ physical disk, because writing to the source can overwrite exactly what is being
 `eng/make-recovery-fixtures.sh` builds the images on a disposable runner with the Linux kernel's vfat and exfat drivers
 and ntfs-3g (workflow "Recovery fixtures"). Tests cover recoverable, partly lost, overwritten, fragmented, resident,
 nested-folder, Unicode, and long-name cases on FAT12/16/32, exFAT, and NTFS, plus MBR and GPT disks; the job path; the
-UI; and fuzzing. TV-09 (broker overhead) is measured when devices arrive.
+UI; and fuzzing. The read protocol runs over a real named pipe with a file standing in for the drive (exact bytes at any
+offset and size, refused requests, a full scan); plan validation refuses other paths, other session names, extra fields,
+and combined steps; the disk comparison is tested on the machine's own volumes; and a drive's recovery to the same disk
+is refused before anything is written. TV-09's overhead: five scans with a 70 KB recovery take about 8 ms through the
+helper's pipe against 4 ms directly, a small factor next to device I/O and the one approval per session.

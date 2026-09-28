@@ -94,6 +94,45 @@ public sealed class RecoveryJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_drive_is_recovered_only_to_another_disk()
+    {
+        // A stand-in for a drive read through the administrator helper: the same engine, a different source.
+        string stick = RecoveryFixtures.Image("fat16");
+        const string device = @"\\?\Volume{12345678-1234-1234-1234-123456789abc}";
+        var opened = new List<string>();
+        _recovery.OpenDevice = (d, name, _) =>
+        {
+            opened.Add(d);
+            return new ImageFileSource(stick);
+        };
+        bool sameDisk = true;
+        _recovery.SharesDisk = (_, _) => sameDisk;
+        var root = _recovery.ForDevice(device, "drive E: (STICK)", 1);
+        Assert.Contains("drive E: (STICK) › deleted items", _recovery.GetDisplayPath(root), StringComparison.Ordinal);
+        Assert.Equal(new Location(Schemes.Computer, string.Empty), _recovery.GetParent(root));
+        var sink = await ListAsync(root.WithPath("docs"));
+        Assert.Contains(sink.Issues, i => i.Contains("in use while FileCat reads it", StringComparison.Ordinal));
+        var report = sink.Entries.Single(e => e.Name == "report.txt");
+
+        var target = _dir.Dir("same-disk");
+        var refused = await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [_recovery.GetItemRef(root.WithPath("docs"), report)], Destination = Location.FileSystem(target) }));
+        Assert.Equal(JobState.Failed, refused.State);
+        Assert.Contains("same physical disk", Assert.Single(refused.Issues).Message, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(target));
+
+        sameDisk = false;
+        var copied = await WaitAsync(_jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [_recovery.GetItemRef(root.WithPath("docs"), report)], Destination = Location.FileSystem(target) }));
+        Assert.Equal(JobState.Completed, copied.State);
+        Assert.Equal(RecoveryFixtures.Content("report.txt", 10000), File.ReadAllBytes(Path.Combine(target, "report.txt")));
+
+        // Reread scans again through the same session: no second approval for the same drive.
+        _recovery.Forget(root);
+        await ListAsync(root);
+        Assert.Equal([device], opened);
+        _recovery.CloseAll();
+    }
+
+    [Fact]
     public async Task A_partitioned_disk_lists_its_volumes_and_nothing_changes_the_image()
     {
         var image = RecoveryFixtures.Image("disk-gpt");

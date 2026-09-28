@@ -1,0 +1,401 @@
+using System.Buffers.Binary;
+using System.ComponentModel;
+using System.IO.Pipes;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Platform.Windows.Elevation;
+using FileCat.Recovery;
+using Microsoft.Win32.SafeHandles;
+
+namespace FileCat.Platform.Windows.Recovery;
+
+/// <summary>
+/// The read session between FileCat and the administrator helper (ADR-08): FileCat asks for byte ranges of one device,
+/// the helper answers with bytes or an error code. There is no request that writes, and none that names another device.
+/// </summary>
+public static class RawReadProtocol
+{
+    public const byte Info = 1, Read = 2, Close = 3;
+    public const int MaxRead = 4 * 1024 * 1024;
+    public const int RequestSize = 13; // op, offset (8), length (4)
+    private const int ErrorInvalidParameter = 87;
+
+    /// <summary>
+    /// The helper's side: bounded, sector-aligned reads of an open device for one client, until it closes or goes away.
+    /// Returns why the session ended.
+    /// </summary>
+    public static string Serve(Stream pipe, SafeFileHandle device, long length, int sectorSize)
+    {
+        if (sectorSize is < 512 or > 65536 || (sectorSize & (sectorSize - 1)) != 0) sectorSize = 512;
+        var request = new byte[RequestSize];
+        var buffer = new byte[MaxRead + 2 * sectorSize];
+        var header = new byte[16];
+        while (true)
+        {
+            if (!ReadExactly(pipe, request)) return "FileCat closed the session.";
+            byte op = request[0];
+            long offset = BinaryPrimitives.ReadInt64LittleEndian(request.AsSpan(1));
+            int count = BinaryPrimitives.ReadInt32LittleEndian(request.AsSpan(9));
+            switch (op)
+            {
+                case Info:
+                    BinaryPrimitives.WriteInt32LittleEndian(header, 0);
+                    BinaryPrimitives.WriteInt64LittleEndian(header.AsSpan(4), length);
+                    BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(12), sectorSize);
+                    pipe.Write(header, 0, 16);
+                    break;
+                case Read:
+                    if (offset < 0 || count is < 0 or > MaxRead)
+                    {
+                        Reply(pipe, header, ErrorInvalidParameter, []);
+                        break;
+                    }
+                    long end = Math.Min(length, offset + count);
+                    if (offset >= end)
+                    {
+                        Reply(pipe, header, 0, []);
+                        break;
+                    }
+                    // Raw volumes and disks read whole sectors only.
+                    long start = offset / sectorSize * sectorSize;
+                    long stop = Math.Min((end + sectorSize - 1) / sectorSize * sectorSize, (length + sectorSize - 1) / sectorSize * sectorSize);
+                    int span = (int)(stop - start);
+                    try
+                    {
+                        int got = 0;
+                        while (got < span)
+                        {
+                            int n = RandomAccess.Read(device, buffer.AsSpan(got, span - got), start + got);
+                            if (n <= 0) break;
+                            got += n;
+                        }
+                        int skip = (int)(offset - start);
+                        int available = (int)Math.Max(0, Math.Min(got - skip, end - offset));
+                        Reply(pipe, header, 0, buffer.AsSpan(skip, available));
+                    }
+                    catch (IOException ex)
+                    {
+                        Reply(pipe, header, ex.HResult & 0xFFFF, []);
+                    }
+                    break;
+                case Close:
+                    return "FileCat closed the session.";
+                default:
+                    return "FileCat sent a request the helper does not know; it stopped.";
+            }
+            pipe.Flush();
+        }
+    }
+
+    private static void Reply(Stream pipe, byte[] header, int status, ReadOnlySpan<byte> data)
+    {
+        BinaryPrimitives.WriteInt32LittleEndian(header, status);
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), data.Length);
+        pipe.Write(header, 0, 8);
+        pipe.Write(data);
+    }
+
+    internal static bool ReadExactly(Stream stream, Span<byte> buffer)
+    {
+        int done = 0;
+        while (done < buffer.Length)
+        {
+            int n = stream.Read(buffer[done..]);
+            if (n <= 0) return false;
+            done += n;
+        }
+        return true;
+    }
+}
+
+/// <summary>A device read through a session: FileCat parses, the elevated helper only reads (ADR-08).</summary>
+public class PipeDeviceSource : IBlockSource
+{
+    private readonly Stream _pipe;
+    private readonly object _lock = new();
+    private readonly byte[] _request = new byte[RawReadProtocol.RequestSize];
+    private bool _closed;
+
+    public PipeDeviceSource(Stream pipe, string description)
+    {
+        _pipe = pipe;
+        Description = description;
+        _request[0] = RawReadProtocol.Info;
+        _pipe.Write(_request);
+        _pipe.Flush();
+        var info = new byte[16];
+        if (!RawReadProtocol.ReadExactly(_pipe, info) || BinaryPrimitives.ReadInt32LittleEndian(info) != 0)
+            throw new IOException("The administrator helper did not describe the drive.");
+        Length = BinaryPrimitives.ReadInt64LittleEndian(info.AsSpan(4));
+        SectorSize = BinaryPrimitives.ReadInt32LittleEndian(info.AsSpan(12));
+    }
+
+    public string Description { get; }
+    public long Length { get; }
+    public int SectorSize { get; }
+
+    public int Read(long offset, Span<byte> buffer)
+    {
+        if (offset >= Length || buffer.IsEmpty) return 0;
+        int done = 0;
+        Span<byte> header = stackalloc byte[8];
+        lock (_lock)
+        {
+            if (_closed) throw new IOException("The drive is no longer being read: the administrator helper has stopped.");
+            while (done < buffer.Length && offset + done < Length)
+            {
+                int want = Math.Min(buffer.Length - done, RawReadProtocol.MaxRead);
+                _request[0] = RawReadProtocol.Read;
+                BinaryPrimitives.WriteInt64LittleEndian(_request.AsSpan(1), offset + done);
+                BinaryPrimitives.WriteInt32LittleEndian(_request.AsSpan(9), want);
+                try
+                {
+                    _pipe.Write(_request);
+                    _pipe.Flush();
+                    if (!RawReadProtocol.ReadExactly(_pipe, header)) throw new EndOfStreamException();
+                }
+                catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+                {
+                    _closed = true;
+                    throw new IOException("The drive is no longer being read: the administrator helper has stopped.", ex);
+                }
+                int status = BinaryPrimitives.ReadInt32LittleEndian(header);
+                int count = BinaryPrimitives.ReadInt32LittleEndian(header[4..]);
+                if (count < 0 || count > want) throw new IOException("The administrator helper answered out of bounds.");
+                if (!RawReadProtocol.ReadExactly(_pipe, buffer.Slice(done, count))) throw new IOException("The administrator helper stopped mid-answer.");
+                if (status != 0) throw new IOException($"The drive could not be read at byte {offset + done:N0}: {new Win32Exception(status).Message}") { HResult = status };
+                if (count == 0) break;
+                done += count;
+            }
+        }
+        return done;
+    }
+
+    public virtual void Dispose()
+    {
+        lock (_lock)
+        {
+            if (_closed) return;
+            _closed = true;
+            try
+            {
+                _request[0] = RawReadProtocol.Close;
+                _pipe.Write(_request);
+                _pipe.Flush();
+            }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException) { }
+            _pipe.Dispose();
+        }
+    }
+}
+
+/// <summary>
+/// Starts the administrator helper for one device through UAC and reads it over the helper's private pipe. The plan the
+/// helper displays names the device and says that nothing is written; the helper exits when this source is disposed.
+/// </summary>
+public sealed class BrokeredDeviceSource : PipeDeviceSource
+{
+    private readonly ElevatedProcess _process;
+    private readonly ElevationExchange _exchange;
+
+    private BrokeredDeviceSource(Stream pipe, string description, ElevatedProcess process, ElevationExchange exchange) : base(pipe, description)
+    {
+        _process = process;
+        _exchange = exchange;
+    }
+
+    /// <summary>
+    /// Asks for approval and connects. Throws <see cref="OperationCanceledException"/> when the user declines,
+    /// <see cref="NotSupportedException"/> without the installed helper, and <see cref="IOException"/> when the helper refuses.
+    /// </summary>
+    public static BrokeredDeviceSource Open(string device, string description, bool portable, string exchangeRoot, CancellationToken ct)
+    {
+        string broker = ElevationBroker.Locate(portable, out var reason) ?? throw new NotSupportedException(reason?.Replace("operations as administrator", "drives directly").Replace("administrator retry", "reading drives directly"));
+        string nonce = ElevationPlanCodec.NewNonce();
+        using var identity = WindowsIdentity.GetCurrent();
+        var plan = new ElevationPlan
+        {
+            Nonce = nonce,
+            CreatedUtc = DateTime.UtcNow,
+            UserSid = identity.User!.Value,
+            UserName = identity.Name,
+            RequesterProcessId = Environment.ProcessId,
+            Title = "Read " + description + " to find deleted files",
+            Steps = [new ElevatedStep(ElevatedVerb.ReadDevice) { Path = device, Name = PipeName(nonce) }],
+        };
+        var exchange = ElevationExchange.Create(exchangeRoot, plan);
+        ElevatedProcess process;
+        try
+        {
+            process = ElevationBroker.Launch(broker, exchange.VolumePlanPath, exchange.Hash, WindowsFileOperations.OwnerWindow);
+        }
+        catch
+        {
+            exchange.Dispose();
+            throw;
+        }
+        var pipe = new NamedPipeClientStream(".", PipeName(nonce), PipeDirection.InOut, PipeOptions.None);
+        try
+        {
+            // The helper opens its pipe only after the user approves in its window.
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (process.WaitForExit(0))
+                {
+                    var result = exchange.ReadResult();
+                    if (result is { Consented: false, Refused: ElevationMessages.Declined } || result is null) throw new OperationCanceledException("Reading the drive was declined; nothing was read.");
+                    throw new IOException("The administrator helper refused to read the drive: " + (result.Refused ?? "it ended early."));
+                }
+                try
+                {
+                    pipe.Connect(250);
+                    break;
+                }
+                catch (TimeoutException) { }
+            }
+            return new BrokeredDeviceSource(pipe, description, process, exchange);
+        }
+        catch
+        {
+            pipe.Dispose();
+            process.Dispose();
+            exchange.Dispose();
+            throw;
+        }
+    }
+
+    public static string PipeName(string nonce) => "FileCat-read-" + nonce;
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _process.WaitForExit(3000);
+        _process.Dispose();
+        _exchange.Dispose();
+    }
+}
+
+/// <summary>The helper's side of a read session: it opens the device and its pipe only after the user approved.</summary>
+public static partial class DeviceReadHost
+{
+    /// <summary>Serves one device to the requesting FileCat; returns why it ended (the helper's report says it).</summary>
+    public static string Run(string device, string pipeName, string userSid, int requesterProcessId)
+    {
+        using var handle = CreateFile(device, 0x80000000 /* GENERIC_READ */, 3 /* read, write sharing */, 0, 3 /* OPEN_EXISTING */, 0, 0);
+        if (handle.IsInvalid) return "The drive could not be opened: " + new Win32Exception(Marshal.GetLastPInvokeError()).Message;
+        long length = DeviceTopology.Length(handle);
+        int sector = DeviceTopology.SectorSize(handle);
+        if (length <= 0) return "The drive's size could not be read.";
+        var security = new PipeSecurity();
+        security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(userSid), PipeAccessRights.ReadWrite, AccessControlType.Allow));
+        using (var self = WindowsIdentity.GetCurrent()) security.AddAccessRule(new PipeAccessRule(self.User!, PipeAccessRights.FullControl, AccessControlType.Allow));
+        // One instance only: if the random name already exists, someone else holds it and nothing is served.
+        using var pipe = NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, security);
+        using (var wait = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+        {
+            try { pipe.WaitForConnectionAsync(wait.Token).GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) { return "FileCat did not connect."; }
+        }
+        if (!GetNamedPipeClientProcessId(pipe.SafePipeHandle, out uint client) || client != requesterProcessId)
+            return "A program other than the FileCat that asked connected; nothing was read.";
+        return RawReadProtocol.Serve(pipe, handle, length, sector);
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetNamedPipeClientProcessId(SafePipeHandle pipe, out uint processId);
+}
+
+/// <summary>Which physical disks volumes and folders are on, so recovery never writes to the disk it reads (plan §17.2).</summary>
+public static unsafe partial class DeviceTopology
+{
+    /// <summary>The volume device (\\?\Volume{…}, no trailing backslash) of a drive root such as "E:\"; null when there is none.</summary>
+    public static string? VolumeDevice(string root)
+    {
+        var buffer = new char[64];
+        fixed (char* chars = buffer)
+            if (!GetVolumeNameForVolumeMountPoint(root.EndsWith('\\') ? root : root + "\\", chars, buffer.Length)) return null;
+        return new string(buffer).TrimEnd('\0').TrimEnd('\\');
+    }
+
+    /// <summary>The physical disk numbers a volume device or a local folder lies on; null when unknown (or not local).</summary>
+    public static IReadOnlyList<int>? DisksOf(string pathOrDevice)
+    {
+        if (pathOrDevice.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase))
+            return int.TryParse(pathOrDevice.AsSpan(17), out int n) ? [n] : null;
+        string? volume = pathOrDevice.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) ? pathOrDevice.TrimEnd('\\') : VolumeOfPath(pathOrDevice);
+        if (volume is null) return null;
+        using var handle = CreateFile(volume, 0, 3, 0, 3, 0, 0);
+        if (handle.IsInvalid) return null;
+        var output = new byte[8 + 24 * 32];
+        uint returned;
+        fixed (byte* o = output)
+            if (!DeviceIoControl(handle, 0x00560000 /* IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS */, null, 0, o, (uint)output.Length, &returned, 0)) return null;
+        int count = BinaryPrimitives.ReadInt32LittleEndian(output);
+        var disks = new List<int>();
+        for (int i = 0; i < count && 8 + i * 24 + 4 <= output.Length; i++)
+        {
+            int disk = BinaryPrimitives.ReadInt32LittleEndian(output.AsSpan(8 + i * 24));
+            if (!disks.Contains(disk)) disks.Add(disk);
+        }
+        return disks;
+    }
+
+    /// <summary>
+    /// Whether writing into <paramref name="folder"/> would write to a disk <paramref name="device"/> lies on: true, false,
+    /// or null when either side is unknown. Network folders are never on a local disk.
+    /// </summary>
+    public static bool? SharesDisk(string device, string folder)
+    {
+        if (PathUtil.IsUncPath(folder) || Path.GetPathRoot(Path.GetFullPath(folder)) is { } root && GetDriveType(root) == 4 /* DRIVE_REMOTE */) return false;
+        var source = DisksOf(device);
+        var target = DisksOf(folder);
+        if (source is null || target is null) return null;
+        return source.Intersect(target).Any();
+    }
+
+    private static string? VolumeOfPath(string path)
+    {
+        var mount = new char[1024];
+        fixed (char* chars = mount)
+            if (!Native.NativeMethods.GetVolumePathName(Path.GetFullPath(path), chars, mount.Length)) return null;
+        return VolumeDevice(new string(mount).TrimEnd('\0'));
+    }
+
+    internal static long Length(SafeFileHandle device)
+    {
+        long length;
+        uint returned;
+        return DeviceIoControl(device, 0x0007405C /* IOCTL_DISK_GET_LENGTH_INFO */, null, 0, &length, 8, &returned, 0) ? length : -1;
+    }
+
+    internal static int SectorSize(SafeFileHandle device)
+    {
+        var geometry = stackalloc byte[256];
+        uint returned;
+        if (!DeviceIoControl(device, 0x000700A0 /* IOCTL_DISK_GET_DRIVE_GEOMETRY_EX */, null, 0, geometry, 256, &returned, 0)) return 512;
+        int size = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(geometry + 20, 4)); // DISK_GEOMETRY.BytesPerSector
+        return size is >= 512 and <= 65536 ? size : 512;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeNameForVolumeMountPointW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetVolumeNameForVolumeMountPoint(string mountPoint, char* volumeName, int length);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeviceIoControl(SafeFileHandle device, uint code, void* input, uint inputSize, void* output, uint outputSize, uint* returned, nint overlapped);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial uint GetDriveType(string root);
+}

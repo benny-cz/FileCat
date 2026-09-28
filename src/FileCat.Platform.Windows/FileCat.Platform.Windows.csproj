@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
+    <ProjectReference Include="..\FileCat.Recovery\FileCat.Recovery.csproj" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
   </ItemGroup>
 </Project>

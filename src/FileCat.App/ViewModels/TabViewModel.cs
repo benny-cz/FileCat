@@ -662,8 +662,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var focus = Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? f.Name : null;
         return new TabState
         {
-            // Working sets outlive the session; search results and other result sets do not.
-            Location = Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ? null : Location,
+            // Working sets outlive the session; search results and other result sets do not. A drive's deleted items are
+            // not reopened at startup either: that would ask for administrator approval before anyone asked to scan.
+            Location = Location is { Scheme: Schemes.ResultSet } && !Core.Search.ResultSetProvider.IsPersistent(Location) ||
+                       Location is { Scheme: Schemes.Recovery } && FileCat.Recovery.RecoveryProvider.IsDevice(Location) ? null : Location,
             Locked = IsLocked,
             ReturnToRoot = ReturnToRoot,
             LockedRoot = LockedRoot,
@@ -672,7 +674,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Filter = Listing.Filter?.Text,
             ColumnProfile = ColumnProfile,
             FocusName = focus,
-            BackHistory = _back.TakeLast(10).Where(l => l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)).ToList(),
+            BackHistory = _back.TakeLast(10).Where(l => (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
+                                                         !(l.Scheme == Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(l))).ToList(),
         };
     }
 

@@ -75,14 +75,26 @@ internal static partial class Program
         if (plan.Steps.Count > lines.Count) lines.Add($"… and {plan.Steps.Count - lines.Count:N0} more steps of the same plan.");
         string content = $"Requested by {ElevationPlanCodec.DisplayName(plan.UserSid)} from FileCat at {plan.CreatedUtc.ToLocalTime():t}. " +
                          $"This approval covers only these {plan.Steps.Count:N0} steps; the helper exits when they finish.";
-        string footer = "Completed steps are kept if a later step fails. Links are never followed." +
-                        (plan.Steps.Any(s => s.Verb == ElevatedVerb.DeleteTree) ? " Deleted items do not go to the Recycle Bin." : "");
+        bool reading = plan.Steps is [{ Verb: ElevatedVerb.ReadDevice }];
+        string footer = reading ? "FileCat reads what it finds itself; this helper only hands it the drive's bytes, and has no way to write."
+            : "Completed steps are kept if a later step fails. Links are never followed." +
+              (plan.Steps.Any(s => s.Verb == ElevatedVerb.DeleteTree) ? " Deleted items do not go to the Recycle Bin." : "");
         if (!ConsentDialog.Ask(plan.Title, content, string.Join("\n", lines), footer))
         {
             Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = ElevationMessages.Declined });
             return 1;
         }
         Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true });
+        if (reading)
+        {
+            // A read session (P10, ADR-08): bytes of one device to the requesting FileCat, until it closes the session.
+            var read = plan.Steps[0];
+            string ended;
+            try { ended = FileCat.Platform.Windows.Recovery.DeviceReadHost.Run(read.Path!, read.Name!, plan.UserSid, plan.RequesterProcessId); }
+            catch (Exception ex) when (IsExpected(ex)) { ended = "The read session failed: " + ex.Message; }
+            Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true, Finished = true, Steps = [new ElevatedStepResult(0, ElevatedOutcome.Committed, ended)] });
+            return 0;
+        }
         var results = ElevationPlanRunner.Run(plan, exchange.StopRequested,
             steps => Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true, Steps = steps.ToList() }));
         Report(exchange, new ElevationResult

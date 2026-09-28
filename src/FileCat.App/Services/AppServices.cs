@@ -48,6 +48,13 @@ public sealed class AppServices : IDisposable
         Providers.Register(Archives);
         // Deleted items of disk images, read-only (P10).
         Recovery = new FileCat.Recovery.RecoveryProvider();
+        if (OperatingSystem.IsWindows())
+        {
+            // Drives are read through the installed administrator helper, which only reads (ADR-08).
+            string exchange = Path.Combine(paths.JournalDirectory, "elevation");
+            Recovery.OpenDevice = (device, name, ct) => FileCat.Platform.Windows.Recovery.BrokeredDeviceSource.Open(device, name, paths.IsPortable, exchange, ct);
+            Recovery.SharesDisk = FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk;
+        }
         Providers.Register(Recovery);
         Zip.OtherArchives = Archives;
         Zip.SpoolForeignMember = Archives.Spool;
@@ -246,6 +253,7 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        Recovery.CloseAll(); // drives' helper sessions end with FileCat
         WorkingSets.Dispose();
         ShellPictures?.Dispose();
         Sftp.Dispose();

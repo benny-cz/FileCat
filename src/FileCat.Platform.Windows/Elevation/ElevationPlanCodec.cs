@@ -59,8 +59,15 @@ public static class ElevationPlanCodec
         if (plan.Steps.Count is 0 or > MaxSteps) problems.Add($"A plan has 1 to {MaxSteps:N0} steps.");
         for (int i = 0; i < plan.Steps.Count && problems.Count < 20; i++)
             if (StepProblem(plan.Steps[i]) is { } problem) problems.Add($"Step {i + 1}: {problem}");
+        if (plan.Steps.Count > 1 && plan.Steps.Any(s => s.Verb == ElevatedVerb.ReadDevice))
+            problems.Add("A read session is a plan of its own: it cannot be combined with other steps.");
         return problems;
     }
+
+    private static readonly System.Text.RegularExpressions.Regex DevicePath =
+        new(@"^(\\\\\?\\Volume\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}|\\\\\.\\PhysicalDrive[0-9]{1,3})$");
+
+    private static readonly System.Text.RegularExpressions.Regex SessionName = new("^FileCat-read-[0-9A-F]{32}$");
 
     private static string? StepProblem(ElevatedStep s)
     {
@@ -89,6 +96,11 @@ public static class ElevationPlanCodec
                 return PathProblem(s.Path, "item") ?? NameProblem(s.Name) ?? (SecureFileOps.Split(s.Path!).Parts.Length == 0 ? "a volume root cannot be renamed." : null);
             case ElevatedVerb.CreateDirectory:
                 return PathProblem(s.Destination, "parent folder") ?? NameProblem(s.Name);
+            case ElevatedVerb.ReadDevice:
+                if (s.Path is null || !DevicePath.IsMatch(s.Path)) return @"the device must be a volume (\\?\Volume{…}) or a physical disk (\\.\PhysicalDriveN).";
+                if (s.Name is null || !SessionName.IsMatch(s.Name)) return "the read session has no valid name.";
+                return s.Destination is not null || s.ReplaceExisting || s.SetAttributes != 0 || s.ClearAttributes != 0
+                    ? "a read session takes only a device and a session name." : null;
             case ElevatedVerb.SetAttributes:
                 const FileAttributes editable = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System |
                                                 FileAttributes.Archive | FileAttributes.NotContentIndexed;
@@ -170,8 +182,18 @@ public static class ElevationPlanCodec
             ElevatedVerb.Rename => $"Rename {P(s.Path)} to \"{s.Name}\"",
             ElevatedVerb.CreateDirectory => $"Create folder \"{s.Name}\" in {P(s.Destination)}",
             ElevatedVerb.SetAttributes => $"Attributes of {P(s.Path)}: set {A(s.SetAttributes)}; clear {A(s.ClearAttributes)}",
+            ElevatedVerb.ReadDevice => $"Read {Device(s.Path)} to find deleted files. The helper can only read it: nothing on it, or anywhere else, is written. It stops when FileCat ends the session.",
             _ => s.Verb.ToString(),
         };
+    }
+
+    /// <summary>"drive E: (\\?\Volume{…})" or "physical disk 1".</summary>
+    private static string Device(string? path)
+    {
+        if (path is null) return "?";
+        if (path.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase)) return "physical disk " + path[17..];
+        string shown = ElevationPaths.ToDisplayPath(path + "\\");
+        return shown.StartsWith(@"\\?\", StringComparison.Ordinal) ? "volume " + path : $"drive {shown.TrimEnd('\\')} ({path})";
     }
 
     private static string RegistryText(ElevatedRegistryChange r)

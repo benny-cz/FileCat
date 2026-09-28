@@ -89,6 +89,13 @@ public abstract class ResourceProvider
     /// <summary>Opens item content for random-access reading, or null when unsupported.</summary>
     public virtual IContentSource? OpenContent(ItemRef item) => null;
 
+    /// <summary>
+    /// Why copying out of <paramref name="source"/> into <paramref name="destinationDirectory"/> must not happen, or null.
+    /// Recovery from a drive refuses destinations on the same physical disk, where the copy could overwrite what it
+    /// recovers (plan §17.2).
+    /// </summary>
+    public virtual string? CheckTransferDestination(Location source, string destinationDirectory) => null;
+
     /// <summary>Parses user-typed text into a location of this provider.</summary>
     public virtual bool TryParse(string text, Location? current, out Location? location)
     {

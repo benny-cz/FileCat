@@ -40,6 +40,18 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     public override void Execute()
     {
         var destDir = Job.Request.Destination!.Path;
+        // Checked before anything is created: a refused destination must stay untouched.
+        foreach (var parent in Job.Request.Sources.Select(s => s.Parent).Distinct())
+        {
+            if (providers.Get(parent.Scheme).CheckTransferDestination(parent, destDir) is not { } refusal) continue;
+            for (int i = 0; i < Job.Request.Sources.Count; i++)
+            {
+                Job.ItemFailed();
+                Job.RootFailed(i);
+            }
+            Issue(IssueSeverity.Error, destDir, refusal, StepOutcome.Failed);
+            return;
+        }
         if (!Directory.Exists(destDir) && !TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
         _originMark = FindOriginMark(Job.Request.Sources[0].Parent);
         var sources = Job.Request.Sources;
