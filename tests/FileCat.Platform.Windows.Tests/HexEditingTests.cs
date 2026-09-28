@@ -210,6 +210,51 @@ public sealed partial class HexEditingTests
         finally { Directory.Delete(directory, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_range_torn_by_a_crash_is_recognized_and_recovered_either_way(bool rollback)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string directory = NewDirectory("filecat-hextorn-");
+        string target = Path.Combine(directory, "target.bin");
+        string journals = Path.Combine(directory, "journals");
+        var original = Enumerable.Range(0, 64).Select(i => (byte)i).ToArray();
+        File.WriteAllBytes(target, original);
+        try
+        {
+            using var file = new ProtectedHexFile(target);
+            using var overlay = new HexPatchOverlay(file);
+            overlay.Write(4, [0xB1, 0xB2, 0xB3, 0xB4]);
+            overlay.Write(20, [0xC1, 0xC2, 0xC3, 0xC4]);
+            // TV-04: the process dies while writing the second range; half of it reached the disk.
+            var failure = Assert.Throws<HexSaveInterruptedException>(() => HexSaveJournal.Save(file, overlay, journals, step =>
+            {
+                if (step != 1) return;
+                file.Write(20, [0xC1, 0xC2]);
+                throw new IOException("terminated");
+            }));
+            var record = HexSaveJournal.Read(failure.JournalPath);
+            Assert.Equal(1, record.WrittenRanges);
+            var state = HexSaveJournal.Inspect(record);
+            Assert.Null(state.Blocker);
+            Assert.Equal((0, 1, 1), (state.OriginalRanges, state.ReplacedRanges, state.MixedRanges));
+
+            HexSaveJournal.Recover(record, rollback, file);
+            var expected = (byte[])original.Clone();
+            if (!rollback)
+            {
+                new byte[] { 0xB1, 0xB2, 0xB3, 0xB4 }.CopyTo(expected, 4);
+                new byte[] { 0xC1, 0xC2, 0xC3, 0xC4 }.CopyTo(expected, 20);
+            }
+            var now = new byte[64];
+            file.Read(0, now);
+            Assert.Equal(expected, now);
+            Assert.Empty(HexSaveJournal.Pending(journals));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
     [Fact]
     public void Recovery_rejects_unrelated_changes_and_preserves_journal()
     {
