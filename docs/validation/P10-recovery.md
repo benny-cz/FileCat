@@ -70,14 +70,19 @@ each such file. A deleted folder's listing is also followed into its next cluste
 | Run | Deleted files found | States | Signed programs recovered | Signatures |
 |---|---|---|---|---|
 | Before | 143 | 142 Recoverable, 1 Partly lost | 58 (28.5 MiB) | 31 valid, 23 not even a program, 4 unsigned (catalog-signed .mui) |
-| After | 431 | 426 Recoverable, 5 Uncertain | 153 (35.7 MiB) | 101 valid, 2 valid but test-signed, 50 unsigned (.mui), **none altered** |
+| After | 431 | 427 Recoverable, 4 Uncertain | 153 (35.7 MiB) | 101 valid, 2 valid but test-signed, 50 unsigned (.mui), **none altered** |
+| After, free space searched | 1,030 (5.3 GiB) | 1,024 Recoverable, 5 Uncertain, 1 Partly lost | 296 (109.8 MiB) | 236 valid, 2 valid but test-signed, 58 unsigned (.mui), **none altered** |
 
-The scan took 2 s, and recovering the 153 files 1.4 s, through the helper's pipe. Unit tests build FAT32 volumes in
-memory with the same deletions (`ErasedFatStartTests`).
+The quick scan took 2 s, and recovering the 153 files 1.4 s, through the helper's pipe. Unit tests build FAT32
+volumes in memory with the same deletions (`ErasedFatStartTests`).
 
-Still missing: the `sources` folder lists 59 items, but its listing goes on in two clusters near the end of the volume
-(found by reading all 7.4 GiB of free space: 4.5 minutes), including the split install image. Nothing FAT keeps points
-there, so only a search of free space finds them.
+The `sources` folder's listing goes on in two clusters near the end of the volume, which nothing FAT keeps points to:
+the quick scan lists 59 of its items and says its list may go on. Searching free space (Find deleted files again,
+inside the view) read all 7.4 GiB in 341 s (21.8 MB/s, the stick's speed through the helper's pipe) and found them,
+placed by their subfolders' ".." entries: 205 items, among them both parts of the split install image (placed by
+their WIM signature). The first part is honestly *Partly lost*: read as one run from its start it would go past the end
+of the volume, so it was stored in pieces. The search asks more of a cluster than the quick scan does (every entry
+marked deleted, every short entry dated): before that, x64 machine code spelled a few "listings".
 
 ## Pending (manual)
 

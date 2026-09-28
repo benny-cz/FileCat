@@ -142,7 +142,7 @@ public static class FileSystems
 /// <summary>Scans a source: its volumes and, in each, the deleted items the file system still describes.</summary>
 public static class RecoveryScanner
 {
-    public static IReadOnlyList<RecoveryVolume> Scan(IBlockSource source, CancellationToken ct)
+    public static IReadOnlyList<RecoveryVolume> Scan(IBlockSource source, CancellationToken ct, RecoveryScanOptions? options = null)
     {
         var warnings = new List<string>();
         var slots = PartitionTable.Find(source, warnings);
@@ -157,7 +157,7 @@ public static class RecoveryScanner
                 var boot = window.ReadExactly(0, 512);
                 volume = FileSystems.Detect(boot) switch
                 {
-                    FileSystems.Fat => FatScanner.Scan(window, boot, slot, ct),
+                    FileSystems.Fat => FatScanner.Scan(window, boot, slot, ct, options),
                     FileSystems.ExFat => ExFatScanner.Scan(window, boot, slot, ct),
                     FileSystems.Ntfs => NtfsScanner.Scan(window, boot, slot, ct),
                     _ => Unsupported(slot, "No NTFS, FAT, or exFAT file system was found here."),

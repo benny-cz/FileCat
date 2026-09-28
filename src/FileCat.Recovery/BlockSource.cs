@@ -111,6 +111,9 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
     public string Description => inner.Description;
     public long Length => inner.Length;
 
+    /// <summary>A small read that is not worth a block in the cache (a glance at many scattered places).</summary>
+    public int ReadDirect(long offset, Span<byte> buffer) => offset >= Length ? 0 : inner.Read(offset, buffer);
+
     public int Read(long offset, Span<byte> buffer)
     {
         if (offset >= Length) return 0;

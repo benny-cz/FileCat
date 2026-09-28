@@ -50,8 +50,11 @@ public sealed class LiveDriveRecoveryTests : IDisposable
         return drive.TrimEnd('\\');
     }
 
-    [Fact]
-    public async Task A_usb_drive_is_scanned_through_the_helper_protocol_and_signed_files_recover_exactly()
+    /// <summary>The quick scan, and the one that also searches all free space for listings nothing points to (minutes).</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_usb_drive_is_scanned_through_the_helper_protocol_and_signed_files_recover_exactly(bool searchFreeSpace)
     {
         string drive = GuardedDrive();
         var log = TestContext.Current.TestOutputHelper;
@@ -76,7 +79,17 @@ public sealed class LiveDriveRecoveryTests : IDisposable
         using (var source = new PipeDeviceSource(client, drive))
         {
             var clock = Stopwatch.StartNew();
-            var volumes = RecoveryScanner.Scan(source, ct);
+            long lastReport = 0;
+            var volumes = RecoveryScanner.Scan(source, ct, new RecoveryScanOptions
+            {
+                SearchFreeSpace = searchFreeSpace,
+                Progress = (done, total) =>
+                {
+                    if (done - lastReport < total / 4 && done < total) return;
+                    lastReport = done;
+                    log?.WriteLine($"  free space searched: {done / (1024 * 1024)} of {total / (1024 * 1024)} MiB after {clock.Elapsed.TotalSeconds:F0} s");
+                },
+            });
             var scan = clock.Elapsed;
             var volume = Assert.Single(volumes, v => v.FileSystem != "Unknown");
             var items = All(volume.Root).Where(i => i.IsDeleted && !i.IsDirectory).ToList();
@@ -88,6 +101,8 @@ public sealed class LiveDriveRecoveryTests : IDisposable
                 log?.WriteLine($"  folder {PathOf(folder)}: {folder.Children.Count} items. {folder.Evidence.LastOrDefault()}");
             foreach (var uncertain in items.Where(i => i.State != RecoveryState.Recoverable).Take(15))
                 log?.WriteLine($"  {PathOf(uncertain)} ({uncertain.State}): {string.Join(" ", uncertain.Evidence)}");
+            foreach (var large in items.Where(i => i.Size > 100L * 1024 * 1024))
+                log?.WriteLine($"  large: {PathOf(large)} ({large.Size / (1024 * 1024)} MiB, {large.State}): {string.Join(" ", large.Evidence)}");
             Assert.NotEmpty(items);
 
             // Every recoverable signed program (and a sample of the rest) is copied off the drive.

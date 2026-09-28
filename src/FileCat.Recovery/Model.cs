@@ -168,6 +168,16 @@ public sealed record CompressedUnit(IReadOnlyList<(long Offset, long Length)> Pi
 /// <summary>An NTFS-compressed stream: equal units of <see cref="UnitBytes"/> bytes (the last one may be short).</summary>
 public sealed record CompressedLayout(int UnitBytes, IReadOnlyList<CompressedUnit> Units);
 
+/// <summary>How thoroughly to scan.</summary>
+public sealed record RecoveryScanOptions
+{
+    /// <summary>Also read all free space of FAT volumes for listings nothing points to any more (minutes on large drives).</summary>
+    public bool SearchFreeSpace { get; init; }
+
+    /// <summary>Bytes of free space searched so far, of the total.</summary>
+    public Action<long, long>? Progress { get; init; }
+}
+
 /// <summary>One file system found on a source, with its reconstructed tree of deleted items.</summary>
 public sealed class RecoveryVolume
 {
@@ -182,6 +192,15 @@ public sealed class RecoveryVolume
 
     /// <summary>Deleted items whose folder is unknown.</summary>
     public RecoveryItem? Orphans { get; set; }
+
+    /// <summary>Unallocated bytes, where the file system lets FileCat count them (FAT).</summary>
+    public long? FreeBytes { get; set; }
+
+    /// <summary>Deleted folders whose list of contents may go on in space nothing points to (FAT).</summary>
+    public int OpenListings { get; set; }
+
+    /// <summary>Whether free space was searched for listings nothing points to any more (<see cref="RecoveryScanOptions"/>).</summary>
+    public bool FreeSpaceSearched { get; set; }
 
     public List<string> Warnings { get; } = [];
 

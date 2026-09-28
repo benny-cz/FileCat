@@ -50,6 +50,26 @@ public sealed class RecoveryUiTests
             Assert.False(((Views.OverlayDialogService)vm.Dialogs).IsOpen);
             Assert.Contains("only reads", vm.Notification ?? "", StringComparison.Ordinal);
             Assert.True(File.Exists(image));
+
+            // Find deleted files again, here: the volume's free space is searched too, after a confirmation.
+            var location = tab.Location;
+            vm.Execute(CommandIds.FindDeleted);
+            Avalonia.Controls.Button? search = null;
+            for (int i = 0; i < 250 && search is null; i++)
+            {
+                search = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Button>()
+                    .FirstOrDefault(b => b.Content as string == "Search" && b.IsEffectivelyVisible);
+                if (search is null) await Task.Delay(20, ct);
+            }
+            Assert.NotNull(search);
+            search.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            for (int i = 0; i < 500 && services.Recovery.DescribeFreeSpaceSearch(location) is not { Searched: true }; i++) await Task.Delay(20, ct);
+            Assert.True(services.Recovery.DescribeFreeSpaceSearch(location)!.Searched);
+            for (int i = 0; i < 250 && (listing.State != Core.Listing.ListingState.Complete || listing.IsRefreshing); i++) await Task.Delay(20, ct);
+            Assert.True(Index("frag-a.bin") >= 0);
+            vm.Execute(CommandIds.FindDeleted);
+            await Task.Delay(50, ct);
+            Assert.Contains("searched already", vm.Notification ?? "", StringComparison.Ordinal);
         }
         finally
         {

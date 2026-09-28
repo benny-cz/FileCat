@@ -34,6 +34,11 @@ public interface IEnumerationSink
 
     /// <summary>A non-fatal problem (an entry or subtree that could not be read).</summary>
     void ReportIssue(string message);
+
+    /// <summary>What a long listing is doing, for the panel to show while it waits ("Searching free space: 40%").</summary>
+    void ReportProgress(string text)
+    {
+    }
 }
 
 /// <summary>

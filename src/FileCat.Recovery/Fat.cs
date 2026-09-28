@@ -17,8 +17,8 @@ internal sealed class FatScanner
     private const int MaxDepth = 256;
     private const int MaxDirectoryClusters = 65536;
     private const long MaxFatBytes = 64L * 1024 * 1024; // 16 million clusters
-    private const int MaxWeighed = 16; // places weighed by their data for one file
-    private const int MaxSniffs = 4096; // and for the whole scan (each reads one cached block)
+    private const int MaxWeighed = 64; // places weighed by their data for one file (all of them up to 4 million clusters)
+    private const int MaxSniffs = 65_536; // and for the whole scan (each reads one sector)
 
     private readonly IBlockSource _volume;
     private readonly int _bits;
@@ -27,6 +27,8 @@ internal sealed class FatScanner
     private readonly uint _clusterCount;
     private readonly uint[] _fat;
     private readonly HashSet<uint> _directories = [];
+    private readonly Dictionary<uint, (RecoveryItem Folder, int Depth)> _folders = []; // by first cluster (the root: 0)
+    private readonly HashSet<uint> _open = []; // deleted folders whose listing may go on elsewhere
     private readonly RecoveryVolume _result;
     private string? _label;
     private int _sniffs;
@@ -74,11 +76,13 @@ internal sealed class FatScanner
     private int RootBytes { get; }
     private uint RootCluster { get; }
 
-    public static RecoveryVolume Scan(IBlockSource volume, byte[] boot, VolumeSlot slot, CancellationToken ct)
+    public static RecoveryVolume Scan(IBlockSource volume, byte[] boot, VolumeSlot slot, CancellationToken ct, RecoveryScanOptions? options = null)
     {
         var scanner = new FatScanner(volume, boot, slot);
+        scanner._folders[0] = (scanner._result.Root, 0);
         if (scanner._bits == 32)
         {
+            scanner._folders[scanner.RootCluster] = (scanner._result.Root, 0);
             scanner._directories.Add(scanner.RootCluster);
             scanner.Placed(scanner.RootCluster, scanner._clusterSize, known: true);
             scanner.ParseChain(scanner._result.Root, scanner.RootCluster, depth: 0, ct, root: true);
@@ -87,8 +91,14 @@ internal sealed class FatScanner
         {
             scanner.ParseEntries(scanner._result.Root, volume.ReadExactly(scanner.RootOffset, scanner.RootBytes), new Listing(0), insideDeleted: false, depth: 0, ct);
         }
+        if (options?.SearchFreeSpace == true) scanner.SearchFreeSpace(options.Progress, ct);
         scanner.ResolvePending();
         scanner._result.Label = scanner._label;
+        scanner._result.OpenListings = scanner._open.Count;
+        long free = 0;
+        for (uint c = 2; c < scanner._clusterCount + 2; c++)
+            if (scanner._fat[c] == 0) free++;
+        scanner._result.FreeBytes = free * scanner._clusterSize;
         return scanner._result;
     }
 
@@ -192,6 +202,7 @@ internal sealed class FatScanner
                 if (!Valid(start) || !_directories.Add(start)) continue;
                 var existing = new RecoveryItem { Name = text, IsDirectory = true, ModifiedUtc = modified, CreatedUtc = created };
                 folder.Children.Add(existing);
+                _folders[start] = (existing, depth + 1);
                 Placed(start, _clusterSize, known: true);
                 ParseChain(existing, start, depth + 1, ct);
                 continue;
@@ -388,7 +399,7 @@ internal sealed class FatScanner
         if (_sniffs >= MaxSniffs) return ContentFit.Unknown;
         _sniffs++;
         var head = new byte[(int)Math.Clamp(size, 1, 512)];
-        int n = _volume.Read(ClusterOffset(cluster), head);
+        int n = _volume is CachedSource cached ? cached.ReadDirect(ClusterOffset(cluster), head) : _volume.Read(ClusterOffset(cluster), head);
         return ContentSignature.Check(name, head.AsSpan(0, Math.Max(0, n)), size);
     }
 
@@ -428,6 +439,8 @@ internal sealed class FatScanner
         }
         item.Extents = extents;
         if (needed > 1) item.Evidence.Add("FAT keeps no list of a deleted file's pieces: FileCat reads it as one continuous run from its first cluster.");
+        if (!Valid((uint)Math.Min(uint.MaxValue, start + needed - 1)))
+            item.Evidence.Add("As one run it would go past the end of the volume, so it was stored in pieces, and FAT no longer says where the rest is.");
         if (extents.Any(e => e.State == ExtentState.InUse) && needed > 1 && extents[0].State == ExtentState.Free)
             item.Evidence.Add("Either the file was stored in pieces, or other data has taken part of its space since.");
         item.StartGuessed = guessed;
@@ -460,13 +473,22 @@ internal sealed class FatScanner
             return;
         }
         if (!_directories.Add(found) || TooDeep(depth + 1)) return;
+        ParseDeletedListing(item, found, cluster, depth + 1, ct);
+    }
+
+    private const string ListingOpen = "Its list of contents survives, perhaps not all of it: FAT no longer records where more of it would be.";
+
+    /// <summary>A deleted folder's listing, from its first cluster (read into <paramref name="cluster"/>) on.</summary>
+    private void ParseDeletedListing(RecoveryItem item, uint found, byte[] cluster, int depth, CancellationToken ct)
+    {
+        _folders[found] = (item, depth);
         Placed(found, _clusterSize, known: true);
         var listing = new Listing(found);
         bool ended = false;
         uint current = found;
         for (int clusters = 1; ; clusters++)
         {
-            if (!ParseEntries(item, cluster, listing, insideDeleted: true, depth + 1, ct))
+            if (!ParseEntries(item, cluster, listing, insideDeleted: true, depth, ct))
             {
                 ended = true;
                 break;
@@ -478,9 +500,174 @@ internal sealed class FatScanner
             Placed(next, _clusterSize, known: true);
             current = next;
         }
+        if (!ended && item.Children.Count > 0) _open.Add(found);
         item.Evidence.Add(item.Children.Count == 0 ? "Its list of contents survives but is empty."
             : ended ? "Its list of contents survives."
-            : "Its list of contents survives, perhaps not all of it: FAT no longer records where more of it would be.");
+            : ListingOpen);
+    }
+
+    /// <summary>
+    /// Searches all free space, once and in order, for listings nothing points to any more: more of a deleted folder's list
+    /// of contents (it goes to the folder its subfolders' ".." entries name, when that folder's listing was left open),
+    /// and first clusters of deleted folders whose own entries are gone. What cannot be placed goes to "Orphans".
+    /// </summary>
+    private void SearchFreeSpace(Action<long, long>? progress, CancellationToken ct)
+    {
+        long total = 0;
+        for (uint c = 2; c < _clusterCount + 2; c++)
+            if (_fat[c] == 0) total += _clusterSize;
+        var more = new List<uint>();
+        var starts = new List<uint>();
+        int perRead = Math.Max(1, 4 * 1024 * 1024 / _clusterSize);
+        var buffer = new byte[perRead * _clusterSize];
+        long done = 0, reported = 0, unreadable = 0;
+        progress?.Invoke(0, total);
+        for (uint c = 2; c < _clusterCount + 2;)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (_fat[c] != 0)
+            {
+                c++;
+                continue;
+            }
+            uint run = 1;
+            while (run < perRead && c + run < _clusterCount + 2 && _fat[c + run] == 0) run++;
+            int n;
+            try { n = _volume.Read(ClusterOffset(c), buffer.AsSpan(0, (int)run * _clusterSize)); }
+            catch (IOException)
+            {
+                // A bad spot is skipped, never retried: free space is searched once (plan §17.1).
+                n = 0;
+                unreadable += (long)run * _clusterSize;
+            }
+            for (uint i = 0; i < run && (i + 1) * _clusterSize <= n; i++)
+            {
+                var data = buffer.AsSpan((int)(i * _clusterSize), _clusterSize);
+                uint at = c + i;
+                if (data[0] == 0 || (data[11] & 0xC0) != 0 || _directories.Contains(at)) continue;
+                if (IsDotEntry(data[..32], ".") && IsDotEntry(data.Slice(32, 32), "..") && FirstCluster(data[..32]) == at) starts.Add(at);
+                else if (LooksLikeMoreEntries(data, deletedOnly: true)) more.Add(at);
+            }
+            c += run;
+            done += (long)run * _clusterSize;
+            if (done - reported >= 16L * 1024 * 1024)
+            {
+                progress?.Invoke(done, total);
+                reported = done;
+            }
+        }
+        progress?.Invoke(total, total);
+        if (unreadable > 0) _result.Warnings.Add($"{RecoveryItem.Bytes(unreadable)} of free space could not be read and was skipped.");
+
+        var orphans = new RecoveryItem { Name = "Orphans", IsDirectory = true };
+        RecoveryItem Lost(string evidence)
+        {
+            // Named once it holds something (see the end): a piece can turn out to hold nothing FileCat lists.
+            var folder = new RecoveryItem { Name = "", IsDirectory = true, IsDeleted = true };
+            folder.Evidence.Add(evidence);
+            orphans.Children.Add(folder);
+            return folder;
+        }
+        string Where(uint? parent) =>
+            parent is { } p && _folders.TryGetValue(p, out var known) && known.Folder.Name.Length > 0 ? $" It was in \"{known.Folder.Name}\"." : "";
+        var cluster = new byte[_clusterSize];
+        var lostByOwner = new Dictionary<uint, (RecoveryItem Folder, int Depth)>();
+        // More of a listing: consecutive clusters are one piece; its subfolders' ".." entries name the folder it belongs to.
+        foreach (var piece in Runs(more))
+        {
+            uint? owner = OwnerOf(piece);
+            (RecoveryItem Folder, int Depth) target;
+            if (owner is { } o && _open.Contains(o) && _folders.TryGetValue(o, out var open))
+            {
+                target = open;
+                if (open.Folder.Evidence.Remove(ListingOpen)) open.Folder.Evidence.Add("Its list of contents survives; FileCat found more of it in free space.");
+            }
+            else if (owner is { } p && lostByOwner.TryGetValue(p, out var earlier)) target = earlier;
+            else
+            {
+                target = (Lost("Part of a deleted folder's list of contents, found in free space; the folder's name is lost." + Where(owner)), 1);
+                if (owner is { } r) lostByOwner[r] = target;
+            }
+            foreach (uint x in piece)
+            {
+                if (!_directories.Add(x) || _volume.Read(ClusterOffset(x), cluster) < _clusterSize) continue;
+                Placed(x, _clusterSize, known: true);
+                ParseEntries(target.Folder, cluster, new Listing(owner ?? AnyParent), insideDeleted: true, target.Depth, ct);
+            }
+        }
+        // Deleted folders found by their own first cluster, whose entries were in no listing FileCat found.
+        foreach (uint start in starts)
+        {
+            if (_directories.Contains(start) || _volume.Read(ClusterOffset(start), cluster) < _clusterSize) continue;
+            var folder = Lost("A deleted folder found in free space by its own first entries; its name is lost." + Where(FirstCluster(cluster.AsSpan(32, 32))));
+            _directories.Add(start);
+            ParseDeletedListing(folder, start, cluster, 1, ct);
+        }
+        orphans.Children.RemoveAll(f => f.Children.Count == 0);
+        if (orphans.Children.Count > 0)
+        {
+            var named = orphans.Children.Select((f, i) => new RecoveryItem { Name = $"Lost folder {i + 1}", IsDirectory = true, IsDeleted = true }).ToList();
+            for (int i = 0; i < named.Count; i++)
+            {
+                named[i].Evidence.AddRange(orphans.Children[i].Evidence);
+                named[i].Children.AddRange(orphans.Children[i].Children);
+            }
+            orphans.Children.Clear();
+            orphans.Children.AddRange(named);
+            orphans.Evidence.Add("Deleted items found in free space whose folder is unknown.");
+            _result.Orphans = orphans;
+            _result.Root.Children.Add(orphans);
+        }
+        _result.FreeSpaceSearched = true;
+    }
+
+    /// <summary>Consecutive clusters, grouped.</summary>
+    private static IEnumerable<List<uint>> Runs(List<uint> clusters)
+    {
+        List<uint>? run = null;
+        foreach (uint c in clusters)
+        {
+            if (run is not null && c == run[^1] + 1)
+            {
+                run.Add(c);
+                continue;
+            }
+            if (run is not null) yield return run;
+            run = [c];
+        }
+        if (run is not null) yield return run;
+    }
+
+    /// <summary>
+    /// The folder a piece of a listing belongs to, by its subfolders: each one's first cluster names its parent in "..".
+    /// A place whose "." fits but that is another folder names another parent, so a parent whose listing was left open,
+    /// and then the one named most often, wins.
+    /// </summary>
+    private uint? OwnerOf(List<uint> piece)
+    {
+        var votes = new Dictionary<uint, int>();
+        var data = new byte[_clusterSize];
+        var start = new byte[64];
+        foreach (uint x in piece)
+        {
+            if (_volume.Read(ClusterOffset(x), data) < _clusterSize) continue;
+            for (int at = 0; at + 32 <= data.Length && data[at] != 0; at += 32)
+            {
+                var e = data.AsSpan(at, 32);
+                if ((e[11] & 0x3F) == 0x0F || (e[11] & 0x10) == 0 || e[0] == (byte)'.') continue;
+                uint first = FirstCluster(e);
+                foreach (uint c in Starts(first, erased: _bits == 32 && first <= 0xFFFF))
+                {
+                    if (_volume.Read(ClusterOffset(c), start) < start.Length) continue;
+                    if (!IsDotEntry(start.AsSpan(0, 32), ".") || !IsDotEntry(start.AsSpan(32, 32), "..") || FirstCluster(start.AsSpan(0, 32)) != c) continue;
+                    uint parent = FirstCluster(start.AsSpan(32, 32));
+                    if (_bits == 32 && parent == RootCluster) parent = 0;
+                    votes[parent] = votes.GetValueOrDefault(parent) + 1;
+                }
+            }
+        }
+        if (votes.Count == 0) return null;
+        return votes.OrderByDescending(v => _open.Contains(v.Key)).ThenByDescending(v => v.Value).First().Key;
     }
 
     /// <summary>The cluster that carries on a deleted folder's listing, read into <paramref name="buffer"/>; null when none is found.</summary>
@@ -500,20 +687,26 @@ internal sealed class FatScanner
     /// <summary>A folder's first cluster: "." names itself, ".." its parent (0 for the root, which some systems write as its cluster).</summary>
     private bool IsFolderStart(ReadOnlySpan<byte> cluster, uint c, uint parent) =>
         IsDotEntry(cluster[..32], ".") && IsDotEntry(cluster.Slice(32, 32), "..") && FirstCluster(cluster[..32]) == c &&
-        FirstCluster(cluster.Slice(32, 32)) is var up && (up == parent || parent == 0 && _bits == 32 && up == RootCluster);
+        FirstCluster(cluster.Slice(32, 32)) is var up && (up == parent || parent == AnyParent || parent == 0 && _bits == 32 && up == RootCluster);
+
+    /// <summary>A listing whose own folder is unknown: its subfolders' ".." cannot be checked.</summary>
+    private const uint AnyParent = uint.MaxValue;
 
     /// <summary>
     /// Whether a cluster carries on a folder's listing (it is not a folder's start): every entry up to the end mark is a
     /// well-formed long-name piece or short entry, and at least one short entry carries a valid date. File data almost
-    /// never passes: that takes 32-byte records with the fixed fields right, all through the cluster.
+    /// never passes: that takes 32-byte records with the fixed fields right, all through the cluster. Searching all free
+    /// space asks more (<paramref name="deletedOnly"/>), as a volume's worth of data holds rare lookalikes (machine code
+    /// can spell a name): every entry marked deleted, as Windows leaves a deleted folder's, and every short entry dated.
     /// </summary>
-    internal static bool LooksLikeMoreEntries(ReadOnlySpan<byte> cluster)
+    internal static bool LooksLikeMoreEntries(ReadOnlySpan<byte> cluster, bool deletedOnly = false)
     {
         bool dated = false;
         for (int at = 0; at + 32 <= cluster.Length; at += 32)
         {
             var e = cluster.Slice(at, 32);
             if (e[0] == 0) return dated;
+            if (deletedOnly && e[0] != 0xE5) return false;
             if ((e[11] & 0x3F) == 0x0F)
             {
                 // A long-name piece: order 1–20 (0x40 marks the last), type 0, and no cluster.
@@ -521,10 +714,11 @@ internal sealed class FatScanner
                 if (order is < 1 or > 20 || e[12] != 0 || e[26] != 0 || e[27] != 0) return false;
                 continue;
             }
-            if ((e[11] & 0xC0) != 0 || (e[12] & ~0x18) != 0 || e[0] == 0x20 || at == 0 && e[0] == (byte)'.') return false;
+            if ((e[11] & 0xC0) != 0 || (e[12] & ~0x18) != 0 || e[13] > 199 || e[0] == 0x20 || at == 0 && e[0] == (byte)'.') return false;
             for (int i = e[0] is 0xE5 or 0x05 ? 1 : 0; i < 11; i++)
                 if (!ShortNameByte(e[i])) return false;
             if (DosTime(BinaryPrimitives.ReadUInt16LittleEndian(e[24..]), BinaryPrimitives.ReadUInt16LittleEndian(e[22..]), 0) is not null) dated = true;
+            else if (deletedOnly) return false;
         }
         return dated;
     }

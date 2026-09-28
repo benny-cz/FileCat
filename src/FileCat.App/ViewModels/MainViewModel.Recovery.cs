@@ -15,6 +15,11 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location is null) return;
+        if (tab.Location.Scheme == Schemes.Recovery)
+        {
+            await SearchFreeSpaceAsync(tab, tab.Location);
+            return;
+        }
         bool hasFocus = tab.Listing.TryGetFocused(out var focused);
         if (hasFocus && focused.Kind == EntryKind.Drive && focused.Tag is DriveTag drive)
         {
@@ -48,6 +53,36 @@ public sealed partial class MainViewModel
         }
         // One volume opens directly; a partitioned disk lists its volumes first.
         tab.Navigate(RecoveryProvider.ForImage(image, volumes == 1 ? 1 : null));
+    }
+
+    /// <summary>
+    /// Find deleted files again, inside a recovery view: the scan read what the file system records; this also reads the
+    /// volume's free space once for deleted folders' lists of contents that FAT no longer points to.
+    /// </summary>
+    private async Task SearchFreeSpaceAsync(TabViewModel tab, Location location)
+    {
+        var search = Services.Recovery.DescribeFreeSpaceSearch(location);
+        if (search is null)
+        {
+            Notify(location.Session is null
+                ? "Open a volume first: its free space can then be searched for more deleted items."
+                : "Only FAT volumes lose track of deleted folders' contents; this volume's scan already shows all it records.", true);
+            return;
+        }
+        if (search.Searched)
+        {
+            Notify("This volume's free space was searched already.");
+            return;
+        }
+        string open = search.OpenListings > 0
+            ? $" {search.OpenListings} deleted folder{(search.OpenListings == 1 ? "'s list" : "s' lists")} of contents may go on there."
+            : "";
+        string text = $"The scan read what the file system records. Searching free space also reads all {Formatters.SizeWithUnit(search.FreeBytes)} of free space on {search.Volume}, " +
+                      "once and in order, for deleted folders' lists of contents that FAT no longer points to." + open +
+                      " That takes minutes on a USB stick and longer on large drives; nothing is written, and Esc stops it.";
+        if (!await Dialogs.ConfirmAsync("Search free space", text, "Search")) return;
+        Services.Recovery.SearchFreeSpace(location);
+        tab.Refresh();
     }
 
     /// <summary>A drive: its volume is read through the administrator helper after an explicit confirmation here.</summary>

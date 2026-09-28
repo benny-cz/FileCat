@@ -315,6 +315,87 @@ public sealed class ErasedFatStartTests
         }
     }
 
+    /// <summary>
+    /// BIG's first cluster is full; the rest of its listing was put far away, where nothing FAT keeps points (as on the USB
+    /// stick, where the setup folder's listing went on near the end of the volume). Its subfolder names BIG in "..".
+    /// </summary>
+    private static (Fat32Image Image, List<(string Name, byte[] Content)> Files, byte[] Inner) FarListing()
+    {
+        var image = new Fat32Image();
+        uint folder = Half + 20_000, far = 120_000;
+        image.Put(2, Fat32Image.Entry("BIG        ", 0x10, folder, 0, deleted: true));
+        var files = Enumerable.Range(1, 16).Select(i => (Name: $"F{i:D2}     BIN", Content: Fat32Image.Data(200, 200 + i))).ToList();
+        image.Folder(folder, 0, [.. files.Take(14).Select((f, i) => Fat32Image.Deleted(f.Name, folder + 1 + (uint)i, f.Content))]);
+        for (int i = 0; i < 14; i++) image.Put(folder + 1 + (uint)i, files[i].Content);
+        var inner = Fat32Image.Text(300, "inner");
+        image.Put(far, [.. Fat32Image.Entry("SUB        ", 0x10, far + 1, 0, deleted: true),
+            .. Fat32Image.Deleted(files[14].Name, far + 3, files[14].Content), .. Fat32Image.Deleted(files[15].Name, far + 4, files[15].Content)]);
+        image.Folder(far + 1, folder, Fat32Image.Deleted("INNER   TXT", far + 2, inner));
+        image.Put(far + 2, inner);
+        image.Put(far + 3, files[14].Content);
+        image.Put(far + 4, files[15].Content);
+        return (image, files, inner);
+    }
+
+    [Fact]
+    public void Searching_free_space_finds_the_rest_of_a_listing_and_puts_it_in_its_folder()
+    {
+        var (image, files, inner) = FarListing();
+        var quick = Scan(image);
+        var big = Assert.Single(quick.Root.Children);
+        Assert.Equal(14, big.Children.Count);
+        Assert.Equal(1, quick.OpenListings);
+        Assert.False(quick.FreeSpaceSearched);
+        Assert.Equal(image.Clusters * (long)Fat32Image.ClusterSize - Fat32Image.ClusterSize, quick.FreeBytes); // all but the root
+
+        var reports = new List<(long Done, long Total)>();
+        var deep = Assert.Single(RecoveryScanner.Scan(image, TestContext.Current.CancellationToken,
+            new RecoveryScanOptions { SearchFreeSpace = true, Progress = (done, total) => reports.Add((done, total)) }));
+        Assert.True(deep.FreeSpaceSearched);
+        Assert.Null(deep.Orphans);
+        big = Assert.Single(deep.Root.Children);
+        Assert.Equal(17, big.Children.Count);
+        Assert.Contains("Its list of contents survives; FileCat found more of it in free space.", big.Evidence);
+        for (int i = 0; i < 16; i++)
+        {
+            var item = big.Children.Single(c => c.Name == "_" + files[i].Name[1..3] + ".BIN");
+            Assert.True(item.State == RecoveryState.Recoverable, Explain(item));
+            Assert.Equal(files[i].Content, Recover(image, deep, item));
+        }
+        var sub = big.Children.Single(c => c.IsDirectory);
+        Assert.Equal(inner, Recover(image, deep, Assert.Single(sub.Children)));
+        Assert.Equal((0L, quick.FreeBytes!.Value), reports[0]);
+        Assert.Equal((quick.FreeBytes!.Value, quick.FreeBytes!.Value), reports[^1]);
+    }
+
+    [Fact]
+    public void What_free_space_holds_but_no_folder_claims_goes_to_orphans()
+    {
+        var image = new Fat32Image();
+        // A piece of some folder's listing without subfolders, and a folder whose own entry is gone.
+        var a = Fat32Image.Text(300, "alpha");
+        var b = Fat32Image.Program(700, 8);
+        image.Put(50_000, [.. Fat32Image.Deleted("ALPHA   TXT", 50_001, a), .. Fat32Image.Deleted("BETA    EXE", 50_002, b)]);
+        image.Put(50_001, a);
+        image.Put(50_002, b);
+        var c = Fat32Image.Text(100, "gamma");
+        image.Folder(90_000, 0, Fat32Image.Deleted("GAMMA   TXT", 90_001, c));
+        image.Put(90_001, c);
+
+        Assert.Empty(Scan(image).Root.Children);
+        var volume = Assert.Single(RecoveryScanner.Scan(image, TestContext.Current.CancellationToken, new RecoveryScanOptions { SearchFreeSpace = true }));
+        var orphans = Assert.Single(volume.Root.Children);
+        Assert.Same(volume.Orphans, orphans);
+        Assert.Equal(["Lost folder 1", "Lost folder 2"], orphans.Children.Select(f => f.Name));
+        var piece = orphans.Children[0];
+        Assert.Contains("found in free space", piece.Evidence[0], StringComparison.Ordinal);
+        Assert.Equal(a, Recover(image, volume, piece.Children.Single(i => i.Name == "_LPHA.TXT")));
+        Assert.Equal(b, Recover(image, volume, piece.Children.Single(i => i.Name == "_ETA.EXE")));
+        var folder = orphans.Children[1];
+        Assert.Contains("its name is lost", folder.Evidence[0], StringComparison.Ordinal);
+        Assert.Equal(c, Recover(image, volume, Assert.Single(folder.Children)));
+    }
+
     [Fact]
     public void A_deleted_folder_is_told_from_another_by_its_parent()
     {
@@ -349,6 +430,28 @@ public sealed class ErasedFatStartTests
         Assert.False(FatScanner.LooksLikeMoreEntries(new byte[512]));
         Assert.False(FatScanner.LooksLikeMoreEntries([.. Fat32Image.Entry(".          ", 0x10, 5, 0), .. new byte[480]])); // a folder's start
         Assert.True(FatScanner.LooksLikeMoreEntries([.. Fat32Image.Entry("SETUP   EXE", 0x20, 5, 10, deleted: true), .. new byte[480]]));
+        // Machine code can spell a name ("WATAVAWH": push rdi, push r12, …); searching all free space wants what Windows
+        // leaves of a deleted folder: every entry marked deleted.
+        byte[] lookalike = [.. Fat32Image.Entry("WATAVAWH___", 0x20, 5, 10), .. new byte[480]];
+        Assert.True(FatScanner.LooksLikeMoreEntries(lookalike));
+        Assert.False(FatScanner.LooksLikeMoreEntries(lookalike, deletedOnly: true));
+    }
+
+    [Fact]
+    public void A_file_that_would_run_past_the_end_of_the_volume_says_it_was_in_pieces()
+    {
+        var image = new Fat32Image();
+        uint last = image.Clusters + 1;
+        var program = Fat32Image.Program(1_500, 13); // three clusters, from the last one
+        image.Put(2, Fat32Image.Deleted("TAIL    EXE", last, program));
+        image.Put(last, program.AsSpan(0, Fat32Image.ClusterSize));
+
+        var volume = Scan(image);
+        var item = RecoveryFixtures.Find(volume.Root, "_AIL.EXE")!;
+        Assert.True(item.State == RecoveryState.Partial, Explain(item));
+        Assert.Contains(item.Evidence, e => e.Contains("past the end of the volume", StringComparison.Ordinal));
+        using var content = new RecoveryContent(new WindowSource(image, volume.Offset, volume.Length, "volume"), item);
+        Assert.Equal([(512L, 988L)], content.MissingRanges);
     }
 
     [Theory]

@@ -98,6 +98,9 @@ public sealed class ListingModel : IDisposable
     public TimeSpan LastLoadDuration { get; private set; }
     public bool IsRefreshing => _pendingRefresh is not null;
 
+    /// <summary>What the provider says a long load or refresh is doing, or null.</summary>
+    public string? LoadingProgress => State == ListingState.Loading || IsRefreshing ? (_pendingRefresh ?? _pipeline)?.Progress : null;
+
     /// <summary>Metadata sort keys (set by the view layer); used only when sorting by a metadata field.</summary>
     public MetadataKeyProvider? MetadataKeys { get; set; }
 
@@ -367,7 +370,7 @@ public sealed class ListingModel : IDisposable
         if (_disposed) { r.External?.Dispose(); return; }
         if (r.ProgressOnly)
         {
-            if (ReferenceEquals(p, _pipeline)) Raise(ListingChange.State);
+            if (ReferenceEquals(p, _pipeline) || ReferenceEquals(p, _pendingRefresh)) Raise(ListingChange.State);
             return;
         }
         if (ReferenceEquals(p, _pendingRefresh))
@@ -902,6 +905,10 @@ public sealed class ListingModel : IDisposable
         public Exception? LoadError;
         public long ExternalSortBytes => Interlocked.Read(ref _externalSortBytes);
 
+        /// <summary>The provider's latest word on a long load (<see cref="IEnumerationSink.ReportProgress"/>).</summary>
+        public volatile string? Progress;
+        private string? _publishedProgress;
+
         public void Signal()
         {
             try { _signal.Release(); }
@@ -975,6 +982,11 @@ public sealed class ListingModel : IDisposable
                     if (loading) await _signal.WaitAsync(first ? 30 : 120, ct).ConfigureAwait(false);
                     else if (doneAnnounced) await _signal.WaitAsync(ct).ConfigureAwait(false);
                     first = false;
+                    if (!LoadDone && Progress is { } progress && !ReferenceEquals(progress, _publishedProgress))
+                    {
+                        _publishedProgress = progress;
+                        Publish(new PipelineResult([], Store.Count, false, null, false, ProgressOnly: true));
+                    }
 
                     var spec = _spec;
                     bool done = LoadDone;
@@ -1093,6 +1105,8 @@ public sealed class ListingModel : IDisposable
         {
             lock (_resultLock)
             {
+                // Rows waiting for the UI carry the progress along; a progress note never displaces them.
+                if (result.ProgressOnly && _queuedResult is { ProgressOnly: false }) return;
                 if (_queuedResult is { Completion: true } && !result.Completion)
                     result = result with { Completion = true };
                 _queuedResult?.External?.Dispose();
@@ -1156,6 +1170,12 @@ public sealed class ListingModel : IDisposable
             }
 
             public void ReportIssue(string message) => owner.AddIssue(message);
+
+            public void ReportProgress(string text)
+            {
+                owner.Progress = text;
+                owner.Signal();
+            }
         }
     }
 }

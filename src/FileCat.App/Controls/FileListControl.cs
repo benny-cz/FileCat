@@ -705,7 +705,7 @@ public sealed class FileListControl : Control
         }
         else if (listing.State == ListingState.Loading && realRows <= 0)
         {
-            if (_showLoadingHint) message = "Loading…  (Esc stops)";
+            if (_showLoadingHint) message = (listing.LoadingProgress ?? "Loading…") + "  (Esc stops)";
         }
         else if (realRows <= 0 && listing.State == ListingState.Complete)
         {

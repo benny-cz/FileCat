@@ -27,8 +27,10 @@ public sealed class RecoveryJobTests : IDisposable
     {
         public List<EntryData> Entries { get; } = [];
         public List<string> Issues { get; } = [];
+        public List<string> Progress { get; } = [];
         public void AddBatch(ReadOnlySpan<EntryData> entries) => Entries.AddRange(entries.ToArray());
         public void ReportIssue(string message) => Issues.Add(message);
+        public void ReportProgress(string text) => Progress.Add(text);
     }
 
     private async Task<Sink> ListAsync(Location location)
@@ -129,6 +131,48 @@ public sealed class RecoveryJobTests : IDisposable
         var (staged, refusal) = FileCat.Core.Operations.DragStaging.Stage([_recovery.GetItemRef(root, row)], _providers, new PortableFileOperations(), _dir.Dir("drag"), TestContext.Current.CancellationToken);
         Assert.Null(staged);
         Assert.Contains("is a guess", refusal, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Free_space_is_searched_when_asked_and_the_listing_says_how_far_it_got()
+    {
+        // ErasedFatStartTests.FarListing: a deleted folder whose listing goes on where nothing points.
+        var image = new Fat32Image();
+        uint folder = 0x10000 + 20_000, far = 120_000;
+        image.Put(2, Fat32Image.Entry("BIG        ", 0x10, folder, 0, deleted: true));
+        image.Folder(folder, 0, [.. Enumerable.Range(0, 14).Select(i => Fat32Image.Deleted($"F{i:D2}     BIN", folder + 1 + (uint)i, new byte[100]))]);
+        var late = Fat32Image.Text(200, "late");
+        image.Put(far, Fat32Image.Deleted("LATE    TXT", far + 1, late));
+        image.Put(far + 1, late);
+        string path = Path.Combine(_dir.Path, "far.img");
+        image.Save(path);
+        var root = RecoveryProvider.ForImage(path, 1);
+
+        var quick = await ListAsync(root);
+        Assert.Contains(quick.Issues, i => i.StartsWith("The lists of contents of 1 deleted folder may go on", StringComparison.Ordinal));
+        Assert.Empty(quick.Progress);
+        var offer = _recovery.DescribeFreeSpaceSearch(root)!;
+        Assert.Equal((1, false), (offer.OpenListings, offer.Searched));
+        Assert.Null(_recovery.DescribeFreeSpaceSearch(RecoveryProvider.ForImage(path))); // the list of volumes: none chosen yet
+
+        _recovery.SearchFreeSpace(root);
+        var deep = await ListAsync(root);
+        Assert.DoesNotContain(deep.Issues, i => i.StartsWith("The lists of contents", StringComparison.Ordinal));
+        Assert.StartsWith("Searching free space: 0%", deep.Progress[0], StringComparison.Ordinal);
+        Assert.StartsWith("Searching free space: 100%", deep.Progress[^1], StringComparison.Ordinal);
+        Assert.True(_recovery.DescribeFreeSpaceSearch(root)!.Searched);
+        // Nothing names the folder the far piece belongs to (it has no subfolder), so it is listed apart.
+        Assert.Equal(["Orphans", "_IG"], deep.Entries.Select(e => e.Name).Order(StringComparer.Ordinal));
+        var lost = root.WithPath("Orphans/Lost folder 1");
+        Assert.Equal("_ATE.TXT", (await ListAsync(lost)).Entries.Single().Name);
+    }
+
+    [Fact]
+    public void Search_progress_reads_as_a_share_and_a_time_left()
+    {
+        Assert.StartsWith("Searching free space: 25% (", RecoveryProvider.SearchProgress(256L << 20, 1L << 30, TimeSpan.FromSeconds(1)), StringComparison.Ordinal);
+        Assert.EndsWith("about 3 minutes left", RecoveryProvider.SearchProgress(256L << 20, 1L << 30, TimeSpan.FromSeconds(60)), StringComparison.Ordinal);
+        Assert.EndsWith("about 30 seconds left", RecoveryProvider.SearchProgress(512L << 20, 1L << 30, TimeSpan.FromSeconds(30)), StringComparison.Ordinal);
     }
 
     [Fact]

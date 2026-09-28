@@ -505,8 +505,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var totals = l.Store.Totals;
         var left = $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}";
         if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
-        if (l.State == ListingState.Loading) left += " · loading…";
-        else if (l.IsRefreshing) left += " · refreshing…";
+        if (l.State == ListingState.Loading) left += " · " + (l.LoadingProgress ?? "loading…");
+        else if (l.IsRefreshing) left += " · " + (l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
         if (_freeBytes >= 0) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
         StatusLeft = left;

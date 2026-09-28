@@ -52,6 +52,9 @@ public sealed class RecoveryProvider : ResourceProvider
         /// <summary>Scan again on next use, keeping the source (a drive keeps its helper session).</summary>
         public bool Stale { get; set; }
 
+        /// <summary>That scan also searches free space (the user asked; minutes on large drives).</summary>
+        public bool SearchFreeSpace { get; set; }
+
         public IBlockSource Window(RecoveryVolume v) => new WindowSource(Source, v.Offset, v.Length, $"{Source.Description}, {v.Title}");
 
         public void Dispose() => Source.Dispose();
@@ -162,7 +165,7 @@ public sealed class RecoveryProvider : ResourceProvider
 
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
     {
-        var session = GetSession(location, ct);
+        var session = GetSession(location, ct, sink);
         if (location.Session is null)
         {
             var rows = new List<EntryData>();
@@ -186,6 +189,9 @@ public sealed class RecoveryProvider : ResourceProvider
         // An empty volume says why rather than looking like a failed listing (its own warnings, if any, explain more).
         if (location.Path.Length == 0 && folder.Children.Count == 0 && volume.Warnings.Count == 0)
             sink.ReportIssue($"No deleted items were found on this {volume.FileSystem} volume. Deleted files leave traces only until their entries or space are used again.");
+        if (location.Path.Length == 0 && volume.OpenListings > 0 && !volume.FreeSpaceSearched)
+            sink.ReportIssue($"The lists of contents of {volume.OpenListings} deleted folder{(volume.OpenListings == 1 ? "" : "s")} may go on where FAT no longer points. " +
+                             $"Find deleted files (Commands menu) here searches the {RecoveryItem.Bytes(volume.FreeBytes ?? 0)} of free space for the rest.");
         var batch = new List<EntryData>(folder.Children.Count);
         foreach (var item in folder.Children)
         {
@@ -266,8 +272,33 @@ public sealed class RecoveryProvider : ResourceProvider
         return $"{info.FullName}|{(info.Exists ? info.Length : -1)}|{(info.Exists ? info.LastWriteTimeUtc.Ticks : 0)}";
     }
 
+    /// <summary>What searching a volume's free space involves, for the user to decide (<see cref="SearchFreeSpace"/>).</summary>
+    public sealed record FreeSpaceSearch(string Volume, long FreeBytes, int OpenListings, bool Searched);
+
+    /// <summary>
+    /// The volume shown at <paramref name="location"/>, if its free space can be searched (FAT, already scanned); null
+    /// otherwise: other file systems keep deleted folders' contents where the scan finds them.
+    /// </summary>
+    public FreeSpaceSearch? DescribeFreeSpaceSearch(Location location)
+    {
+        if (location.Scheme != Schemes.Recovery || location.Session is null || !_sessions.TryGetValue(Key(location), out var session)) return null;
+        if (!int.TryParse(location.Session, NumberStyles.None, CultureInfo.InvariantCulture, out int number) || number < 1 || number > session.Volumes.Count) return null;
+        var volume = session.Volumes[number - 1];
+        return volume.FreeBytes is { } free ? new FreeSpaceSearch(volume.Title, free, volume.OpenListings, volume.FreeSpaceSearched) : null;
+    }
+
+    /// <summary>The next listing of the location's source scans it again and searches its FAT volumes' free space too.</summary>
+    public void SearchFreeSpace(Location location)
+    {
+        if (location.Scheme == Schemes.Recovery && _sessions.TryGetValue(Key(location), out var session))
+        {
+            session.SearchFreeSpace = true;
+            session.Stale = true;
+        }
+    }
+
     /// <summary>The scan of the location's source: made once (it only reads), kept while the source is unchanged.</summary>
-    private Session GetSession(Location location, CancellationToken ct)
+    private Session GetSession(Location location, CancellationToken ct, IEnumerationSink? sink = null)
     {
         string path = SourcePath(location);
         bool device = IsDevice(location);
@@ -284,8 +315,18 @@ public sealed class RecoveryProvider : ResourceProvider
             {
                 if (cached.Stale)
                 {
-                    cached.Volumes = Scan(cached.Source, device, ct);
-                    cached.Stale = false;
+                    bool searchFreeSpace = cached.SearchFreeSpace;
+                    cached.SearchFreeSpace = false;
+                    try
+                    {
+                        cached.Volumes = Scan(cached.Source, device, ct, searchFreeSpace, sink);
+                        cached.Stale = false;
+                    }
+                    catch (OperationCanceledException) when (searchFreeSpace)
+                    {
+                        cached.Stale = false; // stopped: what the quick scan found stays
+                        throw;
+                    }
                 }
                 cached.Used = DateTime.UtcNow;
                 return cached;
@@ -317,13 +358,27 @@ public sealed class RecoveryProvider : ResourceProvider
         }
     }
 
-    private static IReadOnlyList<RecoveryVolume> Scan(IBlockSource source, bool device, CancellationToken ct)
+    private static IReadOnlyList<RecoveryVolume> Scan(IBlockSource source, bool device, CancellationToken ct, bool searchFreeSpace = false, IEnumerationSink? sink = null)
     {
-        var volumes = RecoveryScanner.Scan(source, ct);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var volumes = RecoveryScanner.Scan(source, ct, new RecoveryScanOptions
+        {
+            SearchFreeSpace = searchFreeSpace,
+            Progress = sink is null ? null : (done, total) => sink.ReportProgress(SearchProgress(done, total, clock.Elapsed)),
+        });
         if (device)
             foreach (var v in volumes)
                 v.Warnings.Insert(0, "This drive is in use while FileCat reads it: Windows and programs can change it at any moment, so this is a snapshot, and deleted files can be overwritten while you work. Recover to another disk, and write nothing to this one meanwhile.");
         return volumes;
+    }
+
+    /// <summary>"Searching free space: 40% (3 of 7.4 GiB), about 3 minutes left".</summary>
+    internal static string SearchProgress(long done, long total, TimeSpan elapsed)
+    {
+        string text = $"Searching free space: {(total > 0 ? done * 100 / total : 100)}% ({RecoveryItem.Bytes(done)} of {RecoveryItem.Bytes(total)})";
+        if (done <= 0 || done >= total || elapsed < TimeSpan.FromSeconds(3)) return text;
+        double left = elapsed.TotalSeconds * (total - done) / done;
+        return text + (left < 90 ? $", about {Math.Max(1, (int)Math.Round(left / 10) * 10)} seconds left" : $", about {(int)Math.Round(left / 60)} minutes left");
     }
 
     /// <summary>Reread: scans the source again (a drive keeps its approved helper session; an image is simply read again).</summary>
