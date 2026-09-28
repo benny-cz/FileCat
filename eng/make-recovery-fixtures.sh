@@ -2,8 +2,8 @@
 # Builds the disposable disk images the recovery tests read (P10). Real file systems, changed by the Linux kernel's own
 # vfat and exfat drivers and by ntfs-3g, so deletions look exactly as they do on real media. Each image gets:
 #   keep.txt                          existing (never deleted)
-#   overwritten.txt                   deleted, then its space reused by filler.bin     -> must not be claimed recoverable
-#   frag-a.bin                        written in two pieces around frag-b and frag-c, then deleted (fragmented)
+#   old/overwritten.txt               deleted, then every free cluster taken by fill/zeros.bin -> overwritten
+#   frag-a.bin                        written in two pieces around frag-b and frag-c, deleted last (fragmented)
 #   docs/report.txt, docs/Long file name with spaces.txt, docs/Příliš žluťoučký kůň.txt   deleted last -> recoverable
 #   photos/ (with a.jpg, b.jpg)       deleted as a whole folder last
 #   tiny.txt (60 bytes)               deleted last (NTFS keeps it inside the MFT record)
@@ -42,22 +42,26 @@ PY
 
 scenario() {
   write keep.txt 1500
-  write overwritten.txt 20000
+  write "old/overwritten.txt" 20000
   write frag-a.bin 16384
   write frag-b.bin 16384
   write frag-c.bin 8192
   write frag-a.bin 24576 append        # frag-a continues after frag-c: two pieces
-  rm "$MNT/overwritten.txt"; sync
-  write filler.bin 49152                # takes the space overwritten.txt had
-  rm "$MNT/frag-a.bin"; sync
   write "docs/report.txt" 10000
   write "docs/Long file name with spaces.txt" 5000
   write "docs/Příliš žluťoučký kůň.txt" 3000
   write "photos/a.jpg" 70000
   write "photos/b.jpg" 12345
   write tiny.txt 60
+  # The filler exists before anything is deleted, so its entry never takes the place of a deleted one (NTFS reuses
+  # the lowest free MFT record); then it grows with zeros until the volume is full, taking every free cluster,
+  # overwritten.txt's included.
+  mkdir -p "$MNT/fill"; : > "$MNT/fill/zeros.bin"; sync
+  rm "$MNT/old/overwritten.txt"; sync
+  dd if=/dev/zero of="$MNT/fill/zeros.bin" bs=4096 oflag=append conv=notrunc status=none 2>/dev/null || true
+  sync
   # Deleted last: nothing is written after these, so their content survives intact.
-  rm "$MNT/docs/report.txt" "$MNT/docs/Long file name with spaces.txt" "$MNT/docs/Příliš žluťoučký kůň.txt" "$MNT/tiny.txt"
+  rm "$MNT/frag-a.bin" "$MNT/docs/report.txt" "$MNT/docs/Long file name with spaces.txt" "$MNT/docs/Příliš žluťoučký kůň.txt" "$MNT/tiny.txt"
   rm -r "$MNT/photos"
   sync
 }
