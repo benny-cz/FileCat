@@ -73,7 +73,7 @@ public sealed class LinkTests : IDisposable
         Assert.Contains("exists", LinkPlanner.Preview(items[1..], links, ["taken.txt"], new LinkOptions(LinkKind.Symbolic), Same, Exists)[0].Problem);
         Assert.Contains("same name", LinkPlanner.Preview(items, links, ["one", "one"], new LinkOptions(LinkKind.Symbolic), Same, Exists)[1].Problem);
         Assert.Contains("itself", LinkPlanner.Preview(items[1..], folder, null, new LinkOptions(LinkKind.Symbolic), Same, Exists)[0].Problem);
-        Assert.NotNull(LinkPlanner.Preview(items[1..], links, ["a|b"], new LinkOptions(LinkKind.Symbolic), Same, Exists)[0].Problem);
+        Assert.NotNull(LinkPlanner.Preview(items[1..], links, ["a/b"], new LinkOptions(LinkKind.Symbolic), Same, Exists)[0].Problem);
     }
 
     [Fact]

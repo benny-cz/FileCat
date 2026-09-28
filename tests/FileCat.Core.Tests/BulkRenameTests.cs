@@ -52,7 +52,7 @@ public sealed class BulkRenameTests : IDisposable
         Assert.All(same, r => Assert.Contains("same name", r.Problem));
         var taken = BulkRenamePlanner.Preview(items[..1], new RenameRules("keep"), Exists);
         Assert.Contains("exists", taken[0].Problem);
-        var invalid = BulkRenamePlanner.Preview(items[..1], new RenameRules("a|b"), Exists);
+        var invalid = BulkRenamePlanner.Preview(items[..1], new RenameRules("a/b"), Exists);
         Assert.NotNull(invalid[0].Problem);
         // A swap is a valid plan: each target is leaving.
         var swap = BulkRenamePlanner.Preview(items, new RenameRules(), Exists, explicitNames: ["b.txt", "a.txt"]);
