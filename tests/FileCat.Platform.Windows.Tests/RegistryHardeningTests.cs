@@ -37,7 +37,7 @@ public sealed partial class RegistryHardeningTests
 
             var parent = in32.WithPath(in32.Path[..in32.Path.LastIndexOf('\\')]);
             string name = in32.Path[(in32.Path.LastIndexOf('\\') + 1)..];
-            var digest = RegistryTree.Digest(RegistryTree.Scan(in32));
+            var digest = RegistryTree.Digest(RegistryTree.Scan(in32, TestContext.Current.CancellationToken));
             Assert.Null(RegistryChangeRunner.Apply(new RegistryChange(RegistryAction.DeleteKey, parent, name, TreeDigest: digest),
                 new Log(), () => { }, TestContext.Current.CancellationToken));
             using var gone = base32.OpenSubKey(sub);
@@ -60,7 +60,7 @@ public sealed partial class RegistryHardeningTests
             if (!TryCreateLink(fixture, @"zone\link", $@"\REGISTRY\USER\{sid}\{root}\target")) return; // links blocked here
             var parent = new Location(Schemes.Registry, @"HKCU\" + root, session: "default");
             var zone = parent.WithPath(parent.Path + @"\zone");
-            var scope = RegistryTree.Scan(zone);
+            var scope = RegistryTree.Scan(zone, TestContext.Current.CancellationToken);
             Assert.Equal(1, scope.LinkCount);
             RegistryChangeRunner.Apply(new RegistryChange(RegistryAction.DeleteKey, parent, "zone", TreeDigest: RegistryTree.Digest(scope)),
                 new Log(), () => { }, TestContext.Current.CancellationToken);
@@ -166,14 +166,14 @@ public sealed partial class RegistryHardeningTests
             using (var b = fixture.CreateSubKey(@"beta\nested")) b!.SetValue("deep", "x");
             fixture.SetValue("loose", new byte[] { 1, 2 }, RegistryValueKind.Binary);
             var key = new Location(Schemes.Registry, @"HKCU\" + path, session: "default");
-            RegistryInterchange.ExportMany([(key.WithPath(key.Path + @"\alpha"), null), (key.WithPath(key.Path + @"\beta"), null), (key, "loose")], file);
+            RegistryInterchange.ExportMany([(key.WithPath(key.Path + @"\alpha"), null), (key.WithPath(key.Path + @"\beta"), null), (key, "loose")], file, TestContext.Current.CancellationToken);
             string text = File.ReadAllText(file);
             Assert.Contains($@"[HKEY_CURRENT_USER\{path}\alpha]", text);
             Assert.Contains($@"[HKEY_CURRENT_USER\{path}\beta\nested]", text);
             Assert.Contains("\"inside\"=dword:00000005", text);
             Assert.Contains("\"loose\"=hex:01,02", text);
             Assert.Throws<ArgumentException>(() => RegistryInterchange.ExportMany(
-                [(key, "loose"), (new Location(Schemes.Registry, key.Path, session: "32"), "loose")], file));
+                [(key, "loose"), (new Location(Schemes.Registry, key.Path, session: "32"), "loose")], file, TestContext.Current.CancellationToken));
         }
         finally
         {

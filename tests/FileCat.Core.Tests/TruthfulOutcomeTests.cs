@@ -237,7 +237,7 @@ public sealed class TruthfulOutcomeTests : IDisposable
         File.WriteAllText(src, "new");
         var existing = Path.Combine(_dir.Dir("dst"), "a.txt");
         File.WriteAllText(existing, "precious");
-        Assert.ThrowsAny<IOException>(() => new PortableFileOperations().CopyFile(src, existing, new FileCopyOptions(), null, default));
+        Assert.ThrowsAny<IOException>(() => new PortableFileOperations().CopyFile(src, existing, new FileCopyOptions(), null, TestContext.Current.CancellationToken));
         Assert.Equal("precious", File.ReadAllText(existing));
     }
 

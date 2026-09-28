@@ -149,7 +149,7 @@ public sealed class P3FeatureTests : IDisposable
             Destination = Location.FileSystem(dest),
             Options = new TransferOptions { Conflicts = ConflictPolicy.KeepBothRenameIncoming },
         });
-        while (!job.State.IsFinished()) await Task.Delay(10);
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Equal("hello zip", File.ReadAllText(Path.Combine(dest, "readme.txt")));
         Assert.Equal("deep", File.ReadAllText(Path.Combine(dest, "docs", "deep", "nested.txt")));
         Assert.Equal(2, Directory.GetFiles(dest, "dup*.txt").Length);

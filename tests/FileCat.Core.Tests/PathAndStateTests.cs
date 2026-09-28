@@ -16,12 +16,12 @@ public class PathAndStateTests
         File.SetAttributes(hidden, FileAttributes.Directory | FileAttributes.Hidden);
         dir.Dir(Path.Combine(".secret", "inside"));
 
-        var all = Core.FileSystem.FolderScan.Run(dir.Path, 100, TimeSpan.FromSeconds(10));
+        var all = Core.FileSystem.FolderScan.Run(dir.Path, 100, TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.False(all.Stopped);
         Assert.Equal(["a", "b", Path.Combine("a", "deep"), Path.Combine("a", "deep", "deeper")],
             all.Folders.Select(f => Path.GetRelativePath(dir.Path, f)));
 
-        var first = Core.FileSystem.FolderScan.Run(dir.Path, 2, TimeSpan.FromSeconds(10));
+        var first = Core.FileSystem.FolderScan.Run(dir.Path, 2, TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.True(first.Stopped);
         Assert.Equal(["a", "b"], first.Folders.Select(f => Path.GetRelativePath(dir.Path, f)));
     }

@@ -45,7 +45,7 @@ public sealed partial class HexEditingTests
             Assert.Equal(original.Length, patch.RootElement.GetProperty("sourceLength").GetInt64());
             Assert.Equal(2, patch.RootElement.GetProperty("ranges").GetArrayLength());
             Assert.Equal(3, overlay.DirtyBytes);
-            Assert.Throws<IOException>(() => HexSaveAs.CreateNew(file, overlay, copyPath));
+            Assert.Throws<IOException>(() => HexSaveAs.CreateNew(file, overlay, copyPath, TestContext.Current.CancellationToken));
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

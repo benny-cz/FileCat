@@ -215,7 +215,7 @@ public sealed class JobEngineTests : IDisposable
         var big = Path.Combine(_src, "big.bin");
         using (var fs = new FileStream(big, FileMode.Create)) fs.SetLength(200L * 1024 * 1024);
         var job = Submit(JobKind.Copy, [big], _dst, o => o.RateLimit = 5 * 1024 * 1024);
-        while (job.BytesDone == 0 && !job.State.IsFinished()) await Task.Delay(10);
+        while (job.BytesDone == 0 && !job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
         job.Cancel();
         await WaitAsync(job);
         Assert.Equal(JobState.Canceled, job.State);
@@ -231,7 +231,7 @@ public sealed class JobEngineTests : IDisposable
         using (var fs = new FileStream(big, FileMode.Create)) fs.SetLength(60L * 1024 * 1024);
         var first = Submit(JobKind.Copy, [big], _dst, o => o.RateLimit = 40 * 1024 * 1024);
         var second = Submit(JobKind.Delete, [big]);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Assert.Equal(JobState.Queued, second.State);
         Assert.Same(first, second.WaitingFor);
         await WaitAsync(first);
@@ -249,7 +249,7 @@ public sealed class JobEngineTests : IDisposable
         _jobs.JobFinished += j => { lock (finished) finished.Add(j); };
         var first = Submit(JobKind.Copy, [big], _dst, o => o.RateLimit = 10 * 1024 * 1024);
         var second = Submit(JobKind.Delete, [big]);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Assert.Equal(JobState.Queued, second.State);
         second.Cancel();
         Assert.Equal(JobState.Canceled, second.State);

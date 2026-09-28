@@ -89,7 +89,7 @@ public sealed class HexPatchOverlayTests
         reader.Overwrite(PagedReader.PageSize, [0x22]);
         source.ServeStale = true; // the blocked read returns what it saw before the edit
         gate.Set();
-        Assert.True(loaded.Wait(5000));
+        Assert.True(loaded.Wait(5000, TestContext.Current.CancellationToken));
         source.ServeStale = false;
         if (reader.TryRead(PagedReader.PageSize, buffer, out _)) Assert.Equal(0x22, buffer[0]);
         Assert.Equal(1, reader.Read(PagedReader.PageSize, buffer.AsSpan(0, 1)));

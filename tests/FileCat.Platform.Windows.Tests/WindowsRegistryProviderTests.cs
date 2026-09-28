@@ -76,7 +76,7 @@ public sealed class WindowsRegistryProviderTests
             RegistryRaw.Set(fixture!, "", 3, [0, 255, 17]);
             using var child = fixture.CreateSubKey("child");
             RegistryRaw.Set(child!, "str", 1, [0x41, 0, 0, 0]);
-            RegistryInterchange.Export(new Location(Schemes.Registry, "HKCU\\" + path, session: "64"), null, file);
+            RegistryInterchange.Export(new Location(Schemes.Registry, "HKCU\\" + path, session: "64"), null, file, TestContext.Current.CancellationToken);
             var text = File.ReadAllText(file, System.Text.Encoding.Unicode);
             Assert.Contains("Windows Registry Editor Version 5.00", text);
             Assert.Contains("source view: 64-bit", text);
@@ -133,7 +133,7 @@ public sealed class WindowsRegistryProviderTests
             RegistryInterchange.Export(scope, null, file, TestContext.Current.CancellationToken);
             Assert.Empty(RegistryImport.Preview(file, scope, TestContext.Current.CancellationToken).Changes);
             File.WriteAllText(file, "Windows Registry Editor Version 5.00\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\FileCat-Outside]\r\n\"x\"=\"bad\"\r\n", System.Text.Encoding.Unicode);
-            Assert.Throws<FormatException>(() => RegistryImport.Preview(file, scope));
+            Assert.Throws<FormatException>(() => RegistryImport.Preview(file, scope, TestContext.Current.CancellationToken));
         }
         finally
         {
@@ -276,13 +276,13 @@ public sealed class WindowsRegistryProviderTests
                 child!.SetValue("text", "abc", RegistryValueKind.String);
             }
             var treeLocation = key.WithPath(key.Path + @"\tree");
-            var scope = RegistryTree.Scan(treeLocation);
+            var scope = RegistryTree.Scan(treeLocation, TestContext.Current.CancellationToken);
             Assert.Equal(2, scope.KeyCount);
             Assert.Equal(2, scope.ValueCount);
             var copy = await Run(new RegistryChange(RegistryAction.CopyKey, key, "tree", TargetKey: key,
                 TargetName: "tree-copy", TreeDigest: RegistryTree.Digest(scope)));
             Assert.Equal(JobState.Completed, copy.State);
-            Assert.Equal(RegistryTree.Digest(scope), RegistryTree.Digest(RegistryTree.Scan(key.WithPath(key.Path + @"\tree-copy"))));
+            Assert.Equal(RegistryTree.Digest(scope), RegistryTree.Digest(RegistryTree.Scan(key.WithPath(key.Path + @"\tree-copy"), TestContext.Current.CancellationToken)));
             var delete = await Run(new RegistryChange(RegistryAction.DeleteKey, key, "tree", TreeDigest: RegistryTree.Digest(scope)));
             Assert.Equal(JobState.Completed, delete.State);
             Assert.Null(fixture.OpenSubKey("tree"));

@@ -237,7 +237,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
             Destination = Location.FileSystem(dst),
             Options = new TransferOptions { Verify = VerifyMode.ReadBack },
         });
-        while (!job.State.IsFinished()) await Task.Delay(10);
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Equal(JobState.Completed, job.State);
         Assert.Equal("2", File.ReadAllText(Path.Combine(dst, "s", "sub", "two.txt")));
     }

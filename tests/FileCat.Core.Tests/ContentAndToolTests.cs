@@ -39,12 +39,12 @@ public class ContentAndToolTests
             int end = data.AsSpan((int)offset).IndexOf(encoding.GetBytes("\r\n"));
             return encoding.GetString(data, (int)offset, end);
         }
-        Assert.Equal(preamble.Length, index.FindLineStart(1, progress, default));
-        Assert.Equal("line 2 ž", LineAt(index.FindLineStart(2, progress, default)!.Value));
-        Assert.Equal("line 9000 ž", LineAt(index.FindLineStart(9000, progress, default)!.Value));
-        Assert.Equal("line 4097 ž", LineAt(index.FindLineStart(LineIndex.Stride + 1, null, default)!.Value)); // a checkpoint
-        Assert.Equal("line 4500 ž", LineAt(index.FindLineStart(4500, null, default)!.Value));
-        Assert.Null(index.FindLineStart(20_000, progress, default));
+        Assert.Equal(preamble.Length, index.FindLineStart(1, progress, TestContext.Current.CancellationToken));
+        Assert.Equal("line 2 ž", LineAt(index.FindLineStart(2, progress, TestContext.Current.CancellationToken)!.Value));
+        Assert.Equal("line 9000 ž", LineAt(index.FindLineStart(9000, progress, TestContext.Current.CancellationToken)!.Value));
+        Assert.Equal("line 4097 ž", LineAt(index.FindLineStart(LineIndex.Stride + 1, null, TestContext.Current.CancellationToken)!.Value)); // a checkpoint
+        Assert.Equal("line 4500 ž", LineAt(index.FindLineStart(4500, null, TestContext.Current.CancellationToken)!.Value));
+        Assert.Null(index.FindLineStart(20_000, progress, TestContext.Current.CancellationToken));
         Assert.Equal(10_001, index.TotalLines); // the empty line after the final break
         Assert.NotNull(scannedMax);
         using var canceled = new CancellationTokenSource();

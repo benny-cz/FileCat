@@ -14,23 +14,23 @@ public class MetadataTests
         new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }.CopyTo(png, 0);
         BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(16), 640);
         BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(20), 480);
-        Assert.Equal((640, 480), ImageHeader.Parse(png));
+        Assert.Equal((640, 480), ImageHeader.Parse(png, TestContext.Current.CancellationToken));
 
         var gif = "GIF89a"u8.ToArray().Concat(new byte[] { 0x20, 0x01, 0x10, 0x00 }).ToArray();
-        Assert.Equal((288, 16), ImageHeader.Parse(gif));
+        Assert.Equal((288, 16), ImageHeader.Parse(gif, TestContext.Current.CancellationToken));
 
         var bmp = new byte[30];
         bmp[0] = (byte)'B';
         bmp[1] = (byte)'M';
         BinaryPrimitives.WriteInt32LittleEndian(bmp.AsSpan(18), 100);
         BinaryPrimitives.WriteInt32LittleEndian(bmp.AsSpan(22), -50);
-        Assert.Equal((100, 50), ImageHeader.Parse(bmp));
+        Assert.Equal((100, 50), ImageHeader.Parse(bmp, TestContext.Current.CancellationToken));
 
         // JPEG: SOI, APP0 (len 4), SOF0 with height 300 and width 400.
         var jpg = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x01, 0x2C, 0x01, 0x90, 0x03, 0, 0, 0, 0, 0, 0, 0, 0 };
-        Assert.Equal((400, 300), ImageHeader.Parse(jpg));
+        Assert.Equal((400, 300), ImageHeader.Parse(jpg, TestContext.Current.CancellationToken));
 
-        Assert.Null(ImageHeader.Parse("not an image"u8));
+        Assert.Null(ImageHeader.Parse("not an image"u8, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class MetadataTests
         MetadataValue v;
         do
         {
-            await Task.Delay(20);
+            await Task.Delay(20, TestContext.Current.CancellationToken);
             v = service.Get("dimensions", path, entry, "dev", slowLocation: false);
         } while (v.State == MetadataState.Pending && DateTime.UtcNow < deadline);
         Assert.Equal(MetadataState.Available, v.State);
