@@ -280,6 +280,20 @@ public static class ThemeManager
         // bright green accent).
         Add("OnAccent", OnColor(p.ActiveAccent));
         Add("OnTarget", OnColor(p.TargetAccent));
+        // Fluent's selection controls otherwise keep the operating system's blue accent inside every custom theme.
+        // Use separate brushes so the psychedelic theme drifts only its decorative edges, not form state colors.
+        var selection = new SolidColorBrush(Color.Parse(p.ActiveAccent));
+        var onSelection = new SolidColorBrush(Color.Parse(OnColor(p.ActiveAccent)));
+        d["TabItemHeaderSelectedPipeFill"] = selection;
+        d["CheckBoxCheckBackgroundFillChecked"] = selection;
+        d["CheckBoxCheckBackgroundStrokeChecked"] = selection;
+        d["CheckBoxCheckBackgroundFillCheckedPointerOver"] = selection;
+        d["CheckBoxCheckBackgroundStrokeCheckedPointerOver"] = selection;
+        d["CheckBoxCheckBackgroundFillCheckedPressed"] = selection;
+        d["CheckBoxCheckBackgroundStrokeCheckedPressed"] = selection;
+        d["CheckBoxCheckGlyphForegroundChecked"] = onSelection;
+        d["CheckBoxCheckGlyphForegroundCheckedPointerOver"] = onSelection;
+        d["CheckBoxCheckGlyphForegroundCheckedPressed"] = onSelection;
         d["FcThemeName"] = p.Name;
         d["FcFontFamily"] = p.FontFamily is { } font ? new FontFamily(font) : FontFamily.Default;
         return d;

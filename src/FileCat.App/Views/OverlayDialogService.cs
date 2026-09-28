@@ -71,16 +71,27 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     private static Border Card(string title, Control body, Control? buttons, double maxWidth = 560)
     {
-        var stack = new StackPanel { Spacing = 8 };
-        stack.Children.Add(new TextBlock { Text = title, Classes = { "dialogTitle" } });
-        stack.Children.Add(body);
-        if (buttons is not null) stack.Children.Add(buttons);
-        return new Border { Classes = { "card" }, Child = stack, MaxWidth = maxWidth, MinWidth = Math.Min(360, maxWidth) };
+        var titleLine = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Children =
+            {
+                new Border { Classes = { "dialogAccent" }, Width = 4, Height = 20 },
+                new TextBlock { Text = title, Classes = { "dialogTitle" } },
+            },
+        };
+        var stack = new StackPanel();
+        stack.Children.Add(new Border { Classes = { "dialogHeader" }, Child = titleLine });
+        stack.Children.Add(new Border { Classes = { "dialogBody" }, Child = body });
+        if (buttons is not null)
+            stack.Children.Add(new Border { Classes = { "dialogFooter" }, Child = buttons });
+        return new Border { Classes = { "card" }, Child = stack, MaxWidth = maxWidth, MinWidth = Math.Min(360, maxWidth), ClipToBounds = true };
     }
 
     private static StackPanel ButtonRow(params Button[] buttons)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Margin = new Thickness(0, 8, 0, 0) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
         foreach (var b in buttons) row.Children.Add(b);
         return row;
     }

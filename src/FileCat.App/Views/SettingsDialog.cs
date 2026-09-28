@@ -15,23 +15,29 @@ public static class SettingsDialog
     public static async Task ShowAsync(MainViewModel vm)
     {
         var s = vm.Services.Settings;
-        var tabs = new TabControl { MinWidth = 720, MinHeight = 420 };
+        // Short pages stay compact; pages with editors can grow to keep their controls visible.
+        var tabs = new TabControl { MinWidth = 720, MinHeight = 330 };
 
         // ---- Appearance
         // Choosing a theme shows it at once; Cancel goes back to the one in use.
         var themeNames = ThemeManager.Names;
         var theme = new ComboBox { ItemsSource = themeNames.Select(ThemeManager.DisplayName).ToList(), SelectedIndex = Math.Max(0, themeNames.ToList().IndexOf(s.Theme)), MinWidth = 220 };
+        var themeDescription = Note(ThemeManager.Description(themeNames[theme.SelectedIndex]));
         theme.SelectionChanged += (_, _) =>
         {
-            if (theme.SelectedIndex >= 0) ThemeManager.Apply(themeNames[theme.SelectedIndex]);
+            if (theme.SelectedIndex >= 0)
+            {
+                themeDescription.Text = ThemeManager.Description(themeNames[theme.SelectedIndex]);
+                ThemeManager.Apply(themeNames[theme.SelectedIndex]);
+            }
         };
-        var animations = new CheckBox { Content = "Animate theme light, edges, and subtle glitches", IsChecked = s.ThemeAnimations };
+        var animations = new CheckBox { Content = "Animate theme effects", IsChecked = s.ThemeAnimations };
         var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, Width = 130, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         var keyBar = new CheckBox { Content = "Show the function-key bar", IsChecked = s.ShowFunctionKeyBar };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
         var dateFormat = new ComboBox { ItemsSource = new[] { "Culture", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" }, SelectedItem = s.DateFormat, MinWidth = 220 };
-        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", cmdLine),
-            ("", Note("View → Theme… shows every theme with a preview. When Windows high contrast is on, FileCat always uses its high-contrast theme; the system's reduce-motion setting stops animations."))) });
+        tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", cmdLine),
+            ("", Note("View → Theme… previews every theme. System high contrast takes priority, and the system's reduced-motion setting stops animations."))) });
 
         // ---- Behavior
         var hidden = new CheckBox { Content = "Show hidden and system items (dimmed)", IsChecked = s.ShowHidden };

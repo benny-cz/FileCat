@@ -128,13 +128,30 @@
     <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Padding" Value="18,14" />
     <Setter Property="BoxShadow" Value="0 8 32 0 #50000000" />
+  </Style>
+  <Style Selector="Border.dialogHeader">
+    <Setter Property="Background" Value="{DynamicResource FcHeader}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="18,11" />
+  </Style>
+  <Style Selector="Border.dialogAccent">
+    <Setter Property="Background" Value="{DynamicResource FcActiveAccent}" />
+    <Setter Property="CornerRadius" Value="2" />
+  </Style>
+  <Style Selector="Border.dialogBody">
+    <Setter Property="Padding" Value="18,10" />
+  </Style>
+  <Style Selector="Border.dialogFooter">
+    <Setter Property="Background" Value="{DynamicResource FcStatusBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="Padding" Value="18,9" />
   </Style>
   <Style Selector="TextBlock.dialogTitle">
     <Setter Property="FontSize" Value="16" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Margin" Value="0,0,0,10" />
   </Style>
   <Style Selector="Button.danger">
     <Setter Property="Background" Value="{DynamicResource FcError}" />
