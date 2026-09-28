@@ -71,7 +71,6 @@ public sealed class FileListControl : Control
     private int _pressedRow = -1;
     private DispatcherTimer? _loadingHintTimer;
     private bool _showLoadingHint;
-    private IImage? _linkOverlay;
     private readonly Action _metadataHandler;
     private Core.Metadata.MetadataService? _metadataSource;
 
@@ -353,7 +352,6 @@ public sealed class FileListControl : Control
     private void OnThemeChanged()
     {
         ClearTextCache();
-        _linkOverlay = null;
         ResolveBrushes();
         InvalidateVisual();
     }
@@ -553,6 +551,8 @@ public sealed class FileListControl : Control
 
     private void RenderCore(DrawingContext dc)
     {
+        // Icons are made for the pixels this display gives a 16-point icon (crisp at 125%, 150%, 200%).
+        Tab?.Services.Icons.SetScale(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
         var bounds = new Rect(Bounds.Size);
         bool active = IsActivePanel;
         dc.FillRectangle(active ? _bg : _bgInactive, bounds);
@@ -632,7 +632,8 @@ public sealed class FileListControl : Control
             if (i == 0)
             {
                 double iconX = colX + MarkGutter;
-                var icon = Tab?.Services.Icons.GetIcon(e, Tab.Location);
+                var icons = Tab?.Services.Icons;
+                var icon = icons?.GetIcon(e, Tab!.Location);
                 if (icon is not null)
                 {
                     var iconRect = new Rect(iconX, y + (_rowHeight - IconSize) / 2, IconSize, IconSize);
@@ -641,11 +642,7 @@ public sealed class FileListControl : Control
                     {
                         dc.DrawImage(icon, iconRect);
                     }
-                    if (e.Has(EntryFlags.Link))
-                    {
-                        _linkOverlay ??= VectorIcons.LinkOverlay();
-                        dc.DrawImage(_linkOverlay, iconRect);
-                    }
+                    if (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e)) dc.DrawImage(icons!.LinkOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
                 avail = colX + colW - textX - Padding;

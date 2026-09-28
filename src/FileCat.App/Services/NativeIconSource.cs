@@ -5,83 +5,244 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Platform;
 using FileCat.Core.Resources;
+using FileCat.Platform.Windows;
+using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.App.Services;
 
 /// <summary>
-/// Extension-based native icons (Windows): the Shell is asked by extension only, never by file content,
-/// so no third-party handler runs on untrusted files in FileCat (plan §8.2, AI-14). Icons load on one STA thread and
-/// appear when ready; rows use the vector icon meanwhile. Programs and icon files show their own icons when Shell
-/// pictures are allowed: the restricted helper extracts them (TV-16), and the type icon stands in until then.
+/// Windows icons as Explorer shows them (plan §8.2): types by extension; drives by kind, the system drive with its
+/// logo; known folders (Documents, Downloads, OneDrive, …) with their own icons wherever they were moved; programs and
+/// icon files with their own icons; and shortcuts, Internet shortcuts, and customized folders with the icon they name.
+/// FileCat reads those files itself, never through the Shell's handlers for them, and takes a named icon only from this
+/// computer's drives, through the restricted helper: a server named there would learn the user's credentials (AI-14).
+/// Everything loads off the UI thread at the display's pixel size and appears when ready; rows show a vector icon
+/// meanwhile.
 /// </summary>
 public sealed class NativeIconSource : INativeIconSource
 {
-    private const int Size = 16;
-    // Types whose icon depends on the file itself: show a generic per-type icon only.
-    private static readonly HashSet<string> PerFileTypes = new(StringComparer.OrdinalIgnoreCase) { "exe", "ico", "lnk", "url", "cur", "ani", "scr", "msc", "appref-ms", "library-ms", "searchconnector-ms" };
+    // Types whose icon depends on the file itself: their type icon is a generic one.
+    private static readonly HashSet<string> PerFileTypes = new(StringComparer.OrdinalIgnoreCase) { "exe", "ico", "lnk", "cur", "ani", "scr", "msc", "appref-ms", "library-ms", "searchconnector-ms" };
     // Of those, the ones whose own icon the helper may extract (the rest follow paths stored inside them).
     private static readonly HashSet<string> OwnIconTypes = new(StringComparer.OrdinalIgnoreCase) { "exe", "ico", "cur", "ani", "scr", "msc", "cpl" };
-    private const int PerFileCacheLimit = 4096;
+    // Files that name another item's icon, which FileCat reads itself.
+    public static readonly HashSet<string> ShortcutTypes = new(StringComparer.OrdinalIgnoreCase) { "lnk", "url" };
+    private const int PerItemLimit = 4096;
+    private const FileAttributes Placeholder = FileAttributes.Offline | (FileAttributes)0x40000 | (FileAttributes)0x400000;
+
+    /// <summary>What an item shows: its own picture, or a shared icon (a shortcut shows its target's type icon).</summary>
+    private sealed record Plan(IImage? Image, string? SharedKey);
 
     private readonly IShellServices _shell;
-    private readonly Func<FileCat.Platform.Windows.Shell.ShellPreviews?> _pictures;
-    private readonly ConcurrentDictionary<string, IImage?> _perFile = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, IImage?> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly BlockingCollection<string> _queue = new();
+    private readonly Func<ShellPreviews?> _pictures;
+    private readonly ConcurrentDictionary<(int Size, string Key), IImage?> _shared = new();
+    private readonly ConcurrentDictionary<string, Plan?> _perItem = new(StringComparer.OrdinalIgnoreCase);
+    private readonly BlockingCollection<(int Size, string Key)> _queue = new();
+    private volatile bool _knownRequested;
+    private volatile HashSet<string>? _knownNames;
     private readonly Thread _thread;
+    private readonly string _systemRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
+    private volatile Dictionary<string, IconLocation>? _knownByPath;
+    private volatile Dictionary<Guid, IconLocation>? _knownById;
     private int _pendingNotify;
 
-    private NativeIconSource(IShellServices shell, Func<FileCat.Platform.Windows.Shell.ShellPreviews?> pictures)
+    private NativeIconSource(IShellServices shell, Func<ShellPreviews?> pictures)
     {
         _shell = shell;
         _pictures = pictures;
         _thread = new Thread(Worker) { IsBackground = true, Name = "FileCat icons" };
-        if (OperatingSystem.IsWindows()) _thread.SetApartmentState(ApartmentState.STA);
+        _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
     }
 
     public event Action? IconsLoaded;
 
-    public static INativeIconSource? TryCreate(IShellServices shell, Func<FileCat.Platform.Windows.Shell.ShellPreviews?>? pictures = null) =>
+    /// <summary>Icons are made for this many device pixels (16 at 100% scaling, 24 at 150%).</summary>
+    public int PixelSize { get; private set; } = 16;
+
+    public static INativeIconSource? TryCreate(IShellServices shell, Func<ShellPreviews?>? pictures = null) =>
         OperatingSystem.IsWindows() ? new NativeIconSource(shell, pictures ?? (() => null)) : null;
+
+    public void SetPixelSize(int size)
+    {
+        size = Math.Clamp(size, 16, 64);
+        if (size == PixelSize) return;
+        PixelSize = size;
+        _perItem.Clear();
+    }
 
     public IImage? GetIcon(in EntryData entry, Location? folder = null)
     {
-        if (entry.Kind == EntryKind.File && OwnIconTypes.Contains(NameParts.GetExtension(entry.Name)) && OwnIcon(entry, folder) is { } own) return own;
-        string key = entry.Kind switch
+        var parent = entry.Tag is Core.Search.ResultTag r ? r.Parent : folder;
+        string? path = parent is { IsFileSystem: true } && entry.Kind is EntryKind.File or EntryKind.Directory ? Path.Join(parent.Path, entry.Name) : null;
+        switch (entry.Kind)
         {
-            EntryKind.Directory => entry.Has(EntryFlags.Link) ? "<dirlink>" : "<dir>",
-            EntryKind.Drive => "<drive>",
-            _ => NameParts.GetExtension(entry.Name) is { Length: > 0 } ext ? "." + ext : "<file>",
-        };
-        if (_cache.TryGetValue(key, out var img)) return img;
-        if (_cache.TryAdd(key, null)) _queue.Add(key);
+            case EntryKind.Drive:
+                return Shared(DriveKey(entry));
+            case EntryKind.Server:
+                return Shared("stock:" + WindowsIcons.StockServer);
+            case EntryKind.Share:
+                return Shared("stock:" + WindowsIcons.StockServerShare);
+            case EntryKind.Directory:
+                if (path is not null && IsKnownFolderName(entry.Name) && KnownFolder(path) is { } known) return Shared("res:" + known);
+                if (path is not null && ((FileAttributes)entry.Attributes & (FileAttributes.System | FileAttributes.ReadOnly)) != 0 && FromPlan(CustomFolder(path, entry)) is { } custom)
+                    return custom;
+                return Shared("type:<dir>");
+            case EntryKind.File:
+                string ext = NameParts.GetExtension(entry.Name);
+                if (path is not null && ShortcutTypes.Contains(ext) && FromPlan(Shortcut(path, ext, entry)) is { } linked) return linked;
+                if (path is not null && OwnIconTypes.Contains(ext) && OwnIcon(path, entry.Modified, (FileAttributes)entry.Attributes) is { } own) return own;
+                return Shared(TypeKey(ext));
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>Explorer's shortcut arrow at the current size; null until loaded.</summary>
+    public IImage? LinkOverlay => Shared("stock:" + WindowsIcons.StockLink);
+
+    private static string TypeKey(string ext) =>
+        ext.Length == 0 ? "type:<file>" : PerFileTypes.Contains(ext) ? "type:<generic>" : "type:." + ext;
+
+    private string DriveKey(in EntryData entry)
+    {
+        if (entry.Tag is not DriveTag drive) return entry.Tag is { } tag && tag.GetType().Name == "MtpDeviceTag" ? "stock:" + WindowsIcons.StockPhone : "stock:" + WindowsIcons.StockFixedDrive;
+        if (string.Equals(drive.RootPath, _systemRoot, StringComparison.OrdinalIgnoreCase)) return "sysdrive";
+        return "stock:" + (drive.DriveType switch
+        {
+            "Fixed" => WindowsIcons.StockFixedDrive,
+            "Removable" => WindowsIcons.StockRemovableDrive,
+            "Network" => drive.Ready ? WindowsIcons.StockNetworkDrive : WindowsIcons.StockNetworkDriveOffline,
+            "CDRom" => WindowsIcons.StockOpticalDrive,
+            "Ram" => WindowsIcons.StockRamDrive,
+            _ => WindowsIcons.StockUnknownDrive,
+        });
+    }
+
+    private IImage? FromPlan(Plan? plan) => plan is null ? null : plan.Image ?? (plan.SharedKey is { } key ? Shared(key) : null);
+
+    /// <summary>A shared icon at the current size: cached, or queued for the icon thread (null meanwhile).</summary>
+    private IImage? Shared(string key)
+    {
+        var sized = (PixelSize, key);
+        if (_shared.TryGetValue(sized, out var image)) return image;
+        if (_shared.TryAdd(sized, null)) _queue.Add(sized);
         return null;
+    }
+
+    /// <summary>Whether a folder's name is one a known folder has here (checked before building its path).</summary>
+    private bool IsKnownFolderName(string name)
+    {
+        if (_knownNames is { } names) return names.Contains(name);
+        // Read once on the icon thread; rows repaint when it is there.
+        if (!_knownRequested)
+        {
+            _knownRequested = true;
+            _queue.Add((0, "known-folders"));
+        }
+        return false;
+    }
+
+    private IconLocation? KnownFolder(string path) =>
+        _knownByPath is { } map && map.TryGetValue(path.TrimEnd('\\'), out var location) ? location : null;
+
+    // ---- Items that name their own icon -----------------------------------------------------------------------
+
+    private Plan? PerItem(string key, Func<Task<Plan>> load)
+    {
+        if (_perItem.TryGetValue(key, out var plan)) return plan;
+        if (_perItem.Count >= PerItemLimit) _perItem.Clear();
+        if (!_perItem.TryAdd(key, null)) return null;
+        int size = PixelSize;
+        _ = Task.Run(async () =>
+        {
+            Plan result;
+            try { result = await load().ConfigureAwait(false); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or NotSupportedException)
+            {
+                result = new Plan(null, null);
+            }
+            if (size != PixelSize) return;
+            _perItem[key] = result;
+            if (result.Image is not null || result.SharedKey is not null) NotifyLoaded();
+        });
+        return null;
+    }
+
+    /// <summary>A shortcut shows the icon it names, else its target's (own or type) icon, else the plain type icon.</summary>
+    private Plan? Shortcut(string path, string ext, in EntryData entry)
+    {
+        if (((FileAttributes)entry.Attributes & Placeholder) != 0 || entry.Size > ShellFileIcons.MaxBytes) return null;
+        return PerItem("lnk|" + path + "|" + entry.Modified, async () =>
+        {
+            byte[] bytes;
+            using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
+            {
+                if (file.Length > ShellFileIcons.MaxBytes) return new Plan(null, null);
+                bytes = new byte[file.Length];
+                file.ReadExactly(bytes);
+            }
+            string folder = Path.GetDirectoryName(path) ?? path;
+            var info = ext.Equals("url", StringComparison.OrdinalIgnoreCase)
+                ? ShellFileIcons.ReadInternetShortcut(ShellFileIcons.DecodeText(bytes), folder)
+                : ShellFileIcons.ReadShortcut(bytes, folder);
+            if (info is null) return new Plan(null, null);
+            if (info.IconFile is { } iconFile && await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false) is { } named) return new Plan(named, null);
+            if (info.KnownFolder is { } id && _knownById is { } byId && byId.TryGetValue(id, out var knownIcon)) return new Plan(null, "res:" + knownIcon);
+            if (info.TargetPath is { } target)
+            {
+                if (info.TargetIsDirectory)
+                    return new Plan(null, KnownFolder(target) is { } folderIcon ? "res:" + folderIcon : "type:<dir>");
+                string targetExt = NameParts.GetExtension(Path.GetFileName(target));
+                if (OwnIconTypes.Contains(targetExt) && _pictures() is { } pictures && WindowsIcons.IsLocal(target))
+                {
+                    FileAttributes attributes;
+                    try { attributes = File.GetAttributes(target); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { attributes = FileAttributes.Normal; }
+                    var image = await pictures.GetAsync(ShellImageKind.Icon, target, File.GetLastWriteTimeUtc(target).Ticks, attributes, PixelSize, CancellationToken.None).ConfigureAwait(false);
+                    if (image is not null) return new Plan(ShellBitmaps.ToBitmap(image), null);
+                }
+                if (targetExt.Length > 0) return new Plan(null, TypeKey(targetExt));
+            }
+            return new Plan(null, null);
+        });
+    }
+
+    /// <summary>A folder whose desktop.ini names an icon (Explorer reads it only for read-only or system folders).</summary>
+    private Plan? CustomFolder(string path, in EntryData entry) =>
+        PerItem("dir|" + path + "|" + entry.Modified, async () =>
+        {
+            string ini = Path.Join(path, "desktop.ini");
+            var fileInfo = new FileInfo(ini);
+            if (!fileInfo.Exists || fileInfo.Length > ShellFileIcons.MaxBytes || (fileInfo.Attributes & Placeholder) != 0) return new Plan(null, null);
+            var info = ShellFileIcons.ReadFolderIcon(ShellFileIcons.DecodeText(await File.ReadAllBytesAsync(ini).ConfigureAwait(false)), path);
+            if (info?.IconFile is not { } iconFile) return new Plan(null, null);
+            return new Plan(await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false), null);
+        });
+
+    /// <summary>An icon a user's file names, read by the restricted helper under its policy (local files only).</summary>
+    private async Task<IImage?> Resource(IconLocation location)
+    {
+        if (_pictures() is not { } pictures) return null;
+        long modified;
+        try { modified = File.GetLastWriteTimeUtc(location.File).Ticks; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
+        var image = await pictures.GetAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, PixelSize, CancellationToken.None).ConfigureAwait(false);
+        return image is null ? null : ShellBitmaps.ToBitmap(image);
     }
 
     /// <summary>A program's own icon from the helper once extracted; null meanwhile, when refused, or when it has none.</summary>
-    private IImage? OwnIcon(in EntryData entry, Location? folder)
+    private IImage? OwnIcon(string path, long modified, FileAttributes attributes)
     {
-        // Result and working sets list items from elsewhere: their own folder counts.
-        var parent = entry.Tag is Core.Search.ResultTag r ? r.Parent : folder;
-        if (parent is not { IsFileSystem: true } || _pictures() is not { } pictures) return null;
-        string path = System.IO.Path.Join(parent.Path, entry.Name);
-        string key = path + "|" + entry.Modified;
-        if (_perFile.TryGetValue(key, out var cached)) return cached;
-        if (_perFile.Count >= PerFileCacheLimit) _perFile.Clear();
-        if (!_perFile.TryAdd(key, null)) return null;
-        _ = LoadOwnIconAsync(pictures, key, path, entry.Modified, (FileAttributes)entry.Attributes);
-        return null;
-    }
-
-    private async Task LoadOwnIconAsync(FileCat.Platform.Windows.Shell.ShellPreviews pictures, string key, string path, long modified, FileAttributes attributes)
-    {
-        var image = await pictures.GetAsync(FileCat.Platform.Windows.Shell.ShellImageKind.Icon, path, modified, attributes, Size, CancellationToken.None).ConfigureAwait(false);
-        if (image is null) return;
-        _perFile[key] = ShellBitmaps.ToBitmap(image);
-        NotifyLoaded();
+        if (_pictures() is not { } pictures) return null;
+        return FromPlan(PerItem("own|" + path + "|" + modified, async () =>
+        {
+            var image = await pictures.GetAsync(ShellImageKind.Icon, path, modified, attributes, PixelSize, CancellationToken.None).ConfigureAwait(false);
+            return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null);
+        }));
     }
 
     private void NotifyLoaded()
@@ -94,34 +255,64 @@ public sealed class NativeIconSource : INativeIconSource
         }, DispatcherPriority.Background);
     }
 
+    // ---- The icon thread: shared icons from locations FileCat trusts -----------------------------------------
+
     private void Worker()
     {
-        foreach (var key in _queue.GetConsumingEnumerable())
+        foreach (var sized in _queue.GetConsumingEnumerable())
         {
             IImage? image = null;
             try
             {
-                bool isDir = key is "<dir>" or "<dirlink>" or "<drive>";
-                var name = key.StartsWith('.') ? "file" + key : isDir ? "folder" : "file";
-                if (key.StartsWith('.') && PerFileTypes.Contains(key[1..])) name = "file.bin";
-                if (_shell.TryGetTypeIcon(name, isDir, Size, out int w, out int h, out var bgra) && w > 0 && h > 0)
-                    image = ToBitmap(w, h, bgra);
+                if (sized.Key == "known-folders")
+                {
+                    var folders = WindowsIcons.KnownFolders();
+                    _knownById = folders.GroupBy(f => f.Id).ToDictionary(g => g.Key, g => g.First().Icon);
+                    var byPath = folders.Where(f => f.Path is not null).GroupBy(f => f.Path!, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.First().Icon, StringComparer.OrdinalIgnoreCase);
+                    _knownByPath = byPath;
+                    _knownNames = byPath.Keys.Select(Path.GetFileName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    NotifyLoaded();
+                    continue;
+                }
+                image = Load(sized.Key, sized.Size);
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or COMException)
             {
                 image = null;
             }
             if (image is not null)
             {
-                _cache[key] = image;
+                _shared[sized] = image;
                 NotifyLoaded();
             }
         }
     }
 
-    private static Bitmap ToBitmap(int w, int h, byte[] bgra)
+    private IImage? Load(string key, int size)
     {
-        var bmp = new WriteableBitmap(new PixelSize(w, h), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Unpremul);
+        IconLocation? location = key switch
+        {
+            "sysdrive" => new IconLocation(Path.Combine(Environment.SystemDirectory, "imageres.dll"), -36),
+            _ when key.StartsWith("stock:", StringComparison.Ordinal) => WindowsIcons.StockLocation(int.Parse(key.AsSpan(6), System.Globalization.CultureInfo.InvariantCulture)),
+            _ when key.StartsWith("res:", StringComparison.Ordinal) => IconLocation.Parse(key[4..]),
+            "type:<dir>" => WindowsIcons.TypeLocation("folder", true),
+            "type:<file>" or "type:<generic>" => WindowsIcons.TypeLocation("file.bin", false),
+            _ => WindowsIcons.TypeLocation("file" + key[5..], false),
+        };
+        if (location is { } l && WindowsIcons.TryExtract(l, size, out int w, out int h, out var bgra)) return ToBitmap(w, h, bgra, size);
+        if (key == "sysdrive") return Load("stock:" + WindowsIcons.StockFixedDrive, size);
+        if (!key.StartsWith("type:", StringComparison.Ordinal)) return null;
+        // Types drawn by an icon handler have no fixed location: the Shell's small icon (16 pixels) stands in.
+        string name = key switch { "type:<dir>" => "folder", "type:<file>" or "type:<generic>" => "file.bin", _ => "file" + key[5..] };
+        return _shell.TryGetTypeIcon(name, key == "type:<dir>", size, out w, out h, out bgra) && w > 0 ? ToBitmap(w, h, bgra, size) : null;
+    }
+
+    private static Bitmap ToBitmap(int w, int h, byte[] bgra, int size)
+    {
+        // Drawn into 16 device-independent pixels: the resolution says how many pixels that holds.
+        double dpi = 96.0 * w / 16;
+        var bmp = new WriteableBitmap(new PixelSize(w, h), new Vector(dpi, dpi), PixelFormat.Bgra8888, AlphaFormat.Unpremul);
         using var fb = bmp.Lock();
         for (int y = 0; y < h; y++)
             Marshal.Copy(bgra, y * w * 4, fb.Address + y * fb.RowBytes, w * 4);

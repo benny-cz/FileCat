@@ -16,6 +16,32 @@ public static class ShellPreviewPolicy
 
     private const FileAttributes RecallOnOpen = (FileAttributes)0x40000, RecallOnDataAccess = (FileAttributes)0x400000;
 
+    // Files an icon may be read from when a shortcut or desktop.ini names one.
+    private static readonly HashSet<string> IconFiles = new(StringComparer.OrdinalIgnoreCase) { ".dll", ".exe", ".ico", ".icl", ".cpl", ".ocx", ".scr", ".mun" };
+
+    /// <summary>
+    /// Why an icon named inside a user's file may not be read, or null when it may: only resource files on this
+    /// computer (a share named there would be contacted, revealing the user's credentials), never cloud placeholders.
+    /// </summary>
+    public static string? IconResourceRefusal(IconLocation location, bool allowNetworkAndRemovable)
+    {
+        if (!OperatingSystem.IsWindows()) return "Shell pictures exist only on Windows.";
+        string file = location.File;
+        if (!Path.IsPathFullyQualified(file) || file.Contains('\0') || file.Contains('|')) return "Not a full path.";
+        if (!IconFiles.Contains(Path.GetExtension(file))) return "Icons are read only from programs, libraries, and icon files.";
+        if (IsNetworkOrRemovable(file) && (!allowNetworkAndRemovable || file.StartsWith(@"\\", StringComparison.Ordinal))) return "The icon is not on this computer.";
+        try
+        {
+            var attributes = File.GetAttributes(file);
+            if ((attributes & (FileAttributes.Offline | RecallOnOpen | RecallOnDataAccess | FileAttributes.Directory)) != 0) return "Not a local file.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return "The icon file cannot be read.";
+        }
+        return null;
+    }
+
     /// <summary>Why no Shell handler may run for this file, or null when one may.</summary>
     public static string? Refusal(string path, FileAttributes attributes, bool allowNetworkAndRemovable)
     {
@@ -100,7 +126,10 @@ public sealed class ShellPreviews : IDisposable
     public Task<ShellImage?> GetAsync(ShellImageKind kind, string path, long modifiedTicks, FileAttributes attributes, int size, CancellationToken ct)
     {
         if (_disposed || _client.DisabledReason is not null) return Task.FromResult<ShellImage?>(null);
-        if (ShellPreviewPolicy.Refusal(path, attributes, _allowNetworkAndRemovable()) is not null) return Task.FromResult<ShellImage?>(null);
+        if (kind == ShellImageKind.IconResource
+                ? IconResourceRequest.Parse(path) is not { } location || ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable()) is not null
+                : ShellPreviewPolicy.Refusal(path, attributes, _allowNetworkAndRemovable()) is not null)
+            return Task.FromResult<ShellImage?>(null);
         string key = KeyOf(kind, path, modifiedTicks, size);
         var tcs = new TaskCompletionSource<ShellImage?>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_lock)

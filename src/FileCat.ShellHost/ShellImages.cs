@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FileCat.Platform.Windows;
 using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.ShellHost;
@@ -44,6 +45,20 @@ internal static unsafe partial class ShellImages
             Marshal.Release(factoryPtr);
             if (bitmap != 0) DeleteObject(bitmap);
         }
+    }
+
+    /// <summary>An icon from a resource file ("index|file"), premultiplied like every answer of the helper.</summary>
+    public static ShellImage? GetResource(string request, int size, out string? problem)
+    {
+        problem = null;
+        if (IconResourceRequest.Parse(request) is not { } location || !Path.IsPathFullyQualified(location.File) || location.File.Contains('\0'))
+        {
+            problem = "Not an icon location.";
+            return null;
+        }
+        if (!WindowsIcons.TryExtract(location, size, out int w, out int h, out var bgra)) return null;
+        WindowsIcons.Premultiply(bgra);
+        return new ShellImage(w, h, bgra);
     }
 
     private static ShellImage? Pixels(nint bitmap, out string? problem)

@@ -6,6 +6,23 @@ public enum ShellImageKind : byte
     Thumbnail = 1,
     /// <summary>The file's own icon (an executable's embedded icon, say), through its icon handler.</summary>
     Icon = 2,
+    /// <summary>
+    /// An icon from a resource file that a shortcut or a folder's desktop.ini names: the request's path is
+    /// "index|file" (see <see cref="IconResourceRequest"/>). No handler runs; the icon is read from the file's resources.
+    /// </summary>
+    IconResource = 3,
+}
+
+public static class IconResourceRequest
+{
+    public static string Format(IconLocation location) => location.Index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + location.File;
+
+    public static IconLocation? Parse(string request)
+    {
+        int bar = request.IndexOf('|');
+        return bar > 0 && int.TryParse(request.AsSpan(0, bar), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out int index)
+            ? new IconLocation(request[(bar + 1)..], index) : null;
+    }
 }
 
 /// <summary>A picture from the Shell helper: top-down rows of premultiplied BGRA pixels.</summary>

@@ -87,13 +87,36 @@ public sealed class IconProvider
         return _vector.GetOrAdd((kind, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
     }
 
-    public void ClearCache() => _vector.Clear();
+    public void ClearCache()
+    {
+        _vector.Clear();
+        _vectorOverlay = null;
+    }
+
+    /// <summary>The display's scaling where rows are drawn: native icons are made at 16 times this many pixels.</summary>
+    public void SetScale(double scaling) => Native?.SetPixelSize((int)Math.Round(16 * Math.Max(1, scaling)));
+
+    /// <summary>Shortcut files, which Explorer marks with its arrow like links.</summary>
+    public static bool IsShortcut(in EntryData e) =>
+        e.Kind == EntryKind.File && NameParts.GetExtension(e.Name) is var ext &&
+        (ext.Equals("lnk", StringComparison.OrdinalIgnoreCase) || ext.Equals("url", StringComparison.OrdinalIgnoreCase));
+
+    private IImage? _vectorOverlay;
+
+    /// <summary>The arrow drawn over links and shortcuts: the platform's where it has one, else FileCat's own.</summary>
+    public IImage LinkOverlay => (UseNativeIcons ? Native?.LinkOverlay : null) ?? (_vectorOverlay ??= VectorIcons.LinkOverlay());
 }
 
 public interface INativeIconSource
 {
     /// <summary>Returns a cached icon, or null while it loads or when unavailable. Must not block.</summary>
     IImage? GetIcon(in EntryData entry, Location? folder = null);
+
+    /// <summary>The platform's shortcut arrow drawn over link icons; null to use FileCat's own.</summary>
+    IImage? LinkOverlay => null;
+
+    /// <summary>Icons are made for this many device pixels (16 times the display's scaling).</summary>
+    void SetPixelSize(int size) { }
 
     event Action? IconsLoaded;
 }
