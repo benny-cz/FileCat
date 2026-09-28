@@ -15,7 +15,7 @@ namespace FileCat.App.Services;
 /// </summary>
 public sealed class AppServices : IDisposable
 {
-    private AppServices(AppPaths paths)
+    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -45,6 +45,24 @@ public sealed class AppServices : IDisposable
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = Zip;
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
+        // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
+        Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile, sftpConnector ?? new Remote.Sftp.SshNetConnector(),
+            new Remote.Sftp.HostKeyTrust(Path.Combine(paths.LocalDirectory, "known_hosts")), Platform.Secrets, new RefusingInteraction());
+        Sftp.ProfileChanged += p =>
+        {
+            if (!p.Temporary) SaveSettings();
+        };
+        SftpProvider = new Remote.Sftp.SftpProvider(Sftp, () => Settings.RemoteProfiles, p =>
+        {
+            lock (_temporaryProfiles)
+            {
+                var same = _temporaryProfiles.FirstOrDefault(t => string.Equals(t.Host, p.Host, StringComparison.OrdinalIgnoreCase) && t.Port == p.Port && t.User == p.User);
+                if (same is not null) return same;
+                _temporaryProfiles.Add(p);
+                return p;
+            }
+        });
+        Providers.Register(SftpProvider);
         EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         Columns = new Controls.ColumnProfileSet(Settings.ColumnProfiles);
@@ -69,6 +87,27 @@ public sealed class AppServices : IDisposable
     public Core.Archives.ZipProvider Zip { get; private set; } = null!;
 
     public Core.Jobs.JobManager Jobs { get; }
+
+    /// <summary>SFTP connections (leases, host keys, secrets); the main window supplies the prompts.</summary>
+    public Remote.Sftp.SftpConnections Sftp { get; }
+    public Remote.Sftp.SftpProvider SftpProvider { get; }
+    private readonly List<RemoteProfile> _temporaryProfiles = [];
+
+    /// <summary>A saved connection, or one typed as an sftp:// address this session.</summary>
+    public RemoteProfile? FindRemoteProfile(string id)
+    {
+        var saved = Settings.RemoteProfiles.FirstOrDefault(p => p.Id == id);
+        if (saved is not null) return saved;
+        lock (_temporaryProfiles) return _temporaryProfiles.FirstOrDefault(p => p.Id == id);
+    }
+
+    /// <summary>Until a window can ask, connections that need the user are refused rather than left waiting.</summary>
+    private sealed class RefusingInteraction : Remote.Sftp.IRemoteInteraction
+    {
+        public Remote.Sftp.HostKeyDecision DecideHostKey(RemoteProfile profile, Remote.Sftp.HostKeyCheck check) => Remote.Sftp.HostKeyDecision.Reject;
+        public Remote.Sftp.SecretAnswer? AskSecret(RemoteProfile profile, Remote.Sftp.SecretRequest request) => null;
+        public IReadOnlyList<string>? AnswerPrompts(RemoteProfile profile, string instruction, IReadOnlyList<(string Prompt, bool Echo)> prompts) => null;
+    }
     /// <summary>Persistent external edits of archive members (plan §14.2).</summary>
     public Core.Edit.EditSessionStore EditSessions { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }
@@ -93,7 +132,8 @@ public sealed class AppServices : IDisposable
     public bool SettingsReadOnly => SettingsStatus == StateLoadStatus.NewerSchemaReadOnly;
 
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
-    public static AppServices CreateForPaths(AppPaths paths) => new(paths);
+    /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
+    public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
     /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
     public static AppServices Initialize(string? profile, string? overrideRoot = null)
@@ -177,6 +217,7 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        Sftp.Dispose();
         Io.Dispose();
         Platform.Dispose();
     }

@@ -47,11 +47,20 @@ public sealed partial class MainViewModel
         if (Directory.Exists(downloads)) Add("Downloads", downloads, Location.FileSystem(downloads));
         foreach (var b in Services.History.Bookmarks.Where(b => b.Location is not null).OrderBy(b => b.Slot ?? 99))
             Add((b.Slot is { } s ? $"[{s}] " : "★ ") + (string.IsNullOrEmpty(b.Name) ? Services.Providers.Display(b.Location!) : b.Name), Services.Providers.Display(b.Location!), b.Location!);
+        foreach (var p in Services.Settings.RemoteProfiles)
+            Add("SFTP: " + (p.Name.Length > 0 ? p.Name : p.Display), p.Display + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""), Remote.Sftp.SftpProvider.At(p, p.InitialPath));
+        int connectIndex = items.Count;
+        items.Add(new ChoiceItem("Connect to an SFTP server…", "New or saved connection"));
         var r = await Dialogs.ChooseAsync(new ChoiceOptions($"Location for panel {panel.Number}", items)
         {
             Hint = "Type to filter · Enter opens · Shift+Enter opens in a new tab",
         });
         if (r.Index < 0) return;
+        if (r.Index == connectIndex)
+        {
+            await ConnectSftpAsync(panel);
+            return;
+        }
         if (r.Alternate) panel.OpenTab(locations[r.Index]);
         else panel.ActiveTab?.Navigate(locations[r.Index]);
         Workspace.Activate(panel);

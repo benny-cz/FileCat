@@ -27,6 +27,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         Services = services;
         Workspace = new WorkspaceViewModel(services);
+        AttachRemoteInteraction();
         for (int i = 1; i <= 12; i++) KeyBar.Add(new KeyBarItem(i));
         UpdateKeyBar(KeyMods.None);
         Workspace.PropertyChanged += (_, e) =>

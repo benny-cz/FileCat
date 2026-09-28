@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
+    <ProjectReference Include="..\FileCat.Remote\FileCat.Remote.csproj" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
   </ItemGroup>
 </Project>

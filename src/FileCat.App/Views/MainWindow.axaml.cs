@@ -38,7 +38,7 @@ public partial class MainWindow : Window, IViewActions
         ("_Commands", [CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.FlatView, CommandIds.QuickFilter, "-",
             CommandIds.CommandLineFocus, CommandIds.InsertName, CommandIds.InsertPath, CommandIds.OpenTerminal, CommandIds.UserMenu, "-",
             CommandIds.CopyToClipboard, CommandIds.CutToClipboard, CommandIds.PasteFromClipboard, "-",
-            CommandIds.ConnectNetworkDrive, CommandIds.DisconnectNetworkDrive]),
+            CommandIds.ConnectNetworkDrive, CommandIds.DisconnectNetworkDrive, "-", CommandIds.SftpConnect, CommandIds.SftpDisconnect]),
         ("_Panels", [CommandIds.SwitchPanel, CommandIds.SwitchPanelBack, CommandIds.SwapPanels, CommandIds.OpenInTarget, CommandIds.TargetToSource,
             CommandIds.QuickView, "-", CommandIds.AddPanel, CommandIds.ClosePanel, CommandIds.FocusPanelPicker, CommandIds.ChooseTarget,
             CommandIds.MaximizePanel, "-", CommandIds.NewTab, CommandIds.CloseTab, CommandIds.NextTab, CommandIds.PreviousTab, CommandIds.ReopenTab,

@@ -70,6 +70,8 @@ public sealed partial class MainViewModel
             case CommandIds.CopyUncPaths: await CopyUncPathsAsync(); return true;
             case CommandIds.ConnectNetworkDrive: ConnectDrive(connect: true); return true;
             case CommandIds.DisconnectNetworkDrive: ConnectDrive(connect: false); return true;
+            case CommandIds.SftpConnect: await ConnectSftpAsync(); return true;
+            case CommandIds.SftpDisconnect: DisconnectSftp(); return true;
             case CommandIds.RemoveFromSet: RemoveFromResultSet(); return true;
         }
         return false;

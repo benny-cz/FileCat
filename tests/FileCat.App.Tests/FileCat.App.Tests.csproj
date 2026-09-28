@@ -17,4 +17,8 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The in-memory SFTP server of the remote tests, for UI tests of connecting and browsing. -->
+    <Compile Include="..\FileCat.Remote.Tests\FakeSftp.cs" Link="Sftp\FakeSftp.cs" />
+  </ItemGroup>
 </Project>

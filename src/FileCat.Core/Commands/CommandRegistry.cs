@@ -148,6 +148,8 @@ public static class CommandIds
 
     public const string ConnectNetworkDrive = "net.connect";
     public const string DisconnectNetworkDrive = "net.disconnect";
+    public const string SftpConnect = "net.sftpConnect";
+    public const string SftpDisconnect = "net.sftpDisconnect";
 
     public const string Palette = "app.palette";
     public const string Operations = "app.operations";
@@ -330,6 +332,8 @@ public sealed class CommandRegistry
         Add(CommandIds.CopyUncPaths, "Copy UNC paths", C, null, CommandContext.Panel, "Ctrl+Shift+U");
         Add(CommandIds.ConnectNetworkDrive, "Connect network drive…", C);
         Add(CommandIds.DisconnectNetworkDrive, "Disconnect network drive…", C);
+        Add(CommandIds.SftpConnect, "Connect to SFTP server…", C);
+        Add(CommandIds.SftpDisconnect, "Disconnect from SFTP server", C);
 
         Add(CommandIds.Palette, "Command palette…", A, null, CommandContext.Global, "Ctrl+Shift+P");
         Add(CommandIds.Operations, "Operations", A, null, CommandContext.Global, "Ctrl+J");
