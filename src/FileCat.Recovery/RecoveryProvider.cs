@@ -182,6 +182,9 @@ public sealed class RecoveryProvider : ResourceProvider
         }
         var (volume, folder) = Resolve(session, location);
         foreach (var warning in volume.Warnings) sink.ReportIssue(warning);
+        // An empty volume says why rather than looking like a failed listing (its own warnings, if any, explain more).
+        if (location.Path.Length == 0 && folder.Children.Count == 0 && volume.Warnings.Count == 0)
+            sink.ReportIssue($"No deleted items were found on this {volume.FileSystem} volume. Deleted files leave traces only until their entries or space are used again.");
         var batch = new List<EntryData>(folder.Children.Count);
         foreach (var item in folder.Children)
         {

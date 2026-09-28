@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -46,6 +47,31 @@ public sealed class RecoveryJobTests : IDisposable
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
         return job;
+    }
+
+    [Fact]
+    public async Task A_volume_without_deleted_items_says_so()
+    {
+        // A blank FAT12 floppy: a boot sector, two empty tables, and an empty root folder.
+        var image = new byte[64 * 512];
+        image[0] = 0xEB;
+        image[1] = 0x3C;
+        image[2] = 0x90;
+        BinaryPrimitives.WriteUInt16LittleEndian(image.AsSpan(11), 512);
+        image[13] = 1;
+        BinaryPrimitives.WriteUInt16LittleEndian(image.AsSpan(14), 1);
+        image[16] = 2;
+        BinaryPrimitives.WriteUInt16LittleEndian(image.AsSpan(17), 16);
+        BinaryPrimitives.WriteUInt16LittleEndian(image.AsSpan(19), 64);
+        image[21] = 0xF8;
+        BinaryPrimitives.WriteUInt16LittleEndian(image.AsSpan(22), 1);
+        image[510] = 0x55;
+        image[511] = 0xAA;
+        string path = Path.Combine(_dir.Path, "blank.img");
+        File.WriteAllBytes(path, image);
+        var rows = await ListAsync(RecoveryProvider.ForImage(path, 1));
+        Assert.Empty(rows.Entries);
+        Assert.StartsWith("No deleted items were found on this FAT12 volume.", Assert.Single(rows.Issues), StringComparison.Ordinal);
     }
 
     [Fact]
