@@ -23,10 +23,11 @@ what failed, and what remains uncertain.
   evidence, search, go to offset, checksums, follow mode; Ctrl+Q quick view.
 - **Archives**: ZIP browsing and extraction (read-only) with Mark-of-the-Web propagation.
 - **Windows integration**: native CopyFile2 (keeps ReFS block cloning and SMB offload), SMB share
-  listing with credential prompts, terminals, reveal in Explorer, extension-only icons (no
-  third-party Shell handlers run inside FileCat).
+  listing with credential prompts, terminals, reveal in Explorer, and the installed Windows file
+  context menu with application commands and icons. Shell extensions run in a separate process.
 - **Git state on icons**: clean, changed, added, untracked, and conflicted items in local Git folders
-  get small badges. Status loads in the background and refreshes with the folder or when FileCat regains focus.
+  get small badges. Windows uses its installed Shell overlay when assigned; otherwise FileCat draws
+  a status mark from Git. Status loads in the background and refreshes with the folder or on focus.
 - **Themes**: Classic (follows light/dark), Cyberpunk, Psychedelic, and High Contrast (automatic with
   the OS setting).
 

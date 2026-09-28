@@ -11,6 +11,8 @@ public enum ShellImageKind : byte
     /// "index|file" (see <see cref="IconResourceRequest"/>). No handler runs; the icon is read from the file's resources.
     /// </summary>
     IconResource = 3,
+    /// <summary>The installed Shell overlay, already composed with the item icon (for example TortoiseGit).</summary>
+    OverlayIcon = 4,
 }
 
 public static class IconResourceRequest

@@ -1,7 +1,9 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 
 namespace FileCat.App.Views;
@@ -14,7 +16,7 @@ public partial class PanelView : UserControl
         List.ActivateRequested += (_, _) => Activated?.Invoke();
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
-        List.ContextMenuRequested += (_, _) => ShowContextMenu();
+        List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
         List.GotFocus += (_, _) => Activated?.Invoke();
         PathBox.GotFocus += (_, _) =>
         {
@@ -203,9 +205,31 @@ public partial class PanelView : UserControl
     }
 
     /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
-    public void ShowContextMenu(bool atFocus = false)
+    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null) =>
+        _ = ShowContextMenuAsync(atFocus, point);
+
+    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
+        if (OperatingSystem.IsWindows() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
+            tab.Listing.MarkedCount <= WindowsContextMenu.MaxItems)
+        {
+            var paths = tab.Listing.GetSelection().Select(item => item.FileSystemPath).ToArray();
+            if (WindowsContextMenu.CanShow(paths))
+            {
+                var anchor = point ?? (List.FocusedRowBounds() is { } bounds
+                    ? new Avalonia.Point(bounds.Left + 12, bounds.Bottom) : new Avalonia.Point(0, 0));
+                var screen = List.PointToScreen(anchor);
+                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y);
+                if (result == WindowsContextMenu.Result.Handled) return;
+                if (result == WindowsContextMenu.Result.ActionFailed)
+                {
+                    vm.Notify("Windows could not complete that action.", true);
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.FileCatActions) atFocus = point is null;
+            }
+        }
         var menu = ContextMenuFactory.Build(vm);
         if (atFocus && List.FocusedRowBounds() is { } row)
         {

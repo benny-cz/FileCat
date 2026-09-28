@@ -53,14 +53,12 @@ public sealed class JobEngineTests : IDisposable
     }
 
     /// <summary>
-    /// Schedule runs on the submitting thread and on each finishing job's thread at once; a queued job must start once
-    /// (twice, both runs journaled under the same name and the second failed: seen on a macOS CI runner).
+    /// Schedule runs on the submitting thread and on each finishing job's thread at once. Every submitted job must
+    /// complete and create exactly one directory. JobChanged can also report other changes while the state is Running.
     /// </summary>
     [Fact]
     public async Task Jobs_submitted_while_others_finish_each_start_once()
     {
-        int started = 0;
-        _jobs.JobChanged += j => { if (j.State == JobState.Running) Interlocked.Increment(ref started); };
         var jobs = new System.Collections.Concurrent.ConcurrentBag<Job>();
         await Parallel.ForAsync(0, 120, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = TestContext.Current.CancellationToken }, (i, _) =>
         {
@@ -69,7 +67,7 @@ public sealed class JobEngineTests : IDisposable
         });
         foreach (var job in jobs) await WaitAsync(job);
         Assert.All(jobs, j => Assert.True(j.State == JobState.Completed, $"{j.Title}: {j.State} {string.Join("; ", j.Issues.Select(i => i.Message))}"));
-        Assert.Equal(120, started);
+        Assert.All(jobs, j => Assert.NotNull(j.StartedUtc));
         Assert.Equal(120, Directory.GetDirectories(_dst).Length);
     }
 

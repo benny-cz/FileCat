@@ -750,7 +750,9 @@ public sealed class FileListControl : Control
             {
                 double iconX = colX + MarkGutter;
                 var icons = Tab?.Services.Icons;
-                var icon = icons?.GetIcon(e, Tab!.Location);
+                GitStatusKind git = _gitStatuses?.ForName(e.Name) ?? GitStatusKind.None;
+                var shellOverlay = _gitStatuses is null ? null : icons?.ShellOverlayIcon(e, Tab!.Location, git);
+                var icon = shellOverlay ?? icons?.GetIcon(e, Tab!.Location);
                 if (icon is not null)
                 {
                     var iconRect = new Rect(iconX, y + (_rowHeight - IconSize) / 2, IconSize, IconSize);
@@ -759,8 +761,8 @@ public sealed class FileListControl : Control
                     {
                         dc.DrawImage(icon, iconRect);
                     }
-                    if (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e)) dc.DrawImage(icons!.LinkOverlay, iconRect);
-                    if (e.Kind is EntryKind.File or EntryKind.Directory && icons?.GitOverlay(_gitStatuses?.ForName(e.Name) ?? GitStatusKind.None) is { } gitOverlay)
+                    if (shellOverlay is null && (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e))) dc.DrawImage(icons!.LinkOverlay, iconRect);
+                    if (shellOverlay is null && e.Kind is EntryKind.File or EntryKind.Directory && icons?.GitOverlay(git) is { } gitOverlay)
                         dc.DrawImage(gitOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
@@ -1006,7 +1008,11 @@ public sealed class FileListControl : Control
         var mods = e.KeyModifiers;
         if (point.Properties.IsRightButtonPressed)
         {
-            if (!_listing.IsVisibleMarked(row)) _listing.SetFocus(row);
+            if (!_listing.IsVisibleMarked(row))
+            {
+                _listing.UnmarkEverything();
+                _listing.SetFocus(row);
+            }
             ContextMenuRequested?.Invoke(this, pos);
             e.Handled = true;
             return;

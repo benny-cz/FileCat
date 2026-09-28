@@ -150,6 +150,14 @@ public sealed class IconProvider
     /// <summary>A small, high-contrast Git state mark at the lower right of the ordinary file icon.</summary>
     internal IImage? GitOverlay(GitStatusKind status) => status == GitStatusKind.None ? null
         : _gitOverlays.GetOrAdd((status, ThemeManager.Current.Name), key => VectorIcons.GitOverlay(key.Item1));
+
+    /// <summary>Prefer the installed Windows overlay when available; Git badges remain a portable fallback.</summary>
+    internal IImage? ShellOverlayIcon(in EntryData entry, Location? folder, GitStatusKind status)
+    {
+        if (!UseNativeIcons || Native is not NativeIconSource source ||
+            folder is not { IsFileSystem: true } || entry.Kind is not (EntryKind.File or EntryKind.Directory)) return null;
+        return source.GetOverlayIcon(Path.Join(folder.Path, entry.Name), entry.Modified, (FileAttributes)entry.Attributes, status);
+    }
 }
 
 public interface INativeIconSource

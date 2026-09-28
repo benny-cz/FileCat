@@ -138,7 +138,7 @@ public sealed class ShellPreviews : IDisposable
             var request = _pending.FirstOrDefault(r => r.Key == key);
             if (request is null)
             {
-                request = new Request(key, kind, path, size, kind == ShellImageKind.Icon ? TimeSpan.FromSeconds(3) : TimeSpan.FromSeconds(8));
+                request = new Request(key, kind, path, size, kind is ShellImageKind.Icon or ShellImageKind.OverlayIcon ? TimeSpan.FromSeconds(3) : TimeSpan.FromSeconds(8));
                 _pending.Add(request);
             }
             else

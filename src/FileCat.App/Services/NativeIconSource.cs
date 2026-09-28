@@ -103,6 +103,18 @@ public sealed class NativeIconSource : INativeIconSource
         }
     }
 
+    /// <summary>The installed Shell overlay composed with the ordinary icon, when Windows has assigned one.</summary>
+    internal IImage? GetOverlayIcon(string path, long modified, FileAttributes attributes, GitStatusKind status)
+    {
+        if (_pictures() is not { } pictures || !WindowsIcons.IsLocal(path)) return null;
+        return FromPlan(PerItem("overlay|" + path + "|" + modified + "|" + status, async () =>
+        {
+            var image = await pictures.GetAsync(ShellImageKind.OverlayIcon, path, modified, attributes,
+                PixelSize, CancellationToken.None).ConfigureAwait(false);
+            return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null);
+        }));
+    }
+
     /// <summary>Explorer's shortcut arrow at the current size; null until loaded.</summary>
     public IImage? LinkOverlay => Shared("stock:" + WindowsIcons.StockLink);
 

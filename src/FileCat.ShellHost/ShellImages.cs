@@ -61,6 +61,14 @@ internal static unsafe partial class ShellImages
         return new ShellImage(w, h, bgra);
     }
 
+    public static ShellImage? GetOverlayIcon(string path, int size, out string? problem)
+    {
+        problem = null;
+        if (!WindowsIcons.TryShellOverlay(path, size, out int width, out int height, out var bgra)) return null;
+        WindowsIcons.Premultiply(bgra);
+        return new ShellImage(width, height, bgra);
+    }
+
     private static ShellImage? Pixels(nint bitmap, out string? problem)
     {
         problem = null;

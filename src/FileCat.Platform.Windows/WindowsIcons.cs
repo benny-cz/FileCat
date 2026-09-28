@@ -58,6 +58,27 @@ public static unsafe partial class WindowsIcons
         }
     }
 
+    /// <summary>
+    /// The icon only when Windows assigned an installed overlay to this real item. Run from the restricted Shell
+    /// helper: third-party overlay handlers execute during SHGetFileInfo.
+    /// </summary>
+    public static bool TryShellOverlay(string path, int size, out int width, out int height, out byte[] bgra)
+    {
+        width = height = 0;
+        bgra = [];
+        if (!IsLocal(path) || path.Contains('\0')) return false;
+        var info = new SHFILEINFOW();
+        const uint iconFlag = 0x100, smallFlag = 0x1, addOverlays = 0x20, overlayIndex = 0x40;
+        uint flags = iconFlag | addOverlays | overlayIndex | (size <= 24 ? smallFlag : 0);
+        if (SHGetFileInfoW(path, 0, &info, (uint)sizeof(SHFILEINFOW), flags) == 0 || info.hIcon == 0) return false;
+        try
+        {
+            if (((uint)info.iIcon >> 24) == 0) return false;
+            return Pixels(info.hIcon, out width, out height, out bgra);
+        }
+        finally { DestroyIcon(info.hIcon); }
+    }
+
     /// <summary>Where the Shell keeps a stock icon (drives, the shortcut arrow), without reading any file.</summary>
     public static IconLocation? StockLocation(int stockId)
     {

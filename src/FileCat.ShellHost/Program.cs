@@ -29,9 +29,11 @@ internal static partial class Program
             }
             try
             {
-                if (kind is not ((byte)ShellImageKind.Thumbnail or (byte)ShellImageKind.Icon or (byte)ShellImageKind.IconResource)) return 3;
+                if (kind is not ((byte)ShellImageKind.Thumbnail or (byte)ShellImageKind.Icon or (byte)ShellImageKind.IconResource or (byte)ShellImageKind.OverlayIcon)) return 3;
                 var image = kind == (byte)ShellImageKind.IconResource
                     ? ShellImages.GetResource(path, size, out string? problem)
+                    : kind == (byte)ShellImageKind.OverlayIcon
+                    ? ShellImages.GetOverlayIcon(path, size, out problem)
                     : ShellImages.Get(path, (ShellImageKind)kind, size, out problem);
                 if (image is not null) ShellHostProtocol.WriteImage(output, image);
                 else ShellHostProtocol.WriteStatus(output, problem is null ? ShellHostProtocol.Status.None : ShellHostProtocol.Status.Failed, problem);
