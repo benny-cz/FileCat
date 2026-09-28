@@ -151,6 +151,30 @@ public interface IFileSystemOperations
     /// rename can stay on one volume.
     /// </summary>
     string GetVolumeRoot(string path);
+
+    /// <summary>
+    /// Creates a link at <paramref name="linkPath"/>, which must not exist. A symbolic link's target may be relative to
+    /// the link's folder; junction and hard link targets are absolute. Junctions exist only on Windows.
+    /// </summary>
+    void CreateLink(string linkPath, string target, LinkKind kind, bool isDirectory);
+
+    /// <summary>
+    /// Whether this process may create symbolic links (on Windows: Developer Mode or the privilege), found by a probe
+    /// in the temporary folder; null when the probe could not tell.
+    /// </summary>
+    bool? CanCreateSymbolicLinks { get; }
+
+    /// <summary>A stable identity of the file (volume and file ID), without following links; null where unavailable.</summary>
+    string? GetFileIdentity(string path);
+}
+
+public enum LinkKind
+{
+    Symbolic,
+    /// <summary>A Windows mount-point reparse point to a local folder; needs no privilege.</summary>
+    Junction,
+    /// <summary>Another name of the same file on the same volume.</summary>
+    Hard,
 }
 
 /// <summary>
@@ -470,6 +494,60 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual IReadOnlyList<string> GetAlternateStreams(string path) => [];
 
+    public virtual void CreateLink(string linkPath, string target, LinkKind kind, bool isDirectory)
+    {
+        if (File.Exists(linkPath) || Directory.Exists(linkPath) || new FileInfo(linkPath).LinkTarget is not null)
+            throw new IOException($"An item named \"{Path.GetFileName(linkPath)}\" already exists.");
+        switch (kind)
+        {
+            case LinkKind.Symbolic when isDirectory:
+                Directory.CreateSymbolicLink(linkPath, target);
+                break;
+            case LinkKind.Symbolic:
+                File.CreateSymbolicLink(linkPath, target);
+                break;
+            case LinkKind.Hard:
+                if (!(OperatingSystem.IsWindows() ? NativeLinks.CreateHardLinkW(linkPath, target, 0) : NativeLinks.Link(target, linkPath) == 0))
+                    throw new IOException(OperatingSystem.IsWindows()
+                        ? new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastPInvokeError()).Message
+                        : $"The hard link could not be created (error {System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}).");
+                break;
+            default:
+                throw new PlatformNotSupportedException("Junctions exist only on Windows; create a symbolic link instead.");
+        }
+    }
+
+    private bool? _canCreateSymbolicLinks;
+    private bool _probed;
+
+    public virtual bool? CanCreateSymbolicLinks
+    {
+        get
+        {
+            if (_probed) return _canCreateSymbolicLinks;
+            string probe = Path.Combine(Path.GetTempPath(), $"filecat-link-probe-{Guid.NewGuid():N}");
+            try
+            {
+                File.CreateSymbolicLink(probe, "target-that-does-not-exist");
+                _canCreateSymbolicLinks = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // ERROR_PRIVILEGE_NOT_HELD: no Developer Mode and no privilege. Anything else says nothing about links.
+                _canCreateSymbolicLinks = (ex.HResult & 0xFFFF) == 1314 ? false : null;
+            }
+            finally
+            {
+                try { File.Delete(probe); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+            _probed = true;
+            return _canCreateSymbolicLinks;
+        }
+    }
+
+    public virtual string? GetFileIdentity(string path) => null;
+
     /// <summary>Streaming content hash for verification and checksum features.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)
     {
@@ -487,4 +565,14 @@ public class PortableFileOperations : IFileSystemOperations
         }
         return hash.GetHashAndReset();
     }
+}
+
+internal static partial class NativeLinks
+{
+    [System.Runtime.InteropServices.LibraryImport("kernel32.dll", StringMarshalling = System.Runtime.InteropServices.StringMarshalling.Utf16, SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    internal static partial bool CreateHardLinkW(string linkPath, string existing, nint security);
+
+    [System.Runtime.InteropServices.LibraryImport("libc", EntryPoint = "link", StringMarshalling = System.Runtime.InteropServices.StringMarshalling.Utf8, SetLastError = true)]
+    internal static partial int Link(string existing, string linkPath);
 }

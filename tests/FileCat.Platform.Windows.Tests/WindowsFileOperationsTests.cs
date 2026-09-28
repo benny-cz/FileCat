@@ -136,6 +136,53 @@ public sealed class WindowsFileOperationsTests : IDisposable
     }
 
     [Fact]
+    public async Task Junctions_and_hard_links_are_created_and_undone_only_when_provably_safe()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        var manager = new JobManager(_ops, providers, Path.Combine(_root, "journal-links"));
+        var target = Directory.CreateDirectory(Path.Combine(_root, "t")).FullName;
+        File.WriteAllText(Path.Combine(target, "inner.txt"), "inner");
+        var original = Path.Combine(_root, "original.txt");
+        File.WriteAllText(original, "data");
+        var links = Directory.CreateDirectory(Path.Combine(_root, "links")).FullName;
+        async Task<Job> Run(ItemRef item, LinkKind kind)
+        {
+            var job = manager.Submit(new JobRequest { Kind = JobKind.CreateLink, Sources = [item], Destination = Location.FileSystem(links), Link = new Core.Operations.LinkOptions(kind) });
+            while (!job.State.IsFinished()) await Task.Delay(10);
+            return job;
+        }
+
+        var junction = await Run(ItemRef.ForFileSystemPath(target, EntryKind.Directory), LinkKind.Junction);
+        Assert.Equal(JobState.Completed, junction.State);
+        Assert.Equal("inner", File.ReadAllText(Path.Combine(links, "t", "inner.txt")));
+        Assert.True(_ops.TryGetInfo(Path.Combine(links, "t"))!.IsLink);
+        Assert.Contains(UndoService.Undo(junction, _ops), l => l.StartsWith("Removed the created link", StringComparison.Ordinal));
+        Assert.False(Directory.Exists(Path.Combine(links, "t")));
+        Assert.Equal("inner", File.ReadAllText(Path.Combine(target, "inner.txt")));
+
+        var hard = await Run(ItemRef.ForFileSystemPath(original, EntryKind.File), LinkKind.Hard);
+        Assert.Equal(JobState.Completed, hard.State);
+        string link = Path.Combine(links, "original.txt");
+        Assert.NotNull(_ops.GetFileIdentity(original));
+        Assert.Equal(_ops.GetFileIdentity(original), _ops.GetFileIdentity(link));
+        // While the original name is gone, the link holds the last name of the data: undo keeps it.
+        File.Move(original, original + ".away");
+        Assert.Contains(UndoService.Undo(hard, _ops), l => l.StartsWith("Kept", StringComparison.Ordinal));
+        Assert.True(File.Exists(link));
+        File.Move(original + ".away", original);
+        Assert.Contains(UndoService.Undo(hard, _ops), l => l.StartsWith("Removed the created hard link", StringComparison.Ordinal));
+        Assert.False(File.Exists(link));
+        Assert.Equal("data", File.ReadAllText(original));
+
+        // A junction never adopts an existing folder.
+        var existing = Directory.CreateDirectory(Path.Combine(_root, "existing")).FullName;
+        Assert.ThrowsAny<IOException>(() => Junction.Create(existing, target));
+        Assert.False(_ops.TryGetInfo(existing)!.IsLink);
+    }
+
+    [Fact]
     public void Volume_profile_and_recycle_classification()
     {
         if (!OperatingSystem.IsWindows()) return;

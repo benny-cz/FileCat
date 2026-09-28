@@ -302,6 +302,18 @@ public sealed class JobManager
                 title = $"Change attributes of {What()}";
                 AddSourceScopes(writes);
                 break;
+            case JobKind.CreateLink:
+            {
+                string kind = r.Link is { } lo ? Operations.LinkPlanner.KindName(lo.Kind) : "link";
+                title = r.Description ?? (r.Sources.Count == 1 ? $"Create a {kind} to {What()} in {Dest()}" : $"Create {kind}s to {What()} in {Dest()}");
+                AddSourceScopes(reads);
+                if (large) writes.Add(r.Destination is { IsFileSystem: true } ld ? ld.Path : GlobalScope);
+                else
+                {
+                    for (int i = 0; i < r.Sources.Count; i++) writes.Add(D(r.NewNames is { } ln && i < ln.Count ? ln[i] : r.Sources[i].Name));
+                }
+                break;
+            }
             case JobKind.Rename when r.NewNames is { } newNames:
                 title = r.Description ?? $"Rename {What()}";
                 AddSourceScopes(writes);

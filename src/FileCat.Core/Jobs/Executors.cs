@@ -35,6 +35,8 @@ public static class JobExecutors
                 return new Archives.ZipTestExecutor(job, fs, journal);
             case JobKind.Attributes when fsSources:
                 return new AttributesExecutor(job, fs, journal);
+            case JobKind.CreateLink when r.Link is not null:
+                return new Operations.LinkExecutor(job, fs, journal);
             case JobKind.Rename when fsSources && r.NewNames is not null:
                 return new Operations.BulkRenameExecutor(job, fs, journal);
             case JobKind.Rename when fsSources:
@@ -1338,6 +1340,32 @@ public static class UndoService
                             report.Add($"Removed the created file \"{Path.GetFileName(step.From)}\".");
                         }
                         else report.Add($"Kept \"{Path.GetFileName(step.From)}\": it was changed after it was created.");
+                        break;
+                    case UndoKind.RemoveCreatedLink:
+                        var li = fs.TryGetInfo(step.From);
+                        if (li is null) report.Add($"Nothing to undo: the link \"{Path.GetFileName(step.From)}\" no longer exists.");
+                        else if (!li.IsLink || li.LinkTarget is not { } pointsTo || !string.Equals(pointsTo.TrimEnd('\\', '/'), step.To.TrimEnd('\\', '/'), PathUtil.SafetyComparison))
+                            report.Add($"Kept \"{Path.GetFileName(step.From)}\": it is no longer the link that was created.");
+                        else
+                        {
+                            // Removing a link never touches its target.
+                            if (step.Size == 1) fs.DeleteDirectory(step.From);
+                            else fs.DeleteFile(step.From);
+                            report.Add($"Removed the created link \"{Path.GetFileName(step.From)}\".");
+                        }
+                        break;
+                    case UndoKind.RemoveCreatedHardLink:
+                        // The data survives only while the original name still exists and is the same file.
+                        string? linkId = fs.TryGetInfo(step.From) is { IsDirectory: false } ? fs.GetFileIdentity(step.From) : null;
+                        string? originalId = fs.TryGetInfo(step.To) is { IsDirectory: false } ? fs.GetFileIdentity(step.To) : null;
+                        if (fs.TryGetInfo(step.From) is null) report.Add($"Nothing to undo: the hard link \"{Path.GetFileName(step.From)}\" no longer exists.");
+                        else if (step.RecycledId is null || linkId != step.RecycledId || originalId != step.RecycledId)
+                            report.Add($"Kept \"{Path.GetFileName(step.From)}\": it is no longer another name of \"{Path.GetFileName(step.To)}\", so removing it could lose data.");
+                        else
+                        {
+                            fs.DeleteFile(step.From);
+                            report.Add($"Removed the created hard link \"{Path.GetFileName(step.From)}\"; \"{Path.GetFileName(step.To)}\" keeps the data.");
+                        }
                         break;
                 }
             }

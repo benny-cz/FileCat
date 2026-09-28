@@ -100,7 +100,7 @@ public sealed partial class WindowsFileOperations
     private static partial bool CreateDirectoryW(string lpPathName, nint lpSecurityAttributes);
 
     /// <summary>Win32 file APIs accept long paths with the \\?\ prefix regardless of system policy.</summary>
-    private static string Long(string path)
+    internal static string Long(string path)
     {
         if (path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.Length < 240) return path;
         return PathUtil.IsUncPath(path) ? @"\\?\UNC\" + path[2..] : @"\\?\" + path;
@@ -258,6 +258,66 @@ public sealed partial class WindowsFileOperations
             return false;
         }
     }
+
+    // ---- Links -----------------------------------------------------------------------------------------
+
+    public override void CreateLink(string linkPath, string target, LinkKind kind, bool isDirectory)
+    {
+        switch (kind)
+        {
+            case LinkKind.Junction:
+                Junction.Create(linkPath, target);
+                return;
+            case LinkKind.Hard:
+                if (!CreateHardLinkW(Long(linkPath), Long(target), 0))
+                {
+                    int error = Marshal.GetLastPInvokeError();
+                    throw error switch
+                    {
+                        17 => new IOException("A hard link must be on the same drive as its file.", unchecked((int)0x80070000) | error),
+                        1142 => new IOException("The file has the most hard links its file system allows (1,023 on NTFS).", unchecked((int)0x80070000) | error),
+                        1 or 50 => new IOException("This drive's file system does not support hard links.", unchecked((int)0x80070000) | error),
+                        _ => ToException(error, linkPath),
+                    };
+                }
+                return;
+            default:
+                try { base.CreateLink(linkPath, target, kind, isDirectory); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && (ex.HResult & 0xFFFF) == 1314)
+                {
+                    throw new UnauthorizedAccessException(SymbolicLinkPrivilegeMessage, ex);
+                }
+                return;
+        }
+    }
+
+    public const string SymbolicLinkPrivilegeMessage =
+        "Creating symbolic links needs Developer Mode (Settings → System → For developers) or administrator rights. For a folder on a local drive, a junction works without either.";
+
+    public override string? GetFileIdentity(string path)
+    {
+        const uint FILE_READ_ATTRIBUTES = 0x80, SHARE_ALL = 7, OPEN_EXISTING = 3;
+        const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000, FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
+        using var handle = CreateFileForIdentity(Long(path), FILE_READ_ATTRIBUTES, SHARE_ALL, 0, OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);
+        if (handle.IsInvalid) return null;
+        try
+        {
+            var id = ProtectedHexFile.Identity(handle);
+            return $"{id.VolumeSerial:X16}:{id.FileId}";
+        }
+        catch (Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CreateHardLinkW(string linkPath, string existing, nint security);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial SafeFileHandle CreateFileForIdentity(string name, uint access, uint share, nint sa, uint disposition, uint flags, nint template);
 
     // ---- Recycle through IFileOperation ---------------------------------------------------------------
 
@@ -554,10 +614,16 @@ internal static partial class Junction
         }
     }
 
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateDirectoryW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CreateDirectoryW(string path, nint security);
+
+    /// <summary>Creates a new junction; an existing item at <paramref name="junction"/> is never adopted.</summary>
     public static unsafe void Create(string junction, string target)
     {
         var full = Path.GetFullPath(target);
-        Directory.CreateDirectory(junction);
+        if (full.StartsWith(@"\\", StringComparison.Ordinal)) throw new IOException("A junction cannot point to a network location; use a symbolic link.");
+        if (!CreateDirectoryW(WindowsFileOperations.Long(junction), 0)) throw WindowsFileOperations.ToException(Marshal.GetLastPInvokeError(), junction);
         try
         {
             using var h = CreateFile(junction, GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0);

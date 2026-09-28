@@ -26,6 +26,8 @@ public enum JobKind
     ArchiveTest,
     /// <summary>A plan run by the per-plan administrator broker after one consent (ADR-14).</summary>
     Elevated,
+    /// <summary>Symbolic links, junctions, or hard links to the sources, in the destination folder.</summary>
+    CreateLink,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -146,8 +148,13 @@ public sealed class JobRequest
     /// is still guarded by its own expected state.
     /// </summary>
     public bool IndependentSteps { get; init; }
-    /// <summary>For a bulk <see cref="JobKind.Rename"/>: the new name of each source (same order and count).</summary>
+    /// <summary>
+    /// For a bulk <see cref="JobKind.Rename"/>: the new name of each source (same order and count). For
+    /// <see cref="JobKind.CreateLink"/>: the name of each link, when it differs from the source's name.
+    /// </summary>
     public IReadOnlyList<string>? NewNames { get; init; }
+    /// <summary>For <see cref="JobKind.CreateLink"/>: which kind of link, and whether symbolic link targets are relative.</summary>
+    public Operations.LinkOptions? Link { get; init; }
     /// <summary>For <see cref="JobKind.ArchiveUpdate"/>: the archive and its changes.</summary>
     public Archives.ArchivePlan? Archive { get; init; }
     /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>
@@ -241,6 +248,10 @@ public enum UndoKind
     RenameBatchBack,
     /// <summary>Apply the recorded inverse Registry change as a new job; its own expected-state guard decides eligibility.</summary>
     RegistryInverse,
+    /// <summary>Remove a created symbolic link or junction while it still points where it was made to (To; Size 1 for a folder link).</summary>
+    RemoveCreatedLink,
+    /// <summary>Remove a created hard link while it and its original (To) are still the same file (identity in RecycledId).</summary>
+    RemoveCreatedHardLink,
 }
 
 /// <param name="From">Current location of the item (the result of the operation).</param>
