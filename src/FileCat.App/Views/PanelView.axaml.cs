@@ -202,10 +202,16 @@ public partial class PanelView : UserControl
         List.Focus();
     }
 
-    public void ShowContextMenu()
+    /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
+    public void ShowContextMenu(bool atFocus = false)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
         var menu = ContextMenuFactory.Build(vm);
+        if (atFocus && List.FocusedRowBounds() is { } row)
+        {
+            menu.Placement = Avalonia.Controls.PlacementMode.BottomEdgeAlignedLeft;
+            menu.PlacementRect = row;
+        }
         menu.Open(List);
     }
 }

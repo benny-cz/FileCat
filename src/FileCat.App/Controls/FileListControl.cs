@@ -406,6 +406,16 @@ public sealed class FileListControl : Control
         return Math.Max(1, text.Width);
     }
 
+    /// <summary>Where the focused row is drawn (in this control), or null when it is scrolled out of view.</summary>
+    public Rect? FocusedRowBounds()
+    {
+        if (_listing is null || _listing.FocusedIndex < 0) return null;
+        int row = _listing.FocusedIndex - _topRow;
+        if (row < 0 || row >= VisibleRowCapacity) return null;
+        double nameWidth = _columnW.Length > 0 ? _columnW[0] : Bounds.Width;
+        return new Rect(0, _headerHeight + row * _rowHeight, Math.Min(nameWidth, Bounds.Width), _rowHeight);
+    }
+
     private void ClearTextCache()
     {
         foreach (var cell in _textCache.Values) cell.Dispose();

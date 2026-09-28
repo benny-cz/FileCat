@@ -6,6 +6,34 @@ namespace FileCat.App.Tests;
 public sealed class KeyBarTests
 {
     [AvaloniaFact]
+    public async Task The_context_menu_opens_from_the_keyboard_and_offers_what_applies()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            Assert.Contains(services.Keymap.GetChords(Core.Commands.CommandIds.ContextMenu), c => c.Key == "F10" && c.Mods == Core.Commands.KeyMods.Shift);
+            Assert.Contains(services.Keymap.GetChords(Core.Commands.CommandIds.ContextMenu), c => c.Key == "Apps");
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3); i++)
+                await Task.Delay(20, ct);
+            listing.SetFocus(1); // a.txt: a file does not open in a tab of its own
+            Assert.False(vm.GetAvailability(Core.Commands.CommandIds.OpenInNewTab).Enabled);
+            listing.SetFocus(0); // "..": a place
+            Assert.True(vm.GetAvailability(Core.Commands.CommandIds.OpenInNewTab).Enabled);
+            listing.SetFocus(1);
+            var menu = Views.ContextMenuFactory.Build(vm);
+            var titles = ((IEnumerable<object>)menu.ItemsSource!).OfType<Avalonia.Controls.MenuItem>().Select(m => m.Header as string).ToList();
+            Assert.Contains("Copy…", titles);
+            Assert.DoesNotContain("Open focused folder in new tab", titles);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Keys_that_act_on_items_light_up_as_focus_moves_off_the_parent_row()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

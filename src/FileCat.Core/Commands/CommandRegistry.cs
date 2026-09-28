@@ -39,6 +39,7 @@ public static class CommandIds
     public const string Open = "file.open";
     public const string OpenWithSystem = "file.openWithSystem";
     public const string Properties = "file.properties";
+    public const string ContextMenu = "file.contextMenu";
     public const string Reveal = "file.reveal";
     public const string Checksum = "file.checksum";
     public const string VerifyChecksums = "file.verifyChecksums";
@@ -227,6 +228,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Open, "Open", F, null, CommandContext.Panel, "Enter");
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
+        Add(CommandIds.ContextMenu, "Context menu", F, null, CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
         Add(CommandIds.VerifyChecksums, "Verify checksum manifest…", F);

@@ -619,7 +619,8 @@ public partial class MainWindow : Window, IViewActions
         }
     }
 
-    public void ShowContextMenu() => ActivePanelView()?.ShowContextMenu();
+    /// <summary>From the keyboard (Shift+F10, the Menu key): the menu opens at the focused item.</summary>
+    public void ShowContextMenu() => ActivePanelView()?.ShowContextMenu(atFocus: true);
 
     public void ShowNotification(string message, bool isError = false) => _vm.Notify(message, isError);
 

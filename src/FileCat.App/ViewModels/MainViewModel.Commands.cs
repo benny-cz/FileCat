@@ -96,6 +96,12 @@ public sealed partial class MainViewModel
                 return (caps & LocationCapabilities.CreateDirectory) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateDirectory));
             case CommandIds.EditNew:
                 return (caps & LocationCapabilities.CreateFile) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateFile));
+            case CommandIds.OpenInNewTab:
+                // Only what opens as a place (a folder, a drive, an archive): a file's own tab would be empty.
+                return tab?.Location is { } openLoc && tab.Listing.TryGetFocused(out var openItem) &&
+                       Services.Providers.For(openLoc).GetChildLocation(openLoc, openItem) is not null
+                    ? CommandAvailability.Yes
+                    : CommandAvailability.No("The focused item is not a folder.");
             // What the location itself cannot do is dimmed with its reason (the key bar, the palette), not offered and refused.
             case CommandIds.Delete or CommandIds.DeletePermanent when loc is not null && loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0:
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Delete));
@@ -427,6 +433,9 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.Menu:
                 View.OpenMenuBar();
+                break;
+            case CommandIds.ContextMenu:
+                View.ShowContextMenu();
                 break;
             case CommandIds.ThemePick:
                 await ChooseThemeAsync();
