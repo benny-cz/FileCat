@@ -161,7 +161,7 @@ public sealed class MtpTests
     /// first file found is read completely and at an earlier offset again; nothing is written and no names are reported.
     /// </summary>
     [Fact]
-    public void A_device_file_reads_completely_and_again_from_an_earlier_offset()
+    public async Task A_device_file_reads_completely_and_again_from_an_earlier_offset()
     {
         if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_MTP_READTEST") != "1")
             Assert.Skip("Set FILECAT_MTP_READTEST=1 with an unlocked device to run the read-only check.");
@@ -197,7 +197,7 @@ public sealed class MtpTests
         for (int depth = 0; depth < 5 && found.Name is null; depth++)
         {
             var listed = new List<Core.Resources.EntryData>();
-            mtp.EnumerateAsync(folder, new ListSink(listed), ct).GetAwaiter().GetResult();
+            await mtp.EnumerateAsync(folder, new ListSink(listed), ct);
             var candidate = listed.FirstOrDefault(e => e.Kind == Core.Resources.EntryKind.File && e.Size is > 1024 and < 64 * 1024 * 1024 && !e.Has(Core.Resources.EntryFlags.Unavailable));
             if (candidate.Name is not null) { found = candidate; break; }
             var next = listed.FirstOrDefault(e => e.Kind == Core.Resources.EntryKind.Directory && !e.Has(Core.Resources.EntryFlags.Unavailable));

@@ -43,7 +43,7 @@ public sealed class SftpProviderTests : IDisposable
         private readonly Dictionary<string, string> _values = [];
         public bool IsPersistent => true;
         public string? Read(string key) => _values.GetValueOrDefault(key);
-        public void Write(string key, string secret) => _values[key] = secret;
+        public void Write(string key, string secret, string? label = null) => _values[key] = secret;
         public void Delete(string key) => _values.Remove(key);
     }
 

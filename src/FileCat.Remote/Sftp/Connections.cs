@@ -39,6 +39,9 @@ public interface IRemoteInteraction
 
     /// <summary>Unencrypted FTP to a server the user did not choose it for knowingly; false cancels.</summary>
     bool AllowUnencrypted(RemoteProfile profile) => false;
+
+    /// <summary>Something the user should know that needs no answer (a password the OS store did not keep).</summary>
+    void Inform(RemoteProfile profile, string message) { }
 }
 
 /// <summary>SFTP profiles connect over SSH, FTP ones over FTP or FTPS.</summary>
@@ -250,14 +253,18 @@ public sealed class SftpConnections : IDisposable
                     {
                         try
                         {
-                            _secrets.Write(profile.SecretKey, answer.Secret);
+                            _secrets.Write(profile.SecretKey, answer.Secret, $"FileCat: {profile.Name} ({RemoteProtocols.Describe(profile.Protocol)}, {profile.Display})");
                             if (!profile.SaveSecret)
                             {
                                 profile.SaveSecret = true;
                                 ProfileChanged?.Invoke(profile);
                             }
                         }
-                        catch (IOException ex) { AppLog.Warn("Could not save a secret", ex); }
+                        catch (IOException ex)
+                        {
+                            AppLog.Warn("Could not save a secret", ex);
+                            Interaction.Inform(profile, "The password was not saved, so FileCat keeps it only until it closes. " + ex.Message);
+                        }
                     }
                     return answer.Secret;
                 },

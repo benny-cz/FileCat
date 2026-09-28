@@ -35,17 +35,20 @@ internal sealed unsafe partial class WindowsCredentialStore : ISecretStore
         }
     }
 
-    public void Write(string key, string secret)
+    public void Write(string key, string secret, string? label = null)
     {
         var blob = Encoding.Unicode.GetBytes(secret);
+        label = label is { Length: > 255 } ? label[..255] : label; // CRED_MAX_STRING_LENGTH
         fixed (char* target = key)
         fixed (char* user = "FileCat")
+        fixed (char* comment = label)
         fixed (byte* data = blob)
         {
             var credential = new Credential
             {
                 Type = CRED_TYPE_GENERIC,
                 TargetName = target,
+                Comment = comment,
                 UserName = user,
                 CredentialBlob = data,
                 CredentialBlobSize = (uint)blob.Length,

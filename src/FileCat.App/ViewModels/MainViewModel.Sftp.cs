@@ -35,6 +35,8 @@ public sealed partial class MainViewModel
 
         public bool AllowUnencrypted(RemoteProfile profile) => OnUi(() => vm.AllowUnencryptedAsync(profile), false);
 
+        public void Inform(RemoteProfile profile, string message) => Dispatcher.UIThread.Post(() => vm.Notify(message, isError: true));
+
         private T OnUi<T>(Func<Task<T>> ask, T refused)
         {
             // Tabs restored at startup reconnect silently when they can, but never open questions nobody asked for.
@@ -286,7 +288,9 @@ public sealed partial class MainViewModel
         bool persistent = Services.Platform.Secrets.IsPersistent;
         var save = new CheckBox
         {
-            Content = persistent ? (OperatingSystem.IsWindows() ? "Save the password or passphrase in Windows Credential Manager" : "Save the password or passphrase in the system keychain")
+            Content = persistent
+                ? "Save the password or passphrase in " + (OperatingSystem.IsWindows() ? "Windows Credential Manager" : OperatingSystem.IsMacOS() ? "the macOS keychain" : "the desktop keyring")
+                : OperatingSystem.IsLinux() ? "Passwords are kept only until FileCat closes (no desktop keyring answered: GNOME Keyring or KWallet provide one)"
                 : "Passwords are kept only until FileCat closes (no system keychain is available)",
             IsChecked = persistent && existing?.SaveSecret == true,
             IsEnabled = persistent,

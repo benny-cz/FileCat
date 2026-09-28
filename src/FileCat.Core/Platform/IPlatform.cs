@@ -32,7 +32,8 @@ public class PortablePlatform : IPlatform
     public virtual string Name => OperatingSystem.IsMacOS() ? "macOS" : OperatingSystem.IsLinux() ? "Linux" : "Portable";
     public IShellServices Shell { get; protected init; }
     public IFileSystemOperations FileOperations { get; protected init; }
-    public State.ISecretStore Secrets { get; protected init; } = new State.SessionSecretStore();
+    /// <summary>The macOS keychain, the desktop keyring on Linux (Secret Service), or the session-only fallback.</summary>
+    public State.ISecretStore Secrets { get; protected init; } = State.SecretStores.ForThisOs();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }
 
     public virtual void RegisterProviders(ProviderRegistry registry)

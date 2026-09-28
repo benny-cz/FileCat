@@ -13,7 +13,8 @@ public interface ISecretStore
 
     string? Read(string key);
 
-    void Write(string key, string secret);
+    /// <summary>Saves or replaces a secret; <paramref name="label"/> is what the OS store shows the user.</summary>
+    void Write(string key, string secret, string? label = null);
 
     void Delete(string key);
 }
@@ -27,7 +28,7 @@ public sealed class SessionSecretStore : ISecretStore
 
     public string? Read(string key) => _secrets.TryGetValue(key, out var s) ? s : null;
 
-    public void Write(string key, string secret) => _secrets[key] = secret;
+    public void Write(string key, string secret, string? label = null) => _secrets[key] = secret;
 
     public void Delete(string key) => _secrets.TryRemove(key, out _);
 }
