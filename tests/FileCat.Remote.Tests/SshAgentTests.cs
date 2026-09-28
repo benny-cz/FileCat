@@ -25,14 +25,22 @@ internal sealed class FakeAgent : IDisposable
         if (OperatingSystem.IsWindows())
         {
             Address = @"\\.\pipe\" + name;
+            // The first pipe exists before the constructor returns, so a client never waits for a busy thread pool.
+            var pipe = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
             _serving = Task.Run(async () =>
             {
-                while (!_stop.IsCancellationRequested)
+                while (true)
                 {
-                    using var pipe = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
                     try { await pipe.WaitForConnectionAsync(_stop.Token); }
-                    catch (OperationCanceledException) { return; }
+                    catch (OperationCanceledException)
+                    {
+                        pipe.Dispose();
+                        return;
+                    }
                     Serve(pipe);
+                    pipe.Dispose();
+                    if (_stop.IsCancellationRequested) return;
+                    pipe = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
                 }
             });
         }

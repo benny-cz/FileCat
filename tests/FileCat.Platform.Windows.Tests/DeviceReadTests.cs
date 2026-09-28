@@ -111,15 +111,18 @@ public sealed class DeviceReadTests : IDisposable
             }
             return clock.Elapsed;
         }
-        TimeSpan direct;
-        using (var file = new ImageFileSource(image))
+        // Each path is warmed up (the first scan also compiles the code), then the best of three runs counts: a shared CI
+        // machine can stall any single run for seconds.
+        TimeSpan Best(IBlockSource source)
         {
-            Measure(file); // warm-up: the first scan also compiles the code
-            direct = Measure(file);
+            Measure(source);
+            return Enumerable.Range(0, 3).Select(_ => Measure(source)).Min();
         }
+        TimeSpan direct;
+        using (var file = new ImageFileSource(image)) direct = Best(file);
         var (piped, _) = Session(image, 512);
         TimeSpan through;
-        using (piped) through = Measure(piped);
+        using (piped) through = Best(piped);
         TestContext.Current.TestOutputHelper?.WriteLine($"TV-09: five scans and reads: direct {direct.TotalMilliseconds:F0} ms, through the helper's pipe {through.TotalMilliseconds:F0} ms.");
         Assert.True(through < direct * 20 + TimeSpan.FromSeconds(2), $"The pipe costs too much: {through} against {direct}.");
     }
