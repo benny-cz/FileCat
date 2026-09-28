@@ -19,6 +19,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 | Network servers (`\\server`) | Share list | – | – | – | – | – | – | – |
 | This PC | Drives | – | – | – | – | – | – | – |
 | ZIP archives | Yes, including duplicates and unsafe names shown as unavailable; archives inside archives open read-only | Yes | Yes (extract, with Mark-of-the-Web from the outermost file) | Yes (F5 and Alt+F5 add; existing names ask once) | Rename (F2); moving out is copy then delete | Folder entries (F7); F4 edits a member through an explicit edit session | Yes (members, one duplicate copy at a time) | – |
+| SFTP servers (`sftp://`, saved connections in Alt+F1/Alt+F2) | Yes, after the server key and sign-in; links show what they point to | Yes | Yes (downloads marked as coming from the server) | Yes (a temporary name, then a rename; replacing is atomic where the server supports posix-rename) | Yes: F6 within a server renames; F6 to a local folder deletes on the server only what arrived completely | Folders (F7); copy new files in with F5 | Permanent only (no Recycle Bin; asked explicitly) | – (Ctrl+R refreshes) |
 | Search results and flat view | Yes | Yes | Yes (keeps relative folders unless you flatten) | No | Acts on the original items | No | Acts on the originals; removing from the set never deletes | – |
 
 ## Known gaps in v1 (planned later)
@@ -34,7 +35,7 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 | Running a command for each item | Ctrl+G on files and folders on disk: a program with placeholders, or a shell command line (cmd.exe on Windows, /bin/sh elsewhere) with names quoted for it. Commands run one after another in each item's folder; output is not shown, but a failure reports its exit code and last output lines. A canceled job leaves a running program to finish | Post-v1 slice |
 | Other archive formats (TAR, 7z, RAR, ISO) | Opened through their system association | P8 |
 | ZIP updates | Each change rebuilds the archive beside itself and replaces it only when verified and unchanged since you saw it; encrypted archives and archives inside archives are read-only; there is no undo | – (by design; see ADR-07) |
-| SFTP, FTP, FTPS | – | P6, P8 |
+| FTP, FTPS | – | P8 |
 | Per-file Shell thumbnails, properties, and context-menu handlers | Icons are by extension only (safety policy) | Out-of-process host, P7 |
 | Editing remote files | "Copy the item out with F5 to edit it" | Edit sessions for SFTP, P6 |
 | Translations | English only. Command titles and key-bar labels can already be translated with `lang/<culture>.json` next to the executable. | Other UI text once translators and QA exist |

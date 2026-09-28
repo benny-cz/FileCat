@@ -46,8 +46,8 @@ public sealed partial class MainViewModel
         var problems = job.Issues.Where(i => i.Severity >= IssueSeverity.Warning).ToList();
         var failing = problems.Where(i => i.Severity == IssueSeverity.Error && File.Exists(i.Path)).Select(i => i.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var lines = problems.Take(8).Select(i => $"• {Path.GetFileName(i.Path)}: {i.Message}");
-        string text = job.Summary + "." + Environment.NewLine + string.Join(Environment.NewLine, lines)
-                      + (problems.Count > 8 ? $"{Environment.NewLine}… and {problems.Count - 8:N0} more (Ctrl+J shows all)." : "");
+        string text = job.Summary + ".\n" + string.Join("\n", lines)
+                      + (problems.Count > 8 ? $"\n… and {problems.Count - 8:N0} more (Ctrl+J shows all)." : "");
         var buttons = new List<DialogButton>();
         if (failing.Count > 0) buttons.Add(new DialogButton($"Show {Formatters.Plural(failing.Count, "file", "files")} in a panel", "show"));
         buttons.Add(new DialogButton("Close", "close", IsDefault: true, IsCancel: true));

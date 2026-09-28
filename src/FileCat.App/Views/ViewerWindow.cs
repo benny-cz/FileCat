@@ -501,10 +501,9 @@ public sealed class ViewerWindow : Window
 /// <summary>Opens viewer windows for items of any provider that exposes content.</summary>
 public static class ViewerLauncher
 {
-    public static void Open(AppServices services, ItemRef item, bool hex)
+    /// <summary>Shows content already opened (off the UI thread) for the item; the window disposes it.</summary>
+    public static void Open(AppServices services, ItemRef item, IContentSource source, bool hex)
     {
-        var provider = services.Providers.For(item.Parent);
-        var source = provider.OpenContent(item) ?? throw new IOException("This item has no viewable content.");
         var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
         new ViewerWindow(services, source, name, hex).Show();
     }

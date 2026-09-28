@@ -160,6 +160,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
     {
+        message = OneLineBreak(message);
         var tcs = new TaskCompletionSource<bool>();
         var ok = new Button { Content = confirmText, IsDefault = true, Classes = { danger ? "danger" : "primary" } };
         var cancel = new Button { Content = cancelText, IsCancel = true };
@@ -186,8 +187,15 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return tcs.Task;
     }
 
+    /// <summary>
+    /// One kind of line break in dialog text: Avalonia's text layout (notably headless) mishandles carriage returns
+    /// in wrapped text, so Environment.NewLine from callers becomes a plain line feed.
+    /// </summary>
+    private static string OneLineBreak(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
     public Task AlertAsync(string title, string message)
     {
+        message = OneLineBreak(message);
         var tcs = new TaskCompletionSource();
         var ok = new Button { Content = "OK", IsDefault = true, Classes = { "primary" } };
         Session? session = null;

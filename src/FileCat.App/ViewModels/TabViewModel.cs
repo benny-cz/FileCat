@@ -200,6 +200,21 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// </summary>
     public void Navigate(Location location, string? focusName = null, bool record = true)
     {
+        // An SFTP home folder ("~") becomes its absolute path, so the tab, its history, and ".." know where they are.
+        if (location.Scheme == Schemes.Sftp && location.Path.StartsWith('~'))
+        {
+            var sftp = Services.SftpProvider;
+            string resolved = sftp.Resolve(location);
+            if (!resolved.StartsWith('~'))
+            {
+                location = location.WithPath(resolved);
+            }
+            else
+            {
+                _ = ConnectThenNavigateAsync(location, focusName, record);
+                return;
+            }
+        }
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
             Panel.OpenTab(location, focusName, activate: true);
@@ -219,6 +234,25 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Services.RecordFolder(location);
         UpdateTitle();
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
+    private async Task ConnectThenNavigateAsync(Location location, string? focusName, bool record)
+    {
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var lease = Services.SftpProvider.Lease(location, CancellationToken.None);
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            Services.Ui.Post(() => Banner = $"Not connected: {(ex is OperationCanceledException ? "canceled." : ex.Message)}");
+            return;
+        }
+        string resolved = Services.SftpProvider.Resolve(location);
+        if (!resolved.StartsWith('~')) Navigate(location.WithPath(resolved), focusName, record);
     }
 
     public bool CanGoBack => _back.Count > 0;

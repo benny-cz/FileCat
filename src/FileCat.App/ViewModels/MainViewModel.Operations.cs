@@ -326,6 +326,11 @@ public sealed partial class MainViewModel
             await RenameArchiveMemberAsync(tab, loc);
             return;
         }
+        if (loc.Scheme == Schemes.Sftp)
+        {
+            await RenameRemoteAsync(tab, f);
+            return;
+        }
         var caps = Services.Providers.For(loc).GetCapabilities(loc);
         if ((caps & LocationCapabilities.Rename) == 0 || !loc.IsFileSystem && loc.Scheme != Schemes.ResultSet)
         {
@@ -354,6 +359,11 @@ public sealed partial class MainViewModel
         if (tab?.Location is { Scheme: Schemes.Zip } archiveFolder)
         {
             await CreateArchiveFolderAsync(tab, archiveFolder);
+            return;
+        }
+        if (tab?.Location is { Scheme: Schemes.Sftp } remoteFolder)
+        {
+            await CreateRemoteFolderAsync(tab, remoteFolder);
             return;
         }
         if (tab?.Location is not { IsFileSystem: true } loc) return;
@@ -413,6 +423,11 @@ public sealed partial class MainViewModel
             if (loc.Scheme == Schemes.Zip)
             {
                 await DeleteArchiveMembersAsync(loc, items.ToList());
+                return;
+            }
+            if (loc.Scheme == Schemes.Sftp)
+            {
+                await DeleteRemoteAsync(tab, items, summary);
                 return;
             }
             var provider = Services.Providers.For(loc);
@@ -514,9 +529,14 @@ public sealed partial class MainViewModel
                 try { tab.Listing.MarkItems(job.Request.Sources, job.CompletedRootIndices, false); }
                 catch (ObjectDisposedException) { }
             }
-            if (_focusAfter.Remove(job, out var focus) && job.State is JobState.Completed or JobState.CompletedWithIssues && tab.Location == origin.Location)
-                tab.Listing.Refresh();
-            if (focus is not null) FocusWhenPresent(tab, focus);
+            // The tab may have been closed while the job ran: its listing is gone, and so is anything to focus.
+            try
+            {
+                if (_focusAfter.Remove(job, out var focus) && job.State is JobState.Completed or JobState.CompletedWithIssues && tab.Location == origin.Location)
+                    tab.Listing.Refresh();
+                if (focus is not null) FocusWhenPresent(tab, focus);
+            }
+            catch (ObjectDisposedException) { }
         }
         RefreshAffected(job);
         // The job captured its sources; nothing reads them after this point.
@@ -794,23 +814,31 @@ public sealed partial class MainViewModel
             ViewRegistryValue(item, hex);
             return;
         }
-        var provider = Services.Providers.For(item.Parent);
-        if (provider is Core.Search.ResultSetProvider) provider = Services.Providers.For(item.Parent);
+        // F3 honors a per-type View association; Alt+F3 always uses the internal viewer.
+        if (!hex && item.FileSystemPath is { } viewPath && TryLaunchAssociation(Associations.View, viewPath)) return;
+        _ = ViewItemAsync(item, f.Name, hex);
+    }
+
+    /// <summary>
+    /// Opens content once, off the UI thread (a remote item may connect and ask for a password), and hands it to the
+    /// viewer, which owns it from then on.
+    /// </summary>
+    private async Task ViewItemAsync(ItemRef item, string name, bool hex)
+    {
         try
         {
-            // F3 honors a per-type View association; Alt+F3 always uses the internal viewer.
-            if (!hex && item.FileSystemPath is { } viewPath && TryLaunchAssociation(Associations.View, viewPath)) return;
-            if (item.FileSystemPath is null && Services.Providers.For(item.Parent).OpenContent(item) is null)
+            var source = await Task.Run(() => Services.Providers.For(item.Parent).OpenContent(item));
+            if (source is null)
             {
                 Notify("This item has no viewable content.", true);
                 return;
             }
-            ViewerLauncher.Open(Services, item, hex);
+            ViewerLauncher.Open(Services, item, source, hex);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
-            Notify($"Cannot view \"{f.Name}\": {ErrorText.Describe(ex)}", true);
+            Notify($"Cannot view \"{name}\": {(ex is OperationCanceledException ? "canceled." : ErrorText.Describe(ex))}", ex is not OperationCanceledException);
         }
     }
 

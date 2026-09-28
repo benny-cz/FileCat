@@ -79,12 +79,15 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
         Profile(location) is { } p ? $"sftp://{p.Host.ToLowerInvariant()}:{p.Port}" : "sftp";
 
     public override LocationCapabilities GetCapabilities(Location location) =>
-        LocationCapabilities.Enumerate | LocationCapabilities.ReadContent;
+        LocationCapabilities.Enumerate | LocationCapabilities.ReadContent | LocationCapabilities.CreateDirectory | LocationCapabilities.Delete |
+        LocationCapabilities.Rename | LocationCapabilities.TransferTarget | LocationCapabilities.MoveSource;
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
     {
         LocationCapabilities.Recycle => "Servers have no Recycle Bin; items on a server are deleted permanently after you confirm.",
         LocationCapabilities.Watch => "Servers do not report changes; press Ctrl+R to refresh.",
+        LocationCapabilities.CreateFile => "New files are not created on servers directly yet; create the file in a local folder and copy it with F5.",
+        LocationCapabilities.ExternalEdit => "Files on servers open in an editor through edit sessions (F4).",
         _ => base.ExplainUnavailable(location, capability),
     };
 

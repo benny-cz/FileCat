@@ -79,6 +79,13 @@ public static class RemotePath
         return slash <= 0 ? "/" : trimmed[..slash];
     }
 
+    /// <summary>Whether <paramref name="path"/> is <paramref name="folder"/> or inside it (ordinal: servers are case-sensitive).</summary>
+    public static bool IsSameOrUnder(string path, string folder)
+    {
+        string f = folder.TrimEnd('/');
+        return path == f || path.StartsWith(f + "/", StringComparison.Ordinal) || f.Length == 0;
+    }
+
     public static string Name(string path)
     {
         string trimmed = path.TrimEnd('/');

@@ -63,6 +63,7 @@ public sealed class AppServices : IDisposable
             }
         });
         Providers.Register(SftpProvider);
+        Remote.Sftp.SftpJobs.Register();
         EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         Columns = new Controls.ColumnProfileSet(Settings.ColumnProfiles);

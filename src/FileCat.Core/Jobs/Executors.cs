@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
@@ -46,10 +47,23 @@ public static class JobExecutors
             case JobKind.Rename when fsSources:
                 return new RenameExecutor(job, fs, journal);
             default:
+                foreach (var module in _modules)
+                {
+                    if (module(job, fs, providers, journal) is { } handled) return handled;
+                }
                 if (ExtraExecutors.TryGetValue(r.Kind, out var factory) && factory(job, fs, providers, journal) is { } custom) return custom;
                 throw new NotSupportedException(Unsupported(r, providers));
         }
     }
+
+    private static System.Collections.Immutable.ImmutableList<Func<Job, IFileSystemOperations, ProviderRegistry, JobJournal, IJobExecutor?>> _modules = [];
+
+    /// <summary>
+    /// A module that handles some requests of any kind (a remote provider's copy, delete, rename…): it returns null
+    /// for requests that are not its own. Modules are asked after the built-in cases, in registration order.
+    /// </summary>
+    public static void RegisterModule(Func<Job, IFileSystemOperations, ProviderRegistry, JobJournal, IJobExecutor?> factory) =>
+        ImmutableInterlocked.Update(ref _modules, list => list.Contains(factory) ? list : list.Add(factory));
 
     /// <summary>Executors contributed by first-party modules (archives, registry, remote) as they arrive.</summary>
     /// <summary>Platform executors; concurrent because platforms register while other jobs may be starting.</summary>

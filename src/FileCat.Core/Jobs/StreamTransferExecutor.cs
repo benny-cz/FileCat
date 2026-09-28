@@ -129,6 +129,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 all = false;
                 continue;
             }
+            // A link to a folder inside a copied tree can point back up it: never follow one (plan §8.1).
+            if (c.IsContainer && c.Has(EntryFlags.Link))
+            {
+                Job.ItemSkipped();
+                Issue(IssueSeverity.Info, c.Name, "Links to folders are not followed while copying; open the link and copy its contents if you need them.", StepOutcome.Skipped);
+                continue;
+            }
             var child = provider.GetItemRef(location, c);
             all &= c.IsContainer ? CopyContainer(child, childDst, destRoot) : CopyItem(child, childDst);
         }

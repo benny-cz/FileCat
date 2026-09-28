@@ -7,5 +7,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="FileCat.Core.Tests" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows" />
+    <InternalsVisibleTo Include="FileCat.Remote" />
+    <InternalsVisibleTo Include="FileCat.Remote.Tests" />
   </ItemGroup>
 </Project>

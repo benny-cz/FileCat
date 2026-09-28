@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 198, Windows integration 46, App headless 18 tests
+dotnet test FileCat.slnx                              # Core 198, Windows integration 46, App headless 20, Remote 23 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -25,6 +25,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | `src/FileCat.Core` | Providers, listing (spillable store, mapped sorting, external index, selection snapshots), masks, commands and keymap, I/O scheduler, jobs (scheduler, journal, executors, undo), content, metadata, tools and associations, result sets, state |
 | `src/FileCat.Platform.Windows` | CopyFile2/MoveFileEx, IFileOperation recycle and restore, junctions, streams, Mark-of-the-Web, shell (icons, terminals, shutdown block, elevation), SMB shares and sign-in |
 | `src/FileCat.PrivilegedHost` | Per-plan administrator broker (installed builds only; ADR-14) |
+| `src/FileCat.Remote` | SFTP over SSH.NET: channel, host-key trust, connection leases, provider, jobs (P6) |
 | `src/FileCat.App` | Avalonia 12.1 UI: glyph-run `FileListControl`, panels, tabs, workspace, overlay dialogs, operation center, viewers, settings (column profiles, associations), themes, benchmark |
 | `docs/adr/` | Decided ADRs: 02, 03, 04 (append-only journal instead of SQLite), 05, 07, 10, 14, 15, 16. The plan's §26 points to them. |
 | `docs/validation/` | TV-01 (scale and latency) and the P3 validations (TV-03/07/10/13/14/16/17 plus truthful outcomes) |
@@ -41,11 +42,12 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P4 | **Done (engineering scope, 2026-09-28).** P4a: Registry views (explicit 32/64-bit), guarded jobs with undo, link-safe subtree delete, HKCR/HKCC writable route, search, `.reg` import/export, notifications, ACL inspection, and the per-plan administrator broker (`FileCat.PrivilegedHost`, ADR-14: "Retry as administrator" for access-denied items). P4b: fixed-length hex editor (ADR-05). TV-04/05/15 VM and hardware checks remain. |
 | P5 | **Done (engineering scope, 2026-09-28).** ZIP pack (Alt+F5), add (F5), delete (F8), rename (F2), folder entries (F7), and Test by staged, verified rebuilds with parent-version checks (ADR-07); nested archives read-only; F4 edit sessions with explicit, guarded commit that survive restarts. TV-07 native-engine parts wait for P8. |
 | Post-v1 slices | Bulk rename (Ctrl+M, OPS-007): masks, counters, regex, case, live preview blocking collisions, editor round-trip, swaps and chains through journaled temporary names (Operations can finish an interrupted rename), Undo guarded by identity. Create link (File menu): symbolic links (probed right, relative option), junctions, and hard links, checked per drive and target type before creation; Undo removes links that are unchanged (hard links only while provably another name of the file). Checksum manifests (§9.4): GNU, BSD-tagged, and SFV formats are recognized, never hashed automatically; verification is a read-only job with byte progress, per-file results, refused absolute and `..` paths, and failing files openable as a result set; the checksum dialog saves manifests. Apply command (Ctrl+G, FAR): one command per item with placeholders, split into tokens before substitution, previewed exactly, refusing option-like names, BatBadBut, and shells as programs (shell mode quotes names instead); a sequential job records each exit code with the output's tail. Dialogs confirm only a preview of the current input. |
-| P6–P10 | Pending |
+| P6 | **In progress.** Done: SFTP provider over SSH.NET (lstat listings; changes only through fresh listing entries, since SSH.NET's path-based delete and rename follow links), host keys (own known_hosts seeded by OpenSSH's; changed keys never auto-accepted), saved connections with secrets in Windows Credential Manager, connect UI, F3, downloads with origin marks, uploads through temporary names, moves, delete, rename, and new folder. Pending: SFTP edit sessions (F4), SSH terminal, ADR-17. |
+| P7–P10 | Pending |
 
 ## Resume here (next slices, in order)
 
-1. **P6:** SFTP provider (connection profiles, host-key trust incl. `known_hosts`, agent/key/password auth with OS secret storage), browse, transfer with safe resume and download marks, SFTP edit sessions reusing P5 sessions, explicit SSH terminal.
+1. **P6 (rest):** F4 edit sessions for SFTP files (generalize P5 sessions: remote baseline, commit through a temporary name), explicit SSH terminal, SSH agent sign-in, ADR-17 record and plan updates.
 2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 VM and hardware checks remain pending after code and automated tests.
 3. **Later:** P7 diff, sync, and inspectors; P8–P10.
 
@@ -54,6 +56,8 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 - **Headless tests:** Avalonia's headless text layout spins on long wrapped text with blank lines. The native app renders it fine.
   Audit dialogs with short texts (see `AccessibilityTests`).
 - **Commits:** check `dotnet test` exit codes before committing; grep output alone hides failures.
+- **Real-server SFTP tests** start a user-mode sshd (Linux/macOS CI). Locally in WSL: extract openssh-server and libwrap0 debs, then run with `FILECAT_SSHD` and `LD_LIBRARY_PATH` set.
+- **Stopping stuck test hosts:** only processes under `E:\FileCat` (other sessions run tests on this machine). A dialog with blank lines hangs headless layout: `dotnet-stack report -p <pid>` shows it.
 - **Junctions in tests:** .NET's recursive `Directory.Delete` fails on junctions here (its `DeleteVolumeMountPoint` call returns "parameter is incorrect"); delete junctions non-recursively first. Product deletes never use the recursive API.
 - **Benchmarks:** `FILECAT_COPY_BENCH=100000 FILECAT_COPY_BENCH_ROUNDS=2 dotnet test tests/FileCat.Platform.Windows.Tests --filter SmallFileCopyBenchmark --logger "console;verbosity=detailed"`.
   Rounds alternate the order. Other test runs or antivirus scans on the machine distort single runs by several times.

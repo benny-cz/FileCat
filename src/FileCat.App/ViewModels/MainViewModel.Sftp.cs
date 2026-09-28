@@ -306,6 +306,65 @@ public sealed partial class MainViewModel
         return new[] { "id_ed25519", "id_ecdsa", "id_rsa" }.Select(n => Path.Combine(ssh, n)).FirstOrDefault(File.Exists);
     }
 
+    // ---- Operations on a server ------------------------------------------------------------------------------
+
+    /// <summary>Why a name cannot be used here, judged by the server's rules and the folder as listed.</summary>
+    private static string? ValidateRemoteName(TabViewModel tab, string name, string? current)
+    {
+        if (name.Length == 0) return "The name cannot be empty.";
+        if (RemotePath.ProblemWithName(name) is not null) return "A name on a server cannot contain '/' or be \".\" or \"..\".";
+        if (name == current) return null;
+        for (int i = 0; i < tab.Listing.VisibleCount; i++)
+        {
+            if (tab.Listing.GetVisible(i).Name == name) return "An item with this name exists here.";
+        }
+        return null;
+    }
+
+    private async Task RenameRemoteAsync(TabViewModel tab, Core.Resources.EntryData focused)
+    {
+        var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        var newName = await View.RenameInlineAsync(new PromptOptions("Rename", $"New name for \"{Formatters.SafeName(focused.Name)}\":")
+        {
+            Text = focused.Name,
+            SelectStem = !focused.IsContainer,
+            Validate = n => ValidateRemoteName(tab, n, focused.Name),
+            ConfirmText = "Rename",
+        });
+        if (newName is null || newName == focused.Name) return;
+        var job = Services.Jobs.Submit(new Core.Jobs.JobRequest { Kind = Core.Jobs.JobKind.Rename, Sources = [item], NewName = newName });
+        Track(job, tab);
+        _focusAfter[job] = newName;
+    }
+
+    private async Task CreateRemoteFolderAsync(TabViewModel tab, Location folder)
+    {
+        var r = await Dialogs.PromptAsync(new PromptOptions("Create folder", "Folder name:")
+        {
+            Validate = n => ValidateRemoteName(tab, n.Trim(), null),
+            ConfirmText = "Create",
+        });
+        if (r is null) return;
+        var job = Services.Jobs.Submit(new Core.Jobs.JobRequest { Kind = Core.Jobs.JobKind.CreateDirectory, Destination = folder, NewName = r.Text.Trim() });
+        Track(job, tab);
+        _focusAfter[job] = r.Text.Trim();
+    }
+
+    /// <summary>Servers have no Recycle Bin: F8 and Shift+F8 both delete permanently, after one explicit confirmation.</summary>
+    private async Task DeleteRemoteAsync(TabViewModel tab, IReadOnlyList<Core.Resources.ItemRef> items, string summary)
+    {
+        // The server by its short name: a whole address is one long unbreakable word in wrapped dialog text.
+        string server = tab.Location!.Session is { } id && Services.FindRemoteProfile(id) is { } profile ? profile.Display : "the server";
+        var names = items.Take(8).Select(i => "• " + Formatters.SafeName(i.Name)).ToList();
+        if (items.Count > 8) names.Add($"… and {items.Count - 8:N0} more");
+        if (!await Dialogs.ConfirmAsync("Delete permanently?",
+                $"Servers have no Recycle Bin. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
+                "Delete permanently", danger: true))
+            return;
+        var job = Services.Jobs.Submit(new Core.Jobs.JobRequest { Kind = Core.Jobs.JobKind.Delete, Sources = items });
+        Track(job, tab);
+    }
+
     /// <summary>Closes the connections of the active tab's server; tabs keep their locations and reconnect on refresh.</summary>
     private void DisconnectSftp()
     {
