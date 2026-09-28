@@ -247,7 +247,14 @@ public sealed record PendingIntent(int Step, string Operation, string Path, stri
 
 public static class JournalRecovery
 {
-    public const string StagedPrefix = ".~fc-";
+    /// <summary>
+    /// Staged files are named ".fc-{job}-{n}.tmp". No '~': .NET expands any path with one as a possible 8.3 short name,
+    /// which cost about 0.2 ms per file operation on Windows.
+    /// </summary>
+    public const string StagedPrefix = ".fc-";
+
+    /// <summary>The prefix earlier versions staged with; their leftovers are still recognized.</summary>
+    public const string LegacyStagedPrefix = ".~fc-";
 
     /// <summary>Finds interrupted jobs and prunes finished journals beyond the retention limit.</summary>
     public static IReadOnlyList<InterruptedJob> Scan(string directory, int keepFinished = 200, TimeSpan? maxAge = null)
@@ -331,6 +338,7 @@ public static class JournalRecovery
             {
                 if (!Directory.Exists(dir)) continue;
                 list.AddRange(Directory.EnumerateFiles(dir, StagedPrefix + shortId + "-*"));
+                list.AddRange(Directory.EnumerateFiles(dir, LegacyStagedPrefix + shortId + "-*"));
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
@@ -394,7 +402,8 @@ public static class JournalRecovery
                 if (!Directory.Exists(fill.Destination)) continue;
                 foreach (var dst in new DirectoryInfo(fill.Destination).EnumerateFiles())
                 {
-                    if (dst.CreationTimeUtc < since || dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal)) continue;
+                    if (dst.CreationTimeUtc < since || dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal) ||
+                        dst.Name.StartsWith(LegacyStagedPrefix, StringComparison.Ordinal)) continue;
                     var src = new FileInfo(Path.Combine(fill.Source, dst.Name));
                     if (!src.Exists) continue;
                     bool sameTime = Math.Abs((src.LastWriteTimeUtc - dst.LastWriteTimeUtc).TotalSeconds) <= 2;

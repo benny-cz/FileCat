@@ -121,7 +121,12 @@ public sealed partial class WindowsFileOperations : PortableFileOperations
     {
         try
         {
-            File.WriteAllText(path + ZoneStream, mark);
+            // Writing a stream makes NTFS stamp the file as modified now. The file's own time is put back through the same
+            // handle, so marking an extracted or downloaded file never loses the time it came with.
+            var modified = File.GetLastWriteTimeUtc(path);
+            using var stream = new FileStream(path + ZoneStream, FileMode.Create, FileAccess.Write, FileShare.None);
+            stream.Write(System.Text.Encoding.UTF8.GetBytes(mark));
+            File.SetLastWriteTimeUtc(stream.SafeFileHandle, modified);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)

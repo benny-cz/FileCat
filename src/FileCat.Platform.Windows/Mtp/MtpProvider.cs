@@ -171,7 +171,14 @@ public sealed class MtpProvider : ResourceProvider
     internal PortableObject? Find(Location folder, string name)
     {
         var session = Session(folder.Session!);
-        var matches = session.Children(Resolve(folder), CancellationToken.None).Where(c => c.Name == name).ToList();
+        string parentId = Resolve(folder);
+        var state = State(folder.Session!);
+        string? known;
+        lock (state.Lock) state.Ids.TryGetValue(Join(folder.Path, name), out known);
+        // The listing remembered the item: its own properties confirm it in one request. Listing the whole folder for every
+        // file made copying photos off a phone quadratic in the folder's size.
+        if (known is not null && session.Get(known) is { } remembered && remembered.Name == name && remembered.ParentId == parentId) return remembered;
+        var matches = session.Children(parentId, CancellationToken.None).Where(c => c.Name == name).ToList();
         return matches.Count switch
         {
             0 => null,

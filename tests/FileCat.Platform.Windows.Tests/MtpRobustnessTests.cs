@@ -223,8 +223,8 @@ public sealed class MtpRobustnessTests : IDisposable
     }
 
     /// <summary>
-    /// How long listing a big folder takes (FILECAT_MTP_BENCH=1 with FILECAT_MTP_TEST=1): 1,000 small files are written
-    /// into FileCat-test, listed three times, and removed with the folder.
+    /// How long a big folder takes (FILECAT_MTP_BENCH=1 with FILECAT_MTP_TEST=1): 1,000 small files are written into
+    /// FileCat-test, listed three times, copied back, and removed with the folder.
     /// </summary>
     [Fact]
     public async Task Listing_a_folder_of_a_thousand_files()
@@ -248,5 +248,20 @@ public sealed class MtpRobustnessTests : IDisposable
             log?.WriteLine($"MTP: listing 1,000 files took {clock.ElapsedMilliseconds} ms (round {round + 1}).");
             Assert.Equal(1000, listed.Count);
         }
+
+        // Copying them back: each file is confirmed by the ID its listing remembered, not by listing the folder again.
+        var files = rig.List(folder);
+        string back = Directory.CreateDirectory(Path.Combine(_local, "back")).FullName;
+        clock.Restart();
+        var download = await Run(rig, new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = files.Select(e => rig.Mtp.GetItemRef(folder, e)).ToList(),
+            Destination = Location.FileSystem(back),
+        });
+        Assert.True(download.State == JobState.Completed, Describe(download));
+        log?.WriteLine($"MTP: 1,000 small files copied from the device in {clock.Elapsed.TotalSeconds:F1} s.");
+        Assert.Equal(1000, Directory.GetFiles(back).Length);
+        Assert.All(Directory.GetFiles(back), f => Assert.Equal("x", File.ReadAllText(f)));
     }
 }

@@ -68,6 +68,20 @@ public sealed class RecoveryItem
     public List<RecoveryItem> Children { get; } = [];
     public RecoveryItem? Parent { get; set; }
 
+    private Dictionary<(string Name, int Ordinal), RecoveryItem>? _children;
+
+    /// <summary>
+    /// A child by name and ordinal (unique together). The lookup is built on first use, after the scan has numbered the
+    /// children, so opening each item of a folder with many deleted files does not search the folder's list every time.
+    /// </summary>
+    public RecoveryItem? Child(string name, int ordinal) =>
+        LazyInitializer.EnsureInitialized(ref _children, () =>
+        {
+            var map = new Dictionary<(string, int), RecoveryItem>(Children.Count);
+            foreach (var child in Children) map.TryAdd((child.Name, child.Ordinal), child);
+            return map;
+        }).GetValueOrDefault((name, ordinal));
+
     /// <summary>Part of the name is lost (a deleted FAT short name loses its first letter).</summary>
     public bool NameUncertain { get; init; }
 

@@ -30,6 +30,7 @@ public interface IOriginMarkSource
 internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal, ProviderRegistry providers) : ExecutorBase(job, fs, journal)
 {
     private const int BufferSize = 1024 * 1024;
+    private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
     private int _staged;
     private string? _originMark;
 
@@ -225,7 +226,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             return false;
         }
         var dir = Path.GetDirectoryName(target)!;
-        Journal.StagingDirectory(dir);
+        // Durable once per folder, so recovery finds staged leftovers there (a flush per item dominated extracting small files).
+        if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
         long written = 0;
         IReadOnlyList<(long Offset, long Length)>? lost = null;
@@ -266,8 +268,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     Job.Throttle(written, clock);
                 }
                 lost = (content as IPartialContent)?.MissingRanges;
+                // Through the open handle: no second open, and later writes on it cannot change the time.
+                if (item.Modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(item.Modified, DateTimeKind.Utc));
             }
-            if (item.Modified > 0) File.SetLastWriteTimeUtc(staged, new DateTime(item.Modified, DateTimeKind.Utc));
             if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
                 Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);
         }
@@ -286,7 +289,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         {
             content?.Dispose();
         }
-        int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged);
+        // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
+        int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged, durable: replace);
         bool ok = TryIo(target, "publish the extracted item", () => Fs.Move(staged, target, replace));
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)

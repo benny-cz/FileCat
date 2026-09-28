@@ -187,7 +187,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     public override IContentSource? OpenContent(ItemRef item)
     {
         var index = GetIndex(item.Parent, CancellationToken.None);
-        var node = index.Children.GetValueOrDefault(item.Parent.Path)?.FirstOrDefault(n => n.Name == item.Name && !n.IsDirectory && (n.Tag?.DuplicateOrdinal ?? 0) == item.Ordinal);
+        var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
         if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
         if (tag.Encrypted) return null;
         if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
@@ -318,6 +318,23 @@ internal sealed class ArchiveIndex : IDisposable
     }
 
     public Dictionary<string, List<Node>> Children { get; }
+
+    private Dictionary<(string Folder, string Name, int Ordinal), Node>? _files;
+
+    /// <summary>
+    /// A file member by folder, name, and duplicate ordinal. The lookup is built on first use, so extracting a folder of
+    /// many members does not search the folder's list once per member.
+    /// </summary>
+    public Node? FindFile(string folder, string name, int ordinal) =>
+        LazyInitializer.EnsureInitialized(ref _files, () =>
+        {
+            var files = new Dictionary<(string, string, int), Node>();
+            foreach (var (path, nodes) in Children)
+                foreach (var node in nodes)
+                    if (!node.IsDirectory) files.TryAdd((path, node.Name, node.Tag?.DuplicateOrdinal ?? 0), node);
+            return files;
+        }).GetValueOrDefault((folder, name, ordinal));
+
     public List<string> Warnings { get; }
     public DateTime LastUsed { get; private set; }
     public string Format => _reader.Format;

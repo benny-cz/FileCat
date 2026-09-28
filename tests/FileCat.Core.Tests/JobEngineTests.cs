@@ -320,6 +320,9 @@ public sealed class JobEngineTests : IDisposable
         // Simulate a crash: a journal with an open publish intent and a leftover staged file.
         var staged = Path.Combine(_dst, JournalRecovery.StagedPrefix + "abcdef12-1.tmp");
         File.WriteAllText(staged, "partial");
+        // A leftover of an earlier version, which staged with ".~fc-", is found in the staging folder too.
+        var legacy = Path.Combine(_dst, JournalRecovery.LegacyStagedPrefix + "abcdef12-2.tmp");
+        File.WriteAllText(legacy, "partial");
         var path = Path.Combine(journalDir, "job-20260101000000-abcdef12.fcj");
         string Line(string json) => $"{Crc32.HashToUInt32(System.Text.Encoding.UTF8.GetBytes(json)):x8} {json}\n";
         var completed = string.Concat(Enumerable.Range(2, 500).Select(n =>
@@ -335,6 +338,7 @@ public sealed class JobEngineTests : IDisposable
         Assert.Single(interrupted.OpenIntents);
         Assert.Equal(500, interrupted.CompletedSteps);
         Assert.Contains(staged, JournalRecovery.FindStagedLeftovers(interrupted));
+        Assert.Contains(legacy, JournalRecovery.FindStagedLeftovers(interrupted));
         JournalRecovery.Close(interrupted, "cleaned");
         Assert.Empty(JournalRecovery.Scan(journalDir));
     }

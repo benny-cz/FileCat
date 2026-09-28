@@ -7,7 +7,8 @@ namespace FileCat.Platform.Windows.Mtp;
 public sealed record PortableDeviceInfo(string Id, string Name, string Manufacturer);
 
 /// <summary>One object on a device: a storage (internal memory, SD card), a folder, or a file.</summary>
-public sealed record PortableObject(string Id, string Name, bool IsFolder, bool IsStorage, long Size, DateTime ModifiedUtc, bool CanDelete, bool IsHidden);
+public sealed record PortableObject(string Id, string Name, bool IsFolder, bool IsStorage, long Size, DateTime ModifiedUtc, bool CanDelete, bool IsHidden,
+    string? ParentId = null);
 
 /// <summary>A device write stream, once disposed: the ID of the object it created, when the device says (null otherwise).</summary>
 public interface ICreatedObject
@@ -38,7 +39,7 @@ public sealed class WpdSession : IDisposable
         _content.Properties(out _properties);
         _content.Transfer(out _resources);
         _keys = Wpd.Create<IPortableDeviceKeyCollection>(Wpd.CLSID_PortableDeviceKeyCollection);
-        foreach (var key in new[] { Wpd.Name, Wpd.OriginalFileName, Wpd.ContentType, Wpd.Size, Wpd.DateModified, Wpd.CanDelete, Wpd.IsHidden })
+        foreach (var key in new[] { Wpd.Name, Wpd.OriginalFileName, Wpd.ContentType, Wpd.Size, Wpd.DateModified, Wpd.CanDelete, Wpd.IsHidden, Wpd.ParentId })
         {
             var k = key;
             _keys.Add(ref k);
@@ -220,7 +221,8 @@ public sealed class WpdSession : IDisposable
             bool folder = storage || contentType == Wpd.ContentFolder;
             string name = (storage ? Str(values, Wpd.Name) : null) ?? Str(values, Wpd.OriginalFileName) ?? Str(values, Wpd.Name) ?? id;
             long size = folder ? -1 : (long)Math.Min(ULong(values, Wpd.Size) ?? 0, long.MaxValue);
-            return new PortableObject(id, name, folder, storage, size, Date(values, Wpd.DateModified), Bool(values, Wpd.CanDelete) ?? true, Bool(values, Wpd.IsHidden) ?? false);
+            return new PortableObject(id, name, folder, storage, size, Date(values, Wpd.DateModified), Bool(values, Wpd.CanDelete) ?? true, Bool(values, Wpd.IsHidden) ?? false,
+                Str(values, Wpd.ParentId));
         }
         finally
         {

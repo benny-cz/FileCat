@@ -226,8 +226,8 @@ public sealed class RecoveryProvider : ResourceProvider
     {
         var session = GetSession(item.Parent, CancellationToken.None);
         var (volume, folder) = Resolve(session, item.Parent);
-        var found = folder.Children.FirstOrDefault(c => c.Name == item.Name && c.Ordinal == item.Ordinal && !c.IsDirectory)
-                    ?? throw new FileNotFoundException($"\"{item.Name}\" is not among the deleted items any more.");
+        var found = folder.Child(item.Name, item.Ordinal) is { IsDirectory: false } file ? file
+                    : throw new FileNotFoundException($"\"{item.Name}\" is not among the deleted items any more.");
         if (found.State == RecoveryState.Overwritten)
             throw new InvalidDataException($"\"{found.Name}\" is overwritten: the space it used holds other data now, so nothing of it can be recovered.");
         if (found.State == RecoveryState.NameOnly)
@@ -249,8 +249,8 @@ public sealed class RecoveryProvider : ResourceProvider
             {
                 var parts = segment.Split('\0');
                 int ordinal = parts.Length > 1 && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out int o) ? o : 0;
-                folder = folder.Children.FirstOrDefault(c => c.IsDirectory && c.Name == parts[0] && c.Ordinal == ordinal)
-                         ?? throw new DirectoryNotFoundException($"\"{parts[0]}\" is not among the deleted items any more.");
+                folder = folder.Child(parts[0], ordinal) is { IsDirectory: true } child ? child
+                         : throw new DirectoryNotFoundException($"\"{parts[0]}\" is not among the deleted items any more.");
             }
         }
         return (volume, folder);

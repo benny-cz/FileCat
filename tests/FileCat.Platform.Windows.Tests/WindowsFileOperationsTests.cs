@@ -199,8 +199,56 @@ public sealed class WindowsFileOperationsTests : IDisposable
         var f = Path.Combine(_root, "download.exe");
         File.WriteAllText(f, "x");
         if (!_ops.GetVolumeInfo(f).SupportsNamedStreams) return;
+        var modified = new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(f, modified);
         Assert.True(_ops.WriteOriginMark(f, "[ZoneTransfer]\r\nZoneId=3\r\n"));
         Assert.Contains("ZoneId=3", _ops.ReadOriginMark(f));
+        // Writing the mark's stream would stamp the file as modified now; the file keeps its own time.
+        Assert.Equal(modified, File.GetLastWriteTimeUtc(f));
+    }
+
+    [Fact]
+    public async Task Files_extracted_from_a_downloaded_zip_keep_their_times_and_the_mark()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var zip = Path.Combine(_root, "download.zip");
+        // ZIP stores the local wall-clock time, as archivers do.
+        var when = new DateTimeOffset(new DateTime(2019, 5, 6, 7, 8, 10, DateTimeKind.Local));
+        using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("readme.txt");
+            entry.LastWriteTime = when;
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("hello");
+        }
+        if (!_ops.GetVolumeInfo(zip).SupportsNamedStreams) return;
+        File.WriteAllText(zip + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        var providers = new ProviderRegistry();
+        providers.Register(new WindowsFileSystemProvider());
+        var zipProvider = new Core.Archives.ZipProvider(Path.Combine(_root, "spool"));
+        providers.Register(zipProvider);
+        var jobs = new JobManager(_ops, providers, Path.Combine(_root, "journal"));
+        var output = Directory.CreateDirectory(Path.Combine(_root, "out")).FullName;
+        var root = Core.Archives.ZipProvider.ForFile(zip);
+        var listed = new List<EntryData>();
+        await zipProvider.EnumerateAsync(root, new ListSink(listed), TestContext.Current.CancellationToken);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [zipProvider.GetItemRef(root, Assert.Single(listed))],
+            Destination = Location.FileSystem(output),
+        });
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal(JobState.Completed, job.State);
+        var extracted = Path.Combine(output, "readme.txt");
+        Assert.Contains("ZoneId=3", _ops.ReadOriginMark(extracted));
+        Assert.Equal(when.UtcDateTime, File.GetLastWriteTimeUtc(extracted), TimeSpan.FromSeconds(2)); // ZIP keeps 2-second times
+    }
+
+    private sealed class ListSink(List<EntryData> list) : IEnumerationSink
+    {
+        public void AddBatch(ReadOnlySpan<EntryData> entries) => list.AddRange(entries.ToArray());
+        public void ReportIssue(string message) { }
     }
 
     [Fact]
