@@ -25,7 +25,8 @@ public class PortablePlatform : IPlatform
     public PortablePlatform()
     {
         Shell = new PortableShellServices();
-        FileOperations = new PortableFileOperations();
+        // Linux and macOS keep download origins in extended attributes (quarantine on macOS).
+        FileOperations = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new UnixFileOperations() : new PortableFileOperations();
     }
 
     public virtual string Name => OperatingSystem.IsMacOS() ? "macOS" : OperatingSystem.IsLinux() ? "Linux" : "Portable";

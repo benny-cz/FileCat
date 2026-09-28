@@ -48,6 +48,20 @@ public static class KeyMapper
         return new KeyChord(name, ToMods(modifiers));
     }
 
+    /// <summary>⌘Q: quits on macOS.</summary>
+    public static readonly KeyChord MacQuit = new("Q", KeyMods.Meta);
+
+    /// <summary>
+    /// The chord a macOS ⌘ combination stands for: ⌘Q itself (quit), otherwise the same keys with Ctrl in place of ⌘.
+    /// Null when the chord has no ⌘ or already has Ctrl.
+    /// </summary>
+    public static KeyChord? MacCommandAlias(KeyChord chord)
+    {
+        if ((chord.Mods & KeyMods.Meta) == 0 || (chord.Mods & KeyMods.Ctrl) != 0) return null;
+        if (chord == MacQuit) return MacQuit;
+        return chord with { Mods = (chord.Mods & ~KeyMods.Meta) | KeyMods.Ctrl };
+    }
+
     public static KeyGesture? ToGesture(KeyChord chord)
     {
         Key key = chord.Key switch

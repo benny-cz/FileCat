@@ -404,6 +404,9 @@ public partial class MainWindow : Window, IViewActions
         }
 
         var id = _vm.Services.Keymap.Resolve(chord, CommandContext.Panel);
+        // macOS: ⌘ works wherever the keymap says Ctrl, and ⌘Q quits, as Mac users expect.
+        if (id is null && OperatingSystem.IsMacOS() && KeyMapper.MacCommandAlias(chord) is { } alias)
+            id = alias == KeyMapper.MacQuit ? CommandIds.Exit : _vm.Services.Keymap.Resolve(alias, CommandContext.Panel);
         if (id is null) return;
         e.Handled = true;
         _suppressTextInput = true;

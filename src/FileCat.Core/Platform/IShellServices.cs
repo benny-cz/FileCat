@@ -82,15 +82,47 @@ public class PortableShellServices : IShellServices
     public virtual string? GetTypeName(string name, bool isDirectory) =>
         isDirectory ? "Folder" : NameParts.GetExtension(name) is { Length: > 0 } ext ? ext.ToUpperInvariant() + " file" : "File";
 
+    /// <summary>
+    /// Linux terminals FileCat knows, in the order it tries them: $TERMINAL first, then the distribution's default and the
+    /// common desktops' own. Each knows how to start in a folder and how to run a command.
+    /// </summary>
+    private static IEnumerable<(string Exe, string[] Open, string[] Run)> LinuxTerminals(string directory, string script)
+    {
+        string[] sh = ["sh", "-c", script];
+        if (Environment.GetEnvironmentVariable("TERMINAL") is { Length: > 0 } preferred) yield return (preferred, [], ["-e", .. sh]);
+        yield return ("x-terminal-emulator", [], ["-e", .. sh]);
+        yield return ("gnome-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "--", .. sh]);
+        yield return ("konsole", ["--workdir", directory], ["--workdir", directory, "-e", .. sh]);
+        yield return ("xfce4-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "-x", .. sh]);
+        yield return ("kitty", ["--directory", directory], ["--directory", directory, .. sh]);
+        yield return ("alacritty", ["--working-directory", directory], ["--working-directory", directory, "-e", .. sh]);
+        yield return ("wezterm", ["start", "--cwd", directory], ["start", "--cwd", directory, "--", .. sh]);
+        yield return ("foot", ["--working-directory=" + directory], ["--working-directory=" + directory, .. sh]);
+        yield return ("xterm", [], ["-e", .. sh]);
+    }
+
+    /// <summary>Starts the first Linux terminal that exists; false when none does.</summary>
+    private static bool StartLinuxTerminal(string directory, string? script)
+    {
+        foreach (var (exe, open, run) in LinuxTerminals(directory, script ?? string.Empty))
+        {
+            var psi = new ProcessStartInfo(exe) { WorkingDirectory = directory, UseShellExecute = false };
+            foreach (var a in script is null ? open : run) psi.ArgumentList.Add(a);
+            try
+            {
+                Process.Start(psi)?.Dispose();
+                return true;
+            }
+            catch (System.ComponentModel.Win32Exception) { } // not installed: try the next one
+        }
+        return false;
+    }
+
     public virtual void OpenTerminal(string directory, string shell)
     {
         if (OperatingSystem.IsMacOS()) Start("open", "-a", "Terminal", directory);
-        else
-        {
-            var psi = new ProcessStartInfo("x-terminal-emulator") { WorkingDirectory = directory, UseShellExecute = false };
-            try { Process.Start(psi)?.Dispose(); }
-            catch (Exception) { Start("gnome-terminal", "--working-directory=" + directory); }
-        }
+        else if (!StartLinuxTerminal(directory, null))
+            throw new FileNotFoundException("No terminal was found. Set the TERMINAL environment variable to your terminal program.");
     }
 
     public virtual void RunInTerminal(string directory, string command, string shell)
@@ -102,15 +134,35 @@ public class PortableShellServices : IShellServices
             Start("osascript", "-e", $"tell application \"Terminal\" to do script \"{escaped}\"");
             return;
         }
-        var psi = new ProcessStartInfo("x-terminal-emulator") { WorkingDirectory = directory, UseShellExecute = false };
-        psi.ArgumentList.Add("-e");
-        psi.ArgumentList.Add("sh");
-        psi.ArgumentList.Add("-c");
-        psi.ArgumentList.Add(script);
-        Process.Start(psi)?.Dispose();
+        if (!StartLinuxTerminal(directory, script))
+            throw new FileNotFoundException("No terminal was found. Set the TERMINAL environment variable to your terminal program.");
     }
 
-    public virtual void SetKeepAwake(bool keepAwake) { }
+    private readonly object _awakeLock = new();
+    private Process? _awake;
+
+    /// <summary>macOS: caffeinate for as long as FileCat runs work; Linux: a systemd sleep inhibitor. Best effort.</summary>
+    public virtual void SetKeepAwake(bool keepAwake)
+    {
+        lock (_awakeLock)
+        {
+            if (!keepAwake)
+            {
+                try { _awake?.Kill(); } catch (InvalidOperationException) { }
+                _awake?.Dispose();
+                _awake = null;
+                return;
+            }
+            if (_awake is { HasExited: false }) return;
+            var psi = OperatingSystem.IsMacOS()
+                ? new ProcessStartInfo("caffeinate", ["-i", "-w", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)])
+                : new ProcessStartInfo("systemd-inhibit", ["--what=idle:sleep", "--who=FileCat", "--why=File operations are running", "--mode=block", "sleep", "infinity"]);
+            psi.UseShellExecute = false;
+            psi.RedirectStandardOutput = psi.RedirectStandardError = true;
+            try { _awake = Process.Start(psi); }
+            catch (System.ComponentModel.Win32Exception) { _awake = null; }
+        }
+    }
 
     public virtual void SetShutdownBlock(nint owner, string? reason) { }
 

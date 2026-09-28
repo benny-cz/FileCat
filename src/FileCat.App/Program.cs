@@ -7,6 +7,14 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Answered before any window or instance check: packages are smoke-tested this way on machines without a display.
+        if (args is ["--version"] or ["-v"])
+        {
+            var version = typeof(Program).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "unknown";
+            Console.WriteLine("FileCat " + version.Split('+')[0]);
+            return 0;
+        }
         var options = StartupOptions.Parse(args);
         if (!options.NewInstance && SingleInstance.TryForward(options))
             return 0;

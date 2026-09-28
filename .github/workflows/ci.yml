@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # Manual runs build the release packages without tagging (P9).
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -58,9 +60,8 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build
-      # P9: the UI runs headless on Linux and macOS too (non-blocking until the lane is green).
+      # P9: the UI runs headless on Linux and macOS too.
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx"
-        continue-on-error: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -104,3 +105,80 @@ jobs:
           prerelease: true
           name: FileCat ${{ github.ref_name }} (unsigned preview)
           files: artifacts/*.*
+
+  package-linux:
+    name: Package Linux (tags and manual runs)
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: [windows, portable]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build the tarball, .deb, and AppImage
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.1.0-dev.${GITHUB_RUN_NUMBER}"
+          ./eng/package-linux.sh "$v" linux-x64
+      - name: Install and start each package
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ./artifacts/filecat_*.deb
+          filecat --version
+          APPIMAGE_EXTRACT_AND_RUN=1 ./artifacts/FileCat-*-x86_64.AppImage --version
+          mkdir unpacked && tar -xzf artifacts/FileCat-*-linux-x64.tar.gz -C unpacked
+          unpacked/FileCat-*/FileCat --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filecat-linux
+          path: |
+            artifacts/*.tar.gz
+            artifacts/*.deb
+            artifacts/*.AppImage
+      - name: Add to the draft release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.deb
+            artifacts/*.AppImage
+
+  package-macos:
+    name: Package macOS (tags and manual runs)
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: [windows, portable]
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build the app (ad-hoc signed, not notarized)
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.1.0-dev.${GITHUB_RUN_NUMBER}"
+          ./eng/package-macos.sh "$v"
+      - name: Start the packaged app
+        run: |
+          mkdir unpacked && ditto -x -k artifacts/FileCat-*-osx-arm64.zip unpacked
+          codesign --verify --deep --strict unpacked/FileCat.app
+          unpacked/FileCat.app/Contents/MacOS/FileCat --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filecat-macos
+          path: artifacts/*.zip
+      - name: Add to the draft release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          files: artifacts/*.zip
