@@ -76,7 +76,7 @@ exfat() {
   local img="$WORK/exfat.img"
   truncate -s 16M "$img"
   mkfs.exfat -n FIXTURE -c 4K "$img" >/dev/null
-  mount -o loop "$img" "$MNT"
+  mount -o loop "$img" "$MNT" 2>/dev/null || mount.exfat-fuse "$img" "$MNT"
   scenario
   umount "$MNT"
   gzip -9n < "$img" > "$OUT/exfat.img.gz"
@@ -104,7 +104,7 @@ disk() { # name label-type
   mkfs.vfat -F 16 -n FIRST "${dev}p1" >/dev/null
   mkfs.exfat -n SECOND "${dev}p2" >/dev/null
   mount "${dev}p1" "$MNT"; write "first.txt" 7000; rm "$MNT/first.txt"; sync; umount "$MNT"
-  mount "${dev}p2" "$MNT"; write "second.txt" 9000; rm "$MNT/second.txt"; sync; umount "$MNT"
+  mount "${dev}p2" "$MNT" 2>/dev/null || mount.exfat-fuse "${dev}p2" "$MNT"; write "second.txt" 9000; rm "$MNT/second.txt"; sync; umount "$MNT"
   losetup -d "$dev"
   gzip -9n < "$img" > "$OUT/$1.img.gz"
 }
