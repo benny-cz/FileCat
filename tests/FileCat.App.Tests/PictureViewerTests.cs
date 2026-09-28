@@ -60,28 +60,39 @@ public sealed class PictureViewerTests
         return PictureDecoder.Read(output, maxSide);
     }
 
-    private static SKColor PixelAt(DecodedPicture picture, int x, int y)
+    /// <summary>
+    /// A pixel of the worker's answer itself (the headless test renderer does not keep a bitmap's pixels between locks):
+    /// premultiplied BGRA rows after the header and the format's name.
+    /// </summary>
+    private static SKColor PixelAt(byte[] bytes, int maxSide, int x, int y)
     {
-        using var fb = picture.Bitmap.Lock();
-        var bytes = new byte[4];
-        System.Runtime.InteropServices.Marshal.Copy(fb.Address + y * fb.RowBytes + x * 4, bytes, 0, 4);
-        return new SKColor(bytes[2], bytes[1], bytes[0], bytes[3]);
+        using var output = new MemoryStream();
+        PictureWorker.Decode(bytes, maxSide, output);
+        var answer = output.ToArray();
+        int width = BinaryPrimitives.ReadInt32LittleEndian(answer.AsSpan(4));
+        int formatLength = BinaryPrimitives.ReadInt32LittleEndian(answer.AsSpan(28));
+        int at = 32 + formatLength + (y * width + x) * 4;
+        return new SKColor(answer[at + 2], answer[at + 1], answer[at], answer[at + 3]);
     }
 
     [AvaloniaFact]
     public void Pictures_are_decoded_upright_and_scaled_to_fit()
     {
-        var picture = DecodeHere(Encode(400, 200, SKEncodedImageFormat.Png), 100);
+        var png = Encode(400, 200, SKEncodedImageFormat.Png);
+        var picture = DecodeHere(png, 100);
         Assert.Equal(("PNG", 400, 200, 1, false), (picture.Format, picture.Width, picture.Height, picture.Frames, picture.Incomplete));
         Assert.Equal((100, 50), (picture.Bitmap.PixelSize.Width, picture.Bitmap.PixelSize.Height));
-        Assert.Equal(SKColors.Red, PixelAt(picture, 10, 25));
-        Assert.Equal(SKColors.Blue, PixelAt(picture, 90, 25));
+        Assert.Equal(SKColors.Red, PixelAt(png, 100, 10, 25));
+        Assert.Equal(SKColors.Blue, PixelAt(png, 100, 90, 25));
 
         // Stored 40 × 20, left red; EXIF orientation 6 turns it clockwise: shown 20 × 40, red on top.
-        var turned = DecodeHere(WithOrientation(Encode(40, 20, SKEncodedImageFormat.Jpeg), 6), 1000);
+        var jpeg = WithOrientation(Encode(40, 20, SKEncodedImageFormat.Jpeg), 6);
+        var turned = DecodeHere(jpeg, 1000);
         Assert.Equal(("JPEG", 20, 40), (turned.Format, turned.Width, turned.Height));
-        Assert.True(PixelAt(turned, 10, 5).Red > 200 && PixelAt(turned, 10, 5).Blue < 60, PixelAt(turned, 10, 5).ToString());
-        Assert.True(PixelAt(turned, 10, 35).Blue > 200 && PixelAt(turned, 10, 35).Red < 60, PixelAt(turned, 10, 35).ToString());
+        var top = PixelAt(jpeg, 1000, 10, 5);
+        var bottom = PixelAt(jpeg, 1000, 10, 35);
+        Assert.True(top.Red > 200 && top.Blue < 60, top.ToString());
+        Assert.True(bottom.Blue > 200 && bottom.Red < 60, bottom.ToString());
     }
 
     [AvaloniaFact]

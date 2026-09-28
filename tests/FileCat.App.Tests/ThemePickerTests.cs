@@ -27,6 +27,14 @@ public sealed class ThemePickerTests
         throw new TimeoutException("The theme picker did not open.");
     }
 
+    [Theory]
+    [InlineData("#FFFF00", "#FF000000")] // High Contrast's yellow: black text
+    [InlineData("#23B04A", "#FF000000")] // a bright green
+    [InlineData("#0078D4", "#FFFFFFFF")] // Classic's blue: white, as Windows does
+    [InlineData("#1F1235", "#FFFFFFFF")]
+    public void Text_on_an_accent_is_whichever_of_black_and_white_reads_better(string accent, string text) =>
+        Assert.Equal(text, ThemeManager.OnColor(accent));
+
     [AvaloniaFact]
     public async Task Themes_are_previewed_live_then_kept_or_undone()
     {

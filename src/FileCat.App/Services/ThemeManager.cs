@@ -96,6 +96,7 @@ public sealed record ThemePalette(
         Effect = ThemeEffect.Matrix,
         FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, Menlo, Liberation Mono, monospace",
         IconTint = "#4DFF7A",
+        MenuBackground = "#E6000000", // the rain stays behind the lists, not across the menu's words
     };
 
     public static readonly ThemePalette Psychedelic = new("Psychedelic", true,
@@ -279,8 +280,26 @@ public static class ThemeManager
         Add("ChangedByte", p.ChangedByte);
         Add("SearchHit", p.SearchHit);
         Add("MenuBackground", p.MenuBackground);
+        // Text on an accent (primary buttons, the target badge): white, unless black reads clearly better (a yellow or a
+        // bright green accent).
+        Add("OnAccent", OnColor(p.ActiveAccent));
+        Add("OnTarget", OnColor(p.TargetAccent));
         d["FcThemeName"] = p.Name;
         d["FcFontFamily"] = p.FontFamily is { } font ? new FontFamily(font) : FontFamily.Default;
         return d;
+    }
+
+    /// <summary>White or black text on a color, by WCAG contrast; white unless black is clearly better.</summary>
+    internal static string OnColor(string background)
+    {
+        var c = Color.Parse(background);
+        static double Linear(byte v)
+        {
+            double s = v / 255.0;
+            return s <= 0.04045 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+        }
+        double luminance = 0.2126 * Linear(c.R) + 0.7152 * Linear(c.G) + 0.0722 * Linear(c.B);
+        double onWhite = 1.05 / (luminance + 0.05), onBlack = (luminance + 0.05) / 0.05;
+        return onBlack > 1.5 * onWhite ? "#FF000000" : "#FFFFFFFF";
     }
 }

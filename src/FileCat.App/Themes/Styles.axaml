@@ -82,7 +82,7 @@
     <Setter Property="Background" Value="{DynamicResource FcTargetAccent}" />
   </Style>
   <Style Selector="Border.badge.target TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource FcPanel}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcOnTarget}" />
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="FontSize" Value="10.5" />
   </Style>
@@ -142,7 +142,7 @@
   </Style>
   <Style Selector="Button.primary">
     <Setter Property="Background" Value="{DynamicResource FcActiveAccent}" />
-    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Foreground" Value="{DynamicResource FcOnAccent}" />
   </Style>
   <Style Selector="TextBlock.error">
     <Setter Property="Foreground" Value="{DynamicResource FcError}" />

@@ -93,9 +93,11 @@ public sealed class ColumnProfileTests
                 window.MouseDown(new Point(x, y), MouseButton.Left);
                 window.MouseMove(new Point(x + 40, y));
                 window.MouseUp(new Point(x + 40, y), MouseButton.Left);
-                Assert.Equal(96, services.Columns.Profiles[0].Columns[1].Width, 0);
-                Assert.Equal(96, other.Columns[1].Width, 0);
-                Assert.Equal(96, services.Settings.ColumnProfiles[0].Columns[1].Width, 0); // saved
+                // Stored at the default font's scale: the 40 pixels dragged, in the list's current font.
+                double stored = (56 * list.WidthScale + 40) / list.WidthScale;
+                Assert.Equal(stored, services.Columns.Profiles[0].Columns[1].Width, 0);
+                Assert.Equal(stored, other.Columns[1].Width, 0);
+                Assert.Equal(stored, services.Settings.ColumnProfiles[0].Columns[1].Width, 0); // saved
             }
             finally
             {

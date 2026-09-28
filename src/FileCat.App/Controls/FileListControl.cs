@@ -65,6 +65,15 @@ public sealed class FileListControl : Control
     private double _resizeStartWidth;
     // Live widths while dragging a border, by column position (cleared when the profile stores them).
     private readonly Dictionary<int, double> _widthOverrides = new();
+
+    /// <summary>
+    /// Fixed column widths are set for the default 13-pixel UI font; a larger size or a wider font (a theme's monospace)
+    /// widens them in proportion, so dates and sizes still fit. Never below 1: a narrower font keeps the widths set.
+    /// </summary>
+    private double _widthScale = 1;
+
+    /// <summary>How much wider than set the fixed columns are drawn for the current font (tests).</summary>
+    internal double WidthScale => _widthScale;
     private bool _resizeInverse;
     private Point? _dragStart;
     private PointerPressedEventArgs? _pressArgs;
@@ -385,7 +394,16 @@ public sealed class FileListControl : Control
         _headerHeight = Math.Ceiling(size * 1.75);
         _glyphs = SimpleGlyphs.TryCreate(_typeface, size);
         _boldGlyphs = SimpleGlyphs.TryCreate(_boldTypeface, size);
+        _widthScale = Math.Max(1, SampleWidth(_typeface, size) / SampleWidth(new Typeface(FontFamily.Default), 13));
         ClearTextCache();
+        InvalidateArrange();
+    }
+
+    /// <summary>What a date and a size take in a font: the widest cells the fixed columns hold.</summary>
+    private static double SampleWidth(Typeface typeface, double size)
+    {
+        var text = new FormattedText("28.09.2026 19:39 12 345 678", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, size, Brushes.Black);
+        return Math.Max(1, text.Width);
     }
 
     private void ClearTextCache()
@@ -528,7 +546,7 @@ public sealed class FileListControl : Control
         for (int i = 0; i < n; i++)
         {
             var c = _columns[i];
-            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Width;
+            double w = _widthOverrides.TryGetValue(i, out var ow) ? ow : c.Star ? c.Width : c.Width * _widthScale;
             if (c.Star && !_widthOverrides.ContainsKey(i)) starSum += w;
             else fixedSum += w;
         }
@@ -538,7 +556,7 @@ public sealed class FileListControl : Control
         {
             var c = _columns[i];
             double w = _widthOverrides.TryGetValue(i, out var ow) ? ow
-                : c.Star ? starSpace * (c.Width / Math.Max(1, starSum)) : c.Width;
+                : c.Star ? starSpace * (c.Width / Math.Max(1, starSum)) : c.Width * _widthScale;
             _columnX[i] = x;
             _columnW[i] = Math.Max(24, w);
             x += _columnW[i];
@@ -962,7 +980,8 @@ public sealed class FileListControl : Control
             _resizingColumn = -1;
             e.Pointer.Capture(null);
             // The profile keeps the width for every tab using it (and across restarts).
-            if (_widthOverrides.TryGetValue(column, out var width)) Tab?.SetColumnWidth(column, width);
+            // Stored at the default font's scale (the width the user sees is the stored one times the font's).
+            if (_widthOverrides.TryGetValue(column, out var width)) Tab?.SetColumnWidth(column, width / _widthScale);
         }
     }
 
