@@ -20,14 +20,18 @@ namespace FileCat.App.Views;
 
 public partial class MainWindow : Window, IViewActions
 {
-    private static readonly (string Header, string[] Items)[] MenuLayout =
+    /// <summary>A menu's own submenu (the Registry's commands, dimmed everywhere else, stay out of the File menu's way).</summary>
+    private sealed record Submenu(string Header, string[] Items);
+
+    private static readonly (string Header, object[] Items)[] MenuLayout =
     [
         ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, CommandIds.EditSessions, "-", CommandIds.Copy, CommandIds.Duplicate,
             CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
-            CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive, CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
+            CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive, "-",
+            CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
             CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet,
-            CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
-            CommandIds.RegistryWritable, CommandIds.RegistryView, "-",
+            new Submenu("_Registry", [CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
+                CommandIds.RegistryWritable, CommandIds.RegistryView]), "-",
             CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
         ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
             CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
@@ -342,45 +346,63 @@ public partial class MainWindow : Window, IViewActions
     private void BuildMenu()
     {
         var items = new List<MenuItem>();
-        foreach (var (header, ids) in MenuLayout)
+        foreach (var (header, entries) in MenuLayout)
         {
             var top = new MenuItem { Header = header };
-            var children = new List<Control>();
-            foreach (var id in ids)
-            {
-                if (id == "-")
-                {
-                    children.Add(new Separator());
-                    continue;
-                }
-                var def = _vm.Services.Commands.Get(id);
-                if (def is null) continue;
-                var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
-                var mi = new MenuItem { Header = def.Title, Tag = id };
-                if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } g) mi.InputGesture = g;
-                mi.Click += (_, _) =>
-                {
-                    FocusActivePanel();
-                    _vm.Execute(id);
-                };
-                children.Add(mi);
-            }
-            top.ItemsSource = children;
-            top.SubmenuOpened += (_, _) =>
-            {
-                foreach (var c in children.OfType<MenuItem>())
-                {
-                    if (c.Tag is string cid)
-                    {
-                        var a = _vm.GetAvailability(cid);
-                        c.IsEnabled = a.Enabled;
-                        ToolTip.SetTip(c, a.Enabled ? null : a.Reason);
-                    }
-                }
-            };
+            top.ItemsSource = BuildItems(top, entries);
             items.Add(top);
         }
         MainMenu.ItemsSource = items;
+    }
+
+    /// <summary>A menu's items; each time it opens, they say whether they apply here (and why not, in their tooltip).</summary>
+    private List<Control> BuildItems(MenuItem owner, IEnumerable<object> entries)
+    {
+        var children = new List<Control>();
+        foreach (var entry in entries)
+        {
+            if (entry is Submenu sub)
+            {
+                var submenu = new MenuItem { Header = sub.Header };
+                submenu.ItemsSource = BuildItems(submenu, sub.Items);
+                children.Add(submenu);
+                continue;
+            }
+            if (entry is not string id) continue;
+            if (id == "-")
+            {
+                children.Add(new Separator());
+                continue;
+            }
+            var def = _vm.Services.Commands.Get(id);
+            if (def is null) continue;
+            var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
+            var mi = new MenuItem { Header = def.Title, Tag = id };
+            if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } g) mi.InputGesture = g;
+            mi.Click += (_, _) =>
+            {
+                FocusActivePanel();
+                _vm.Execute(id);
+            };
+            children.Add(mi);
+        }
+        owner.SubmenuOpened += (_, _) =>
+        {
+            foreach (var c in children.OfType<MenuItem>())
+            {
+                if (c.Tag is string cid)
+                {
+                    var a = _vm.GetAvailability(cid);
+                    c.IsEnabled = a.Enabled;
+                    ToolTip.SetTip(c, a.Enabled ? null : a.Reason);
+                    // Column profiles by their names ("Columns: Details"), which Settings can change.
+                    if (cid.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal) &&
+                        int.TryParse(cid.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile))
+                        c.Header = "Columns: " + _vm.Services.Columns.NameOf(profile);
+                }
+            }
+        };
+        return children;
     }
 
     private void OnKeyBarClick(object? sender, RoutedEventArgs e)
