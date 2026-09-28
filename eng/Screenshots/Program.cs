@@ -49,6 +49,7 @@ string? focusLeft = Option("--focus", "") is { Length: > 0 } fl ? fl : null;
 string? focusRight = Option("--focus-right", "") is { Length: > 0 } fr ? fr : null;
 var marks = Option("--mark", "").Split(';', StringSplitOptions.RemoveEmptyEntries);
 var commands = Option("--commands", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var presses = Option("--press", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 if (OperatingSystem.IsWindows()) PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
@@ -104,6 +105,12 @@ foreach (var theme in themes)
     foreach (var command in commands)
     {
         vm.Execute(command);
+        Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
+    }
+    // --press Enter,Tab: keys after the commands (confirm a dialog, then see what follows).
+    foreach (var key in presses)
+    {
+        window.KeyPressQwerty(Enum.Parse<Avalonia.Input.PhysicalKey>(key, ignoreCase: true), Avalonia.Input.RawInputModifiers.None);
         Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
     }
     for (int frame = 0; frame < frames; frame++)

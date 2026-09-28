@@ -562,7 +562,7 @@ public sealed partial class MainViewModel
         {
             case JobState.Completed:
                 if (job.Kind is JobKind.Copy or JobKind.Move or JobKind.Recycle or JobKind.Delete or JobKind.Extract)
-                    Notify($"{job.Title}: done ({job.Summary}).");
+                    Notify($"{job.Title}: done{(job.BytesDone > 0 && job.Kind is not (JobKind.Recycle or JobKind.Delete) ? $" ({Formatters.SizeWithUnit(job.BytesDone)})" : "")}.");
                 break;
             case JobState.CompletedWithIssues:
             case JobState.Failed:

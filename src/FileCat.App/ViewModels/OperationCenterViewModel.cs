@@ -102,7 +102,13 @@ public sealed partial class JobViewModel : ObservableObject
             }
             if (j.RateLimit > 0) parts.Add($"limited to {Formatters.Size(j.RateLimit)}/s");
         }
-        if (IsFinished) parts.Add(j.Summary);
+        if (IsFinished)
+        {
+            // Done as asked: how much, and nothing more (the title says what). Counts matter when some items were not.
+            parts.Clear();
+            if (bd > 0) parts.Add(Formatters.SizeWithUnit(bd));
+            if (j.State != JobState.Completed || j.ItemsSkipped + j.ItemsFailed > 0) parts.Add(j.Summary);
+        }
         DetailText = string.Join(" · ", parts);
         CurrentItem = j.CurrentItem is { } c ? Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c : string.Empty;
     }
