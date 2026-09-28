@@ -109,6 +109,20 @@ public sealed class JobJournal : IDisposable
         return n;
     }
 
+    /// <summary>
+    /// Records that <paramref name="path"/> is renamed to <paramref name="target"/> through the temporary name
+    /// <paramref name="via"/> (bulk renames of chains and swaps). Batched: the caller flushes once before the first move,
+    /// so after a crash recovery can finish every rename that was under way (<see cref="JournalRecovery.FinishRenames"/>).
+    /// </summary>
+    public int RenameVia(string path, string target, string via)
+    {
+        int n = Interlocked.Increment(ref _step);
+        Write(new JsonObject { ["t"] = "intent", ["n"] = n, ["op"] = RenameViaOp, ["path"] = path, ["target"] = target, ["via"] = via }, sync: false);
+        return n;
+    }
+
+    public const string RenameViaOp = "rename-via";
+
     /// <summary>Makes every record written so far durable (one flush for a batch of intents).</summary>
     public void Flush()
     {
@@ -225,7 +239,11 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
 public sealed record FillDirectory(string Source, string Destination);
 
 /// <summary>An intent recorded without an outcome: reality must be inspected before anything is replayed.</summary>
-public sealed record PendingIntent(int Step, string Operation, string Path, string? Target, string? Staged);
+public sealed record PendingIntent(int Step, string Operation, string Path, string? Target, string? Staged)
+{
+    /// <summary>The temporary name of a <see cref="JobJournal.RenameViaOp"/> step.</summary>
+    public string? Via { get; init; }
+}
 
 public static class JournalRecovery
 {
@@ -258,7 +276,7 @@ public static class JournalRecovery
                         case "intent":
                             if (record.Step > 0)
                                 open[record.Step] = new PendingIntent(record.Step, record.Get("op") ?? "",
-                                    record.Get("path") ?? "", record.Get("target"), record.Get("staged"));
+                                    record.Get("path") ?? "", record.Get("target"), record.Get("staged")) { Via = record.Get("via") };
                             break;
                         case "done":
                             if (record.Step > 0) { open.Remove(record.Step); completed++; }
@@ -322,6 +340,42 @@ public static class JournalRecovery
             if (intent.Staged is { } s && File.Exists(s) && !list.Contains(s)) list.Add(s);
         }
         return list;
+    }
+
+    /// <summary>Renames that were under way: the item still has its temporary name (<see cref="PendingIntent.Via"/>).</summary>
+    public static IReadOnlyList<PendingIntent> FindRenameLeftovers(InterruptedJob job) =>
+        job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is { } via && (File.Exists(via) || Directory.Exists(via))).ToList();
+
+    /// <summary>
+    /// Gives every item left with a temporary name its new name, or its original name when the new one is taken; an
+    /// item keeps the temporary name only when both are taken. Returns one line per item that did not get its new name.
+    /// </summary>
+    public static IReadOnlyList<string> FinishRenames(IReadOnlyList<PendingIntent> leftovers, out int finished)
+    {
+        finished = 0;
+        var report = new List<string>();
+        foreach (var r in leftovers)
+        {
+            if (r.Via is not { } via || r.Target is not { } target) continue;
+            bool isDirectory = Directory.Exists(via);
+            string? outcome = null;
+            foreach (var destination in new[] { target, r.Path })
+            {
+                if (File.Exists(destination) || Directory.Exists(destination)) continue;
+                try
+                {
+                    if (isDirectory) Directory.Move(via, destination);
+                    else File.Move(via, destination);
+                    outcome = destination;
+                    break;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+            if (outcome == target) finished++;
+            else if (outcome is not null) report.Add($"{Path.GetFileName(outcome)}: the new name \"{Path.GetFileName(target)}\" is taken, so it has its original name again.");
+            else report.Add($"{via}: neither \"{Path.GetFileName(target)}\" nor \"{Path.GetFileName(r.Path)}\" is free; it keeps this temporary name.");
+        }
+        return report;
     }
 
     /// <summary>

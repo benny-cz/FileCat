@@ -116,6 +116,8 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.");
 
+    public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…" : "Clean up partial files";
+
     /// <summary>A copy or move whose sources are all known can continue with a new job.</summary>
     public bool CanRunAgain => Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.Destination is not null && Job.SourcesKnown;
 }

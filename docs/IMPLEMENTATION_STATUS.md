@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 181, Windows integration 45, App headless 14 tests
+dotnet test FileCat.slnx                              # Core 187, Windows integration 45, App headless 15 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -40,11 +40,12 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P1–P3 review loop | **Done (2026-09-27).** A: durable moves (flush + write-through before a source is deleted), tiered journal with fill records, direct small-file copies (100k × 4 KiB within the ≤25% budget), PI-05 metadata question, EFS/sparse, mount-point volumes, safe exit. C: bulk reads for whole-listing commands on spilled listings (see TV-01). B: history pins/clear, target-panel bookmarks, `.lnk` folders, guarded Space sizing, partial Ctrl+A and Ctrl+Shift+A, viewer list and go-to-line, Alt+F10 folder scan, Find within results, saved filters (`@name`), lossless F9 editing, "Run again…" with a durable source manifest. D: job routes, bounded drag-out, re-armed folder watches. |
 | P4 | **Done (engineering scope, 2026-09-28).** P4a: Registry views (explicit 32/64-bit), guarded jobs with undo, link-safe subtree delete, HKCR/HKCC writable route, search, `.reg` import/export, notifications, ACL inspection, and the per-plan administrator broker (`FileCat.PrivilegedHost`, ADR-14: "Retry as administrator" for access-denied items). P4b: fixed-length hex editor (ADR-05). TV-04/05/15 VM and hardware checks remain. |
 | P5 | **Done (engineering scope, 2026-09-28).** ZIP pack (Alt+F5), add (F5), delete (F8), rename (F2), folder entries (F7), and Test by staged, verified rebuilds with parent-version checks (ADR-07); nested archives read-only; F4 edit sessions with explicit, guarded commit that survive restarts. TV-07 native-engine parts wait for P8. |
+| Post-v1 slices | Bulk rename (Ctrl+M, OPS-007): masks, counters, regex, case, live preview blocking collisions, editor round-trip, swaps and chains through journaled temporary names (Operations can finish an interrupted rename), Undo guarded by identity. |
 | P6–P10 | Pending |
 
 ## Resume here (next slices, in order)
 
-1. **Post-v1 slices (§23.1, any order after P3):** bulk rename (Ctrl+M, first per D-35), link creation, checksum-manifest verification, per-item tool invocation. These commands exist in menus but are stubs.
+1. **Post-v1 slices (§23.1, any order after P3):** link creation, checksum-manifest verification, per-item tool invocation. Their menu commands are still stubs.
 2. **P6:** SFTP provider (connection profiles, host-key trust incl. `known_hosts`, agent/key/password auth with OS secret storage), browse, transfer with safe resume and download marks, SFTP edit sessions reusing P5 sessions, explicit SSH terminal.
 3. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 VM and hardware checks remain pending after code and automated tests.
 4. **Later:** P7 diff, sync, and inspectors; P8–P10.
@@ -57,5 +58,6 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 - **Junctions in tests:** .NET's recursive `Directory.Delete` fails on junctions here (its `DeleteVolumeMountPoint` call returns "parameter is incorrect"); delete junctions non-recursively first. Product deletes never use the recursive API.
 - **Benchmarks:** `FILECAT_COPY_BENCH=100000 FILECAT_COPY_BENCH_ROUNDS=2 dotnet test tests/FileCat.Platform.Windows.Tests --filter SmallFileCopyBenchmark --logger "console;verbosity=detailed"`.
   Rounds alternate the order. Other test runs or antivirus scans on the machine distort single runs by several times.
-- **Shell edits:** in perl substitutions, never write `\|` in the pattern with `|` delimiters (it becomes alternation and matches empty text at the file start).
+- **Shell edits:** make edits that contain a backslash-n escape with the Edit tool; heredoc scripts turn it into a real newline.
+  In perl substitutions, never write `\|` in the pattern with `|` delimiters (it becomes alternation and matches empty text at the file start).
   The plan file uses CRLF line endings.

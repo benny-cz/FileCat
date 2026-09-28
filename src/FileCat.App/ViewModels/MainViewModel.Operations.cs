@@ -549,6 +549,18 @@ public sealed partial class MainViewModel
         tab.Listing.Changed += Handler;
     }
 
+    /// <summary>Refreshes every tab that shows a folder on disk (after changes made outside a job, such as recovery).</summary>
+    public void RefreshAll()
+    {
+        foreach (var p in Workspace.Panels)
+        {
+            foreach (var t in p.Tabs)
+            {
+                if (t.Location is { IsFileSystem: true }) t.Refresh();
+            }
+        }
+    }
+
     /// <summary>Refreshes tabs showing a source or destination folder of the job (watchers also do this).</summary>
     private void RefreshAffected(Job job)
     {

@@ -146,6 +146,8 @@ public sealed class JobRequest
     /// is still guarded by its own expected state.
     /// </summary>
     public bool IndependentSteps { get; init; }
+    /// <summary>For a bulk <see cref="JobKind.Rename"/>: the new name of each source (same order and count).</summary>
+    public IReadOnlyList<string>? NewNames { get; init; }
     /// <summary>For <see cref="JobKind.ArchiveUpdate"/>: the archive and its changes.</summary>
     public Archives.ArchivePlan? Archive { get; init; }
     /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>
@@ -235,6 +237,8 @@ public enum UndoKind
     RemoveEmptyDirectory,
     /// <summary>Delete a created empty file when unchanged.</summary>
     RemoveCreatedFile,
+    /// <summary>One item of a bulk rename; all such steps are undone together, through temporary names when they depend on each other.</summary>
+    RenameBatchBack,
     /// <summary>Apply the recorded inverse Registry change as a new job; its own expected-state guard decides eligibility.</summary>
     RegistryInverse,
 }

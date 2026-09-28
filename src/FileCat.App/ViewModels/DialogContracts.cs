@@ -57,7 +57,10 @@ public interface IDialogService
     Task AlertAsync(string title, string message);
     Task<ChoiceResult> ChooseAsync(ChoiceOptions options);
     Task<string?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands);
-    /// <summary>Hosts arbitrary content with buttons; returns the chosen button result or null on Esc.</summary>
+    /// <summary>
+    /// Hosts arbitrary content with buttons; returns the chosen button result or null on Esc. The default button is
+    /// enabled only while <paramref name="canConfirm"/> (cheap, side-effect free; re-evaluated while open) is true.
+    /// </summary>
     Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
         Func<bool>? canConfirm = null);
     bool IsOpen { get; }

@@ -49,7 +49,7 @@
                   <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Button Content="Run again…" Tag="{Binding}" Click="OnRunAgainInterrupted" IsVisible="{Binding CanRunAgain}"
                             ToolTip.Tip="Removes the partial files, then copies or moves what is left; items that already arrived are skipped" />
-                    <Button Content="Clean up partial files" Tag="{Binding}" Click="OnCleanupInterrupted" />
+                    <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" />
                     <Button Content="Dismiss" Tag="{Binding}" Click="OnDismissInterrupted" />
                   </StackPanel>
                 </Grid>

@@ -207,9 +207,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
+        DispatcherTimer? requery = null;
         void Finish(object? r)
         {
             if (tcs.Task.IsCompleted) return;
+            requery?.Stop();
             Close(session!);
             tcs.TrySetResult(r);
         }
@@ -221,6 +223,14 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             btn.Click += (_, _) => { if (!b.IsDefault || canConfirm?.Invoke() != false) Finish(b.Result); };
             return btn;
         }).ToArray();
+        // The confirm button shows whether it would do anything (the predicate is cheap and side-effect free).
+        if (canConfirm is not null && btns.FirstOrDefault(b => b.IsDefault) is { } confirm)
+        {
+            confirm.IsEnabled = canConfirm();
+            requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            requery.Tick += (_, _) => confirm.IsEnabled = canConfirm();
+            requery.Start();
+        }
         var card = Card(title, content, ButtonRow(btns), 760);
         var cancel = buttons.FirstOrDefault(b => b.IsCancel);
         session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result));

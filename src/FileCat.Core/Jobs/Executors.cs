@@ -35,6 +35,8 @@ public static class JobExecutors
                 return new Archives.ZipTestExecutor(job, fs, journal);
             case JobKind.Attributes when fsSources:
                 return new AttributesExecutor(job, fs, journal);
+            case JobKind.Rename when fsSources && r.NewNames is not null:
+                return new Operations.BulkRenameExecutor(job, fs, journal);
             case JobKind.Rename when fsSources:
                 return new RenameExecutor(job, fs, journal);
             default:
@@ -1286,8 +1288,21 @@ public static class UndoService
     public static IReadOnlyList<string> Undo(Job job, IFileSystemOperations fs)
     {
         var report = new List<string>();
+        // A bulk rename is undone as one batch: renames that swapped names need the same temporary-name protocol back.
+        var batch = job.UndoSteps.Where(s => s.Kind == UndoKind.RenameBatchBack).ToList();
+        if (batch.Count > 0)
+        {
+            var identity = batch.ToDictionary(s => s.From, PathUtil.SafetyComparer);
+            var outcomes = Operations.BulkRenameRunner.Run(batch.Select(s => new Operations.BulkRenameRunner.Pair(s.From, s.To)).ToList(), fs, () => { },
+                (pair, info) => identity.TryGetValue(pair.Source, out var s) && !info.IsDirectory && (info.Size != s.Size || info.ModifiedUtc.Ticks != s.ModifiedTicks)
+                    ? "it changed since the rename" : null);
+            foreach (var o in outcomes)
+                report.Add(o.Done ? $"Renamed \"{Path.GetFileName(o.Source)}\" back to \"{Path.GetFileName(o.Target)}\"."
+                                  : $"Not undone: \"{Path.GetFileName(o.Source)}\": {o.Error}");
+        }
         foreach (var step in job.UndoSteps.Reverse())
         {
+            if (step.Kind == UndoKind.RenameBatchBack) continue;
             try
             {
                 switch (step.Kind)

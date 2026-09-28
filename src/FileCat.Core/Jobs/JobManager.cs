@@ -302,6 +302,12 @@ public sealed class JobManager
                 title = $"Change attributes of {What()}";
                 AddSourceScopes(writes);
                 break;
+            case JobKind.Rename when r.NewNames is { } newNames:
+                title = r.Description ?? $"Rename {What()}";
+                AddSourceScopes(writes);
+                for (int i = 0; i < Math.Min(newNames.Count, r.Sources.Count) && !large; i++)
+                    if (r.Sources[i].FileSystemPath is { } bp) writes.Add(Path.Join(Path.GetDirectoryName(bp), newNames[i]));
+                break;
             case JobKind.Rename:
                 title = $"Rename \"{r.Sources[0].Name}\" to \"{r.NewName}\"";
                 writes.Add(P(r.Sources[0]));

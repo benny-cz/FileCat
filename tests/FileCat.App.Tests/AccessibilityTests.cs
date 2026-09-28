@@ -39,7 +39,7 @@ public sealed class AccessibilityTests
         return problems;
     }
 
-    private static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow()
+    internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
         var folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
@@ -55,7 +55,7 @@ public sealed class AccessibilityTests
     }
 
 
-    private static void Close(AppServices services, Window window, string root)
+    internal static void Close(AppServices services, Window window, string root)
     {
         window.Close();
         if (window.DataContext is MainViewModel vm)
@@ -78,7 +78,7 @@ public sealed class AccessibilityTests
 
             // Shift+F8 opens the delete dialog directly. (F8 in this portable test platform first asks "Delete permanently?",
             // whose long wrapped message spins Avalonia's headless text layout; the native app renders it normally.)
-            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.DeletePermanent, CommandIds.MakeDirectory, CommandIds.FindFiles, CommandIds.MarkSelectMask })
+            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.DeletePermanent, CommandIds.MakeDirectory, CommandIds.FindFiles, CommandIds.MarkSelectMask, CommandIds.BulkRename })
             {
                 vm.Execute(command);
                 var dialogs = (OverlayDialogService)vm.Dialogs;
