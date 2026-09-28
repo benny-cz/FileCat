@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 325, Windows integration 66 (9 need a phone), App headless 32, Remote 42 tests
+dotnet test FileCat.slnx                              # Core 325, Windows integration 69 (9 need a phone), App headless 32, Remote 42 tests
 eng/package-linux.sh VERSION linux-x64                # Linux .tar.gz, .deb, AppImage (on Linux); eng/package-macos.sh VERSION on macOS
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
@@ -52,7 +52,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 
 ## Resume here (next slices, in order)
 
-1. **Plan complete in engineering scope (P1–P10), all ADRs decided.** Beyond the plan, if wanted later: searching whole disks for deleted partitions, drive reading on Linux/macOS (the plan gives them image workflows), aligned binary comparison, Windows ARM64 packages (PLATFORM-002).
+1. **Plan complete in engineering scope (P1–P10), all ADRs decided; the phase exit measurements are recorded** in `docs/validation/` (TV-01, P3, P5–P8 archives, P6–P8 remote, TV-08 comparison/search/Registry, P10 recovery), each with an opt-in benchmark that asserts its budgets. Beyond the plan, if wanted later: searching whole disks for deleted partitions, drive reading on Linux/macOS (the plan gives them image workflows), aligned binary comparison, Windows ARM64 packages (PLATFORM-002).
 2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15, P6 TV-12, P9 TV-10/13, and P10 (the elevated read on real drives) remain pending after code and automated tests.
 
 ## Notes for the next session
@@ -65,6 +65,11 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 - **Junctions in tests:** .NET's recursive `Directory.Delete` fails on junctions here (its `DeleteVolumeMountPoint` call returns "parameter is incorrect"); delete junctions non-recursively first. Product deletes never use the recursive API.
 - **Benchmarks:** `FILECAT_COPY_BENCH=100000 FILECAT_COPY_BENCH_ROUNDS=2 dotnet test tests/FileCat.Platform.Windows.Tests --filter SmallFileCopyBenchmark --logger "console;verbosity=detailed"`.
   Rounds alternate the order. Other test runs or antivirus scans on the machine distort single runs by several times.
+  The others are opt-in the same way: `FILECAT_ARCHIVE_BENCH`, `FILECAT_COMPARE_BENCH`, `FILECAT_SEARCH_BENCH`,
+  `FILECAT_REGISTRY_BENCH`, `FILECAT_REMOTE_BENCH` (+ `FILECAT_PYTHON`), `FILECAT_RECOVERY_BENCH`, `FILECAT_MTP_BENCH`.
+- **Profiling a test:** xUnit v3 runs tests in `<project>.exe`, not `testhost.exe`: sample that PID with `dotnet-stack report`.
+  Per-item costs found so far: durable journal writes per file, '~' in paths (8.3 expansion), per-item buffers, and
+  folder listings repeated per item.
 - **Shell edits:** make edits that contain a backslash-n escape with the Edit tool; heredoc scripts turn it into a real newline.
   In perl substitutions, never write `\|` in the pattern with `|` delimiters (it becomes alternation and matches empty text at the file start).
   The plan file uses CRLF line endings.
