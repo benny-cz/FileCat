@@ -45,7 +45,7 @@ public sealed class RemoteProfile
     /// <summary>The user chose unencrypted FTP knowingly (in the connection dialog), so connecting does not ask again.</summary>
     public bool PlainTextAccepted { get; set; }
     public string User { get; set; } = string.Empty;
-    /// <summary>"password", "key", or "keyboard-interactive".</summary>
+    /// <summary>"password", "key", "keyboard-interactive", or "agent" (keys held by an SSH agent).</summary>
     public string Auth { get; set; } = RemoteAuth.Password;
     /// <summary>Private key file for <see cref="RemoteAuth.Key"/> (OpenSSH, PuTTY, or PKCS#8 format).</summary>
     public string? KeyFile { get; set; }
@@ -93,4 +93,6 @@ public static class RemoteAuth
     public const string Password = "password";
     public const string Key = "key";
     public const string KeyboardInteractive = "keyboard-interactive";
+    /// <summary>Keys held by an SSH agent (ssh-agent, the Windows OpenSSH agent service, Pageant, password managers).</summary>
+    public const string Agent = "agent";
 }

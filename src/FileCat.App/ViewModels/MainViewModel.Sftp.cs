@@ -277,9 +277,9 @@ public sealed partial class MainViewModel
         var plainWarning = Para("FTP without encryption sends your password and files in the clear: anyone on the network path can read or change them. Prefer FTPS or SFTP.", "warning");
         var port = Box((existing?.Port ?? 22).ToString(System.Globalization.CultureInfo.InvariantCulture), "Port", 70);
         var user = Box(existing?.User ?? Environment.UserName, "User name", 160);
-        var auth = new ComboBox { ItemsSource = new[] { "Password", "Private key file", "Keyboard-interactive (codes, prompts)" }, MinWidth = 260 };
+        var auth = new ComboBox { ItemsSource = new[] { "Password", "Private key file", "Keyboard-interactive (codes, prompts)", "SSH agent (ssh-agent, Pageant, password managers)" }, MinWidth = 260 };
         Avalonia.Automation.AutomationProperties.SetName(auth, "Sign in with");
-        auth.SelectedIndex = existing?.Auth switch { RemoteAuth.Key => 1, RemoteAuth.KeyboardInteractive => 2, _ => 0 };
+        auth.SelectedIndex = existing?.Auth switch { RemoteAuth.Key => 1, RemoteAuth.KeyboardInteractive => 2, RemoteAuth.Agent => 3, _ => 0 };
         var keyFile = Box(existing?.KeyFile ?? DefaultKeyFile(), "Private key file", 360);
         var browse = new Button { Content = "Browse…" };
         var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { keyFile, browse } };
@@ -379,7 +379,7 @@ public sealed partial class MainViewModel
         profile.Protocol = Protocol();
         // Chosen here with the warning in view: connecting does not ask again.
         profile.PlainTextAccepted = profile.Protocol == RemoteProtocols.Ftp;
-        profile.Auth = RemoteProtocols.IsFtp(profile.Protocol) ? RemoteAuth.Password : auth.SelectedIndex switch { 1 => RemoteAuth.Key, 2 => RemoteAuth.KeyboardInteractive, _ => RemoteAuth.Password };
+        profile.Auth = RemoteProtocols.IsFtp(profile.Protocol) ? RemoteAuth.Password : auth.SelectedIndex switch { 1 => RemoteAuth.Key, 2 => RemoteAuth.KeyboardInteractive, 3 => RemoteAuth.Agent, _ => RemoteAuth.Password };
         profile.KeyFile = profile.Auth == RemoteAuth.Key ? keyFile.Text!.Trim() : null;
         profile.InitialPath = string.IsNullOrWhiteSpace(folder.Text) ? null : folder.Text.Trim();
         bool keep = save.IsChecked == true && persistent;

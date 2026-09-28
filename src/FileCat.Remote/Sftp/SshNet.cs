@@ -11,7 +11,9 @@ namespace FileCat.Remote.Sftp;
 /// delete and rename resolve the whole path with realpath first, which follows a link in the last part and would act
 /// on the link's target (see ADR-17).
 /// </summary>
-public sealed class SshNetConnector : ISftpConnector
+/// <param name="agentAddress">The SSH agent to use for agent sign-in; null for this user's own (SSH_AUTH_SOCK, or on
+/// Windows the OpenSSH agent service's pipe).</param>
+public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnector
 {
     public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(20);
 
@@ -19,6 +21,7 @@ public sealed class SshNetConnector : ISftpConnector
     {
         var methods = new List<AuthenticationMethod>();
         PrivateKeyFile? key = null;
+        SshAgentClient? agent = null;
         SftpClient? client = null;
         try
         {
@@ -27,6 +30,15 @@ public sealed class SshNetConnector : ISftpConnector
                 case RemoteAuth.Key:
                     key = LoadKey(profile, context);
                     methods.Add(new PrivateKeyAuthenticationMethod(profile.User, key));
+                    break;
+                case RemoteAuth.Agent:
+                    // Only needed while signing in: the agent signs the server's challenge, and the key never leaves it.
+                    agent = SshAgentClient.Connect(agentAddress ?? SshAgentClient.DefaultAddress()
+                        ?? throw new IOException("No SSH agent is known here: SSH_AUTH_SOCK is not set. Start ssh-agent and add your key with ssh-add."));
+                    var identities = agent.Identities();
+                    if (identities.Count == 0)
+                        throw new IOException("The SSH agent holds no keys. Add your key to it (ssh-add, or unlock your password manager), then connect again.");
+                    methods.Add(new PrivateKeyAuthenticationMethod(profile.User, new AgentKeySource(agent.Algorithms(identities))));
                     break;
                 case RemoteAuth.KeyboardInteractive:
                     methods.Add(Interactive(profile, context));
@@ -53,7 +65,9 @@ public sealed class SshNetConnector : ISftpConnector
         }
         catch (SshAuthenticationException ex)
         {
-            throw new RemoteAuthenticationException($"{profile.Display} did not accept the credentials: {ex.Message}", ex);
+            throw new RemoteAuthenticationException(profile.Auth == RemoteAuth.Agent
+                ? $"{profile.Display} accepted none of the SSH agent's keys for {profile.User}: {ex.Message}"
+                : $"{profile.Display} did not accept the credentials: {ex.Message}", ex);
         }
         catch (SshConnectionException ex)
         {
@@ -75,6 +89,7 @@ public sealed class SshNetConnector : ISftpConnector
         {
             client?.Dispose();
             key?.Dispose();
+            agent?.Dispose();
         }
     }
 

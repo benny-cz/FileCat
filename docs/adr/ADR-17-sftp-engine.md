@@ -65,8 +65,11 @@ therefore cannot become an ssh option. The session lands in the panel's folder, 
   temporary file left by a crash is named in the job's issues but is not cleaned up automatically.
 - No server-side copy; copies within a server stream through FileCat.
 - SFTP version 3 times have one-second precision; "newer" comparisons allow two seconds.
-- No SSH agent sign-in yet (the SshNet.Agent package is still to be evaluated). The terminal uses OpenSSH's own
-  `known_hosts`, not FileCat's.
+- SSH agent sign-in (2026-09-28) needs no package: FileCat speaks the agent protocol itself (list keys, sign) to
+  `SSH_AUTH_SOCK` or, on Windows, the OpenSSH agent service's pipe, which Pageant, 1Password, Bitwarden, and KeePassXC
+  also serve. Agent keys reach SSH.NET as host algorithms whose signatures the agent makes; RSA is offered as
+  rsa-sha2-512 and rsa-sha2-256 only, never SHA-1. The agent is used only while signing in and is never forwarded.
+  Tested against a real ssh-agent and sshd. The terminal uses OpenSSH's own `known_hosts`, not FileCat's.
 - Remote folders are not watched; Ctrl+R refreshes.
 
 ## Validation
