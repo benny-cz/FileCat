@@ -31,7 +31,8 @@ public sealed record InspectionReport(string Format, IReadOnlyList<InspectionSec
 public static class Inspectors
 {
     public static InspectionReport? Inspect(IContentSource source, CancellationToken ct) =>
-        PeInspector.Inspect(source, ct) ?? ImageInspector.Inspect(source, ct);
+        PeInspector.Inspect(source, ct) ?? ElfInspector.Inspect(source, ct) ?? MachOInspector.Inspect(source, ct) ?? ApkInspector.Inspect(source, ct) ??
+        MediaInspector.Inspect(source, ct) ?? ImageInspector.Inspect(source, ct) ?? HtmlInspector.Inspect(source, ct);
 }
 
 /// <summary>Bounded little- and big-endian reads over content; short reads return what exists.</summary>

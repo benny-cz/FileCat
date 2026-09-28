@@ -93,5 +93,7 @@ Read-only formats (Core tests on all platforms, `ArchiveFormatTests`):
   safely; extraction jobs skip links and never write outside the destination.
 - **Limits and other formats.** A gzip bomb is stopped by the ratio limit. An ISO built with DiscUtils reads back.
   Nesting works in both directions, and a renamed 7z opens by signature.
+- **Damage.** Corrupted copies of every fixture report damage and never raise other errors. SharpCompress's own
+  exception types (LZMA data errors, invalid format, zstd) become a damage report; a partial listing is kept.
 
 TV-07's remaining work is fuzzing the new engines and adding a native-engine worker if one is ever adopted.

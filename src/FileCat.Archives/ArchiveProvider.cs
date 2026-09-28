@@ -212,7 +212,13 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         string displayName = Path.GetFileName(DisplayArchive(root));
         var kind = root.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var k2) ? k2
             : ArchiveFormats.ByName(displayName) ?? throw new InvalidDataException("This file is not in an archive format FileCat reads.");
-        var index = ArchiveIndex.Build(ArchiveFormats.Open(path, kind, displayName), fi.Length, ct);
+        IMemberReader reader;
+        try { reader = ArchiveFormats.Open(path, kind, displayName); }
+        catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
+        {
+            throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
+        }
+        var index = ArchiveIndex.Build(reader, fi.Length, ct);
         _cache[key] = index;
         while (_cache.Count > 8)
         {
@@ -331,9 +337,9 @@ internal sealed class ArchiveIndex : IDisposable
             children[parent].Add(new Node(slash < 0 ? dir : dir[(slash + 1)..], true, -1, modified, null));
             children.TryAdd(dir, []);
         }
+        int count = 0;
         try
         {
-            int count = 0;
             foreach (var m in reader.List(warnings.Add, ct))
             {
                 if (++count > ArchiveProvider.MaxEntries)
@@ -364,6 +370,16 @@ internal sealed class ArchiveIndex : IDisposable
                 var tag = new ArchiveMemberTag(m.Path, m.Index, m.Size, m.CompressedSize, m.Encrypted, ordinal, unsafeReason, m.Kind, m.LinkTarget);
                 children[parent].Add(new Node(name, false, m.Size, modified, tag));
             }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException && count > 0)
+        {
+            // Damage after some members (any engine's error type): what was listed stays usable.
+            warnings.Add("The archive is damaged after the members listed: " + ex.Message);
+        }
+        catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
+        {
+            reader.Dispose();
+            throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
         }
         catch
         {

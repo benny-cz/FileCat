@@ -255,4 +255,50 @@ public sealed class ArchiveFormatTests : IDisposable
         Assert.Contains("jpg", List(archives, ArchiveProvider.ForFile(renamed, ArchiveKind.SevenZip)).Select(e => e.Name));
         Assert.Equal(outerTar + Path.DirectorySeparatorChar + "packed.zip", zip.GetDisplayPath(zipRoot));
     }
+
+    [Fact]
+    public void Damaged_archives_of_every_format_report_damage_never_other_errors()
+    {
+        var iso = Path.Combine(_dir.Path, "seed.iso");
+        var builder = new DiscUtils.Iso9660.CDBuilder { UseJoliet = true };
+        builder.AddFile(@"a.txt", new byte[3000]);
+        builder.Build(iso);
+        var tar = Path.Combine(_dir.Path, "seed.tar");
+        using (var file = File.Create(tar)) WriteTar(file);
+        var seeds = new[] { "Rar5.rar", "Rar.rar", "Rar5.solid.rar", "7Zip.LZMA2.7z", "7Zip.solid.7z", "Tar.tar.xz", "Tar.tar.zst" }
+            .Select(f => (Name: f, Bytes: File.ReadAllBytes(Path.Combine(Fixtures, f))))
+            .Append(("seed.iso", File.ReadAllBytes(iso))).Append(("seed.tar", File.ReadAllBytes(tar))).ToList();
+        var (_, archives, _) = Providers();
+        var rng = new Random(77);
+        int n = 0;
+        foreach (var (name, seed) in seeds)
+        {
+            for (int round = 0; round < 40; round++)
+            {
+                var copy = seed[..rng.Next(1, seed.Length + 1)];
+                for (int flips = rng.Next(1, 30); flips > 0; flips--) copy[rng.Next(copy.Length)] = (byte)rng.Next(256);
+                var path = Path.Combine(_dir.Path, $"{n++}-{name}");
+                File.WriteAllBytes(path, copy);
+                try
+                {
+                    var pending = new Stack<Location>([archives.GetContainerLocation(path)!]);
+                    for (int guard = 0; pending.Count > 0 && guard < 50; guard++)
+                    {
+                        var folder = pending.Pop();
+                        foreach (var e in List(archives, folder))
+                        {
+                            if (e.Kind == EntryKind.Directory) pending.Push(folder.WithPath(folder.Path.Length == 0 ? e.Name : folder.Path + "/" + e.Name));
+                            else
+                            {
+                                try { using var content = archives.OpenContent(archives.GetItemRef(folder, e)); }
+                                catch (Exception ex) when (ex is IOException or InvalidDataException) { }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or InvalidDataException) { }
+                archives.Release(path);
+            }
+        }
+    }
 }

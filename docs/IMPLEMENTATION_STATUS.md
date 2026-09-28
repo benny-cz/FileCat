@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 237, Windows integration 51, App headless 28, Remote 27 tests
+dotnet test FileCat.slnx                              # Core 244, Windows integration 51, App headless 28, Remote 27 tests
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -44,12 +44,12 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | Post-v1 slices | Bulk rename (Ctrl+M, OPS-007): masks, counters, regex, case, live preview blocking collisions, editor round-trip, swaps and chains through journaled temporary names (Operations can finish an interrupted rename), Undo guarded by identity. Create link (File menu): symbolic links (probed right, relative option), junctions, and hard links, checked per drive and target type before creation; Undo removes links that are unchanged (hard links only while provably another name of the file). Checksum manifests (§9.4): GNU, BSD-tagged, and SFV formats are recognized, never hashed automatically; verification is a read-only job with byte progress, per-file results, refused absolute and `..` paths, and failing files openable as a result set; the checksum dialog saves manifests. Apply command (Ctrl+G, FAR): one command per item with placeholders, split into tokens before substitution, previewed exactly, refusing option-like names, BatBadBut, and shells as programs (shell mode quotes names instead); a sequential job records each exit code with the output's tail. Dialogs confirm only a preview of the current input. |
 | P6 | **Done (engineering scope, 2026-09-28).** SFTP over SSH.NET (ADR-17): lstat listings, remote changes only through fresh listing entries (SSH.NET's path operations follow links), host keys in FileCat's own known_hosts seeded by OpenSSH's, saved connections with secrets in Windows Credential Manager, connect UI, F3, downloads with origin marks, uploads through temporary names, moves, delete, rename, new folder, F4 edit sessions with guarded commit, SSH terminal. Pending: SSH agent sign-in; TV-12 with varied servers. |
 | P7 | **Done (engineering scope, 2026-09-28).** Compare files (text side by side with within-line changes, exact binary ranges). Recursive comparison (Ctrl+F10 → Include subfolders): preview, result sets, and one-way synchronization (approved scope: Update and Mirror, every step previewed and excludable, letter-case collisions and unsafe names excluded, ordinary jobs; no two-way sync, no stored state; targets on disk only). Viewer Info mode (Ctrl+I): PE and image inspectors. Persistent working sets (Ctrl+Shift+W or F5 toward a set; the list's F7/F2/F8 act on sets only). Shell integration host (ADR-06, TV-16): quick view thumbnails and programs' own icons from a low-integrity helper in a job object. |
-| P8 | **In progress.** Done (approved 2026-09-28): read-only archives in `FileCat.Archives` (ADR-07): TAR family (in-box readers; gzip, bzip2, xz, zstd), 7z and RAR (SharpCompress 0.50.4), single compressed files, ISO/UDF (DiscUtils 1.0.89); forward cursors for compressed and solid archives, nesting with ZIP both ways, open by signature, Unpack. Next: FTP/FTPS, ELF/Mach-O/APK/AAB and media/HTML inspection, MTP, each behind its own dependency and format gate. |
+| P8 | **In progress.** Done (approved 2026-09-28): read-only archives in `FileCat.Archives` (ADR-07): TAR family (in-box readers; gzip, bzip2, xz, zstd), 7z and RAR (SharpCompress 0.50.4), single compressed files, ISO/UDF (DiscUtils 1.0.89); forward cursors for compressed and solid archives, nesting with ZIP both ways, open by signature, Unpack; engine errors become damage reports (fuzzed). Inspectors (Ctrl+I): ELF, Mach-O (universal too), Java class, APK/AAB (binary and protobuf manifests), MP4/MOV, Matroska/WebM, MP3, FLAC, WAV, AVI, Ogg, HTML; fuzzed. Next: FTP/FTPS, then MTP, each behind its own dependency gate. |
 | P9–P10 | Pending |
 
 ## Resume here (next slices, in order)
 
-1. **P8:** FTP/FTPS, then inspectors (ELF/Mach-O/APK/AAB, media/HTML), then MTP. SSH agent sign-in (SshNet.Agent evaluation) can join any slice.
+1. **P8:** FTP/FTPS, then MTP. SSH agent sign-in (SshNet.Agent evaluation) can join any slice.
 2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 and P6 TV-12 checks remain pending after code and automated tests.
 3. **Later:** P9–P10.
 

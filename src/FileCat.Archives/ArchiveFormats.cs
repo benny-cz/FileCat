@@ -247,8 +247,9 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
                 ct.ThrowIfCancellationRequested();
                 TarEntry? entry;
                 try { entry = reader.GetNextEntry(copyData: false); }
-                catch (Exception ex) when (ex is InvalidDataException or FormatException or EndOfStreamException or IOException or ArgumentException)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
+                    // Any damage, including a decompressor's own error types, ends the list here.
                     warn(index < 0 ? "This is not a TAR archive: " + ex.Message : "The archive is damaged after the members listed: " + ex.Message);
                     if (index < 0) throw new InvalidDataException("Not a TAR archive.", ex);
                     yield break;
