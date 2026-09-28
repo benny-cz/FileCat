@@ -551,6 +551,8 @@ public sealed partial class MainViewModel
             }
             catch (ObjectDisposedException) { }
         }
+        // Permissions change without a new modification time: shown values are read again.
+        if (job.Kind == JobKind.Attributes) Services.Metadata.Invalidate();
         RefreshAffected(job);
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);

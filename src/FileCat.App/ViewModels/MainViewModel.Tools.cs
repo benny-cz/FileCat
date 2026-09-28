@@ -440,12 +440,19 @@ public sealed partial class MainViewModel
             Notify("Attributes can be changed for file-system items.", true);
             return;
         }
+        if (!OperatingSystem.IsWindows())
+        {
+            await ChangeUnixAttributesAsync(tab, sel);
+            return;
+        }
         var infos = sel.Select(s => Services.Platform.FileOperations.TryGetInfo(s.FileSystemPath!)).Where(i => i is not null).Cast<FileSystemItemInfo>().ToList();
         bool? State(FileAttributes a) => infos.All(i => (i.Attributes & a) != 0) ? true : infos.All(i => (i.Attributes & a) == 0) ? false : null;
         CheckBox Box(string label, FileAttributes a) => new() { Content = label, IsThreeState = true, IsChecked = State(a), Tag = a };
         var boxes = new[] { Box("Read-only", FileAttributes.ReadOnly), Box("Hidden", FileAttributes.Hidden), Box("System", FileAttributes.System), Box("Archive", FileAttributes.Archive) };
         var modified = new TextBox { Text = infos.Count == 1 ? infos[0].ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : string.Empty, PlaceholderText = "unchanged (yyyy-MM-dd HH:mm:ss)" };
         var created = new TextBox { Text = infos.Count == 1 ? infos[0].CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : string.Empty, PlaceholderText = "unchanged" };
+        Avalonia.Automation.AutomationProperties.SetName(modified, "Modified");
+        Avalonia.Automation.AutomationProperties.SetName(created, "Created");
         var recursive = new CheckBox { Content = "Also apply to everything inside the marked folders (links are not followed)", IsVisible = sel.Any(s => s.IsContainer) };
         var body = new StackPanel { Spacing = 6, MinWidth = 480 };
         body.Children.Add(new TextBlock { Text = sel.Count == 1 ? sel[0].Name : Formatters.Plural(sel.Count, "item", "items"), FontWeight = Avalonia.Media.FontWeight.SemiBold });

@@ -198,6 +198,7 @@ public sealed partial class MainViewModel
                 tab?.GoForward();
                 break;
             case CommandIds.Refresh:
+                Services.Metadata.Invalidate(); // Reread means every column, permissions and versions too
                 tab?.Refresh();
                 break;
             case CommandIds.GoTo:

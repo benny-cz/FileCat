@@ -34,7 +34,11 @@ public readonly record struct MetadataValue(MetadataState State, object? Value =
     public static readonly MetadataValue Absent = new(MetadataState.Absent);
 }
 
-/// <summary>A metadata column's descriptor: stable id, cost class, applicability, producer, formatter, and sort key.</summary>
+/// <summary>
+/// A metadata column's descriptor: stable id, cost class, applicability, producer, formatter, and sort key. Fields read for
+/// files only unless <paramref name="Folders"/>; a value that can change without a new modification time (permissions)
+/// is read again after <paramref name="RefreshAfter"/>, while the old one stays on screen.
+/// </summary>
 public sealed record MetadataField(
     string Id,
     string Title,
@@ -43,7 +47,9 @@ public sealed record MetadataField(
     Func<string, CancellationToken, object?> Produce,
     Func<object?, string> Format,
     bool RightAlign = false,
-    Func<object?, IComparable?>? SortKey = null);
+    Func<object?, IComparable?>? SortKey = null,
+    bool Folders = false,
+    TimeSpan? RefreshAfter = null);
 
 /// <summary>
 /// Demand-driven metadata (plan §10): values are produced for rows the user can see, bounded per device,
@@ -56,6 +62,7 @@ public sealed class MetadataService
     private const int MaxOutstandingPerDevice = 4;
     private readonly DeviceIoScheduler _io;
     private readonly ConcurrentDictionary<string, MetadataValue> _cache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _producedAt = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _order = new();
     private readonly ConcurrentDictionary<string, byte> _inFlight = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, int> _outstanding = new(StringComparer.OrdinalIgnoreCase);
@@ -86,22 +93,29 @@ public sealed class MetadataService
     public MetadataValue Get(string fieldId, string path, in EntryData entry, string deviceKey, bool slowLocation, Func<bool>? isStillWanted = null)
     {
         if (!_fields.TryGetValue(fieldId, out var field)) return new MetadataValue(MetadataState.Unsupported, null, "unknown field");
-        if (entry.IsContainer || entry.Kind != EntryKind.File) return MetadataValue.Absent;
-        if (!field.AppliesToName(entry.Name)) return MetadataValue.Absent;
+        if (!Applies(field, entry)) return MetadataValue.Absent;
         if (entry.Has(EntryFlags.Offline)) return new MetadataValue(MetadataState.Unsupported, null, "not read from cloud placeholders");
         // Expensive columns never run automatically on network or removable locations (plan §10).
         if (slowLocation && field.Cost >= MetadataCost.Expensive) return new MetadataValue(MetadataState.Unsupported, null, "not computed on slow locations");
         var key = Key(path, entry, fieldId);
-        if (_cache.TryGetValue(key, out var v)) return v;
+        if (_cache.TryGetValue(key, out var v))
+        {
+            // Read again when due; the old value stays on screen until the new one arrives.
+            if (field.RefreshAfter is { } refresh && _producedAt.TryGetValue(key, out var at) && Environment.TickCount64 - at > refresh.TotalMilliseconds)
+                Schedule(key, field, path, deviceKey, isStillWanted);
+            return v;
+        }
         Schedule(key, field, path, deviceKey, isStillWanted);
         return MetadataValue.Pending;
     }
 
+    private static bool Applies(MetadataField field, in EntryData entry) =>
+        (entry.Kind == EntryKind.File || entry.Kind == EntryKind.Directory && field.Folders) && field.AppliesToName(entry.Name);
+
     /// <summary>Synchronous production for explicit analysis jobs (background threads only).</summary>
     public MetadataValue Compute(string fieldId, string path, in EntryData entry, CancellationToken ct)
     {
-        if (!_fields.TryGetValue(fieldId, out var field) || entry.IsContainer) return MetadataValue.Absent;
-        if (!field.AppliesToName(entry.Name)) return MetadataValue.Absent;
+        if (!_fields.TryGetValue(fieldId, out var field) || !Applies(field, entry)) return MetadataValue.Absent;
         var key = Key(path, entry, fieldId);
         if (_cache.TryGetValue(key, out var v) && v.State is MetadataState.Available or MetadataState.Absent) return v;
         var value = Produce(field, path, ct);
@@ -125,8 +139,11 @@ public sealed class MetadataService
             try
             {
                 if (isStillWanted is not null && !isStillWanted()) return;
-                Store(key, Produce(field, path, ct));
-                Notify();
+                var value = Produce(field, path, ct);
+                bool changed = !_cache.TryGetValue(key, out var old) || !old.Equals(value);
+                Store(key, value);
+                if (field.RefreshAfter is not null) _producedAt[key] = Environment.TickCount64;
+                if (changed) Notify();
             }
             finally
             {
@@ -156,9 +173,13 @@ public sealed class MetadataService
     private void Store(string key, MetadataValue value)
     {
         if (value.State == MetadataState.NotRequested) return;
-        _cache[key] = value;
-        _order.Enqueue(key);
-        while (_cache.Count > MaxCache && _order.TryDequeue(out var old)) _cache.TryRemove(old, out _);
+        if (_cache.TryAdd(key, value)) _order.Enqueue(key); // a value read again keeps its place
+        else _cache[key] = value;
+        while (_cache.Count > MaxCache && _order.TryDequeue(out var old))
+        {
+            _cache.TryRemove(old, out _);
+            _producedAt.TryRemove(old, out _);
+        }
     }
 
     private void Notify()
@@ -172,7 +193,13 @@ public sealed class MetadataService
         });
     }
 
-    public void Invalidate() => _cache.Clear();
+    /// <summary>Forgets every value (after a refresh or a change FileCat made, such as new permissions).</summary>
+    public void Invalidate()
+    {
+        _cache.Clear();
+        _producedAt.Clear();
+        _order.Clear();
+    }
 }
 
 /// <summary>First-party fields with bounded, managed parsing (no native parsers in-process; plan §6.2).</summary>
@@ -205,10 +232,33 @@ public static class BuiltInFields
         (p, _) => new FileInfo(p).LinkTarget,
         v => v as string ?? string.Empty);
 
+    /// <summary>Linux and macOS: permissions as ls prints them ("rwxr-xr-x"), for files and folders.</summary>
+    public static readonly MetadataField Permissions = new("permissions", "Permissions", MetadataCost.Cheap,
+        _ => true,
+        (p, _) => UnixPermissions.Stat(p)?.Mode,
+        v => v is UnixFileMode m ? UnixPermissions.Format(m) : string.Empty,
+        SortKey: v => v is UnixFileMode m ? (int)m : null,
+        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
+
+    public static readonly MetadataField Owner = new("owner", "Owner", MetadataCost.Cheap,
+        _ => true,
+        (p, _) => UnixPermissions.Stat(p) is { } s ? UnixPermissions.UserName(s.Uid) : null,
+        v => v as string ?? string.Empty,
+        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
+
+    public static readonly MetadataField Group = new("group", "Group", MetadataCost.Cheap,
+        _ => true,
+        (p, _) => UnixPermissions.Stat(p) is { } s ? UnixPermissions.GroupName(s.Gid) : null,
+        v => v as string ?? string.Empty,
+        Folders: true, RefreshAfter: TimeSpan.FromSeconds(5));
+
+    /// <summary>Where a file came from: Windows zones; the quarantine mark on macOS; a browser's origin URL on Linux.</summary>
     public static readonly MetadataField Zone = new("zone", "Origin", MetadataCost.Cheap,
-        _ => OperatingSystem.IsWindows(),
+        _ => true,
         (p, _) =>
         {
+            if (OperatingSystem.IsMacOS()) return Xattr.Get(p, UnixFileOperations.QuarantineAttribute) is { Length: > 0 } ? "Quarantined" : null;
+            if (OperatingSystem.IsLinux()) return Xattr.Get(p, UnixFileOperations.OriginAttribute) is { Length: > 0 } ? "Internet" : null;
             var ads = p + ":Zone.Identifier";
             if (!File.Exists(ads)) return null;
             foreach (var line in File.ReadLines(ads))
@@ -220,7 +270,9 @@ public static class BuiltInFields
         },
         v => v as string ?? string.Empty);
 
-    public static IReadOnlyList<MetadataField> All { get; } = [Version, Dimensions, LinkTarget, Zone];
+    /// <summary>The fields this OS can fill: file versions on Windows; permissions and ownership on Linux and macOS.</summary>
+    public static IReadOnlyList<MetadataField> All { get; } =
+        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone];
 }
 
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>

@@ -22,7 +22,9 @@ public static class FolderScan
         {
             try
             {
-                foreach (var child in new DirectoryInfo(dir).EnumerateDirectories("*", options))
+                var children = new DirectoryInfo(dir).GetDirectories("*", options);
+                Array.Sort(children, (x, y) => Listing.NaturalCompare.Compare(x.Name, y.Name, natural: true));
+                foreach (var child in children)
                 {
                     folders.Add(child.FullName);
                     if ((child.Attributes & FileAttributes.ReparsePoint) == 0) pending.Enqueue(child.FullName);

@@ -42,7 +42,47 @@ public sealed record ColumnSpec(ColumnField Field, string Header, double Width, 
 /// <summary>Built-in column profiles (the defaults of <see cref="ColumnProfileSet"/>) and dedicated layouts.</summary>
 public static class ColumnProfiles
 {
-    public static IReadOnlyList<(string Name, ColumnSpec[] Columns)> Defaults { get; } =
+    /// <summary>Linux and macOS show permissions and ownership where Windows shows attributes and file versions.</summary>
+    public static IReadOnlyList<(string Name, ColumnSpec[] Columns)> Defaults { get; } = OperatingSystem.IsWindows() ? WindowsDefaults() : UnixDefaults();
+
+    private static List<(string Name, ColumnSpec[] Columns)> UnixDefaults() =>
+    [
+        ("Details", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Extension, "Ext", 56),
+            new(ColumnField.Size, "Size", 86, RightAlign: true),
+            new(ColumnField.Modified, "Modified", 128),
+            new(ColumnField.Metadata, "Permissions", 88) { MetadataId = "permissions" },
+        ]),
+        ("Brief", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Size, "Size", 86, RightAlign: true),
+        ]),
+        ("Full", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Extension, "Ext", 56),
+            new(ColumnField.Size, "Size", 96, RightAlign: true),
+            new(ColumnField.Modified, "Modified", 128),
+            new(ColumnField.Created, "Created", 128),
+            new(ColumnField.Metadata, "Permissions", 88) { MetadataId = "permissions" },
+            new(ColumnField.Metadata, "Owner", 90) { MetadataId = "owner" },
+            new(ColumnField.Metadata, "Group", 90) { MetadataId = "group" },
+        ]),
+        ("Media", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Size, "Size", 86, RightAlign: true),
+            new(ColumnField.Metadata, "Dimensions", 110, RightAlign: true) { MetadataId = "dimensions" },
+            new(ColumnField.Metadata, "Origin", 90) { MetadataId = "zone" },
+            new(ColumnField.Modified, "Modified", 128),
+        ]),
+        ("Links", [
+            new(ColumnField.Name, "Name", 200, Star: true),
+            new(ColumnField.Metadata, "Link target", 260, Star: true) { MetadataId = "linkTarget" },
+            new(ColumnField.Modified, "Modified", 128),
+        ]),
+    ];
+
+    private static List<(string Name, ColumnSpec[] Columns)> WindowsDefaults() =>
     [
         ("Details", [
             new(ColumnField.Name, "Name", 200, Star: true),

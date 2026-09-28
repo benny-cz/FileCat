@@ -274,6 +274,26 @@ public sealed class JobEngineTests : IDisposable
         Assert.NotEqual(JobState.Failed, job.State);
     }
 
+    /// <summary>
+    /// A folder listed before a matching file (NTFS lists "a" before "z.cs"; ext4 in any order) once made its parent
+    /// implicitly, and the parent's own step then failed on "already exists" and waited for an answer.
+    /// </summary>
+    [Fact]
+    public async Task Filtered_copy_makes_each_folder_once_whatever_the_listing_order()
+    {
+        Directory.CreateDirectory(Path.Combine(_src, "a", "deeper"));
+        File.WriteAllText(Path.Combine(_src, "a", "deeper", "c.cs"), "c");
+        File.WriteAllText(Path.Combine(_src, "z.cs"), "z");
+        var stamp = new DateTime(2024, 5, 6, 7, 8, 9, DateTimeKind.Utc);
+        Directory.SetLastWriteTimeUtc(Path.Combine(_src, "a"), stamp);
+        var job = await WaitAsync(Submit(JobKind.Copy, [_src], _dst, o => o.Filter = Mask.Parse("*.cs")));
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.True(File.Exists(Path.Combine(_dst, "src", "z.cs")));
+        Assert.True(File.Exists(Path.Combine(_dst, "src", "a", "deeper", "c.cs")));
+        // A folder made on behalf of what is inside it still gets its own times.
+        Assert.Equal(stamp, Directory.GetLastWriteTimeUtc(Path.Combine(_dst, "src", "a")));
+    }
+
     [Fact]
     public async Task Create_and_rename_record_undo()
     {

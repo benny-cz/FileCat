@@ -283,5 +283,12 @@ public static class RecycleText
     };
 }
 
-/// <summary>Attribute and time changes (plan §23.3: basic metadata editing in P3).</summary>
-public sealed record AttributeChangeSet(FileAttributes Set, FileAttributes Clear, DateTime? ModifiedUtc, DateTime? CreatedUtc, bool Recursive);
+/// <summary>
+/// Attribute and time changes (plan §23.3: basic metadata editing in P3); on Linux and macOS also permission bits to set
+/// and clear (P9), applied as <see cref="FileSystem.UnixPermissions.Apply"/> describes.
+/// </summary>
+public sealed record AttributeChangeSet(FileAttributes Set, FileAttributes Clear, DateTime? ModifiedUtc, DateTime? CreatedUtc, bool Recursive,
+    UnixFileMode ModeSet = 0, UnixFileMode ModeClear = 0)
+{
+    public bool ChangesPermissions => (ModeSet | ModeClear) != 0;
+}

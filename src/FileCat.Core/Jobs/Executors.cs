@@ -424,7 +424,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     // ---- Copy -----------------------------------------------------------------------------------------
 
-    private Result CopyDirectory(string src, string dst, FileSystemItemInfo info)
+    /// <param name="ensureParent">
+    /// With a filter, folders are created only when something inside matches: a folder then asks its parent to exist first,
+    /// so every folder is made (and later given its times and permissions) by its own step, whatever order the file
+    /// system lists entries in.
+    /// </param>
+    private Result CopyDirectory(string src, string dst, FileSystemItemInfo info, Func<bool>? ensureParent = null)
     {
         Job.Checkpoint();
         Job.SetCurrent(src);
@@ -454,8 +459,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         bool EnsureCreated()
         {
             if (created || existing is not null) return true;
+            if (ensureParent is not null && !ensureParent()) return false;
             if (!TryIo(target, "create a folder", () => Fs.CreateDirectory(target))) return false;
             created = true;
+            UnixPermissions.TryCopyFolderMode(src, target, final: false); // no wider than the source while it fills
             return true;
         }
         // Without a filter, empty folders are recreated; with a filter only folders holding matches are.
@@ -470,8 +477,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Result r;
             if (ci.IsDirectory && !ci.IsLink)
             {
-                if (!EnsureCreatedForChild()) return Result.Failed;
-                r = CopyDirectory(child, childDst, ci);
+                r = CopyDirectory(child, childDst, ci, EnsureCreated);
             }
             else
             {
@@ -489,13 +495,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (_enumerationFailed.Remove(src)) allOk = false;
         if (created || existing is not null)
         {
+            if (created) UnixPermissions.TryCopyFolderMode(src, target, final: true);
             if (Options.PreserveTimestamps) TrySetTimes(target, info);
             if (created && Options.PreserveAttributes) TrySetAttributes(target, info.Attributes);
         }
         if (Move && allOk) RemoveIfEmpty(src);
         return allOk ? Result.Committed : anyTransferred ? Result.Failed : Result.Failed;
-
-        bool EnsureCreatedForChild() => Options.Filter is not null || EnsureCreated();
     }
 
     private readonly HashSet<string> _enumerationFailed = new(PathUtil.SafetyComparer);
@@ -1404,7 +1409,10 @@ public static class UndoService
     }
 }
 
-/// <summary>Sets attributes and times; recursive changes never follow links.</summary>
+/// <summary>
+/// Sets attributes, times, and (Linux, macOS) permissions. Recursive changes never follow links, and reach each folder
+/// after everything inside it, so taking access away from a folder cannot stop the change halfway.
+/// </summary>
 internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
     private const FileAttributes Editable = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive;
@@ -1413,25 +1421,37 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
     {
         var change = Job.Request.Attributes ?? throw new InvalidOperationException("No attribute change.");
         var sources = Job.Request.Sources;
+        var options = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true };
         for (int i = 0; i < sources.Count; i++)
         {
             Job.Checkpoint();
             var path = sources[i].FileSystemPath!;
-            bool ok = Apply(path, change);
-            if (ok && change.Recursive && Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
+            bool ok = true;
+            if (change.Recursive && Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
             {
-                foreach (var child in Directory.EnumerateFileSystemEntries(path, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true }))
+                var folders = new List<string>();
+                var inside = new System.IO.Enumeration.FileSystemEnumerable<(string Path, bool IsDirectory)>(path,
+                    (ref System.IO.Enumeration.FileSystemEntry e) => (e.ToFullPath(), e.IsDirectory), options);
+                foreach (var (child, isDirectory) in inside)
                 {
                     Job.Checkpoint();
-                    ok &= Apply(child, change);
+                    if (isDirectory) folders.Add(child);
+                    else ok &= Apply(child, change, inside: true);
+                }
+                // Deepest folders first: a folder changes only once nothing inside it is left to change.
+                for (int f = folders.Count - 1; f >= 0; f--)
+                {
+                    Job.Checkpoint();
+                    ok &= Apply(folders[f], change, inside: true);
                 }
             }
+            ok = Apply(path, change, inside: false) && ok;
             if (ok) Job.RootCompleted(i);
             else Job.RootFailed(i);
         }
     }
 
-    private bool Apply(string path, AttributeChangeSet change)
+    private bool Apply(string path, AttributeChangeSet change, bool inside)
     {
         Job.SetCurrent(path);
         Job.AddTotals(1, 0);
@@ -1440,17 +1460,35 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
             var info = Fs.TryGetInfo(path) ?? throw new FileNotFoundException("The item no longer exists.", path);
             var current = info.Attributes;
             var wanted = (current & ~change.Clear & Editable | change.Set & Editable) | current & ~Editable;
-            // Times first: a read-only file refuses time changes on some file systems.
-            if (change.ModifiedUtc is not null || change.CreatedUtc is not null)
+            bool times = change.ModifiedUtc is not null || change.CreatedUtc is not null;
+            // Windows: times first, as a read-only file refuses time changes on some file systems. On Linux and macOS the
+            // owner sets times whatever the permissions, and read-only there is derived from them.
+            bool readOnlyDance = times && OperatingSystem.IsWindows() && (current & FileAttributes.ReadOnly) != 0;
+            if (times)
             {
-                if ((current & FileAttributes.ReadOnly) != 0) Fs.SetAttributes(path, current & ~FileAttributes.ReadOnly);
+                if (readOnlyDance) Fs.SetAttributes(path, current & ~FileAttributes.ReadOnly);
                 Fs.SetTimes(path, change.CreatedUtc, change.ModifiedUtc);
             }
-            if (wanted != current || (current & FileAttributes.ReadOnly) != 0 && (change.ModifiedUtc is not null || change.CreatedUtc is not null))
+            if (wanted != current || readOnlyDance)
                 Fs.SetAttributes(path, wanted == 0 ? FileAttributes.Normal : wanted);
+            if (change.ChangesPermissions && !OperatingSystem.IsWindows()) ApplyMode(path, info, change, inside);
         });
         if (ok) Job.ItemDone();
         else Job.ItemFailed();
         return ok;
+    }
+
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    private void ApplyMode(string path, FileSystemItemInfo info, AttributeChangeSet change, bool inside)
+    {
+        if (info.IsLink)
+        {
+            // chmod would change whatever the link points to, which may be anywhere.
+            Issue(IssueSeverity.Info, path, "Permissions were not changed for a link: links have none of their own, and FileCat leaves what they point to unchanged.", StepOutcome.Skipped);
+            return;
+        }
+        var current = File.GetUnixFileMode(path);
+        var wanted = UnixPermissions.Apply(current, change.ModeSet, change.ModeClear, info.IsDirectory, inside);
+        if (wanted != current) File.SetUnixFileMode(path, wanted);
     }
 }

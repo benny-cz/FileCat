@@ -7,7 +7,8 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 244, Windows integration 55 (3 need a device), App headless 28, Remote 36 tests
+dotnet test FileCat.slnx                              # Core 278, Windows integration 55 (3 need a device), App headless 31, Remote 36 tests
+eng/package-linux.sh VERSION linux-x64                # Linux .tar.gz, .deb, AppImage (on Linux); eng/package-macos.sh VERSION on macOS
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
 ```
@@ -45,13 +46,13 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | P6 | **Done (engineering scope, 2026-09-28).** SFTP over SSH.NET (ADR-17): lstat listings, remote changes only through fresh listing entries (SSH.NET's path operations follow links), host keys in FileCat's own known_hosts seeded by OpenSSH's, saved connections with secrets in Windows Credential Manager, connect UI, F3, downloads with origin marks, uploads through temporary names, moves, delete, rename, new folder, F4 edit sessions with guarded commit, SSH terminal. Pending: SSH agent sign-in; TV-12 with varied servers. |
 | P7 | **Done (engineering scope, 2026-09-28).** Compare files (text side by side with within-line changes, exact binary ranges). Recursive comparison (Ctrl+F10 → Include subfolders): preview, result sets, and one-way synchronization (approved scope: Update and Mirror, every step previewed and excludable, letter-case collisions and unsafe names excluded, ordinary jobs; no two-way sync, no stored state; targets on disk only). Viewer Info mode (Ctrl+I): PE and image inspectors. Persistent working sets (Ctrl+Shift+W or F5 toward a set; the list's F7/F2/F8 act on sets only). Shell integration host (ADR-06, TV-16): quick view thumbnails and programs' own icons from a low-integrity helper in a job object. |
 | P8 | **Done (engineering scope, 2026-09-28).** Approved 2026-09-28: read-only archives in `FileCat.Archives` (ADR-07): TAR family (in-box readers; gzip, bzip2, xz, zstd), 7z and RAR (SharpCompress 0.50.4), single compressed files, ISO/UDF (DiscUtils 1.0.89); forward cursors for compressed and solid archives, nesting with ZIP both ways, open by signature, Unpack; engine errors become damage reports (fuzzed). Inspectors (Ctrl+I): ELF, Mach-O (universal too), Java class, APK/AAB (binary and protobuf manifests), MP4/MOV, Matroska/WebM, MP3, FLAC, WAV, AVI, Ogg, HTML; fuzzed. FTP/FTPS (FluentFTP 55.0.0, ADR-17 addendum): the same remote channel, jobs, and edit sessions as SFTP; FTPS certificates OS-validated or explicitly pinned (changed ones refused by default); unencrypted FTP only by explicit choice; tested against pyftpdlib. MTP (Windows Portable Devices, own COM interop): devices, storages, and folders by name path; F3, F5 both ways, F2, F7, F8 as jobs; verified on hardware (motorola edge 60 pro: writes inside a FileCat-test folder; iPhone: reads). |
-| P9–P10 | Pending |
+| P9 | **Engineering scope done (2026-09-28); release gates pending.** Approved packages: Linux `.tar.gz` (+ menu entry script), `.deb`, AppImage (appimagetool pinned by checksum); macOS arm64 `.app` zip, ad-hoc signed. CI builds, installs, and starts each on tags and manual runs. Linux and macOS: saved passwords in the keychain or the desktop keyring (Secret Service via libsecret; tested against GNOME Keyring in CI), permissions/owner/group columns and editing (chmod `X` inside folders, folders last, links untouched), copies that keep permissions and are never wider while written, the freedesktop trash on each item's own volume (private folders, no links, reserved names), download origins in xattrs, terminals, keep-awake, ⌘ keys. Fixed on the way: filtered copies that stalled when a folder was listed before a matching file (ext4 order). Pending: TV-10 on real desktops (Orca, VoiceOver, IME, file clipboard and drag with Nautilus and Finder), TV-13 clean installs; Developer ID signing and notarization are not approved; Windows ARM64 later. |
+| P10 | Pending (approved 2026-09-28: own read-only NTFS and FAT/exFAT recovery engine for images and devices; devices through a narrow read-only administrator broker, TV-09) |
 
 ## Resume here (next slices, in order)
 
-1. **P9:** usable Ubuntu and macOS releases (approved: Linux .tar.gz with .desktop, .deb, AppImage; macOS arm64 .app zip, unsigned). SSH agent sign-in (SshNet.Agent evaluation) can join any slice.
-2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15 and P6 TV-12 checks remain pending after code and automated tests.
-3. **Later:** P9–P10.
+1. **P10:** a Recovery location backed by FileCat's own read-only NTFS and FAT/exFAT readers: disk images first, then devices through a narrow read-only broker; evidence-based candidate classes; F5 only to a safe destination on another volume; tests with disposable images. SSH agent sign-in (SshNet.Agent evaluation) can join any slice.
+2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15, P6 TV-12, and P9 TV-10/13 checks remain pending after code and automated tests.
 
 ## Notes for the next session
 

@@ -227,8 +227,16 @@ public class PortableFileOperations : IFileSystemOperations
     {
         var full = Path.GetFullPath(path);
         if (OperatingSystem.IsWindows()) return Path.GetPathRoot(full) ?? path;
-        // Unix: one root holds every path, so the volume is the deepest mount point above the path. A rename across
-        // mount points would otherwise become the runtime's unguarded copy-and-delete.
+        return UnixVolumeRoot(full);
+    }
+
+    /// <summary>
+    /// Unix: one root holds every path, so the volume is the deepest mount point above the path. A rename across mount
+    /// points would otherwise become the runtime's unguarded copy-and-delete.
+    /// </summary>
+    public static string UnixVolumeRoot(string fullPath)
+    {
+        var full = fullPath;
         string best = "/";
         foreach (var mount in MountPoints())
         {
@@ -289,10 +297,18 @@ public class PortableFileOperations : IFileSystemOperations
         }
         long total = info.Length;
         bool created = false;
+        // Unix: while it is written, the copy is readable by no one the source excludes (a private key stays private).
+        var create = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, BufferSize = 1, Options = FileOptions.SequentialScan };
+        UnixFileMode mode = 0;
+        if (!OperatingSystem.IsWindows())
+        {
+            mode = File.GetUnixFileMode(source);
+            create.UnixCreateMode = UnixPermissions.WhileCopying(mode, isDirectory: false);
+        }
         try
         {
             using (var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
-            using (var dst = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan))
+            using (var dst = new FileStream(destination, create))
             {
                 created = true;
                 if (total > 0 && !options.DisablePreallocation) dst.SetLength(total);
@@ -311,7 +327,12 @@ public class PortableFileOperations : IFileSystemOperations
             }
             File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
             File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
-            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(destination, File.GetUnixFileMode(source));
+            if (!OperatingSystem.IsWindows())
+            {
+                // Drives without permissions (FAT, some network shares) refuse or ignore this; the copy itself is complete.
+                try { File.SetUnixFileMode(destination, UnixPermissions.ForCopy(mode, isDirectory: false)); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
         }
         catch
         {
@@ -403,18 +424,8 @@ public class PortableFileOperations : IFileSystemOperations
     public virtual RecycleClassification ClassifyRecycle(string path, long size) =>
         TrashDirectoryFor(path) is null ? RecycleClassification.NoRecycleBin : RecycleClassification.Recyclable;
 
-    /// <summary>The home trash when the path is on the same file system, otherwise null.</summary>
-    public static string? TrashDirectoryFor(string path)
-    {
-        if (OperatingSystem.IsWindows()) return null;
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrEmpty(home)) return null;
-        string trash = OperatingSystem.IsMacOS()
-            ? Path.Combine(home, ".Trash")
-            : Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } x ? x : Path.Combine(home, ".local", "share"), "Trash");
-        // Only the home volume is supported portably; renames across volumes would become copies.
-        return path.StartsWith(home, StringComparison.Ordinal) ? trash : null;
-    }
+    /// <summary>The trash on the path's own volume (see <see cref="UnixTrash"/>), or null where there is none.</summary>
+    public static string? TrashDirectoryFor(string path) => UnixTrash.For(path)?.Root;
 
     public virtual IReadOnlyList<RecycleResult> Recycle(IReadOnlyList<string> paths, Action<string>? itemStarted, CancellationToken ct)
     {
@@ -427,30 +438,15 @@ public class PortableFileOperations : IFileSystemOperations
                 continue;
             }
             itemStarted?.Invoke(p);
-            var trash = TrashDirectoryFor(p);
-            if (trash is null)
+            var trash = OperatingSystem.IsWindows() ? null : UnixTrash.For(p);
+            if (trash is null || OperatingSystem.IsWindows())
             {
                 results.Add(new RecycleResult(p, RecycleOutcome.Aborted, null, "No trash is available for this location."));
                 continue;
             }
             try
             {
-                var files = OperatingSystem.IsMacOS() ? trash : Path.Combine(trash, "files");
-                Directory.CreateDirectory(files);
-                var name = PathUtil.MakeUniqueName(Path.GetFileName(p), n => File.Exists(Path.Combine(files, n)) || Directory.Exists(Path.Combine(files, n)), Directory.Exists(p));
-                if (!OperatingSystem.IsMacOS())
-                {
-                    var info = Path.Combine(trash, "info");
-                    Directory.CreateDirectory(info);
-                    var sb = new StringBuilder("[Trash Info]\n");
-                    sb.Append("Path=").Append(Uri.EscapeDataString(p).Replace("%2F", "/")).Append('\n');
-                    sb.Append("DeletionDate=").Append(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")).Append('\n');
-                    File.WriteAllText(Path.Combine(info, name + ".trashinfo"), sb.ToString());
-                }
-                var dest = Path.Combine(files, name);
-                if (Directory.Exists(p)) Directory.Move(p, dest);
-                else File.Move(p, dest);
-                results.Add(new RecycleResult(p, RecycleOutcome.Recycled, dest));
+                results.Add(new RecycleResult(p, RecycleOutcome.Recycled, UnixTrash.Put(p, trash)));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -477,8 +473,7 @@ public class PortableFileOperations : IFileSystemOperations
                 error = "The item is no longer in the trash.";
                 return false;
             }
-            var info = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(recycledId)!)!, "info", Path.GetFileName(recycledId) + ".trashinfo");
-            TryDelete(info);
+            if (UnixTrash.InfoFileFor(recycledId) is { } info) TryDelete(info);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
