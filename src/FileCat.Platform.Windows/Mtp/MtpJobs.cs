@@ -55,6 +55,42 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
     private const int BufferSize = 1024 * 1024;
     private bool Moving => Job.Request.Kind == JobKind.Move;
 
+    /// <summary>
+    /// What each destination folder holds, listed once per job and kept current as this job adds and removes items.
+    /// Listing a folder costs about a quarter millisecond per item on a phone, so looking each name up by listing again
+    /// made copying many files quadratic (1,000 small files took over four minutes).
+    /// </summary>
+    private readonly Dictionary<string, List<PortableObject>> _folders = new(StringComparer.Ordinal);
+
+    private List<PortableObject> Contents(Location folder)
+    {
+        if (!_folders.TryGetValue(folder.Path, out var items))
+            _folders[folder.Path] = items = [.. Mtp.Session(folder.Session!).Children(Mtp.Resolve(folder), Job.Token)];
+        return items;
+    }
+
+    /// <summary><see cref="MtpProvider.FindSameName"/> against the job's index: letter case does not tell names apart.</summary>
+    private PortableObject? SameName(Location folder, string name)
+    {
+        var matches = Contents(folder).Where(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count <= 1) return matches.FirstOrDefault();
+        var exact = matches.Where(m => m.Name == name).ToList();
+        return exact.Count == 1 ? exact[0]
+            : throw new IOException($"Several items on the device are named \"{name}\" in different letter case; FileCat cannot tell which one is meant.");
+    }
+
+    private void Added(Location folder, PortableObject item)
+    {
+        var items = Contents(folder);
+        items.RemoveAll(i => i.Id == item.Id);
+        items.Add(item);
+    }
+
+    private void Removed(Location folder, string id)
+    {
+        if (_folders.TryGetValue(folder.Path, out var items)) items.RemoveAll(i => i.Id == id);
+    }
+
     public override void Execute()
     {
         var dest = Job.Request.Destination!;
@@ -104,7 +140,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             return false;
         }
         PortableObject? existing = null;
-        if (!TryIo(target, "read the device folder", () => existing = Mtp.FindSameName(folder, name))) return false;
+        if (!TryIo(target, "read the device folder", () => existing = SameName(folder, name))) return false;
         if (info.IsDirectory)
         {
             if (existing is { IsFolder: false })
@@ -113,7 +149,13 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
                 Issue(IssueSeverity.Error, target, "A file on the device has this folder's name; nothing was copied into it.", StepOutcome.Failed, "conflict-type");
                 return false;
             }
-            if (existing is null && !TryIo(target, "create the folder", () => Mtp.Session(folder.Session!).CreateFolder(Mtp.Resolve(folder), name))) return false;
+            if (existing is null)
+            {
+                string? created = null;
+                if (!TryIo(target, "create the folder", () => created = Mtp.Session(folder.Session!).CreateFolder(Mtp.Resolve(folder), name))) return false;
+                Added(folder, new PortableObject(created!, name, true, false, -1, DateTime.UtcNow, true, false));
+                _folders[Display(folder, name)] = []; // a new folder starts empty
+            }
             Mtp.Changed(folder);
             // A folder whose name differs only in letter case is the same folder there: merge into it, under its own name.
             var child = folder.WithPath(Display(folder, existing?.Name ?? name));
@@ -184,7 +226,9 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             try
             {
                 using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
-                using (var output = Mtp.Session(folder.Session!).CreateFile(Mtp.Resolve(folder), name, input.Length))
+                var session = Mtp.Session(folder.Session!);
+                var output = session.CreateFile(Mtp.Resolve(folder), name, input.Length);
+                using (output)
                 {
                     var buffer = new byte[BufferSize];
                     int n;
@@ -197,9 +241,12 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
                     }
                 }
                 Mtp.Changed(folder);
-                // The device reports what it stored; a short copy is an error, never a success.
-                var stored = Mtp.Find(folder, name);
+                // The device reports what it stored; a short copy is an error, never a success. The new object is read by
+                // its ID where the device tells it, and looked up by name otherwise.
+                var stored = (output as ICreatedObject)?.CreatedObjectId is { } id ? session.Get(id) : null;
+                if (stored is null || stored.Name != name) stored = Mtp.Find(folder, name);
                 if (stored is null || stored.Size != _sent) throw new IOException($"The device holds {(stored?.Size ?? 0):N0} of {_sent:N0} bytes, so the copy is incomplete.");
+                Added(folder, stored);
             }
             catch
             {
@@ -217,7 +264,11 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         try
         {
             Mtp.Changed(folder);
-            if (Mtp.Find(folder, name) is { IsFolder: false } leftover) Mtp.Session(folder.Session!).Delete(leftover.Id, recursive: false);
+            if (Mtp.Find(folder, name) is { IsFolder: false } leftover)
+            {
+                Mtp.Session(folder.Session!).Delete(leftover.Id, recursive: false);
+                Removed(folder, leftover.Id);
+            }
             Mtp.Changed(folder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -237,14 +288,22 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             RemoveUnfinished(folder, temporary);
             return false;
         }
+        Removed(folder, old.Id);
         Mtp.Changed(folder);
         bool renamed = false;
         try
         {
-            var written = Mtp.Find(folder, temporary) ?? throw new IOException("The new copy is no longer on the device.");
-            Mtp.Session(folder.Session!).Rename(written.Id, name);
+            var written = Contents(folder).FirstOrDefault(i => i.Name == temporary) ?? Mtp.Find(folder, temporary)
+                          ?? throw new IOException("The new copy is no longer on the device.");
+            var session = Mtp.Session(folder.Session!);
+            session.Rename(written.Id, name);
             Mtp.Changed(folder);
-            renamed = Mtp.Find(folder, name) is not null;
+            if (session.Get(written.Id) is { } after && after.Name == name)
+            {
+                Removed(folder, written.Id);
+                Added(folder, after);
+                renamed = true;
+            }
         }
         catch (IOException) { Mtp.Changed(folder); }
         if (renamed) return true;
@@ -289,7 +348,7 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
         for (int i = 2; i < 10_000; i++)
         {
             string candidate = ext.Length == 0 ? $"{stem} ({i})" : $"{stem} ({i}).{ext}";
-            if (Mtp.FindSameName(folder, candidate) is null) return candidate;
+            if (SameName(folder, candidate) is null) return candidate;
         }
         throw new IOException("No free name was found.");
     }

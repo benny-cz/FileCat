@@ -101,6 +101,28 @@ internal interface IPortableDevice
     void GetPnPDeviceID(out IntPtr id);
 }
 
+/// <summary>
+/// The stream CreateObjectWithPropertiesAndData returns: an IStream (its eleven methods hold their vtable places here and are
+/// called through ComTypes.IStream instead), plus the ID of the object it created once committed.
+/// </summary>
+[ComImport, Guid("88e04db3-1012-4d64-9996-f703a950d3f4"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IPortableDeviceDataStream
+{
+    void Read();
+    void Write();
+    void Seek();
+    void SetSize();
+    void CopyTo();
+    void Commit();
+    void Revert();
+    void LockRegion();
+    void UnlockRegion();
+    void Stat();
+    void Clone();
+    void GetObjectID([MarshalAs(UnmanagedType.LPWStr)] out string objectId);
+    void Cancel();
+}
+
 [ComImport, Guid("6a96ed84-7c73-4480-9938-bf5af477d426"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IPortableDeviceContent
 {

@@ -9,6 +9,12 @@ public sealed record PortableDeviceInfo(string Id, string Name, string Manufactu
 /// <summary>One object on a device: a storage (internal memory, SD card), a folder, or a file.</summary>
 public sealed record PortableObject(string Id, string Name, bool IsFolder, bool IsStorage, long Size, DateTime ModifiedUtc, bool CanDelete, bool IsHidden);
 
+/// <summary>A device write stream, once disposed: the ID of the object it created, when the device says (null otherwise).</summary>
+public interface ICreatedObject
+{
+    string? CreatedObjectId { get; }
+}
+
 /// <summary>
 /// One opened portable device (MTP phone, camera, player). MTP runs one operation at a time, so calls are serialized.
 /// Failures surface as <see cref="IOException"/> (or <see cref="UnauthorizedAccessException"/> when the device refuses,
@@ -382,8 +388,10 @@ public sealed class WpdSession : IDisposable
     }
 
     /// <summary>An IStream from the device as a .NET stream; a write stream commits when disposed, if it is complete.</summary>
-    private sealed class ComStream(WpdSession owner, IStream stream, bool writable, long expected = -1) : Stream
+    private sealed class ComStream(WpdSession owner, IStream stream, bool writable, long expected = -1) : Stream, ICreatedObject
     {
+        public string? CreatedObjectId { get; private set; }
+
         private bool _closed;
         private long _position;
 
@@ -436,6 +444,13 @@ public sealed class WpdSession : IDisposable
                             {
                                 try { stream.Commit(0); }
                                 catch (COMException ex) { throw owner.Translate(ex, "finish writing the file"); }
+                                // The new object's ID, so its size can be checked without listing the whole folder.
+                                try
+                                {
+                                    ((IPortableDeviceDataStream)stream).GetObjectID(out string id);
+                                    CreatedObjectId = id;
+                                }
+                                catch (Exception ex) when (ex is InvalidCastException or COMException) { }
                             }
                             else
                             {

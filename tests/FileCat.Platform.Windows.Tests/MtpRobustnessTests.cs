@@ -184,5 +184,44 @@ public sealed class MtpRobustnessTests : IDisposable
         Assert.True(replaced.State == JobState.Completed, Describe(replaced));
         Assert.True(big.AsSpan().SequenceEqual(rig.Read("keep.bin")));
         Assert.Equal("keep.bin=" + big.Length, rig.Names());
+
+        // Canceling a download part way: no partial file on disk, and the device answers the next request at once.
+        string down = Directory.CreateDirectory(Path.Combine(_local, "down")).FullName;
+        var canceledDown = await Run(rig, new JobRequest { Kind = JobKind.Copy, Sources = [new ItemRef(rig.Folder, "keep.bin", EntryKind.File)], Destination = Location.FileSystem(down) },
+            j => j.BytesDone > big.Length / 3);
+        Assert.Equal(JobState.Canceled, canceledDown.State);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(down));
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await Run(rig, Upload(rig, LocalFile("after.txt", "next"u8.ToArray())));
+        Assert.Equal("next"u8.ToArray(), rig.Read("after.txt"));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(15), $"The device took {clock.Elapsed} to answer after a canceled download.");
+    }
+
+    /// <summary>
+    /// How long listing a big folder takes (FILECAT_MTP_BENCH=1 with FILECAT_MTP_TEST=1): 1,000 small files are written
+    /// into FileCat-test, listed three times, and removed with the folder.
+    /// </summary>
+    [Fact]
+    public async Task Listing_a_folder_of_a_thousand_files()
+    {
+        if (Environment.GetEnvironmentVariable("FILECAT_MTP_BENCH") != "1") Assert.Skip("Set FILECAT_MTP_BENCH=1 (and FILECAT_MTP_TEST=1) to measure listing on a device.");
+        using var rig = Open();
+        if (rig is null) Assert.Skip("Set FILECAT_MTP_TEST=1 with an unlocked phone in file-transfer mode to run the device scenario.");
+        string many = Directory.CreateDirectory(Path.Combine(_local, "many")).FullName;
+        for (int i = 0; i < 1000; i++) File.WriteAllText(Path.Combine(many, $"photo-{i:D4}.jpg"), "x");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var upload = await Run(rig, new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(many, EntryKind.Directory)], Destination = rig.Folder });
+        Assert.True(upload.State == JobState.Completed, Describe(upload));
+        var log = TestContext.Current.TestOutputHelper;
+        log?.WriteLine($"MTP: 1,000 small files uploaded in {clock.Elapsed.TotalSeconds:F1} s.");
+        var folder = rig.Folder.WithPath(rig.Folder.Path + "/many");
+        for (int round = 0; round < 3; round++)
+        {
+            rig.Mtp.CloseAll(); // no remembered IDs: a cold listing, as after opening the folder
+            clock.Restart();
+            var listed = rig.List(folder);
+            log?.WriteLine($"MTP: listing 1,000 files took {clock.ElapsedMilliseconds} ms (round {round + 1}).");
+            Assert.Equal(1000, listed.Count);
+        }
     }
 }
