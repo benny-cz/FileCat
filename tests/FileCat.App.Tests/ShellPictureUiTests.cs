@@ -69,4 +69,42 @@ public sealed class ShellPictureUiTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    /// <summary>Where no Shell thumbnail comes (here: a member of a ZIP), FileCat's own decoder worker shows the picture.</summary>
+    [AvaloniaFact]
+    public async Task Quick_view_decodes_a_picture_itself_where_the_Shell_gives_none()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            using (var bitmap = new SkiaSharp.SKBitmap(300, 200))
+            {
+                using (var canvas = new SkiaSharp.SKCanvas(bitmap)) canvas.Clear(SkiaSharp.SKColors.Teal);
+                using var png = SkiaSharp.SKImage.FromBitmap(bitmap).Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                using var zip = System.IO.Compression.ZipFile.Open(Path.Combine(root, "files", "pictures.zip"), System.IO.Compression.ZipArchiveMode.Create);
+                using var entry = zip.CreateEntry("pic.png").Open();
+                png.SaveTo(entry);
+            }
+            var left = vm.Workspace.Panels[0];
+            var listing = left.ActiveTab!.Listing;
+            left.ActiveTab.Refresh();
+            for (int i = 0; i < 250 && !(listing.State == ListingState.Complete && listing.VisibleCount == 4); i++) await Task.Delay(20, ct);
+            vm.Workspace.Activate(left);
+            Assert.True(listing.FocusName("pictures.zip"));
+            vm.Execute(CommandIds.Enter);
+            for (int i = 0; i < 250 && !listing.FocusName("pic.png"); i++) await Task.Delay(20, ct);
+            vm.Execute(CommandIds.QuickView);
+
+            Image? Thumbnail() => window.GetVisualDescendants().OfType<Image>()
+                .Where(i => AutomationProperties.GetName(i) == "Thumbnail").OrderByDescending(i => i.IsVisible).FirstOrDefault();
+            for (int i = 0; i < 1000 && Thumbnail() is not { IsVisible: true, Source: not null }; i++) await Task.Delay(20, ct);
+            Assert.True(Thumbnail() is { IsVisible: true, Source: not null });
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("PNG, 300 × 200 (F3 shows the picture)", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

@@ -35,6 +35,11 @@ public sealed class QuickViewPane : Border
     };
     private string? _pictureKey;
     private bool _binary, _pictureShown, _isPictureFile;
+    private string? _pictureCaption; // what the shown picture is: the Shell's thumbnail, or FileCat's own decoding
+    private CancellationTokenSource? _pictureCts;
+
+    /// <summary>Pictures larger than this are not decoded just for a glance (F3 still shows them).</summary>
+    private const long MaxDecodedBytes = 64L * 1024 * 1024;
     private readonly DispatcherTimer _debounce;
     private TabViewModel? _source;
     private PagedReader? _reader;
@@ -86,9 +91,12 @@ public sealed class QuickViewPane : Border
 
     private void Close()
     {
+        _pictureCts?.Cancel();
+        _pictureCts = null;
         _picture.IsVisible = false;
         _picture.Source = null;
         _pictureKey = null;
+        _pictureCaption = null;
         _binary = _pictureShown = _isPictureFile = false;
         _text.SetReader(null, System.Text.Encoding.UTF8, 0);
         _hex.SetReader(null);
@@ -119,6 +127,7 @@ public sealed class QuickViewPane : Border
             return;
         }
         var services = tab.Services;
+        bool shellPicture = services.AllowedShellPictures is not null && item.FileSystemPath is not null;
         if (services.AllowedShellPictures is { } pictures && item.FileSystemPath is { } picturePath)
             _ = LoadPictureAsync(pictures, picturePath, e.Modified, (FileAttributes)e.Attributes, key);
         try
@@ -145,6 +154,9 @@ public sealed class QuickViewPane : Border
             _reader = result.Reader;
             _message.IsVisible = false;
             _isPictureFile = result.Picture;
+            // No Shell thumbnail coming (Linux, macOS, archives, servers, or Shell pictures turned off): FileCat decodes
+            // the picture itself, in its worker process.
+            if (result.Picture && !shellPicture && e.Size is > 0 and <= MaxDecodedBytes) _ = LoadDecodedPictureAsync(_reader.Source, key);
             if (result.Guess!.LooksBinary)
             {
                 _hex.SetReader(_reader);
@@ -180,13 +192,39 @@ public sealed class QuickViewPane : Border
         ShowPictureIfReady();
     }
 
+    /// <summary>A picture FileCat decodes itself (<see cref="PictureDecoder"/>), for the glance quick view gives.</summary>
+    private async Task LoadDecodedPictureAsync(IContentSource source, string key)
+    {
+        var cts = _pictureCts = new CancellationTokenSource();
+        double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
+        try
+        {
+            var picture = await PictureDecoder.DecodeAsync(source, (int)Math.Round(PictureSize * scale), cts.Token);
+            if (key != _shownKey || cts.IsCancellationRequested)
+            {
+                picture.Bitmap.Dispose();
+                return;
+            }
+            _picture.Source = picture.Bitmap;
+            _pictureKey = key;
+            _pictureCaption = $" · {picture.Format}, {picture.Width:N0} × {picture.Height:N0} (F3 shows the picture)";
+            ShowPictureIfReady();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or TimeoutException or OperationCanceledException or ObjectDisposedException or
+                                   InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // The bytes stay in hex; F3 says why the picture cannot be shown.
+        }
+    }
+
     private void ShowPictureIfReady()
     {
         if (_pictureShown || !_binary || _pictureKey is null || _pictureKey != _shownKey) return;
         _pictureShown = true;
         _picture.IsVisible = true;
         _hex.IsVisible = false;
-        _info.Text = _info.Text?.Replace(" · binary, shown as hex", string.Empty) + (_isPictureFile ? " · Shell thumbnail (F3 shows the picture)" : " · Shell thumbnail (F3 shows the bytes)");
+        _info.Text = _info.Text?.Replace(" · binary, shown as hex", string.Empty) +
+                     (_pictureCaption ?? (_isPictureFile ? " · Shell thumbnail (F3 shows the picture)" : " · Shell thumbnail (F3 shows the bytes)"));
     }
 
     private void ShowMessage(string text)
