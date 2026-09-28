@@ -60,6 +60,11 @@ public sealed class RecoveryItem
     /// <summary>Content kept inside the entry itself (NTFS resident data).</summary>
     public byte[]? Resident { get; init; }
 
+    /// <summary>
+    /// NTFS-compressed content, unit by unit; <see cref="Extents"/> then holds one entry per unit (its state), in order.
+    /// </summary>
+    public CompressedLayout? Compression { get; set; }
+
     public List<RecoveryItem> Children { get; } = [];
     public RecoveryItem? Parent { get; set; }
 
@@ -118,6 +123,24 @@ public sealed class RecoveryItem
 
     internal static string Bytes(long n) => n < 1024 ? $"{n} bytes" : n < 1024 * 1024 ? $"{n / 1024.0:0.#} KiB" : $"{n / (1024.0 * 1024):0.#} MiB";
 }
+
+public enum CompressedUnitKind : byte
+{
+    /// <summary>All the unit's clusters are real: stored uncompressed.</summary>
+    Raw,
+
+    /// <summary>Fewer real clusters than the unit spans: LZNT1 data, the rest sparse.</summary>
+    Compressed,
+
+    /// <summary>No real clusters: all zeros.</summary>
+    Sparse,
+}
+
+/// <summary>One NTFS compression unit: where its stored bytes are (volume ranges, in order), and whether they are lost.</summary>
+public sealed record CompressedUnit(IReadOnlyList<(long Offset, long Length)> Pieces, CompressedUnitKind Kind, bool Lost);
+
+/// <summary>An NTFS-compressed stream: equal units of <see cref="UnitBytes"/> bytes (the last one may be short).</summary>
+public sealed record CompressedLayout(int UnitBytes, IReadOnlyList<CompressedUnit> Units);
 
 /// <summary>One file system found on a source, with its reconstructed tree of deleted items.</summary>
 public sealed class RecoveryVolume

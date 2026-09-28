@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 299, Windows integration 61 (3 need a device), App headless 32, Remote 39 tests
+dotnet test FileCat.slnx                              # Core 301, Windows integration 61 (3 need a device), App headless 32, Remote 39 tests
 eng/package-linux.sh VERSION linux-x64                # Linux .tar.gz, .deb, AppImage (on Linux); eng/package-macos.sh VERSION on macOS
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
@@ -52,7 +52,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 
 ## Resume here (next slices, in order)
 
-1. **Plan complete in engineering scope (P1–P10).** Remaining work is external validation and polish: whole-disk recovery (deleted partitions) and NTFS compressed files; Linux/macOS drive reading (needs a helper there).
+1. **Plan complete in engineering scope (P1–P10).** Remaining work is external validation and polish: whole-disk recovery (deleted partitions); Linux/macOS drive reading (needs a helper there).
 2. **External release gates:** P3 cases in `docs/validation/P3-validations.md`; P4 TV-04/05/15, P6 TV-12, P9 TV-10/13, and P10 (the elevated read on real drives) remain pending after code and automated tests.
 
 ## Notes for the next session

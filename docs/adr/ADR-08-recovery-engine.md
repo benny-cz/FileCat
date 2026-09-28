@@ -29,7 +29,9 @@ How far each file system's evidence reaches:
   A fragmented file's FAT chain usually survives, so FileCat follows it when it is complete and consistent.
 - **NTFS** keeps a deleted record's names, parent reference, times, and data runs until the record is reused, and small
   files keep their content in the record. Parents are matched by record and sequence number, so a reused folder never
-  adopts the wrong children (they go to "Orphans"). Compressed and EFS-encrypted content is listed but not recovered.
+  adopts the wrong children (they go to "Orphans"). Compressed files are decompressed with FileCat's own LZNT1 reader,
+  one compression unit at a time: a unit with any cluster reused is lost as a whole, since compressed data cannot be
+  read in part; sparse units are zeros by definition. EFS-encrypted content is listed but not recovered.
 - Allocation is judged against the volume's own bitmap or FAT. "Free" can still hold other data that was written and
   freed since; the state says "unallocated now", which is all the evidence shows.
 

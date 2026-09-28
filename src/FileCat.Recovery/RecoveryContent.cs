@@ -50,6 +50,11 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         if (offset < 0 || offset >= Length) return 0;
         int count = (int)Math.Min(buffer.Length, Length - offset);
         var target = buffer[..count];
+        if (_item.Compression is { } layout)
+        {
+            ReadCompressed(layout, offset, target);
+            return count;
+        }
         if (_item.Resident is { } resident)
         {
             int available = (int)Math.Max(0, Math.Min(count, resident.Length - offset));
@@ -86,6 +91,76 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
             }
         }
         return count;
+    }
+
+    private int _cachedUnit = -1;
+    private byte[]? _unit;
+
+    /// <summary>Compressed content: each unit is read whole, decompressed when it was compressed, and kept for the next read.</summary>
+    private void ReadCompressed(CompressedLayout layout, long offset, Span<byte> target)
+    {
+        int done = 0;
+        while (done < target.Length)
+        {
+            long position = offset + done;
+            int index = (int)(position / layout.UnitBytes);
+            int within = (int)(position % layout.UnitBytes);
+            int n = Math.Min(target.Length - done, layout.UnitBytes - within);
+            var unit = Unit(layout, index);
+            if (unit is null) target.Slice(done, n).Clear();
+            else unit.AsSpan(within, n).CopyTo(target[done..]);
+            done += n;
+        }
+    }
+
+    private byte[]? Unit(CompressedLayout layout, int index)
+    {
+        lock (_lock)
+        {
+            if (index == _cachedUnit) return _unit;
+        }
+        if (index >= layout.Units.Count) return null;
+        var unit = layout.Units[index];
+        long start = (long)index * layout.UnitBytes;
+        long length = Math.Min(layout.UnitBytes, Length - start);
+        byte[]? bytes = null;
+        if (!unit.Lost && unit.Kind != CompressedUnitKind.Sparse)
+        {
+            try
+            {
+                var stored = new byte[unit.Pieces.Sum(p => p.Length)];
+                int at = 0;
+                foreach (var (pieceOffset, pieceLength) in unit.Pieces)
+                {
+                    int done = 0;
+                    while (done < pieceLength)
+                    {
+                        int n = _volume.Read(pieceOffset + done, stored.AsSpan(at + done, (int)pieceLength - done));
+                        if (n <= 0) throw new IOException("The volume ended inside a compression unit.");
+                        done += n;
+                    }
+                    at += (int)pieceLength;
+                }
+                bytes = new byte[layout.UnitBytes];
+                if (unit.Kind == CompressedUnitKind.Raw) stored.AsSpan(0, Math.Min(stored.Length, bytes.Length)).CopyTo(bytes);
+                else Lznt1.Decompress(stored, bytes);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException)
+            {
+                bytes = null;
+                Missing(start, length);
+            }
+        }
+        else if (unit.Kind == CompressedUnitKind.Sparse && !unit.Lost)
+        {
+            bytes = new byte[layout.UnitBytes];
+        }
+        lock (_lock)
+        {
+            _cachedUnit = index;
+            _unit = bytes;
+        }
+        return bytes;
     }
 
     private void Missing(long offset, long length)

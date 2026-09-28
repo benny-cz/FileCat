@@ -29,8 +29,9 @@ internal sealed class NtfsScanner
     private sealed record Parsed(long Number, ushort Sequence, bool InUse, bool IsDirectory, string? Name, long ParentRecord, ushort ParentSequence,
         DateTime? Modified, DateTime? Created, Data? Stream, int NamedStreams);
 
-    /// <summary>The unnamed $DATA stream: resident bytes, or runs over clusters.</summary>
-    private sealed record Data(byte[]? Resident, List<(long Vcn, long Lcn, long Length)> Runs, long Size, long InitializedSize, bool Compressed, bool Encrypted, bool RunsComplete);
+    /// <summary>The unnamed $DATA stream: resident bytes, or runs over clusters (compressed in units of <see cref="UnitClusters"/>).</summary>
+    private sealed record Data(byte[]? Resident, List<(long Vcn, long Lcn, long Length)> Runs, long Size, long InitializedSize, bool Compressed, bool Encrypted,
+        bool RunsComplete, int UnitClusters);
 
     private NtfsScanner(IBlockSource volume, byte[] boot, VolumeSlot slot)
     {
@@ -169,8 +170,7 @@ internal sealed class NtfsScanner
         }
         if (stream.Compressed)
         {
-            file.Evidence.Add("NTFS stored it compressed; FileCat does not recover compressed NTFS files yet.");
-            file.State = RecoveryState.NameOnly;
+            DescribeCompressed(file, stream);
             return;
         }
         if (stream.Resident is not null)
@@ -202,6 +202,68 @@ internal sealed class NtfsScanner
         file.Extents = extents;
         if (extents.Count(e => e.State is ExtentState.Free or ExtentState.InUse) > 1 && stream.Runs.Count > 1)
             file.Evidence.Add($"Its record lists its {stream.Runs.Count} pieces.");
+        file.Classify(_clusterSize);
+    }
+
+    /// <summary>
+    /// A compressed stream, unit by unit: a unit whose stored clusters are all free comes back (decompressed when it was
+    /// compressed); a unit with any cluster in use by other data now is lost as a whole, since compressed data cannot be
+    /// read in part.
+    /// </summary>
+    private void DescribeCompressed(RecoveryItem file, Data stream)
+    {
+        if (stream.UnitClusters == 0 || stream.Resident is not null)
+        {
+            file.Evidence.Add("NTFS stored it compressed, but its compression unit is not recorded.");
+            file.State = RecoveryState.NameOnly;
+            return;
+        }
+        long unitBytes = stream.UnitClusters * _clusterSize;
+        long count = (stream.Size + unitBytes - 1) / unitBytes;
+        if (count > 10_000_000 || unitBytes > int.MaxValue / 2)
+        {
+            file.Evidence.Add("Its compressed layout is larger than FileCat reads.");
+            file.State = RecoveryState.NameOnly;
+            return;
+        }
+        var runs = stream.Runs.OrderBy(r => r.Vcn).ToList();
+        var units = new List<CompressedUnit>();
+        var extents = new List<Extent>();
+        for (long u = 0; u < count; u++)
+        {
+            long first = u * stream.UnitClusters, end = first + stream.UnitClusters;
+            var pieces = new List<(long, long)>();
+            long real = 0;
+            bool lost = false, known = true;
+            for (long vcn = first; vcn < end;)
+            {
+                var run = runs.FirstOrDefault(r => vcn >= r.Vcn && vcn < r.Vcn + r.Length);
+                if (run.Length == 0)
+                {
+                    known = vcn * _clusterSize >= stream.Size; // clusters past the end need no run
+                    break;
+                }
+                long take = Math.Min(end, run.Vcn + run.Length) - vcn;
+                if (run.Lcn >= 0)
+                {
+                    long lcn = run.Lcn + (vcn - run.Vcn);
+                    pieces.Add((lcn * _clusterSize, take * _clusterSize));
+                    real += take;
+                    for (long c = 0; c < take && !lost; c++) lost = lcn + c >= _totalClusters || Allocated(lcn + c);
+                }
+                vcn += take;
+            }
+            var kind = real == 0 ? CompressedUnitKind.Sparse : real >= stream.UnitClusters ? CompressedUnitKind.Raw : CompressedUnitKind.Compressed;
+            lost |= !known;
+            units.Add(new CompressedUnit(pieces, kind, lost));
+            long length = Math.Min(unitBytes, stream.Size - u * unitBytes);
+            var state = lost ? ExtentState.InUse : kind == CompressedUnitKind.Sparse ? ExtentState.Zero : ExtentState.Free;
+            if (extents.Count > 0 && extents[^1].State == state) extents[^1] = extents[^1] with { Length = extents[^1].Length + length };
+            else extents.Add(new Extent(0, length, state));
+        }
+        file.Compression = new CompressedLayout((int)unitBytes, units);
+        file.Extents = extents;
+        file.Evidence.Add($"NTFS stored it compressed in {units.Count} unit{(units.Count == 1 ? "" : "s")} of {RecoveryItem.Bytes(unitBytes)}; FileCat decompresses them (LZNT1).");
         file.Classify(_clusterSize);
     }
 
@@ -264,6 +326,7 @@ internal sealed class NtfsScanner
         int named = 0;
         var pieces = new List<(long Vcn, long Lcn, long Length)>();
         long size = 0, initialized = 0, lastVcn = -1;
+        int unitClusters = 0;
         bool compressed = false, encrypted = false, hasNonResident = false;
         byte[]? resident = null;
         List<long>? extensions = null;
@@ -314,6 +377,8 @@ internal sealed class NtfsScanner
                     else
                     {
                         hasNonResident = true;
+                        // Compression unit: 2^n clusters, in the first instance of the attribute.
+                        if (attr.Length > 34 && BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(16)) == 0 && attr[34] is > 0 and <= 8) unitClusters = 1 << attr[34];
                         AddRuns(attr, pieces, ref size, ref initialized, ref lastVcn);
                     }
                     break;
@@ -336,7 +401,7 @@ internal sealed class NtfsScanner
         if (resident is not null || hasNonResident)
         {
             long needed = (size + _clusterSize - 1) / _clusterSize;
-            data = new Data(hasNonResident ? null : resident, pieces, size, initialized, compressed, encrypted, !hasNonResident || lastVcn + 1 >= needed);
+            data = new Data(hasNonResident ? null : resident, pieces, size, initialized, compressed, encrypted, !hasNonResident || lastVcn + 1 >= needed, unitClusters);
         }
         return new Parsed(number, sequence, (flags & 1) != 0, (flags & 2) != 0, name, parent, parentSequence, modified, created, data, named);
     }

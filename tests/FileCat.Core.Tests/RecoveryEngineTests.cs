@@ -26,12 +26,17 @@ internal static class RecoveryFixtures
         }
     }
 
-    /// <summary>What the fixture script wrote into a file of this name and size.</summary>
+    /// <summary>
+    /// What the fixture script wrote into a file of this name and size (packed/gaps.txt has 128 KiB of zeros after its
+    /// first 70,000 bytes, which NTFS keeps as sparse compression units).
+    /// </summary>
     public static byte[] Content(string name, long size)
     {
         var bytes = new List<byte>((int)size + 32);
         for (int line = 0; bytes.Count < size; line++) bytes.AddRange(Encoding.UTF8.GetBytes($"{name}:{line:D8}\n"));
-        return bytes.Take((int)size).ToArray();
+        var content = bytes.Take((int)size).ToArray();
+        if (name == "gaps.txt" && size > 70000) content.AsSpan(70000, (int)Math.Min(131072, size - 70000)).Clear();
+        return content;
     }
 
     public static RecoveryItem? Find(RecoveryItem root, string path)
@@ -141,6 +146,17 @@ public sealed class RecoveryEngineTests
             Assert.True(overwritten is not null, "old/overwritten.txt was not found in:\n" + tree);
             Assert.True(overwritten.State is RecoveryState.Overwritten or RecoveryState.Partial, overwritten.State.ToString());
             Assert.Equal(20000, overwritten.Size);
+            if (fileSystem == "NTFS")
+            {
+                // Compressed (LZNT1) files, one with all-zero units that NTFS keeps sparse: decompressed exactly.
+                foreach (var (path, size) in new[] { ("packed/notes.txt", 200000), ("packed/gaps.txt", 231072) })
+                {
+                    var packed = RecoveryFixtures.Find(volume.Root, path);
+                    Assert.True(packed is { State: RecoveryState.Recoverable, Compression: not null }, $"{path}: {packed?.State}\n{tree}");
+                    Assert.Equal(RecoveryFixtures.Content(Path.GetFileName(path), size), Recover(source, volume, packed!));
+                }
+                Assert.Contains(RecoveryFixtures.Find(volume.Root, "packed/gaps.txt")!.Compression!.Units, u => u.Kind == CompressedUnitKind.Sparse);
+            }
             // A file written in two pieces: exFAT's surviving chain and NTFS's runs give it back whole; FAT cannot know.
             var frag = RecoveryFixtures.Find(volume.Root, "frag-a.bin")!;
             Assert.Equal(fileSystem is "exFAT" or "NTFS" ? RecoveryState.Recoverable : RecoveryState.Partial, frag.State);
