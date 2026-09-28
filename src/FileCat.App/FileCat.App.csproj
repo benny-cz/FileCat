@@ -23,6 +23,8 @@
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
     <ProjectReference Include="..\FileCat.Remote\FileCat.Remote.csproj" />
+    <!-- The Shell helper (TV-16) sits beside FileCat.exe; FileCat starts it on first use. -->
+    <ProjectReference Include="..\FileCat.ShellHost\FileCat.ShellHost.csproj" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
   </ItemGroup>
 </Project>

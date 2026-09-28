@@ -65,6 +65,9 @@ public sealed class AppServices : IDisposable
         });
         Providers.Register(SftpProvider);
         Remote.Sftp.SftpJobs.Register();
+        // Shell handlers run only in the restricted helper beside FileCat (plan §8.2, TV-16), started on first use.
+        if (FileCat.Platform.Windows.Shell.ShellHostClient.FindExecutable() is { } shellHelper)
+            ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
         EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         Columns = new Controls.ColumnProfileSet(Settings.ColumnProfiles);
@@ -113,6 +116,12 @@ public sealed class AppServices : IDisposable
     /// <summary>Persistent external edits of archive members (plan §14.2).</summary>
     public Core.Edit.EditSessionStore EditSessions { get; }
     public Core.Search.ResultSetProvider ResultSets { get; }
+    /// <summary>Shell thumbnails and per-file icons from the restricted helper; null where this build has none.</summary>
+    public FileCat.Platform.Windows.Shell.ShellPreviews? ShellPictures { get; }
+
+    /// <summary>The helper, when the user allows Shell pictures.</summary>
+    public FileCat.Platform.Windows.Shell.ShellPreviews? AllowedShellPictures => Settings.ShellPictures ? ShellPictures : null;
+
     /// <summary>Named, persistent reference sets (P7).</summary>
     public Core.Search.WorkingSets WorkingSets { get; }
 
@@ -222,6 +231,7 @@ public sealed class AppServices : IDisposable
     public void Dispose()
     {
         WorkingSets.Dispose();
+        ShellPictures?.Dispose();
         Sftp.Dispose();
         Io.Dispose();
         Platform.Dispose();

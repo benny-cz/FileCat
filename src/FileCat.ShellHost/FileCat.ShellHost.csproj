@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Shell integration host (plan §6.2, §8.2, TV-16): Windows Shell thumbnail and icon handlers run here, never in
+    FileCat. Started by FileCat at low integrity inside a job object; it has no window and answers over its pipes.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>FileCat.ShellHost</RootNamespace>
+    <AssemblyName>FileCat.ShellHost</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\FileCat.App\Assets\filecat.ico</ApplicationIcon>
+    <Description>FileCat Shell helper: runs Windows thumbnail and icon handlers outside FileCat</Description>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
+  </ItemGroup>
+</Project>

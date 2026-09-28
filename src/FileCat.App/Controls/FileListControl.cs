@@ -632,7 +632,7 @@ public sealed class FileListControl : Control
             if (i == 0)
             {
                 double iconX = colX + MarkGutter;
-                var icon = Tab?.Services.Icons.GetIcon(e);
+                var icon = Tab?.Services.Icons.GetIcon(e, Tab.Location);
                 if (icon is not null)
                 {
                     var iconRect = new Rect(iconX, y + (_rowHeight - IconSize) / 2, IconSize, IconSize);

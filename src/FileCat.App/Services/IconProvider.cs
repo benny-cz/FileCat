@@ -75,11 +75,12 @@ public sealed class IconProvider
         return IconKind.File;
     }
 
-    public IImage GetIcon(in EntryData e)
+    /// <param name="folder">Where the entry is listed; lets programs show their own icons through the Shell helper.</param>
+    public IImage GetIcon(in EntryData e, Location? folder = null)
     {
         if (UseNativeIcons && Native is not null && e.Kind is EntryKind.File or EntryKind.Directory or EntryKind.Drive)
         {
-            var img = Native.GetIcon(e);
+            var img = Native.GetIcon(e, folder);
             if (img is not null) return img;
         }
         var kind = Classify(e);
@@ -92,7 +93,7 @@ public sealed class IconProvider
 public interface INativeIconSource
 {
     /// <summary>Returns a cached icon, or null while it loads or when unavailable. Must not block.</summary>
-    IImage? GetIcon(in EntryData entry);
+    IImage? GetIcon(in EntryData entry, Location? folder = null);
 
     event Action? IconsLoaded;
 }

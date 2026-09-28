@@ -100,8 +100,25 @@ public static class SettingsDialog
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
         var updates = new CheckBox { Content = "Check for new versions (only notifies; never downloads). Off means FileCat makes no network requests.", IsChecked = s.CheckForUpdates };
+        bool helper = vm.Services.ShellPictures is not null;
+        var shellPictures = new CheckBox
+        {
+            Content = "Shell pictures: thumbnails in quick view and programs' own icons, from Windows' handlers run in a separate restricted process",
+            IsChecked = s.ShellPictures,
+            IsEnabled = helper,
+        };
+        var shellSlow = new CheckBox
+        {
+            Content = "…also on network and removable drives (their handlers may contact other computers)",
+            IsChecked = s.ShellPicturesOnNetworkAndRemovable,
+            IsEnabled = helper,
+        };
+        var shellNote = Note(helper
+            ? "Shortcuts, internet shortcuts, libraries, themes, desktop.ini, and cloud placeholders are never handed to the Shell." +
+              (vm.Services.ShellPictures?.DisabledReason is { } off ? " " + off : string.Empty)
+            : "This build has no Shell helper, so icons come from file types only.");
         var paths = new SelectableTextBlock { Text = $"Settings: {vm.Services.Paths.SettingsDirectory}\nLocal data: {vm.Services.Paths.LocalDirectory}{(vm.Services.Paths.IsPortable ? "\n(portable mode)" : string.Empty)}", TextWrapping = TextWrapping.Wrap };
-        tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("Storage", paths)) });
+        tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6, Children = { tabs, error } };
@@ -168,6 +185,8 @@ public static class SettingsDialog
             s.KeyBindings = parsedBindings;
             s.DiagnosticMode = diag.IsChecked == true;
             s.CheckForUpdates = updates.IsChecked == true;
+            s.ShellPictures = shellPictures.IsChecked == true;
+            s.ShellPicturesOnNetworkAndRemovable = shellSlow.IsChecked == true;
             columnsEditor.Apply();
             vm.ApplySettings();
             return;

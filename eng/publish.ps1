@@ -44,6 +44,15 @@ dotnet publish $broker -c $Configuration -r $Runtime --self-contained false -p:P
     -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
 if ($LASTEXITCODE -ne 0) { throw "framework-dependent administrator helper publish failed" }
 
+# The Shell helper (TV-16) runs Windows thumbnail and icon handlers outside FileCat, at low integrity in a job object.
+$shellHost = Join-Path $root "src/FileCat.ShellHost/FileCat.ShellHost.csproj"
+dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained true -p:PublishReadyToRun=true `
+    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $publish
+if ($LASTEXITCODE -ne 0) { throw "Shell helper publish failed" }
+dotnet publish $shellHost -c $Configuration -r $Runtime --self-contained false -p:PublishReadyToRun=true `
+    -p:Version=$Version -p:VersionPrefix=$versionPrefix -p:DebugType=embedded -o $fdd
+if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish failed" }
+
 foreach ($dir in @($publish, $fdd)) {
     Copy-Item (Join-Path $root "LICENSE") $dir -Force
     Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force

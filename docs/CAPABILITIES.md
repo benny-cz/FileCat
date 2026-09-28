@@ -38,7 +38,8 @@ unavailable for a location, FileCat's status line says why (for example, "Items 
 | Other archive formats (TAR, 7z, RAR, ISO) | Opened through their system association | P8 |
 | ZIP updates | Each change rebuilds the archive beside itself and replaces it only when verified and unchanged since you saw it; encrypted archives and archives inside archives are read-only; there is no undo | – (by design; see ADR-07) |
 | FTP, FTPS | – | P8 |
-| Per-file Shell thumbnails, properties, and context-menu handlers | Icons are by extension only (safety policy) | Out-of-process host, P7 |
+| Shell thumbnails and programs' own icons | Quick view shows the Shell's thumbnail for binary files, and programs, icon files, and similar types show their own icons. Windows' handlers for these run only in a separate helper at low integrity that cannot start programs (ADR-06). Shortcut-like files, themes, `desktop.ini`, and cloud placeholders are never handed to the Shell. Network and removable drives are included only if you opt in (Settings → Privacy) | P7 |
+| Shell property handlers and context-menu handlers | Not run: property columns come from FileCat's own readers, and the context menu offers FileCat's commands | Later, through the same helper |
 | Editing files on servers | F4 on a file on an SFTP server edits a private copy in your editor; Commit (F4 again, or File → Edit sessions) writes it back only while the server file is still the version the edit started from, and a changed file is never overwritten without an explicit choice | P6 (done) |
 | SSH terminal | Open terminal on an SFTP panel starts the OpenSSH client in that folder; it checks host keys against OpenSSH's own known_hosts. SSH agent sign-in in FileCat itself is not supported yet | P6 (done); agent later |
 | Translations | English only. Command titles and key-bar labels can already be translated with `lang/<culture>.json` next to the executable. | Other UI text once translators and QA exist |

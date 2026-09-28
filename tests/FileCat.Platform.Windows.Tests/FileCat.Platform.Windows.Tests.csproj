@@ -13,6 +13,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
+    <!-- TV-16 tests start the real Shell helper from the test output folder. -->
+    <ProjectReference Include="..\..\src\FileCat.ShellHost\FileCat.ShellHost.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
