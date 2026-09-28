@@ -25,6 +25,29 @@ public interface IContentSource : IDisposable
     string? LocalPath { get; }
 }
 
+/// <summary>
+/// Content with parts that are lost (plan §17.1: recovered files whose space was reused or could not be read). Those
+/// bytes read as zeros, and whoever copies or shows the content says so instead of passing them off as real data.
+/// </summary>
+public interface IPartialContent
+{
+    /// <summary>The ranges that read as zeros only because their data is lost, in content order (may grow while reading).</summary>
+    IReadOnlyList<(long Offset, long Length)> MissingRanges { get; }
+}
+
+public static class PartialContent
+{
+    /// <summary>"24 KiB of 40 KiB are lost (bytes 16,384–40,959) and are zeros in this copy."</summary>
+    public static string Describe(IReadOnlyList<(long Offset, long Length)> missing, long total)
+    {
+        long lost = missing.Sum(m => m.Length);
+        var ranges = string.Join(", ", missing.Take(3).Select(m => $"{m.Offset:N0}–{m.Offset + m.Length - 1:N0}")) + (missing.Count > 3 ? $", and {missing.Count - 3} more" : "");
+        return $"{Size(lost)} of {Size(total)} are lost (bytes {ranges}) and are zeros here, not the file's data.";
+    }
+
+    private static string Size(long n) => n < 1024 ? $"{n} bytes" : n < 1024 * 1024 ? $"{n / 1024.0:0.#} KiB" : $"{n / (1024.0 * 1024):0.#} MiB";
+}
+
 /// <summary>Weak revision evidence: length + modification time (+ native file id when known).</summary>
 public readonly record struct ContentRevision(long Length, long ModifiedTicks, string? NativeId = null);
 

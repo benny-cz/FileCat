@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Integrated read-only recovery (plan §17, ADR-08, P10): FileCat's own readers for NTFS, FAT12/16/32, and exFAT
+    structures on disk images and (through a read-only broker) devices, with MBR and GPT partition tables. Nothing here
+    writes to a source; every structure is untrusted input, parsed under bounds.
+  -->
+  <PropertyGroup>
+    <RootNamespace>FileCat.Recovery</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
+    <InternalsVisibleTo Include="FileCat.Core.Tests" />
+  </ItemGroup>
+</Project>

@@ -136,6 +136,8 @@ public static class CommandIds
     public const string HexRecovery = "hex.recovery";
     public const string CompareDirectories = "compare.dirs";
     public const string CompareFiles = "compare.files";
+    /// <summary>Deleted items of a disk image, read-only (P10).</summary>
+    public const string FindDeleted = "tools.findDeleted";
     public const string CommandLineFocus = "cmdline.focus";
     public const string CommandHistory = "cmdline.history";
     public const string InsertName = "cmdline.insertName";
@@ -325,6 +327,7 @@ public sealed class CommandRegistry
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CompareFiles, "Compare files…", C);
+        Add(CommandIds.FindDeleted, "Find deleted files in a disk image…", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");

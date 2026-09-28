@@ -114,6 +114,17 @@ public sealed class ViewerWindow : Window
             toolbar.Children.Add(editBytes);
         }
 
+        // Recovered content with lost parts: say which bytes are zeros only because their data is gone (plan §17.1).
+        Border? lostNotice = null;
+        if (source is IPartialContent { MissingRanges.Count: > 0 } partial)
+        {
+            lostNotice = new Border
+            {
+                Padding = new Thickness(8, 4),
+                Child = new TextBlock { Text = PartialContent.Describe(partial.MissingRanges, source.Length), Classes = { "warning" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+            };
+            DockPanel.SetDock(lostNotice, Dock.Top);
+        }
         var statusBar = new Border { Classes = { "status" }, Child = new DockPanel { Children = { _encodingInfo, _status } } };
         DockPanel.SetDock(_encodingInfo, Dock.Right);
         var content = new Panel { Children = { _text, _hex, _info } };
@@ -121,6 +132,7 @@ public sealed class ViewerWindow : Window
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
+        if (lostNotice is not null) root.Children.Add(lostNotice);
         root.Children.Add(statusBar);
         root.Children.Add(content);
         Content = root;

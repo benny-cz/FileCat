@@ -46,6 +46,9 @@ public sealed class AppServices : IDisposable
         // Read-only TAR, 7z, RAR, compressed files, and disc images (P8); archives of either kind nest in the other.
         Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers);
         Providers.Register(Archives);
+        // Deleted items of disk images, read-only (P10).
+        Recovery = new FileCat.Recovery.RecoveryProvider();
+        Providers.Register(Recovery);
         Zip.OtherArchives = Archives;
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
@@ -96,6 +99,8 @@ public sealed class AppServices : IDisposable
     public Controls.ColumnProfileSet Columns { get; }
 
     public Core.Metadata.MetadataService Metadata { get; }
+
+    public FileCat.Recovery.RecoveryProvider Recovery { get; }
 
     public Core.Archives.ZipProvider Zip { get; private set; } = null!;
 

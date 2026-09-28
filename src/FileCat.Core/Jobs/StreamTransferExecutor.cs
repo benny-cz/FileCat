@@ -216,6 +216,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         Journal.StagingDirectory(dir);
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
         long written = 0;
+        IReadOnlyList<(long Offset, long Length)>? lost = null;
         try
         {
             using (content)
@@ -235,6 +236,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     Job.AddBytes(n);
                     Job.Throttle(written, clock);
                 }
+                lost = (content as IPartialContent)?.MissingRanges;
             }
             if (item.Modified > 0) File.SetLastWriteTimeUtc(staged, new DateTime(item.Modified, DateTimeKind.Utc));
             if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
@@ -259,6 +261,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             return false;
         }
         Job.ItemDone();
+        // A recovered file with lost parts is still worth having, but never passed off as complete (plan §17.1).
+        if (lost is { Count: > 0 })
+            Issue(IssueSeverity.Warning, item.Name, PartialContent.Describe(lost, written) + " Check the file before relying on it.", StepOutcome.Committed);
         return true;
     }
 

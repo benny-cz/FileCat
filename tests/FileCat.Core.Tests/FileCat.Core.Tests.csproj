@@ -13,12 +13,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\..\src\FileCat.Archives\FileCat.Archives.csproj" />
+    <ProjectReference Include="..\..\src\FileCat.Recovery\FileCat.Recovery.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Sample archives from SharpCompress's test suite (MIT); see TestData/Archives/README.md. -->
+    <!-- Sample archives from SharpCompress's test suite (MIT); see TestData/Archives/README.md. Disk images made by
+         eng/make-recovery-fixtures.sh; see TestData/Recovery/README.md. -->
     <None Include="TestData\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

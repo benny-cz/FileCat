@@ -25,7 +25,8 @@ SignPath Foundation code signing). Regenerate the inventory with `eng/publish.ps
 | AppImage type2-runtime (Linux AppImage only) | from appimagetool 1.9.1 | MIT | The AppImage's start-up part. Statically links libfuse 3.15 (LGPL-2.1; source and patches at github.com/AppImage/type2-runtime, which builds it reproducibly), squashfuse 0.5.2 (BSD-2-Clause), musl (MIT), zstd (BSD-3-Clause), and zlib (zlib). The `.tar.gz` and `.deb` packages do not contain it |
 
 Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in
-`tests/FileCat.Core.Tests/TestData/Archives/README.md`; pyftpdlib (MIT) as the FTP/FTPS server in tests.
+`tests/FileCat.Core.Tests/TestData/Archives/README.md`; pyftpdlib (MIT) as the FTP/FTPS server in tests; disk images
+made by FileCat's own `eng/make-recovery-fixtures.sh` (generated text only; `TestData/Recovery/README.md`).
 
 Build-time only (not shipped): Avalonia.BuildServices (MIT) — its usage-statistics task is disabled in
 `Directory.Build.targets`; Inno Setup (modified BSD) builds the installer; appimagetool 1.9.1 (MIT, pinned by

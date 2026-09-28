@@ -41,6 +41,7 @@ public sealed partial class MainViewModel
             case CommandIds.VerifyChecksums: await VerifyChecksumsAsync(); return true;
             case CommandIds.ApplyCommand: await ApplyCommandAsync(); return true;
             case CommandIds.CompareFiles: await CompareFilesAsync(); return true;
+            case CommandIds.FindDeleted: await FindDeletedAsync(); return true;
             case CommandIds.TestArchive: TestArchives(); return true;
             case CommandIds.EditSessions: await ShowEditSessionsAsync(); return true;
         }

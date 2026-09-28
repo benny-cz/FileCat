@@ -135,6 +135,16 @@ public static class ColumnProfiles
         new(ColumnField.Modified, "Changed", 128),
     ];
 
+    /// <summary>Deleted items: how much can come back, and the evidence for it.</summary>
+    public static ColumnSpec[] Recovery { get; } =
+    [
+        new(ColumnField.Name, "Name", 200, Star: true),
+        new(ColumnField.Size, "Size", 86, RightAlign: true),
+        new(ColumnField.Modified, "Modified", 128),
+        new(ColumnField.Kind, "State", 96),
+        new(ColumnField.Details, "Evidence", 320, Star: true),
+    ];
+
     public static ColumnSpec[] Registry { get; } =
     [
         new(ColumnField.Name, "Name", 200, Star: true),
@@ -172,12 +182,13 @@ public sealed class ColumnProfileSet
     public string NameOf(int profile) => _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Name;
 
     /// <summary>True when the scheme has a dedicated layout that profiles do not change.</summary>
-    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry;
+    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery;
 
     public ColumnSpec[] Get(int profile, string scheme)
     {
         if (scheme == Schemes.ResultSet) return ColumnProfiles.ResultSet;
         if (scheme == Schemes.Registry) return ColumnProfiles.Registry;
+        if (scheme == Schemes.Recovery) return ColumnProfiles.Recovery;
         return _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Columns;
     }
 
