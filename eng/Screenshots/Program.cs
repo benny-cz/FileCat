@@ -50,6 +50,7 @@ string? focusRight = Option("--focus-right", "") is { Length: > 0 } fr ? fr : nu
 var marks = Option("--mark", "").Split(';', StringSplitOptions.RemoveEmptyEntries);
 var commands = Option("--commands", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 var presses = Option("--press", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+int tabIndex = int.Parse(Option("--tab", "-1"), System.Globalization.CultureInfo.InvariantCulture);
 
 AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 if (OperatingSystem.IsWindows()) PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
@@ -106,6 +107,12 @@ foreach (var theme in themes)
     {
         vm.Execute(command);
         Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
+    }
+    // --tab N: the Nth tab of the first tab control on screen (a dialog's pages).
+    if (tabIndex >= 0 && Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TabControl>().FirstOrDefault() is { } tabs)
+    {
+        tabs.SelectedIndex = tabIndex;
+        Pump(TimeSpan.FromSeconds(1));
     }
     // --press Enter,Tab: keys after the commands (confirm a dialog, then see what follows).
     foreach (var key in presses)

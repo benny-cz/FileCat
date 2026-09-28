@@ -96,12 +96,11 @@ public static class SettingsDialog
         {
             AcceptsReturn = true,
             MinHeight = 260,
-            MinWidth = 600,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = string.Join(Environment.NewLine, s.KeyBindings.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}")),
-            PlaceholderText = "command.id = Ctrl+Shift+X, F12   (one per line; empty uses the defaults)",
+            PlaceholderText = "command.id = Ctrl+Shift+X, F12",
         };
-        var reference = new TextBlock { Text = "Command ids are listed in the keyboard reference (F1) and the command palette (Ctrl+Shift+P).", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
+        var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Command ids are listed in the keyboard reference (F1) and the command palette (Ctrl+Shift+P).", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
         tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", reference)) });
 
         // ---- Privacy
@@ -214,7 +213,9 @@ public static class SettingsDialog
             var (label, control) = rows[i];
             if (label.Length > 0)
             {
-                var l = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 12, 4) };
+                // Beside a box of several lines, the label sits at its first line, not in its middle.
+                bool tall = control is TextBox { AcceptsReturn: true };
+                var l = new TextBlock { Text = label, VerticalAlignment = tall ? VerticalAlignment.Top : VerticalAlignment.Center, Margin = new Thickness(0, tall ? 10 : 4, 12, 4) };
                 Grid.SetRow(l, i);
                 grid.Children.Add(l);
                 // Screen readers announce the field by its visible label.
