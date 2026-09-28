@@ -41,6 +41,7 @@ public static class CommandIds
     public const string Properties = "file.properties";
     public const string Reveal = "file.reveal";
     public const string Checksum = "file.checksum";
+    public const string VerifyChecksums = "file.verifyChecksums";
     public const string Pack = "file.pack";
     public const string Unpack = "file.unpack";
     public const string TestArchive = "file.testarchive";
@@ -219,6 +220,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
+        Add(CommandIds.VerifyChecksums, "Verify checksum manifest…", F);
         Add(CommandIds.Pack, "Pack into ZIP…", F, "Pack", CommandContext.Panel, "Alt+F5");
         Add(CommandIds.Unpack, "Unpack…", F, "Unpack", CommandContext.Panel, "Alt+F6", "Alt+F9");
         Add(CommandIds.TestArchive, "Test archive integrity", F);

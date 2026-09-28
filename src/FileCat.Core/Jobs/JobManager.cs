@@ -302,6 +302,11 @@ public sealed class JobManager
                 title = $"Change attributes of {What()}";
                 AddSourceScopes(writes);
                 break;
+            case JobKind.VerifyChecksums:
+                title = r.Description ?? (r.Sources.Count == 1 ? $"Verify the checksums in {What()}" : $"Verify the checksums in {r.Sources.Count:N0} manifests");
+                // The listed files lie in and below each manifest's folder.
+                reads.AddRange(r.Sources.Select(s => s.FileSystemPath is { } mp ? Path.GetDirectoryName(mp) ?? mp : GlobalScope).Distinct(PathUtil.SafetyComparer));
+                break;
             case JobKind.CreateLink:
             {
                 string kind = r.Link is { } lo ? Operations.LinkPlanner.KindName(lo.Kind) : "link";

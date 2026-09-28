@@ -28,6 +28,8 @@ public enum JobKind
     Elevated,
     /// <summary>Symbolic links, junctions, or hard links to the sources, in the destination folder.</summary>
     CreateLink,
+    /// <summary>Verify the files listed in checksum manifests (the sources); read-only.</summary>
+    VerifyChecksums,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }

@@ -38,6 +38,7 @@ public sealed partial class MainViewModel
             case CommandIds.Pack: await PackAsync(); return true;
             case CommandIds.BulkRename: await BulkRenameAsync(); return true;
             case CommandIds.CreateLink: await CreateLinkAsync(); return true;
+            case CommandIds.VerifyChecksums: await VerifyChecksumsAsync(); return true;
             case CommandIds.TestArchive: TestArchives(); return true;
             case CommandIds.EditSessions: await ShowEditSessionsAsync(); return true;
         }

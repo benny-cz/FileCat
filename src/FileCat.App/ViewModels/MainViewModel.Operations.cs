@@ -520,7 +520,8 @@ public sealed partial class MainViewModel
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
-        switch (job.State)
+        if (job.Kind == JobKind.VerifyChecksums) _ = OnVerifyFinishedAsync(job);
+        else switch (job.State)
         {
             case JobState.Completed:
                 if (job.Kind is JobKind.Copy or JobKind.Move or JobKind.Recycle or JobKind.Delete or JobKind.Extract)
@@ -982,13 +983,32 @@ public sealed partial class MainViewModel
     {
         var sel = ActiveTab?.Listing.GetSelection();
         if (sel is null || sel.Count == 0) return;
-        var files = sel.Where(s => !s.IsContainer && s.FileSystemPath is not null).Select(s => s.FileSystemPath!).ToList();
+        var files = sel.Where(s => !s.IsContainer && s.FileSystemPath is not null).ToList();
         if (files.Count == 0)
         {
             Notify("Checksums are computed for files; mark files or focus one.");
             return;
         }
-        await OperationDialogs.ShowChecksumsAsync(this, files);
+        // A manifest is recognized, never verified automatically: ask which of the two is meant.
+        if (files.All(f => Core.Operations.ChecksumManifests.IsManifestName(f.Name)))
+        {
+            var choice = await Dialogs.ShowCustomAsync("Checksum manifest",
+                new Avalonia.Controls.TextBlock
+                {
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 560,
+                    Text = (files.Count == 1 ? $"\"{Formatters.SafeName(files[0].Name)}\" lists" : $"These {files.Count:N0} files list")
+                           + " checksums of other files. Verify those files against it, or calculate checksums of the manifest itself?",
+                },
+                [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Checksum the manifest", "compute"),
+                 new DialogButton("Verify listed files", "verify", IsDefault: true)]);
+            if (choice as string is null or "cancel") return;
+            if (choice as string == "verify")
+            {
+                await VerifyChecksumsAsync(files);
+                return;
+            }
+        }
+        await OperationDialogs.ShowChecksumsAsync(this, files.Select(f => f.FileSystemPath!).ToList());
     }
 
     private void ConnectDrive(bool connect)

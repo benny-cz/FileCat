@@ -12,6 +12,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Selection;
+using FileCat.Core.Operations;
 
 namespace FileCat.App.Views;
 
@@ -394,36 +395,50 @@ public static class OperationDialogs
 
     public static async Task ShowChecksumsAsync(MainViewModel vm, IReadOnlyList<string> files)
     {
+        ChecksumKind[] kinds = [ChecksumKind.Sha256, ChecksumKind.Sha512, ChecksumKind.Sha1, ChecksumKind.Md5, ChecksumKind.Crc32];
         var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
+        Avalonia.Automation.AutomationProperties.SetName(algorithm, "Checksum algorithm");
         var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap, MinWidth = 640 };
+        Avalonia.Automation.AutomationProperties.SetName(output, "Checksums");
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
+        var save = new Button { Content = "Save as manifest…", IsEnabled = false };
         var body = new StackPanel { Spacing = 6 };
         body.Children.Add(Muted("Checksums verify integrity; MD5, SHA-1, and CRC-32 are compatibility checks, not proof of origin."));
         body.Children.Add(algorithm);
         body.Children.Add(progress);
         body.Children.Add(output);
+        body.Children.Add(save);
+        var results = new List<(string Path, string Hash)>();
+        var computedKind = ChecksumKind.Sha256;
         CancellationTokenSource? cts = null;
         async Task Compute()
         {
             cts?.Cancel();
             cts = new CancellationTokenSource();
             var token = cts.Token;
+            save.IsEnabled = false;
+            results.Clear();
             progress.IsVisible = true;
             output.Text = string.Empty;
-            long total = files.Sum(f => new FileInfo(f).Length);
-            long doneBase = 0;
+            var kind = kinds[Math.Max(0, algorithm.SelectedIndex)];
+            long total = files.Sum(f => new FileInfo(f).Length), done = 0;
             var lines = new List<string>();
-            int index = algorithm.SelectedIndex;
             try
             {
                 foreach (var f in files)
                 {
-                    long fileBase = doneBase;
-                    var hash = await Task.Run(() => Hash(f, index, token, done => Dispatcher.UIThread.Post(() => progress.Value = total > 0 ? 100.0 * (fileBase + done) / total : 0)), token);
-                    doneBase += new FileInfo(f).Length;
+                    var hash = await Task.Run(() => Checksums.Compute(f, kind, token, n =>
+                    {
+                        long now = Interlocked.Add(ref done, n);
+                        Dispatcher.UIThread.Post(() => progress.Value = total > 0 ? 100.0 * now / total : 0);
+                    }), token);
+                    if (token.IsCancellationRequested) return;
+                    results.Add((f, hash));
                     lines.Add($"{hash}  {Path.GetFileName(f)}");
                     output.Text = string.Join(Environment.NewLine, lines);
                 }
+                computedKind = kind;
+                save.IsEnabled = results.Count > 0;
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -432,6 +447,7 @@ public static class OperationDialogs
             }
             progress.IsVisible = false;
         }
+        save.Click += async (_, _) => await SaveManifestAsync(vm, computedKind, results.ToList());
         algorithm.SelectionChanged += async (_, _) => await Compute();
         _ = Compute();
         var r = await vm.Dialogs.ShowCustomAsync($"Checksums of {Formatters.Plural(files.Count, "file", "files")}", body,
@@ -440,25 +456,47 @@ public static class OperationDialogs
         if (r as string == "copy" && output.Text is { Length: > 0 } text) vm.CopyTextToClipboard(text);
     }
 
-    private static string Hash(string path, int algorithm, CancellationToken ct, Action<long> progress)
+    /// <summary>
+    /// Writes a manifest that other tools read too (GNU "hash  name", SFV for CRC-32), next to the files or in their
+    /// common folder with relative names. An existing file is replaced only after asking.
+    /// </summary>
+    private static async Task SaveManifestAsync(MainViewModel vm, ChecksumKind kind, IReadOnlyList<(string Path, string Hash)> results)
     {
-        if (algorithm == 4)
+        string root = Path.GetDirectoryName(results[0].Path)!;
+        foreach (var (path, _) in results)
         {
-            uint crc = 0;
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
-            var buf = new byte[1 << 20];
-            long done = 0;
-            int n;
-            while ((n = fs.Read(buf, 0, buf.Length)) > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                crc = Crc32.Append(crc, buf.AsSpan(0, n));
-                done += n;
-                progress(done);
-            }
-            return crc.ToString("x8");
+            while (!PathUtil.IsSameOrUnder(path, root)) root = Path.GetDirectoryName(root) ?? root;
         }
-        var name = algorithm switch { 1 => HashAlgorithmName.SHA512, 2 => HashAlgorithmName.SHA1, 3 => HashAlgorithmName.MD5, _ => HashAlgorithmName.SHA256 };
-        return Convert.ToHexString(PortableFileOperations.HashFile(path, name, ct, progress)).ToLowerInvariant();
+        string suggested = results.Count == 1 ? Path.GetFileName(results[0].Path) + Checksums.Extension(kind)
+            : (Path.GetFileName(root.TrimEnd('\\', '/')) is { Length: > 0 } folder ? folder : "checksums") + Checksums.Extension(kind);
+        var answer = await vm.Dialogs.PromptAsync(new PromptOptions("Save as manifest", $"File name in {root}:")
+        {
+            Text = suggested,
+            Validate = t => PathUtil.ValidateNewName(t.Trim()),
+        });
+        if (answer is null) return;
+        string target = Path.Combine(root, answer.Text.Trim());
+        var lines = results.Select(r => Checksums.ManifestLine(kind, r.Hash, Path.GetRelativePath(root, r.Path)));
+        if (kind == ChecksumKind.Crc32) lines = lines.Prepend("; Generated by FileCat");
+        string content = string.Join("\n", lines) + "\n";
+        try
+        {
+            if (File.Exists(target))
+            {
+                if (!await vm.Dialogs.ConfirmAsync("Replace manifest", $"\"{Path.GetFileName(target)}\" already exists. Replace it?", "Replace", danger: true)) return;
+                await File.WriteAllTextAsync(target, content, new System.Text.UTF8Encoding(false));
+            }
+            else
+            {
+                await using var stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
+                await writer.WriteAsync(content);
+            }
+            vm.Notify($"Saved {Formatters.Plural(results.Count, "checksum", "checksums")} to {Path.GetFileName(target)}.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            vm.Notify("The manifest was not saved: " + ErrorText.Describe(ex), true);
+        }
     }
 }

@@ -183,10 +183,16 @@ public sealed class Job
     /// <summary>Set when the operation was too large to record undo steps.</summary>
     public bool UndoTruncated { get; private set; }
 
+    private volatile string? _customSummary;
+
+    /// <summary>An executor's own wording of the outcome (verification says "12 verified, all match", not "12 done").</summary>
+    internal void SetSummary(string summary) => _customSummary = summary;
+
     public string Summary
     {
         get
         {
+            if (_customSummary is { } custom) return custom;
             var parts = new List<string>();
             if (ItemsDone > 0) parts.Add($"{ItemsDone:N0} done");
             if (ItemsSkipped > 0) parts.Add($"{ItemsSkipped:N0} skipped");
