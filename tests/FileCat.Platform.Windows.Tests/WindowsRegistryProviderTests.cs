@@ -1,3 +1,4 @@
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using Microsoft.Win32;
 using FileCat.Core.Jobs;
@@ -45,6 +46,30 @@ public sealed class WindowsRegistryProviderTests
         Assert.Equal("32", loc!.Session);
         Assert.False(p.TryParse("reg:HKCU\\..\\Software", null, out _));
         Assert.False(p.TryParse("reg:Unknown", null, out _));
+    }
+
+    /// <summary>Paths copied from regedit (its long root names, and its address bar's "Computer\" in any language) open.</summary>
+    [Fact]
+    public void Paths_as_regedit_writes_them_open_even_typed_in_a_folder()
+    {
+        var p = new WindowsRegistryProvider();
+        foreach (var text in new[] { @"HKEY_CURRENT_USER\Control Panel\Desktop", @"Computer\HKEY_CURRENT_USER\Control Panel\Desktop",
+                     @"Počítač\HKEY_CURRENT_USER\Control Panel\Desktop", @"reg:HKEY_CURRENT_USER\Control Panel\Desktop", @"hkcu\Control Panel\Desktop" })
+        {
+            Assert.True(p.TryParse(text, null, out var loc), text);
+            Assert.Equal(@"HKCU\Control Panel\Desktop", loc!.Path);
+        }
+        Assert.True(p.TryParse("HKEY_LOCAL_MACHINE", null, out var root));
+        Assert.Equal("HKLM", root!.Path);
+
+        // In a folder's path box the folder reads relative paths first; a Registry path is still the Registry's.
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(p);
+        Assert.True(providers.TryParse(@"Computer\HKEY_CURRENT_USER\Software", Location.FileSystem(Path.GetTempPath()), out var typed));
+        Assert.Equal((Schemes.Registry, @"HKCU\Software"), (typed!.Scheme, typed.Path));
+        Assert.True(providers.TryParse("sub", Location.FileSystem(Path.GetTempPath()), out var relative));
+        Assert.True(relative!.IsFileSystem);
     }
 
     [Fact]

@@ -119,12 +119,36 @@ public sealed class WindowsRegistryProvider : ResourceProvider
     public override Location? GetChildLocation(Location parent, in EntryData entry) => entry.Kind == EntryKind.RegistryKey && !entry.Has(EntryFlags.Link | EntryFlags.Unavailable)
         ? parent.WithPath(parent.Path.Length == 0 ? entry.Name : parent.Path + "\\" + entry.Name) : null;
 
+    /// <summary>The long root names regedit shows, for FileCat's short ones.</summary>
+    private static readonly (string Long, string Short)[] LongRoots =
+    [
+        ("HKEY_CURRENT_USER", "HKCU"), ("HKEY_LOCAL_MACHINE", "HKLM"), ("HKEY_CLASSES_ROOT", "HKCR"), ("HKEY_USERS", "HKU"),
+        ("HKEY_CURRENT_CONFIG", "HKCC"),
+    ];
+
+    /// <summary>
+    /// A path as regedit writes it, in FileCat's short form: "HKEY_CURRENT_USER\Software" is "HKCU\Software", and the
+    /// "Computer\" its address bar starts with (in the system's language) is dropped, so a path copied there opens here.
+    /// </summary>
+    internal static string ShortRoots(string path)
+    {
+        int hkey = path.IndexOf("\\HKEY_", StringComparison.OrdinalIgnoreCase);
+        if (hkey > 0 && path.IndexOf('\\') == hkey) path = path[(hkey + 1)..];
+        foreach (var (longName, shortName) in LongRoots)
+        {
+            if (path.Equals(longName, StringComparison.OrdinalIgnoreCase)) return shortName;
+            if (path.StartsWith(longName + "\\", StringComparison.OrdinalIgnoreCase)) return shortName + path[longName.Length..];
+        }
+        return path;
+    }
+
     public override bool TryParse(string text, Location? current, out Location? location)
     {
         location = null;
         var path = text.Trim();
-        if (path.StartsWith("reg:", StringComparison.OrdinalIgnoreCase)) path = path[4..].TrimStart('\\');
-        else if (!Roots.Any(r => path.Equals(r.Name, StringComparison.OrdinalIgnoreCase) || path.StartsWith(r.Name + "\\", StringComparison.OrdinalIgnoreCase)))
+        bool prefixed = path.StartsWith("reg:", StringComparison.OrdinalIgnoreCase);
+        path = ShortRoots(prefixed ? path[4..].TrimStart('\\') : path);
+        if (!prefixed && !Roots.Any(r => path.Equals(r.Name, StringComparison.OrdinalIgnoreCase) || path.StartsWith(r.Name + "\\", StringComparison.OrdinalIgnoreCase)))
             return false;
         if (path.Length == 0)
         {

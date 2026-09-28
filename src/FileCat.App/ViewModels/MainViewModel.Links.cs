@@ -20,6 +20,24 @@ public sealed partial class MainViewModel
 {
     private const int MaxLinks = 10_000;
 
+    /// <summary>
+    /// Where a single link is proposed: under the item's own name, or, where that is taken (always so in the item's own
+    /// folder), "name - link", as Explorer proposes "- Shortcut".
+    /// </summary>
+    internal static string FreeLinkPath(string folder, string name)
+    {
+        string path = Path.Combine(folder, name);
+        if (!File.Exists(path) && !Directory.Exists(path)) return path;
+        string stem = Path.GetFileNameWithoutExtension(name), extension = Path.GetExtension(name);
+        if (stem.Length == 0) (stem, extension) = (name, "");
+        for (int n = 1; n < 100; n++)
+        {
+            path = Path.Combine(folder, $"{stem} - link{(n > 1 ? $" ({n})" : "")}{extension}");
+            if (!File.Exists(path) && !Directory.Exists(path)) return path;
+        }
+        return Path.Combine(folder, name);
+    }
+
     private async Task CreateLinkAsync()
     {
         var sel = SourceSelection();
@@ -35,7 +53,7 @@ public sealed partial class MainViewModel
         bool? canSymlink = await Task.Run(() => fs.CanCreateSymbolicLinks);
 
         var destination = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : Path.GetDirectoryName(items[0].FileSystemPath!)!;
-        string initial = items.Count == 1 ? Path.Combine(destination, items[0].Name) : AppendSeparator(destination);
+        string initial = items.Count == 1 ? FreeLinkPath(destination, items[0].Name) : AppendSeparator(destination);
         var pathBox = new TextBox { Text = initial, MinWidth = 560 };
         Avalonia.Automation.AutomationProperties.SetName(pathBox, "Link path");
         bool allFolders = items.All(i => i.IsContainer), allFiles = items.All(i => !i.IsContainer);

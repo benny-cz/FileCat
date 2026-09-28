@@ -34,7 +34,7 @@ public sealed class QuickViewPane : Border
         IsVisible = false,
     };
     private string? _pictureKey;
-    private bool _binary, _pictureShown;
+    private bool _binary, _pictureShown, _isPictureFile;
     private readonly DispatcherTimer _debounce;
     private TabViewModel? _source;
     private PagedReader? _reader;
@@ -89,7 +89,7 @@ public sealed class QuickViewPane : Border
         _picture.IsVisible = false;
         _picture.Source = null;
         _pictureKey = null;
-        _binary = _pictureShown = false;
+        _binary = _pictureShown = _isPictureFile = false;
         _text.SetReader(null, System.Text.Encoding.UTF8, 0);
         _hex.SetReader(null);
         _reader?.Dispose();
@@ -123,14 +123,14 @@ public sealed class QuickViewPane : Border
             _ = LoadPictureAsync(pictures, picturePath, e.Modified, (FileAttributes)e.Attributes, key);
         try
         {
-            var result = await Task.Run<(PagedReader? Reader, EncodingGuess? Guess)>(() =>
+            var result = await Task.Run<(PagedReader? Reader, EncodingGuess? Guess, bool Picture)>(() =>
             {
                 var source = services.Providers.For(item.Parent).OpenContent(item);
-                if (source is null) return (null, null);
+                if (source is null) return (null, null, false);
                 var reader = new PagedReader(source, maxPages: 64);
                 var head = new byte[8192];
                 int n = reader.Read(0, head);
-                return (reader, TextDecoding.Detect(head.AsSpan(0, n)));
+                return (reader, TextDecoding.Detect(head.AsSpan(0, n)), PictureDecoder.Recognize(head.AsSpan(0, n)) is not null);
             });
             if (key != _shownKey)
             {
@@ -144,6 +144,7 @@ public sealed class QuickViewPane : Border
             }
             _reader = result.Reader;
             _message.IsVisible = false;
+            _isPictureFile = result.Picture;
             if (result.Guess!.LooksBinary)
             {
                 _hex.SetReader(_reader);
@@ -185,7 +186,7 @@ public sealed class QuickViewPane : Border
         _pictureShown = true;
         _picture.IsVisible = true;
         _hex.IsVisible = false;
-        _info.Text = _info.Text?.Replace(" · binary, shown as hex", string.Empty) + " · Shell thumbnail (F3 shows the bytes)";
+        _info.Text = _info.Text?.Replace(" · binary, shown as hex", string.Empty) + (_isPictureFile ? " · Shell thumbnail (F3 shows the picture)" : " · Shell thumbnail (F3 shows the bytes)");
     }
 
     private void ShowMessage(string text)

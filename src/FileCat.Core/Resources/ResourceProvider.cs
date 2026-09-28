@@ -154,6 +154,13 @@ public sealed class ProviderRegistry
     {
         location = null;
         if (string.IsNullOrWhiteSpace(text)) return false;
+        // Text another provider reads as a place of its own ("HKEY_CURRENT_USER\Software", "This PC", "sftp://…") is that
+        // provider's, even typed in a folder that could read it as a subfolder; rooted paths keep the order below.
+        if (current is not null && !IsRootedPath(text))
+        {
+            foreach (var p in _parseOrder)
+                if (p.Scheme != current.Scheme && p.TryParse(text, null, out location)) return true;
+        }
         // The current provider interprets relative input first (e.g. "sub" inside an archive).
         if (current is not null && _providers.TryGetValue(current.Scheme, out var cur) && cur.TryParse(text, current, out location))
             return true;
@@ -163,5 +170,11 @@ public sealed class ProviderRegistry
             if (p.TryParse(text, current, out location)) return true;
         }
         return false;
+    }
+
+    private static bool IsRootedPath(string text)
+    {
+        try { return Path.IsPathRooted(FileSystem.PathUtil.ExpandUserInput(text)); }
+        catch (ArgumentException) { return false; }
     }
 }

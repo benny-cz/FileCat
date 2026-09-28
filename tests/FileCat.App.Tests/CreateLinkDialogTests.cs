@@ -29,9 +29,11 @@ public sealed class CreateLinkDialogTests
             var path = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Link path");
             Button Confirm() => window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Create");
 
-            // Both panels show the same folder, so the suggested link would take the place of the file itself.
+            // Both panels show the same folder: the file's own name is taken, so a free one is proposed ("- link"), and
+            // a link in the file's own place is refused.
             string folder = Path.Combine(root, "files");
-            Assert.Equal(Path.Combine(folder, "a.txt"), path.Text);
+            Assert.Equal(Path.Combine(folder, "a - link.txt"), path.Text);
+            path.Text = Path.Combine(folder, "a.txt");
             for (int i = 0; i < 100 && Confirm().IsEnabled; i++) await Task.Delay(20, ct);
             Assert.False(Confirm().IsEnabled);
 
