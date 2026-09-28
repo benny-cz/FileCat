@@ -40,6 +40,7 @@ public sealed partial class MainViewModel
             case CommandIds.CreateLink: await CreateLinkAsync(); return true;
             case CommandIds.VerifyChecksums: await VerifyChecksumsAsync(); return true;
             case CommandIds.ApplyCommand: await ApplyCommandAsync(); return true;
+            case CommandIds.CompareFiles: await CompareFilesAsync(); return true;
             case CommandIds.TestArchive: TestArchives(); return true;
             case CommandIds.EditSessions: await ShowEditSessionsAsync(); return true;
         }
@@ -134,6 +135,61 @@ public sealed partial class MainViewModel
     }
 
     private readonly Dictionary<string, CancellationTokenSource> _flatViews = new();
+
+    // ---- Compare files ----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Compare files (plan §16.2): the two marked files of the active panel, or the focused file in each of two panels.
+    /// Contents open off the UI thread (a server may ask for a password); the window owns them from then on.
+    /// </summary>
+    private async Task CompareFilesAsync()
+    {
+        var tab = ActiveTab;
+        if (tab?.Location is null) return;
+        ItemRef? a = null, b = null;
+        var marked = tab.Listing.HasMarks ? tab.Listing.GetSelection(includeHiddenMarks: false).Where(i => !i.IsContainer).ToList() : [];
+        if (marked.Count == 2)
+        {
+            (a, b) = (marked[0], marked[1]);
+        }
+        else
+        {
+            if (tab.Listing.TryGetFocused(out var f) && !f.IsContainer && f.Kind != EntryKind.Parent) a = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+            if (Workspace.ActiveTarget?.ActiveTab is { } other && other.Listing.TryGetFocused(out var g) && !g.IsContainer && g.Kind != EntryKind.Parent)
+                b = other.Listing.GetItemRef(other.Listing.FocusedStoreIndex);
+        }
+        if (a is null || b is null)
+        {
+            Notify("Mark two files, or focus a file in each of two panels, to compare them.", true);
+            return;
+        }
+        string Display(ItemRef i) => i.FileSystemPath ?? Services.Providers.Display(i.Parent).TrimEnd('/', '\\') + "/" + i.Name;
+        try
+        {
+            var (left, right) = await Task.Run(() =>
+            {
+                var l = Services.Providers.For(a.Parent).OpenContent(a);
+                try { return (l, Services.Providers.For(b.Parent).OpenContent(b)); }
+                catch
+                {
+                    l?.Dispose();
+                    throw;
+                }
+            });
+            if (left is null || right is null)
+            {
+                left?.Dispose();
+                right?.Dispose();
+                Notify("One of the items has no content to compare.", true);
+                return;
+            }
+            Views.CompareWindow.Open(Display(a), left, Display(b), right);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
+        {
+            Notify("Cannot compare: " + (ex is OperationCanceledException ? "canceled." : ex.Message), true);
+        }
+    }
 
     // ---- Compare and mark ----------------------------------------------------------------------------------
 

@@ -694,10 +694,12 @@ public sealed partial class MainViewModel
         var windows = FileCat.App.Views.ViewerWindow.OpenWindows
             .Select(w => (Window: (Avalonia.Controls.Window)w, w.DisplayName, Kind: "Viewer"))
             .Concat(FileCat.App.Views.HexEditorWindow.OpenWindows
-                .Select(w => (Window: (Avalonia.Controls.Window)w, w.DisplayName, Kind: "Hex editor"))).ToList();
+                .Select(w => (Window: (Avalonia.Controls.Window)w, w.DisplayName, Kind: "Hex editor")))
+            .Concat(FileCat.App.Views.CompareWindow.OpenWindows
+                .Select(w => (Window: (Avalonia.Controls.Window)w, DisplayName: w.Title ?? "Compare", Kind: "Comparison"))).ToList();
         if (windows.Count == 0)
         {
-            Notify("No viewer or hex editor windows are open. F3 opens the focused file in a viewer.");
+            Notify("No viewer, hex editor, or comparison windows are open. F3 opens the focused file in a viewer.");
             return;
         }
         var items = windows.Select(w => new ChoiceItem(Path.GetFileName(w.DisplayName.TrimEnd('\\', '/')) + " · " + w.Kind, w.DisplayName)).ToList();
