@@ -112,7 +112,7 @@ public partial class MainWindow : Window, IViewActions
             ThemeAnimation.SetActive(false);
         };
         Activated += (_, _) => ThemeAnimation.SetActive(true);
-        // The steampunk glass fills the space above the panels and below them.
+        // The steampunk canopy ends above the panels; its lower rail begins below them.
         LayoutUpdated += (_, _) =>
         {
             var bands = (MainMenu.Bounds.Bottom, WorkspaceHost.Bounds.Bottom + WorkspaceHost.Margin.Bottom);

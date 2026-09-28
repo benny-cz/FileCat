@@ -10,8 +10,8 @@ using SkiaSharp;
 namespace FileCat.App.Controls;
 
 /// <summary>
-/// What a theme draws behind the window's content (panels are translucent over it): Matrix rain, psychedelic light,
-/// or riveted steampunk iron with stained glass behind the menu and key bars. Drawn with Skia on the render thread;
+/// What a theme draws behind the window's content (panels are translucent over it): quiet circuitry, psychedelic light,
+/// or riveted steampunk iron with a stained-glass canopy. Drawn with Skia on the render thread;
 /// the UI thread only asks for a new frame.
 /// </summary>
 public sealed class ThemeBackdrop : Control
@@ -33,12 +33,12 @@ public sealed class ThemeBackdrop : Control
         ThemeAnimation.Frame -= OnFrame;
     }
 
-    /// <summary>Where the menu bar ends and the key bar begins: the stained glass fills the space above and below.</summary>
+    /// <summary>Where the menu bar ends and the lower control strip begins.</summary>
     public (double Top, double Bottom) GlassBands { get; set; }
 
     private void OnFrame()
     {
-        if (ThemeManager.Current.Effect is ThemeEffect.Matrix or ThemeEffect.Psychedelic) InvalidateVisual();
+        if (ThemeManager.Current.Effect == ThemeEffect.Psychedelic) InvalidateVisual();
     }
 
     public override void Render(DrawingContext context)
@@ -53,7 +53,7 @@ public sealed class ThemeBackdrop : Control
         public Rect Bounds => bounds;
         public bool HitTest(Point p) => false;
         public bool Equals(ICustomDrawOperation? other) =>
-            other is Backdrop b && b.Bounds == bounds && b.Effect == effect && b.Glass == glass && (effect == ThemeEffect.Steampunk || b.Seconds == seconds);
+            other is Backdrop b && b.Bounds == bounds && b.Effect == effect && b.Glass == glass && (effect is ThemeEffect.Steampunk or ThemeEffect.Cyberpunk || b.Seconds == seconds);
         public void Dispose() { }
 
         private ThemeEffect Effect => effect;
@@ -70,8 +70,8 @@ public sealed class ThemeBackdrop : Control
             canvas.ClipRect(rect);
             switch (effect)
             {
-                case ThemeEffect.Matrix:
-                    EffectArt.Matrix(canvas, rect, seconds);
+                case ThemeEffect.Cyberpunk:
+                    EffectArt.Cyberpunk(canvas, rect);
                     break;
                 case ThemeEffect.Psychedelic:
                     EffectArt.Psychedelic(canvas, rect, seconds);
@@ -86,8 +86,8 @@ public sealed class ThemeBackdrop : Control
 }
 
 /// <summary>
-/// Glitches over the content (psychedelic theme): for a fraction of a second now and then, slices of what is on screen
-/// jump sideways with split colors, blocks of noise flash, and scanlines roll. Nothing is drawn between glitches.
+/// Glitches over the content (psychedelic theme): occasional short, translucent slices and small color flecks.
+/// Nothing is drawn between glitches.
 /// </summary>
 public sealed class ThemeGlitchOverlay : Control
 {
@@ -139,52 +139,30 @@ public sealed class ThemeGlitchOverlay : Control
 /// <summary>The drawings of the themes' effects.</summary>
 internal static class EffectArt
 {
-    // Half-width katakana, digits, and a few signs, as in the film; fonts without katakana use the rest.
-    private static readonly string[] Katakana = "ｦｧｨｩｪｫｬｭｮｯｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789:.=*+-<>|".Select(c => c.ToString()).ToArray();
-    private static readonly string[] Plain = "0123456789ABCDEFZ:.=*+-<>|$#".Select(c => c.ToString()).ToArray();
-    private static readonly Lazy<(SKTypeface Typeface, string[] Glyphs)> RainFont = new(() =>
+    public static void Cyberpunk(SKCanvas canvas, SKRect r)
     {
-        var typeface = SKFontManager.Default.MatchCharacter('ｱ');
-        if (typeface is not null) return (typeface, Katakana);
-        return (SKTypeface.FromFamilyName("monospace") ?? SKTypeface.Default, Plain);
-    });
+        canvas.DrawColor(new SKColor(0x06, 0x11, 0x0D));
+        using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
+        // A faint technical grid supplies depth without putting moving marks behind file names.
+        paint.Color = new SKColor(0x42, 0xA2, 0x68, 13);
+        for (float x = r.Left + 40; x < r.Right; x += 48) canvas.DrawLine(x, r.Top, x, r.Bottom, paint);
+        for (float y = r.Top + 32; y < r.Bottom; y += 48) canvas.DrawLine(r.Left, y, r.Right, y, paint);
 
-    private static uint Hash(int a, int b = 0, int c = 0)
-    {
-        uint h = (uint)a * 0x9E3779B1u ^ (uint)b * 0x85EBCA77u ^ (uint)c * 0xC2B2AE3Du;
-        h ^= h >> 15;
-        h *= 0x2C1B3C6Du;
-        h ^= h >> 12;
-        h *= 0x297A2D39u;
-        return h ^ (h >> 15);
-    }
-
-    public static void Matrix(SKCanvas canvas, SKRect r, double t)
-    {
-        const float cell = 16f;
-        canvas.DrawColor(SKColors.Black);
-        var (typeface, glyphs) = RainFont.Value;
-        using var font = new SKFont(typeface, cell * 0.92f);
-        using var paint = new SKPaint { IsAntialias = true };
-        int columns = (int)(r.Width / cell) + 1, rows = (int)(r.Height / cell) + 2;
-        for (int c = 0; c < columns; c++)
+        paint.Color = new SKColor(0x48, 0xC1, 0x82, 72);
+        canvas.DrawRect(new SKRect(r.Left + 1, r.Top + 1, r.Right - 1, r.Bottom - 1), paint);
+        // Short corner traces form a stable frame. Only their hue breathes, never their position or brightness.
+        float arm = Math.Min(115, r.Width * 0.12f);
+        foreach (var x in new[] { r.Left + 12, r.Right - 12 })
         {
-            uint h = Hash(c, 17);
-            float speed = 4.5f + (h % 1000) / 1000f * 10f;
-            int trail = 8 + (int)((h >> 10) % 24);
-            int period = rows + trail + 4 + (int)((h >> 20) % (uint)(rows + 1));
-            int head = (int)((t * speed + (h % 997)) % period);
-            float x = r.Left + c * cell;
-            float glyphRate = 0.6f + ((h >> 5) % 5) * 0.5f;
-            for (int k = 0; k < trail; k++)
-            {
-                int row = head - k;
-                if (row < 0 || row >= rows) continue;
-                string glyph = glyphs[Hash(c, row, (int)(t * glyphRate) + k / 7) % (uint)glyphs.Length];
-                double fade = Math.Pow(1 - k / (double)trail, 1.7);
-                paint.Color = k == 0 ? new SKColor(0xE6, 0xFF, 0xEA) : new SKColor(0x2B, 0xE0, 0x5F, (byte)(40 + 215 * fade));
-                canvas.DrawText(glyph, x, r.Top + (row + 1) * cell, font, paint);
-            }
+            float direction = x < r.MidX ? 1 : -1;
+            canvas.DrawLine(x, r.Top + 12, x + direction * arm, r.Top + 12, paint);
+            canvas.DrawLine(x, r.Bottom - 12, x + direction * arm, r.Bottom - 12, paint);
+        }
+        paint.Color = new SKColor(0x77, 0xD6, 0xA0, 35);
+        for (float x = r.Left + 24; x < r.Right; x += 144)
+        {
+            canvas.DrawCircle(x, r.Top + 12, 1.5f, paint);
+            canvas.DrawCircle(x, r.Bottom - 12, 1.5f, paint);
         }
     }
 
@@ -224,7 +202,7 @@ internal static class EffectArt
         var random = new Random(seed + (int)(progress * 6));
         var device = canvas.TotalMatrix.MapRect(r);
         using var paint = new SKPaint();
-        // Slices of what is on screen jump sideways, with red and cyan pulled apart.
+        // A couple of shallow translucent slices move a few pixels; text remains visible beneath them.
         if (surface is not null && device.Width >= 1 && device.Height >= 1)
         {
             var area = SKRectI.Round(device);
@@ -233,43 +211,28 @@ internal static class EffectArt
             {
                 canvas.Save();
                 canvas.ResetMatrix();
-                int slices = 3 + random.Next(6);
+                int slices = 1 + random.Next(2);
                 for (int i = 0; i < slices; i++)
                 {
                     float top = (float)(random.NextDouble() * area.Height);
-                    float height = 3 + (float)(random.NextDouble() * Math.Min(48, area.Height / 6.0));
-                    float shift = (float)((random.NextDouble() - 0.5) * 70);
+                    float height = 2 + (float)(random.NextDouble() * Math.Min(10, area.Height / 30.0));
+                    float shift = (float)((random.NextDouble() - 0.5) * 12);
                     var source = new SKRect(0, top, area.Width, Math.Min(area.Height, top + height));
                     var target = new SKRect(area.Left + shift, area.Top + top, area.Left + shift + area.Width, area.Top + source.Bottom);
-                    canvas.DrawImage(snapshot, source, target);
-                    paint.BlendMode = SKBlendMode.Screen;
-                    using (var red = SKColorFilter.CreateColorMatrix([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.55f, 0]))
-                    {
-                        paint.ColorFilter = red;
-                        canvas.DrawImage(snapshot, source, target with { Left = target.Left - 4, Right = target.Right - 4 }, paint);
-                    }
-                    using (var cyan = SKColorFilter.CreateColorMatrix([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.55f, 0]))
-                    {
-                        paint.ColorFilter = cyan;
-                        canvas.DrawImage(snapshot, source, target with { Left = target.Left + 4, Right = target.Right + 4 }, paint);
-                    }
-                    paint.ColorFilter = null;
-                    paint.BlendMode = SKBlendMode.SrcOver;
+                    paint.Color = new SKColor(255, 255, 255, 90);
+                    canvas.DrawImage(snapshot, source, target, paint);
                 }
                 canvas.Restore();
             }
         }
-        // Blocks of noise and rolling scanlines.
-        for (int i = 0; i < 5 + random.Next(10); i++)
+        // Tiny color flecks suggest a signal fault without obscuring commands or rows.
+        for (int i = 0; i < 2 + random.Next(3); i++)
         {
             var color = Neon[random.Next(Neon.Length)];
-            paint.Color = color.WithAlpha((byte)(60 + random.Next(120)));
-            float w = 8 + (float)random.NextDouble() * 140, h = 2 + (float)random.NextDouble() * 14;
+            paint.Color = color.WithAlpha((byte)(32 + random.Next(35)));
+            float w = 8 + (float)random.NextDouble() * 44, h = 1 + (float)random.NextDouble() * 3;
             canvas.DrawRect((float)random.NextDouble() * r.Width, (float)random.NextDouble() * r.Height, w, h, paint);
         }
-        paint.Color = new SKColor(255, 255, 255, 18);
-        float roll = (float)(progress * 3 % 1) * 3;
-        for (float y = r.Top + roll; y < r.Bottom; y += 3) canvas.DrawRect(r.Left, y, r.Width, 1, paint);
     }
 
     // ---- Steampunk: drawn once per size -------------------------------------------------------------------
@@ -323,14 +286,16 @@ internal static class EffectArt
         // Two brass gears in the corners.
         Gear(canvas, new SKPoint(r.Left + 60, r.Bottom - 40), 170, 18, new SKColor(0xC8, 0x96, 0x3E, 60));
         Gear(canvas, new SKPoint(r.Right - 90, r.Top + 120), 120, 14, new SKColor(0xB8, 0x73, 0x33, 50));
-        // Stained glass behind the menu bar and the key bar.
+        // Keep the glass in the canopy. The command line and F-key bar need a quiet, opaque surface.
         if (glassTop > 2) StainedGlass(canvas, new SKRect(r.Left, r.Top, r.Right, glassTop), random);
-        if (glassBottom > 0 && glassBottom < r.Bottom - 2) StainedGlass(canvas, new SKRect(r.Left, glassBottom, r.Right, r.Bottom), random);
-        // Rivets along the edges.
+        // A fine brass rail distinguishes the work area from the controls below it.
+        paint.Color = new SKColor(0xC8, 0x96, 0x3E, 130);
+        paint.StrokeWidth = 1;
+        if (glassBottom > 0 && glassBottom < r.Bottom) canvas.DrawLine(r.Left, glassBottom, r.Right, glassBottom, paint);
+        // Rivets along the upper edge.
         for (float x = r.Left + 14; x < r.Right; x += 34)
         {
             Rivet(canvas, x, glassTop + 5);
-            Rivet(canvas, x, glassBottom - 5);
         }
     }
 

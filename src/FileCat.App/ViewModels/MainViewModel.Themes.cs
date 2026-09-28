@@ -42,7 +42,7 @@ public sealed partial class MainViewModel
             ThemeManager.Apply(chosen);
             Services.Icons.ClearCache();
         };
-        var animations = new CheckBox { Content = "Animated themes move (rain, drifting light, glitches)", IsChecked = originalAnimations };
+        var animations = new CheckBox { Content = "Animate theme light, edges, and subtle glitches", IsChecked = originalAnimations };
         animations.IsCheckedChanged += (_, _) => ThemeAnimation.SetAllowed(animations.IsChecked == true);
         var body = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Stretch };
         body.Children.Add(new TextBlock { Text = "Arrow keys try each theme on FileCat itself. Enter keeps it; Esc goes back.", Classes = { "muted" } });

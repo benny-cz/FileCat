@@ -25,7 +25,7 @@ public static class SettingsDialog
         {
             if (theme.SelectedIndex >= 0) ThemeManager.Apply(themeNames[theme.SelectedIndex]);
         };
-        var animations = new CheckBox { Content = "Animated themes move (rain, drifting light, glitches)", IsChecked = s.ThemeAnimations };
+        var animations = new CheckBox { Content = "Animate theme light, edges, and subtle glitches", IsChecked = s.ThemeAnimations };
         var fontSize = new NumericUpDown { Minimum = 9, Maximum = 24, Increment = 1, Value = (decimal)s.FontSize, Width = 130, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         var keyBar = new CheckBox { Content = "Show the function-key bar", IsChecked = s.ShowFunctionKeyBar };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };

@@ -107,7 +107,7 @@
     <Setter Property="Background" Value="{DynamicResource FcKeyBarBackground}" />
   </Style>
   <Style Selector="Button.fkey:disabled TextBlock">
-    <Setter Property="Opacity" Value="0.5" />
+    <Setter Property="Opacity" Value="0.72" />
   </Style>
   <Style Selector="TextBlock.fkeynum">
     <Setter Property="Foreground" Value="{DynamicResource FcKeyBarKey}" />

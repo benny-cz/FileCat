@@ -10,8 +10,8 @@ namespace FileCat.App.Services;
 public enum ThemeEffect
 {
     None,
-    /// <summary>Digital rain behind the lists.</summary>
-    Matrix,
+    /// <summary>Quiet circuitry and crisp green edges.</summary>
+    Cyberpunk,
     /// <summary>Lava-lamp light, slowly drifting colors, and rare glitches.</summary>
     Psychedelic,
     /// <summary>Riveted, rusty iron with gears, and stained glass above and below.</summary>
@@ -81,22 +81,21 @@ public sealed record ThemePalette(
     };
 
     public static readonly ThemePalette Cyberpunk = new("Cyberpunk", true,
-        "#000000", "#C7010A03", "#D0000602", "#DC011606", "#4DFF7A", "#23B04A", "#157A2E",
-        "#B8FFCA", "#E0FF4D", "#00FFB3", "#7DF9FF",
-        "#F2FFF4", "#105A20", "#0B4A1A", "#F2FFF4", "#4DFF7A", "#1F6B32",
-        "#4DFF7A", "#B8FFCA", "#0C2A12", "#7DFF9E",
-        "#CC000A02", "#4DFF7A", "#B8FFCA", "#D9000A02",
-        "#E0FF4D", "#FF5F5F", "#4DFF7A", "#4DFF7A",
-        "#F2021004", "#1F6B32", "#CC000000",
-        "#4DFF7A", "#23B04A", "#E0FF4D", "#7DF9FF", "#00FFB3", "#B8FFCA", "#4DFF7A",
-        "#1F6B32", "#2E6B00")
+        "#06110D", "#F20A1812", "#F20A1511", "#10251B", "#E2F4E8", "#9BBEAA", "#718D7B",
+        "#9CF0B1", "#F3C875", "#D4A1EB", "#8CCFFF",
+        "#F5FFF7", "#234032", "#173A2B", "#FFFFFF", "#55D989", "#42755B",
+        "#55D989", "#62C6B1", "#214132", "#B9E8C6",
+        "#F60A1812", "#83E4A6", "#DBF3E1", "#F60A1812",
+        "#F2C875", "#FF817E", "#81E7A6", "#55D989",
+        "#10241B", "#37634A", "#D9000000",
+        "#8EDDA5", "#ACCAB4", "#F3C875", "#8CCFFF", "#D4A1EB", "#62C6B1", "#B9A4EF",
+        "#35553C", "#4C5B29")
     {
-        DisplayName = "Cyberpunk (Matrix)",
-        Description = "Green phosphor on black in a terminal font, with digital rain falling behind the lists.",
-        Effect = ThemeEffect.Matrix,
+        DisplayName = "Cyberpunk",
+        Description = "Dark circuitry, crisp green edges, and restrained color for file types and states.",
+        Effect = ThemeEffect.Cyberpunk,
         FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, Menlo, Liberation Mono, monospace",
-        IconTint = "#4DFF7A",
-        MenuBackground = "#E6000000", // the rain stays behind the lists, not across the menu's words
+        MenuBackground = "#F3091812",
     };
 
     public static readonly ThemePalette Psychedelic = new("Psychedelic", true,
@@ -111,25 +110,25 @@ public sealed record ThemePalette(
         "#6A2358", "#4A4A1A")
     {
         DisplayName = "Psychedelic",
-        Description = "Neon colors that slowly drift over lava-lamp light, and every now and then a glitch.",
+        Description = "Soft neon light, slowly shifting edge colors, and brief signal glitches.",
         Effect = ThemeEffect.Psychedelic,
     };
 
     public static readonly ThemePalette Steampunk = new("Steampunk", true,
-        "#1A120B", "#CF241910", "#D9201610", "#E03A2817", "#F2E6CC", "#C8B48C", "#8C7A5A",
+        "#1A120B", "#F1221912", "#F1221913", "#3A2817", "#F2E6CC", "#D6C29E", "#A99672",
         "#E8B25A", "#D98C4A", "#6FC3A5", "#9CC6E8",
         "#FF7A45", "#4A2412", "#5A3A1A", "#FFF4DC", "#E8B25A", "#6B5335",
         "#E8B25A", "#43B3AE", "#3B2A18", "#E9D2A8",
-        "#E0201610", "#E8B25A", "#F2E6CC", "#D91E150E",
+        "#241A13", "#E8B25A", "#F2E6CC", "#251B14",
         "#E8A33D", "#E0573A", "#8FBF6A", "#E8B25A",
-        "#F22E2016", "#7A5C38", "#AA0A0604",
+        "#2E2016", "#7A5C38", "#AA0A0604",
         "#E8B25A", "#C8B48C", "#D98C4A", "#9CC6E8", "#6FC3A5", "#43B3AE", "#C79BFF",
         "#6B4A20", "#5A4A12")
     {
         DisplayName = "Steampunk",
-        Description = "Brass, copper, and walnut over riveted, rusting iron, lit through stained glass.",
+        Description = "Brass, copper, and walnut with a restrained stained-glass canopy.",
         Effect = ThemeEffect.Steampunk,
-        MenuBackground = "#B8140E08",
+        MenuBackground = "#E61B130D",
     };
 
     public static readonly ThemePalette HighContrast = new("HighContrast", true,
@@ -198,10 +197,7 @@ public static class ThemeManager
         return Names[(i + 1) % Names.Count];
     }
 
-    /// <summary>
-    /// Lets a drifting theme's accents move around the color wheel: one turn every two minutes, the same for every
-    /// accent, so their relations (and the non-color cues) stay as designed.
-    /// </summary>
+    /// <summary>Move decorative colors slowly while keeping text and semantic state colors stable.</summary>
     public static void Drift(double seconds)
     {
         if (Current.Effect != ThemeEffect.Psychedelic || Drifting.Count == 0) return;
@@ -230,13 +226,13 @@ public static class ThemeManager
     {
         var d = new ResourceDictionary();
         Drifting.Clear();
-        void Add(string key, string hex, bool drift = false)
+        void Add(string key, string hex, bool edge = false)
         {
             var c = Color.Parse(hex);
             var brush = new SolidColorBrush(c);
             d["Fc" + key + "Color"] = c;
             d["Fc" + key] = brush;
-            if (drift) Drifting.Add((brush, c));
+            if (p.Effect == ThemeEffect.Psychedelic && edge) Drifting.Add((brush, c));
         }
         Add("Window", p.Window);
         Add("Panel", p.Panel);
@@ -245,30 +241,30 @@ public static class ThemeManager
         Add("Text", p.Text);
         Add("TextMuted", p.TextMuted);
         Add("TextDim", p.TextDim);
-        Add("TextDirectory", p.TextDirectory, drift: true);
-        Add("TextArchive", p.TextArchive, drift: true);
-        Add("TextExecutable", p.TextExecutable, drift: true);
-        Add("TextLink", p.TextLink, drift: true);
-        Add("TextMarked", p.TextMarked, drift: true);
-        Add("MarkedBackground", p.MarkedBackground, drift: true);
-        Add("FocusBackground", p.FocusBackground, drift: true);
+        Add("TextDirectory", p.TextDirectory);
+        Add("TextArchive", p.TextArchive);
+        Add("TextExecutable", p.TextExecutable);
+        Add("TextLink", p.TextLink);
+        Add("TextMarked", p.TextMarked);
+        Add("MarkedBackground", p.MarkedBackground);
+        Add("FocusBackground", p.FocusBackground);
         Add("FocusText", p.FocusText);
-        Add("FocusBorder", p.FocusBorder, drift: true);
+        Add("FocusBorder", p.FocusBorder, edge: true);
         Add("FocusInactiveBorder", p.FocusInactiveBorder);
-        Add("ActiveAccent", p.ActiveAccent, drift: true);
-        Add("TargetAccent", p.TargetAccent, drift: true);
-        Add("GridLine", p.GridLine);
+        Add("ActiveAccent", p.ActiveAccent, edge: true);
+        Add("TargetAccent", p.TargetAccent, edge: true);
+        Add("GridLine", p.GridLine, edge: true);
         Add("HeaderText", p.HeaderText);
         Add("KeyBarBackground", p.KeyBarBackground);
-        Add("KeyBarKey", p.KeyBarKey, drift: true);
+        Add("KeyBarKey", p.KeyBarKey);
         Add("KeyBarLabel", p.KeyBarLabel);
         Add("StatusBackground", p.StatusBackground);
         Add("Warning", p.Warning);
         Add("Error", p.Error);
         Add("Success", p.Success);
-        Add("Progress", p.Progress, drift: true);
+        Add("Progress", p.Progress);
         Add("Card", p.Card);
-        Add("Border", p.Border);
+        Add("Border", p.Border, edge: true);
         Add("Backdrop", p.Backdrop);
         Add("FolderIcon", p.FolderIcon);
         Add("FileIcon", p.FileIcon);

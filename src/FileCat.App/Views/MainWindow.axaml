@@ -10,7 +10,7 @@
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/filecat.ico">
   <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
-    <!-- Behind everything: what the theme draws (Matrix rain, psychedelic light, steampunk iron and glass). -->
+    <!-- Behind everything: quiet circuitry, psychedelic light, or steampunk iron and glass. -->
     <controls:ThemeBackdrop x:Name="Backdrop" Grid.Row="0" Grid.RowSpan="5" />
 
     <Menu x:Name="MainMenu" Grid.Row="0" />

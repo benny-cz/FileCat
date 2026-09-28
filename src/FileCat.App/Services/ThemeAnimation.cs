@@ -4,7 +4,7 @@ using Avalonia.Threading;
 namespace FileCat.App.Services;
 
 /// <summary>
-/// The clock of animated themes (Matrix rain, psychedelic light and glitches). It runs only while such a theme is on,
+/// The clock of animated themes (psychedelic light, shifting edges and glitches). It runs only while such a theme is on,
 /// animations are allowed (FileCat's setting, and the system's reduce-motion preference), and a FileCat window is active;
 /// otherwise nothing redraws. Frames come at the rate the current effect needs, and glitches are scheduled here.
 /// </summary>
@@ -14,7 +14,7 @@ public static class ThemeAnimation
     private static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
     private static readonly Random Random = new();
     private static bool _allowed = true, _active = true;
-    private static double _nextGlitch = 8;
+    private static double _nextGlitch = 20;
 
     static ThemeAnimation()
     {
@@ -50,7 +50,7 @@ public static class ThemeAnimation
     private static void Update()
     {
         var effect = ThemeManager.Current.Effect;
-        bool animated = effect is ThemeEffect.Matrix or ThemeEffect.Psychedelic;
+        bool animated = effect == ThemeEffect.Psychedelic;
         if (!animated || !_allowed || !_active)
         {
             if (Timer.IsEnabled) Timer.Stop();
@@ -58,8 +58,8 @@ public static class ThemeAnimation
             Frame?.Invoke();
             return;
         }
-        // Rain needs about 16 frames a second; drifting light 12, and glitches get 30 while they last.
-        Timer.Interval = TimeSpan.FromMilliseconds(effect == ThemeEffect.Matrix ? 62 : 83);
+        // Drifting light uses 12 frames a second, and glitches 30 while they last.
+        Timer.Interval = TimeSpan.FromMilliseconds(83);
         if (!Timer.IsEnabled) Timer.Start();
     }
 
@@ -71,12 +71,12 @@ public static class ThemeAnimation
             if (Glitch is { } g && now > g.Start + g.Length)
             {
                 Glitch = null;
-                _nextGlitch = now + 5 + Random.NextDouble() * 13;
+                _nextGlitch = now + 18 + Random.NextDouble() * 17;
                 Timer.Interval = TimeSpan.FromMilliseconds(83);
             }
             else if (Glitch is null && now >= _nextGlitch)
             {
-                Glitch = (now, 0.15 + Random.NextDouble() * 0.3, Random.Next());
+                Glitch = (now, 0.10 + Random.NextDouble() * 0.08, Random.Next());
                 Timer.Interval = TimeSpan.FromMilliseconds(33);
             }
             ThemeManager.Drift(now);
