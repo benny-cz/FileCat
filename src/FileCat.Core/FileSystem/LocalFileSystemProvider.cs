@@ -10,6 +10,18 @@ public interface IContainerDetector
     Location? GetContainerLocation(string filePath);
 }
 
+/// <summary>Several archive providers as one detector: the first that recognizes a name opens it.</summary>
+public sealed class ContainerDetectors(params IContainerDetector[] detectors) : IContainerDetector
+{
+    public bool IsContainer(string fileName) => detectors.Any(d => d.IsContainer(fileName));
+
+    public Location? GetContainerLocation(string filePath)
+    {
+        string name = Path.GetFileName(filePath);
+        return detectors.FirstOrDefault(d => d.IsContainer(name))?.GetContainerLocation(filePath);
+    }
+}
+
 /// <summary>
 /// Portable local file-system provider built on the .NET enumeration APIs (which use FindFirstFileEx
 /// on Windows). Enumeration never follows links and never reads file content.

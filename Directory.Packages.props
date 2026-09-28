@@ -8,6 +8,10 @@
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.1" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+    <!-- Read-only archive formats (ADR-07, P8): managed code under FileCat's limits. -->
+    <PackageVersion Include="SharpCompress" Version="0.50.4" />
+    <PackageVersion Include="LTRData.DiscUtils.Iso9660" Version="1.0.89" />
+    <PackageVersion Include="LTRData.DiscUtils.Udf" Version="1.0.89" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />

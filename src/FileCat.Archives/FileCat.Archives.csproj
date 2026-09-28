@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Read-only archive formats beyond ZIP (plan §15, ADR-07, P8): TAR family (in-box readers), 7z, RAR, xz, bz2, and
+    zstd (SharpCompress), ISO 9660 and UDF images (DiscUtils). All managed; FileCat enforces entry, size, ratio, and
+    path limits around them. Core stays free of third-party packages.
+  -->
+  <PropertyGroup>
+    <RootNamespace>FileCat.Archives</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
+    <PackageReference Include="SharpCompress" />
+    <PackageReference Include="LTRData.DiscUtils.Iso9660" />
+    <PackageReference Include="LTRData.DiscUtils.Udf" />
+    <InternalsVisibleTo Include="FileCat.Core.Tests" />
+  </ItemGroup>
+</Project>

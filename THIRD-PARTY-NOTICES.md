@@ -15,6 +15,15 @@ SignPath Foundation code signing). Regenerate the inventory with `eng/publish.ps
 | MicroCom.Runtime | 0.11.6 | MIT | COM interop helper used by Avalonia |
 | Tmds.DBus.Protocol | 0.94.1 | MIT | Linux desktop integration (D-Bus) |
 | CommunityToolkit.Mvvm | 8.4.0 | MIT | MVVM source generators |
+| SSH.NET | 2026.0.0 | MIT | SFTP and SSH (ADR-17) |
+| BouncyCastle.Cryptography | 2.7.0 | MIT | Cryptography used by SSH.NET |
+| Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | Logging interfaces used by SSH.NET |
+| SharpCompress | 0.50.4 | MIT | Read-only 7z, RAR, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock |
+| LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
+| LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils |
+
+Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in
+`tests/FileCat.Core.Tests/TestData/Archives/README.md`.
 
 Build-time only (not shipped): Avalonia.BuildServices (MIT) — its usage-statistics task is disabled in
 `Directory.Build.targets`; Inno Setup (modified BSD) builds the installer.

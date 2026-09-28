@@ -28,6 +28,12 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     private readonly ConcurrentDictionary<string, ZipIndex> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _tempDirectory;
 
+    /// <summary>Other archive formats found inside ZIPs (P8): flagged as containers and opened by their provider.</summary>
+    public IContainerDetector? OtherArchives { get; set; }
+
+    /// <summary>A private local copy of a member of another archive format, for a ZIP stored inside it.</summary>
+    public Func<Location, string>? SpoolForeignMember { get; set; }
+
     public ZipProvider(string tempDirectory)
     {
         _tempDirectory = tempDirectory;
@@ -116,7 +122,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     {
         var container = location.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
         if (container.IsFileSystem) return container.Path;
-        if (container.Scheme != Schemes.Zip) throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from.");
+        if (container.Scheme != Schemes.Zip)
+            return SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from.");
         if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
         string outer = ArchiveFile(container, depth + 1);
         var info = new FileInfo(outer);
@@ -257,7 +264,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
                 Tag = node.Tag,
                 Flags = (node.Tag?.Encrypted == true ? EntryFlags.Protected : EntryFlags.None) |
                         (node.Tag?.UnsafeReason is not null ? EntryFlags.Unavailable : EntryFlags.None) |
-                        (!node.IsDirectory && IsContainer(node.Name) ? EntryFlags.Container : EntryFlags.None),
+                        (!node.IsDirectory && (IsContainer(node.Name) || OtherArchives?.IsContainer(node.Name) == true) ? EntryFlags.Container : EntryFlags.None),
             };
             batch.Add(e);
         }
@@ -273,7 +280,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         if (entry.Kind == EntryKind.Directory) return parent.WithPath(member);
         // An archive inside the archive opens read-only; its container is its member location here (plan §15).
         if (entry.Has(EntryFlags.Container) && entry.Tag is ZipMemberTag { Encrypted: false, UnsafeReason: null, DuplicateOrdinal: 0 })
-            return new Location(Schemes.Zip, string.Empty, parent.WithPath(member));
+            return new Location(IsContainer(entry.Name) ? Schemes.Zip : Schemes.Archive, string.Empty, parent.WithPath(member));
         return null;
     }
 

@@ -43,7 +43,12 @@ public sealed class AppServices : IDisposable
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
         Zip = new Core.Archives.ZipProvider(paths.TempDirectory);
         Providers.Register(Zip);
-        if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = Zip;
+        // Read-only TAR, 7z, RAR, compressed files, and disc images (P8); archives of either kind nest in the other.
+        Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers);
+        Providers.Register(Archives);
+        Zip.OtherArchives = Archives;
+        Zip.SpoolForeignMember = Archives.Spool;
+        if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
@@ -90,6 +95,9 @@ public sealed class AppServices : IDisposable
     public Core.Metadata.MetadataService Metadata { get; }
 
     public Core.Archives.ZipProvider Zip { get; private set; } = null!;
+
+    /// <summary>Read-only archive formats other than ZIP.</summary>
+    public FileCat.Archives.ArchiveProvider Archives { get; } = null!;
 
     public Core.Jobs.JobManager Jobs { get; }
 

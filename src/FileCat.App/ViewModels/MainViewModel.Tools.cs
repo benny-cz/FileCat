@@ -327,23 +327,33 @@ public sealed partial class MainViewModel
 
     // ---- Archives ----------------------------------------------------------------------------------------------
 
-    /// <summary>Ctrl+PgDn on a file that is not a known archive: try it as ZIP (e.g. .docx, .apk) explicitly.</summary>
+    /// <summary>
+    /// Ctrl+PgDn on a file that is not a known archive: open it by its signature, as ZIP (e.g. .docx, .apk) or as one of
+    /// the read-only formats (a TAR, 7z, RAR, compressed file, or disc image under another name).
+    /// </summary>
     internal bool TryOpenAsArchive(TabViewModel tab, in EntryData e)
     {
         if (e.IsContainer || tab.Location is null) return false;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         if (item.FileSystemPath is not { } path) return false;
+        FileCat.Archives.ArchiveKind? other;
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             Span<byte> sig = stackalloc byte[4];
-            if (fs.Read(sig) < 4 || sig[0] != 'P' || sig[1] != 'K') return false;
+            if (fs.Read(sig) >= 4 && sig[0] == 'P' && sig[1] == 'K')
+            {
+                tab.Navigate(ZipProvider.ForFile(path));
+                return true;
+            }
+            other = FileCat.Archives.ArchiveFormats.BySignature(fs);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }
-        tab.Navigate(ZipProvider.ForFile(path));
+        if (other is null) return false;
+        tab.Navigate(FileCat.Archives.ArchiveProvider.ForFile(path, other));
         return true;
     }
 
@@ -356,7 +366,7 @@ public sealed partial class MainViewModel
         var archives = sel.Where(s => s.FileSystemPath is { } p && !s.IsContainer).Select(s => s.FileSystemPath!).ToList();
         if (archives.Count == 0)
         {
-            Notify("Focus or mark ZIP archives to unpack.");
+            Notify("Focus or mark archives to unpack.");
             return;
         }
         var target = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : Path.GetDirectoryName(archives[0])!;
@@ -370,8 +380,9 @@ public sealed partial class MainViewModel
         if (r is null) return;
         foreach (var archive in archives)
         {
-            var root = ZipProvider.ForFile(archive);
-            var provider = Services.Providers.Get(Schemes.Zip);
+            bool other = Services.Archives.IsContainer(Path.GetFileName(archive));
+            var root = other ? FileCat.Archives.ArchiveProvider.ForFile(archive) : ZipProvider.ForFile(archive);
+            FileCat.Core.Resources.ResourceProvider provider = other ? Services.Archives : Services.Zip;
             List<ItemRef> members;
             try
             {
@@ -384,7 +395,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
             {
-                Notify($"\"{Path.GetFileName(archive)}\" cannot be read as a ZIP archive: {ex.Message}", true);
+                Notify($"\"{Path.GetFileName(archive)}\" cannot be read as {(other ? "an archive" : "a ZIP archive")}: {ex.Message}", true);
                 continue;
             }
             var dest = r.Checked ? Path.Combine(r.Text, Path.GetFileNameWithoutExtension(archive)) : r.Text;

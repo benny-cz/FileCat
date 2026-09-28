@@ -12,6 +12,8 @@ public static class Schemes
     /// <summary>Share listing of a <c>\\server</c> root, which cannot be enumerated as a directory.</summary>
     public const string Network = "net";
     public const string Zip = "zip";
+    /// <summary>Read-only archives other than ZIP: TAR family, 7z, RAR, single compressed files, disc images (P8).</summary>
+    public const string Archive = "arc";
     public const string Registry = "reg";
     public const string ResultSet = "results";
     public const string Sftp = "sftp";
