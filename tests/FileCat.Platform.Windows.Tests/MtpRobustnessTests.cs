@@ -197,6 +197,31 @@ public sealed class MtpRobustnessTests : IDisposable
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(15), $"The device took {clock.Elapsed} to answer after a canceled download.");
     }
 
+    [Fact]
+    public async Task Moving_to_the_device_removes_the_originals_only_after_their_copies_are_complete()
+    {
+        using var rig = Open();
+        if (rig is null) Assert.Skip("Set FILECAT_MTP_TEST=1 with an unlocked phone in file-transfer mode to run the device scenario.");
+        string file = LocalFile("moved.txt", "moved"u8.ToArray());
+        string tree = Directory.CreateDirectory(Path.Combine(_local, "tree", "album")).FullName;
+        File.WriteAllText(Path.Combine(tree, "one.txt"), "one");
+        Directory.CreateDirectory(Path.Combine(tree, "inner"));
+        File.WriteAllText(Path.Combine(tree, "inner", "two.txt"), "two");
+        var move = await Run(rig, new JobRequest
+        {
+            Kind = JobKind.Move,
+            Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File), ItemRef.ForFileSystemPath(tree, EntryKind.Directory)],
+            Destination = rig.Folder,
+        });
+        Assert.True(move.State == JobState.Completed, Describe(move));
+        Assert.False(File.Exists(file));
+        Assert.False(Directory.Exists(tree));
+        Assert.Equal("moved"u8.ToArray(), rig.Read("moved.txt"));
+        var album = rig.Folder.WithPath(rig.Folder.Path + "/album");
+        Assert.Equal(["inner", "one.txt"], rig.List(album).Select(e => e.Name).Order());
+        Assert.Single(rig.List(album.WithPath(album.Path + "/inner")), e => e.Name == "two.txt");
+    }
+
     /// <summary>
     /// How long listing a big folder takes (FILECAT_MTP_BENCH=1 with FILECAT_MTP_TEST=1): 1,000 small files are written
     /// into FileCat-test, listed three times, and removed with the folder.
