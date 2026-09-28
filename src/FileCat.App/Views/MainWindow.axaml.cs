@@ -169,9 +169,21 @@ public partial class MainWindow : Window, IViewActions
                 return;
             }
             var paths = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Cast<string>().ToList();
-            ItemSources.Release(sel);
-            // Only local files are offered to other applications (plan §4.2).
-            if (paths.Count == 0) return;
+            if (paths.Count == 0)
+            {
+                // Archive members and files in disk images are copied into a private folder first (plan §4.2); the rest is
+                // explained. Staging is capped so it finishes while the button is still down.
+                var (staged, refusal) = await Task.Run(() => Core.Operations.DragStaging.Stage(sel, _vm.Services.Providers,
+                    _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, CancellationToken.None));
+                ItemSources.Release(sel);
+                if (refusal is not null) _vm.Notify(refusal, true);
+                if (staged is null) return;
+                paths = [.. staged];
+            }
+            else
+            {
+                ItemSources.Release(sel);
+            }
             var transfer = new DataTransfer();
             foreach (var p in paths)
             {
