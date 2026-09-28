@@ -29,7 +29,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 | `src/FileCat.Recovery` | Read-only NTFS, FAT12/16/32, and exFAT engines, MBR/GPT, evidence-based states, `RecoveryProvider` (P10, ADR-08) |
 | `src/FileCat.Remote` | SFTP over SSH.NET: channel, host-key trust, connection leases, provider, jobs (P6) |
 | `src/FileCat.App` | Avalonia 12.1 UI: glyph-run `FileListControl`, panels, tabs, workspace, overlay dialogs, operation center, viewers, settings (column profiles, associations), themes, benchmark |
-| `docs/adr/` | Decided ADRs: 02, 03, 04 (append-only journal instead of SQLite), 05, 07, 10, 14, 15, 16, 17. The plan's §26 points to them. |
+| `docs/adr/` | All 17 ADRs decided (04: append-only journal instead of SQLite). The plan's §26 points to them. |
 | `docs/validation/` | TV-01 (scale and latency) and the P3 validations (TV-03/07/10/13/14/16/17 plus truthful outcomes) |
 | `docs/CAPABILITIES.md`, `docs/SERVICING.md`, `SECURITY.md` | What works where; release servicing; vulnerability reporting |
 

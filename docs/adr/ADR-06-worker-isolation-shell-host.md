@@ -1,7 +1,8 @@
 # ADR-06: Worker isolation — the Shell integration host
 
-**Status:** Decided for the Shell integration host (P7, TV-16, 2026-09-28). Workers for other native parsers (P8
-archive engines, media) stay open until those engines arrive.
+**Status:** Decided (P7, TV-16, 2026-09-28). P8 and P10 adopted no native parsers: archives (SharpCompress, DiscUtils),
+inspectors, and recovery are managed, bounded, and fuzzed (ADR-07, ADR-08), so this helper is the only worker. A native
+engine, if one is ever adopted, runs out of process under the same kind of restrictions.
 
 ## Decision
 
