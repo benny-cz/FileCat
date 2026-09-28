@@ -12,6 +12,8 @@ public interface IPlatform : IDisposable
     string Name { get; }
     IShellServices Shell { get; }
     IFileSystemOperations FileOperations { get; }
+    /// <summary>OS credential store, or a session-only store where the platform has none (plan §14.1).</summary>
+    State.ISecretStore Secrets { get; }
 
     /// <summary>Registers the file-system, computer, network, and OS-specific providers.</summary>
     void RegisterProviders(ProviderRegistry registry);
@@ -29,6 +31,7 @@ public class PortablePlatform : IPlatform
     public virtual string Name => OperatingSystem.IsMacOS() ? "macOS" : OperatingSystem.IsLinux() ? "Linux" : "Portable";
     public IShellServices Shell { get; protected init; }
     public IFileSystemOperations FileOperations { get; protected init; }
+    public State.ISecretStore Secrets { get; protected init; } = new State.SessionSecretStore();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }
 
     public virtual void RegisterProviders(ProviderRegistry registry)

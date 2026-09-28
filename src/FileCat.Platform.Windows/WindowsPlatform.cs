@@ -12,6 +12,7 @@ public sealed class WindowsPlatform : PortablePlatform
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         Shell = new WindowsShellServices();
         FileOperations = new WindowsFileOperations();
+        Secrets = new WindowsCredentialStore();
         Core.Jobs.Junctions.CreateHandler = Junction.Create;
         Core.Jobs.JobExecutors.ExtraExecutors[Core.Jobs.JobKind.Elevated] =
             (job, _, _, journal) => new Elevation.ElevatedJobExecutor(job, journal);

@@ -81,6 +81,8 @@ public sealed class AppSettings : IVersionedState
     public List<ToolDefinition> UserCommands { get; set; } = [];
     /// <summary>Named masks used as <c>@name</c> wherever a mask is accepted (plan §11 saved filters).</summary>
     public List<SavedFilter> SavedFilters { get; set; } = [];
+    /// <summary>Saved SFTP connections (no secrets; see <see cref="ISecretStore"/>).</summary>
+    public List<RemoteProfile> RemoteProfiles { get; set; } = [];
     public List<ToolDefinition> Associations { get; set; } = [];
     public Dictionary<string, string[]> KeyBindings { get; set; } = new(StringComparer.Ordinal);
     public List<ColumnProfile> ColumnProfiles { get; set; } = [];

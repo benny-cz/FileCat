@@ -4,10 +4,12 @@
     <Project Path="src/FileCat.Core/FileCat.Core.csproj" />
     <Project Path="src/FileCat.Platform.Windows/FileCat.Platform.Windows.csproj" />
     <Project Path="src/FileCat.PrivilegedHost/FileCat.PrivilegedHost.csproj" />
+    <Project Path="src/FileCat.Remote/FileCat.Remote.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />
     <Project Path="tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj" />
     <Project Path="tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj" />
+    <Project Path="tests/FileCat.Remote.Tests/FileCat.Remote.Tests.csproj" />
   </Folder>
 </Solution>
