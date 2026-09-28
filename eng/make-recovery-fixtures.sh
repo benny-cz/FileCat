@@ -7,8 +7,9 @@
 #   docs/report.txt, docs/Long file name with spaces.txt, docs/Příliš žluťoučký kůň.txt   deleted last -> recoverable
 #   photos/ (with a.jpg, b.jpg)       deleted as a whole folder last
 #   tiny.txt (60 bytes)               deleted last (NTFS keeps it inside the MFT record)
+#   packed/notes.txt, packed/gaps.txt NTFS only: compressed (LZNT1), gaps.txt with two all-zero units; deleted last
 # File contents are "<name>:<8-digit line number>\n" lines, so tests can regenerate every byte (RecoveryFixtures.cs).
-# Usage: sudo eng/make-recovery-fixtures.sh OUTDIR     (Ubuntu with dosfstools, exfatprogs, ntfs-3g, python3)
+# Usage: sudo eng/make-recovery-fixtures.sh OUTDIR     (Ubuntu with dosfstools, exfatprogs, ntfs-3g, attr, python3)
 set -euo pipefail
 
 OUT="$(realpath "${1:?output directory}")"
@@ -53,6 +54,12 @@ scenario() {
   write "photos/a.jpg" 70000
   write "photos/b.jpg" 12345
   write tiny.txt 60
+  if [ -d "$MNT/packed" ]; then # NTFS only: a folder whose files ntfs-3g stores compressed (LZNT1)
+    write "packed/notes.txt" 200000
+    write "packed/gaps.txt" 70000
+    dd if=/dev/zero bs=65536 count=2 status=none >> "$MNT/packed/gaps.txt" # all-zero compression units: sparse
+    write "packed/gaps.txt" 30000 append
+  fi
   # The filler exists before anything is deleted, so its entry never takes the place of a deleted one (NTFS reuses
   # the lowest free MFT record); then it grows with zeros until the volume is full, taking every free cluster,
   # overwritten.txt's included.
@@ -63,6 +70,7 @@ scenario() {
   # Deleted last: nothing is written after these, so their content survives intact.
   rm "$MNT/frag-a.bin" "$MNT/docs/report.txt" "$MNT/docs/Long file name with spaces.txt" "$MNT/docs/Příliš žluťoučký kůň.txt" "$MNT/tiny.txt"
   rm -r "$MNT/photos"
+  [ -d "$MNT/packed" ] && rm -r "$MNT/packed"
   sync
 }
 
@@ -90,7 +98,9 @@ ntfs() {
   local img="$WORK/ntfs.img"
   truncate -s 16M "$img"
   mkntfs -F -Q -q -L FIXTURE -c 4096 "$img"
-  ntfs-3g "$img" "$MNT"
+  ntfs-3g -o compression "$img" "$MNT"
+  mkdir "$MNT/packed"
+  setfattr -h -v 0x00000800 -n system.ntfs_attrib_be "$MNT/packed" # FILE_ATTRIBUTE_COMPRESSED
   scenario
   umount "$MNT"
   gzip -9n < "$img" > "$OUT/ntfs.img.gz"
