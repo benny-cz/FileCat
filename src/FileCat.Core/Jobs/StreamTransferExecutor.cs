@@ -55,7 +55,21 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 Job.RootFailed(index);
                 continue;
             }
-            var dst = Path.Combine(destDir, name);
+            string targetDir;
+            try
+            {
+                // Result and sync items keep their folders below the destination.
+                targetDir = Job.Request.Options.Flatten || root.RelativeFolder is not { Length: > 0 } rel ? destDir : RelativeFolders.Resolve(destDir, rel);
+                if (targetDir != destDir) Directory.CreateDirectory(targetDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, root.Name, "Not copied: its folder could not be created: " + ex.Message, StepOutcome.Failed);
+                Job.RootFailed(index);
+                continue;
+            }
+            var dst = Path.Combine(targetDir, name);
             if (!PathUtil.IsSameOrUnder(Path.GetFullPath(dst), destDir))
             {
                 Job.ItemFailed();
@@ -266,6 +280,23 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
 }
 
 /// <summary>Validation of member names from untrusted containers before they touch the file system (plan §15).</summary>
+/// <summary>Folders recreated below a destination (result sets, synchronization): every segment is a plain name.</summary>
+public static class RelativeFolders
+{
+    /// <summary>The folder below <paramref name="destination"/>; throws <see cref="ArgumentException"/> when a segment is unsafe.</summary>
+    public static string Resolve(string destination, string relative)
+    {
+        var dir = destination;
+        foreach (var segment in relative.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (SafeNames.Validate(segment) is { } bad) throw new ArgumentException($"The folder \"{segment}\" is not recreated: {bad}");
+            dir = Path.Combine(dir, segment);
+        }
+        if (!PathUtil.IsSameOrUnder(Path.GetFullPath(dir), destination)) throw new ArgumentException("The folder would escape the destination.");
+        return dir;
+    }
+}
+
 public static class SafeNames
 {
     public static string? Validate(string name)

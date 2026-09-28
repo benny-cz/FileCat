@@ -72,7 +72,8 @@ public static class TreeCompare
                     "The folder could not be read: " + (leftError ?? rightError)));
                 return;
             }
-            void Add(TreeDiffEntry e) => entries.Add(e with { LeftFolder = e.Left is null ? null : l, RightFolder = e.Right is null ? null : r });
+            // Both folders are recorded, also for one-sided items: synchronization copies into the other side's folder.
+            void Add(TreeDiffEntry e) => entries.Add(e with { LeftFolder = l, RightFolder = r });
             var rightByName = new Dictionary<string, EntryData>(comparer);
             foreach (var e in rightItems) rightByName.TryAdd(e.Name, e);
             var seen = new HashSet<string>(comparer);

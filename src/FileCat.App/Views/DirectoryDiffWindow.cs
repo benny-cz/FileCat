@@ -36,6 +36,8 @@ public sealed class DirectoryDiffWindow : Window
     private readonly Button _stopButton = new() { Content = "Stop", Classes = { "danger" } };
     private readonly Button _openLeft = new() { Content = "Open left items as results", IsEnabled = false };
     private readonly Button _openRight = new() { Content = "Open right items as results", IsEnabled = false };
+    private readonly Button _sync = new() { Content = "Synchronize…", IsEnabled = false };
+    private SyncContext? _syncContext;
     private readonly ListBox _list = new();
     private readonly ComboBox _filter = new() { MinWidth = 180 };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap };
@@ -45,10 +47,12 @@ public sealed class DirectoryDiffWindow : Window
     /// <summary>Shows the window at once and runs the comparison in the background; Stop keeps what was compared.</summary>
     /// <param name="compare">The comparison (progress: the folder being compared).</param>
     /// <param name="openSide">Opens the given entries of one side (true: left) as a result set in that side's panel.</param>
+    /// <param name="sync">How a one-way synchronization of these folders starts; null offers none.</param>
     public static DirectoryDiffWindow Start(string leftName, string rightName, string criteria,
-        Func<Action<string>, CancellationToken, TreeCompareResult> compare, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide)
+        Func<Action<string>, CancellationToken, TreeCompareResult> compare, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide, SyncContext? sync = null)
     {
-        var window = new DirectoryDiffWindow(leftName, rightName, criteria, openSide);
+        var window = new DirectoryDiffWindow(leftName, rightName, criteria, openSide) { _syncContext = sync };
+        window._sync.IsVisible = sync is not null;
         s_open.Add(window);
         window.Closed += (_, _) =>
         {
@@ -84,6 +88,7 @@ public sealed class DirectoryDiffWindow : Window
         }
         _stopButton.IsVisible = false;
         _openLeft.IsEnabled = _openRight.IsEnabled = true;
+        _sync.IsEnabled = _syncContext is not null && _result.Entries.Any(e => e.IsDifference);
         Refresh();
     }
 
@@ -106,10 +111,12 @@ public sealed class DirectoryDiffWindow : Window
         ToolTip.SetTip(openRight, "The shown items that exist on the right, as a result set in the right panel");
         openLeft.Click += (_, _) => _openSide(Shown().Where(e => e.Left is not null).ToList(), true);
         openRight.Click += (_, _) => _openSide(Shown().Where(e => e.Right is not null).ToList(), false);
+        ToolTip.SetTip(_sync, "One-way: Update copies new and newer items; Mirror also removes what only the target has. Every step is previewed.");
+        _sync.Click += (_, _) => OpenSync();
         var bar = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6),
-            Children = { new TextBlock { Text = "Show:", VerticalAlignment = VerticalAlignment.Center }, _filter, openLeft, openRight, _stopButton },
+            Children = { new TextBlock { Text = "Show:", VerticalAlignment = VerticalAlignment.Center }, _filter, openLeft, openRight, _sync, _stopButton },
         };
         var info = new StackPanel
         {
@@ -144,6 +151,15 @@ public sealed class DirectoryDiffWindow : Window
     public IReadOnlyList<TreeDiffEntry> ShownEntries => Shown();
 
     public void ShowFilter(int index) => _filter.SelectedIndex = index;
+
+    /// <summary>The synchronization preview for this comparison; null before it finishes or without a context.</summary>
+    public SyncWindow? OpenSync()
+    {
+        if (_result is null || _syncContext is null) return null;
+        var window = new SyncWindow(_result, _syncContext);
+        window.Show(this);
+        return window;
+    }
 
     public void OpenSide(bool left) => _openSide(Shown().Where(e => left ? e.Left is not null : e.Right is not null).ToList(), left);
 

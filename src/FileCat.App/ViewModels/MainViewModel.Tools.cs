@@ -274,6 +274,12 @@ public sealed partial class MainViewModel
         if ((criteria & CompareCriteria.Time) != 0) how.Add($"time ±{tolerance.TotalSeconds:0.#} s");
         if ((criteria & CompareCriteria.Content) != 0) how.Add("content");
         bool caseInsensitive = OperatingSystem.IsWindows() && lloc.IsFileSystem && rloc.IsFileSystem;
+        var lcaps = Services.Providers.For(lloc).GetCapabilities(lloc);
+        var rcaps = Services.Providers.For(rloc).GetCapabilities(rloc);
+        static bool Writable(Location l, LocationCapabilities c) => l.IsFileSystem && (c & LocationCapabilities.TransferTarget) != 0;
+        var sync = new Views.SyncContext(left.DisplayPath, right.DisplayPath, Writable(lloc, lcaps), Writable(rloc, rcaps),
+            (lcaps & LocationCapabilities.Recycle) != 0, (rcaps & LocationCapabilities.Recycle) != 0, OperatingSystem.IsWindows(),
+            (items, sourceIsLeft, permanent) => StartSync(items, sourceIsLeft, permanent, lloc, rloc));
         Views.DirectoryDiffWindow.Start(left.DisplayPath, right.DisplayPath,
             $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed.",
             (progress, ct) => TreeCompare.Compare(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress),
@@ -293,7 +299,23 @@ public sealed partial class MainViewModel
                 var panel = leftSide ? leftPanel : rightPanel;
                 panel.OpenTab(ResultSetProvider.LocationOf(set));
                 Workspace.Activate(panel);
-            });
+            }, sync);
+    }
+
+    /// <summary>Starts a previewed one-way synchronization as ordinary jobs, run one after another.</summary>
+    private bool StartSync(IReadOnlyList<SyncItem> items, bool sourceIsLeft, bool deletePermanently, Location left, Location right)
+    {
+        var target = sourceIsLeft ? right : left;
+        var requests = SyncPlanner.BuildRequests(items, sourceIsLeft, target, Services.Providers, deletePermanently);
+        if (requests.Count == 0)
+        {
+            Notify("Nothing to synchronize.");
+            return false;
+        }
+        foreach (var request in requests) Services.Jobs.Submit(request);
+        Notify($"Synchronizing {Services.Providers.Display(sourceIsLeft ? left : right)} → {Services.Providers.Display(target)}: {SyncPlanner.Describe(items)}. " +
+               "Ctrl+J shows the operations.");
+        return true;
     }
 
     private static List<EntryData> Snapshot(ListingModel listing)

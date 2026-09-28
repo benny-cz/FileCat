@@ -944,6 +944,8 @@ If synchronization is adopted after P7, it follows the principles of Total Comma
 - case-only name collisions are excluded;
 - only the visible, confirmed items are executed, through the job engine.
 
+**Adopted (P7, 2026-09-28), one-way only:** Update copies new and newer items; Mirror also replaces differing files and removes target-only items (Recycle Bin, or permanent deletion only when explicitly chosen for targets without one). The preview lists every step with its reason and lets each be excluded; newer target files are overwritten only when chosen. Letter-case collisions and unsafe names are excluded; steps run as ordinary queued jobs (new items, older replacements that re-check times, unconditional replacements, removals). There is no two-way mode and no stored synchronization state, and targets must be folders on disk.
+
 Structured comparison of Registry values, archive members, and parsed binaries is a later handler using typed records/provenance, not mandatory text serialization.
 
 Comparison testing covers exact equality, shifted content, repeated blocks, dissimilar files, sparse huge files, giant lines, multibyte boundaries, combining marks, mixed newlines, inaccessible regions, cancellation, and input mutation. TV-08 determines acceptable algorithm modes before releasing advanced comparison.

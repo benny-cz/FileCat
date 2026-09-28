@@ -272,7 +272,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private string TargetDirectoryFor(ItemRef root, string destDir)
     {
         if (Options.Flatten || root.RelativeFolder is not { Length: > 0 } rel) return destDir;
-        var dir = Path.Combine(destDir, rel);
+        var dir = RelativeFolders.Resolve(destDir, rel);
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -288,7 +288,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         var name = Job.Request.Sources.Count == 1 && !string.IsNullOrEmpty(Job.Request.NewName) ? Job.Request.NewName! : root.Name;
-        var dst = Path.Combine(TargetDirectoryFor(root, destDir), name);
+        string targetDir;
+        try { targetDir = TargetDirectoryFor(root, destDir); }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, ex.Message, StepOutcome.Failed);
+            return Result.Failed;
+        }
+        var dst = Path.Combine(targetDir, name);
         if (info.IsDirectory && !info.IsLink && PathUtil.IsSameOrUnder(dst, src))
         {
             Job.ItemFailed();
