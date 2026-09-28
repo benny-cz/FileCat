@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Win32;
 using FileCat.Core.Resources;
 
 namespace FileCat.Platform.Windows;
@@ -24,19 +25,22 @@ public static class RegistrySearch
             throw new ArgumentException("Choose at least one Registry search field.");
         if (q.Text.Length == 0 && q.RawData is not { Length: > 0 }) throw new ArgumentException("Enter text or raw bytes to find.");
         var comparison = q.MatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-        var stack = new Stack<Location>();
-        stack.Push(q.Root);
         int keys = 0, values = 0, matches = 0, links = 0;
         bool limited = false;
-        while (stack.Count > 0)
+
+        // Depth first, one open handle per level: each subkey is opened once, relative to its parent, both to check that
+        // it is not a link and to read it. Opening every key from its hive's root cost one open per path component.
+        void Visit(RegistryKey key, Location location)
         {
             ct.ThrowIfCancellationRequested();
-            if (keys >= MaxKeys || values >= MaxValues || matches >= MaxMatches) { limited = true; break; }
-            var location = stack.Pop();
+            if (keys >= MaxKeys || values >= MaxValues || matches >= MaxMatches)
+            {
+                limited = true;
+                return;
+            }
             keys++;
             try
             {
-                using var key = WindowsRegistryProvider.Open(location, false);
                 foreach (var valueName in RegistryRaw.ValueNames(key))
                 {
                     ct.ThrowIfCancellationRequested();
@@ -63,28 +67,47 @@ public static class RegistrySearch
                     found(new ItemRef(location, valueName, EntryKind.RegistryValue, length), Relative(q.Root, location));
                     matches++;
                 }
-                if (limited) continue;
+                if (limited) return;
                 foreach (var name in RegistryRaw.SubKeyNames(key))
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (keys + stack.Count >= MaxKeys) { limited = true; break; }
-                    try
+                    if (limited || keys >= MaxKeys)
                     {
-                        var link = RegistryRaw.LinkTarget(key, name);
+                        limited = true;
+                        return;
+                    }
+                    RegistryKey? child;
+                    string? link;
+                    try { child = RegistryRaw.OpenChild(key, name, out link); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+                    {
+                        issue($"Cannot inspect key {location.Path}\\{name}: {ex.Message}");
+                        continue;
+                    }
+                    using (child)
+                    {
                         if (q.Text.Length > 0 && q.KeyNames && name.Contains(q.Text, comparison) && matches < MaxMatches)
                         {
                             found(new ItemRef(location, name, EntryKind.RegistryKey) { Flags = link is null ? EntryFlags.None : EntryFlags.Link }, Relative(q.Root, location));
                             matches++;
                         }
-                        if (link is not null) { links++; continue; }
-                        if (q.Recursive) stack.Push(location.WithPath(location.Path + "\\" + name));
+                        if (link is not null) links++;
+                        else if (q.Recursive) Visit(child!, location.WithPath(location.Path + "\\" + name));
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
-                    { issue($"Cannot inspect key {location.Path}\\{name}: {ex.Message}"); }
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             { issue($"Cannot search key {location.Path}: {ex.Message}"); }
+        }
+
+        try
+        {
+            using var root = WindowsRegistryProvider.Open(q.Root, false);
+            Visit(root, q.Root);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            issue($"Cannot search key {q.Root.Path}: {ex.Message}");
         }
         if (limited) issue($"Registry search stopped at its bounded limit ({MaxKeys:N0} keys, {MaxValues:N0} values, or {MaxMatches:N0} matches). Narrow the root or query.");
         return new RegistrySearchReport(keys, values, matches, links, limited);

@@ -250,6 +250,29 @@ public static partial class RegistryRaw
         catch { key.Dispose(); throw; }
     }
 
+    /// <summary>
+    /// Opens a subkey for reading without following it: a Registry link comes back as <paramref name="linkTarget"/>
+    /// (and a null key), anything else as the open key. One open serves both the check and the reading.
+    /// </summary>
+    public static RegistryKey? OpenChild(RegistryKey parent, string name, out string? linkTarget)
+    {
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyRead | ViewAccess(parent.View), out var handle);
+        if (code != 0) throw new Win32Exception(code);
+        var key = RegistryKey.FromHandle(handle, parent.View);
+        try
+        {
+            linkTarget = ReadIfPresent(key, "SymbolicLinkValue", PreviewLimit) is { Type: 6 } link ? Preview(link) : null;
+            if (linkTarget is null) return key;
+            key.Dispose();
+            return null;
+        }
+        catch
+        {
+            key.Dispose();
+            throw;
+        }
+    }
+
     public static string? LinkTarget(RegistryKey parent, string name)
     {
         int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyRead | ViewAccess(parent.View), out var handle);
