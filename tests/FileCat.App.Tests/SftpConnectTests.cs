@@ -136,12 +136,13 @@ public sealed class SftpConnectTests
             Assert.Equal("alpha", s.Server.Read("/home/user/a.txt"));
 
             // F8 on the server always deletes permanently, after one confirmation. First let the closed copy dialog
-            // return focus to the local panel (it does so asynchronously), then move to the server's panel.
+            // return focus to the local panel: it posts that at input priority, which other work can delay under load,
+            // so the queue is run rather than waited on. Then move to the server's panel.
             await WaitAsync(() => !((OverlayDialogService)s.Vm.Dialogs).IsOpen);
-            await Task.Delay(150, TestContext.Current.CancellationToken);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             s.Vm.Workspace.Activate(s.Vm.Workspace.Panels[0]);
             s.Vm.View.FocusActivePanel();
-            await Task.Delay(150, TestContext.Current.CancellationToken);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             Assert.Same(s.Remote, s.Vm.ActiveTab);
             await WaitAsync(() => s.Remote.Listing.State == Core.Listing.ListingState.Complete && s.Remote.Listing.FocusName("made"));
             Assert.True(s.Remote.Listing.FocusName("made"));
