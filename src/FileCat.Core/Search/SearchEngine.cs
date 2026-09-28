@@ -54,6 +54,7 @@ public sealed class SearchSession
     private readonly SearchQuery _query;
     private readonly ResultSet _results;
     private readonly Regex? _regex;
+    private readonly bool _plainAsciiText;
     private volatile string? _skip;
     private readonly object _issuesLock = new();
     private readonly List<string> _inaccessible = [];
@@ -65,6 +66,7 @@ public sealed class SearchSession
         _results = results;
         if (!string.IsNullOrEmpty(query.Text) && query.Regex)
             _regex = new Regex(query.Text, RegexOptions.CultureInvariant | RegexOptions.Multiline | (query.MatchCase ? 0 : RegexOptions.IgnoreCase), TimeSpan.FromSeconds(1));
+        _plainAsciiText = query.Text is { Length: > 0 } t && IsPlainAscii(t);
     }
 
     public long FoldersVisited;
@@ -227,24 +229,24 @@ public sealed class SearchSession
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
-            var head = new byte[Math.Min(4096, (int)Math.Min(fs.Length, int.MaxValue))];
-            int hn = fs.Read(head, 0, head.Length);
-            var guess = TextDecoding.Detect(head.AsSpan(0, hn));
+            // A session reads one file at a time, so its buffers are made once (per file, they allocated gigabytes).
+            var bytes = _bytes ??= new byte[ChunkBytes];
+            int hn = fs.Read(bytes, 0, (int)Math.Min(4096, fs.Length));
+            var guess = TextDecoding.Detect(bytes.AsSpan(0, hn));
             var encoding = guess.Encoding;
             fs.Position = guess.PreambleLength;
             var text = _query.Text!;
             int overlapChars = _regex is null ? text.Length + 4 : 1024;
-            var buffer = new byte[ChunkBytes];
+            int need = overlapChars + encoding.GetMaxCharCount(ChunkBytes);
+            if (_chars is null || _chars.Length < need) _chars = new char[need];
+            var chars = _chars;
             var decoder = encoding.GetDecoder();
-            var chars = new char[encoding.GetMaxCharCount(ChunkBytes)];
-            string carry = string.Empty;
-            var comparison = _query.MatchCase ? StringComparison.Ordinal : StringComparison.CurrentCultureIgnoreCase;
-            int n;
-            while ((n = fs.Read(buffer, 0, buffer.Length)) > 0)
+            int carried = 0, n;
+            while ((n = fs.Read(bytes, 0, bytes.Length)) > 0)
             {
                 ct.ThrowIfCancellationRequested();
-                int c = decoder.GetChars(buffer, 0, n, chars, 0);
-                var window = carry + new string(chars, 0, c);
+                int c = decoder.GetChars(bytes, 0, n, chars, carried);
+                var window = chars.AsSpan(0, carried + c);
                 if (_regex is not null)
                 {
                     try
@@ -257,11 +259,13 @@ public sealed class SearchSession
                         return false;
                     }
                 }
-                else if (window.Contains(text, comparison))
+                else if (Contains(window, text))
                 {
                     return true;
                 }
-                carry = window.Length > overlapChars ? window[^overlapChars..] : window;
+                // The end of this window starts the next one, so text split across two reads is found.
+                carried = Math.Min(overlapChars, window.Length);
+                window[^carried..].CopyTo(chars);
             }
             return false;
         }
@@ -274,6 +278,25 @@ public sealed class SearchSession
             return false;
         }
     }
+
+    private byte[]? _bytes;
+    private char[]? _chars;
+
+    /// <summary>
+    /// The query's text in decoded text. Ignoring case compares linguistically (the current culture), which is about ten
+    /// times slower than ordinal comparison. An ordinal match counts at once, and plain ASCII text without control
+    /// characters cannot match linguistically where it does not match ordinally, so only other text takes the slow path.
+    /// </summary>
+    private bool Contains(ReadOnlySpan<char> window, string text)
+    {
+        if (_query.MatchCase) return window.IndexOf(text, StringComparison.Ordinal) >= 0;
+        if (window.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        if (_plainAsciiText && IsPlainAscii(window)) return false;
+        return window.IndexOf(text, StringComparison.CurrentCultureIgnoreCase) >= 0;
+    }
+
+    private static bool IsPlainAscii(ReadOnlySpan<char> text) =>
+        System.Text.Ascii.IsValid(text) && text.IndexOfAnyInRange('\0', '\u0008') < 0 && text.IndexOfAnyInRange('\u000E', '\u001F') < 0 && !text.Contains('\u007F');
 
     private void Add(string root, FileSystemInfo info, bool isDir)
     {

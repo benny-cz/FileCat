@@ -124,6 +124,43 @@ public sealed class FileCompareTests
     }
 
     [Fact]
+    public void Binary_ranges_match_a_byte_by_byte_reference_across_chunk_boundaries()
+    {
+        var rng = new Random(11);
+        for (int round = 0; round < 20; round++)
+        {
+            int length = rng.Next(1, 3 * 1024 * 1024);
+            var a = new byte[length];
+            rng.NextBytes(a);
+            var b = (byte[])a.Clone();
+            for (int e = rng.Next(0, 50); e > 0; e--)
+            {
+                int start = rng.Next(length), run = Math.Min(length - start, rng.Next(1, 3000));
+                for (int i = start; i < start + run; i++) b[i] ^= (byte)rng.Next(1, 256);
+            }
+            if (length > (1 << 20) + 10) for (int i = (1 << 20) - 5; i < (1 << 20) + 5; i++) b[i] ^= 0xFF; // across the read chunks
+            var expected = new List<(long Offset, long Length)>();
+            long runStart = -1;
+            for (int i = 0; i < length; i++)
+            {
+                if (a[i] != b[i])
+                {
+                    if (runStart < 0) runStart = i;
+                }
+                else if (runStart >= 0)
+                {
+                    expected.Add((runStart, i - runStart));
+                    runStart = -1;
+                }
+            }
+            if (runStart >= 0) expected.Add((runStart, length - runStart));
+            var result = BinaryDiff.Compare(new MemoryContentSource("a", a), new MemoryContentSource("b", b), TestContext.Current.CancellationToken);
+            Assert.Equal(expected, result.Ranges);
+            Assert.Equal(expected.Count == 0, result.Equal);
+        }
+    }
+
+    [Fact]
     public void Large_similar_and_dissimilar_inputs_finish_quickly()
     {
         var rng = new Random(3);

@@ -36,13 +36,21 @@ public static class BinaryDiff
             int na = ReadFull(left, offset, ba);
             int nb = ReadFull(right, offset, bb);
             int common = Math.Min(na, nb);
-            for (int i = 0; i < common; i++)
+            var sa = ba.AsSpan(0, common);
+            var sb = bb.AsSpan(0, common);
+            for (int i = 0; i < common;)
             {
-                if (ba[i] != bb[i])
+                if (runStart < 0)
                 {
-                    if (runStart < 0) runStart = offset + i;
+                    // Equal bytes are skipped a vector at a time; the first difference starts a run.
+                    i += sa[i..].CommonPrefixLength(sb[i..]);
+                    if (i < common) runStart = offset + i;
                 }
-                else Close(offset + i);
+                else
+                {
+                    while (i < common && sa[i] != sb[i]) i++;
+                    if (i < common) Close(offset + i);
+                }
             }
             if (na != nb || na == 0)
             {

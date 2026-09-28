@@ -108,7 +108,7 @@ public static class TextDiff
     {
         options ??= new TextDiffOptions();
         var ids = new Dictionary<string, int>(StringComparer.Ordinal);
-        int[] a = Ids(left, ids, options), b = Ids(right, ids, options);
+        int[] a = Ids(left, ids, options, ct), b = Ids(right, ids, options, ct);
         var ops = new List<Step>();
         Align(a, 0, a.Length, b, 0, b.Length, ops, options.RegionBudget, ct);
         return ToBlocks(ops);
@@ -123,11 +123,15 @@ public static class TextDiff
     /// <summary>One edit step: how many left and right lines it covers.</summary>
     private record struct Step(Op Op, int Left, int Right);
 
-    private static int[] Ids(IReadOnlyList<string> lines, Dictionary<string, int> ids, TextDiffOptions options)
+    // Long phases check for cancellation this often, so stopping takes milliseconds, not the phase.
+    private const int CancelCheckMask = 0xFFFF;
+
+    private static int[] Ids(IReadOnlyList<string> lines, Dictionary<string, int> ids, TextDiffOptions options, CancellationToken ct)
     {
         var result = new int[lines.Count];
         for (int i = 0; i < lines.Count; i++)
         {
+            if ((i & CancelCheckMask) == 0) ct.ThrowIfCancellationRequested();
             string key = Normalize(lines[i], options);
             if (!ids.TryGetValue(key, out int id)) ids[key] = id = ids.Count;
             result[i] = id;
@@ -168,7 +172,7 @@ public static class TextDiff
         bHi -= suffix;
         if (aLo == aHi) Emit(ops, Op.Insert, 0, bHi - bLo);
         else if (bLo == bHi) Emit(ops, Op.Delete, aHi - aLo, 0);
-        else if (Anchors(a, aLo, aHi, b, bLo, bHi) is { Count: > 0 } anchors)
+        else if (Anchors(a, aLo, aHi, b, bLo, bHi, ct) is { Count: > 0 } anchors)
         {
             // Patience: align between the lines that occur exactly once on each side.
             int pa = aLo, pb = bLo;
@@ -195,15 +199,24 @@ public static class TextDiff
     }
 
     /// <summary>Lines unique on both sides, in the longest increasing order of their positions.</summary>
-    private static List<(int A, int B)> Anchors(int[] a, int aLo, int aHi, int[] b, int bLo, int bHi)
+    private static List<(int A, int B)> Anchors(int[] a, int aLo, int aHi, int[] b, int bLo, int bHi, CancellationToken ct)
     {
         var countA = new Dictionary<int, (int Count, int Index)>();
-        for (int i = aLo; i < aHi; i++) countA[a[i]] = countA.TryGetValue(a[i], out var c) ? (c.Count + 1, c.Index) : (1, i);
+        for (int i = aLo; i < aHi; i++)
+        {
+            if ((i & CancelCheckMask) == 0) ct.ThrowIfCancellationRequested();
+            countA[a[i]] = countA.TryGetValue(a[i], out var c) ? (c.Count + 1, c.Index) : (1, i);
+        }
         var countB = new Dictionary<int, (int Count, int Index)>();
-        for (int i = bLo; i < bHi; i++) countB[b[i]] = countB.TryGetValue(b[i], out var c) ? (c.Count + 1, c.Index) : (1, i);
+        for (int i = bLo; i < bHi; i++)
+        {
+            if ((i & CancelCheckMask) == 0) ct.ThrowIfCancellationRequested();
+            countB[b[i]] = countB.TryGetValue(b[i], out var c) ? (c.Count + 1, c.Index) : (1, i);
+        }
         var pairs = new List<(int A, int B)>();
         for (int i = aLo; i < aHi; i++)
         {
+            if ((i & CancelCheckMask) == 0) ct.ThrowIfCancellationRequested();
             if (countA[a[i]].Count == 1 && countB.TryGetValue(a[i], out var cb) && cb.Count == 1) pairs.Add((i, cb.Index));
         }
         if (pairs.Count == 0) return pairs;
