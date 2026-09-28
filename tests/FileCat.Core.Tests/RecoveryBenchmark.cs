@@ -14,7 +14,8 @@ public sealed class RecoveryBenchmark
     [InlineData("bench-fat32.img", "FAT32")]
     public void Scan_and_preview_a_large_image(string image, string fileSystem)
     {
-        if (Environment.GetEnvironmentVariable("FILECAT_RECOVERY_BENCH") is not { Length: > 0 } folder) Assert.Skip("Set FILECAT_RECOVERY_BENCH to a folder with the benchmark images.");
+        string folder = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_BENCH") ?? string.Empty;
+        if (folder.Length == 0) Assert.Skip("Set FILECAT_RECOVERY_BENCH to a folder with the benchmark images.");
         string path = Path.Combine(folder, image);
         if (!File.Exists(path)) Assert.Skip(image + " is not in " + folder);
         var log = TestContext.Current.TestOutputHelper;
