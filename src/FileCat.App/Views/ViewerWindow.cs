@@ -35,6 +35,14 @@ public sealed class ViewerWindow : Window
     private readonly ComboBox _encodingBox = new() { MinWidth = 130 };
     private readonly ToggleButton _modeText = new() { Content = "Text" };
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
+    private readonly ToggleButton _modeInfo = new() { Content = "Info" };
+    private readonly TextBox _info = new()
+    {
+        IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, IsVisible = false,
+        FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"),
+    };
+    private readonly IContentSource _source;
+    private bool _isInfo, _infoLoaded;
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
     private readonly DispatcherTimer _changeTimer;
@@ -46,6 +54,7 @@ public sealed class ViewerWindow : Window
     private int _lastHitLength;
     private LineIndex? _lines;
     private CancellationTokenSource? _lineCts;
+    private readonly CancellationTokenSource _closing = new();
     private static readonly List<ViewerWindow> s_open = [];
 
     /// <summary>Open viewer windows, oldest first: the window list in the command palette (plan §4.1).</summary>
@@ -58,6 +67,7 @@ public sealed class ViewerWindow : Window
     {
         _services = services;
         _displayName = displayName;
+        _source = source;
         s_open.Add(this);
         Closed += (_, _) => s_open.Remove(this);
         _reader = new PagedReader(source);
@@ -80,6 +90,9 @@ public sealed class ViewerWindow : Window
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
         toolbar.Children.Add(_modeText);
         toolbar.Children.Add(_modeHex);
+        toolbar.Children.Add(_modeInfo);
+        ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
+        Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
         toolbar.Children.Add(new TextBlock { Text = "Encoding:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
         toolbar.Children.Add(_encodingBox);
         toolbar.Children.Add(_wrap);
@@ -103,7 +116,7 @@ public sealed class ViewerWindow : Window
 
         var statusBar = new Border { Classes = { "status" }, Child = new DockPanel { Children = { _encodingInfo, _status } } };
         DockPanel.SetDock(_encodingInfo, Dock.Right);
-        var content = new Panel { Children = { _text, _hex } };
+        var content = new Panel { Children = { _text, _hex, _info } };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
@@ -114,6 +127,7 @@ public sealed class ViewerWindow : Window
 
         _modeText.Click += (_, _) => SetMode(false);
         _modeHex.Click += (_, _) => SetMode(true);
+        _modeInfo.Click += async (_, _) => await ShowInfoAsync();
         _wrap.IsCheckedChanged += (_, _) =>
         {
             _text.Wrap = _wrap.IsChecked == true;
@@ -156,6 +170,7 @@ public sealed class ViewerWindow : Window
         {
             _changeTimer.Stop();
             _searchCts?.Cancel();
+            _closing.Cancel();
             _reader.Dispose();
         };
     }
@@ -177,8 +192,43 @@ public sealed class ViewerWindow : Window
         UpdateStatus();
     }
 
+    /// <summary>The Info mode: what a static inspector reads from the file's structure (plan §16.1), computed once.</summary>
+    public async Task ShowInfoAsync()
+    {
+        _isInfo = true;
+        _info.IsVisible = true;
+        _text.IsVisible = _hex.IsVisible = false;
+        _modeInfo.IsChecked = true;
+        _modeText.IsChecked = _modeHex.IsChecked = false;
+        if (!_infoLoaded)
+        {
+            _infoLoaded = true;
+            _info.Text = "Reading the file's structure…";
+            try
+            {
+                var report = await Task.Run(() => FileCat.Core.Inspect.Inspectors.Inspect(_source, _closing.Token), _closing.Token);
+                _info.Text = report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {_source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}";
+            }
+            catch (Exception) when (_closing.IsCancellationRequested)
+            {
+                return; // the window closed while the structure was being read
+            }
+            catch (Exception ex)
+            {
+                // Inspectors report damage as warnings; anything else is shown here rather than ending the application.
+                _info.Text = "The file's structure could not be read: " + ex.Message;
+            }
+        }
+        _info.Focus();
+    }
+
+    public string InfoText => _info.Text ?? "";
+
     private void SetMode(bool hex)
     {
+        _isInfo = false;
+        _info.IsVisible = false;
+        _modeInfo.IsChecked = false;
         _isHex = hex;
         _hex.IsVisible = hex;
         _text.IsVisible = !hex;
@@ -224,7 +274,10 @@ public sealed class ViewerWindow : Window
     {
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
-        if (FocusManager?.GetFocusedElement() is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
+        var focused = FocusManager?.GetFocusedElement();
+        // The Info text keeps its own selection and copy keys; Esc, F4 and F10 still leave it.
+        if (focused == _info && e.Key is not (Key.Escape or Key.F4 or Key.F10)) return;
+        if (focused is TextBox && focused != _info && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
         switch (e.Key)
         {
             case Key.Escape when _lineCts is not null:
@@ -236,7 +289,10 @@ public sealed class ViewerWindow : Window
                 Close();
                 break;
             case Key.F4:
-                SetMode(!_isHex);
+                SetMode(_isInfo ? false : !_isHex);
+                break;
+            case Key.I when e.KeyModifiers == KeyModifiers.Control:
+                _ = ShowInfoAsync();
                 break;
             case Key.F6 when _reader.Source.LocalPath is not null && OperatingSystem.IsWindows():
                 EditBytes();
