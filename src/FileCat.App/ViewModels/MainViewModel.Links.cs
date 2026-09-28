@@ -60,7 +60,9 @@ public sealed partial class MainViewModel
         var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
         IReadOnlyList<LinkPreview> rows = [];
         string? pathProblem = "Checking…";
+        (string, LinkKind, bool)? plannedFor = null;
         int generation = 0;
+        (string, LinkKind, bool) Current() => (pathBox.Text ?? "", Kind(), relative.IsChecked == true);
 
         LinkKind Kind() => kinds.First(k => k.Button.IsChecked == true).Kind;
         async void Refresh()
@@ -71,6 +73,7 @@ public sealed partial class MainViewModel
             privilege.IsVisible = kind == LinkKind.Symbolic && canSymlink == false;
             var options = new LinkOptions(kind, relative.IsChecked == true && kind == LinkKind.Symbolic);
             string text = pathBox.Text ?? "";
+            var key = Current();
             var (problem, result) = await Task.Run(() =>
             {
                 try
@@ -86,6 +89,7 @@ public sealed partial class MainViewModel
             if (mine != generation) return;
             pathProblem = problem;
             rows = result;
+            plannedFor = key;
             preview.ItemsSource = rows.Take(1000).Select(r => r.Problem is null
                 ? $"{Path.GetFileName(r.LinkPath)}  →  {r.TargetText}"
                 : $"⚠ {Path.GetFileName(r.LinkPath)}: {r.Problem}").ToList();
@@ -120,9 +124,10 @@ public sealed partial class MainViewModel
         Refresh();
         var answer = await Dialogs.ShowCustomAsync(items.Count == 1 ? $"Create link to \"{Formatters.SafeName(items[0].Name)}\"" : $"Create links to {items.Count:N0} items", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Create", "create", IsDefault: true)], pathBox,
-            () => pathProblem is null && rows.Count > 0 && rows.All(r => r.Problem is null));
+            // Only a preview of exactly what is entered can be created.
+            () => plannedFor == Current() && pathProblem is null && rows.Count > 0 && rows.All(r => r.Problem is null));
         debounce.Stop();
-        if (answer as string != "create" || pathProblem is not null || rows.Count == 0 || rows.Any(r => r.Problem is not null)) return;
+        if (answer as string != "create" || plannedFor != Current() || pathProblem is not null || rows.Count == 0 || rows.Any(r => r.Problem is not null)) return;
         string linkFolder = Path.GetDirectoryName(rows[0].LinkPath)!;
         var job = Services.Jobs.Submit(new JobRequest
         {

@@ -145,7 +145,8 @@ public static class ToolLauncher
         return new ToolLaunchResult(summaries, warning);
     }
 
-    private static string ResolveExecutable(string exe)
+    /// <summary>A real program file: a full path that exists, or a bare name found on PATH (never the browsed folder).</summary>
+    public static string ResolveExecutable(string exe)
     {
         if (string.IsNullOrWhiteSpace(exe)) throw new ToolLaunchException("No program is configured for this tool.");
         var expanded = Environment.ExpandEnvironmentVariables(exe.Trim().Trim('"'));

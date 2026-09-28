@@ -30,6 +30,8 @@ public enum JobKind
     CreateLink,
     /// <summary>Verify the files listed in checksum manifests (the sources); read-only.</summary>
     VerifyChecksums,
+    /// <summary>Run a previewed command once per item (FAR's Apply command).</summary>
+    ApplyCommand,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }
@@ -157,6 +159,8 @@ public sealed class JobRequest
     public IReadOnlyList<string>? NewNames { get; init; }
     /// <summary>For <see cref="JobKind.CreateLink"/>: which kind of link, and whether symbolic link targets are relative.</summary>
     public Operations.LinkOptions? Link { get; init; }
+    /// <summary>For <see cref="JobKind.ApplyCommand"/>: the previewed invocations, one per source, run as shown.</summary>
+    public IReadOnlyList<Tools.ApplyInvocation>? Invocations { get; init; }
     /// <summary>For <see cref="JobKind.ArchiveUpdate"/>: the archive and its changes.</summary>
     public Archives.ArchivePlan? Archive { get; init; }
     /// <summary>For <see cref="JobKind.Elevated"/>: the plan the administrator broker displays and runs.</summary>

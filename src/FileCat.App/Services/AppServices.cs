@@ -128,6 +128,7 @@ public sealed class AppServices : IDisposable
         History.Folders.RemoveAll(h => includePinned || !h.Pinned);
         History.Files.RemoveAll(h => includePinned || !h.Pinned);
         History.CommandLine.Clear();
+        History.ApplyCommands.Clear();
         History.CopyDestinations.Clear();
         History.Masks.Clear();
         History.SearchNames.Clear();

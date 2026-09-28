@@ -54,6 +54,7 @@ public sealed partial class MainViewModel
         var editorButton = new Button { Content = "Edit names in editor…" };
         IReadOnlyList<string>? explicitNames = null;
         IReadOnlyList<RenamePreview> rows = [];
+        RenameRules? plannedFor = null;
 
         RenameRules Rules() => new(nameMask.Text ?? "", extMask.Text ?? "", search.Text ?? "", replace.Text ?? "", regex.IsChecked == true,
             matchCase.IsChecked == true, (RenameCase)Math.Max(0, caseBox.SelectedIndex),
@@ -63,7 +64,8 @@ public sealed partial class MainViewModel
 
         void Refresh()
         {
-            rows = BulkRenamePlanner.Preview(items, Rules(), p => File.Exists(p) || Directory.Exists(p), explicitNames);
+            plannedFor = Rules();
+            rows = BulkRenamePlanner.Preview(items, plannedFor, p => File.Exists(p) || Directory.Exists(p), explicitNames);
             int changing = rows.Count(r => r.Changes), problems = rows.Count(r => r.Problem is not null);
             preview.ItemsSource = rows.Take(2000).Select(r => r.Problem is not null ? $"⚠ {r.OldName}  →  {r.NewName}    ({r.Problem})"
                 : r.Changes ? $"{r.OldName}  →  {r.NewName}" : $"{r.OldName}  (unchanged)").ToList();
@@ -125,7 +127,8 @@ public sealed partial class MainViewModel
         Refresh();
         var answer = await Dialogs.ShowCustomAsync($"Rename {Formatters.Plural(items.Count, "item", "items")}", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Rename", "rename", IsDefault: true)], nameMask,
-            () => rows.All(r => r.Problem is null) && rows.Any(r => r.Changes));
+            // Only a preview of the rules as they stand can run (explicit names replace the rules until one changes).
+            () => (explicitNames is not null || plannedFor == Rules()) && rows.All(r => r.Problem is null) && rows.Any(r => r.Changes));
         debounce.Stop();
         if (answer as string != "rename") return;
         Refresh();

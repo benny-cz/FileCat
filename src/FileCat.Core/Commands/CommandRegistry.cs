@@ -50,6 +50,7 @@ public static class CommandIds
     public const string Attributes = "file.attributes";
     public const string CreateLink = "file.createLink";
     public const string BulkRename = "file.bulkRename";
+    public const string ApplyCommand = "file.applyCommand";
     public const string RemoveFromSet = "file.removeFromSet";
 
     public const string MarkToggleDown = "mark.toggleDown";
@@ -229,6 +230,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Attributes, "Change attributes and times…", F);
         Add(CommandIds.CreateLink, "Create link…", F);
         Add(CommandIds.BulkRename, "Bulk rename…", F, null, CommandContext.Panel, "Ctrl+M");
+        Add(CommandIds.ApplyCommand, "Run a command for each item…", F, null, CommandContext.Panel, "Ctrl+G");
         Add(CommandIds.RemoveFromSet, "Remove from result set", F);
 
         Add(CommandIds.MarkToggleDown, "Mark and move down", M, null, CommandContext.Panel, "Insert");

@@ -35,6 +35,8 @@ public static class JobExecutors
                 return new Archives.ZipTestExecutor(job, fs, journal);
             case JobKind.Attributes when fsSources:
                 return new AttributesExecutor(job, fs, journal);
+            case JobKind.ApplyCommand when r.Invocations is not null:
+                return new Tools.ApplyCommandExecutor(job, fs, journal);
             case JobKind.VerifyChecksums when fsSources:
                 return new Operations.VerifyChecksumsExecutor(job, fs, journal);
             case JobKind.CreateLink when r.Link is not null:

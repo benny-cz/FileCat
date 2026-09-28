@@ -172,6 +172,8 @@ public sealed class HistoryState : IVersionedState
     public List<HistoryEntry> Folders { get; set; } = [];
     public List<HistoryEntry> Files { get; set; } = [];
     public List<string> CommandLine { get; set; } = [];
+    /// <summary>Commands run for each item (Apply command, Ctrl+G).</summary>
+    public List<string> ApplyCommands { get; set; } = [];
     public List<string> CopyDestinations { get; set; } = [];
     public List<string> Masks { get; set; } = [];
     public List<string> SearchNames { get; set; } = [];

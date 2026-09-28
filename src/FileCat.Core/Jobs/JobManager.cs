@@ -302,6 +302,12 @@ public sealed class JobManager
                 title = $"Change attributes of {What()}";
                 AddSourceScopes(writes);
                 break;
+            case JobKind.ApplyCommand:
+                title = r.Description ?? $"Run a command for {What()}";
+                // The program may change the items and write next to them.
+                AddSourceScopes(reads);
+                writes.AddRange(r.Sources.Select(s => s.FileSystemPath is { } ap ? Path.GetDirectoryName(ap) ?? ap : GlobalScope).Distinct(PathUtil.SafetyComparer).Take(256));
+                break;
             case JobKind.VerifyChecksums:
                 title = r.Description ?? (r.Sources.Count == 1 ? $"Verify the checksums in {What()}" : $"Verify the checksums in {r.Sources.Count:N0} manifests");
                 // The listed files lie in and below each manifest's folder.
