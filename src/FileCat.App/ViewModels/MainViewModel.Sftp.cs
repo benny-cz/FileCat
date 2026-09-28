@@ -330,7 +330,14 @@ public sealed partial class MainViewModel
             if (!RemoteProtocols.IsFtp(Protocol()) && auth.SelectedIndex == 1 && !File.Exists(keyFile.Text)) return "The private key file does not exist.";
             return null;
         }
-        void Refresh() => problem.Text = Validate() ?? "";
+        void Refresh()
+        {
+            problem.Text = Validate() ?? "";
+            // Before a server is typed, naming one is the first step, not an error.
+            bool first = string.IsNullOrWhiteSpace(host.Text);
+            problem.Classes.Set("error", !first);
+            problem.Classes.Set("muted", first);
+        }
         foreach (var b in new[] { host, port, user, keyFile }) b.TextChanged += (_, _) => Refresh();
         auth.SelectionChanged += (_, _) => Refresh();
         Refresh();

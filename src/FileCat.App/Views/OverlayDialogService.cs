@@ -104,11 +104,16 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         if (o.History is { Count: > 0 }) hints.Add("↑↓ history");
         if (hints.Count > 0) body.Children.Add(new TextBlock { Text = string.Join(" · ", hints), Classes = { "muted", "small" } });
         Session? session = null;
+        bool held = false; // the box has held text: emptying it is worth a word
         void Validate()
         {
-            var msg = o.Validate?.Invoke(box.Text ?? string.Empty);
+            var text = box.Text ?? string.Empty;
+            var msg = o.Validate?.Invoke(text);
+            // An empty box nobody has typed in yet is the first step, not a mistake: the button waits without a scolding.
+            held |= text.Length > 0;
+            bool quiet = !held;
             error.Text = msg ?? string.Empty;
-            error.IsVisible = msg is not null;
+            error.IsVisible = msg is not null && !quiet;
             ok.IsEnabled = msg is null;
         }
         void Finish(PromptResult? r)

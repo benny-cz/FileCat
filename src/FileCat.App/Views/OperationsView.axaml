@@ -63,6 +63,10 @@
             <TextBlock Text="Operations" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Button Classes="flat" Content="Clear finished" Click="OnClearFinished" />
           </StackPanel>
+          <Panel>
+          <!-- Nothing yet: say what will appear here. -->
+          <TextBlock Text="No operations yet. Copies, moves, deletions, and other jobs show their progress and reports here."
+                     Classes="small muted" TextWrapping="Wrap" Margin="10,6" IsVisible="{Binding !Jobs.Count}" />
           <ListBox ItemsSource="{Binding Jobs}" SelectedItem="{Binding Selected}" Classes="choices">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:JobViewModel">
@@ -80,9 +84,12 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+          </Panel>
         </DockPanel>
         <GridSplitter Grid.Row="1" Grid.Column="1" Width="4" ResizeDirection="Columns" Background="Transparent" />
-        <DockPanel Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel">
+        <!-- The chosen operation's actions and report; nothing while none is chosen. -->
+        <DockPanel Grid.Row="1" Grid.Column="2" DataContext="{Binding Selected}" x:DataType="vm:JobViewModel"
+                   IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
           <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="8,4">
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="Resume" IsVisible="{Binding CanResume}" Click="OnResume" />

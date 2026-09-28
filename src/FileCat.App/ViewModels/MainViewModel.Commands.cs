@@ -96,6 +96,13 @@ public sealed partial class MainViewModel
                 return (caps & LocationCapabilities.CreateDirectory) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateDirectory));
             case CommandIds.EditNew:
                 return (caps & LocationCapabilities.CreateFile) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateFile));
+            // What the location itself cannot do is dimmed with its reason (the key bar, the palette), not offered and refused.
+            case CommandIds.Delete or CommandIds.DeletePermanent when loc is not null && loc.Scheme != Schemes.ResultSet && (caps & LocationCapabilities.Delete) == 0:
+                return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Delete));
+            case CommandIds.Move when loc is not null && (caps & LocationCapabilities.MoveSource) == 0:
+                return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.MoveSource) + " Use F5 to copy instead.");
+            case CommandIds.Rename when loc is not null && (caps & LocationCapabilities.Rename) == 0:
+                return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Rename));
             case CommandIds.Copy or CommandIds.Move or CommandIds.Delete or CommandIds.DeletePermanent or CommandIds.View or CommandIds.Edit
                 or CommandIds.Rename or CommandIds.Duplicate or CommandIds.CopyNames or CommandIds.CopyPaths:
                 return hasItem ? CommandAvailability.Yes : CommandAvailability.No("Nothing is focused or marked.");

@@ -25,6 +25,16 @@ public class ComputerProvider : ResourceProvider
 
     public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
 
+    public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
+    {
+        LocationCapabilities.Delete or LocationCapabilities.Recycle => "Drives are not deleted from here: open a drive (Enter) to delete what is on it.",
+        LocationCapabilities.Rename => "A drive's name is its label, which its properties change (Alt+Enter).",
+        LocationCapabilities.MoveSource => "Drives cannot be moved: open a drive (Enter) to move what is on it.",
+        LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile => "Open a drive (Enter) to create folders and files on it.",
+        LocationCapabilities.TransferTarget => "Open a drive (Enter) to copy or move items onto it.",
+        _ => base.ExplainUnavailable(location, capability),
+    };
+
     public override bool TryParse(string text, Location? current, out Location? location)
     {
         var t = text.Trim();

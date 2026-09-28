@@ -63,6 +63,14 @@ public sealed partial class MainViewModel
             if (mine != generation) return;
             rows = planned;
             plannedFor = spec;
+            if (spec.CommandLine.Trim().Length == 0)
+            {
+                // Nothing typed yet: the first step, not a problem with every item.
+                preview.ItemsSource = items.Take(500).Select(i => i.Name).ToList();
+                summary.Text = $"Type the command to run for {Formatters.Plural(items.Count, "item", "items")}; each one's command line is shown here before anything runs.";
+                summary.Classes.Set("error", false);
+                return;
+            }
             preview.ItemsSource = rows.Take(500).Select(r => r.Problem is null ? r.Display : $"⚠ {r.Item.Name}: {r.Problem}").ToList();
             int problems = rows.Count(r => r.Problem is not null);
             summary.Text = problems > 0

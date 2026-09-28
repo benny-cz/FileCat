@@ -66,7 +66,8 @@ public static class Formatters
             case EntryKind.Drive:
                 if (e.Tag is DriveTag t)
                 {
-                    if (!t.Ready) return t.DriveType == "Not responding" ? "<NOT RESPONDING>" : "<NOT READY>";
+                    // Short enough for the size column ("<NOT READY>" was cut off), and as the location menu says it.
+                    if (!t.Ready) return t.DriveType == "Not responding" ? "no response" : "not ready";
                     return t.TotalBytes > 0 ? $"{Size(t.FreeBytes)} free" : string.Empty;
                 }
                 return string.Empty;

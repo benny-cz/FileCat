@@ -32,6 +32,16 @@ public sealed class KeyBarTests
             listing.ToggleMark(2);
             for (int i = 0; i < 100 && vm.KeyBar[4].IsEnabled; i++) await Task.Delay(20, ct);
             Assert.False(vm.KeyBar[4].IsEnabled);
+
+            // What the location cannot do stays dimmed even with an item focused, and says why (This PC: drives).
+            vm.ActiveTab.Navigate(new Core.Resources.Location(Core.Resources.Schemes.Computer, string.Empty));
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount > 0); i++) await Task.Delay(20, ct);
+            listing.SetFocus(0);
+            for (int i = 0; i < 100 && !vm.KeyBar[2].IsEnabled; i++) await Task.Delay(20, ct);
+            Assert.True(vm.KeyBar[4].IsEnabled); // F5 copies what is focused
+            Assert.False(vm.KeyBar[7].IsEnabled); // F8
+            Assert.False(vm.KeyBar[5].IsEnabled); // F6
+            Assert.Contains("Drives are not deleted", vm.GetAvailability(Core.Commands.CommandIds.Delete).Reason, StringComparison.Ordinal);
         }
         finally
         {
