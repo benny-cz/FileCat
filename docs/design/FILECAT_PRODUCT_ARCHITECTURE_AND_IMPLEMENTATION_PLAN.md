@@ -1209,7 +1209,9 @@ Include startup without caches, sorted million-entry names with long/Unicode pat
 
 ## 22. Planned technical validations
 
-All entries are future validations. No experiment in this table was executed during planning. Each produces recorded results, environment, fixture versions, and an ADR update; passing a mock does not close a native-semantics question.
+The table was written before any experiment ran. Each validation produces recorded results, environment, fixture versions, and an ADR update; passing a mock does not close a native-semantics question.
+
+**Status (2026-09-29).** Executed with records in `docs/validation/`: TV-01 (`TV-01.md`), TV-08 (`TV-08.md`), TV-09 (`P10-recovery.md`), the automated parts of TV-03, TV-07, TV-10, TV-13, TV-14, TV-16, and TV-17 (`P3-validations.md`), TV-07 for the P5–P8 formats (`P5-P8-archives.md`), and TV-12 against OpenSSH and pyftpdlib (`P6-P8-remote.md`). TV-02, TV-06, and TV-11 are covered by the providers' contract tests and the listing and watcher tests. Still open, because they need hardware, virtual machines, people, or signing: the dedicated-media fixtures of TV-03, TV-04's external fixtures, TV-05's and TV-15's virtual-machine roots, TV-10 with screen readers and users on each platform, TV-12 with more server kinds, and TV-13 on clean machines under Smart App Control.
 
 | ID / uncertainty | Smallest useful future experiment | Measurements and success/failure criterion | Decision / phase |
 |---|---|---|---|
@@ -1312,7 +1314,7 @@ P1 must exercise the resource/command model conceptually against Registry, SFTP,
 
 ## 24. Requirements traceability
 
-IDs represent significant requirements, not every sentence. “Confirmed / planned” means the requirement is settled but implementation/validation is future. Recommended additions are labeled separately. Linked section numbers identify the relevant explanation; TV IDs refer to section 22.
+IDs represent significant requirements, not every sentence. The Status column records the product decision as planned: “Confirmed” requirements were settled with the product owner, and “Recommended” ones were added by this plan. As of 2026-09-29 every row is implemented in engineering scope; `docs/IMPLEMENTATION_STATUS.md` tracks the implementation, and §22 lists the validations still open. Linked section numbers identify the relevant explanation; TV IDs refer to section 22.
 
 | Requirement ID | Requirement | Architecture component / section | Planned phase | Validation / acceptance mechanism | Status |
 |---|---|---|---|---|---|
@@ -1614,28 +1616,32 @@ Date: 2026-09-26. Confirmed entries consolidate the original specification, the 
 | A-11 | SignPath Foundation accepts FileCat once a preview release exists | Stable releases are signed through SignPath (D-40). Revisit if the application is rejected or delayed; an organizational certificate is the fallback. |
 | A-12 | The default keymap serves Salamander users first while honoring cross-reference agreements | Migration presets come later. Revisit after TV-10, or if user research shows a different majority. |
 
-### 28.2 Open decisions that do not require another product interview
+### 28.2 Decisions that were open when the plan was written
 
-| Open item | Current recommendation | Evidence needed / latest decision point |
+Each of these was decided during implementation without another product interview; the ADR holds the evidence.
+
+| Item | Decision | Where |
 |---|---|---|
-| Avalonia release and panel control/index | Pin Avalonia 12.x; TableView or a custom virtualizing panel over a memory-budgeted record store with a disk spill tier | TV-01/10 at the start of P1; license/dependency inspection |
-| Job journal format/database and durability settings | Compact transactional store with explicit reconciliation | TV-03/14; before v1 mutation guarantees are finalized |
-| Native copy, replacement and recycle strategy | Per-operation Windows strategies under common policy | TV-03; before P3 |
-| Strong baseline/exclusion protocol for hex editing | Protected baseline and capability-limited saving | TV-04; before P4b |
-| Registry high-risk move support and recovery retention | Permit only validated semantics; otherwise copy plus explicit separate deletion | TV-05; before P4a release |
-| Archive/SSH/media/recovery engines and versions | Shortlist in §20; no engine preapproved | License, maintenance, security and real capability tests before adoption |
-| Cross-platform containment | Restrict worker filesystem/network/privileges through actual OS mechanisms | TV-07/09/10; before enabling relevant formats on each OS |
-| Exact Ubuntu/macOS versions and native architecture promotion | Current supported versions with adequate hardware/CI | Upstream intersection and TV-10/13; before P9 packages |
-| Installer tool and servicing cadence | Per-machine installer plus portable ZIP; SignPath signing (D-40); ADR-15 | TV-13; before P3 |
-| Privileged broker design | Per-plan broker; ADR-14 | TV-15; before P4a |
-| Default keymap conflicts | Proposals in §4.5; ADR-16 | TV-10; before P2 exit |
-| Shell integration host | Out-of-process host with exclusions; ADR-06 | TV-16; before enabling per-file Shell enrichment |
-| Recycle strategy | Pre-classification plus per-item abort, or the Shell's warning; ADR-03 | TV-03; before P1's F8 ships |
-| Recovery parser/broker topology | Narrow read broker and unprivileged parser | TV-09 range/throughput and containment evidence; before P10 |
+| Avalonia release and panel control/index | Avalonia 12.1; a custom glyph-run `FileListControl` over a memory-budgeted record store with a disk spill tier | ADR-02, TV-01 |
+| Job journal format and durability | Append-only journal with durability classes and explicit reconciliation (no database) | ADR-04, TV-03/14 |
+| Native copy, replacement, and recycle strategy | CopyFile2 and MoveFileEx under the common staged-publish policy; IFileOperation recycle with pre-classification and per-item abort | ADR-03, TV-03 |
+| Baseline and exclusion protocol for hex editing | Protected baseline, journaled in-place save with guarded recovery, capability-limited saving (on Linux and macOS without excluding writers, D-45) | ADR-05 |
+| Registry high-risk moves and recovery retention | Moves are refused (copy, then delete explicitly); guarded jobs with undo | ADR-09 |
+| Archive, SSH, media, and recovery engines | In-box ZIP and TAR readers, SharpCompress, DiscUtils, SSH.NET, FluentFTP, FileCat's own recovery engines | ADR-07, ADR-08, ADR-17 |
+| Cross-platform containment | Restricted worker processes (low integrity and a job object on Windows) | ADR-06 |
+| Ubuntu and macOS versions and packages | `.tar.gz`, `.deb`, and AppImage for Linux; an ad-hoc signed `.app` for Apple silicon | ADR-12 |
+| Installer tool and servicing cadence | Per-machine installer plus portable ZIP, SignPath signing (D-40) | ADR-15 |
+| Privileged broker | Per-plan broker in the installed program folder | ADR-14 |
+| Default keymap conflicts | Resolved as in §4.5 | ADR-16 |
+| Shell integration host | Out-of-process host with exclusions, shipped in P7 | ADR-06, TV-16 |
+| Recycle strategy | Pre-classification plus per-item abort | ADR-03 |
+| Recovery parser and broker topology | Read-only broker session and an unprivileged parser (or FileCat's own read-only handle when it runs as administrator) | ADR-08, TV-09 |
 
-No unresolved item above requires inventing a product requirement. If future validation disproves an accepted safety or UX commitment, bring the specific trade-off back to the product owner instead of silently weakening it.
+If future validation disproves an accepted safety or UX commitment, bring the specific trade-off back to the product owner instead of silently weakening it.
 
 ### 28.3 Deferred complexity and revisit triggers
+
+The Shell integration host (P7) and the MTP provider (P8) were deferred here once and have shipped since.
 
 | Deferred item | Why defer | Current assumption / trap to avoid | Revisit trigger |
 |---|---|---|---|
@@ -1656,9 +1662,7 @@ No unresolved item above requires inventing a product requirement. If future val
 | Rich animations and elaborate theme effects | Can impair dense workflows and accessibility | Semantic tokens/static themes are complete without effects | Demonstrated usability and performance budget headroom |
 | Embedded terminal or captured command output | Terminal emulation and console hosting are a large surface | The command line runs commands in an external terminal | Demonstrated need that the external terminal cannot meet |
 | Keymap presets for Total Commander or FAR users | Supporting several conventions as equals creates redundant concepts | Stable command IDs and configurable bindings | Migration demand after v1 and TV-10 results |
-| Shell integration host | Out-of-process COM hosting and a security policy for handlers | Extension-based icons only | TV-16 results and demand for per-file icons |
 | Automatic column-profile switching | Cost guards for remote and removable locations | Manual profiles | User demand after v1 |
-| MTP/WPD provider | A new provider type without paths or random writes | Paper case in TV-02 | P8 planning with device fixtures |
 | Process list and other system-resource providers | Destructive actions need their own threat model | None | Explicit administrator demand |
 | External index accelerators | Privacy and dependency review | Search works without an index | Measured search demand |
 
