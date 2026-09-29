@@ -13,6 +13,11 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
 {
     internal GitStatusKind ForName(string name) => entries.GetValueOrDefault(name);
 
+    /// <summary>A whole work tree's state from its "git status": clean, or its strongest change.</summary>
+    internal static GitStatusKind Summary(string status) => Parse(string.Empty, status).Strongest();
+
+    private GitStatusKind Strongest() => entries.Count == 0 ? GitStatusKind.Clean : entries.Values.Max();
+
     internal static GitStatusSnapshot Parse(string tracked, string status)
     {
         var entries = new Dictionary<string, GitStatusKind>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -64,6 +69,8 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
 internal static class GitStatusReader
 {
     private const int MaxOutputChars = 4_000_000;
+    /// <summary>Repositories among a folder's children that get a badge; more are left plain.</summary>
+    private const int MostRepositories = 24;
     private static readonly SemaphoreSlim Gate = new(2);
     private static readonly Lazy<string?> s_git = new(() => FindGit(Environment.GetEnvironmentVariable("PATH")));
 
@@ -71,10 +78,11 @@ internal static class GitStatusReader
     internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string? gitExecutable = null)
     {
         if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder) || OperatingSystem.IsWindows() && !WindowsIcons.IsLocal(folder)) return null;
-        // Outside a repository Git has nothing to say (and is not started); inside one whose configuration names
-        // programs, running Git would run them.
-        if (SafeRepository(folder) is null || (gitExecutable ?? s_git.Value) is not { } git) return null;
+        if ((gitExecutable ?? s_git.Value) is not { } git) return null;
         gitExecutable = git;
+        // Outside a repository, the child folders that are repositories show their work trees' state; inside one whose
+        // configuration names programs, running Git would run them.
+        if (SafeRepository(folder) is null) return await ReadRepositoriesAsync(folder, git, cancellationToken).ConfigureAwait(false);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(8));
         try
@@ -94,6 +102,47 @@ internal static class GitStatusReader
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }
         catch (Win32Exception) { return null; } // Git is optional.
+    }
+
+    /// <summary>
+    /// The child folders of a folder outside any repository that are repositories themselves (a ".git" folder or
+    /// file), each with its work tree's state: clean, or the strongest change in it, as TortoiseGit badges a
+    /// repository's folder. Repositories whose configuration names programs are left plain, as inside them.
+    /// </summary>
+    private static async Task<GitStatusSnapshot?> ReadRepositoriesAsync(string folder, string git, CancellationToken cancellationToken)
+    {
+        List<string> repositories;
+        try
+        {
+            repositories = new DirectoryInfo(folder).EnumerateDirectories()
+                .Where(d => (d.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                            (Directory.Exists(Path.Join(d.FullName, ".git")) || File.Exists(Path.Join(d.FullName, ".git"))))
+                .Select(d => d.FullName).Take(MostRepositories).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { return null; }
+        if (repositories.Count == 0) return null;
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var states = new Dictionary<string, GitStatusKind>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        foreach (string repository in repositories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.Equals(SafeRepository(repository), repository, comparison)) continue;
+            // Each within moments: a huge or slow one is left plain, not the others with it.
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                await Gate.WaitAsync(timeout.Token).ConfigureAwait(false);
+                try
+                {
+                    string? status = await RunAsync(repository, timeout.Token, git, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignore-submodules=all").ConfigureAwait(false);
+                    if (status is not null) states[Path.GetFileName(repository)] = GitStatusSnapshot.Summary(status);
+                }
+                finally { Gate.Release(); }
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+        }
+        return states.Count == 0 ? null : new GitStatusSnapshot(states);
     }
 
     /// <summary>

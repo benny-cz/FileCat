@@ -84,6 +84,57 @@ public sealed class GitStatusTests
     }
 
     [Fact]
+    public async Task Folders_that_are_repositories_show_their_work_trees_state_where_they_are_listed()
+    {
+        if (GitStatusReader.FindGit(Environment.GetEnvironmentVariable("PATH")) is not { } git) { Assert.Skip("Git is not installed."); return; }
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-git-tests", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            void Git(string folder, params string[] arguments)
+            {
+                var start = new System.Diagnostics.ProcessStartInfo(git) { WorkingDirectory = folder, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var argument in new[] { "-c", "user.name=FileCat", "-c", "user.email=filecat@example.com", "-c", "core.autocrlf=false" }.Concat(arguments)) start.ArgumentList.Add(argument);
+                using var process = System.Diagnostics.Process.Start(start)!;
+                process.StandardOutput.ReadToEnd();
+                string errors = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+                Assert.True(process.ExitCode == 0, $"git {string.Join(' ', arguments)}: {errors}");
+            }
+            string Repository(string name, bool commit)
+            {
+                string folder = Directory.CreateDirectory(Path.Combine(root, name)).FullName;
+                Git(folder, "init", "-q");
+                if (commit)
+                {
+                    File.WriteAllText(Path.Combine(folder, "a.txt"), "one");
+                    Git(folder, "add", "a.txt");
+                    Git(folder, "commit", "-q", "-m", "first");
+                }
+                return folder;
+            }
+            Repository("clean", commit: true);
+            File.WriteAllText(Path.Combine(Repository("new", commit: false), "b.txt"), "untracked");
+            File.WriteAllText(Path.Combine(Repository("edited", commit: true), "a.txt"), "two");
+            Directory.CreateDirectory(Path.Combine(root, "plain"));
+
+            // The folder that lists them is in no repository: each repository's folder says how its work tree is.
+            var snapshot = await GitStatusReader.ReadAsync(root, ct);
+            Assert.NotNull(snapshot);
+            Assert.Equal(GitStatusKind.Clean, snapshot.ForName("clean"));
+            Assert.Equal(GitStatusKind.Untracked, snapshot.ForName("new"));
+            Assert.Equal(GitStatusKind.Modified, snapshot.ForName("edited"));
+            Assert.Equal(GitStatusKind.None, snapshot.ForName("plain"));
+        }
+        finally
+        {
+            // Git marks its objects read-only.
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public async Task Missing_git_executable_leaves_badges_unavailable_without_failing_the_list()
     {
         string absent = Path.Join(AppContext.BaseDirectory, "missing-git-" + Guid.NewGuid().ToString("N"));
