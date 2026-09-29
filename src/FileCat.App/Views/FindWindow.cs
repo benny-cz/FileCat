@@ -75,6 +75,7 @@ public sealed class FindWindow : Window, IViewActions
     private readonly CheckBox _wholeWords = new() { Content = "Whole words" };
     private readonly CheckBox _regex = new() { Content = "Regular expression" };
     private readonly CheckBox _hex = new() { Content = "Hex" };
+    private readonly CheckBox _archives = new() { Content = "Inside archives" };
     private readonly Button _find = new() { Content = "Find", Classes = { "primary" } };
     private readonly Button _stop = new() { Content = "Stop", IsEnabled = false };
     private readonly Button _skip = new() { Content = "Skip current folder", IsEnabled = false };
@@ -255,7 +256,8 @@ public sealed class FindWindow : Window, IViewActions
         Row(_within is null ? "Look in:" : "Search within:", _lookInHost, lookInButtons);
         Row("Containing:", _text, HistoryButton(_text, () => _services.History.SearchTexts, "Earlier texts"));
         var options = new WrapPanel { ItemSpacing = 12, LineSpacing = 4 };
-        foreach (var box in new[] { _subfolders, _hidden, _matchCase, _wholeWords, _regex, _hex }) options.Children.Add(box);
+        foreach (var box in new[] { _subfolders, _hidden, _archives, _matchCase, _wholeWords, _regex, _hex }) options.Children.Add(box);
+        ToolTip.SetTip(_archives, "Also finds names inside ZIP, 7z, RAR, TAR, and the other archives FileCat opens (not their contents, and not archives inside archives)");
         ToolTip.SetTip(_hex, "The text is bytes: hex pairs (4D 5A) and text in quotes (\"MZ\")");
         ToolTip.SetTip(_wholeWords, "No letter, digit, or underscore right before or after the text");
         if (_within is not null) _subfolders.IsEnabled = false;
@@ -470,6 +472,7 @@ public sealed class FindWindow : Window, IViewActions
         LookIn = _within is null ? _lookIn.Text ?? string.Empty : string.Empty,
         Subfolders = _subfolders.IsChecked == true,
         IncludeHidden = _hidden.IsChecked == true,
+        InsideArchives = _archives.IsChecked == true,
         Text = _text.Text ?? string.Empty,
         MatchCase = _matchCase.IsChecked == true,
         WholeWords = _wholeWords.IsChecked == true,
@@ -510,6 +513,7 @@ public sealed class FindWindow : Window, IViewActions
         if (_within is null && c.LookIn.Length > 0) _lookIn.Text = c.LookIn;
         _subfolders.IsChecked = c.Subfolders;
         _hidden.IsChecked = c.IncludeHidden;
+        _archives.IsChecked = c.InsideArchives;
         _text.Text = c.Text;
         _matchCase.IsChecked = c.MatchCase;
         _wholeWords.IsChecked = c.WholeWords;
@@ -581,7 +585,7 @@ public sealed class FindWindow : Window, IViewActions
         if (mode != RefineMode.Replace && _set is null) mode = RefineMode.Replace;
         var criteria = Criteria;
         var ignored = _services.Settings.SearchIgnoredFolders.Where(f => f.Enabled).Select(f => f.Folder).ToList();
-        if (!criteria.TryBuildQuery(DateTime.UtcNow, ignored, _within, out var query, out var error))
+        if (!criteria.TryBuildQuery(DateTime.UtcNow, ignored, _within, out var query, out var error, new ProviderArchiveMembers(_services.Providers)))
         {
             ShowError(error);
             return;
@@ -1093,6 +1097,8 @@ public sealed class FindWindow : Window, IViewActions
     internal IReadOnlyList<IReadOnlyList<ItemRef>> Groups => _groups;
 
     internal string AdvancedSummary => _advancedSummary.Text ?? string.Empty;
+
+    internal void SetInsideArchives(bool on) => _archives.IsChecked = on;
 
     internal void SetContent(string text, bool hex)
     {

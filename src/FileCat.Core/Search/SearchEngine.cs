@@ -41,6 +41,12 @@ public sealed class SearchQuery
     public IReadOnlyList<string> IgnoredFolders { get; init; } = [];
 
     /// <summary>
+    /// Archives met while searching are searched too, by their members' names (never their contents, so a search with
+    /// text or bytes leaves them alone). Null: archives are files like any other.
+    /// </summary>
+    public IArchiveMembers? Archives { get; init; }
+
+    /// <summary>
     /// Searches these earlier results instead of folders: each item is tested against the criteria as it is now,
     /// nothing is entered, and matches keep their relative folder (plan §11: searching within results narrows the set).
     /// </summary>
@@ -60,7 +66,7 @@ public sealed class SearchQuery
         if ((AttributesSet | AttributesClear) != 0) parts.Add("attribute filter");
         var what = parts.Count == 0 ? "all items" : string.Join(", ", parts);
         if (WithinResults is { } within) return $"{what} within {within.Count:N0} earlier results";
-        return $"{what} in {string.Join("; ", Roots)}{(Recursive ? "" : " (top level only)")}";
+        return $"{what} in {string.Join("; ", Roots)}{(Recursive ? "" : " (top level only)")}{(Archives is not null && !HasContent ? ", inside archives too" : "")}";
     }
 }
 
@@ -287,6 +293,8 @@ public sealed class SearchSession
                 else subdirs.Add(info.FullName);
             }
             if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
+            if (!isDir && _query.Archives is { } archives && !_query.HasContent && archives.IsArchive(info.Name))
+                SearchArchive(root, (FileInfo)info, archives, ct);
         }
         foreach (var sub in subdirs)
         {
@@ -298,6 +306,75 @@ public sealed class SearchSession
             _skip = null;
             AddLog(SearchLogKind.Skipped, dir);
         }
+    }
+
+    /// <summary>The most members one archive gives the search; a bigger one is searched that far and logged.</summary>
+    internal const int MaxArchiveMembers = 200_000;
+
+    /// <summary>
+    /// An archive's members matched by name and by what they report (size, modification time, being a folder). They
+    /// have no other attributes or creation times, so criteria on those leave them out.
+    /// </summary>
+    private void SearchArchive(string root, FileInfo archive, IArchiveMembers archives, CancellationToken ct)
+    {
+        CurrentFolder = archive.FullName;
+        int listed = 0;
+        try
+        {
+            foreach (var member in archives.List(archive.FullName, ct))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (++listed > MaxArchiveMembers)
+                {
+                    AddLog(SearchLogKind.Inaccessible, archive.FullName, $"only its first {MaxArchiveMembers:N0} members were searched");
+                    break;
+                }
+                if (MemberMatches(member)) AddMember(root, archive, member);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+        {
+            AddLog(SearchLogKind.Inaccessible, archive.FullName, "the archive could not be read: " + ex.Message);
+        }
+    }
+
+    private bool MemberMatches(ItemRef member)
+    {
+        bool isDir = member.IsContainer;
+        if (isDir && !_query.IncludeDirectories) return false;
+        if ((_query.AttributesSet & ~FileAttributes.Directory) != 0) return false;
+        if ((_query.AttributesSet & FileAttributes.Directory) != 0 && !isDir) return false;
+        if ((_query.AttributesClear & FileAttributes.Directory) != 0 && isDir) return false;
+        if (_query.CreatedAfterUtc is not null || _query.CreatedBeforeUtc is not null) return false;
+        if (_query.Names is { } names && !names.IsMatch(member.Name, isDir))
+        {
+            if (names.RegexTimedOut) RegexTimedOut = true;
+            return false;
+        }
+        if (!isDir && member.Size >= 0)
+        {
+            if (_query.MinSize is { } min && member.Size < min) return false;
+            if (_query.MaxSize is { } max && member.Size > max) return false;
+        }
+        if (_query.ModifiedAfterUtc is not null || _query.ModifiedBeforeUtc is not null)
+        {
+            if (member.Modified <= 0) return false;
+            var modified = new DateTime(member.Modified, DateTimeKind.Utc);
+            if (_query.ModifiedAfterUtc is { } after && modified < after) return false;
+            if (_query.ModifiedBeforeUtc is { } before && modified > before) return false;
+        }
+        return true;
+    }
+
+    /// <summary>A member found in an archive: its folder is the archive's, then its folder inside the archive.</summary>
+    private void AddMember(string root, FileInfo archive, ItemRef member)
+    {
+        var archiveFolder = Path.GetRelativePath(root, archive.DirectoryName ?? root);
+        if (archiveFolder == ".") archiveFolder = string.Empty;
+        string inside = member.Parent.Path.Replace('/', Path.DirectorySeparatorChar);
+        _results.Add(member, Path.Join(archiveFolder, archive.Name, inside));
+        long m = Interlocked.Increment(ref Matches);
+        if (m < 50 || m % 200 == 0) _results.NotifyChanged();
     }
 
     private bool IsIgnored(string root, string dir)

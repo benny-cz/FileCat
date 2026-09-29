@@ -308,6 +308,46 @@ public sealed class FindWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Inside_archives_finds_member_names_and_Space_shows_one_in_its_archive()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string zip = Path.Combine(root, "files", "docs.zip");
+            using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                using (var writer = new StreamWriter(archive.CreateEntry("inner/readme.txt").Open())) writer.Write("readme");
+                using (var writer = new StreamWriter(archive.CreateEntry("top.md").Open())) writer.Write("top");
+            }
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "readme", ct);
+            Assert.Empty(find.Found); // archives are files like any other
+
+            find.SetInsideArchives(true);
+            await SearchAsync(find, "readme", ct);
+            Assert.Equal(["readme.txt"], find.Found);
+            var results = find.ResultsTab!.Listing;
+            await WaitFor(() => results.VisibleCount == 1, ct);
+            Assert.Contains("docs.zip", find.ResultsTab.GetFolderText(results.GetVisible(0)));
+
+            // Space shows it in the active panel, inside the archive.
+            find.List.Focus();
+            results.SetFocus(0);
+            find.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
+            var panel = vm.Workspace.ActiveTab!;
+            await WaitFor(() => panel.Listing.TryGetFocused(out var f) && f.Name == "readme.txt", ct);
+            Assert.True(panel.Listing.TryGetFocused(out var focused) && focused.Name == "readme.txt");
+            Assert.NotEqual(Core.Resources.Schemes.FileSystem, panel.Location?.Scheme);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Hex_criteria_that_cannot_work_say_why_in_the_window()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

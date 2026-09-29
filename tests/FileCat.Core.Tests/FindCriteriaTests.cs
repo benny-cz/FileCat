@@ -307,6 +307,63 @@ public sealed class FindCriteriaTests : IDisposable
         Assert.Equal(saved.Criteria.Advanced.Summary(), settings.SavedSearches[0].Criteria.Advanced.Summary());
     }
 
+    /// <summary>An archive lister that knows one archive, "pack.zip", by its members.</summary>
+    private sealed class FakeArchives(IReadOnlyList<ItemRef> members) : IArchiveMembers
+    {
+        public int Listed;
+
+        public bool IsArchive(string fileName) => fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+
+        public IEnumerable<ItemRef> List(string archivePath, CancellationToken ct)
+        {
+            Listed++;
+            if (Path.GetFileName(archivePath) != "pack.zip") throw new InvalidDataException("not an archive");
+            return members;
+        }
+    }
+
+    [Fact]
+    public void Inside_archives_finds_member_names_with_the_criteria_that_apply_to_them()
+    {
+        Write("pack.zip", "zip");
+        Write("broken.zip", "no");
+        Write("readme.txt", "r");
+        var archive = new Location(Schemes.Archive, "docs", Location.FileSystem(Path.Combine(_dir.Path, "pack.zip")));
+        var modified = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
+        var fake = new FakeArchives([
+            new ItemRef(archive, "readme.md", EntryKind.File, 5000, modified),
+            new ItemRef(archive, "guide", EntryKind.Directory),
+            new ItemRef(archive, "old.txt", EntryKind.File, 10, modified),
+        ]);
+        (List<string> Names, SearchSession Session) Search(SearchQuery q)
+        {
+            var set = new ResultSet("t", "t", "t");
+            var session = new SearchSession(q, set);
+            session.Run(TestContext.Current.CancellationToken);
+            return ([.. set.Snapshot().Select(s => s.Item.Name).Order()], session);
+        }
+
+        var (names, session) = Search(new SearchQuery { Roots = [_dir.Path], Names = Mask.Parse("readme*"), Archives = fake });
+        Assert.Equal(["readme.md", "readme.txt"], names);
+        Assert.Contains(session.Log, e => e.Kind == SearchLogKind.Inaccessible && e.Path.EndsWith("broken.zip", StringComparison.Ordinal));
+
+        // Folders only, files only, sizes, and times apply to members; creation times and other attributes do not.
+        Assert.Equal(["guide"], Search(new SearchQuery { Roots = [_dir.Path], AttributesSet = FileAttributes.Directory, Archives = fake }).Names);
+        Assert.DoesNotContain("guide", Search(new SearchQuery { Roots = [_dir.Path], AttributesClear = FileAttributes.Directory, Archives = fake }).Names);
+        var big = Search(new SearchQuery { Roots = [_dir.Path], MinSize = 1000, Archives = fake }).Names;
+        Assert.Contains("readme.md", big);
+        Assert.DoesNotContain("old.txt", big);
+        Assert.DoesNotContain("readme.md", Search(new SearchQuery { Roots = [_dir.Path], ModifiedAfterUtc = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), Archives = fake }).Names);
+        Assert.DoesNotContain("readme.md", Search(new SearchQuery { Roots = [_dir.Path], CreatedAfterUtc = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), Archives = fake }).Names);
+        Assert.DoesNotContain("readme.md", Search(new SearchQuery { Roots = [_dir.Path], AttributesSet = FileAttributes.Hidden, Archives = fake }).Names);
+
+        // Searching for text leaves archives alone (their contents are never searched).
+        int before = fake.Listed;
+        Search(new SearchQuery { Roots = [_dir.Path], Text = "r", Archives = fake });
+        Assert.Equal(before, fake.Listed);
+        Assert.Contains("inside archives too", new SearchQuery { Roots = ["x"], Archives = fake }.Describe());
+    }
+
     [Fact]
     public void Text_in_hex_mode_and_whole_words_describe_themselves()
     {

@@ -337,6 +337,7 @@ internal static class FindDialogs
     public static string Describe(SearchCriteria c)
     {
         var parts = new List<string> { (string.IsNullOrWhiteSpace(c.Names) ? "*" : c.Names) + (c.LookIn.Length > 0 ? " in " + c.LookIn : string.Empty) };
+        if (c.InsideArchives) parts.Add("inside archives too");
         if (c.Text.Length > 0) parts.Add((c.Hex ? "bytes " : "containing ") + (c.Hex ? c.Text : $"\"{c.Text}\""));
         if (!c.Advanced.IsEmpty) parts.Add(c.Advanced.Summary());
         return string.Join(" · ", parts);

@@ -157,6 +157,8 @@ public sealed class SearchCriteria
     public string LookIn { get; set; } = string.Empty;
     public bool Subfolders { get; set; } = true;
     public bool IncludeHidden { get; set; } = true;
+    /// <summary>Also find names inside the archives met (their contents are not searched).</summary>
+    public bool InsideArchives { get; set; }
     public string Text { get; set; } = string.Empty;
     public bool MatchCase { get; set; }
     public bool WholeWords { get; set; }
@@ -181,7 +183,7 @@ public sealed class SearchCriteria
     /// when a mask, hex pattern, or range cannot work, or a folder to search is missing.
     /// </summary>
     public bool TryBuildQuery(DateTime nowUtc, IReadOnlyList<string> ignoredFolders, IReadOnlyList<(Resources.ItemRef Item, string Relative)>? within,
-        out SearchQuery? query, out string? error)
+        out SearchQuery? query, out string? error, IArchiveMembers? archives = null)
     {
         query = null;
         if (!Mask.TryParse(string.IsNullOrWhiteSpace(Names) ? "*" : Names, plainMeansContains: true, out var mask, out var maskError))
@@ -232,6 +234,7 @@ public sealed class SearchCriteria
             AttributesClear = Advanced.AttributesClear,
             IgnoredFolders = ignoredFolders,
             WithinResults = within,
+            Archives = InsideArchives ? archives : null,
         };
         return SearchSession.TryValidate(query, out error);
     }
