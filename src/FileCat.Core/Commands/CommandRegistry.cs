@@ -357,7 +357,7 @@ public sealed class CommandRegistry
         Add(CommandIds.HexEdit, "Edit file bytes in hex…", F);
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
-        Add(CommandIds.CompareFiles, "Compare files…", C);
+        Add(CommandIds.CompareFiles, "Compare files…", C, null, CommandContext.Panel, "Ctrl+I");
         Add(CommandIds.FindDeleted, "Find deleted files (disk image or drive)…", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
@@ -407,7 +407,7 @@ public sealed class CommandRegistry
         K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");
         K(CommandIds.BulkRename, "multi rename", "mass rename", "batch rename", "renamer");
         K(CommandIds.CompareDirectories, "diff", "differences", "synchronize", "sync", "compare folders");
-        K(CommandIds.CompareFiles, "diff", "differences");
+        K(CommandIds.CompareFiles, "diff", "differences", "compare two files", "same name", "text compare", "binary compare");
         K(CommandIds.Checksum, "hash", "sha256", "sha1", "md5", "crc");
         K(CommandIds.VerifyChecksums, "verify", "hash", "sfv", "md5sum", "sha256sums");
         K(CommandIds.Pack, "zip", "compress", "create archive");

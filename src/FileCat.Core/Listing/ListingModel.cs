@@ -194,6 +194,21 @@ public sealed class ListingModel : IDisposable
         return -1;
     }
 
+    /// <summary>The one entry whose name differs from <paramref name="name"/> only in letter case; -1 when none or several do.</summary>
+    public int FindStoreIndexIgnoringCase(string name)
+    {
+        int found = -1;
+        using var scan = new EntryStore.Scan(_store, _appliedCount);
+        for (int i = 0; i < _appliedCount; i++)
+        {
+            var e = scan[i];
+            if (e.Kind == EntryKind.Parent || !e.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
+            if (found >= 0) return -1;
+            found = i;
+        }
+        return found;
+    }
+
     /// <summary>Tests a name in place (spilled listings are searched without building strings).</summary>
     public delegate bool NameMatch(ReadOnlySpan<char> name);
 

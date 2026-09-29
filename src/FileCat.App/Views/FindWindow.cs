@@ -46,6 +46,9 @@ public sealed class FindWindow : Window, IViewActions
         CommandIds.SortSize, CommandIds.SortNone, CommandIds.Refresh,
     ];
 
+    /// <summary>Keys the window handles before the panels' commands (<see cref="OnPreviewKeyDown"/>).</summary>
+    private static readonly HashSet<string> OwnKeys = ["Ctrl+I", "Ctrl+S", "Ctrl+W", "Ctrl+D", "Ctrl+H"];
+
     private readonly MainViewModel _vm;
     private readonly AppServices _services;
     private readonly OverlayDialogService _dialogs;
@@ -442,7 +445,8 @@ public sealed class FindWindow : Window, IViewActions
         var def = _services.Commands.Get(id);
         var item = new MenuItem { Header = header ?? def?.Title ?? id };
         var chord = _services.Keymap.GetChords(id).FirstOrDefault();
-        if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } gesture) item.InputGesture = gesture;
+        // A key this window uses itself (Ctrl+I keeps only items found again here) is not the command's key here.
+        if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } gesture && !OwnKeys.Contains(gesture.ToString())) item.InputGesture = gesture;
         item.Click += (_, _) => Run(id);
         item.Tag = new Func<(bool, string?)>(() =>
         {

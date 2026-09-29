@@ -131,59 +131,101 @@ public sealed partial class MainViewModel
     // ---- Compare files ----------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Compare files (plan §16.2): the two marked files of the active panel, or the focused file in each of two panels.
-    /// Contents open off the UI thread (a server may ask for a password); the window owns them from then on.
+    /// Compare files (plan §16.2, Ctrl+I). Marked files decide: two in the active panel, or one there and one in the
+    /// other panel. With none marked, the file under the cursor is compared with the file of the same name in the other
+    /// panel's folder, or, when that folder has none, with the file under the cursor there. Contents open off the UI
+    /// thread (a server may ask for a password); the window owns them from then on.
     /// </summary>
     private async Task CompareFilesAsync()
     {
         var tab = ActiveTab;
         if (tab?.Location is null) return;
-        ItemRef? a = null, b = null;
-        var marked = tab.Listing.HasMarks ? tab.Listing.GetSelection(includeHiddenMarks: false).Where(i => !i.IsContainer).ToList() : [];
-        if (marked.Count == 2)
+        var marked = MarkedFiles(tab);
+        if (marked.Count > 2)
         {
-            (a, b) = (marked[0], marked[1]);
-        }
-        else
-        {
-            if (tab.Listing.TryGetFocused(out var f) && !f.IsContainer && f.Kind != EntryKind.Parent) a = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-            if (Workspace.ActiveTarget?.ActiveTab is { } other && other.Listing.TryGetFocused(out var g) && !g.IsContainer && g.Kind != EntryKind.Parent)
-                b = other.Listing.GetItemRef(other.Listing.FocusedStoreIndex);
-        }
-        if (a is null || b is null)
-        {
-            Notify("Mark two files, or focus a file in each of two panels, to compare them.", true);
+            Notify("More than two files are marked: mark the two to compare, or one here and one in the other panel.", true);
             return;
         }
-        await OpenFileComparisonAsync(a, b);
+        if (marked.Count == 2)
+        {
+            await OpenFileComparisonAsync(marked[0], marked[1]);
+            return;
+        }
+        var mine = marked.Count == 1 ? marked[0] : FocusedFile(tab);
+        if (mine is null)
+        {
+            Notify(tab.Listing.TryGetFocused(out var focused) && focused.Kind != EntryKind.Parent && focused.IsContainer
+                ? "Compare files compares files: focus a file, or mark two. Compare directories (Ctrl+F10) compares folders."
+                : "Focus a file to compare it with the file of the same name in the other panel, or mark two files.", true);
+            return;
+        }
+        var other = Workspace.ActiveTarget?.ActiveTab;
+        if (other?.Location is null || ReferenceEquals(other, tab))
+        {
+            Notify("Mark two files to compare them, or show the file to compare with in a second panel.", true);
+            return;
+        }
+        var theirs = MarkedFiles(other);
+        if (theirs.Count > 1)
+        {
+            Notify($"The other panel has several marked files: mark one there, or none to compare \"{mine.Name}\" with its namesake.", true);
+            return;
+        }
+        var match = theirs.Count == 1 ? theirs[0] : Namesake(other, mine.Name);
+        if (match is null || match.Equals(mine)) match = FocusedFile(other);
+        if (match is null || match.Equals(mine))
+        {
+            Notify(other.Listing.State == ListingState.Loading
+                ? "The other panel is still reading its folder: try again when it is complete."
+                : other.Location.Equals(tab.Location)
+                    ? "Both panels show the same folder: mark the two files to compare."
+                    : $"There is no \"{mine.Name}\" in {other.DisplayPath}. Focus the file to compare it with there, or mark one file in each panel.", true);
+            return;
+        }
+        await OpenFileComparisonAsync(mine, match);
     }
 
-    /// <summary>Opens a comparison window for two files (contents open off the UI thread).</summary>
+    /// <summary>The marked files of a tab (folders aside), at most three: a comparison takes two.</summary>
+    private static List<ItemRef> MarkedFiles(TabViewModel tab)
+    {
+        if (!tab.Listing.HasMarks) return [];
+        var selection = tab.Listing.GetSelection(includeHiddenMarks: false);
+        try { return selection.Where(i => !i.IsContainer).Take(3).ToList(); }
+        finally { ItemSources.Release(selection); }
+    }
+
+    private static ItemRef? FocusedFile(TabViewModel tab) =>
+        tab.Listing.TryGetFocused(out var f) && !f.IsContainer ? tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex) : null;
+
+    /// <summary>The file named <paramref name="name"/> in a tab's folder: exactly, or else the one name that differs only in letter case.</summary>
+    private static ItemRef? Namesake(TabViewModel tab, string name)
+    {
+        var listing = tab.Listing;
+        int index = listing.FindStoreIndex(name);
+        if (index < 0) index = listing.FindStoreIndexIgnoringCase(name);
+        return index >= 0 && !listing.Store[index].IsContainer ? listing.GetItemRef(index) : null;
+    }
+
+    /// <summary>Opens a comparison window for two files (contents open off the UI thread; F5 there opens them again).</summary>
     private async Task OpenFileComparisonAsync(ItemRef a, ItemRef b)
     {
         string Display(ItemRef i) => i.FileSystemPath ?? Services.Providers.Display(i.Parent).TrimEnd('/', '\\') + "/" + i.Name;
+        (IContentSource Left, IContentSource Right) OpenBoth()
+        {
+            var l = Services.Providers.For(a.Parent).OpenContent(a) ?? throw new InvalidDataException($"\"{a.Name}\" has no content to compare.");
+            try { return (l, Services.Providers.For(b.Parent).OpenContent(b) ?? throw new InvalidDataException($"\"{b.Name}\" has no content to compare.")); }
+            catch
+            {
+                l.Dispose();
+                throw;
+            }
+        }
         try
         {
-            var (left, right) = await Task.Run(() =>
-            {
-                var l = Services.Providers.For(a.Parent).OpenContent(a);
-                try { return (l, Services.Providers.For(b.Parent).OpenContent(b)); }
-                catch
-                {
-                    l?.Dispose();
-                    throw;
-                }
-            });
-            if (left is null || right is null)
-            {
-                left?.Dispose();
-                right?.Dispose();
-                Notify("One of the items has no content to compare.", true);
-                return;
-            }
-            Views.CompareWindow.Open(Display(a), left, Display(b), right);
+            var (left, right) = await Task.Run(OpenBoth);
+            Views.CompareWindow.Open(Display(a), left, Display(b), right, OpenBoth);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException or NotSupportedException)
         {
             Notify("Cannot compare: " + (ex is OperationCanceledException ? "canceled." : ex.Message), true);
         }

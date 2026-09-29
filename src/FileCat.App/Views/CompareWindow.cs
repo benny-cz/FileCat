@@ -20,7 +20,8 @@ public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, i
 /// <summary>
 /// File comparison (plan §16.2, TV-08): text side by side with within-line changes, or exact binary ranges. Both sides
 /// scroll together because each row holds both. The summary claims "identical" only when every byte matched; a region
-/// that could not be aligned within limits is shown and labelled, never presented as exact.
+/// that could not be aligned within limits is shown and labelled, never presented as exact. A file that changes after
+/// it was compared is reported when the window is activated again, and F5 compares anew.
 /// </summary>
 public sealed class CompareWindow : Window
 {
@@ -31,89 +32,119 @@ public sealed class CompareWindow : Window
     private static readonly IBrush InlineBrush = new SolidColorBrush(Color.FromArgb(0x70, 0xE0, 0x90, 0x20));
     private static readonly FontFamily Mono = new("Cascadia Mono,Consolas,Menlo,monospace");
 
-    private readonly IContentSource _left, _right;
+    private IContentSource _left, _right;
     private readonly string _leftName, _rightName;
+    private readonly Func<(IContentSource Left, IContentSource Right)>? _reopen;
     private readonly ListBox _rows = new();
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _changed = new() { TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
+    private readonly Border _changedBanner;
     private readonly CheckBox _ignoreWhitespace = new() { Content = "Ignore whitespace", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _ignoreCase = new() { Content = "Ignore case", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _binary = new() { Content = "Binary", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _collapse = new() { Content = "Hide equal lines", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button _previous = new() { Content = "Previous difference" };
     private readonly Button _next = new() { Content = "Next difference" };
+    private readonly Button _again = new() { Content = "Compare again" };
     private List<int> _differenceRows = [];
     private CancellationTokenSource? _work;
+    private Task _loading = Task.CompletedTask;
     private BinaryDiffResult? _bytes;
+    private IReadOnlyList<string> _byteRows = [];
     private TextSide? _leftText, _rightText;
     private string? _textProblem;
-    private bool _closed;
+    private (ContentRevision? Left, ContentRevision? Right) _revisions;
+    private bool _closed, _reopening, _binaryForced, _settingOptions;
+    private int _view;
 
     private static readonly List<CompareWindow> s_open = [];
 
     /// <summary>Open comparisons, oldest first.</summary>
     public static IReadOnlyList<CompareWindow> OpenWindows => s_open;
 
-    /// <summary>Opens a comparison of two contents (opened by the caller off the UI thread); the window disposes them.</summary>
-    public static CompareWindow Open(string leftName, IContentSource left, string rightName, IContentSource right)
+    /// <summary>
+    /// Opens a comparison of two contents (opened by the caller off the UI thread); the window disposes them.
+    /// <paramref name="reopen"/> opens both again for "Compare again" (it runs off the UI thread); without it the window
+    /// cannot compare anew.
+    /// </summary>
+    public static CompareWindow Open(string leftName, IContentSource left, string rightName, IContentSource right,
+        Func<(IContentSource Left, IContentSource Right)>? reopen = null)
     {
-        var window = new CompareWindow(leftName, left, rightName, right);
+        var window = new CompareWindow(leftName, left, rightName, right, reopen);
         s_open.Add(window);
         window.Closed += (_, _) => s_open.Remove(window);
         window.Show();
         return window;
     }
 
-    private CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right)
+    private CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right, Func<(IContentSource, IContentSource)>? reopen)
     {
         _left = left;
         _right = right;
         _leftName = leftName;
         _rightName = rightName;
+        _reopen = reopen;
         Title = $"Compare: {Path.GetFileName(leftName.TrimEnd('/', '\\'))} ↔ {Path.GetFileName(rightName.TrimEnd('/', '\\'))}";
         Width = 1200; Height = 760; MinWidth = 640; MinHeight = 320;
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         Avalonia.Automation.AutomationProperties.SetName(_rows, "Differences");
         ToolTip.SetTip(_next, "Next difference (Alt+Down or F8)");
         ToolTip.SetTip(_previous, "Previous difference (Alt+Up or Shift+F8)");
+        ToolTip.SetTip(_again, "Read both files again and compare them (F5)");
+        _again.IsVisible = reopen is not null;
         _rows.ItemTemplate = new FuncDataTemplate<object>((item, _) => item switch
         {
             CompareRow row => BuildRow(row),
             string text => new TextBlock { Text = text, FontFamily = Mono, Margin = new Thickness(4, 1) },
             _ => new TextBlock(),
         });
+        // Long paths lose their middle, not the file name at their end.
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Margin = new Thickness(8, 4) };
-        header.Children.Add(new TextBlock { Text = leftName, TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeight.SemiBold });
-        var rightHeader = new TextBlock { Text = rightName, TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeight.SemiBold };
+        var leftHeader = new TextBlock { Text = leftName, TextTrimming = TextTrimming.PrefixCharacterEllipsis, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 8, 0) };
+        var rightHeader = new TextBlock { Text = rightName, TextTrimming = TextTrimming.PrefixCharacterEllipsis, FontWeight = FontWeight.SemiBold };
+        ToolTip.SetTip(leftHeader, leftName);
+        ToolTip.SetTip(rightHeader, rightName);
         Grid.SetColumn(rightHeader, 1);
+        header.Children.Add(leftHeader);
         header.Children.Add(rightHeader);
-        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6), Children = { _previous, _next, _binary, _ignoreWhitespace, _ignoreCase, _collapse } };
+        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6), Children = { _previous, _next, _again, _binary, _ignoreWhitespace, _ignoreCase, _collapse } };
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
         DockPanel.SetDock(header, Dock.Top);
         var summaryBorder = new Border { Child = _summary, Padding = new Thickness(8, 4), Classes = { "banner" } };
         DockPanel.SetDock(summaryBorder, Dock.Top);
+        _changedBanner = new Border { Child = _changed, Padding = new Thickness(8, 4), Classes = { "banner" }, IsVisible = false };
+        DockPanel.SetDock(_changedBanner, Dock.Top);
         root.Children.Add(bar);
         root.Children.Add(summaryBorder);
+        root.Children.Add(_changedBanner);
         root.Children.Add(header);
         root.Children.Add(_rows);
         Content = root;
 
         _next.Click += (_, _) => Go(+1);
         _previous.Click += (_, _) => Go(-1);
+        _again.Click += (_, _) => CompareAgain();
         foreach (var box in new[] { _ignoreWhitespace, _ignoreCase, _binary, _collapse }) box.IsCheckedChanged += (_, _) => Recompute();
         KeyDown += OnKey;
+        Activated += (_, _) => CheckInputs();
         Closed += (_, _) =>
         {
             _closed = true;
             _work?.Cancel();
-            _left.Dispose();
-            _right.Dispose();
+            ReleaseWhenIdle(_left, _right);
         };
         _summary.Text = "Comparing…";
-        Opened += (_, _) => _ = LoadAsync();
+        Opened += (_, _) => _loading = LoadAsync();
     }
 
     public string Summary => _summary.Text ?? "";
+
+    /// <summary>Whether the window says that a file changed after it was compared (tests).</summary>
+    public string? ChangedNotice => _changedBanner.IsVisible ? _changed.Text : null;
+
+    /// <summary>Whether the files are still being read or their lines aligned (the rows and summary are not final yet).</summary>
+    public bool IsComparing { get; private set; } = true;
 
     public IReadOnlyList<object> Rows => _rows.ItemsSource as IReadOnlyList<object> ?? [];
 
@@ -135,13 +166,16 @@ public sealed class CompareWindow : Window
             case Key.F8 when e.KeyModifiers == KeyModifiers.Shift:
                 Go(-1);
                 break;
+            case Key.F5 when e.KeyModifiers == KeyModifiers.None && _reopen is not null:
+            case Key.R when e.KeyModifiers == KeyModifiers.Control && _reopen is not null:
+                CompareAgain();
+                break;
             default:
                 return;
         }
         e.Handled = true;
     }
 
-    /// <summary>Moves to the next or previous difference after the selected row.</summary>
     /// <summary>A comparison opens on its first difference: the equal lines before it are what the user did not come for.</summary>
     private void ShowFirstDifference()
     {
@@ -156,6 +190,7 @@ public sealed class CompareWindow : Window
         }, Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
+    /// <summary>Moves to the next or previous difference after the selected row (wrapping around).</summary>
     public void Go(int direction)
     {
         if (_differenceRows.Count == 0) return;
@@ -167,22 +202,49 @@ public sealed class CompareWindow : Window
         _rows.ScrollIntoView(target);
     }
 
+    /// <summary>
+    /// Compares the contents the window holds now. Everything that reads them runs off the UI thread: servers and
+    /// phones answer slowly, and a large file takes a while (the summary shows how far it got).
+    /// </summary>
     private async Task LoadAsync()
     {
-        _work = new CancellationTokenSource();
-        var ct = _work.Token;
+        _work?.Cancel();
+        var work = new CancellationTokenSource();
+        _work = work;
+        var ct = work.Token;
+        var (left, right) = (_left, _right);
+        IsComparing = true;
+        _summary.Text = "Comparing…";
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long shown = 0;
+        void Progress(long done, long total)
+        {
+            // Every megabyte reports; the window shows it a few times a second.
+            if (clock.ElapsedMilliseconds - shown < 250) return;
+            shown = clock.ElapsedMilliseconds;
+            string text = total > 0
+                ? $"Comparing… {Formatters.SizeWithUnit(done)} of {Formatters.SizeWithUnit(total)} ({Math.Min(100, done * 100 / total)}%)"
+                : $"Comparing… {Formatters.SizeWithUnit(done)}";
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!ct.IsCancellationRequested) _summary.Text = text;
+            });
+        }
         try
         {
             // Every byte decides equality; text decoding and alignment are separate, labelled views.
-            (_bytes, _leftText, _rightText, _textProblem) = await Task.Run(() =>
+            var loaded = await Task.Run(() =>
             {
-                var bytes = BinaryDiff.Compare(_left, _right, ct);
+                var revisions = (Revision(left), Revision(right));
+                long total = Math.Max(left.Length, right.Length);
+                var bytes = BinaryDiff.Compare(left, right, ct, done => Progress(done, total));
+                var rows = ByteRows(left, right, bytes, ct);
                 TextSide? l = null, r = null;
                 string? problem = null;
                 try
                 {
-                    l = TextSide.Load(_left, ct);
-                    r = TextSide.Load(_right, ct);
+                    l = TextSide.Load(left, ct);
+                    r = TextSide.Load(right, ct);
                     if (l.Encoding.LooksBinary || r.Encoding.LooksBinary)
                     {
                         problem = "At least one file looks binary, so it is compared byte by byte.";
@@ -192,41 +254,156 @@ public sealed class CompareWindow : Window
                 catch (InvalidDataException ex)
                 {
                     problem = ex.Message;
+                    l = r = null;
                 }
-                return (bytes, l, r, problem);
+                return (bytes, rows, l, r, problem, revisions);
             }, ct);
+            if (_closed || ct.IsCancellationRequested) return;
+            (_bytes, _byteRows, _leftText, _rightText, _textProblem, _revisions) = loaded;
         }
         catch (OperationCanceledException)
         {
             return;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
         {
+            if (_closed || ct.IsCancellationRequested) return;
             _summary.Text = "The files could not be read: " + ex.Message;
+            IsComparing = false;
             return;
         }
-        if (_closed) return;
-        if (_leftText is null) _binary.IsChecked = true;
+        // Without text on both sides only the bytes can be shown; a later comparison with text shows text again.
+        bool text = _leftText is not null && _rightText is not null;
+        _binary.IsEnabled = text;
+        _settingOptions = true;
+        if (!text)
+        {
+            _binaryForced |= _binary.IsChecked != true;
+            _binary.IsChecked = true;
+        }
+        else if (_binaryForced)
+        {
+            _binaryForced = false;
+            _binary.IsChecked = false;
+        }
+        _settingOptions = false;
         Recompute();
     }
 
-    private void Recompute()
+    private static ContentRevision? Revision(IContentSource source)
     {
-        if (_bytes is null) return;
+        try { return source.GetRevision(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException or NotSupportedException) { return null; }
+    }
+
+    /// <summary>Contents are disposed once nothing reads them any more (a comparison stops at its next megabyte).</summary>
+    private void ReleaseWhenIdle(IContentSource left, IContentSource right)
+    {
+        void Release()
+        {
+            left.Dispose();
+            right.Dispose();
+        }
+        if (_loading.IsCompleted) Release();
+        else _loading.ContinueWith(_ => Release(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+    }
+
+    /// <summary>F5: both files are opened and compared again (after they were edited, say).</summary>
+    public async void CompareAgain()
+    {
+        if (_reopen is null || _closed || _reopening) return;
+        _reopening = true;
+        _again.IsEnabled = false;
+        _work?.Cancel();
+        _summary.Text = "Reading the files again…";
+        try
+        {
+            var (left, right) = await Task.Run(_reopen);
+            if (_closed)
+            {
+                left.Dispose();
+                right.Dispose();
+                return;
+            }
+            ReleaseWhenIdle(_left, _right);
+            (_left, _right) = (left, right);
+            _changedBanner.IsVisible = false;
+            _loading = LoadAsync();
+            await _loading;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or OperationCanceledException)
+        {
+            if (!_closed) _summary.Text = "The files could not be read again: " + (ex is OperationCanceledException ? "canceled." : ex.Message);
+        }
+        finally
+        {
+            _reopening = false;
+            _again.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Plan §16.2: a comparison never passes off files that changed since as compared. Coming back to the window
+    /// (from the editor, say) checks both, and a change is said above the rows until the files are compared again.
+    /// </summary>
+    private async void CheckInputs()
+    {
+        if (_closed || _reopening || _bytes is null || _changedBanner.IsVisible || _revisions is (null, null)) return;
+        var (left, right) = (_left, _right);
+        var before = _revisions;
+        var now = await Task.Run(() => (Revision(left), Revision(right)));
+        if (_closed || !ReferenceEquals(left, _left) || !ReferenceEquals(right, _right)) return;
+        var changed = new List<string>();
+        if (before.Left is { } l && now.Item1 != l) changed.Add(Path.GetFileName(_leftName.TrimEnd('/', '\\')));
+        if (before.Right is { } r && now.Item2 != r) changed.Add(Path.GetFileName(_rightName.TrimEnd('/', '\\')));
+        if (changed.Count == 0) return;
+        _changed.Text = (changed.Count == 2 ? "Both files changed" : $"\"{changed[0]}\" changed") + " after they were compared: what is shown is the earlier content. " +
+                        (_reopen is null ? "Close this window and compare the files again." : "F5 compares them again.");
+        _changedBanner.IsVisible = true;
+    }
+
+    /// <summary>One row per differing byte range, with the first bytes of each side (read here, off the UI thread).</summary>
+    private static List<string> ByteRows(IContentSource left, IContentSource right, BinaryDiffResult bytes, CancellationToken ct)
+    {
+        var rows = new List<string>(bytes.Ranges.Count);
+        foreach (var (offset, length) in bytes.Ranges)
+        {
+            ct.ThrowIfCancellationRequested();
+            rows.Add($"0x{offset:X10}  {length,12:N0} bytes   left {Hex(left, offset, length)}   right {Hex(right, offset, length)}");
+        }
+        return rows;
+    }
+
+    /// <summary>Shows the comparison with the current options; lines are aligned off the UI thread (a million take a second).</summary>
+    private async void Recompute()
+    {
+        if (_bytes is not { } bytes || _settingOptions) return;
+        int view = ++_view;
         _ignoreWhitespace.IsEnabled = _ignoreCase.IsEnabled = _collapse.IsEnabled = _binary.IsChecked != true;
-        if (_binary.IsChecked == true || _leftText is null || _rightText is null) ShowBinary(_bytes);
-        else ShowText(_leftText, _rightText, _bytes);
+        if (_binary.IsChecked == true || _leftText is not { } left || _rightText is not { } right)
+        {
+            ShowBinary(bytes);
+            return;
+        }
+        var options = new TextDiffOptions(_ignoreWhitespace.IsChecked == true, _ignoreCase.IsChecked == true);
+        bool collapse = _collapse.IsChecked == true;
+        IsComparing = true;
+        if (_summary.Text?.StartsWith("Comparing", StringComparison.Ordinal) == true) _summary.Text = "Comparing lines…";
+        var shown = await Task.Run(() => BuildText(left, right, bytes, options, collapse));
+        // Options changed meanwhile, or the files were compared again: a newer view is on its way.
+        if (view != _view || _closed) return;
+        _rows.ItemsSource = shown.Rows;
+        _differenceRows = shown.Differences;
+        ShowFirstDifference();
+        _summary.Text = shown.Summary;
+        IsComparing = false;
     }
 
     private void ShowBinary(BinaryDiffResult bytes)
     {
-        var rows = new List<object>();
-        var diff = new List<int>();
-        foreach (var (offset, length) in bytes.Ranges)
-        {
-            diff.Add(rows.Count);
-            rows.Add($"0x{offset:X10}  {length,12:N0} bytes   left {Hex(_left, offset, length)}   right {Hex(_right, offset, length)}");
-        }
+        _view++;
+        var rows = new List<object>(_byteRows);
+        var diff = Enumerable.Range(0, rows.Count).ToList();
         _rows.ItemsSource = rows;
         _differenceRows = diff;
         ShowFirstDifference();
@@ -236,6 +413,7 @@ public sealed class CompareWindow : Window
             : $"{bytes.Ranges.Count:N0}{(bytes.RangesTruncated ? "+" : "")} differing byte ranges at the same offsets" +
               (bytes.LeftLength != bytes.RightLength ? $"; lengths {bytes.LeftLength:N0} and {bytes.RightLength:N0} bytes" : "") +
               (bytes.RangesTruncated ? $"; the first {BinaryDiff.MaxRanges:N0} are listed" : "") + ". Shifted content shows as differences from the shift on." + note;
+        IsComparing = false;
     }
 
     private static string Hex(IContentSource source, long offset, long length)
@@ -243,18 +421,17 @@ public sealed class CompareWindow : Window
         var buffer = new byte[(int)Math.Min(16, Math.Max(0, length))];
         int n;
         try { n = source.Read(offset, buffer); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return "?"; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException) { return "?"; }
         return n == 0 ? "(end)" : Convert.ToHexString(buffer, 0, n) + (length > 16 ? "…" : "");
     }
 
-    private void ShowText(TextSide left, TextSide right, BinaryDiffResult bytes)
+    private static (List<object> Rows, List<int> Differences, string Summary) BuildText(TextSide left, TextSide right, BinaryDiffResult bytes,
+        TextDiffOptions options, bool collapse)
     {
-        var options = new TextDiffOptions(_ignoreWhitespace.IsChecked == true, _ignoreCase.IsChecked == true);
         var result = TextDiff.Compare(left.Lines, right.Lines, options);
         var rows = new List<object>();
         var diff = new List<int>();
         int endings = 0, changed = 0, leftOnly = 0, rightOnly = 0;
-        bool collapse = _collapse.IsChecked == true;
         foreach (var block in result.Blocks)
         {
             if (block.Kind != DiffKind.Equal) diff.Add(rows.Count);
@@ -294,9 +471,6 @@ public sealed class CompareWindow : Window
                     break;
             }
         }
-        _rows.ItemsSource = rows;
-        _differenceRows = diff;
-        ShowFirstDifference();
         var summary = new StringBuilder();
         if (bytes.Equal) summary.Append($"Identical: every byte was compared ({bytes.LeftLength:N0} bytes).");
         else if (result.Identical)
@@ -317,7 +491,7 @@ public sealed class CompareWindow : Window
             summary.Append('.');
             if (result.Approximate) summary.Append(" Some regions were too large to align line by line; they are shown unaligned, not paired.");
         }
-        _summary.Text = summary.ToString();
+        return (rows, diff, summary.ToString());
     }
 
     private static Control BuildRow(CompareRow row)
