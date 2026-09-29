@@ -219,13 +219,13 @@ public sealed partial class MainViewModel
         var names = types.Select(RegistryValueCodec.TypeName).ToArray();
         var type = new ComboBox { ItemsSource = names, SelectedIndex = current is null ? 0 : Array.IndexOf(types, current.Type), MinWidth = 180 };
         Avalonia.Automation.AutomationProperties.SetName(type, "Registry value type");
-        var input = new TextBox { Text = initial, MinWidth = 500, MinHeight = 80, MaxHeight = 280,
-            AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Stored data" };
+        var input = new TextBox { Text = initial, MinWidth = 500, MaxHeight = 280, PlaceholderText = "Stored data" }; // lines: set per type below
         Avalonia.Automation.AutomationProperties.SetName(input, "Registry value data");
         var reinterpret = new CheckBox { Content = "Reinterpret original bytes as the selected type", IsVisible = original is not null };
         var preview = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 650, Classes = { "muted" } };
-        var issue = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" } };
-        var changed = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" } };
+        // Shown only while they say something (empty lines would still take the dialog's spacing).
+        var issue = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" }, IsVisible = false };
+        var changed = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" }, IsVisible = false };
         var body = new StackPanel { Spacing = 8 };
         body.Children.Add(new TextBlock { Text = $"{(name.Length == 0 ? "(Default)" : name)} · choose a type and edit its stored data. Changes are not applied until you confirm.", TextWrapping = TextWrapping.Wrap });
         body.Children.Add(type);
@@ -235,8 +235,8 @@ public sealed partial class MainViewModel
         body.Children.Add(issue);
         body.Children.Add(changed);
         using var monitor = watch is null ? null : new RegistryChangeMonitor(watch,
-            () => Services.Ui.Post(() => changed.Text = "This Registry key changed while the editor was open. Your input is preserved; save will recheck the original and may report a conflict."),
-            _ => Services.Ui.Post(() => changed.Text = "Change notifications stopped. Save will still recheck the original value."));
+            () => Services.Ui.Post(() => (changed.Text, changed.IsVisible) = ("This Registry key changed while the editor was open. Your input is preserved; save will recheck the original and may report a conflict.", true)),
+            _ => Services.Ui.Post(() => (changed.Text, changed.IsVisible) = ("Change notifications stopped. Save will still recheck the original value.", true)));
         RegistryValueSnapshot? parsed = null;
         void Refresh()
         {
@@ -245,10 +245,17 @@ public sealed partial class MainViewModel
             reinterpret.IsVisible = original is not null && selected != original.Type;
             bool hex = selected == 3 || !RegistryValueCodec.EditableTypes.Contains(selected) || rawOnly && original?.Type == selected;
             input.PlaceholderText = hex ? "Hex bytes, e.g. 00 FF 2A" : selected is 4 or 11 ? "Unsigned decimal or 0x hexadecimal" : selected == 7 ? "One string per line" : "Stored text (not expanded)";
+            // Lines only where the data has them (strings of a multi-string, rows of bytes): a number or a string is one
+            // line, and Enter saves it.
+            bool lines = hex || selected == 7;
+            input.AcceptsReturn = lines;
+            input.MinHeight = lines ? 80 : 0;
+            input.TextWrapping = selected is 4 or 11 ? TextWrapping.NoWrap : TextWrapping.Wrap;
             if (retype) parsed = new RegistryValueSnapshot(selected, original!.Data);
             else if (RegistryValueCodec.TryParse(selected, input.Text ?? "", hex, out var bytes, out var error)) parsed = new RegistryValueSnapshot(selected, bytes);
-            else { parsed = null; issue.Text = error; preview.Text = ""; return; }
+            else { parsed = null; issue.Text = error; issue.IsVisible = true; preview.Text = ""; return; }
             issue.Text = "";
+            issue.IsVisible = false;
             preview.Text = $"Preview: {RegistryValueCodec.TypeName(selected)} · {parsed.Data.Length:N0} bytes · {RegistryRaw.Preview(new RegistryValueData(selected, parsed.Data, parsed.Data.Length))}";
         }
         type.SelectionChanged += (_, _) => Refresh();
