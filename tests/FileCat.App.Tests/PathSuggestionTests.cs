@@ -38,6 +38,44 @@ public sealed class PathSuggestionTests
         }
     }
 
+    /// <summary>F5's destination box suggests folders too; choosing one fills it in and does not start the copy.</summary>
+    [AvaloniaFact]
+    public async Task The_copy_destination_suggests_folders_and_choosing_one_only_fills_it_in()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string files = Path.Combine(root, "files");
+            Directory.CreateDirectory(Path.Combine(files, "alpha"));
+            var listing = vm.ActiveTab!.Listing;
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 4); i++) await Task.Delay(20, ct);
+            Assert.True(listing.FocusName("a.txt"));
+            vm.Execute(Core.Commands.CommandIds.Copy);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            var dest = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Destination");
+            for (int i = 0; i < 100 && !dest.IsFocused; i++) await Task.Delay(20, ct);
+            Assert.True(dest.IsFocused);
+
+            dest.Text = Path.Combine(files, "al");
+            var popup = window.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Popup>().Single(p => p.PlacementTarget == dest);
+            for (int i = 0; i < 250 && !popup.IsOpen; i++) await Task.Delay(20, ct);
+            Assert.True(popup.IsOpen);
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Assert.Equal(Path.Combine(files, "alpha"), dest.Text);
+            Assert.True(dialogs.IsOpen); // Enter chose the folder; a second Enter starts
+            Assert.Empty(services.Jobs.Jobs);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     [AvaloniaFact]
     public async Task Typing_a_path_suggests_its_folders_Tab_completes_and_Enter_goes()
     {
@@ -61,7 +99,6 @@ public sealed class PathSuggestionTests
 
             box.Text = Path.Combine(files, "al");
             for (int i = 0; i < 250 && view.PathSuggestionsShown.Count != 2; i++) await Task.Delay(20, ct);
-            Assert.True(view.PathSuggestionsShown.Count == 2, $"focused={box.IsFocused} text={box.Text} focus={window.FocusManager?.GetFocusedElement()?.GetType().Name}");
             Assert.Equal([Path.Combine(files, "alpha"), Path.Combine(files, "alpine")], view.PathSuggestionsShown);
 
             window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null); // the first: alpha

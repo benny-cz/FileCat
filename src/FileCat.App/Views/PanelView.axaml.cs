@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 
@@ -27,24 +28,13 @@ public partial class PanelView : UserControl
             Activated?.Invoke();
             Dispatcher.UIThread.Post(PathBox.SelectAll, DispatcherPriority.Input);
         };
-        PathBox.LostFocus += (_, _) =>
-        {
-            ClosePathSuggestions();
-            RevertPath();
-        };
+        // Typing a path suggests the folders that complete it (not while the box shows where the panel is); its keys
+        // come first in OnPathKeyDown.
+        _completion = new PathCompletion(PathBox, AddressRow, () => Panel?.Services.Settings.ShowHidden == true, () => Panel?.ActiveTab?.DisplayPath,
+            handleKeys: false);
+        _completion.Chosen += path => PathSubmitted?.Invoke(path);
+        PathBox.LostFocus += (_, _) => RevertPath();
         PathBox.AddHandler(KeyDownEvent, OnPathKeyDown, RoutingStrategies.Tunnel);
-        // Typing a path suggests the folders that complete it (not when the box shows where the panel is).
-        PathBox.TextChanged += (_, _) =>
-        {
-            if (PathBox.IsFocused && PathBox.Text != Panel?.ActiveTab?.DisplayPath) UpdatePathSuggestions();
-            else ClosePathSuggestions();
-        };
-        PathSuggestionList.Tapped += (_, _) =>
-        {
-            if (PathSuggestionList.SelectedItem is not string path) return;
-            ClosePathSuggestions();
-            PathSubmitted?.Invoke(path);
-        };
         DataContextChanged += (_, _) =>
         {
             HookQuickView();
@@ -127,84 +117,14 @@ public partial class PanelView : UserControl
 
     private void RevertPath() => PathBox.Text = Panel?.ActiveTab?.DisplayPath;
 
-    private CancellationTokenSource? _suggesting;
-
-    /// <summary>Lists the folders completing the typed path, off the UI thread (a network path may be slow).</summary>
-    private void UpdatePathSuggestions()
-    {
-        _suggesting?.Cancel();
-        var cts = _suggesting = new CancellationTokenSource();
-        string text = PathBox.Text ?? string.Empty;
-        bool hidden = Panel?.Services.Settings.ShowHidden == true;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(120, cts.Token); // typing settles first
-                var found = PathSuggestions.For(text, hidden, cts.Token);
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (cts.IsCancellationRequested || !PathBox.IsFocused) return;
-                    // Nothing to offer when the one folder found is what is already typed.
-                    if (found.Count == 0 || found.Count == 1 && string.Equals(found[0], text.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
-                    {
-                        ClosePathSuggestions();
-                        return;
-                    }
-                    PathSuggestionList.ItemsSource = found;
-                    PathSuggestionList.SelectedIndex = -1;
-                    PathPopup.IsOpen = true;
-                });
-            }
-            catch (OperationCanceledException) { }
-        });
-    }
-
-    private void ClosePathSuggestions()
-    {
-        _suggesting?.Cancel();
-        _suggesting = null;
-        PathPopup.IsOpen = false;
-    }
+    private readonly PathCompletion _completion;
 
     /// <summary>The folders suggested for what is typed; empty while none are shown (tests).</summary>
-    internal IReadOnlyList<string> PathSuggestionsShown => PathPopup.IsOpen ? PathSuggestionList.Items.OfType<string>().ToList() : [];
-
-    /// <summary>Keys for the suggestions while they are shown; false when a key is not theirs.</summary>
-    private bool HandleSuggestionKey(KeyEventArgs e)
-    {
-        if (!PathPopup.IsOpen || PathSuggestionList.ItemCount == 0) return false;
-        switch (e.Key)
-        {
-            case Key.Down:
-                PathSuggestionList.SelectedIndex = Math.Min(PathSuggestionList.ItemCount - 1, PathSuggestionList.SelectedIndex + 1);
-                PathSuggestionList.ScrollIntoView(PathSuggestionList.SelectedIndex);
-                return true;
-            case Key.Up:
-                PathSuggestionList.SelectedIndex = Math.Max(-1, PathSuggestionList.SelectedIndex - 1);
-                if (PathSuggestionList.SelectedIndex >= 0) PathSuggestionList.ScrollIntoView(PathSuggestionList.SelectedIndex);
-                return true;
-            case Key.Tab when e.KeyModifiers == KeyModifiers.None:
-                // Completes to the chosen (or first) folder and goes on with its folders.
-                string chosen = PathSuggestionList.SelectedItem as string ?? PathSuggestionList.Items.OfType<string>().First();
-                PathBox.Text = chosen + Path.DirectorySeparatorChar;
-                PathBox.CaretIndex = PathBox.Text.Length;
-                return true;
-            case Key.Enter when PathSuggestionList.SelectedItem is string selected:
-                ClosePathSuggestions();
-                PathSubmitted?.Invoke(selected);
-                return true;
-            case Key.Escape:
-                ClosePathSuggestions();
-                return true;
-            default:
-                return false;
-        }
-    }
+    internal IReadOnlyList<string> PathSuggestionsShown => _completion.Shown;
 
     private void OnPathKeyDown(object? sender, KeyEventArgs e)
     {
-        if (HandleSuggestionKey(e))
+        if (_completion.HandleKey(e))
         {
             e.Handled = true;
             return;

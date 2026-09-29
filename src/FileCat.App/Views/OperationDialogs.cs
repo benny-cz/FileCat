@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.FileSystem;
@@ -60,6 +61,13 @@ public static class OperationDialogs
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
         body.Children.Add(dest);
+        // Typing a destination suggests the folders that complete it; choosing one fills it in (Enter then starts).
+        var completion = new PathCompletion(dest, body, () => vm.Services.Settings.ShowHidden, () => input.Destination);
+        completion.Chosen += path =>
+        {
+            dest.Text = path;
+            dest.CaretIndex = path.Length;
+        };
         var interpretation = Muted(string.Empty);
         body.Children.Add(interpretation);
 
