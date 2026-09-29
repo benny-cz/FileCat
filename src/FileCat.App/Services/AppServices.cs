@@ -60,6 +60,13 @@ public sealed class AppServices : IDisposable
                 : FileCat.Platform.Windows.Recovery.BrokeredDeviceSource.Open(device, name, paths.IsPortable, exchange, ct);
             Recovery.SharesDisk = FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk;
         }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            // Drives are read directly when this user may, otherwise through the system's own authorization, which hands
+            // over a descriptor that only reads: UDisks2 and polkit on Linux, authopen on macOS (D-47).
+            Recovery.OpenDevice = (device, name, ct) => FileCat.Recovery.Unix.UnixDeviceSource.Open(device, name, ct);
+            Recovery.SharesDisk = FileCat.Recovery.Unix.UnixDisks.SharesDisk;
+        }
         Providers.Register(Recovery);
         // Drives coming and going: This PC lists them anew, and panels leave a drive that is gone (plan §8.2).
         Drives = new DriveWatcher(() => Providers.TryGet(Schemes.Computer, out var p) && p is ComputerProvider computer ? computer.CurrentRoots() : []);

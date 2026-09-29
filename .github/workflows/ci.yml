@@ -58,6 +58,23 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet build FileCat.slnx -c Release
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build
+      # D-47: a drive read the way FileCat reads one, from the FAT16 fixture attached as a loop device (Linux) or a raw
+      # disk image (macOS) that this user may read.
+      - if: runner.os == 'Linux'
+        run: |
+          gunzip -c tests/FileCat.Core.Tests/TestData/Recovery/fat16.img.gz > "$RUNNER_TEMP/fat16.img"
+          DEV=$(sudo losetup -f --show "$RUNNER_TEMP/fat16.img")
+          sudo chown "$USER" "$DEV"
+          FILECAT_TEST_BLOCK_DEVICE="$DEV" dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~UnixDeviceTests"
+          sudo losetup -d "$DEV"
+      - if: runner.os == 'macOS'
+        run: |
+          gunzip -c tests/FileCat.Core.Tests/TestData/Recovery/fat16.img.gz > "$RUNNER_TEMP/fat16.img"
+          DISK=$(hdiutil attach -nomount -imagekey diskimage-class=CRawDiskImage "$RUNNER_TEMP/fat16.img" | awk 'NR==1 {print $1}')
+          RAW="${DISK/disk/rdisk}"
+          sudo chown "$USER" "$RAW"
+          FILECAT_TEST_BLOCK_DEVICE="$RAW" dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~UnixDeviceTests"
+          hdiutil detach "$DISK"
       # Saved passwords against a real Secret Service: GNOME Keyring in a private D-Bus session (macOS uses its keychain).
       - if: runner.os == 'Linux'
         run: |

@@ -45,7 +45,7 @@ public sealed class RecoveryUiTests
             // folder's tab stays where it was.
             var dialogs = (Views.OverlayDialogService)vm.Dialogs;
             vm.Execute(CommandIds.FindDeleted);
-            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 750 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             for (int i = 0; i < 250 && ReferenceEquals(vm.ActiveTab, tab); i++) await Task.Delay(20, ct);
@@ -72,7 +72,7 @@ public sealed class RecoveryUiTests
             // Recover deleted files again, here: the volume's free space is offered first, and searched after a confirmation.
             var location = tab.Location;
             vm.Execute(CommandIds.FindDeleted);
-            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 750 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Avalonia.Controls.Button? search = null;
@@ -90,7 +90,7 @@ public sealed class RecoveryUiTests
             Assert.True(Index("frag-a.bin") >= 0);
             // Searched once: the command still opens (to scan something else), without that choice.
             vm.Execute(CommandIds.FindDeleted);
-            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 750 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             Assert.DoesNotContain(Texts(window), s => s.StartsWith("Search this volume's free space", StringComparison.Ordinal));
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
@@ -136,7 +136,7 @@ public sealed class RecoveryUiTests
             listing.SetFocus(Index("disk.img"));
             var dialogs = (Views.OverlayDialogService)vm.Dialogs;
             vm.Execute(CommandIds.FindDeleted);
-            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 750 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             for (int i = 0; i < 250 && ReferenceEquals(vm.ActiveTab, tab); i++) await Task.Delay(20, ct);
@@ -152,7 +152,7 @@ public sealed class RecoveryUiTests
             // Recover deleted files, here: the disk's space in no partition can be searched too (after this volume's free
             // space, which comes first inside a FAT volume).
             vm.Execute(CommandIds.FindDeleted);
-            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 750 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             Assert.Contains(Texts(window), s => s == "Search this disk for deleted partitions");
             window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);

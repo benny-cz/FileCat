@@ -44,6 +44,8 @@ public sealed class RecoveryProvider : ResourceProvider
     private const int MaxSessions = 4;
     private readonly ConcurrentDictionary<string, Session> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _deviceNames = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Devices that are one volume (a drive, a partition) rather than a whole disk.</summary>
+    private readonly ConcurrentDictionary<string, bool> _volumeDevices = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _scanLock = new();
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes) : IDisposable
@@ -84,10 +86,15 @@ public sealed class RecoveryProvider : ResourceProvider
     public static Location ForImage(string imagePath, int? volume = null) =>
         new(Schemes.Recovery, string.Empty, Location.FileSystem(imagePath), volume?.ToString(CultureInfo.InvariantCulture));
 
-    /// <summary>The deleted items of a drive (a volume device such as \\?\Volume{…}); <paramref name="name"/> is what the user calls it.</summary>
+    /// <summary>
+    /// The deleted items of a drive or a disk (\\?\Volume{…} or \\.\PhysicalDriveN; /dev/sdb1 or /dev/sdb; /dev/rdisk4s1);
+    /// <paramref name="name"/> is what the user calls it. With <paramref name="volume"/>, the device is one volume (a drive,
+    /// a partition) and opens at that volume; without, it is a whole disk and opens at its list of volumes.
+    /// </summary>
     public Location ForDevice(string device, string name, int? volume = null)
     {
         _deviceNames[device] = name;
+        if (volume is not null) _volumeDevices[device] = true;
         return new(Schemes.Recovery, string.Empty, new Location(Schemes.Device, device), volume?.ToString(CultureInfo.InvariantCulture));
     }
 
@@ -162,8 +169,11 @@ public sealed class RecoveryProvider : ResourceProvider
 
     /// <summary>A volume device holds one volume; an image's count is known once it was scanned.</summary>
     private bool IsOnlyVolume(Location location) =>
-        IsDevice(location) && SourcePath(location).StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) ||
-        _sessions.TryGetValue(Key(location), out var s) && s.Volumes.Count == 1;
+        IsVolumeDevice(location) || _sessions.TryGetValue(Key(location), out var s) && s.Volumes.Count == 1;
+
+    /// <summary>A device that is one volume (a drive, a partition), not a whole disk.</summary>
+    private bool IsVolumeDevice(Location location) =>
+        IsDevice(location) && (SourcePath(location).StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) || _volumeDevices.ContainsKey(SourcePath(location)));
 
     private static string VolumeName(int number) => "Volume " + number.ToString(CultureInfo.InvariantCulture);
 
@@ -361,9 +371,9 @@ public sealed class RecoveryProvider : ResourceProvider
     public DiskSearch? DescribeDiskSearch(Location location) =>
         location.Scheme == Schemes.Recovery && _sessions.TryGetValue(Key(location), out var session) ? DescribeDiskSearch(session, location) : null;
 
-    private static DiskSearch? DescribeDiskSearch(Session session, Location location)
+    private DiskSearch? DescribeDiskSearch(Session session, Location location)
     {
-        if (IsDevice(location) && SourcePath(location).StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase)) return null;
+        if (IsVolumeDevice(location)) return null;
         long free = PartitionSearch.Gaps(session.Source.Length, session.Volumes.Select(v => (v.Offset, v.Length)))
             .Where(g => g.Length >= NoticeableGap).Sum(g => g.Length);
         return free > 0 || session.DiskSearched ? new DiskSearch(free, session.DiskSearched) : null;

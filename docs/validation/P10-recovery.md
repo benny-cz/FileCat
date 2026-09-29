@@ -121,7 +121,19 @@ FAT's honest *Partly lost* for files in pieces is covered by the fixture images 
 
 The recovery fuzzing (21,000 mutated images) runs through the same search on every image.
 
+## Drives on Linux and macOS (D-47, 2026-09-29)
+
+`UnixDeviceTests`: the D-Bus Hello and OpenDevice arguments byte for byte against the specification; UDisks2 object
+path escaping; a sysfs tree and mountinfo (escaped spaces, a FUSE ntfs-3g mount found by its source); a diskutil
+property list; whole-sector reads of a raw device giving the same bytes at 200 random ranges. On Linux (WSL, and CI)
+and macOS (CI): a descriptor passed over a real socket pair arrives open; on Linux the system bus answers calls and
+errors, and UDisks2 (where it runs) refuses an unknown drive with a reason. End to end, the FAT16 fixture attached as a
+loop device (WSL `/dev/loop0`; CI's Linux runner) or a raw disk image (CI's macOS runner, `/dev/rdiskN`) is read
+through the same source as a drive, and its deleted `report.txt` comes back byte for byte. The polkit and authopen
+prompts themselves need a person at a desktop (pending below).
+
 ## Pending (manual)
 
+- D-47's approval prompts on a desktop: polkit through UDisks2 (GNOME, KDE) and authopen on macOS, approved and declined.
 - Elevated read of a real drive in the installed build: consent prompt, a scan of a secondary USB drive, and recovery
   to another disk (refused onto the same physical disk).

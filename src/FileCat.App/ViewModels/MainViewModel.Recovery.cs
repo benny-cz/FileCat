@@ -5,6 +5,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Recovery;
+using FileCat.Recovery.Unix;
 
 namespace FileCat.App.ViewModels;
 
@@ -16,8 +17,8 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
-    /// <summary>File systems whose deleted items a scan finds.</summary>
-    private static readonly string[] RecoverableFormats = ["NTFS", "FAT", "FAT12", "FAT16", "FAT32", "exFAT"];
+    /// <summary>File systems whose deleted items a scan finds, as Windows, Linux, and macOS name them.</summary>
+    private static readonly string[] RecoverableFormats = ["NTFS", "FAT", "FAT12", "FAT16", "FAT32", "exFAT", .. UnixDisks.RecoverableTypes];
 
     private static bool IsRecoverableDrive(DriveTag drive) =>
         drive.Ready && drive.DriveType is "Fixed" or "Removable" && drive.Format is { } format && RecoverableFormats.Contains(format, StringComparer.OrdinalIgnoreCase);
@@ -86,14 +87,42 @@ public sealed partial class MainViewModel
                 choices.Add((new ChoiceItem(DiskName(disk), DiskDetail(disk)) { Icon = () => icons.GetIcon(row) }, () => FindDeletedOnDiskAsync(panel, disk)));
             }
         }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            // Mounted FAT, exFAT, and NTFS volumes (this folder's chosen), then whole disks (D-47).
+            var devices = await Task.Run(UnixDisks.List);
+            string? here = location.IsFileSystem ? location.Path : null;
+            string? focusedMount = hasFocus && focused.Kind == EntryKind.Drive && focused.Tag is DriveTag d ? d.RootPath : null;
+            int preferred = -1;
+            foreach (var volume in devices.Where(IsRecoverableVolume))
+            {
+                string mount = volume.MountPoints[0];
+                bool isHere = here is not null && volume.MountPoints.Any(m => Holds(m, here));
+                bool isFocused = volume.MountPoints.Contains(focusedMount);
+                if (isFocused || isHere && preferred < 0) preferred = choices.Count;
+                var row = new EntryData(mount, EntryKind.Drive) { Tag = new DriveTag(mount, null, volume.Removable ? "Removable" : "Fixed", volume.FileSystem, -1, volume.Length, true) };
+                string? folder = isHere ? here : null;
+                choices.Add((new ChoiceItem(mount, $"{volume.FileSystem} · {Formatters.SizeWithUnit(volume.Length)}{(volume.Bus.Length > 0 ? " " + volume.Bus : "")} · {volume.Name}",
+                    isHere ? "this folder's drive" : isFocused ? "under the cursor" : null) { Icon = () => icons.GetIcon(row) }, () => FindDeletedOnUnixDeviceAsync(panel, volume, folder)));
+            }
+            if (selected < 0) selected = preferred;
+            foreach (var disk in devices.Where(v => v.Disk is null))
+            {
+                var row = new EntryData(disk.Name, EntryKind.Drive) { Tag = new DriveTag(disk.Device, disk.Model, disk.Removable ? "Removable" : "Fixed", null, -1, disk.Length, true) };
+                var parts = devices.Where(v => v.Disk == disk.Device).ToList();
+                string mounted = string.Join(", ", parts.SelectMany(v => v.MountPoints).Concat(disk.MountPoints));
+                string detail = $"Whole disk, {Formatters.SizeWithUnit(disk.Length)}{(disk.Bus.Length > 0 ? " " + disk.Bus : "")} · " +
+                                (mounted.Length > 0 ? "mounted at " + mounted : parts.Count == 0 ? "no partitions" : "nothing mounted") + " · also finds deleted partitions";
+                choices.Add((new ChoiceItem($"Disk {disk.Name}" + (disk.Model is null ? "" : ": " + disk.Model), detail) { Icon = () => icons.GetIcon(row) },
+                    () => FindDeletedOnUnixDeviceAsync(panel, disk, null)));
+            }
+        }
         choices.Add((new ChoiceItem("Disk image file…", "Choose a raw .img, .dd, or .bin file, or a fixed .vhd, on any drive"), () => ChooseImageAsync(panel, location)));
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("Recover deleted files", choices.Select(c => c.Item).ToList())
         {
             SelectedIndex = Math.Max(0, selected),
             Icons = icons,
-            Hint = OperatingSystem.IsWindows()
-                ? "Where were the files deleted? · Enter scans it; nothing there is changed · Esc closes"
-                : "Drives are scanned directly in FileCat for Windows: image a drive first (for example with dd) · Esc closes",
+            Hint = "Where were the files deleted? · Enter scans it; nothing there is changed · Esc closes",
         });
         if (r.Index < 0 || r.Index >= choices.Count) return;
         await choices[r.Index].Run();
@@ -142,7 +171,7 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var f)) return null;
-        if (f.Kind == EntryKind.Drive && f.Tag is DriveTag drive && OperatingSystem.IsWindows() && IsRecoverableDrive(drive)) return "Recover deleted files from this drive…";
+        if (f.Kind == EntryKind.Drive && f.Tag is DriveTag drive && Services.Recovery.OpenDevice is not null && IsRecoverableDrive(drive)) return "Recover deleted files from this drive…";
         if (f.Kind == EntryKind.File && tab.Location.IsFileSystem && DiskImages.IsImageName(f.Name)) return "Recover deleted files from this disk image…";
         return null;
     }
@@ -155,7 +184,13 @@ public sealed partial class MainViewModel
             var tab = ActiveTab;
             var panel = Workspace.ActivePanel;
             if (tab?.Location is null || panel is null || RecoveryOfferForFocus() is null || !tab.Listing.TryGetFocused(out var f)) return;
-            if (f.Kind == EntryKind.Drive && f.Tag is DriveTag drive) await FindDeletedOnDriveAsync(panel, drive, null);
+            if (f.Kind == EntryKind.Drive && f.Tag is DriveTag drive)
+            {
+                if (OperatingSystem.IsWindows()) await FindDeletedOnDriveAsync(panel, drive, null);
+                else if (await Task.Run(UnixDisks.List) is var devices && devices.FirstOrDefault(v => IsRecoverableVolume(v) && v.MountPoints.Contains(drive.RootPath)) is { } volume)
+                    await FindDeletedOnUnixDeviceAsync(panel, volume, null);
+                else Notify($"{drive.RootPath} is not a local volume FileCat can read directly.", true);
+            }
             else if (tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is { } image) await OpenImageScanAsync(panel, image);
         }
         catch (Exception ex)
@@ -261,8 +296,9 @@ public sealed partial class MainViewModel
     /// <summary>Why drives cannot be scanned here, or null when they can (FileCat runs as administrator, or its helper can ask).</summary>
     private string? DriveScanProblem()
     {
-        if (!OperatingSystem.IsWindows() || Services.Recovery.OpenDevice is null)
-            return "Scanning drives directly is available in FileCat for Windows. Make an image of the drive on another drive (for example with dd), then recover deleted files from the image.";
+        if (Services.Recovery.OpenDevice is null)
+            return "Scanning drives directly is not available here. Make an image of the drive on another drive (for example with dd), then recover deleted files from the image.";
+        if (!OperatingSystem.IsWindows()) return null; // the system asks for approval when the drive is opened
         if (Environment.IsPrivilegedProcess || FileCat.Platform.Windows.Elevation.ElevationBroker.Locate(Services.Paths.IsPortable, out _) is not null) return null;
         return $"Reading a drive needs administrator rights, and {(Services.Paths.IsPortable ? "portable FileCat" : "this FileCat build")} has no installed helper to ask Windows for them. " +
                "Start FileCat as administrator (right-click it, then Run as administrator) to scan drives, or recover from a disk image of the drive.";
@@ -332,6 +368,55 @@ public sealed partial class MainViewModel
         if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
         panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
+    }
+
+    /// <summary>A mounted partition with a file system a scan reads.</summary>
+    private static bool IsRecoverableVolume(UnixBlockDevice device) =>
+        device.Disk is not null && device.MountPoints.Count > 0 && UnixDisks.RecoverableTypes.Contains(device.FileSystem);
+
+    /// <summary>Whether <paramref name="path"/> lies at or below the mount point <paramref name="mount"/>.</summary>
+    private static bool Holds(string mount, string path) => path == mount || mount == "/" || path.StartsWith(mount.TrimEnd('/') + "/", StringComparison.Ordinal);
+
+    /// <summary>
+    /// A partition or a whole disk on Linux or macOS (D-47): after a confirmation, its scan opens in a new tab (a partition
+    /// at its files; with <paramref name="folder"/>, at that folder or as close as the scan goes). The drive is read
+    /// directly when this user may, otherwise the system asks for approval first.
+    /// </summary>
+    private async Task FindDeletedOnUnixDeviceAsync(PanelViewModel panel, UnixBlockDevice device, string? folder)
+    {
+        bool disk = device.Disk is null;
+        string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
+        bool direct = await Task.Run(() => CanRead(device.Device));
+        string how = direct ? "FileCat can read it with your own rights, and only reads: nothing on it is changed. "
+            : OperatingSystem.IsMacOS() ? "macOS asks for an administrator's password, and FileCat then only reads it: nothing on it is changed. "
+            : "Your system asks for an administrator's password, and FileCat then only reads it: nothing on it is changed. ";
+        var mounts = disk ? (await Task.Run(UnixDisks.List)).Where(v => v.Disk == device.Device).SelectMany(v => v.MountPoints).ToList() : device.MountPoints.ToList();
+        bool system = mounts.Contains("/") || mounts.Contains("/System/Volumes/Data");
+        bool ownFiles = !system && UnixDisks.SharesDisk(device.Device, Services.Paths.JournalDirectory) != false;
+        string text = $"Scan {name} for deleted files? " + (disk ? "The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " : "") + how +
+                      (system ? "The system runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. "
+                       : mounts.Count > 0 ? $"It is mounted ({string.Join(", ", mounts)}), so programs can write to it while FileCat reads: unmounting it first keeps it unchanged (its disk stays in this list). " : "") +
+                      (ownFiles ? "FileCat keeps its own settings and logs on this disk, and writes to them while it works. " : "") +
+                      "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
+        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
+        var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1);
+        var scan = panel.OpenTab(root);
+        if (!disk && folder is not null && device.MountPoints.FirstOrDefault(m => Holds(m, folder)) is { } mount && folder.Length > mount.TrimEnd('/').Length)
+            GoToFolderWhenScanned(scan, root, folder[mount.TrimEnd('/').Length..].Trim('/'));
+    }
+
+    /// <summary>Whether this user may open the device for reading without asking (root, Linux's disk group, an attached image).</summary>
+    private static bool CanRead(string device)
+    {
+        try
+        {
+            using var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return true;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
