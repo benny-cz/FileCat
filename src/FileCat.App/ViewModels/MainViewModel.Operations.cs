@@ -88,9 +88,18 @@ public sealed partial class MainViewModel
         if (!await ConfirmCloseHexEditorsAsync()) return false;
         var active = Services.Jobs.Jobs.Where(j => !j.State.IsFinished()).ToList();
         if (active.Count == 0) return true;
-        var list = ExactList(active.Select(j => $"{j.Title} — {j.State.Describe()}"));
-        var r = await Dialogs.ShowCustomAsync("Operations are still running",
-            new Avalonia.Controls.TextBlock { Text = $"Closing FileCat stops these operations at their next safe step. Completed steps stay completed; nothing is rolled back.\n\n{list}", TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 620 },
+        // A text block per paragraph and per operation: line breaks inside one wrapped text spin Avalonia's headless
+        // layout (tests reach this when a test's job still waits for an answer).
+        var content = new Avalonia.Controls.StackPanel { Spacing = 4, MaxWidth = 620 };
+        content.Children.Add(new Avalonia.Controls.TextBlock
+        {
+            Text = "Closing FileCat stops these operations at their next safe step. Completed steps stay completed; nothing is rolled back.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Margin = new Avalonia.Thickness(0, 0, 0, 6),
+        });
+        foreach (var line in ExactList(active.Select(j => $"{j.Title} — {j.State.Describe()}")).Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            content.Children.Add(new Avalonia.Controls.TextBlock { Text = line, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+        var r = await Dialogs.ShowCustomAsync("Operations are still running", content,
             [new DialogButton("Keep FileCat open", "keep", IsDefault: true, IsCancel: true), new DialogButton("Exit when they finish", "later"), new DialogButton("Stop them and exit", "stop", IsDanger: true)]);
         if (r as string == "later")
         {

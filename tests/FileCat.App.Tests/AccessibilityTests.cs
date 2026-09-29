@@ -57,6 +57,10 @@ public sealed class AccessibilityTests
 
     internal static void Close(AppServices services, Window window, string root)
     {
+        // A job still waiting for an answer (a file an antivirus scan held, say) would keep the window open behind the
+        // "Operations are still running" question: jobs stop first.
+        foreach (var job in services.Jobs.Jobs) job.Cancel();
+        SpinWait.SpinUntil(() => !services.Jobs.HasActiveWork, TimeSpan.FromSeconds(3));
         window.Close();
         if (window.DataContext is MainViewModel vm)
             foreach (var tab in vm.Workspace.Panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();

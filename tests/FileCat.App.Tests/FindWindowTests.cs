@@ -141,9 +141,13 @@ public sealed class FindWindowTests
             await WaitFor(() => find.Dialogs.IsOpen, ct);
             Assert.True(find.Dialogs.IsOpen);
             find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            await WaitFor(() => !File.Exists(original), ct);
+            for (int i = 0; i < 500 && File.Exists(original); i++)
+            {
+                // An antivirus scan may hold the new file a moment: the job asks, and Retry (Enter) tries again.
+                if (mainDialogs.IsOpen) window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                await Task.Delay(20, ct);
+            }
             Assert.False(File.Exists(original));
-            Assert.False(mainDialogs.IsOpen);
         }
         finally
         {
