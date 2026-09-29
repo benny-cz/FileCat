@@ -15,14 +15,8 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
-    /// <summary>Names of the disk images recovery reads: raw images and fixed VHDs.</summary>
-    private static readonly string[] DiskImageExtensions = [".img", ".dd", ".bin", ".raw", ".ima", ".vhd", ".001"];
-
     /// <summary>File systems whose deleted items a scan finds.</summary>
     private static readonly string[] RecoverableFormats = ["NTFS", "FAT", "FAT12", "FAT16", "FAT32", "exFAT"];
-
-    private static bool IsDiskImageName(string name) =>
-        DiskImageExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
 
     private static bool IsRecoverableDrive(DriveTag drive) =>
         drive.Ready && drive.DriveType is "Fixed" or "Removable" && drive.Format is { } format && RecoverableFormats.Contains(format, StringComparer.OrdinalIgnoreCase);
@@ -58,7 +52,7 @@ public sealed partial class MainViewModel
             }
         }
         bool hasFocus = tab.Listing.TryGetFocused(out var focused);
-        if (hasFocus && focused.Kind == EntryKind.File && IsDiskImageName(focused.Name) && tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is { } image)
+        if (hasFocus && focused.Kind == EntryKind.File && DiskImages.IsImageName(focused.Name) && tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath is { } image)
         {
             if (selected < 0) selected = choices.Count;
             var entry = focused;
@@ -123,7 +117,7 @@ public sealed partial class MainViewModel
         var tab = ActiveTab;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var f)) return null;
         if (f.Kind == EntryKind.Drive && f.Tag is DriveTag drive && OperatingSystem.IsWindows() && IsRecoverableDrive(drive)) return "Recover deleted files from this drive…";
-        if (f.Kind == EntryKind.File && tab.Location.IsFileSystem && IsDiskImageName(f.Name)) return "Recover deleted files from this disk image…";
+        if (f.Kind == EntryKind.File && tab.Location.IsFileSystem && DiskImages.IsImageName(f.Name)) return "Recover deleted files from this disk image…";
         return null;
     }
 
@@ -145,6 +139,20 @@ public sealed partial class MainViewModel
         }
     }
 
+    /// <summary>The Windows context menu's recovery: the scan of that disk image, in a new tab of the active panel.</summary>
+    public async void RecoverImage(string image)
+    {
+        try
+        {
+            if (Workspace.ActivePanel is { } panel) await OpenImageScanAsync(panel, image);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Recover deleted files failed", ex);
+            Notify("Recover deleted files failed: " + ex.Message, true);
+        }
+    }
+
     private async Task ChooseImageAsync(PanelViewModel panel, Location current)
     {
         var top = View.TopLevel;
@@ -155,7 +163,7 @@ public sealed partial class MainViewModel
             Title = "Disk image to recover deleted files from",
             AllowMultiple = false,
             SuggestedStartLocation = start,
-            FileTypeFilter = [new FilePickerFileType("Disk images") { Patterns = DiskImageExtensions.Select(e => "*" + e).ToArray() }, FilePickerFileTypes.All],
+            FileTypeFilter = [new FilePickerFileType("Disk images") { Patterns = DiskImages.Extensions.Select(e => "*" + e).ToArray() }, FilePickerFileTypes.All],
         });
         if (files.Count == 0) return;
         if (files[0].TryGetLocalPath() is not { } image)

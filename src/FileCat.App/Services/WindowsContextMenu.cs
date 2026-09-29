@@ -15,7 +15,7 @@ internal static class WindowsContextMenu
 {
     internal const string HostArgument = "--native-context-menu";
     internal const int MaxItems = 128;
-    internal enum Result { Handled, FileCatActions, ActionFailed, Failed }
+    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage }
     private static int _openHosts;
     private static long _lastHostClosedAt;
 
@@ -57,10 +57,10 @@ internal static class WindowsContextMenu
             Task<string> readErrors = child.StandardError.ReadToEndAsync();
             await child.WaitForExitAsync();
             string details = await readErrors;
-            if (child.ExitCode is not (0 or 10 or 11))
+            if (child.ExitCode is not (0 or 10 or 11 or 12))
                 AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
                     (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
-            return child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, _ => Result.Failed };
+            return child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, 12 => Result.RecoverImage, _ => Result.Failed };
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
         {
@@ -109,7 +109,7 @@ internal static class WindowsContextMenu
         }
     }
 
-    private const uint ShellFirst = 1, ShellLast = 0x6fff, FileCatCommand = 0x7001;
+    private const uint ShellFirst = 1, ShellLast = 0x6fff, FileCatCommand = 0x7001, RecoverCommand = 0x7002;
     private const uint TpmReturnCmd = 0x0100, TpmRightButton = 0x0002;
     private static readonly Guid ShellUiObject = new("3981e225-f559-11d3-8e3a-00c04f6837d5");
     private static readonly Guid ContextMenuId = new("000214e4-0000-0000-c000-000000000046");
@@ -149,6 +149,8 @@ internal static class WindowsContextMenu
             }
 
             AppendMenuW(popup, 0x800, 0, null); // Separator before FileCat's own commands.
+            // A disk image: its deleted files, one click away (plan §17).
+            if (paths.Length == 1 && DiskImages.IsImageName(paths[0])) AppendMenuW(popup, 0, RecoverCommand, "Recover deleted files from this disk image…");
             AppendMenuW(popup, 0, FileCatCommand, "FileCat actions…");
             windowClass = "FileCatContextMenu" + Environment.ProcessId;
             var wc = new WindowClass
@@ -170,6 +172,7 @@ internal static class WindowsContextMenu
             uint selected = TrackPopupMenuEx(popup, TpmReturnCmd | TpmRightButton, x, y, owner, 0);
             if (selected == 0) return 0;
             if (selected == FileCatCommand) return 10;
+            if (selected == RecoverCommand) return 12;
             if (selected < ShellFirst || selected > ShellLast) return 11;
             var invoke = new InvokeCommandInfoEx
             {

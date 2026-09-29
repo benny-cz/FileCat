@@ -326,6 +326,11 @@ public partial class PanelView : UserControl
                 var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y);
                 if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
+                if (result == WindowsContextMenu.Result.RecoverImage)
+                {
+                    vm.RecoverImage(paths[0]!);
+                    return;
+                }
                 if (result == WindowsContextMenu.Result.ActionFailed)
                 {
                     vm.Notify("Windows could not complete that action.", true);
