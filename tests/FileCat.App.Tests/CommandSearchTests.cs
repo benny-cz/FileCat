@@ -191,7 +191,15 @@ public sealed class CommandSearchTests
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Commands found");
             await WaitFor(() => list.ContainerFromIndex(0) is ListBoxItem { Bounds.Height: > 0 }, ct);
             var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
-            var point = item.TranslatePoint(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            Point Center() => item.TranslatePoint(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            // The popup settles under the box first.
+            var point = Center();
+            for (int i = 0; i < 50; i++)
+            {
+                await Task.Delay(20, ct);
+                if (Center() == point) break;
+                point = Center();
+            }
             window.MouseDown(point, MouseButton.Left);
             Assert.True(box.IsFocused, "the press leaves the keyboard in the box, so the list stays open");
             Assert.NotEmpty(window.CommandSearch.Shown);

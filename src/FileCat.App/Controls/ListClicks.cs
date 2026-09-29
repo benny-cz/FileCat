@@ -29,7 +29,8 @@ internal static class ListClicks
         {
             var chosen = pressed;
             pressed = null;
-            if (chosen is null || !ReferenceEquals(chosen, ItemAt<T>(e.Source))) return;
+            // By value: a list refilled while the button was down (new suggestions) holds equal, new items.
+            if (chosen is null || !EqualityComparer<T>.Default.Equals(chosen, ItemAt<T>(e.Source))) return;
             e.Handled = true;
             choose(chosen);
         }, RoutingStrategies.Tunnel, handledEventsToo: true);

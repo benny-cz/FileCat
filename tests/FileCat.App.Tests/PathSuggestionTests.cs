@@ -132,7 +132,15 @@ public sealed class PathSuggestionTests
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Folder suggestions" && l.IsEffectivelyVisible);
             for (int i = 0; i < 100 && list.ContainerFromIndex(1) is not ListBoxItem { Bounds.Height: > 0 }; i++) await Task.Delay(20, ct);
             var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(1)); // alpine
-            var point = item.TranslatePoint(new Avalonia.Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            Avalonia.Point Center() => item.TranslatePoint(new Avalonia.Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            // The popup settles under the box first.
+            var point = Center();
+            for (int i = 0; i < 50; i++)
+            {
+                await Task.Delay(20, ct);
+                if (Center() == point) break;
+                point = Center();
+            }
             window.MouseDown(point, MouseButton.Left);
             Assert.True(box.IsFocused);
             window.MouseUp(point, MouseButton.Left);
