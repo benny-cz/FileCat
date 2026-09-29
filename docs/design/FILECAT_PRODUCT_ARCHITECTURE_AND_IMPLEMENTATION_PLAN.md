@@ -1033,7 +1033,7 @@ Evaluate Avalonia 12.1's free, read-only TableView (column definitions, resizabl
 
 Viewport virtualization and data virtualization are distinct. Constrained layout is necessary for normal control virtualization, but it does not solve storage or sorting of millions of rows. Test row recycling, column resizing, high DPI, font fallback, and screen-reader traversal against paged data. [Avalonia performance][avalonia-performance]
 
-**Esc closes every dialog (P11).** Every overlay dialog, chooser, prompt, and secondary window (viewer, hex editor, comparison, directory difference, synchronization preview, find results, theme picker, settings) closes with Esc as Cancel, whatever control has the keyboard. Esc first closes what is open inside the dialog (a dropdown, a suggestion list, a menu, a key capture), then the dialog itself. Where closing would lose work, such as unsaved hex edits or a running comparison, Esc asks first, as closing the window does. A test enumerates every dialog and window and presses Esc in each.
+**Esc closes every dialog (P11).** Every overlay dialog, chooser, prompt, and secondary window (viewer, hex editor, comparison, directory difference, synchronization preview, find results, theme picker, settings) closes with Esc as Cancel, whatever control has the keyboard. Esc first closes what is open inside the dialog (a dropdown, a suggestion list, a menu, a key capture), then the dialog itself. Where closing would lose work, such as unsaved hex edits, Esc asks first, as closing the window does. A test enumerates every dialog and window and presses Esc in each.
 
 ### 18.2 Visual system and icons
 

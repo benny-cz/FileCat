@@ -24,6 +24,27 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         public required Border Layer;
         public IInputElement? PreviousFocus;
+        public required Action OnEscape;
+    }
+
+    // Open dialogs, the topmost last, and the window whose Esc reaches them wherever the keyboard is.
+    private readonly List<Session> _sessions = [];
+    private TopLevel? _escapeRoot;
+    private KeyEventArgs? _escapeClosing;
+
+    /// <summary>
+    /// Esc closes the topmost dialog even when the keyboard is outside it (a click elsewhere, focus that never
+    /// arrived): the dialog's own handler takes Esc pressed inside it, including what its controls close first.
+    /// </summary>
+    private void OnRootKeyDown(object? sender, KeyEventArgs e)
+    {
+        // A dialog that closed itself on this Esc: the one below it stays.
+        if (ReferenceEquals(e, _escapeClosing)) return;
+        if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None || _sessions.Count == 0) return;
+        var top = _sessions[^1];
+        if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) || top.Layer.IsVisualAncestorOf(source))) return;
+        e.Handled = true;
+        top.OnEscape();
     }
 
     private Session Show(Control card, Control? initialFocus, bool top, Action onEscape)
@@ -37,7 +58,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 Classes = { "backdrop" },
                 Child = card,
             },
+            OnEscape = onEscape,
         };
+        if (_escapeRoot is null && TopLevel.GetTopLevel(host) is { } root)
+        {
+            _escapeRoot = root;
+            root.AddHandler(InputElement.KeyDownEvent, OnRootKeyDown, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+        }
         card.HorizontalAlignment = HorizontalAlignment.Center;
         card.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Center;
         card.Margin = top ? new Thickness(24, 56, 24, 24) : new Thickness(24);
@@ -47,6 +74,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (e.Key == Key.Escape)
             {
                 e.Handled = true;
+                _escapeClosing = e;
                 onEscape();
             }
         }, Avalonia.Interactivity.RoutingStrategies.Bubble);
@@ -57,6 +85,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         host.Children.Add(session.Layer);
         host.IsVisible = true;
         _open++;
+        _sessions.Add(session);
         // A list takes focus through its selected item, so its arrow keys work at once.
         Dispatcher.UIThread.Post(() => Controls.ListKeys.Focus(initialFocus ?? card), DispatcherPriority.Input);
         return session;
@@ -64,6 +93,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     private void Close(Session s)
     {
+        _sessions.Remove(s);
         host.Children.Remove(s.Layer);
         _open = Math.Max(0, _open - 1);
         host.IsVisible = host.Children.Count > 0;
