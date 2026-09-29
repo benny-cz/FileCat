@@ -770,7 +770,8 @@ public sealed class FileListControl : Control
                 double iconX = colX + MarkGutter;
                 var icons = Tab?.Services.Icons;
                 GitStatusKind git = _gitStatuses?.ForName(e.Name) ?? GitStatusKind.None;
-                var shellOverlay = _gitStatuses is null ? null : icons?.ShellOverlayIcon(e, Tab!.Location, git);
+                // A Git state is FileCat's own mark: an installed overlay (TortoiseGit's) drawn at 16 pixels hardly reads.
+                var shellOverlay = _gitStatuses is null || git != GitStatusKind.None ? null : icons?.ShellOverlayIcon(e, Tab!.Location, git);
                 var icon = shellOverlay ?? icons?.GetIcon(e, Tab!.Location);
                 if (icon is not null)
                 {

@@ -163,7 +163,7 @@ public sealed class IconProvider
     /// <summary>The arrow drawn over links and shortcuts: the platform's where it has one, else FileCat's own.</summary>
     public IImage LinkOverlay => (UseNativeIcons ? Native?.LinkOverlay : null) ?? (_vectorOverlay ??= VectorIcons.LinkOverlay());
 
-    /// <summary>A small, high-contrast Git state mark at the lower right of the ordinary file icon.</summary>
+    /// <summary>A Git state mark at the lower right of the ordinary icon, large and ringed so it reads over any icon.</summary>
     internal IImage? GitOverlay(GitStatusKind status) => status == GitStatusKind.None ? null
         : _gitOverlays.GetOrAdd((status, ThemeManager.Current.Name), key => VectorIcons.GitOverlay(key.Item1));
 
@@ -284,22 +284,26 @@ public static class VectorIcons
             GitStatusKind.Conflict => palette.Error,
             _ => palette.TextMuted,
         });
+        // Around (10.8, 10.8): a disc of 8.4 pixels in a ring of the window's color, most of the icon's lower right.
         string mark = status switch
         {
-            GitStatusKind.Clean => "M10.4,12.3 L11.8,13.8 L14.5,10.8",
-            GitStatusKind.Modified => "M12.5,10.5 L12.5,12.9 M12.5,14.1 L12.5,14.2",
-            GitStatusKind.Added => "M12.5,10.5 L12.5,14.5 M10.5,12.5 L14.5,12.5",
-            GitStatusKind.Untracked => "M11,11.5 C11,10 14,10 14,11.5 C14,12.2 12.5,12.4 12.5,13.2 M12.5,14.2 L12.5,14.3",
-            _ => "M10.7,10.7 L14.3,14.3 M14.3,10.7 L10.7,14.3",
+            GitStatusKind.Clean => "M8.9,10.9 L10.3,12.4 L12.8,9.4",
+            GitStatusKind.Modified => "M10.8,8.5 L10.8,11.2 M10.8,13.0 L10.8,13.1",
+            GitStatusKind.Added => "M10.8,8.6 L10.8,13.0 M8.6,10.8 L13.0,10.8",
+            GitStatusKind.Untracked => "M9.5,9.6 C9.5,8.1 12.1,8.1 12.1,9.6 C12.1,10.4 10.8,10.6 10.8,11.5 M10.8,13.0 L10.8,13.1",
+            _ => "M9.3,9.3 L12.3,12.3 M12.3,9.3 L9.3,12.3",
         };
+        // The glyph in white or near black, whichever reads on the fill (a yellow warning takes black).
+        double luminance = (0.2126 * fill.R + 0.7152 * fill.G + 0.0722 * fill.B) / 255;
+        var ink = luminance > 0.55 ? Color.FromRgb(0x1C, 0x1C, 0x1C) : Colors.White;
         var g = new DrawingGroup();
         g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
-        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(8.5, 8.5, 8, 8)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
-        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(9.2, 9.2, 6.6, 6.6)), Brush = new SolidColorBrush(fill) });
+        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 5.6, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
+        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 6.6, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
         g.Children.Add(new GeometryDrawing
         {
             Geometry = Geometry.Parse(mark),
-            Pen = new Pen(Brushes.White, 1.05, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
+            Pen = new Pen(new SolidColorBrush(ink), 1.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
         });
         return new DrawingImage(g);
     }
