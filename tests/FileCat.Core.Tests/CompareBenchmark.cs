@@ -133,7 +133,29 @@ public sealed class CompareBenchmark : IDisposable
         Assert.False(scattered.Equal);
         Assert.True(scattered.RangesTruncated);
 
+        // Aligned: 100 bytes inserted near the start shift everything after them; the aligned mode finds it all again,
+        // each changed byte on its own.
+        var inserted = new byte[bytes.Length + 100];
+        bytes.AsSpan(0, 1_000_000).CopyTo(inserted);
+        bytes.AsSpan(1_000_000).CopyTo(inserted.AsSpan(1_000_100));
+        File.WriteAllBytes(pathB, inserted);
+        var aligned = Measure("Aligned binary, 256 MiB with 20,000 changed bytes and 100 inserted", () => Aligned(pathA, pathB),
+            r => $"{r.Ranges.Count:N0} ranges, {r.EqualBytes * 100.0 / bytes.Length:F2}% of the left matched, blocks of {r.BlockSize} bytes");
+        Assert.True(aligned.Complete);
+        Assert.Contains(aligned.Ranges, r => r.Kind == DiffKind.RightOnly && r.RightLength == 100);
+        Assert.True(aligned.EqualBytes > bytes.Length - 40_000);
+
+        // Unrelated: every byte of the right file is searched, the slowest case short of the work limit.
+        rng.NextBytes(inserted);
+        File.WriteAllBytes(pathB, inserted);
+        var unrelatedBytes = Measure("Aligned binary, 256 MiB unrelated", () => Aligned(pathA, pathB),
+            r => $"{r.EqualBytes * 100.0 / bytes.Length:F2}% of the left matched{(r.Complete ? "" : ", work limit reached")}");
+        Assert.True(unrelatedBytes.Complete);
+        Assert.Equal(0, unrelatedBytes.EqualBytes);
+
         foreach (var line in _results) TestContext.Current.TestOutputHelper?.WriteLine(line);
+        Assert.True(_times["Aligned binary, 256 MiB with 20,000 changed bytes and 100 inserted"] < TimeSpan.FromSeconds(30), "Aligned binary comparison slowed down.");
+        Assert.True(_times["Aligned binary, 256 MiB unrelated"] < TimeSpan.FromSeconds(30), "Aligned binary search slowed down.");
         // Budgets (docs/validation/TV-08.md): generous for shared machines, tight enough to catch the regressions found here.
         Assert.True(stoppedAfter < TimeSpan.FromMilliseconds(250), $"Canceling took {stoppedAfter}.");
         Assert.True(_times["Binary, 256 MiB identical (files)"] < TimeSpan.FromSeconds(2), "Binary comparison slowed down.");
@@ -145,6 +167,13 @@ public sealed class CompareBenchmark : IDisposable
         using var left = new FileContent(a);
         using var right = new FileContent(b);
         return BinaryDiff.Compare(left, right, TestContext.Current.CancellationToken);
+    }
+
+    private static AlignedBinaryResult Aligned(string a, string b)
+    {
+        using var left = new FileContent(a);
+        using var right = new FileContent(b);
+        return AlignedBinaryDiff.Compare(left, right, TestContext.Current.CancellationToken);
     }
 
     private sealed class FileContent(string path) : IContentSource

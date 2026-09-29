@@ -17,6 +17,12 @@ namespace FileCat.App.Views;
 /// <summary>One row of the side-by-side view: a line on either side (or a gap), how they relate, and a note row's text.</summary>
 public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, int? RightLine, string RightText, bool EndingDiffers = false, string? Note = null);
 
+/// <summary>One stretch of the aligned binary view: how the two files relate there, and the row's text.</summary>
+public sealed record AlignedRow(DiffKind Kind, string Text)
+{
+    public override string ToString() => Text;
+}
+
 /// <summary>
 /// File comparison (plan §16.2, TV-08): text side by side with within-line changes, or exact binary ranges. Both sides
 /// scroll together because each row holds both. The summary claims "identical" only when every byte matched; a region
@@ -43,6 +49,7 @@ public sealed class CompareWindow : Window
     private readonly CheckBox _ignoreCase = new() { Content = "Ignore case", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _binary = new() { Content = "Binary", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _collapse = new() { Content = "Hide equal lines", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _align = new() { Content = "Align shifted bytes", VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private readonly Button _previous = new() { Content = "Previous difference" };
     private readonly Button _next = new() { Content = "Next difference" };
     private readonly Button _again = new() { Content = "Compare again" };
@@ -51,6 +58,16 @@ public sealed class CompareWindow : Window
     private Task _loading = Task.CompletedTask;
     private BinaryDiffResult? _bytes;
     private IReadOnlyList<string> _byteRows = [];
+    /// <summary>
+    /// The aligned comparison of the contents now shown, once asked for: computed off the UI thread, kept while the
+    /// contents stay, and stopped when its view is left before it is ready (large files take a while).
+    /// </summary>
+    private Task<(AlignedBinaryResult Result, List<object> Rows)>? _aligning;
+    private CancellationTokenSource? _aligningStop;
+    /// <summary>Every aligning started, stopped ones too: the contents are released only after they stopped reading.</summary>
+    private Task _aligningRuns = Task.CompletedTask;
+    /// <summary>At most this many aligned stretches are listed; the summary counts them all.</summary>
+    private const int MaxAlignedRows = 20_000;
     private TextSide? _leftText, _rightText;
     private string? _textProblem;
     private (ContentRevision? Left, ContentRevision? Right) _revisions;
@@ -95,6 +112,7 @@ public sealed class CompareWindow : Window
         _rows.ItemTemplate = new FuncDataTemplate<object>((item, _) => item switch
         {
             CompareRow row => BuildRow(row),
+            AlignedRow row => new TextBlock { Text = row.Text, FontFamily = Mono, Padding = new Thickness(4, 1), Background = KindBrush(row.Kind) },
             string text => new TextBlock { Text = text, FontFamily = Mono, Margin = new Thickness(4, 1) },
             _ => new TextBlock(),
         });
@@ -107,7 +125,7 @@ public sealed class CompareWindow : Window
         Grid.SetColumn(rightHeader, 1);
         header.Children.Add(leftHeader);
         header.Children.Add(rightHeader);
-        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6), Children = { _previous, _next, _again, _binary, _ignoreWhitespace, _ignoreCase, _collapse } };
+        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6), Children = { _previous, _next, _again, _binary, _align, _ignoreWhitespace, _ignoreCase, _collapse } };
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
         DockPanel.SetDock(header, Dock.Top);
@@ -125,7 +143,8 @@ public sealed class CompareWindow : Window
         _next.Click += (_, _) => Go(+1);
         _previous.Click += (_, _) => Go(-1);
         _again.Click += (_, _) => CompareAgain();
-        foreach (var box in new[] { _ignoreWhitespace, _ignoreCase, _binary, _collapse }) box.IsCheckedChanged += (_, _) => Recompute();
+        foreach (var box in new[] { _ignoreWhitespace, _ignoreCase, _binary, _collapse, _align }) box.IsCheckedChanged += (_, _) => Recompute();
+        ToolTip.SetTip(_align, "Finds content that moved because bytes were inserted or removed, instead of comparing at the same offsets. A heuristic view: whether the files are identical is the exact comparison's answer.");
         KeyDown += OnKey;
         Activated += (_, _) => CheckInputs();
         Closed += (_, _) =>
@@ -260,6 +279,7 @@ public sealed class CompareWindow : Window
             }, ct);
             if (_closed || ct.IsCancellationRequested) return;
             (_bytes, _byteRows, _leftText, _rightText, _textProblem, _revisions) = loaded;
+            _aligning = null;
         }
         catch (OperationCanceledException)
         {
@@ -296,7 +316,7 @@ public sealed class CompareWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException or NotSupportedException) { return null; }
     }
 
-    /// <summary>Contents are disposed once nothing reads them any more (a comparison stops at its next megabyte).</summary>
+    /// <summary>Contents are disposed once nothing reads them any more (a comparison or aligning stops at its next megabyte).</summary>
     private void ReleaseWhenIdle(IContentSource left, IContentSource right)
     {
         void Release()
@@ -304,8 +324,9 @@ public sealed class CompareWindow : Window
             left.Dispose();
             right.Dispose();
         }
-        if (_loading.IsCompleted) Release();
-        else _loading.ContinueWith(_ => Release(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+        var readers = Task.WhenAll(_loading, _aligningRuns);
+        if (readers.IsCompleted) Release();
+        else readers.ContinueWith(_ => Release(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
     }
 
     /// <summary>F5: both files are opened and compared again (after they were edited, say).</summary>
@@ -369,7 +390,7 @@ public sealed class CompareWindow : Window
         foreach (var (offset, length) in bytes.Ranges)
         {
             ct.ThrowIfCancellationRequested();
-            rows.Add($"0x{offset:X10}  {length,12:N0} bytes   left {Hex(left, offset, length)}   right {Hex(right, offset, length)}");
+            rows.Add($"0x{offset:X10}  {length,12:N0} {(length == 1 ? "byte " : "bytes")}   left {Hex(left, offset, length),-HexWidth}   right {Hex(right, offset, length)}");
         }
         return rows;
     }
@@ -380,7 +401,23 @@ public sealed class CompareWindow : Window
         if (_bytes is not { } bytes || _settingOptions) return;
         int view = ++_view;
         _ignoreWhitespace.IsEnabled = _ignoreCase.IsEnabled = _collapse.IsEnabled = _binary.IsChecked != true;
-        if (_binary.IsChecked == true || _leftText is not { } left || _rightText is not { } right)
+        bool binary = _binary.IsChecked == true || _leftText is null || _rightText is null;
+        _align.IsVisible = binary;
+        // Byte rows are wider than most windows; text rows fit their columns to the window.
+        ScrollViewer.SetHorizontalScrollBarVisibility(_rows, binary ? Avalonia.Controls.Primitives.ScrollBarVisibility.Auto : Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        // Identical files need no aligning: the exact comparison says so.
+        bool aligned = binary && _align.IsChecked == true && !bytes.Equal;
+        if (!aligned && _aligning is { IsCompleted: false })
+        {
+            _aligningStop?.Cancel();
+            _aligning = null;
+        }
+        if (aligned)
+        {
+            await ShowAlignedAsync(view);
+            return;
+        }
+        if (binary || _leftText is not { } left || _rightText is not { } right)
         {
             ShowBinary(bytes);
             return;
@@ -412,9 +449,135 @@ public sealed class CompareWindow : Window
             ? $"Identical: every byte was compared ({bytes.LeftLength:N0} bytes).{note}"
             : $"{bytes.Ranges.Count:N0}{(bytes.RangesTruncated ? "+" : "")} differing byte ranges at the same offsets" +
               (bytes.LeftLength != bytes.RightLength ? $"; lengths {bytes.LeftLength:N0} and {bytes.RightLength:N0} bytes" : "") +
-              (bytes.RangesTruncated ? $"; the first {BinaryDiff.MaxRanges:N0} are listed" : "") + ". Shifted content shows as differences from the shift on." + note;
+              (bytes.RangesTruncated ? $"; the first {BinaryDiff.MaxRanges:N0} are listed" : "") +
+              ". Shifted content shows as differences from the shift on (Align shifted bytes finds it again)." + note;
         IsComparing = false;
     }
+
+    /// <summary>
+    /// Binary content aligned where bytes were inserted or removed (plan §16.2): each stretch is a row, every stretch that
+    /// is not equal is a difference to go to, and the summary says what was found and that the pairing is heuristic.
+    /// </summary>
+    private async Task ShowAlignedAsync(int view)
+    {
+        IsComparing = true;
+        var task = _aligning ??= StartAligning();
+        if (!task.IsCompleted) _summary.Text = "Aligning shifted bytes…";
+        (AlignedBinaryResult Result, List<object> Rows) shown;
+        try
+        {
+            shown = await task;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
+        {
+            // Asking again tries again.
+            if (ReferenceEquals(task, _aligning)) _aligning = null;
+            if (view != _view || _closed) return;
+            _summary.Text = "The files could not be read for aligning: " + ex.Message;
+            IsComparing = false;
+            return;
+        }
+        if (view != _view || _closed) return;
+        var (aligned, rows) = shown;
+        _rows.ItemsSource = rows;
+        _differenceRows = [.. Enumerable.Range(0, rows.Count).Where(i => rows[i] is AlignedRow { Kind: not DiffKind.Equal })];
+        ShowFirstDifference();
+        _summary.Text = AlignedSummary(aligned);
+        IsComparing = false;
+    }
+
+    private Task<(AlignedBinaryResult Result, List<object> Rows)> StartAligning()
+    {
+        var stop = CancellationTokenSource.CreateLinkedTokenSource(_work?.Token ?? CancellationToken.None);
+        _aligningStop = stop;
+        var ct = stop.Token;
+        var (left, right) = (_left, _right);
+        long total = Math.Max(1, left.Length + right.Length);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long shown = 0;
+        var run = Task.Run(() =>
+        {
+            var result = AlignedBinaryDiff.Compare(left, right, ct, done =>
+            {
+                // Reported every megabyte; shown a few times a second.
+                if (clock.ElapsedMilliseconds - shown < 250) return;
+                shown = clock.ElapsedMilliseconds;
+                string text = $"Aligning shifted bytes… {Math.Min(100, done * 100 / total)}%";
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!ct.IsCancellationRequested && !_closed) _summary.Text = text;
+                });
+            });
+            return (result, AlignedRows(left, right, result, ct));
+        }, ct);
+        _aligningRuns = Task.WhenAll(_aligningRuns, run);
+        return run;
+    }
+
+    /// <summary>One row per aligned stretch, with offsets and the first bytes of what differs (read here, off the UI thread).</summary>
+    private static List<object> AlignedRows(IContentSource left, IContentSource right, AlignedBinaryResult aligned, CancellationToken ct)
+    {
+        int count = Math.Min(aligned.Ranges.Count, MaxAlignedRows);
+        var rows = new List<object>(count + 1);
+        foreach (var r in aligned.Ranges.Take(count))
+        {
+            ct.ThrowIfCancellationRequested();
+            string at = $"left 0x{r.LeftOffset:X10}  right 0x{r.RightOffset:X10}  ";
+            rows.Add(new AlignedRow(r.Kind, r.Kind switch
+            {
+                DiffKind.Equal => $"= {at}{Bytes(r.LeftLength)} equal",
+                DiffKind.Changed => $"≠ {at}{Bytes(r.LeftLength, r.RightLength)} changed   left {Hex(left, r.LeftOffset, r.LeftLength)}   right {Hex(right, r.RightOffset, r.RightLength)}",
+                DiffKind.LeftOnly => $"− {at}{Bytes(r.LeftLength)} only left (removed)   {Hex(left, r.LeftOffset, r.LeftLength)}",
+                DiffKind.RightOnly => $"+ {at}{Bytes(r.RightLength)} only right (inserted)   {Hex(right, r.RightOffset, r.RightLength)}",
+                _ => $"… {at}{r.LeftLength:N0} left and {r.RightLength:N0} right bytes not aligned: the work limit was reached",
+            }));
+        }
+        if (aligned.Ranges.Count > count) rows.Add($"   ⋯ {aligned.Ranges.Count - count:N0} more stretches are not listed");
+        return rows;
+    }
+
+    /// <summary>"1 byte", "40,000 bytes"; two different counts as "3 → 5 bytes".</summary>
+    private static string Bytes(long left, long? right = null) =>
+        right is { } r && r != left ? $"{left:N0} → {r:N0} bytes" : left == 1 ? "1 byte" : $"{left:N0} bytes";
+
+    private static string AlignedSummary(AlignedBinaryResult aligned)
+    {
+        static string Stretches(IReadOnlyList<AlignedRange> ranges, DiffKind kind, string what)
+        {
+            var these = ranges.Where(r => r.Kind == kind).ToList();
+            if (these.Count == 0) return "none " + what;
+            long left = these.Sum(r => r.LeftLength), right = these.Sum(r => r.RightLength);
+            string bytes = kind switch
+            {
+                DiffKind.LeftOnly => Bytes(left),
+                DiffKind.RightOnly => Bytes(right),
+                _ => Bytes(left, right),
+            };
+            return $"{these.Count:N0} {(these.Count == 1 ? "stretch" : "stretches")} {what} ({bytes})";
+        }
+        var summary = new StringBuilder("Aligned: ")
+            .Append(Stretches(aligned.Ranges, DiffKind.RightOnly, "inserted")).Append(", ")
+            .Append(Stretches(aligned.Ranges, DiffKind.LeftOnly, "removed")).Append(", ")
+            .Append(Stretches(aligned.Ranges, DiffKind.Changed, "changed"));
+        if (aligned.LeftLength > 0)
+        {
+            // Never rounded up to "all" when a byte is missing.
+            double found = aligned.EqualBytes == aligned.LeftLength ? 100 : Math.Min(99.99, Math.Floor(aligned.EqualBytes * 10_000.0 / aligned.LeftLength) / 100);
+            summary.Append($"; {found:0.##}% of the left file was found again in order");
+        }
+        summary.Append('.');
+        if (!aligned.Complete) summary.Append(" The work limit was reached: the rest is not aligned.");
+        if (aligned.Ranges.Count > MaxAlignedRows) summary.Append($" The first {MaxAlignedRows:N0} stretches are listed.");
+        summary.Append($" Heuristic: matched in blocks of {aligned.BlockSize:N0} bytes, so shorter equal stretches and moved or repeated content can be paired differently.");
+        return summary.ToString();
+    }
+
+    /// <summary>The widest <see cref="Hex"/> text: 16 bytes and an ellipsis (columns of rows line up at it).</summary>
+    private const int HexWidth = 16 * 3 - 1 + 2;
 
     private static string Hex(IContentSource source, long offset, long length)
     {
@@ -422,7 +585,7 @@ public sealed class CompareWindow : Window
         int n;
         try { n = source.Read(offset, buffer); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException) { return "?"; }
-        return n == 0 ? "(end)" : Convert.ToHexString(buffer, 0, n) + (length > 16 ? "…" : "");
+        return n == 0 ? "(end)" : BitConverter.ToString(buffer, 0, n).Replace('-', ' ') + (length > 16 ? " …" : "");
     }
 
     private static (List<object> Rows, List<int> Differences, string Summary) BuildText(TextSide left, TextSide right, BinaryDiffResult bytes,
@@ -494,17 +657,19 @@ public sealed class CompareWindow : Window
         return (rows, diff, summary.ToString());
     }
 
+    private static IBrush KindBrush(DiffKind kind) => kind switch
+    {
+        DiffKind.Changed => ChangedBrush,
+        DiffKind.LeftOnly => LeftOnlyBrush,
+        DiffKind.RightOnly => RightOnlyBrush,
+        DiffKind.Unaligned => UnalignedBrush,
+        _ => Brushes.Transparent,
+    };
+
     private static Control BuildRow(CompareRow row)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("56,*,56,*") };
-        grid.Background = row.Kind switch
-        {
-            DiffKind.Changed => ChangedBrush,
-            DiffKind.LeftOnly => LeftOnlyBrush,
-            DiffKind.RightOnly => RightOnlyBrush,
-            DiffKind.Unaligned => UnalignedBrush,
-            _ => Brushes.Transparent,
-        };
+        grid.Background = KindBrush(row.Kind);
         (IReadOnlyList<(int, int)> Left, IReadOnlyList<(int, int)> Right)? spans = row.Kind == DiffKind.Changed ? InlineDiff.Compare(row.LeftText, row.RightText) : null;
         AddCell(grid, 0, row.LeftLine?.ToString("N0") ?? "", null, number: true);
         AddCell(grid, 1, row.LeftText + (row.EndingDiffers ? "  ⏎≠" : ""), spans?.Left, number: false);

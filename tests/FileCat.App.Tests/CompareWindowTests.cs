@@ -1,6 +1,7 @@
 using System.Text;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Compare;
@@ -71,6 +72,118 @@ public sealed class CompareWindowTests
         finally
         {
             diff.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Aligning_finds_shifted_bytes_again()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var bytes = new byte[64 * 1024];
+        new Random(3).NextBytes(bytes);
+        bytes[0] = 0; // looks binary
+        var shifted = bytes[..1_000].Concat(new byte[] { 1, 2, 3, 4, 5 }).Concat(bytes[1_000..]).ToArray();
+        var window = CompareWindow.Open("a.bin", new MemoryContentSource("a.bin", bytes), "b.bin", new MemoryContentSource("b.bin", shifted));
+        async Task Settled()
+        {
+            for (int i = 0; i < 250 && window.IsComparing; i++) await Task.Delay(20, ct);
+        }
+        try
+        {
+            await Settled();
+            // At the same offsets, everything after the insertion differs; the summary points to the aligned view.
+            Assert.Contains("Align shifted bytes finds it again", window.Summary);
+            var align = window.GetVisualDescendants().OfType<Avalonia.Controls.CheckBox>().Single(b => Equals(b.Content, "Align shifted bytes"));
+            Assert.True(align.IsVisible);
+
+            align.IsChecked = true;
+            await Settled();
+            Assert.StartsWith("Aligned: 1 stretch inserted (5 bytes), none removed, none changed; 100% of the left file was found again in order.", window.Summary);
+            Assert.Contains("Heuristic", window.Summary);
+            var rows = window.Rows.OfType<AlignedRow>().ToList();
+            Assert.Equal([DiffKind.Equal, DiffKind.RightOnly, DiffKind.Equal], rows.Select(r => r.Kind));
+            Assert.Equal("+ left 0x00000003E8  right 0x00000003E8  5 bytes only right (inserted)   01 02 03 04 05", rows[1].Text);
+            for (int i = 0; i < 100 && window.CurrentRow != 1; i++) await Task.Delay(20, ct);
+            Assert.Equal(1, window.CurrentRow);
+
+            // Back to the exact comparison, and aligned again from what was already found.
+            align.IsChecked = false;
+            await Settled();
+            Assert.Contains("differing byte ranges at the same offsets", window.Summary);
+            align.IsChecked = true;
+            await Settled();
+            Assert.StartsWith("Aligned: 1 stretch inserted", window.Summary);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Closing_while_aligning_releases_the_files_after_the_reading_stopped()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var a = new byte[4 << 20];
+        var b = new byte[4 << 20];
+        new Random(4).NextBytes(a);
+        new Random(5).NextBytes(b);
+        a[0] = b[0] = 0;
+        var left = new WatchedSource(a);
+        var right = new WatchedSource(b);
+        var window = CompareWindow.Open("a.bin", left, "b.bin", right);
+        for (int i = 0; i < 500 && window.IsComparing; i++) await Task.Delay(20, ct);
+        // The aligning's first read is held while the window closes.
+        left.Hold();
+        window.GetVisualDescendants().OfType<Avalonia.Controls.CheckBox>().Single(x => Equals(x.Content, "Align shifted bytes")).IsChecked = true;
+        Assert.True(await left.Entered.WaitAsync(TimeSpan.FromSeconds(10), ct));
+        window.Close();
+        await Task.Delay(100, ct);
+        Assert.False(left.Disposed, "The contents were released while they were being read.");
+        left.Let();
+        for (int i = 0; i < 250 && !(left.Disposed && right.Disposed); i++) await Task.Delay(20, ct);
+        Assert.True(left.Disposed && right.Disposed);
+        Assert.False(left.DisposedWhileRead || right.DisposedWhileRead);
+    }
+
+    /// <summary>Content that can hold a read, and says whether it was disposed while a read was under way.</summary>
+    private sealed class WatchedSource(byte[] bytes) : IContentSource
+    {
+        private readonly ManualResetEventSlim _gate = new(true);
+        private int _reading;
+        public readonly SemaphoreSlim Entered = new(0);
+        public volatile bool Disposed, DisposedWhileRead;
+        public string DisplayName => "watched";
+        public long Length => bytes.Length;
+        public bool CanSeek => true;
+        public string? LocalPath => null;
+        public void Hold() => _gate.Reset();
+        public void Let() => _gate.Set();
+        public int Read(long offset, Span<byte> buffer)
+        {
+            Interlocked.Increment(ref _reading);
+            try
+            {
+                if (!_gate.IsSet)
+                {
+                    Entered.Release();
+                    _gate.Wait();
+                }
+                int n = (int)Math.Min(buffer.Length, bytes.Length - offset);
+                if (n <= 0) return 0;
+                bytes.AsSpan((int)offset, n).CopyTo(buffer);
+                return n;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _reading);
+            }
+        }
+        public ContentRevision? GetRevision() => null;
+        public void Dispose()
+        {
+            if (Volatile.Read(ref _reading) > 0) DisposedWhileRead = true;
+            Disposed = true;
         }
     }
 

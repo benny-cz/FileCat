@@ -13,6 +13,7 @@ using Location = FileCat.Core.Resources.Location;
 // Renders FileCat's main window off-screen to PNG files, one per theme, for visual checks of the whole app.
 // Usage: Screenshots <out-folder> <left> [<right>] [--themes Classic,Cyberpunk] [--size 1400x900] [--wait 3]
 //        [--frames 3 --every 700]   (several frames per theme, for animated themes)
+//        [--check "label"]   (tick a check box, in the window --in-window chooses)
 //        [--focus name] [--focus-right name] [--mark a;b] [--commands id,id]   (a scene: focus and mark items in the
 //        left panel (the right one's focus too), run commands; every window a command opens is captured as well)
 if (args.Length < 2)
@@ -134,6 +135,16 @@ foreach (var theme in themes)
             box.CaretIndex = typed.Length;
         }
         Pump(TimeSpan.FromSeconds(1));
+    }
+    // --check "Align shifted bytes": ticks the check box with that text (in the window --in-window chooses).
+    if (Option("--check", "") is { Length: > 0 } label)
+    {
+        if (Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(keys).OfType<Avalonia.Controls.CheckBox>().FirstOrDefault(b => Equals(b.Content, label)) is { } box)
+        {
+            box.IsChecked = true;
+            Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
+        }
+        else Console.Error.WriteLine($"No check box \"{label}\".");
     }
     // --drag-panel 0.5,0.9: drags panel 1 by its number over panel 2 to that point (fractions of panel 2's size) and
     // keeps the button down, so the docking preview shows.
