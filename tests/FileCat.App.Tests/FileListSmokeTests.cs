@@ -13,6 +13,9 @@ using Location = FileCat.Core.Resources.Location;
 using FileCat.Core.State;
 
 [assembly: AvaloniaTestApplication(typeof(FileCat.App.Tests.HeadlessTestAppBuilder))]
+// One application and dispatcher for all tests: recreating them per test raced with Avalonia's shared render loop
+// ("a different thread owns it" while setting up the next test, seen on macOS CI). Tests restore what they change.
+[assembly: AvaloniaTestIsolation(AvaloniaTestIsolationLevel.PerAssembly)]
 
 namespace FileCat.App.Tests;
 

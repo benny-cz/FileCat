@@ -65,7 +65,22 @@ public sealed class JobEngineTests : IDisposable
             jobs.Add(_jobs.Submit(new JobRequest { Kind = JobKind.CreateDirectory, Sources = [], Destination = Location.FileSystem(_dst), NewName = $"d{i:D3}" }));
             return ValueTask.CompletedTask;
         });
-        foreach (var job in jobs) await WaitAsync(job);
+        // A busy machine only takes longer (CI took 16 s where a desktop takes 1); a queued job with nothing running and
+        // nothing finishing was lost by the scheduler.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        int lastFinished = -1;
+        var lastProgress = TimeSpan.Zero;
+        while (true)
+        {
+            var states = jobs.Select(j => j.State).ToList();
+            int finished = states.Count(s => s.IsFinished());
+            if (finished == states.Count) break;
+            if (finished != lastFinished) (lastFinished, lastProgress) = (finished, clock.Elapsed);
+            if (!states.Any(s => s.IsActive()) && clock.Elapsed - lastProgress > TimeSpan.FromSeconds(5))
+                Assert.Fail($"The scheduler lost a job: {states.Count(s => s == JobState.Queued)} queued, none running, {finished} of {states.Count} finished.");
+            Assert.True(clock.Elapsed < TimeSpan.FromMinutes(3), $"Only {finished} of {states.Count} finished in 3 minutes.");
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
         Assert.All(jobs, j => Assert.True(j.State == JobState.Completed, $"{j.Title}: {j.State} {string.Join("; ", j.Issues.Select(i => i.Message))}"));
         Assert.All(jobs, j => Assert.NotNull(j.StartedUtc));
         Assert.Equal(120, Directory.GetDirectories(_dst).Length);
