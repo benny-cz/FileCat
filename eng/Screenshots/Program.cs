@@ -135,6 +135,22 @@ foreach (var theme in themes)
         }
         Pump(TimeSpan.FromSeconds(1));
     }
+    // --drag-panel 0.5,0.9: drags panel 1 by its number over panel 2 to that point (fractions of panel 2's size) and
+    // keeps the button down, so the docking preview shows.
+    if (Option("--drag-panel", "") is { Length: > 0 } drag)
+    {
+        var at = drag.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var views = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<PanelView>().ToList();
+        var firstView = views.First(v => ReferenceEquals(v.DataContext, panels[0]));
+        var secondView = views.First(v => ReferenceEquals(v.DataContext, panels[1]));
+        var badge = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(firstView).OfType<Avalonia.Controls.Border>().First(b => b.Name == "NumberBadge");
+        var from = badge.TranslatePoint(new Avalonia.Point(badge.Bounds.Width / 2, badge.Bounds.Height / 2), window)!.Value;
+        var to = secondView.TranslatePoint(new Avalonia.Point(secondView.Bounds.Width * at[0], secondView.Bounds.Height * at[1]), window)!.Value;
+        window.MouseDown(from, Avalonia.Input.MouseButton.Left);
+        window.MouseMove(new Avalonia.Point(from.X + 20, from.Y + 20));
+        window.MouseMove(to);
+        Pump(TimeSpan.FromMilliseconds(500));
+    }
     // --press Enter,Tab,Ctrl+D: keys after the commands (confirm a dialog, then see what follows).
     foreach (var key in presses)
     {
