@@ -101,4 +101,30 @@ public sealed class FileListSmokeTests
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
     }
+
+    /// <summary>A location that cannot be read says so in the status line instead of counting nothing.</summary>
+    [AvaloniaFact]
+    public async Task A_missing_folder_is_not_available_rather_than_empty()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            var tab = panel.OpenTab(Location.FileSystem(Path.Combine(root, "gone")));
+            var ct = TestContext.Current.CancellationToken;
+            for (int i = 0; i < 250 && tab.Listing.State != ListingState.Failed; i++) await Task.Delay(20, ct);
+            Assert.Equal(ListingState.Failed, tab.Listing.State);
+            tab.UpdateStatus();
+            Assert.StartsWith("Not available", tab.StatusLeft);
+            tab.Dispose();
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
 }

@@ -511,6 +511,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _ => $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}",
         };
         if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
+        // A location that could not be read has nothing to count ("0 folders, 0 files" would say it is empty).
+        if (l.State == ListingState.Failed) left = totals.Directories + totals.Files == 0 ? "Not available" : left + " · listing incomplete";
         if (l.State == ListingState.Loading) left += " · " + (l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) left += " · " + (l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
