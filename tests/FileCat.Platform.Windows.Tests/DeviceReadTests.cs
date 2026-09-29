@@ -127,6 +127,48 @@ public sealed class DeviceReadTests : IDisposable
         Assert.True(through < direct * 20 + TimeSpan.FromSeconds(2), $"The pipe costs too much: {through} against {direct}.");
     }
 
+    /// <summary>
+    /// A FileCat that runs as administrator reads a volume itself (the helper would ask for rights it has): read-only,
+    /// with unaligned reads widened to whole sectors. Without those rights the volume is refused, and says why.
+    /// </summary>
+    [Fact]
+    public void An_elevated_FileCat_reads_a_volume_itself()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Drives are read directly on Windows.");
+        string root = Path.GetPathRoot(_dir)!;
+        string device = DeviceTopology.VolumeDevice(root)!;
+        using (var identity = WindowsIdentity.GetCurrent())
+        {
+            if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
+            {
+                var refused = Assert.Throws<UnauthorizedAccessException>(() => DirectDeviceSource.Open(device, "drive " + root));
+                Assert.Contains("administrator", refused.Message, StringComparison.Ordinal);
+                return;
+            }
+        }
+        using var source = DirectDeviceSource.Open(device, "drive " + root);
+        Assert.True(source.Length > 1024 * 1024);
+        Assert.InRange(source.SectorSize, 512, 65536);
+        // The volume's boot sector (NTFS, FAT, and exFAT all end it with 55 AA).
+        var boot = new byte[512];
+        Assert.Equal(512, source.Read(0, boot));
+        Assert.Equal([0x55, 0xAA], boot[510..512]);
+        // Reads at any offset and size agree with the whole sectors around them (the boot area does not change).
+        var whole = new byte[3 * 4096];
+        Assert.Equal(whole.Length, source.Read(0, whole));
+        foreach (var (offset, length) in new[] { (1, 1), (511, 2), (777, 5000), (4095, 4097) })
+        {
+            var part = new byte[length];
+            Assert.Equal(length, source.Read(offset, part));
+            Assert.True(whole.AsSpan(offset, length).SequenceEqual(part), $"{offset}+{length}");
+        }
+        // More than one helper-sized read at once.
+        var large = new byte[RawReadProtocol.MaxRead + 1000];
+        Assert.Equal(large.Length, source.Read(0, large));
+        Assert.True(whole.AsSpan().SequenceEqual(large.AsSpan(0, whole.Length)));
+        Assert.Equal(0, source.Read(source.Length, new byte[16]));
+    }
+
     [Fact]
     public void A_request_the_protocol_does_not_know_ends_the_session()
     {

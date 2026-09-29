@@ -52,9 +52,12 @@ public sealed class AppServices : IDisposable
         Recovery = new FileCat.Recovery.RecoveryProvider();
         if (OperatingSystem.IsWindows())
         {
-            // Drives are read through the installed administrator helper, which only reads (ADR-08).
+            // Drives are read through the installed administrator helper, which only reads (ADR-08); a FileCat that
+            // runs as administrator already has the rights the helper would ask for, and reads them itself.
             string exchange = Path.Combine(paths.JournalDirectory, "elevation");
-            Recovery.OpenDevice = (device, name, ct) => FileCat.Platform.Windows.Recovery.BrokeredDeviceSource.Open(device, name, paths.IsPortable, exchange, ct);
+            Recovery.OpenDevice = (device, name, ct) => Environment.IsPrivilegedProcess
+                ? FileCat.Platform.Windows.Recovery.DirectDeviceSource.Open(device, name)
+                : FileCat.Platform.Windows.Recovery.BrokeredDeviceSource.Open(device, name, paths.IsPortable, exchange, ct);
             Recovery.SharesDisk = FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk;
         }
         Providers.Register(Recovery);

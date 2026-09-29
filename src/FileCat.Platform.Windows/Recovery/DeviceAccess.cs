@@ -29,9 +29,8 @@ public static class RawReadProtocol
     /// </summary>
     public static string Serve(Stream pipe, SafeFileHandle device, long length, int sectorSize)
     {
-        if (sectorSize is < 512 or > 65536 || (sectorSize & (sectorSize - 1)) != 0) sectorSize = 512;
+        var reader = new AlignedDeviceReader(device, length, sectorSize);
         var request = new byte[RequestSize];
-        var buffer = new byte[MaxRead + 2 * sectorSize];
         var header = new byte[16];
         while (true)
         {
@@ -44,7 +43,7 @@ public static class RawReadProtocol
                 case Info:
                     BinaryPrimitives.WriteInt32LittleEndian(header, 0);
                     BinaryPrimitives.WriteInt64LittleEndian(header.AsSpan(4), length);
-                    BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(12), sectorSize);
+                    BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(12), reader.SectorSize);
                     pipe.Write(header, 0, 16);
                     break;
                 case Read:
@@ -53,28 +52,9 @@ public static class RawReadProtocol
                         Reply(pipe, header, ErrorInvalidParameter, []);
                         break;
                     }
-                    long end = Math.Min(length, offset + count);
-                    if (offset >= end)
-                    {
-                        Reply(pipe, header, 0, []);
-                        break;
-                    }
-                    // Raw volumes and disks read whole sectors only.
-                    long start = offset / sectorSize * sectorSize;
-                    long stop = Math.Min((end + sectorSize - 1) / sectorSize * sectorSize, (length + sectorSize - 1) / sectorSize * sectorSize);
-                    int span = (int)(stop - start);
                     try
                     {
-                        int got = 0;
-                        while (got < span)
-                        {
-                            int n = RandomAccess.Read(device, buffer.AsSpan(got, span - got), start + got);
-                            if (n <= 0) break;
-                            got += n;
-                        }
-                        int skip = (int)(offset - start);
-                        int available = (int)Math.Max(0, Math.Min(got - skip, end - offset));
-                        Reply(pipe, header, 0, buffer.AsSpan(skip, available));
+                        Reply(pipe, header, 0, reader.Read(offset, count));
                     }
                     catch (IOException ex)
                     {
@@ -108,6 +88,121 @@ public static class RawReadProtocol
             done += n;
         }
         return true;
+    }
+}
+
+/// <summary>Reads of an open volume or disk: raw devices read whole sectors only, so each read is widened to them.</summary>
+internal sealed class AlignedDeviceReader
+{
+    private readonly SafeFileHandle _device;
+    private readonly byte[] _buffer;
+
+    public AlignedDeviceReader(SafeFileHandle device, long length, int sectorSize)
+    {
+        if (sectorSize is < 512 or > 65536 || (sectorSize & (sectorSize - 1)) != 0) sectorSize = 512;
+        _device = device;
+        Length = length;
+        SectorSize = sectorSize;
+        _buffer = new byte[RawReadProtocol.MaxRead + 2 * sectorSize];
+    }
+
+    public long Length { get; }
+    public int SectorSize { get; }
+
+    /// <summary>Up to <paramref name="count"/> (at most <see cref="RawReadProtocol.MaxRead"/>) bytes at <paramref name="offset"/>; valid until the next read.</summary>
+    public ReadOnlySpan<byte> Read(long offset, int count)
+    {
+        long end = Math.Min(Length, offset + Math.Min(count, RawReadProtocol.MaxRead));
+        if (offset < 0 || offset >= end) return [];
+        long start = offset / SectorSize * SectorSize;
+        long stop = Math.Min((end + SectorSize - 1) / SectorSize * SectorSize, (Length + SectorSize - 1) / SectorSize * SectorSize);
+        int span = (int)(stop - start);
+        int got = 0;
+        while (got < span)
+        {
+            int n = RandomAccess.Read(_device, _buffer.AsSpan(got, span - got), start + got);
+            if (n <= 0) break;
+            got += n;
+        }
+        int skip = (int)(offset - start);
+        int available = (int)Math.Max(0, Math.Min(got - skip, end - offset));
+        return _buffer.AsSpan(skip, available);
+    }
+}
+
+/// <summary>
+/// A drive FileCat reads itself because it already runs as administrator: the helper would ask for rights FileCat
+/// has. It opens the device for reading only (other programs keep reading and writing it), and nothing is ever written.
+/// </summary>
+public sealed class DirectDeviceSource : IBlockSource
+{
+    private readonly SafeFileHandle _handle;
+    private readonly AlignedDeviceReader _reader;
+    private readonly object _lock = new();
+
+    private DirectDeviceSource(SafeFileHandle handle, string description)
+    {
+        _handle = handle;
+        Description = description;
+        long length = DeviceTopology.Length(handle);
+        if (length <= 0) throw new IOException($"The size of {description} could not be read.");
+        _reader = new AlignedDeviceReader(handle, length, DeviceTopology.SectorSize(handle));
+    }
+
+    /// <summary>Opens a volume device (\\?\Volume{…}) or a disk for reading; access denied without administrator rights.</summary>
+    public static DirectDeviceSource Open(string device, string description)
+    {
+        var handle = DeviceReadHost.OpenForReading(device);
+        if (handle.IsInvalid)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            handle.Dispose();
+            if (error == 5 /* ERROR_ACCESS_DENIED */) throw new UnauthorizedAccessException($"Reading {description} needs administrator rights.");
+            throw new IOException($"{description} could not be opened for reading: {new Win32Exception(error).Message}") { HResult = error };
+        }
+        try
+        {
+            return new DirectDeviceSource(handle, description);
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    public string Description { get; }
+    public long Length => _reader.Length;
+    public int SectorSize => _reader.SectorSize;
+
+    public int Read(long offset, Span<byte> buffer)
+    {
+        int done = 0;
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+            while (done < buffer.Length && offset + done < Length)
+            {
+                ReadOnlySpan<byte> data;
+                try
+                {
+                    data = _reader.Read(offset + done, buffer.Length - done);
+                }
+                catch (IOException ex)
+                {
+                    throw new IOException($"The drive could not be read at byte {offset + done:N0}: {ex.Message}", ex) { HResult = ex.HResult };
+                }
+                if (data.IsEmpty) break;
+                data.CopyTo(buffer[done..]);
+                done += data.Length;
+            }
+        }
+        return done;
+    }
+
+    public void Dispose()
+    {
+        lock (_lock) _handle.Dispose();
     }
 }
 
@@ -285,7 +380,7 @@ public static partial class DeviceReadHost
     /// <summary>Serves one device to the requesting FileCat; returns why it ended (the helper's report says it).</summary>
     public static string Run(string device, string pipeName, string userSid, int requesterProcessId)
     {
-        using var handle = CreateFile(device, 0x80000000 /* GENERIC_READ */, 3 /* read, write sharing */, 0, 3 /* OPEN_EXISTING */, 0, 0);
+        using var handle = OpenForReading(device);
         if (handle.IsInvalid) return "The drive could not be opened: " + new Win32Exception(Marshal.GetLastPInvokeError()).Message;
         long length = DeviceTopology.Length(handle);
         int sector = DeviceTopology.SectorSize(handle);
@@ -304,6 +399,13 @@ public static partial class DeviceReadHost
             return "A program other than the FileCat that asked connected; nothing was read.";
         return RawReadProtocol.Serve(pipe, handle, length, sector);
     }
+
+    /// <summary>
+    /// A device handle that can only read: GENERIC_READ, with read and write sharing so Windows and other programs go on
+    /// using the drive. Invalid (with the error set) when it cannot be opened.
+    /// </summary>
+    internal static SafeFileHandle OpenForReading(string device) =>
+        CreateFile(device, 0x80000000 /* GENERIC_READ */, 3 /* read, write sharing */, 0, 3 /* OPEN_EXISTING */, 0, 0);
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);

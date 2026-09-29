@@ -58,6 +58,12 @@ consent window, which names the drive and says nothing is written. After consent
   unelevated;
 - exits when FileCat closes the session, disconnects, or exits.
 
+**FileCat running as administrator (2026-09-29).** The whole process already has the rights the helper would ask for, so
+FileCat opens the volume itself: GENERIC_READ with read and write sharing, the same sector-aligned reads of at most 4 MiB,
+and no request that writes. Nothing else changes (the scan is still parsed in FileCat, and recovered files still go only
+to another disk). Portable and development builds, which have no installed helper, can scan drives this way; without
+administrator rights they say so before asking anything.
+
 Reread scans again through the same session, so one approval covers a drive until its recovery view is closed. Drive
 locations are not restored at startup, so FileCat never asks for approval that nobody requested.
 
@@ -69,7 +75,7 @@ writes can overwrite what is listed.
 
 ## Consequences
 
-- Disk images (raw `.img`/`.dd`/`.bin`, fixed `.vhd`) open with Commands → Find deleted files (disk image or drive). Dynamic
+- Disk images (raw `.img`/`.dd`/`.bin`, fixed `.vhd`) open with Tools → Recover deleted files…. Dynamic
   VHDs and VHDX images are refused with a conversion hint.
 - ext4 and APFS stay research tracks, as the plan says; no undelete is promised for them.
 - Fragmented FAT files are the known weak spot: FAT keeps no record of their pieces once deleted. The state says "Partly

@@ -76,6 +76,20 @@ public sealed class RecoveryJobTests : IDisposable
         Assert.StartsWith("No deleted items were found on this FAT12 volume.", Assert.Single(rows.Issues), StringComparison.Ordinal);
     }
 
+    /// <summary>A scan opened from a folder goes to that folder, or as close to it as the scan goes.</summary>
+    [Fact]
+    public async Task The_closest_scanned_folder_to_where_the_user_was_is_found_letter_case_aside()
+    {
+        var root = RecoveryProvider.ForImage(RecoveryFixtures.Image("fat32"), 1);
+        Assert.Null(_recovery.ClosestFolder(root, "docs")); // not scanned yet
+        await ListAsync(root);
+        Assert.Equal(root.WithPath("docs"), _recovery.ClosestFolder(root, "DOCS"));
+        Assert.Equal(root.WithPath("docs"), _recovery.ClosestFolder(root, "docs/not here/deeper"));
+        Assert.Equal(root.WithPath("photos"), _recovery.ClosestFolder(root, "photos/")); // a deleted folder, when no live one has the name
+        Assert.Equal(root, _recovery.ClosestFolder(root, "nothing deleted here"));
+        Assert.Equal(root, _recovery.ClosestFolder(root, ""));
+    }
+
     [Fact]
     public async Task Recovered_folders_and_files_arrive_whole_and_partial_ones_say_what_is_lost()
     {

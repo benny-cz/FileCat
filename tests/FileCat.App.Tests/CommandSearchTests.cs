@@ -231,7 +231,7 @@ public sealed class CommandSearchTests
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Search commands");
             await WaitFor(() => list.ContainerFromIndex(0) is not null, ct);
             var firstTitle = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().First().Text;
-            Assert.StartsWith("Find deleted files", firstTitle);
+            Assert.StartsWith("Recover deleted files", firstTitle);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }

@@ -25,7 +25,18 @@ public static class ContextMenuFactory
 
     public static ContextMenu Build(MainViewModel vm)
     {
-        return new ContextMenu { ItemsSource = BuildItems(vm, Items) };
+        var items = BuildItems(vm, Items);
+        // A drive or a disk image: its deleted files, straight from here (plan §17), above Properties.
+        if (vm.RecoveryOfferForFocus() is { } recovery)
+        {
+            var recover = new MenuItem { Header = recovery, Icon = MenuIconFactory.Create(CommandIds.FindDeleted) };
+            recover.Click += (_, _) => vm.RecoverFromFocus();
+            string? properties = vm.Services.Commands.Get(CommandIds.Properties)?.Title;
+            int at = items.FindIndex(c => c is MenuItem { Header: string h } && h == properties);
+            if (at < 0) items.AddRange([new Separator(), recover]);
+            else items.InsertRange(at, [recover, new Separator()]);
+        }
+        return new ContextMenu { ItemsSource = items };
     }
 
     private static List<Control> BuildItems(MainViewModel vm, IReadOnlyList<string> items)

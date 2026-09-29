@@ -1,12 +1,14 @@
 using System.IO.Compression;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using FileCat.App.Controls;
 using FileCat.Core.Commands;
 using FileCat.Core.Resources;
 
 namespace FileCat.App.Tests;
 
-/// <summary>Find deleted files (P10): a disk image's deleted items in an ordinary panel, read-only.</summary>
+/// <summary>Recover deleted files (P10): a disk image's deleted items in an ordinary panel, read-only, in a tab of their own.</summary>
 public sealed class RecoveryUiTests
 {
     [AvaloniaFact]
@@ -33,7 +35,23 @@ public sealed class RecoveryUiTests
             }
             for (int i = 0; i < 250 && Index("stick.img") < 0; i++) await Task.Delay(20, ct);
             listing.SetFocus(Index("stick.img"));
+            // The context menu offers the image's deleted files directly.
+            Assert.Equal("Recover deleted files from this disk image…", vm.RecoveryOfferForFocus());
+            listing.SetFocus(Index("a.txt"));
+            Assert.Null(vm.RecoveryOfferForFocus());
+            listing.SetFocus(Index("stick.img"));
+
+            // The command asks what to scan, with the image under the cursor chosen; Enter scans it in a new tab, and the
+            // folder's tab stays where it was.
+            var dialogs = (Views.OverlayDialogService)vm.Dialogs;
             vm.Execute(CommandIds.FindDeleted);
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            await Task.Delay(50, ct);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            for (int i = 0; i < 250 && ReferenceEquals(vm.ActiveTab, tab); i++) await Task.Delay(20, ct);
+            Assert.Equal(folder, tab.Location!.Path);
+            tab = vm.ActiveTab!;
+            listing = tab.Listing;
             for (int i = 0; i < 250 && !(tab.Location?.Scheme == Schemes.Recovery && listing.State == Core.Listing.ListingState.Complete && Index("photos") >= 0); i++)
                 await Task.Delay(20, ct);
             Assert.Equal(Schemes.Recovery, tab.Location!.Scheme);
@@ -51,9 +69,12 @@ public sealed class RecoveryUiTests
             Assert.Contains("only reads", vm.Notification ?? "", StringComparison.Ordinal);
             Assert.True(File.Exists(image));
 
-            // Find deleted files again, here: the volume's free space is searched too, after a confirmation.
+            // Recover deleted files again, here: the volume's free space is offered first, and searched after a confirmation.
             var location = tab.Location;
             vm.Execute(CommandIds.FindDeleted);
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            await Task.Delay(50, ct);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Avalonia.Controls.Button? search = null;
             for (int i = 0; i < 250 && search is null; i++)
             {

@@ -88,6 +88,51 @@ public sealed class LiveDriveRecoveryTests : IDisposable
         TestContext.Current.TestOutputHelper?.WriteLine("Helper session: " + await serving);
     }
 
+    /// <summary>
+    /// A FileCat that runs as administrator reads the drive itself: the bytes are the ones the helper serves, and the
+    /// scan finds the same deleted files.
+    /// </summary>
+    [Fact]
+    public async Task An_elevated_FileCat_reads_the_drive_itself_exactly_as_the_helper_serves_it()
+    {
+        string drive = GuardedDrive();
+        using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+            if (!new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+                Assert.Skip("Reading a drive directly needs the test to run as administrator.");
+        var ct = TestContext.Current.CancellationToken;
+        string device = DeviceTopology.VolumeDevice(drive + "\\") ?? throw new InvalidOperationException("No volume device for " + drive);
+        string pipeName = "FileCat-live-" + Guid.NewGuid().ToString("N");
+        var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var serving = Task.Run(() =>
+        {
+            using (server)
+            using (var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                server.WaitForConnection();
+                return RawReadProtocol.Serve(server, handle, DeviceTopology.Length(handle), DeviceTopology.SectorSize(handle));
+            }
+        }, ct);
+        var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
+        await client.ConnectAsync(5000, ct);
+        using (var direct = DirectDeviceSource.Open(device, drive))
+        using (var piped = new PipeDeviceSource(client, drive))
+        {
+            Assert.Equal(piped.Length, direct.Length);
+            Assert.Equal(piped.SectorSize, direct.SectorSize);
+            foreach (var (offset, length) in new[] { (0L, 512), (3L, 70_001), (direct.Length / 2 + 5, 9 * 1024 * 1024), (direct.Length - 5000, 5000) })
+            {
+                var a = new byte[length];
+                var b = new byte[length];
+                Assert.Equal(piped.Read(offset, b), direct.Read(offset, a));
+                Assert.True(a.AsSpan().SequenceEqual(b), $"{offset}+{length}");
+            }
+            static int Deleted(IBlockSource source, CancellationToken ct) =>
+                All(Assert.Single(RecoveryScanner.Scan(source, ct), v => v.FileSystem != "Unknown").Root).Count(i => i.IsDeleted);
+            Assert.Equal(Deleted(piped, ct), Deleted(direct, ct));
+        }
+        await serving;
+    }
+
     /// <summary>Scans a source, recovers every recoverable signed program to another disk, and checks the signatures.</summary>
     private void Check(IBlockSource source, string name, bool searchFreeSpace)
     {

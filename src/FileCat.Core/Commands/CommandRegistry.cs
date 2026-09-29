@@ -358,7 +358,7 @@ public sealed class CommandRegistry
         Add(CommandIds.HexRecovery, "Recover interrupted hex save…", F, null, CommandContext.Global);
         Add(CommandIds.CompareDirectories, "Compare directories…", C, "Compare", CommandContext.Panel, "Ctrl+F10");
         Add(CommandIds.CompareFiles, "Compare files…", C, null, CommandContext.Panel, "Ctrl+I");
-        Add(CommandIds.FindDeleted, "Find deleted files (disk image or drive)…", C);
+        Add(CommandIds.FindDeleted, "Recover deleted files…", C);
         Add(CommandIds.CommandLineFocus, "Focus command line", C, null, CommandContext.Panel, "Ctrl+E");
         Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
@@ -397,12 +397,12 @@ public sealed class CommandRegistry
 
     /// <summary>
     /// The words people type for commands whose titles say it differently (plan §4.4, UX-010): the command search
-    /// finds "Find deleted files" for "file recovery", "undelete", or "restore deleted".
+    /// finds "Recover deleted files" for "undelete", "unerase", or "restore deleted".
     /// </summary>
     private static void AddSearchWords(CommandRegistry r)
     {
         void K(string id, params string[] words) => r.AddKeywords(id, words);
-        K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files");
+        K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
         K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");
         K(CommandIds.BulkRename, "multi rename", "mass rename", "batch rename", "renamer");

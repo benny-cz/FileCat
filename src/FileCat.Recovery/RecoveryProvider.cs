@@ -194,7 +194,7 @@ public sealed class RecoveryProvider : ResourceProvider
             sink.ReportIssue($"No deleted items were found on this {volume.FileSystem} volume. Deleted files leave traces only until their entries or space are used again.");
         if (location.Path.Length == 0 && volume.OpenListings > 0 && !volume.FreeSpaceSearched)
             sink.ReportIssue($"The lists of contents of {volume.OpenListings} deleted folder{(volume.OpenListings == 1 ? "" : "s")} may go on where FAT no longer points. " +
-                             $"Find deleted files (Commands menu) here searches the {RecoveryItem.Bytes(volume.FreeBytes ?? 0)} of free space for the rest.");
+                             $"Recover deleted files (Tools menu) here offers to search the {RecoveryItem.Bytes(volume.FreeBytes ?? 0)} of free space for the rest.");
         var batch = new List<EntryData>(folder.Children.Count);
         foreach (var item in folder.Children)
         {
@@ -288,6 +288,29 @@ public sealed class RecoveryProvider : ResourceProvider
         if (!int.TryParse(location.Session, NumberStyles.None, CultureInfo.InvariantCulture, out int number) || number < 1 || number > session.Volumes.Count) return null;
         var volume = session.Volumes[number - 1];
         return volume.FreeBytes is { } free ? new FreeSpaceSearch(volume.Title, free, volume.OpenListings, volume.FreeSpaceSearched) : null;
+    }
+
+    /// <summary>
+    /// The folder of a scanned volume closest to <paramref name="path"/> ('/'-separated, inside the volume): the path
+    /// itself when the scan shows it, else its deepest ancestor that it shows (a scan leaves out folders with nothing
+    /// deleted below them). Letter case is ignored, as NTFS, FAT, and exFAT ignore it; a live folder is preferred to a
+    /// deleted one of the same name. Null before the volume was scanned.
+    /// </summary>
+    public Location? ClosestFolder(Location volume, string path)
+    {
+        if (volume.Scheme != Schemes.Recovery || !_sessions.TryGetValue(Key(volume), out var session) || session.Stale) return null;
+        if (!int.TryParse(volume.Session, NumberStyles.None, CultureInfo.InvariantCulture, out int number) || number < 1 || number > session.Volumes.Count) return null;
+        var folder = session.Volumes[number - 1].Root;
+        var segments = new List<string>();
+        foreach (var name in path.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var next = folder.Children.Where(c => c.IsDirectory && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.IsDeleted).ThenBy(c => c.Name == name ? 0 : 1).FirstOrDefault();
+            if (next is null) break;
+            segments.Add(next.Ordinal > 0 ? next.Name + "\0" + next.Ordinal.ToString(CultureInfo.InvariantCulture) : next.Name);
+            folder = next;
+        }
+        return volume.WithPath(string.Join('/', segments));
     }
 
     /// <summary>The next listing of the location's source scans it again and searches its FAT volumes' free space too.</summary>
