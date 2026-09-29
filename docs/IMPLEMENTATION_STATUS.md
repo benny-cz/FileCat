@@ -57,6 +57,9 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 
 ## Notes for the next session
 
+- **Lists and keys:** a focused ListBoxItem takes Enter and Space before handlers on its list, and a ListBox itself
+  cannot take focus: use `ListKeys.OnKey` (tunneling) and `ListKeys.Focus`. UI tests share one application and run
+  one at a time (keyboard focus is global); press keys only after the window's own focus has settled.
 - **Headless tests:** Avalonia's headless text layout spins on long wrapped text with blank lines. The native app renders it fine.
   Audit dialogs with short texts (see `AccessibilityTests`).
 - **Commits:** check `dotnet test` exit codes before committing; grep output alone hides failures.
