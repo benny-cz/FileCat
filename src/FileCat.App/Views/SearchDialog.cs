@@ -95,6 +95,16 @@ public static class SearchDialog
         }
         Row(0, withinItems is null ? "Search in:" : "Search within:", roots);
         if (withinItems is not null) subfolders.IsEnabled = false;
+        else
+        {
+            // Typing where to search suggests the folders that complete it, as the location box does.
+            var completion = new Controls.PathCompletion(roots, grid, () => vm.Services.Settings.ShowHidden, () => root);
+            completion.Chosen += path =>
+            {
+                roots.Text = path;
+                roots.CaretIndex = path.Length;
+            };
+        }
         Row(1, "Names:", names);
         Row(2, "Containing:", text);
         var options = new WrapPanel { ItemSpacing = 10, LineSpacing = 4 };
