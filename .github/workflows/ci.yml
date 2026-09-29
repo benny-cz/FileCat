@@ -20,6 +20,8 @@ jobs:
   windows:
     name: Windows (build, all tests)
     runs-on: windows-latest
+    # A hung test stops the run in minutes, not hours; --blame-hang names it and dumps the processes.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
@@ -31,12 +33,15 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
-      - run: dotnet test FileCat.slnx -c Release --no-build --logger "trx;LogFileName=results.trx"
+      - run: dotnet test FileCat.slnx -c Release --no-build --logger "trx;LogFileName=results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-windows
-          path: "**/TestResults/*.trx"
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/**/Sequence_*.xml
+            **/TestResults/**/*.dmp
 
   portable:
     name: ${{ matrix.os }} (build, portable tests)
@@ -45,6 +50,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
@@ -67,7 +73,7 @@ jobs:
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build
       # P9: the UI runs headless on Linux and macOS too.
-      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx"
+      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       - uses: actions/upload-artifact@v7
         if: always()
         with:
