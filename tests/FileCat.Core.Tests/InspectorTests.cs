@@ -31,7 +31,8 @@ public sealed class InspectorTests
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows system libraries exist only on Windows.");
         var report = Inspect(File.ReadAllBytes(Path.Combine(Environment.SystemDirectory, "kernel32.dll")))!;
-        Assert.Contains("x64", report.Format);
+        // The system's own architecture: ARM64 Windows keeps ARM64 libraries in System32.
+        Assert.Contains(System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64 ? "ARM64" : "x64", report.Format);
         Assert.Contains(report.Sections, s => s.Title.StartsWith("Imports", StringComparison.Ordinal) && s.Fields.Count > 0);
         Assert.Equal("KERNEL32.dll", Fields(report, "Exports")["Library name"], StringComparer.OrdinalIgnoreCase);
         Assert.Equal("Microsoft Corporation", Fields(report, "Version information")["CompanyName"]);
