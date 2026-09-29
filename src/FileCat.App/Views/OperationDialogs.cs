@@ -60,9 +60,11 @@ public static class OperationDialogs
         body.Children.Add(new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", Margin = new Thickness(0, 6, 0, 0) });
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
-        body.Children.Add(dest);
         // Typing a destination suggests the folders that complete it; choosing one fills it in (Enter then starts).
-        var completion = new PathCompletion(dest, body, () => vm.Services.Settings.ShowHidden, () => input.Destination);
+        // The box's own panel holds the suggestions' popup (the stack would space it like a row).
+        var destHost = new Panel { Children = { dest } };
+        body.Children.Add(destHost);
+        var completion = new PathCompletion(dest, destHost, () => vm.Services.Settings.ShowHidden, () => input.Destination);
         completion.Chosen += path =>
         {
             dest.Text = path;
