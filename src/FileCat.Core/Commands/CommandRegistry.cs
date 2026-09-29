@@ -21,6 +21,8 @@ public sealed record CommandDefinition(string Id, string Title, string Category)
     /// <summary>Short label for the function-key bar.</summary>
     public string? KeyBarLabel { get; init; }
     public string? Description { get; init; }
+    /// <summary>Words people search for that the title does not use ("recovery", "undelete"): the command search finds them.</summary>
+    public string[] Keywords { get; init; } = [];
 }
 
 public static class CommandIds
@@ -190,6 +192,15 @@ public sealed class CommandRegistry
         _all.Add(definition);
     }
 
+    /// <summary>Adds search words to a command (plan §4.4); unknown ids are ignored.</summary>
+    public void AddKeywords(string id, params string[] keywords)
+    {
+        if (!_byId.TryGetValue(id, out var definition)) return;
+        var updated = definition with { Keywords = [.. definition.Keywords, .. keywords] };
+        _byId[id] = updated;
+        _all[_all.IndexOf(definition)] = updated;
+    }
+
     /// <summary>
     /// Default commands and bindings: agreement-first across Salamander, Total Commander, and FAR,
     /// with the conflicts resolved as recorded in ADR-16 (plan §4.5). Ctrl+Alt+letter chords are avoided
@@ -347,7 +358,7 @@ public sealed class CommandRegistry
         Add(CommandIds.SftpConnect, "Connect to a server (SFTP, FTPS, FTP)…", C);
         Add(CommandIds.SftpDisconnect, "Disconnect from the server", C);
 
-        Add(CommandIds.Palette, "Command palette…", A, null, CommandContext.Global, "Ctrl+Shift+P");
+        Add(CommandIds.Palette, "Search commands…", A, null, CommandContext.Global, "Ctrl+Shift+P");
         Add(CommandIds.Operations, "Operations", A, null, CommandContext.Global, "Ctrl+J");
         Add(CommandIds.UserMenu, "User commands…", A, "User", CommandContext.Panel, "F9");
         Add(CommandIds.Menu, "Menu bar", A, "Menu", CommandContext.Global, "F10");
@@ -363,7 +374,86 @@ public sealed class CommandRegistry
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);
         Add(CommandIds.ThemePick, "Theme…", A);
         Add(CommandIds.ThemeCycle, "Next theme", A);
+        AddSearchWords(r);
         return r;
+    }
+
+    /// <summary>
+    /// The words people type for commands whose titles say it differently (plan §4.4, UX-010): the command search
+    /// finds "Find deleted files" for "file recovery", "undelete", or "restore deleted".
+    /// </summary>
+    private static void AddSearchWords(CommandRegistry r)
+    {
+        void K(string id, params string[] words) => r.AddKeywords(id, words);
+        K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files");
+        K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
+        K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");
+        K(CommandIds.BulkRename, "multi rename", "mass rename", "batch rename", "renamer");
+        K(CommandIds.CompareDirectories, "diff", "differences", "synchronize", "sync", "compare folders");
+        K(CommandIds.CompareFiles, "diff", "differences");
+        K(CommandIds.Checksum, "hash", "sha256", "sha1", "md5", "crc");
+        K(CommandIds.VerifyChecksums, "verify", "hash", "sfv", "md5sum", "sha256sums");
+        K(CommandIds.Pack, "zip", "compress", "create archive");
+        K(CommandIds.Unpack, "extract", "unzip", "decompress", "unpack archive");
+        K(CommandIds.TestArchive, "verify archive", "integrity", "check archive");
+        K(CommandIds.Attributes, "read-only", "hidden", "timestamps", "dates", "touch", "modified time");
+        K(CommandIds.CreateLink, "symlink", "symbolic link", "junction", "hard link", "shortcut");
+        K(CommandIds.ApplyCommand, "run for each", "batch", "execute for each");
+        K(CommandIds.HexEdit, "binary", "bytes", "patch");
+        K(CommandIds.ViewAlternate, "hex view");
+        K(CommandIds.View, "preview", "lister", "read");
+        K(CommandIds.Edit, "editor", "notepad");
+        K(CommandIds.Delete, "remove", "erase", "trash", "recycle bin");
+        K(CommandIds.DeletePermanent, "remove permanently", "erase permanently", "wipe");
+        K(CommandIds.MakeDirectory, "new folder", "mkdir", "create folder", "new directory");
+        K(CommandIds.EditNew, "new file", "create file", "touch");
+        K(CommandIds.Move, "relocate", "rename");
+        K(CommandIds.Rename, "rename file");
+        K(CommandIds.Properties, "info", "details", "file properties");
+        K(CommandIds.Reveal, "explorer", "show in folder", "finder", "file manager");
+        K(CommandIds.OpenWithSystem, "open with", "default program", "associated program");
+        K(CommandIds.OpenTerminal, "shell", "console", "cmd", "powershell", "command prompt", "bash");
+        K(CommandIds.QuickFilter, "filter", "narrow");
+        K(CommandIds.FlatView, "branch view", "all files", "recursive listing", "flatten");
+        K(CommandIds.ToggleHidden, "hidden files", "show hidden", "dotfiles", "system files");
+        K(CommandIds.ThemePick, "appearance", "colors", "colours", "dark mode", "light mode", "skin", "look");
+        K(CommandIds.ThemeCycle, "switch theme", "change theme");
+        K(CommandIds.SwapPanels, "exchange panels", "switch sides");
+        K(CommandIds.MaximizePanel, "zoom", "full screen", "maximize");
+        K(CommandIds.AddPanel, "new panel", "split", "third panel");
+        K(CommandIds.ClosePanel, "remove panel");
+        K(CommandIds.QuickView, "preview pane", "thumbnail");
+        K(CommandIds.Operations, "jobs", "progress", "transfers", "queue", "tasks", "background");
+        K(CommandIds.Palette, "command palette", "commands", "actions", "run command");
+        K(CommandIds.Help, "shortcuts", "keyboard", "hotkeys", "keys", "key bindings");
+        K(CommandIds.About, "version");
+        K(CommandIds.CheckUpdates, "update", "new version");
+        K(CommandIds.DiagnosticsExport, "logs", "bug report", "crash report");
+        K(CommandIds.ConnectNetworkDrive, "map drive", "network share", "smb", "map network drive");
+        K(CommandIds.DisconnectNetworkDrive, "unmap drive", "disconnect share");
+        K(CommandIds.SftpConnect, "ssh", "ftp", "ftps", "server", "remote", "connect");
+        K(CommandIds.SftpDisconnect, "disconnect server", "close connection");
+        K(CommandIds.CopyPaths, "full path", "file path", "copy path");
+        K(CommandIds.CopyNames, "file names", "copy name");
+        K(CommandIds.Bookmarks, "favorites", "favourites", "hotlist", "hot paths");
+        K(CommandIds.FolderHistory, "recent folders");
+        K(CommandIds.FileHistory, "recent files");
+        K(CommandIds.WorkingSets, "collections", "basket");
+        K(CommandIds.Undo, "revert", "take back");
+        K(CommandIds.AnalyzeFolder, "folder sizes", "space usage", "largest files", "disk usage");
+        K(CommandIds.UserMenu, "custom commands", "tools");
+        K(CommandIds.SaveWorkspace, "session", "save layout");
+        K(CommandIds.LoadWorkspace, "session", "restore layout");
+        K(CommandIds.EditSessions, "remote edits", "pending uploads", "edited files");
+        K(CommandIds.CommandLineFocus, "prompt", "command line");
+        K(CommandIds.LocationMenuLeft, "drives", "change drive", "locations");
+        K(CommandIds.LocationMenuRight, "drives", "change drive", "locations");
+        K(CommandIds.FindFolder, "jump to folder", "go to folder", "cd");
+        K(CommandIds.GoTo, "path", "address", "location", "cd");
+        K(CommandIds.Refresh, "reload", "rescan", "reread");
+        K(CommandIds.RegistryExport, "reg file", "export registry", "regedit");
+        K(CommandIds.RegistryImport, "reg file", "import registry", "regedit");
+        K(CommandIds.HexRecovery, "recover hex save", "interrupted save");
     }
 }
 

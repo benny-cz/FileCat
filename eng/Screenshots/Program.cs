@@ -115,12 +115,18 @@ foreach (var theme in themes)
         tabs.SelectedIndex = tabIndex;
         Pump(TimeSpan.FromSeconds(1));
     }
-    // --type <text>: typed into the active panel's location box (its folder suggestions show).
+    // --type <text>: typed into the text box that has the keyboard (the command search after app.palette), or else into
+    // the active panel's location box (its folder suggestions show).
     if (Option("--type", "") is { Length: > 0 } typed)
     {
-        vm.View.FocusPathBox();
-        Pump(TimeSpan.FromMilliseconds(300));
-        if (Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().FirstOrDefault(t => t.IsFocused) is { } box)
+        Avalonia.Controls.TextBox? FocusedBox() =>
+            Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().FirstOrDefault(t => t.IsFocused);
+        if (FocusedBox() is null)
+        {
+            vm.View.FocusPathBox();
+            Pump(TimeSpan.FromMilliseconds(300));
+        }
+        if (FocusedBox() is { } box)
         {
             box.Text = typed;
             box.CaretIndex = typed.Length;

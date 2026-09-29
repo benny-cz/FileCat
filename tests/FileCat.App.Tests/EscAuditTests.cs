@@ -9,10 +9,13 @@ namespace FileCat.App.Tests;
 /// <summary>Esc closes every dialog and secondary window (UX-011), wherever the keyboard is.</summary>
 public sealed class EscAuditTests
 {
-    /// <summary>Commands that open an overlay dialog, a prompt, or a chooser with a.txt focused.</summary>
+    /// <summary>
+    /// Commands that open an overlay dialog, a prompt, or a chooser with a.txt focused (Ctrl+Shift+P goes to the search
+    /// box in the menu bar, whose Esc CommandSearchTests covers).
+    /// </summary>
     private static readonly string[] DialogCommands =
     [
-        CommandIds.Palette, CommandIds.Help, CommandIds.LocationMenuLeft, CommandIds.Bookmarks, CommandIds.TabList,
+        CommandIds.Help, CommandIds.LocationMenuLeft, CommandIds.Bookmarks, CommandIds.TabList,
         CommandIds.ThemePick, CommandIds.Settings, CommandIds.About, CommandIds.Copy, CommandIds.Move, CommandIds.MakeDirectory,
         CommandIds.EditNew, CommandIds.FindFiles, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink,
         CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.Attributes, CommandIds.CompareDirectories,

@@ -71,6 +71,22 @@
     <Setter Property="BorderThickness" Value="0" />
   </Style>
 
+  <!-- Command search in the menu bar: a field on the menu's glass, outlined in the focus color while typing -->
+  <Style Selector="TextBox.commandSearch">
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBox.commandSearch /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource FcCard}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox.commandSearch:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />
+  </Style>
+
   <!-- Role badges (non-color cue: text) -->
   <Style Selector="Border.badge">
     <Setter Property="CornerRadius" Value="3" />

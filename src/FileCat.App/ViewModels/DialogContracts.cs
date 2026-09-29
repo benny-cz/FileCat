@@ -53,6 +53,12 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
 
     /// <summary>Where the items' icons come from: rows show platform icons as they finish loading.</summary>
     public Services.IconProvider? Icons { get; init; }
+
+    /// <summary>
+    /// The chooser's own search: the indexes of the items matching the typed text, best first (the command palette ranks
+    /// by synonyms and recent use). Without it, every typed word must appear in an item's title, detail, or shortcut.
+    /// </summary>
+    public Func<string, IReadOnlyList<int>>? Search { get; init; }
 }
 
 /// <summary>A button in a custom dialog; <see cref="Result"/> is returned when chosen.</summary>
@@ -102,6 +108,8 @@ public interface IViewActions
     Task<string?> RenameInlineAsync(PromptOptions options);
     void FocusPathBox();
     void FocusCommandLine();
+    /// <summary>Puts the keyboard in the command search (Ctrl+Shift+P); false where the window shows none.</summary>
+    bool FocusCommandSearch();
     /// <summary>Closes the main window (used when the user chose to exit once operations finish).</summary>
     void CloseWhenIdle();
     void OpenMenuBar();

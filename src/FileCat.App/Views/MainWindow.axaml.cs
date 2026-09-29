@@ -20,49 +20,13 @@ namespace FileCat.App.Views;
 
 public partial class MainWindow : Window, IViewActions
 {
-    /// <summary>A menu's own submenu (the Registry's commands, dimmed everywhere else, stay out of the File menu's way).</summary>
-    private sealed record Submenu(string Header, string[] Items);
-
-    private static readonly (string Header, object[] Items)[] MenuLayout =
-    [
-        ("_File", [CommandIds.View, CommandIds.ViewAlternate, CommandIds.Edit, CommandIds.EditNew, CommandIds.HexEdit, CommandIds.EditSessions, "-", CommandIds.Copy, CommandIds.Duplicate,
-            CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.DeletePermanent, "-",
-            CommandIds.Pack, CommandIds.Unpack, CommandIds.TestArchive, "-",
-            CommandIds.Checksum, CommandIds.VerifyChecksums, CommandIds.Attributes, CommandIds.CreateLink, CommandIds.BulkRename, CommandIds.ApplyCommand,
-            CommandIds.AddToWorkingSet, CommandIds.RemoveFromSet,
-            new Submenu("_Registry", [CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
-                CommandIds.RegistryWritable, CommandIds.RegistryView]), "-",
-            CommandIds.Undo, CommandIds.Properties, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
-        ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
-            CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
-            CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, "-",
-            CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths]),
-        ("_Navigate", [CommandIds.Parent, CommandIds.Enter, CommandIds.Root, CommandIds.Back, CommandIds.Forward, CommandIds.Home, "-",
-            CommandIds.GoTo, CommandIds.LocationMenuLeft, CommandIds.LocationMenuRight, CommandIds.FindFolder, CommandIds.FolderHistory,
-            CommandIds.FileHistory, CommandIds.Bookmarks, CommandIds.WorkingSets, "-", CommandIds.Refresh, CommandIds.ToggleHidden]),
-        ("_Commands", [CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.FlatView, CommandIds.QuickFilter, CommandIds.FindDeleted, "-",
-            CommandIds.CommandLineFocus, CommandIds.InsertName, CommandIds.InsertPath, CommandIds.OpenTerminal, CommandIds.UserMenu, "-",
-            CommandIds.CopyToClipboard, CommandIds.CutToClipboard, CommandIds.PasteFromClipboard, "-",
-            CommandIds.ConnectNetworkDrive, CommandIds.DisconnectNetworkDrive, "-", CommandIds.SftpConnect, CommandIds.SftpDisconnect]),
-        ("_Panels", [CommandIds.SwitchPanel, CommandIds.SwitchPanelBack, CommandIds.SwapPanels, CommandIds.OpenInTarget, CommandIds.TargetToSource,
-            CommandIds.QuickView, "-", CommandIds.AddPanel, CommandIds.ClosePanel, CommandIds.FocusPanelPicker, CommandIds.ChooseTarget,
-            CommandIds.MaximizePanel, "-", CommandIds.NewTab, CommandIds.CloseTab, CommandIds.NextTab, CommandIds.PreviousTab, CommandIds.ReopenTab,
-            CommandIds.TabList, CommandIds.DuplicateTab, CommandIds.CopyTabToTarget, CommandIds.LockTab, CommandIds.OpenInNewTab,
-            CommandIds.OpenInNewTargetTab]),
-        ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
-            CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
-            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemePick, CommandIds.ThemeCycle]),
-        ("_Tools", [CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
-            CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
-        ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),
-    ];
-
     private readonly MainViewModel _vm;
     private readonly Dictionary<PanelViewModel, PanelView> _panelViews = new();
     private readonly OverlayDialogService _dialogs;
     private readonly DispatcherTimer _notificationTimer;
     private bool _suppressTextInput;
     private bool _forceClose;
+    private readonly CommandSearchBar _commandSearch;
 
     public MainWindow() : this(null!, null) { }
 
@@ -95,6 +59,15 @@ public partial class MainWindow : Window, IViewActions
             foreach (var pv in _panelViews.Values) pv.List.InvalidateVisual();
         };
         BuildMenu();
+        _commandSearch = new CommandSearchBar(CommandSearchBox, MenuRow, vm.CommandSearchEntries, () => vm.Services.History.RecentCommands,
+            id =>
+            {
+                FocusActivePanel();
+                vm.RunFromSearch(id);
+            },
+            vm.ChangeShortcutAsync, FocusActivePanel);
+        MenuRow.SizeChanged += (_, _) => FitCommandSearch();
+        MainMenu.SizeChanged += (_, _) => FitCommandSearch();
         if (placement is { Width: > 200, Height: > 200 })
         {
             Width = placement.Width;
@@ -120,7 +93,7 @@ public partial class MainWindow : Window, IViewActions
         // The steampunk canopy ends above the panels; its lower rail begins below them.
         LayoutUpdated += (_, _) =>
         {
-            var bands = (MainMenu.Bounds.Bottom, WorkspaceHost.Bounds.Bottom + WorkspaceHost.Margin.Bottom);
+            var bands = (MenuRow.Bounds.Bottom, WorkspaceHost.Bounds.Bottom + WorkspaceHost.Margin.Bottom);
             if (Backdrop.GlassBands != bands)
             {
                 Backdrop.GlassBands = bands;
@@ -351,7 +324,7 @@ public partial class MainWindow : Window, IViewActions
     private void BuildMenu()
     {
         var items = new List<MenuItem>();
-        foreach (var (header, entries) in MenuLayout)
+        foreach (var (header, entries) in MainMenuModel.Layout)
         {
             var top = new MenuItem { Header = header };
             top.ItemsSource = BuildItems(top, entries);
@@ -366,7 +339,7 @@ public partial class MainWindow : Window, IViewActions
         var children = new List<Control>();
         foreach (var entry in entries)
         {
-            if (entry is Submenu sub)
+            if (entry is MainMenuModel.Submenu sub)
             {
                 var submenu = new MenuItem { Header = sub.Header };
                 submenu.ItemsSource = BuildItems(submenu, sub.Items);
@@ -387,6 +360,7 @@ public partial class MainWindow : Window, IViewActions
             mi.Click += (_, _) =>
             {
                 FocusActivePanel();
+                _vm.RememberCommand(id);
                 _vm.Execute(id);
             };
             children.Add(mi);
@@ -435,6 +409,8 @@ public partial class MainWindow : Window, IViewActions
             return;
         }
         if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;
+        // The command search keeps its keys: Enter runs, F2 changes a shortcut, Esc returns to the panel.
+        if (CommandSearchBox.IsFocused) return;
         if (KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
 
         var focused = FocusManager?.GetFocusedElement();
@@ -643,6 +619,30 @@ public partial class MainWindow : Window, IViewActions
         Close();
     }
 
+    public bool FocusCommandSearch() => CommandSearchBox.IsEffectivelyVisible && CommandSearchBox.Focus(NavigationMethod.Tab);
+
+    /// <summary>The command search in the menu bar (tests read what it lists).</summary>
+    internal CommandSearchBar CommandSearch => _commandSearch;
+
+    /// <summary>
+    /// The command search takes the room the menus leave, up to 300 DIP; in a window too narrow for it, Ctrl+Shift+P
+    /// opens the same search in a dialog.
+    /// </summary>
+    private void FitCommandSearch()
+    {
+        double room = MenuRow.Bounds.Width - MainMenu.Bounds.Width - CommandSearchBox.Margin.Left - CommandSearchBox.Margin.Right;
+        bool fits = room >= 120;
+        if (CommandSearchBox.IsVisible != fits) CommandSearchBox.IsVisible = fits;
+        double width = Math.Min(room, 300);
+        if (fits && (double.IsNaN(CommandSearchBox.Width) || Math.Abs(CommandSearchBox.Width - width) > 0.5)) CommandSearchBox.Width = width;
+        // The shortcut shows in the box where it fits, and always in its tooltip.
+        string? gesture = _vm.Services.Keymap.GetGestureText(CommandIds.Palette);
+        string placeholder = gesture is not null && width >= 280 ? $"Search commands ({gesture})" : "Search commands";
+        if (CommandSearchBox.PlaceholderText != placeholder) CommandSearchBox.PlaceholderText = placeholder;
+        ToolTip.SetTip(CommandSearchBox, "Type what you want to do: any command, by its name or other words for it"
+            + (gesture is null ? string.Empty : $". {gesture} comes here from anywhere."));
+    }
+
     public void FocusCommandLine()
     {
         CommandLine.Focus();
@@ -663,7 +663,11 @@ public partial class MainWindow : Window, IViewActions
 
     public void ShowNotification(string message, bool isError = false) => _vm.Notify(message, isError);
 
-    public void ReloadChrome() => BuildMenu();
+    public void ReloadChrome()
+    {
+        BuildMenu();
+        FitCommandSearch(); // its hint names the shortcut
+    }
 
     IClipboard? IViewActions.Clipboard => Clipboard;
 

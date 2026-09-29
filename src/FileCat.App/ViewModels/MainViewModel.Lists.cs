@@ -286,20 +286,57 @@ public sealed partial class MainViewModel
         View.FocusActivePanel();
     }
 
+    /// <summary>The command search in a dialog, for where the window shows no search box (plan §4.4).</summary>
     public async Task ShowPaletteAsync()
     {
-        var defs = Services.Commands.All
-            .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal) && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
-            .ToList();
-        var items = defs.Select(d =>
+        var entries = CommandSearchEntries();
+        var indexes = entries.Select((e, i) => (e.Id, i)).ToDictionary(x => x.Id, x => x.i);
+        var items = entries.Select(e => new ChoiceItem(e.Title, CommandSearch.Detail(e), e.Gesture, e.Id)).ToList();
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Search commands", items)
         {
-            var a = GetAvailability(d.Id);
-            return new ChoiceItem(d.Title, a.Enabled ? d.Category : $"{d.Category} · unavailable: {a.Reason}", Services.Keymap.GetGestureText(d.Id), d.Id);
-        }).ToList();
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Command palette", items) { Hint = "Type to filter commands · Enter runs" });
+            Hint = "Type what you want to do (\"recover\", \"new folder\", \"zip\") · Enter runs · Esc closes",
+            Search = q => CommandSearch.Rank(q, entries, Services.History.RecentCommands, int.MaxValue, allWhenEmpty: true)
+                .Select(e => indexes[e.Id]).ToList(),
+        });
         if (r.Index < 0) return;
         View.FocusActivePanel();
-        await ExecuteAsync(defs[r.Index].Id);
+        RunFromSearch(entries[r.Index].Id);
+    }
+
+    /// <summary>
+    /// Every command the search offers, with where it is in the menus and whether it applies here now. Numbered
+    /// bookmark commands stay out (the bookmark list has them); column profiles show their names.
+    /// </summary>
+    internal IReadOnlyList<CommandSearch.Entry> CommandSearchEntries()
+    {
+        var entries = new List<CommandSearch.Entry>();
+        foreach (var d in Services.Commands.All)
+        {
+            if (d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
+                || d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
+                || d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
+                continue;
+            string title = d.Title;
+            if (d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
+            {
+                if (!int.TryParse(d.Id.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile) || profile >= Services.Columns.Count) continue;
+                title = "Columns: " + Services.Columns.NameOf(profile);
+            }
+            var availability = GetAvailability(d.Id);
+            entries.Add(new CommandSearch.Entry(d.Id, title, d.Category, Services.Keymap.GetGestureText(d.Id),
+                MainMenuModel.PathOf(d.Id), d.Keywords, availability.Enabled, availability.Reason));
+        }
+        return entries;
+    }
+
+    /// <summary>Remembers a command run from the search, the palette, or a menu: the search lists it first when empty.</summary>
+    public void RememberCommand(string id) => AppServices.RememberText(Services.History.RecentCommands, id, 20);
+
+    /// <summary>Runs a command chosen in the search; one that applies here is remembered as recently used.</summary>
+    internal void RunFromSearch(string id)
+    {
+        if (GetAvailability(id).Enabled) RememberCommand(id);
+        Execute(id);
     }
 
     private async Task ShowKeyboardReferenceAsync()

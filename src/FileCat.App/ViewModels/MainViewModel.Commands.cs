@@ -428,7 +428,8 @@ public sealed partial class MainViewModel
 
             // ---- Application ---------------------------------------------------------------------------
             case CommandIds.Palette:
-                await ShowPaletteAsync();
+                // The search box in the menu bar; the same search in a dialog where there is no box.
+                if (!View.FocusCommandSearch()) await ShowPaletteAsync();
                 break;
             case CommandIds.Help:
                 await ShowKeyboardReferenceAsync();
@@ -760,7 +761,7 @@ public sealed partial class MainViewModel
         var buttons = new List<DialogButton> { new("Cancel", "cancel", IsCancel: true) };
         if (pinned > 0) buttons.Add(new DialogButton("Clear, including pinned", "all", IsDanger: true));
         buttons.Add(new DialogButton("Clear history", "clear", IsDefault: true));
-        var text = "Forget recent folders and files, command lines, copy destinations, masks, and search terms? Bookmarks stay."
+        var text = "Forget recent folders and files, command lines, copy destinations, masks, search terms, and recently used commands? Bookmarks stay."
             + (pinned > 0 ? $"\n\n{Formatters.Plural(pinned, "pinned entry stays", "pinned entries stay")} unless you clear them too." : string.Empty);
         var r = await Dialogs.ShowCustomAsync("Clear history", new Avalonia.Controls.TextBlock { Text = text, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 560 }, buttons);
         if (r is not ("clear" or "all")) return;

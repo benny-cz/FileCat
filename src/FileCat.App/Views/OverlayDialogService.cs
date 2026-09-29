@@ -507,7 +507,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         void Apply()
         {
             var q = (filter.Text ?? string.Empty).Trim();
-            if (q.Length == 0) current = all.Where(r => !r.Deleted).ToList();
+            if (o.Search is { } search) current = search(q).Select(i => all[i]).Where(r => !r.Deleted).ToList();
+            else if (q.Length == 0) current = all.Where(r => !r.Deleted).ToList();
             else
             {
                 var terms = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
