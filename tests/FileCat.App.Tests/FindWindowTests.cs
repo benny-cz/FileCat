@@ -1,6 +1,10 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Search;
@@ -172,6 +176,82 @@ public sealed class FindWindowTests
             var panel = vm.Workspace.ActiveTab!;
             await WaitFor(() => panel.Location?.Path == skipped, ct);
             Assert.Equal(skipped, panel.Location?.Path);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Advanced_criteria_show_in_one_line_and_narrow_the_search()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            File.WriteAllBytes(Path.Combine(root, "files", "big.bin"), new byte[3000]);
+            Directory.CreateDirectory(Path.Combine(root, "files", "sub"));
+            var find = await OpenFindAsync(vm, ct);
+            Assert.Equal("none", find.AdvancedSummary);
+            find.OpenAdvanced();
+            await WaitFor(() => find.Dialogs.IsOpen, ct);
+            Assert.Empty(AccessibilityTests.Unnamed(find));
+            var boxes = find.GetVisualDescendants().OfType<CheckBox>().ToList();
+            boxes.Single(b => b.Content as string == "Folder").IsChecked = false; // files only
+            find.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b) == "Size at least").Text = "2";
+            find.GetVisualDescendants().OfType<ComboBox>().Single(b => AutomationProperties.GetName(b) == "Unit of the size at least").SelectedIndex = 1; // KB
+            find.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "OK").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => !find.Dialogs.IsOpen, ct);
+            Assert.Equal("files only · at least 2 KB", find.AdvancedSummary);
+            await SearchAsync(find, "*", ct);
+            Assert.Equal(["big.bin"], find.Found);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_saved_search_can_load_whenever_Find_opens_and_the_ignore_list_is_edited_in_place()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var find = await OpenFindAsync(vm, ct);
+            find.NamesBox.Text = "*.log";
+            find.OpenSaveSearch();
+            await WaitFor(() => find.Dialogs.IsOpen, ct);
+            var name = find.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b)?.StartsWith("Name for these criteria", StringComparison.Ordinal) == true);
+            await WaitFor(() => name.IsFocused, ct);
+            name.Text = "Logs";
+            find.GetVisualDescendants().OfType<CheckBox>().Single(b => b.Content as string == "Load it whenever Find opens").IsChecked = true;
+            find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => !find.Dialogs.IsOpen, ct);
+            var saved = Assert.Single(services.Settings.SavedSearches);
+            Assert.Equal("Logs", saved.Name);
+            Assert.True(saved.LoadOnOpen);
+            Assert.Equal("*.log", saved.Criteria.Names);
+
+            find.OpenIgnoredFolders();
+            await WaitFor(() => find.Dialogs.IsOpen, ct);
+            var add = find.GetVisualDescendants().OfType<TextBox>().Single(b => AutomationProperties.GetName(b) == "Folder to skip");
+            add.Text = "node_modules";
+            add.Focus();
+            find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null); // adds; the dialog stays
+            Assert.True(find.Dialogs.IsOpen);
+            find.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "OK").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => !find.Dialogs.IsOpen, ct);
+            Assert.Equal(["node_modules"], services.Settings.SearchIgnoredFolders.Select(f => f.Folder));
+
+            find.Close();
+            await WaitFor(() => FindWindow.OpenWindows.Count == 0, ct);
+            var again = await OpenFindAsync(vm, ct);
+            Assert.Equal("*.log", again.NamesBox.Text);
         }
         finally
         {

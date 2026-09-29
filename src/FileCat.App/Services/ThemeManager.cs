@@ -294,6 +294,19 @@ public static class ThemeManager
         d["CheckBoxCheckGlyphForegroundChecked"] = onSelection;
         d["CheckBoxCheckGlyphForegroundCheckedPointerOver"] = onSelection;
         d["CheckBoxCheckGlyphForegroundCheckedPressed"] = onSelection;
+        // Three-state boxes (Find's attributes: "either") fill with the theme's color too.
+        foreach (var state in new[] { "Indeterminate", "IndeterminatePointerOver", "IndeterminatePressed" })
+        {
+            d["CheckBoxCheckBackgroundFill" + state] = selection;
+            d["CheckBoxCheckBackgroundStroke" + state] = selection;
+            d["CheckBoxCheckGlyphForeground" + state] = onSelection;
+        }
+        foreach (var state in new[] { "", "PointerOver", "Pressed" })
+        {
+            d["RadioButtonOuterEllipseCheckedStroke" + state] = selection;
+            d["RadioButtonOuterEllipseCheckedFill" + state] = selection;
+            d["RadioButtonCheckGlyphFill" + state] = onSelection;
+        }
         d["FcThemeName"] = p.Name;
         d["FcFontFamily"] = p.FontFamily is { } font ? new FontFamily(font) : FontFamily.Default;
         return d;

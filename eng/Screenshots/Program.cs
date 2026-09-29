@@ -135,10 +135,21 @@ foreach (var theme in themes)
         }
         Pump(TimeSpan.FromSeconds(1));
     }
-    // --press Enter,Tab: keys after the commands (confirm a dialog, then see what follows).
+    // --press Enter,Tab,Ctrl+D: keys after the commands (confirm a dialog, then see what follows).
     foreach (var key in presses)
     {
-        keys.KeyPressQwerty(Enum.Parse<Avalonia.Input.PhysicalKey>(key, ignoreCase: true), Avalonia.Input.RawInputModifiers.None);
+        // "Ctrl+D", "Shift+F8": modifiers before the key.
+        var parts = key.Split('+');
+        var modifiers = Avalonia.Input.RawInputModifiers.None;
+        foreach (var m in parts[..^1])
+            modifiers |= m.ToLowerInvariant() switch
+            {
+                "ctrl" => Avalonia.Input.RawInputModifiers.Control,
+                "shift" => Avalonia.Input.RawInputModifiers.Shift,
+                "alt" => Avalonia.Input.RawInputModifiers.Alt,
+                _ => Avalonia.Input.RawInputModifiers.None,
+            };
+        keys.KeyPressQwerty(Enum.Parse<Avalonia.Input.PhysicalKey>(parts[^1], ignoreCase: true), modifiers);
         Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
     }
     for (int frame = 0; frame < frames; frame++)

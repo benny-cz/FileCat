@@ -79,6 +79,10 @@ public sealed class FindWindow : Window, IViewActions
     private readonly Button _stop = new() { Content = "Stop", IsEnabled = false };
     private readonly Button _skip = new() { Content = "Skip current folder", IsEnabled = false };
     private readonly Button _logButton = new() { Content = "Log", IsEnabled = false };
+    private readonly TextBlock _advancedSummary = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _advancedButton = new() { Content = "Advanced…" };
+    private readonly Button _advancedReset = new() { Content = "Reset" };
+    private AdvancedSearchCriteria _advanced = new();
     private readonly TextBlock _status = new() { Classes = { "small", "muted" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _error = new() { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _message = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
@@ -175,6 +179,7 @@ public sealed class FindWindow : Window, IViewActions
         root_.Children.Add(dock);
         root_.Children.Add(_overlay);
         Content = root_;
+        if (_services.Settings.SavedSearches.FirstOrDefault(s => s.LoadOnOpen) is { } preset) Apply(preset.Criteria);
 
         _find.Click += (_, _) => StartSearch(RefineMode.Replace);
         _stop.Click += (_, _) => Stop();
@@ -250,6 +255,12 @@ public sealed class FindWindow : Window, IViewActions
         ToolTip.SetTip(_wholeWords, "No letter, digit, or underscore right before or after the text");
         if (_within is not null) _subfolders.IsEnabled = false;
         Row(string.Empty, options);
+        ToolTip.SetTip(_advancedButton, "Attributes, size, and modification or creation times (Ctrl+D)");
+        ToolTip.SetTip(_advancedReset, "Clears the advanced criteria");
+        Row("Advanced:", _advancedSummary, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _advancedButton, _advancedReset } });
+        _advancedButton.Click += (_, _) => _ = EditAdvancedAsync();
+        _advancedReset.Click += (_, _) => SetAdvanced(new AdvancedSearchCriteria());
+        SetAdvanced(_advanced);
         var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _find, _stop, _skip } };
         ToolTip.SetTip(_find, "Enter · Ctrl+I keeps only items found again · Ctrl+S removes them · Ctrl+W adds the new finds");
@@ -364,7 +375,15 @@ public sealed class FindWindow : Window, IViewActions
             logOnErrors.IsChecked = _services.Settings.SearchLogOnErrors;
             _services.SaveSettings();
         };
-        menu.Items.Add(Submenu("_Options", [logOnErrors]));
+        menu.Items.Add(Submenu("_Options", [
+            ActionItem("Advanced criteria…", "Ctrl+D", () => _ = EditAdvancedAsync()),
+            ActionItem("Ignored folders…", null, () => _ = EditIgnoredFoldersAsync()),
+            new Separator(),
+            ActionItem("Save search…", null, () => _ = SaveSearchAsync()),
+            ActionItem("Saved searches…", null, () => _ = LoadSearchAsync()),
+            new Separator(),
+            logOnErrors,
+        ]));
         return menu;
     }
 
@@ -446,7 +465,101 @@ public sealed class FindWindow : Window, IViewActions
         WholeWords = _wholeWords.IsChecked == true,
         Regex = _regex.IsChecked == true,
         Hex = _hex.IsChecked == true,
+        Advanced = _advanced.Clone(),
     };
+
+    private void SetAdvanced(AdvancedSearchCriteria advanced)
+    {
+        _advanced = advanced;
+        string summary = advanced.Summary();
+        _advancedSummary.Text = summary.Length == 0 ? "none" : summary;
+        _advancedSummary.Classes.Set("muted", summary.Length == 0);
+        _advancedReset.IsEnabled = summary.Length > 0;
+    }
+
+    private async Task EditAdvancedAsync()
+    {
+        if (_dialogs.IsOpen) return;
+        if (await FindDialogs.AdvancedAsync(_dialogs, _advanced) is { } edited) SetAdvanced(edited);
+    }
+
+    private async Task EditIgnoredFoldersAsync()
+    {
+        if (_dialogs.IsOpen) return;
+        if (await FindDialogs.IgnoredFoldersAsync(_dialogs, _services.Settings.SearchIgnoredFolders) is not { } edited) return;
+        _services.Settings.SearchIgnoredFolders = edited;
+        _services.SaveSettings();
+        int on = edited.Count(e => e.Enabled);
+        ShowNotification(on == 0 ? "Find searches every folder." : $"Find skips {Formatters.Plural(on, "folder", "folders")} from the next search on.");
+    }
+
+    /// <summary>Puts saved criteria in the window (where to search only when they say, and not within results).</summary>
+    internal void Apply(SearchCriteria c)
+    {
+        _names.Text = string.IsNullOrWhiteSpace(c.Names) ? "*" : c.Names;
+        if (_within is null && c.LookIn.Length > 0) _lookIn.Text = c.LookIn;
+        _subfolders.IsChecked = c.Subfolders;
+        _hidden.IsChecked = c.IncludeHidden;
+        _text.Text = c.Text;
+        _matchCase.IsChecked = c.MatchCase;
+        _wholeWords.IsChecked = c.WholeWords;
+        _regex.IsChecked = c.Regex;
+        _hex.IsChecked = c.Hex;
+        SetAdvanced(c.Advanced.Clone());
+    }
+
+    private async Task SaveSearchAsync()
+    {
+        if (_dialogs.IsOpen) return;
+        var saved = _services.Settings.SavedSearches;
+        var r = await _dialogs.PromptAsync(new PromptOptions("Save search", "Name for these criteria (a saved search with the same name is replaced):")
+        {
+            Text = saved.FirstOrDefault(s => s.LoadOnOpen)?.Name ?? string.Empty,
+            Validate = text => string.IsNullOrWhiteSpace(text) ? "Enter a name." : null,
+            CheckboxText = "Load it whenever Find opens",
+            ConfirmText = "Save",
+        });
+        if (r is null) return;
+        string name = r.Text.Trim();
+        saved.RemoveAll(s => string.Equals(s.Name, name, StringComparison.CurrentCultureIgnoreCase));
+        if (r.Checked) foreach (var s in saved) s.LoadOnOpen = false;
+        saved.Add(new SavedSearch { Name = name, Criteria = Criteria, LoadOnOpen = r.Checked });
+        saved.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
+        _services.SaveSettings();
+        ShowNotification($"Saved the search \"{name}\"" + (r.Checked ? "; it loads whenever Find opens." : "."));
+    }
+
+    /// <summary>Saved searches: Enter loads one, Ctrl+Delete deletes, Insert marks the one loaded when Find opens.</summary>
+    private async Task LoadSearchAsync()
+    {
+        if (_dialogs.IsOpen) return;
+        var saved = _services.Settings.SavedSearches;
+        if (saved.Count == 0)
+        {
+            ShowNotification("No saved searches yet: Options → Save search keeps the criteria shown.");
+            return;
+        }
+        var items = saved.Select(s => new ChoiceItem(s.Name, FindDialogs.Describe(s.Criteria)) { Pinned = s.LoadOnOpen }).ToList();
+        var r = await _dialogs.ChooseAsync(new ChoiceOptions("Saved searches", items)
+        {
+            AllowDelete = true,
+            AllowPin = true,
+            Hint = "Enter loads · Ctrl+Del deletes · Insert marks the search loaded whenever Find opens · Esc closes",
+        });
+        var list = saved.ToList();
+        bool changed = false;
+        foreach (int index in r.PinToggled)
+        {
+            bool on = !list[index].LoadOnOpen;
+            foreach (var s in list) s.LoadOnOpen = false;
+            list[index].LoadOnOpen = on;
+            changed = true;
+        }
+        if (r.Index >= 0) Apply(list[r.Index].Criteria);
+        foreach (int index in r.Deleted.OrderByDescending(i => i)) saved.Remove(list[index]);
+        if (changed || r.Deleted.Count > 0) _services.SaveSettings();
+        if (r.Index >= 0) ShowNotification($"Loaded \"{list[r.Index].Name}\". Enter searches.");
+    }
 
     /// <summary>Starts a search; a refining one combines its matches with the items found so far when it finishes.</summary>
     internal void StartSearch(RefineMode mode)
@@ -740,6 +853,12 @@ public sealed class FindWindow : Window, IViewActions
                 Key.W => RefineMode.Append,
                 _ => (RefineMode?)null,
             };
+            if (e.Key == Key.D)
+            {
+                e.Handled = true;
+                _ = EditAdvancedAsync();
+                return;
+            }
             if (refine is { } mode)
             {
                 e.Handled = true;
@@ -843,6 +962,16 @@ public sealed class FindWindow : Window, IViewActions
     internal string Error => _error.IsVisible ? _error.Text ?? string.Empty : string.Empty;
 
     internal void OpenLog() => _ = ShowLogAsync();
+
+    internal void OpenAdvanced() => _ = EditAdvancedAsync();
+
+    internal void OpenIgnoredFolders() => _ = EditIgnoredFoldersAsync();
+
+    internal void OpenSaveSearch() => _ = SaveSearchAsync();
+
+    internal void OpenSavedSearches() => _ = LoadSearchAsync();
+
+    internal string AdvancedSummary => _advancedSummary.Text ?? string.Empty;
 
     internal void SetContent(string text, bool hex)
     {

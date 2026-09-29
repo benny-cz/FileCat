@@ -267,6 +267,47 @@ public sealed class FindCriteriaTests : IDisposable
     }
 
     [Fact]
+    public void Saved_searches_and_the_ignore_list_survive_the_settings_file()
+    {
+        var settings = new Core.State.AppSettings();
+        settings.SavedSearches.Add(new SavedSearch
+        {
+            Name = "Big logs",
+            LoadOnOpen = true,
+            Criteria = new SearchCriteria
+            {
+                Names = "*.log",
+                Text = "4D 5A",
+                Hex = true,
+                Advanced = new AdvancedSearchCriteria
+                {
+                    AttributesSet = FileAttributes.Archive,
+                    AttributesClear = FileAttributes.Directory | FileAttributes.Hidden,
+                    SizeAtLeast = 1.5,
+                    SizeAtLeastUnit = SizeUnit.MB,
+                    Modified = new TimeCriterion { Mode = TimeFilterMode.Within, Amount = 3, Unit = TimeUnit.Weeks },
+                    Created = new TimeCriterion { Mode = TimeFilterMode.Between, From = new DateTime(2026, 1, 2, 3, 4, 0, DateTimeKind.Local) },
+                },
+            },
+        });
+        settings.SearchIgnoredFolders.Add(new IgnoredFolderEntry { Folder = "node_modules", Enabled = false });
+        var json = System.Text.Json.JsonSerializer.Serialize(settings, Core.State.StateJsonContext.Default.AppSettings);
+        var back = System.Text.Json.JsonSerializer.Deserialize(json, Core.State.StateJsonContext.Default.AppSettings)!;
+        var saved = Assert.Single(back.SavedSearches);
+        Assert.True(saved.LoadOnOpen);
+        Assert.Equal("*.log", saved.Criteria.Names);
+        Assert.True(saved.Criteria.Hex);
+        Assert.Equal(FileAttributes.Archive, saved.Criteria.Advanced.AttributesSet);
+        Assert.Equal(FileAttributes.Directory | FileAttributes.Hidden, saved.Criteria.Advanced.AttributesClear);
+        Assert.Equal(1.5, saved.Criteria.Advanced.SizeAtLeast);
+        Assert.Equal(SizeUnit.MB, saved.Criteria.Advanced.SizeAtLeastUnit);
+        Assert.Equal(TimeUnit.Weeks, saved.Criteria.Advanced.Modified.Unit);
+        Assert.Equal(new DateTime(2026, 1, 2, 3, 4, 0), saved.Criteria.Advanced.Created.From);
+        Assert.False(Assert.Single(back.SearchIgnoredFolders).Enabled);
+        Assert.Equal(saved.Criteria.Advanced.Summary(), settings.SavedSearches[0].Criteria.Advanced.Summary());
+    }
+
+    [Fact]
     public void Text_in_hex_mode_and_whole_words_describe_themselves()
     {
         Assert.True(HexPattern.TryParse("CAFE", out var bytes, out _));
