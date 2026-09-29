@@ -11,4 +11,7 @@
     <ProjectReference Include="..\FileCat.Recovery\FileCat.Recovery.csproj" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" />
+  </ItemGroup>
 </Project>

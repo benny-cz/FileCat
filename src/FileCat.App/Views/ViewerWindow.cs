@@ -39,6 +39,13 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
     private readonly ToggleButton _modeInfo = new() { Content = "Info" };
     private readonly ToggleButton _modePicture = new() { Content = "Picture", IsVisible = false };
+    /// <summary>A web page, drawn by the system's browser engine with scripts and the web off (D-51).</summary>
+    private readonly ToggleButton _modePage = new() { Content = "Page", IsVisible = false };
+    private readonly PageView _pageView;
+    private HtmlPage? _htmlPage;
+    private bool _isPage;
+    /// <summary>Why pages cannot be drawn here, once that is known.</summary>
+    private string? _pageUnavailable;
     private readonly ToggleButton _actualSize = new() { Content = "Actual size", IsVisible = false };
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
@@ -81,6 +88,7 @@ public sealed class ViewerWindow : Window
         _services = services;
         _displayName = displayName;
         _source = source;
+        _pageView = new PageView(Path.Combine(services.Paths.CacheDirectory, "webview")) { IsVisible = false };
         s_open.Add(this);
         Closed += (_, _) => s_open.Remove(this);
         _reader = new PagedReader(source);
@@ -101,7 +109,10 @@ public sealed class ViewerWindow : Window
         _hex.SetReader(_reader);
 
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
+        toolbar.Children.Add(_modePage);
         toolbar.Children.Add(_modePicture);
+        ToolTip.SetTip(_modePage, "The page as a browser draws it, with its scripts off and nothing fetched from the web");
+        Avalonia.Automation.AutomationProperties.SetName(_pageView, "Web page");
         toolbar.Children.Add(_modeText);
         toolbar.Children.Add(_modeHex);
         toolbar.Children.Add(_modeInfo);
@@ -142,7 +153,7 @@ public sealed class ViewerWindow : Window
         }
         var statusBar = new Border { Classes = { "status" }, Child = new DockPanel { Children = { _encodingInfo, _status } } };
         DockPanel.SetDock(_encodingInfo, Dock.Right);
-        var content = new Panel { Children = { _text, _hex, _info, _picture } };
+        var content = new Panel { Children = { _text, _hex, _info, _picture, _pageView } };
         var root = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(statusBar, Dock.Bottom);
@@ -156,6 +167,17 @@ public sealed class ViewerWindow : Window
         _modeHex.Click += (_, _) => SetMode(true);
         _modeInfo.Click += async (_, _) => await ShowInfoAsync();
         _modePicture.Click += (_, _) => ShowPicture();
+        _modePage.Click += (_, _) => ShowPage();
+        _pageView.Changed += () => { if (_isPage) UpdateStatus(); };
+        _pageView.Failed += why =>
+        {
+            // Without an engine the page's source is what can be shown.
+            _pageUnavailable = why;
+            if (!_isPage) return;
+            SetMode(false);
+            _status.Text = why + " Its source is shown instead.";
+        };
+        _pageView.KeyRequested = OnPageKey;
         _actualSize.IsCheckedChanged += (_, _) =>
         {
             _picture.Fit = _actualSize.IsChecked != true;
@@ -235,7 +257,10 @@ public sealed class ViewerWindow : Window
         _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
         // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
         _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
-        if (_modePicture.IsVisible && forceHexIfBinary) ShowPicture();
+        _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix);
+        // A web page opens as the page, as a browser shows it (its scripts and the web off); its source is an F4 away.
+        if (_modePage.IsVisible && forceHexIfBinary) ShowPage();
+        else if (_modePicture.IsVisible && forceHexIfBinary) ShowPicture();
         // Programs and libraries open on their structure, as Salamander's viewer opens them in its PE viewer; their bytes
         // are an F4 away.
         else if (IsExecutable(prefix) && forceHexIfBinary) await ShowInfoAsync();
@@ -257,6 +282,7 @@ public sealed class ViewerWindow : Window
     public void ShowPicture()
     {
         if (!_modePicture.IsVisible) return;
+        LeavePage();
         _isPicture = true;
         _isInfo = false;
         _picture.IsVisible = true;
@@ -295,8 +321,67 @@ public sealed class ViewerWindow : Window
         UpdateStatus();
     }
 
+    /// <summary>The page mode: the page drawn by the system's browser engine (a native view over the window's content).</summary>
+    public void ShowPage()
+    {
+        if (!_modePage.IsVisible) return;
+        if (_pageUnavailable is { } why)
+        {
+            SetMode(false);
+            _status.Text = why + " Its source is shown instead.";
+            return;
+        }
+        LeavePicture();
+        _isInfo = false;
+        _isPage = true;
+        _pageView.IsVisible = true;
+        _text.IsVisible = _hex.IsVisible = _info.IsVisible = false;
+        _modePage.IsChecked = true;
+        _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
+        foreach (var part in _textOnly) part.IsVisible = false;
+        if (_htmlPage is null)
+        {
+            _htmlPage = new HtmlPage(_source, _displayName);
+            _pageView.Show(_htmlPage);
+        }
+        _pageView.FocusPage();
+        UpdateStatus();
+    }
+
+    /// <summary>Whether the page mode is shown (tests).</summary>
+    internal bool IsPageShown => _isPage;
+
+    internal string StatusLine => _status.Text ?? "";
+
+    private void LeavePage()
+    {
+        _isPage = false;
+        _pageView.IsVisible = false;
+        _modePage.IsChecked = false;
+    }
+
+    /// <summary>
+    /// Keys pressed while the page has the keyboard (it keeps them from the window): the viewer's own act as elsewhere.
+    /// They are acted on after the page's event returns, as closing the window then is safe.
+    /// </summary>
+    private bool OnPageKey(Key key, KeyModifiers modifiers)
+    {
+        Action? act = (key, modifiers) switch
+        {
+            (Key.Escape or Key.F10, KeyModifiers.None) => Close,
+            (Key.F4, KeyModifiers.None) => () => SetMode(false),
+            (Key.I, KeyModifiers.Control) => () => _ = ShowInfoAsync(),
+            (Key.K, KeyModifiers.Control) => () => _ = ChecksumAsync(),
+            _ => null,
+        };
+        if (act is null) return false;
+        Dispatcher.UIThread.Post(act);
+        return true;
+    }
+
     private void LeavePicture()
     {
+        LeavePage();
         _isPicture = false;
         _picture.IsVisible = false;
         _modePicture.IsChecked = false;
@@ -400,6 +485,15 @@ public sealed class ViewerWindow : Window
         {
             int lines = _infoText.Count(c => c == '\n');
             _status.Text = $"The file's structure: {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
+            return;
+        }
+        if (_isPage)
+        {
+            int blocked = _pageView.BlockedCount;
+            _status.Text = (_pageView.Title is { Length: > 0 } title ? title + " · " : "") +
+                           "Web page: its scripts do not run and nothing is fetched from the web" +
+                           (blocked > 0 ? $" ({blocked.ToString("N0", CultureInfo.CurrentCulture)} {(blocked == 1 ? "request" : "requests")} refused)" : "") +
+                           $" · F4 shows its source · {Formatters.ExactSize(_reader.Length)}";
             return;
         }
         long len = _reader.Length;

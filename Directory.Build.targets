@@ -5,4 +5,12 @@
     replaces it. Nothing from that package is shipped in FileCat.
   -->
   <Target Name="AvaloniaStats" />
+
+  <!-- The HTML page view uses WebView2's Core API only (D-51): the package's WinForms and WPF wrappers, which its build
+       targets reference in every .NET project, are left out. -->
+  <Target Name="DropWebView2Wrappers" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' Or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
+    </ItemGroup>
+  </Target>
 </Project>

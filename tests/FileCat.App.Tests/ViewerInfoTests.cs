@@ -75,4 +75,32 @@ public sealed class ViewerInfoTests
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
     }
+
+    [AvaloniaFact]
+    public async Task A_web_page_opens_as_the_page_and_without_an_engine_as_its_source()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var html = System.Text.Encoding.UTF8.GetBytes("<!doctype html><html><head><title>Hello</title></head><body><h1>Hello</h1></body></html>");
+        var viewer = new ViewerWindow(services, new MemoryContentSource("index.html", html), "index.html", hex: false);
+        viewer.Show();
+        try
+        {
+            // F3 on a page: the page, as a browser draws it.
+            for (int i = 0; i < 250 && !viewer.IsPageShown; i++) await Task.Delay(20, ct);
+            Assert.True(viewer.IsPageShown);
+            Assert.Contains("scripts do not run", viewer.StatusLine);
+            // This test display draws no native views: the viewer says so and shows the page's source.
+            for (int i = 0; i < 400 && viewer.IsPageShown; i++) await Task.Delay(20, ct);
+            Assert.False(viewer.IsPageShown);
+            Assert.Contains("Its source is shown instead", viewer.StatusLine);
+        }
+        finally
+        {
+            viewer.Close();
+            services.Dispose();
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
 }

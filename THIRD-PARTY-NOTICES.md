@@ -15,6 +15,7 @@ SignPath Foundation code signing). Regenerate the inventory with `eng/publish.ps
 | MicroCom.Runtime | 0.11.6 | MIT | COM interop helper used by Avalonia |
 | Tmds.DBus.Protocol | 0.94.1 | MIT | Linux desktop integration (D-Bus) |
 | CommunityToolkit.Mvvm | 8.4.0 | MIT | MVVM source generators |
+| Microsoft.Web.WebView2 (Core API and loader) | 1.0.3179.45 | BSD-3-Clause | The viewer's web page view on Windows (D-51). The browser runtime itself is part of Windows 11 and is not shipped |
 | SSH.NET | 2026.0.0 | MIT | SFTP and SSH (ADR-17) |
 | BouncyCastle.Cryptography | 2.7.0 | MIT | Cryptography used by SSH.NET |
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | Logging interfaces used by SSH.NET |
