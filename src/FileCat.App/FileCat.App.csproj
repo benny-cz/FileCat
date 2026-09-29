@@ -8,6 +8,8 @@
     <ApplicationIcon>Assets/filecat.ico</ApplicationIcon>
     <Description>FileCat — keyboard-first dual-panel file manager</Description>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- WebKitGTK's entry points and callbacks are function pointers (D-51). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>

@@ -82,7 +82,7 @@ Installed-Size: $SIZE_KB
 Maintainer: FileCat contributors <filecat@users.noreply.github.com>
 Homepage: https://github.com/benny-cz/FileCat
 Depends: libc6, libgcc-s1, libstdc++6, libssl3 | libssl1.1, libicu76 | libicu74 | libicu72 | libicu71 | libicu70 | libicu67, libfontconfig1, libx11-6, libice6, libsm6
-Recommends: xdg-utils, libsecret-1-0
+Recommends: xdg-utils, libsecret-1-0, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
 Description: Keyboard-first two-panel file manager
  FileCat is a two-panel file manager in the tradition of Altap Salamander, Total
  Commander, and FAR Manager: keyboard-first work with folders, archives, SFTP and

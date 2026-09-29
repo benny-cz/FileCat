@@ -145,6 +145,15 @@ internal static class PageEngines
             }
             return new WindowsPageEngine(parent.Handle, dataFolder);
         }
+        if (OperatingSystem.IsLinux())
+        {
+            if (parent.HandleDescriptor != "XID")
+            {
+                unavailable = "Web pages are drawn in X11 windows, and this display is not one.";
+                return null;
+            }
+            return LinuxPageEngine.Create(offscreen: false, out unavailable);
+        }
         unavailable = "Web pages are not drawn on this system yet.";
         return null;
     }

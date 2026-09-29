@@ -127,6 +127,11 @@ jobs:
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build
       # P9: the UI runs headless on Linux and macOS too.
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libwebkit2gtk-4.1-0 xvfb
+          FILECAT_REQUIRE_WEBKIT=1 xvfb-run -a dotnet test tests/FileCat.App.Tests -c Release --no-build --filter "FullyQualifiedName~LinuxPageEngineTests" --blame-hang-timeout 3m --blame-hang-dump-type mini
       - uses: actions/upload-artifact@v7
         if: always()
         with:
