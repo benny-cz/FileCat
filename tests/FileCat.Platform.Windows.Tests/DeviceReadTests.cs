@@ -191,6 +191,21 @@ public sealed class DeviceReadTests : IDisposable
         Assert.Equal(87, BitConverter.ToInt32(refused.Written, 8));
     }
 
+    [Fact]
+    public void Physical_disks_are_listed_without_rights_with_their_drives()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Physical disks are listed by FileCat for Windows.");
+        var disks = DeviceTopology.Disks();
+        foreach (var disk in disks) TestContext.Current.TestOutputHelper?.WriteLine($"{disk.Device}: {disk.Model} · {disk.Bus} · {disk.Length:N0} bytes · {string.Join(", ", disk.Drives)}{(disk.Removable ? " · removable" : "")}");
+        Assert.NotEmpty(disks);
+        Assert.All(disks, d => Assert.True(d.Length > 0));
+        // The drive Windows runs from lies on one of them, and that disk is the one its volume says.
+        string system = Path.GetPathRoot(Environment.SystemDirectory)!.TrimEnd('\\');
+        var holder = Assert.Single(disks, d => d.Drives.Contains(system, StringComparer.OrdinalIgnoreCase));
+        Assert.Contains(holder.Number, DeviceTopology.DisksOf(DeviceTopology.VolumeDevice(system + "\\")!)!);
+        Assert.True(DeviceTopology.SharesDisk(holder.Device, Environment.SystemDirectory));
+    }
+
     /// <summary>A stream that plays given request bytes and records what the server writes.</summary>
     private sealed class MemoryPipe(byte[] requests) : Stream
     {

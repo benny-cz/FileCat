@@ -8,7 +8,8 @@ namespace FileCat.Recovery;
 /// data runs until it is reused, and small files keep their content inside the record itself. Clusters are judged
 /// against the volume's $Bitmap. Parents are matched by record number and sequence number, so a folder whose record was
 /// reused never adopts the wrong children; such items go to "Orphans". Compressed and EFS-encrypted content is listed but
-/// not recovered.
+/// not recovered. A lost file system (<see cref="VolumeSlot.WholeFileSystem"/>) lists its existing files too, with the
+/// clusters they own.
 /// </summary>
 internal sealed class NtfsScanner
 {
@@ -25,6 +26,7 @@ internal sealed class NtfsScanner
     private List<(long Vcn, long Lcn, long Length)> _mftRuns = [];
     private byte[] _bitmap = [];
     private readonly RecoveryVolume _result;
+    private readonly bool _whole;
 
     private sealed record Parsed(long Number, ushort Sequence, bool InUse, bool IsDirectory, string? Name, long ParentRecord, ushort ParentSequence,
         DateTime? Modified, DateTime? Created, Data? Stream, int NamedStreams);
@@ -36,6 +38,7 @@ internal sealed class NtfsScanner
     private NtfsScanner(IBlockSource volume, byte[] boot, VolumeSlot slot)
     {
         _volume = volume;
+        _whole = slot.WholeFileSystem;
         _sectorSize = BinaryPrimitives.ReadUInt16LittleEndian(boot.AsSpan(11));
         int perCluster = boot[13];
         if (_sectorSize is not (512 or 1024 or 2048 or 4096)) throw new InvalidDataException("the NTFS boot sector has an impossible sector size.");
@@ -76,7 +79,7 @@ internal sealed class NtfsScanner
         if (Record(3) is { } volumeRecord) _result.Label = VolumeName(volumeRecord);
 
         var directories = new Dictionary<long, Parsed>();
-        var deleted = new List<Parsed>();
+        var listed = new List<Parsed>(); // deleted items; for a lost file system, existing files too
         for (long n = 0; n < records; n++)
         {
             if ((n & 1023) == 0) ct.ThrowIfCancellationRequested();
@@ -86,7 +89,7 @@ internal sealed class NtfsScanner
             var parsed = Parse(n, raw, followLists: true);
             if (parsed is null || parsed.Name is null && n != RootRecord) continue;
             if (parsed.IsDirectory) directories[n] = parsed;
-            if (!parsed.InUse) deleted.Add(parsed);
+            if (!parsed.InUse || _whole && !parsed.IsDirectory) listed.Add(parsed);
         }
 
         var nodes = new Dictionary<long, RecoveryItem> { [RootRecord] = _result.Root };
@@ -112,7 +115,7 @@ internal sealed class NtfsScanner
             return node;
         }
 
-        foreach (var item in deleted)
+        foreach (var item in listed)
         {
             ct.ThrowIfCancellationRequested();
             if (item.IsDirectory)
@@ -129,7 +132,7 @@ internal sealed class NtfsScanner
             var file = new RecoveryItem
             {
                 Name = item.Name!,
-                IsDeleted = true,
+                IsDeleted = !item.InUse,
                 Size = item.Stream?.Size ?? 0,
                 ModifiedUtc = item.Modified,
                 CreatedUtc = item.Created,
@@ -170,7 +173,7 @@ internal sealed class NtfsScanner
         }
         if (stream.Compressed)
         {
-            DescribeCompressed(file, stream);
+            DescribeCompressed(file, stream, item.InUse);
             return;
         }
         if (stream.Resident is not null)
@@ -193,7 +196,7 @@ internal sealed class NtfsScanner
                 long offsetInFile = stream.Size - remaining;
                 var state = lcn < 0 || offsetInFile >= stream.InitializedSize ? ExtentState.Zero // sparse, or never written
                     : lcn + c >= _totalClusters ? ExtentState.Unreadable
-                    : Allocated(lcn + c) ? ExtentState.InUse : ExtentState.Free;
+                    : Allocated(lcn + c) ? item.InUse ? ExtentState.Owned : ExtentState.InUse : ExtentState.Free;
                 Add(extents, lcn < 0 ? 0 : (lcn + c) * _clusterSize, bytes, state, ref remaining);
             }
             vcn = runVcn + length;
@@ -210,7 +213,7 @@ internal sealed class NtfsScanner
     /// compressed); a unit with any cluster in use by other data now is lost as a whole, since compressed data cannot be
     /// read in part.
     /// </summary>
-    private void DescribeCompressed(RecoveryItem file, Data stream)
+    private void DescribeCompressed(RecoveryItem file, Data stream, bool owned)
     {
         if (stream.UnitClusters == 0 || stream.Resident is not null)
         {
@@ -249,7 +252,7 @@ internal sealed class NtfsScanner
                     long lcn = run.Lcn + (vcn - run.Vcn);
                     pieces.Add((lcn * _clusterSize, take * _clusterSize));
                     real += take;
-                    for (long c = 0; c < take && !lost; c++) lost = lcn + c >= _totalClusters || Allocated(lcn + c);
+                    for (long c = 0; c < take && !lost; c++) lost = lcn + c >= _totalClusters || !owned && Allocated(lcn + c);
                 }
                 vcn += take;
             }
@@ -257,7 +260,7 @@ internal sealed class NtfsScanner
             lost |= !known;
             units.Add(new CompressedUnit(pieces, kind, lost));
             long length = Math.Min(unitBytes, stream.Size - u * unitBytes);
-            var state = lost ? ExtentState.InUse : kind == CompressedUnitKind.Sparse ? ExtentState.Zero : ExtentState.Free;
+            var state = lost ? ExtentState.InUse : kind == CompressedUnitKind.Sparse ? ExtentState.Zero : owned ? ExtentState.Owned : ExtentState.Free;
             if (extents.Count > 0 && extents[^1].State == state) extents[^1] = extents[^1] with { Length = extents[^1].Length + length };
             else extents.Add(new Extent(0, length, state));
         }

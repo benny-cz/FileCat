@@ -58,6 +58,12 @@ public sealed class RecoveryProvider : ResourceProvider
         /// <summary>That scan also searches free space (the user asked; minutes on large drives).</summary>
         public bool SearchFreeSpace { get; set; }
 
+        /// <summary>That scan also searches all space no partition holds for deleted partitions (the user asked).</summary>
+        public bool SearchDisk { get; set; }
+
+        /// <summary>The volumes shown come from a scan that searched the whole disk for deleted partitions.</summary>
+        public bool DiskSearched { get; set; }
+
         public IBlockSource Window(RecoveryVolume v) => new WindowSource(Source, v.Offset, v.Length, $"{Source.Description}, {v.Title}");
 
         public void Dispose() => Source.Dispose();
@@ -175,9 +181,16 @@ public sealed class RecoveryProvider : ResourceProvider
             for (int i = 0; i < session.Volumes.Count; i++)
             {
                 var v = session.Volumes[i];
-                int deleted = Count(v.Root);
+                int count = v.WholeFileSystem ? Files(v.Root) : Count(v.Root);
+                string what = v.WholeFileSystem ? $"{count} file{(count == 1 ? "" : "s")}" : $"{count} deleted item{(count == 1 ? "" : "s")}";
+                string? origin = v.Origin switch
+                {
+                    VolumeOrigin.Search => $"Lost partition at {PartitionSearch.Place(v.Offset)}",
+                    VolumeOrigin.BackupTable => "Listed only in the backup partition table",
+                    _ => v.DamagedStart ? "First sector damaged" : null,
+                };
                 string details = v.FileSystem == "Unknown" ? string.Join(" ", v.Warnings)
-                    : $"{(string.IsNullOrWhiteSpace(v.Label) ? "" : v.Label!.Trim() + " · ")}{RecoveryItem.Bytes(v.Length)} · {deleted} deleted item{(deleted == 1 ? "" : "s")}";
+                    : string.Join(" · ", new[] { origin, string.IsNullOrWhiteSpace(v.Label) ? null : v.Label!.Trim(), RecoveryItem.Bytes(v.Length), what }.Where(s => s is not null));
                 rows.Add(new EntryData(VolumeName(i + 1), EntryKind.Directory)
                 {
                     Tag = new RecoveryVolumeTag(v.FileSystem, details),
@@ -185,13 +198,20 @@ public sealed class RecoveryProvider : ResourceProvider
                 });
             }
             sink.AddBatch(rows.ToArray());
+            if (DescribeDiskSearch(session, location) is { } search)
+                sink.ReportIssue(search.Searched
+                    ? $"The search for deleted partitions read all {RecoveryItem.Bytes(search.Unpartitioned)} of this disk that is in no partition."
+                    : $"{RecoveryItem.Bytes(search.Unpartitioned)} of this disk is in no partition. Recover deleted files (Tools menu) here offers to search it for deleted partitions.");
             return Task.CompletedTask;
         }
         var (volume, folder) = Resolve(session, location);
+        if (location.Path.Length == 0 && Explain(volume) is { } explanation) sink.ReportIssue(explanation);
         foreach (var warning in volume.Warnings) sink.ReportIssue(warning);
         // An empty volume says why rather than looking like a failed listing (its own warnings, if any, explain more).
         if (location.Path.Length == 0 && folder.Children.Count == 0 && volume.Warnings.Count == 0)
-            sink.ReportIssue($"No deleted items were found on this {volume.FileSystem} volume. Deleted files leave traces only until their entries or space are used again.");
+            sink.ReportIssue(volume.WholeFileSystem
+                ? $"No files were found on this {volume.FileSystem} volume."
+                : $"No deleted items were found on this {volume.FileSystem} volume. Deleted files leave traces only until their entries or space are used again.");
         if (location.Path.Length == 0 && volume.OpenListings > 0 && !volume.FreeSpaceSearched)
             sink.ReportIssue($"The lists of contents of {volume.OpenListings} deleted folder{(volume.OpenListings == 1 ? "" : "s")} may go on where FAT no longer points. " +
                              $"Recover deleted files (Tools menu) here offers to search the {RecoveryItem.Bytes(volume.FreeBytes ?? 0)} of free space for the rest.");
@@ -203,7 +223,8 @@ public sealed class RecoveryProvider : ResourceProvider
             batch.Add(new EntryData(item.Name, item.IsDirectory ? EntryKind.Directory : EntryKind.File, item.IsDirectory ? -1 : item.Size, item.ModifiedUtc?.Ticks ?? 0)
             {
                 Created = item.CreatedUtc?.Ticks ?? 0,
-                Tag = new RecoveryEntryTag(item.IsDeleted ? item.State : null, string.Join(" ", item.Evidence), item.Ordinal, item.NameUncertain, item.IsDirectory && item.IsDeleted),
+                Tag = new RecoveryEntryTag(item.IsDeleted || volume.WholeFileSystem && !item.IsDirectory ? item.State : null, string.Join(" ", item.Evidence), item.Ordinal,
+                    item.NameUncertain, item.IsDirectory && item.IsDeleted),
                 Flags = lost ? EntryFlags.Unavailable : EntryFlags.None,
             });
         }
@@ -212,6 +233,20 @@ public sealed class RecoveryProvider : ResourceProvider
     }
 
     private static int Count(RecoveryItem folder) => folder.Children.Sum(c => (c.IsDeleted ? 1 : 0) + (c.IsDirectory ? Count(c) : 0));
+
+    private static int Files(RecoveryItem folder) => folder.Children.Sum(c => c.IsDirectory ? Files(c) : 1);
+
+    /// <summary>Why a volume lists all of its files rather than its deleted ones, and how FileCat came to read it.</summary>
+    private static string? Explain(RecoveryVolume volume) => volume.Origin switch
+    {
+        VolumeOrigin.Search => $"This partition is in no partition table: it was deleted, or the table was lost. FileCat found it because {volume.Found}. " +
+                               "All of its files are listed, not only deleted ones; each can be recovered until something is written over that part of the disk.",
+        VolumeOrigin.BackupTable => "Only the copy of the GPT partition table at the end of the disk lists this partition: the table at its start is damaged or was erased. " +
+                                    "All of its files are listed, not only deleted ones.",
+        _ when volume.DamagedStart => $"This volume's first sector is damaged, so the operating system may not read it (Windows calls such a volume RAW). FileCat read it because {volume.Found}. " +
+                                      "All of its files are listed, not only deleted ones.",
+        _ => null,
+    };
 
     public override Location? GetChildLocation(Location parent, in EntryData entry)
     {
@@ -313,6 +348,37 @@ public sealed class RecoveryProvider : ResourceProvider
         return volume.WithPath(string.Join('/', segments));
     }
 
+    /// <summary>What searching a disk for deleted partitions involves: the space no partition holds, and whether it was searched.</summary>
+    public sealed record DiskSearch(long Unpartitioned, bool Searched);
+
+    /// <summary>Space in no partition smaller than this is left alone by the hint (partitions are aligned with room before them).</summary>
+    private const long NoticeableGap = 4L * 1024 * 1024;
+
+    /// <summary>
+    /// The disk shown at <paramref name="location"/>, if it can be searched for deleted partitions: a disk image or a whole
+    /// disk (not a volume) with noticeable space in no partition, already scanned. Null otherwise.
+    /// </summary>
+    public DiskSearch? DescribeDiskSearch(Location location) =>
+        location.Scheme == Schemes.Recovery && _sessions.TryGetValue(Key(location), out var session) ? DescribeDiskSearch(session, location) : null;
+
+    private static DiskSearch? DescribeDiskSearch(Session session, Location location)
+    {
+        if (IsDevice(location) && SourcePath(location).StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase)) return null;
+        long free = PartitionSearch.Gaps(session.Source.Length, session.Volumes.Select(v => (v.Offset, v.Length)))
+            .Where(g => g.Length >= NoticeableGap).Sum(g => g.Length);
+        return free > 0 || session.DiskSearched ? new DiskSearch(free, session.DiskSearched) : null;
+    }
+
+    /// <summary>The next listing of the location's source scans it again and searches all space in no partition for deleted partitions.</summary>
+    public void SearchDisk(Location location)
+    {
+        if (location.Scheme == Schemes.Recovery && _sessions.TryGetValue(Key(location), out var session))
+        {
+            session.SearchDisk = true;
+            session.Stale = true;
+        }
+    }
+
     /// <summary>The next listing of the location's source scans it again and searches its FAT volumes' free space too.</summary>
     public void SearchFreeSpace(Location location)
     {
@@ -341,14 +407,15 @@ public sealed class RecoveryProvider : ResourceProvider
             {
                 if (cached.Stale)
                 {
-                    bool searchFreeSpace = cached.SearchFreeSpace;
-                    cached.SearchFreeSpace = false;
+                    bool searchFreeSpace = cached.SearchFreeSpace, searchDisk = cached.SearchDisk;
+                    cached.SearchFreeSpace = cached.SearchDisk = false;
                     try
                     {
-                        cached.Volumes = Scan(cached.Source, device, ct, searchFreeSpace, sink);
+                        cached.Volumes = Scan(cached.Source, device, ct, searchFreeSpace, sink, searchDisk);
+                        cached.DiskSearched = searchDisk;
                         cached.Stale = false;
                     }
-                    catch (OperationCanceledException) when (searchFreeSpace)
+                    catch (OperationCanceledException) when (searchFreeSpace || searchDisk)
                     {
                         cached.Stale = false; // stopped: what the quick scan found stays
                         throw;
@@ -384,13 +451,16 @@ public sealed class RecoveryProvider : ResourceProvider
         }
     }
 
-    private static IReadOnlyList<RecoveryVolume> Scan(IBlockSource source, bool device, CancellationToken ct, bool searchFreeSpace = false, IEnumerationSink? sink = null)
+    private static IReadOnlyList<RecoveryVolume> Scan(IBlockSource source, bool device, CancellationToken ct, bool searchFreeSpace = false, IEnumerationSink? sink = null,
+        bool searchDisk = false)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var volumes = RecoveryScanner.Scan(source, ct, new RecoveryScanOptions
         {
             SearchFreeSpace = searchFreeSpace,
             Progress = sink is null ? null : (done, total) => sink.ReportProgress(SearchProgress(done, total, clock.Elapsed)),
+            SearchDisk = searchDisk,
+            DiskProgress = sink is null ? null : (done, total) => sink.ReportProgress(SearchProgress(done, total, clock.Elapsed, "Searching for deleted partitions")),
         });
         if (device)
             foreach (var v in volumes)
@@ -399,9 +469,9 @@ public sealed class RecoveryProvider : ResourceProvider
     }
 
     /// <summary>"Searching free space: 40% (3 of 7.4 GiB), about 3 minutes left".</summary>
-    internal static string SearchProgress(long done, long total, TimeSpan elapsed)
+    internal static string SearchProgress(long done, long total, TimeSpan elapsed, string what = "Searching free space")
     {
-        string text = $"Searching free space: {(total > 0 ? done * 100 / total : 100)}% ({RecoveryItem.Bytes(done)} of {RecoveryItem.Bytes(total)})";
+        string text = $"{what}: {(total > 0 ? done * 100 / total : 100)}% ({RecoveryItem.Bytes(done)} of {RecoveryItem.Bytes(total)})";
         if (done <= 0 || done >= total || elapsed < TimeSpan.FromSeconds(3)) return text;
         double left = elapsed.TotalSeconds * (total - done) / done;
         return text + (left < 90 ? $", about {Math.Max(1, (int)Math.Round(left / 10) * 10)} seconds left" : $", about {(int)Math.Round(left / 60)} minutes left");

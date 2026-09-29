@@ -415,9 +415,85 @@ public static partial class DeviceReadHost
     private static partial bool GetNamedPipeClientProcessId(SafePipeHandle pipe, out uint processId);
 }
 
+/// <summary>
+/// A physical disk as recovery offers it (D-46): its number, size, the name its maker gave it, how it is attached, and
+/// the drives (letters) on it.
+/// </summary>
+public sealed record PhysicalDisk(int Number, long Length, string? Model, string Bus, bool Removable, IReadOnlyList<string> Drives)
+{
+    public string Device => @"\\.\PhysicalDrive" + Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+}
+
 /// <summary>Which physical disks volumes and folders are on, so recovery never writes to the disk it reads (plan §17.2).</summary>
 public static unsafe partial class DeviceTopology
 {
+    /// <summary>
+    /// The physical disks of this computer that hold a medium. Asking needs no rights: each disk is opened for queries
+    /// only, never for reading.
+    /// </summary>
+    public static IReadOnlyList<PhysicalDisk> Disks()
+    {
+        var letters = new Dictionary<int, List<string>>();
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            if (drive.DriveType is not (DriveType.Fixed or DriveType.Removable) || VolumeDevice(drive.Name) is not { } volume || DisksOf(volume) is not { } disks) continue;
+            foreach (int disk in disks)
+            {
+                if (!letters.TryGetValue(disk, out var list)) letters[disk] = list = [];
+                list.Add(drive.Name.TrimEnd('\\'));
+            }
+        }
+        var result = new List<PhysicalDisk>();
+        for (int n = 0; n < 64; n++)
+        {
+            using var handle = CreateFile(@"\\.\PhysicalDrive" + n.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, 3, 0, 3, 0, 0);
+            if (handle.IsInvalid) continue;
+            long length = GeometryLength(handle);
+            if (length <= 0) continue; // no medium (an empty card reader)
+            var (model, bus, removable) = Describe(handle);
+            result.Add(new PhysicalDisk(n, length, model, bus, removable, letters.GetValueOrDefault(n) ?? []));
+        }
+        return result;
+    }
+
+    /// <summary>A disk's size from its geometry (a query any handle may make, unlike the length a reading handle asks for).</summary>
+    private static long GeometryLength(SafeFileHandle disk)
+    {
+        var geometry = stackalloc byte[256];
+        uint returned;
+        if (!DeviceIoControl(disk, 0x000700A0 /* IOCTL_DISK_GET_DRIVE_GEOMETRY_EX */, null, 0, geometry, 256, &returned, 0) || returned < 32) return -1;
+        return BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(geometry + 24, 8)); // DISK_GEOMETRY_EX.DiskSize
+    }
+
+    /// <summary>What a disk says it is (STORAGE_DEVICE_DESCRIPTOR): its maker's names for it, its bus, and whether its medium is removable.</summary>
+    private static (string? Model, string Bus, bool Removable) Describe(SafeFileHandle disk)
+    {
+        var query = stackalloc byte[12]; // STORAGE_PROPERTY_QUERY: StorageDeviceProperty, PropertyStandardQuery
+        new Span<byte>(query, 12).Clear();
+        var output = new byte[1024];
+        uint returned;
+        fixed (byte* o = output)
+            if (!DeviceIoControl(disk, 0x002D1400 /* IOCTL_STORAGE_QUERY_PROPERTY */, query, 12, o, (uint)output.Length, &returned, 0) || returned < 36)
+                return (null, "", false);
+        int size = (int)Math.Min(returned, (uint)output.Length);
+        string? Text(int at)
+        {
+            int offset = BinaryPrimitives.ReadInt32LittleEndian(output.AsSpan(at));
+            if (offset <= 0 || offset >= size) return null;
+            int end = Array.IndexOf(output, (byte)0, offset, size - offset);
+            string text = System.Text.Encoding.ASCII.GetString(output, offset, (end < 0 ? size : end) - offset).Trim();
+            return text.Length > 0 ? string.Join(' ', text.Split(' ', StringSplitOptions.RemoveEmptyEntries)) : null;
+        }
+        string? model = string.Join(' ', new[] { Text(12), Text(16) }.Where(s => s is not null));
+        string bus = BinaryPrimitives.ReadInt32LittleEndian(output.AsSpan(28)) switch
+        {
+            1 => "SCSI", 3 => "ATA", 4 => "FireWire", 7 => "USB", 8 => "RAID", 9 => "iSCSI", 0xA => "SAS", 0xB => "SATA",
+            0xC => "SD card", 0xD => "MMC", 0xE or 0xF => "virtual", 0x10 => "Storage Spaces", 0x11 => "NVMe", 0x13 => "UFS",
+            _ => "",
+        };
+        return (model.Length > 0 ? model : null, bus, output[10] != 0);
+    }
+
     /// <summary>The volume device (\\?\Volume{…}, no trailing backslash) of a drive root such as "E:\"; null when there is none.</summary>
     public static string? VolumeDevice(string root)
     {

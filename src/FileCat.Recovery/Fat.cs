@@ -10,7 +10,8 @@ namespace FileCat.Recovery;
 /// entries in front of the short one; their checksum also restores the short name's lost first letter. On FAT32, Windows
 /// also erases the upper half of the first cluster number: where the item listed before ends, a folder's "." entry, and
 /// the data's own signature then tell which of the places the lower half allows is the item's, or the item says its start
-/// is a guess. A deleted folder's listing goes on where the files written meanwhile end, and is followed there.
+/// is a guess. A deleted folder's listing goes on where the files written meanwhile end, and is followed there. A lost
+/// file system (<see cref="VolumeSlot.WholeFileSystem"/>) lists its existing files too, along their intact chains.
 /// </summary>
 internal sealed class FatScanner
 {
@@ -30,12 +31,14 @@ internal sealed class FatScanner
     private readonly Dictionary<uint, (RecoveryItem Folder, int Depth)> _folders = []; // by first cluster (the root: 0)
     private readonly HashSet<uint> _open = []; // deleted folders whose listing may go on elsewhere
     private readonly RecoveryVolume _result;
+    private readonly bool _whole;
     private string? _label;
     private int _sniffs;
 
     private FatScanner(IBlockSource volume, byte[] boot, VolumeSlot slot)
     {
         _volume = volume;
+        _whole = slot.WholeFileSystem;
         int bytesPerSector = BinaryPrimitives.ReadUInt16LittleEndian(boot.AsSpan(11));
         int sectorsPerCluster = boot[13];
         int reserved = BinaryPrimitives.ReadUInt16LittleEndian(boot.AsSpan(14));
@@ -195,8 +198,9 @@ internal sealed class FatScanner
             {
                 if (!isDirectory)
                 {
-                    // Not listed, but where it lies tells where the next deleted file probably starts.
+                    // Where it lies tells where the next deleted file probably starts; a lost file system lists it too.
                     if (size > 0 && Valid(start)) Placed(start, size, known: true);
+                    if (_whole) Existing(folder, text, size, start, modified, created);
                     continue;
                 }
                 if (!Valid(start) || !_directories.Add(start)) continue;
@@ -401,6 +405,30 @@ internal sealed class FatScanner
         var head = new byte[(int)Math.Clamp(size, 1, 512)];
         int n = _volume is CachedSource cached ? cached.ReadDirect(ClusterOffset(cluster), head) : _volume.Read(ClusterOffset(cluster), head);
         return ContentSignature.Check(name, head.AsSpan(0, Math.Max(0, n)), size);
+    }
+
+    /// <summary>An existing file of a lost file system: its chain in the allocation table is intact, so it is all there.</summary>
+    private void Existing(RecoveryItem folder, string name, uint size, uint start, DateTime? modified, DateTime? created)
+    {
+        var item = new RecoveryItem { Name = name, Size = size, ModifiedUtc = modified, CreatedUtc = created };
+        folder.Children.Add(item);
+        var extents = new List<Extent>();
+        long remaining = size;
+        var seen = new HashSet<uint>();
+        for (uint c = start; remaining > 0 && Valid(c) && seen.Add(c); c = _fat[c])
+        {
+            long length = Math.Min(remaining, _clusterSize);
+            Append(extents, ClusterOffset(c), length, ExtentState.Owned);
+            remaining -= length;
+            if (IsEnd(_fat[c])) break;
+        }
+        if (remaining > 0)
+        {
+            Append(extents, 0, remaining, ExtentState.Unreadable);
+            item.Evidence.Add("Its chain in the allocation table ends before its size: the rest is missing.");
+        }
+        item.Extents = extents;
+        item.Classify(_clusterSize);
     }
 
     /// <summary>A deleted file whose recorded start is all there is to go on.</summary>

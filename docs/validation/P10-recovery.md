@@ -105,6 +105,22 @@ drive through the helper's read protocol and every recovered byte is compared wi
 Windows' FAT and exFAT allocators did not fill the deleted gap here, so the "fragmented" file was stored in one piece;
 FAT's honest *Partly lost* for files in pieces is covered by the fixture images from the Linux driver.
 
+## Lost partitions (D-46, automated, 2026-09-29)
+
+`PartitionSearchTests` damage the driver-made fixture disks the way it happens on real disks and check what comes back:
+
+| Damage | Found |
+|---|---|
+| Every MBR entry deleted | Both volumes (FAT16 at 1 MiB, exFAT right after it), whole file systems, deleted files byte for byte |
+| GPT header at the start erased | Both volumes from the backup GPT at the end |
+| Both GPT headers erased | Both volumes by the quick search, with a warning about the table |
+| First sector of an NTFS, FAT32, or exFAT volume erased | The volume from its backup boot sector (NTFS's last sector, FAT32's copy at sector 6, exFAT's backup boot region), existing and deleted files byte for byte |
+| No table, and an NTFS volume at 1 MiB with its first sector erased | Nothing by the quick search; the deep search finds it by its backup boot sector, with progress to 100% |
+| exFAT partition deleted and a newer partition over most of it | The lost volume, its files under the newer partition Uncertain, naming it |
+| Empty disk, 8 MiB of random bytes, intact MBR and GPT disks with the deep search | Nothing more than what is there |
+
+The recovery fuzzing (21,000 mutated images) runs through the same search on every image.
+
 ## Pending (manual)
 
 - Elevated read of a real drive in the installed build: consent prompt, a scan of a secondary USB drive, and recovery

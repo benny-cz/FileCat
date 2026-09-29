@@ -7,7 +7,8 @@ namespace FileCat.Recovery;
 /// exFAT (Microsoft exFAT specification). Deleting clears the in-use bit of each entry in a file's entry set (0x85 → 0x05,
 /// 0xC0 → 0x40, 0xC1 → 0x41) and frees its clusters in the allocation bitmap, but keeps name, size, first cluster, and
 /// whether the file was stored in one piece. A fragmented file's chain survives in the FAT unless it was overwritten, so
-/// FileCat follows it when it is complete and consistent, and says when it falls back to one continuous run.
+/// FileCat follows it when it is complete and consistent, and says when it falls back to one continuous run. A lost file
+/// system (<see cref="VolumeSlot.WholeFileSystem"/>) lists its existing files too.
 /// </summary>
 internal sealed class ExFatScanner
 {
@@ -24,10 +25,12 @@ internal sealed class ExFatScanner
     private byte[] _bitmap = [];
     private readonly HashSet<uint> _directories = [];
     private readonly RecoveryVolume _result;
+    private readonly bool _whole;
 
     private ExFatScanner(IBlockSource volume, byte[] boot, VolumeSlot slot)
     {
         _volume = volume;
+        _whole = slot.WholeFileSystem;
         int sectorShift = boot[108], clusterShift = boot[109];
         if (sectorShift is < 9 or > 12 || clusterShift > 25 - sectorShift) throw new InvalidDataException("the exFAT boot sector has impossible sector or cluster sizes.");
         int sector = 1 << sectorShift;
@@ -182,7 +185,12 @@ internal sealed class ExFatScanner
         bool isDirectory = (set.Attributes & 0x10) != 0;
         if (!deleted)
         {
-            if (!isDirectory || !Valid(set.FirstCluster) || !_directories.Add(set.FirstCluster)) return;
+            if (!isDirectory)
+            {
+                if (_whole) Existing(folder, set);
+                return;
+            }
+            if (!Valid(set.FirstCluster) || !_directories.Add(set.FirstCluster)) return;
             var existing = new RecoveryItem { Name = set.Name, IsDirectory = true, ModifiedUtc = set.Modified, CreatedUtc = set.Created };
             folder.Children.Add(existing);
             var data = ReadRun(Chain(set.FirstCluster, Math.Min(set.DataLength, MaxDirectoryBytes), set.NoFatChain), MaxDirectoryBytes);
@@ -231,6 +239,35 @@ internal sealed class ExFatScanner
             remaining -= length;
         }
         if (remaining > 0) Append(extents, 0, remaining, ExtentState.Unreadable);
+        item.Extents = extents;
+        item.Classify(_clusterSize);
+    }
+
+    /// <summary>An existing file of a lost file system: its clusters are its own, in one run or along the FAT.</summary>
+    private void Existing(RecoveryItem folder, EntrySet set)
+    {
+        var item = new RecoveryItem { Name = set.Name, Size = set.DataLength, ModifiedUtc = set.Modified, CreatedUtc = set.Created };
+        folder.Children.Add(item);
+        if (set.DataLength == 0 || !Valid(set.FirstCluster))
+        {
+            if (set.DataLength > 0) item.Evidence.Add("No valid first cluster is recorded, so the content cannot be located.");
+            item.Classify(_clusterSize);
+            return;
+        }
+        var extents = new List<Extent>();
+        long remaining = set.DataLength;
+        foreach (var cluster in Chain(set.FirstCluster, set.DataLength, set.NoFatChain))
+        {
+            long length = Math.Min(remaining, _clusterSize);
+            // Bytes past the valid data length were never written: they read as zeros by definition.
+            Append(extents, ClusterOffset(cluster), length, set.DataLength - remaining >= set.ValidLength ? ExtentState.Zero : ExtentState.Owned);
+            remaining -= length;
+        }
+        if (remaining > 0)
+        {
+            Append(extents, 0, remaining, ExtentState.Unreadable);
+            item.Evidence.Add("Its clusters end before its size: the rest is missing.");
+        }
         item.Extents = extents;
         item.Classify(_clusterSize);
     }

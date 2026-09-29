@@ -177,6 +177,12 @@ public sealed record RecoveryScanOptions
 
     /// <summary>Bytes of free space searched so far, of the total.</summary>
     public Action<long, long>? Progress { get; init; }
+
+    /// <summary>Also search all space no partition holds for deleted partitions, a megabyte at a time (minutes to hours on large disks).</summary>
+    public bool SearchDisk { get; init; }
+
+    /// <summary>Bytes of that space searched so far, of the total.</summary>
+    public Action<long, long>? DiskProgress { get; init; }
 }
 
 /// <summary>One file system found on a source, with its reconstructed tree of deleted items.</summary>
@@ -204,6 +210,24 @@ public sealed class RecoveryVolume
     public bool FreeSpaceSearched { get; set; }
 
     public List<string> Warnings { get; } = [];
+
+    /// <summary>What says the volume is there: the partition table, only its backup copy, or nothing (found by searching).</summary>
+    public VolumeOrigin Origin { get; set; }
+
+    /// <summary>How the volume was found or read, when that is not simply the partition table ("its boot sector … is intact").</summary>
+    public string? Found { get; set; }
+
+    /// <summary>The volume's first sector is damaged: its file system was read from a backup boot sector.</summary>
+    public bool DamagedStart { get; set; }
+
+    /// <summary>No partition table in use lists the volume.</summary>
+    public bool Lost => Origin != VolumeOrigin.Table;
+
+    /// <summary>
+    /// The file system is lost as a whole (a lost partition, or one read from its backup boot sector): its existing files
+    /// are listed too, not only its deleted ones.
+    /// </summary>
+    public bool WholeFileSystem => Lost || DamagedStart;
 
     public string Title => $"{FileSystem}{(string.IsNullOrWhiteSpace(Label) ? "" : " " + Label.Trim())} ({RecoveryItem.Bytes(Length)})";
 }
