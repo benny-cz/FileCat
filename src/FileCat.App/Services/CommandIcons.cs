@@ -81,6 +81,7 @@ public static class CommandIcons
         [CommandIds.ApplyCommand] = [new(Box, "TextMuted"), new("M4.5,5.5 L7,8 L4.5,10.5 M8.5,10.5 L11.5,10.5", "ActiveAccent")],
         [CommandIds.Undo] = [new("M5,3.5 L2,6.5 L5,9.5 M2,6.5 L10,6.5 C12.5,6.5 14,8.2 14,10.2 C14,12.3 12.5,13.8 10,13.8 L6.5,13.8")],
         [CommandIds.Properties] = [new(Circle), new("M8,7 L8,11.5 M8,4.8 L8,4.9", "ActiveAccent")],
+        [CommandIds.HiddenData] = [new("M3.5,1.5 L9,1.5 L12.5,5 L12.5,14.5 L3.5,14.5 Z"), new("M6,8 L10,8 M6,10.5 L10,10.5", "TextMuted"), new("M13,11 L15,11 M13,13 L15,13", "ActiveAccent")],
         [CommandIds.Exit] = [new("M9.5,2.5 L3,2.5 L3,13.5 L9.5,13.5", "TextMuted"), new("M6.5,8 L14.5,8 M11.5,5 L14.5,8 L11.5,11")],
         [CommandIds.EditSessions] = [new("M1.5,3 L8,3 M1.5,6 L8,6 M1.5,9 L5.5,9", "TextMuted"), new("M7.5,14 L7.9,11.6 L12.5,7 L14.5,9 L9.9,13.6 Z", "ActiveAccent")],
         [CommandIds.AddToWorkingSet] = [new(Collection, "FileIcon"), new(Plus, "Success")],

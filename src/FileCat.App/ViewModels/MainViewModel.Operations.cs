@@ -456,6 +456,11 @@ public sealed partial class MainViewModel
         try
         {
             var loc = tab.Location!;
+            if (loc.Scheme == Schemes.HiddenData)
+            {
+                await DeleteHiddenDataAsync(tab, items);
+                return;
+            }
             if (loc.Scheme == Schemes.Zip)
             {
                 await DeleteArchiveMembersAsync(loc, items.ToList());

@@ -41,6 +41,8 @@ public static class CommandIds
     public const string Open = "file.open";
     public const string OpenWithSystem = "file.openWithSystem";
     public const string Properties = "file.properties";
+    /// <summary>The focused item's alternate data streams and extended attributes (D-55).</summary>
+    public const string HiddenData = "file.hiddenData";
     public const string ContextMenu = "file.contextMenu";
     public const string Reveal = "file.reveal";
     public const string Checksum = "file.checksum";
@@ -260,6 +262,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Open, "Open", F, null, CommandContext.Panel, "Enter");
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
+        Add(CommandIds.HiddenData, "Streams and attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
         Add(CommandIds.ContextMenu, "Context menu", F, null, CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
@@ -442,6 +445,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
         r.Describe(CommandIds.Delete, "Moves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently.");
         r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
+        r.Describe(CommandIds.HiddenData, "Lists what the item carries beside its contents: alternate data streams and NTFS attributes on Windows, extended attributes (and the resource fork) on Linux and macOS, each decoded. F3 views one, F5 saves it as a file, F8 deletes it.");
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
         r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");
         r.Describe(CommandIds.MarkSelectMask, "Marks the items whose names match a mask, such as *.txt.");
@@ -481,6 +485,7 @@ public sealed class CommandRegistry
         K(CommandIds.Move, "relocate", "rename");
         K(CommandIds.Rename, "rename file");
         K(CommandIds.Properties, "info", "details", "file properties");
+        K(CommandIds.HiddenData, "alternate data streams", "ADS", "xattr", "extended attributes", "resource fork", "Zone.Identifier", "Mark of the Web", "quarantine", "capabilities");
         K(CommandIds.Reveal, "explorer", "show in folder", "finder", "file manager");
         K(CommandIds.OpenWithSystem, "open with", "default program", "associated program");
         K(CommandIds.OpenTerminal, "shell", "console", "cmd", "powershell", "command prompt", "bash");

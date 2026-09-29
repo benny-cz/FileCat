@@ -15,6 +15,9 @@ public interface IPlatform : IDisposable
     /// <summary>OS credential store, or a session-only store where the platform has none (plan §14.1).</summary>
     State.ISecretStore Secrets { get; }
 
+    /// <summary>The data files carry beside their contents: streams and attributes (D-55).</summary>
+    HiddenData.IHiddenData HiddenData { get; }
+
     /// <summary>Registers the file-system, computer, network, and OS-specific providers.</summary>
     void RegisterProviders(ProviderRegistry registry);
 }
@@ -34,6 +37,8 @@ public class PortablePlatform : IPlatform
     public IFileSystemOperations FileOperations { get; protected init; }
     /// <summary>The macOS keychain, the desktop keyring on Linux (Secret Service), or the session-only fallback.</summary>
     public State.ISecretStore Secrets { get; protected init; } = State.SecretStores.ForThisOs();
+    public HiddenData.IHiddenData HiddenData { get; protected init; } =
+        OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new HiddenData.UnixHiddenData() : new HiddenData.NoHiddenData();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }
 
     public virtual void RegisterProviders(ProviderRegistry registry)
@@ -41,6 +46,7 @@ public class PortablePlatform : IPlatform
         FileSystemProvider = CreateFileSystemProvider();
         registry.Register(FileSystemProvider);
         registry.Register(new ComputerProvider());
+        registry.Register(new HiddenData.HiddenDataProvider(HiddenData));
         // The local network's computers and their SMB shares (D-54).
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) registry.Register(new Network.UnixNetworkProvider());
     }

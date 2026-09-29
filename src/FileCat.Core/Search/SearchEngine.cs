@@ -34,6 +34,12 @@ public sealed class SearchQuery
     public FileAttributes AttributesClear { get; init; }
 
     /// <summary>
+    /// When set, a match must carry a stream or attribute besides its download mark (D-55): what hidden payloads,
+    /// WSL's metadata, or a program's own notes leave. Checked last, only for items that match everything else.
+    /// </summary>
+    public HiddenData.IHiddenData? CarriesHiddenData { get; init; }
+
+    /// <summary>
     /// Folders whose contents are not searched (plan §11): a name or relative path ("node_modules", "bin\Debug") skips
     /// every folder whose path ends with it; a leading separator ("\build") anchors it to each searched folder; a full
     /// path skips that one folder.
@@ -64,6 +70,7 @@ public sealed class SearchQuery
         if (ModifiedAfterUtc is not null || ModifiedBeforeUtc is not null) parts.Add("date filter");
         if (CreatedAfterUtc is not null || CreatedBeforeUtc is not null) parts.Add("creation date filter");
         if ((AttributesSet | AttributesClear) != 0) parts.Add("attribute filter");
+        if (CarriesHiddenData is not null) parts.Add("carrying streams or attributes");
         var what = parts.Count == 0 ? "all items" : string.Join(", ", parts);
         if (WithinResults is { } within) return $"{what} within {within.Count:N0} earlier results";
         return $"{what} in {string.Join("; ", Roots)}{(Recursive ? "" : " (top level only)")}{(Archives is not null && !HasContent ? ", inside archives too" : "")}";
@@ -340,6 +347,8 @@ public sealed class SearchSession
 
     private bool MemberMatches(ItemRef member)
     {
+        // An archive's members carry no streams or attributes of their own.
+        if (_query.CarriesHiddenData is not null) return false;
         bool isDir = member.IsContainer;
         if (isDir && !_query.IncludeDirectories) return false;
         if ((_query.AttributesSet & ~FileAttributes.Directory) != 0) return false;
@@ -408,9 +417,21 @@ public sealed class SearchSession
         {
             Interlocked.Increment(ref FilesExamined);
             if ((attributes & (FileAttributes.Offline | (FileAttributes)0x440000)) != 0) return false; // never recall cloud files for a search
-            return ContainsContent(info.FullName, ct);
+            if (!ContainsContent(info.FullName, ct)) return false;
         }
-        return true;
+        return _query.CarriesHiddenData is not { } hidden || CarriesHiddenData(hidden, info.FullName);
+    }
+
+    private static bool CarriesHiddenData(HiddenData.IHiddenData hidden, string path)
+    {
+        try
+        {
+            return hidden.List(path).Any(i => !HiddenData.DownloadMarks.IsDownloadMark(i.Name));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private bool ContainsContent(string path, CancellationToken ct)

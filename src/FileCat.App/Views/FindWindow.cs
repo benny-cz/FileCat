@@ -592,7 +592,7 @@ public sealed class FindWindow : Window, IViewActions
         if (mode != RefineMode.Replace && _set is null) mode = RefineMode.Replace;
         var criteria = Criteria;
         var ignored = _services.Settings.SearchIgnoredFolders.Where(f => f.Enabled).Select(f => f.Folder).ToList();
-        if (!criteria.TryBuildQuery(DateTime.UtcNow, ignored, _within, out var query, out var error, new ProviderArchiveMembers(_services.Providers)))
+        if (!criteria.TryBuildQuery(DateTime.UtcNow, ignored, _within, out var query, out var error, new ProviderArchiveMembers(_services.Providers), _services.Platform.HiddenData))
         {
             ShowError(error);
             return;

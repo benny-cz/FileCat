@@ -54,6 +54,9 @@ internal static class FindDialogs
             },
         };
 
+        // D-55: streams and attributes beside the file (the download mark alone does not count: every download has one).
+        var hidden = new CheckBox { Content = OperatingSystem.IsWindows() ? "Carries streams or attributes besides its download mark" : "Carries extended attributes besides its download mark" };
+        ToolTip.SetTip(hidden, "Finds what alternate data streams, NTFS attributes, or extended attributes carry: hidden notes and payloads, WSL's metadata, programs' own marks. Checked last, so other criteria keep it quick.");
         var modified = new TimeEditor("Modified");
         var created = new TimeEditor("Created");
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
@@ -69,13 +72,14 @@ internal static class FindDialogs
             atMostUnit.SelectedIndex = (int)c.SizeAtMostUnit;
             modified.Load(c.Modified);
             created.Load(c.Created);
+            hidden.IsChecked = c.CarriesHiddenData;
         }
 
         // The criteria as edited, or the reason they cannot be used.
         AdvancedSearchCriteria? Read(out string? problem)
         {
             problem = null;
-            var c = new AdvancedSearchCriteria();
+            var c = new AdvancedSearchCriteria { CarriesHiddenData = hidden.IsChecked == true };
             foreach (var (attribute, box) in attributes)
             {
                 if (box.IsChecked == true) c.AttributesSet |= attribute;
@@ -123,6 +127,7 @@ internal static class FindDialogs
             {
                 Heading("Attributes"), attributeRow,
                 Muted("Checked: the item has it · empty: it does not · filled: either"),
+                hidden,
                 Heading("Size"), sizes,
                 Heading("Modified"), modified.View,
                 Heading("Created"), created.View,

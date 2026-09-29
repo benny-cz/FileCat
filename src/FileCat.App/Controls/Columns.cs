@@ -71,6 +71,7 @@ public static class ColumnProfiles
             new(ColumnField.Metadata, "Permissions", 88) { MetadataId = "permissions" },
             new(ColumnField.Metadata, "Owner", 90) { MetadataId = "owner" },
             new(ColumnField.Metadata, "Group", 90) { MetadataId = "group" },
+            new(ColumnField.Metadata, "Attributes", 70, RightAlign: true) { MetadataId = "hidden" },
         ]),
         ("Media", [
             new(ColumnField.Name, "Name", 200, Star: true),
@@ -106,6 +107,7 @@ public static class ColumnProfiles
             new(ColumnField.Modified, "Modified", 128),
             new(ColumnField.Created, "Created", 128),
             new(ColumnField.Metadata, "Version", 110) { MetadataId = "version" },
+            new(ColumnField.Metadata, OperatingSystem.IsWindows() ? "Streams" : "Attributes", 70, RightAlign: true) { MetadataId = "hidden" },
             new(ColumnField.Attributes, "Attr", 50),
         ]),
         ("Media", [
@@ -160,6 +162,15 @@ public static class ColumnProfiles
         new(ColumnField.Details, "Evidence", 320, Star: true),
     ];
 
+    /// <summary>A file's streams and attributes (D-55): what each is, how big, and what it says.</summary>
+    public static ColumnSpec[] HiddenData { get; } =
+    [
+        new(ColumnField.Name, "Name", 200, Star: true),
+        new(ColumnField.Kind, "Kind", 120),
+        new(ColumnField.Size, "Size", 86, RightAlign: true),
+        new(ColumnField.Details, "What it says", 340, Star: true),
+    ];
+
     public static ColumnSpec[] Registry { get; } =
     [
         new(ColumnField.Name, "Name", 200, Star: true),
@@ -197,13 +208,14 @@ public sealed class ColumnProfileSet
     public string NameOf(int profile) => _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Name;
 
     /// <summary>True when the scheme has a dedicated layout that profiles do not change.</summary>
-    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery;
+    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery or Schemes.HiddenData;
 
     public ColumnSpec[] Get(int profile, string scheme)
     {
         if (scheme == Schemes.ResultSet) return ColumnProfiles.ResultSet;
         if (scheme == Schemes.Registry) return ColumnProfiles.Registry;
         if (scheme == Schemes.Recovery) return ColumnProfiles.Recovery;
+        if (scheme == Schemes.HiddenData) return ColumnProfiles.HiddenData;
         return _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Columns;
     }
 

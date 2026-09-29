@@ -32,6 +32,8 @@ public enum IconKind
     Collection,
     /// <summary>The Network: computers and file servers nearby.</summary>
     Network,
+    /// <summary>A stream or attribute beside a file (D-55): not a file of any type, so no type's icon.</summary>
+    Stream,
 }
 
 /// <summary>
@@ -87,6 +89,8 @@ public sealed class IconProvider
     /// <param name="folder">Where the entry is listed; lets programs show their own icons through the Shell helper.</param>
     public IImage GetIcon(in EntryData e, Location? folder = null)
     {
+        // A stream named like a file ("payload", "x.jpg") is not that kind of file: one icon for them all.
+        if (folder?.Scheme == Schemes.HiddenData && e.Kind != EntryKind.Parent) return _vector.GetOrAdd((IconKind.Stream, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
         if (UseNativeIcons && Native is not null && e.Kind is EntryKind.File or EntryKind.Directory or EntryKind.Drive)
         {
             var img = Native.GetIcon(e, folder);
@@ -231,6 +235,7 @@ public static class VectorIcons
             IconKind.Phone => (PhonePath, "FcDriveIcon", "M7,12.5 L9,12.5"),
             IconKind.Collection => (CollectionPath, "FcFileIcon", "M5,4.5 L5,2 L12.5,2 L12.5,12 L10,12 M4.5,8 L8,8 M4.5,10.5 L8,10.5"),
             IconKind.Network => (NetworkPath, "FcDriveIcon", "M4.5,6 L4.5,11.25 L8.5,11.25 M2.5,14.5 L6.5,14.5"),
+            IconKind.Stream => (FilePath, "FcCodeIcon", "M5.5,7 L10.5,7 M5.5,9.5 L10.5,9.5 M5.5,12 L8,12 M1,9.5 L3,9.5"),
             _ => (FilePath, "FcFileIcon", null),
         };
         var color = Resolve(colorKey);

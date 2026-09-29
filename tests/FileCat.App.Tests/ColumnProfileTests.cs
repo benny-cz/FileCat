@@ -20,8 +20,9 @@ public sealed class ColumnProfileTests
         Assert.Equal(ColumnProfiles.Defaults.Count, set.Count);
         var saved = set.ToSettings();
         Assert.Equal(0, saved[0].Columns[0].Width); // Name fills
-        // Full: file versions on Windows; permissions and ownership on Linux and macOS.
-        Assert.Equal(OperatingSystem.IsWindows() ? ["meta:version"] : ["meta:permissions", "meta:owner", "meta:group"],
+        // Full: file versions on Windows; permissions and ownership on Linux and macOS; and everywhere how many streams
+        // or attributes a file carries (D-55).
+        Assert.Equal(OperatingSystem.IsWindows() ? ["meta:version", "meta:hidden"] : ["meta:permissions", "meta:owner", "meta:group", "meta:hidden"],
             saved[2].Columns.Where(c => c.Field.StartsWith("meta:", StringComparison.Ordinal)).Select(c => c.Field));
         var reloaded = new ColumnProfileSet(saved);
         Assert.Equal(set.Profiles.Select(p => p.Name), reloaded.Profiles.Select(p => p.Name));

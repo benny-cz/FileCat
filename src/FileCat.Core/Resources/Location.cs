@@ -23,6 +23,8 @@ public static class Schemes
     public const string Device = "device";
     /// <summary>Phones, cameras, and players over MTP (Windows Portable Devices, P8).</summary>
     public const string Mtp = "mtp";
+    /// <summary>A file's alternate data streams and extended attributes (D-55); the file is the container.</summary>
+    public const string HiddenData = "hidden";
 }
 
 /// <summary>

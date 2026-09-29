@@ -270,9 +270,22 @@ public static class BuiltInFields
         },
         v => v as string ?? string.Empty);
 
+    /// <summary>Where the column reads streams and attributes from: the platform's (set at start).</summary>
+    public static HiddenData.IHiddenData? HiddenDataSource { get; set; }
+
+    /// <summary>
+    /// How many streams and attributes a file or folder carries beside its contents (D-55): alternate data streams and
+    /// NTFS attributes on Windows, extended attributes on Linux and macOS. Alt+Shift+Enter lists them.
+    /// </summary>
+    public static readonly MetadataField Hidden = new("hidden", OperatingSystem.IsWindows() ? "Streams" : "Attributes", MetadataCost.Cheap,
+        _ => true,
+        (p, _) => HiddenDataSource is { IsSupported: true } source ? source.List(p).Count : null,
+        v => v is int n && n > 0 ? n.ToString(System.Globalization.CultureInfo.CurrentCulture) : string.Empty,
+        RightAlign: true, SortKey: v => v as int?, Folders: true);
+
     /// <summary>The fields this OS can fill: file versions on Windows; permissions and ownership on Linux and macOS.</summary>
     public static IReadOnlyList<MetadataField> All { get; } =
-        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone];
+        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden];
 }
 
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>

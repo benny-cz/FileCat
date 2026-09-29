@@ -14,7 +14,7 @@ public static class ContextMenuFactory
         CommandIds.Copy, CommandIds.Move, CommandIds.Rename, CommandIds.Delete, "-",
         CommandIds.CutToClipboard, CommandIds.CopyToClipboard, CommandIds.PasteFromClipboard, "-",
         CommandIds.OpenInTarget, CommandIds.Reveal, CommandIds.CopyPaths, "-",
-        CommandIds.Properties, "more",
+        CommandIds.Properties, CommandIds.HiddenData, "more",
     ];
 
     private static readonly string[] MoreItems =

@@ -477,6 +477,9 @@ public sealed partial class MainViewModel
             case CommandIds.Properties:
                 if (FocusedFileSystemPath() is { } pp && !Services.Shell.ShowProperties(pp)) Notify("No properties dialog is available for this item.");
                 break;
+            case CommandIds.HiddenData:
+                OpenHiddenData();
+                break;
             case CommandIds.OpenTerminal:
                 if (tab?.Location is { IsFileSystem: true } tl) Services.Shell.OpenTerminal(tl.Path, Services.Settings.Terminal.Shell);
                 else if (tab?.Location is { Scheme: Schemes.Sftp } remote) OpenSshTerminal(remote);

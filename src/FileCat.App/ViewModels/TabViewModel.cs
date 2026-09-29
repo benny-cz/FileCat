@@ -597,6 +597,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Schemes.Computer => Formatters.Plural(totals.Directories + totals.Files, "item", "items"),
             Schemes.Network when Location.Path.Length == 0 => Formatters.Plural(totals.Directories + totals.Files, "computer or server", "computers and servers"),
             Schemes.Network => Formatters.Plural(totals.Directories + totals.Files, "share", "shares"),
+            Schemes.HiddenData => OperatingSystem.IsWindows()
+                ? Formatters.Plural(totals.Files, "stream or attribute", "streams and attributes")
+                : Formatters.Plural(totals.Files, "attribute", "attributes"),
             Schemes.ResultSet when Core.Search.ResultSetProvider.IsWorkingSetList(Location) => Formatters.Plural(totals.Directories + totals.Files, "working set", "working sets"),
             _ => $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}",
         };

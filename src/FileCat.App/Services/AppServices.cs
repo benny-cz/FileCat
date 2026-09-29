@@ -38,6 +38,7 @@ public sealed class AppServices : IDisposable
         Shell = Platform.Shell;
         Providers = new ProviderRegistry();
         Platform.RegisterProviders(Providers);
+        Core.Metadata.BuiltInFields.HiddenDataSource = Platform.HiddenData;
         if (Providers.IsRegistered(Schemes.Network))
         {
             var networkRoot = new Location(Schemes.Network, string.Empty);

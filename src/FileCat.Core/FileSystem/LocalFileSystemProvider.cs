@@ -197,6 +197,8 @@ public class LocalFileSystemProvider : ResourceProvider
         }
         // "C:" alone means the drive root, not the drive's current directory.
         if (PathUtil.IsWindows && t.Length == 2 && t[1] == ':' && char.IsAsciiLetter(t[0])) t += "\\";
+        // A colon past the drive's is in no Windows file name: "C:\x\file.exe:" names the file's streams (D-55), another provider's.
+        if (PathUtil.IsWindows && !t.StartsWith(@"\\?\", StringComparison.Ordinal) && t.IndexOf(':', 2) >= 0) return false;
         try
         {
             if (Path.IsPathFullyQualified(t))

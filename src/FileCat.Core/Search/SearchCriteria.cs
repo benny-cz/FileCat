@@ -106,7 +106,10 @@ public sealed class AdvancedSearchCriteria
     public TimeCriterion Modified { get; set; } = new();
     public TimeCriterion Created { get; set; } = new();
 
-    public bool IsEmpty => (AttributesSet | AttributesClear) == 0 && SizeAtLeast is null && SizeAtMost is null && !Modified.IsActive && !Created.IsActive;
+    /// <summary>Only items carrying a stream or attribute besides their download mark (D-55).</summary>
+    public bool CarriesHiddenData { get; set; }
+
+    public bool IsEmpty => (AttributesSet | AttributesClear) == 0 && SizeAtLeast is null && SizeAtMost is null && !Modified.IsActive && !Created.IsActive && !CarriesHiddenData;
 
     public static long Bytes(double value, SizeUnit unit) => (long)Math.Round(value * unit switch
     {
@@ -137,6 +140,7 @@ public sealed class AdvancedSearchCriteria
         if (SizeAtMost is { } most) parts.Add($"at most {most.ToString("0.##", CultureInfo.CurrentCulture)} {Unit(SizeAtMostUnit)}");
         if (Modified.Describe() is { } modified) parts.Add("modified " + modified);
         if (Created.Describe() is { } created) parts.Add("created " + created);
+        if (CarriesHiddenData) parts.Add("carrying streams or attributes");
         return string.Join(" · ", parts);
     }
 
@@ -183,7 +187,7 @@ public sealed class SearchCriteria
     /// when a mask, hex pattern, or range cannot work, or a folder to search is missing.
     /// </summary>
     public bool TryBuildQuery(DateTime nowUtc, IReadOnlyList<string> ignoredFolders, IReadOnlyList<(Resources.ItemRef Item, string Relative)>? within,
-        out SearchQuery? query, out string? error, IArchiveMembers? archives = null)
+        out SearchQuery? query, out string? error, IArchiveMembers? archives = null, HiddenData.IHiddenData? hiddenData = null)
     {
         query = null;
         if (!Mask.TryParse(string.IsNullOrWhiteSpace(Names) ? "*" : Names, plainMeansContains: true, out var mask, out var maskError))
@@ -235,7 +239,14 @@ public sealed class SearchCriteria
             IgnoredFolders = ignoredFolders,
             WithinResults = within,
             Archives = InsideArchives ? archives : null,
+            CarriesHiddenData = Advanced.CarriesHiddenData ? hiddenData : null,
         };
+        if (Advanced.CarriesHiddenData && hiddenData is not { IsSupported: true })
+        {
+            query = null;
+            error = "This system keeps no streams or attributes beside files: clear that criterion.";
+            return false;
+        }
         return SearchSession.TryValidate(query, out error);
     }
 }
