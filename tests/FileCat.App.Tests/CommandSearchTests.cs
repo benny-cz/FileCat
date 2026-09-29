@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -168,6 +169,38 @@ public sealed class CommandSearchTests
             Assert.Equal("zip", box.Text);
             Assert.Equal(CommandIds.Pack, window.CommandSearch.Selected?.Id);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_click_on_a_result_runs_it_and_the_press_leaves_the_keyboard_in_the_box()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var box = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Search commands");
+            await WaitFor(() => window.FocusManager?.GetFocusedElement() is FileListControl, ct);
+            Assert.True(window.FocusCommandSearch());
+            Type(window, "settings");
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Commands found");
+            await WaitFor(() => list.ContainerFromIndex(0) is ListBoxItem { Bounds.Height: > 0 }, ct);
+            var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            var point = item.TranslatePoint(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            Assert.True(box.IsFocused, "the press leaves the keyboard in the box, so the list stays open");
+            Assert.NotEmpty(window.CommandSearch.Shown);
+            window.MouseUp(point, MouseButton.Left);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            Assert.True(dialogs.IsOpen, "the click ran Settings");
+            Assert.Equal(CommandIds.Settings, services.History.RecentCommands[0]);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen, ct);
         }
         finally
         {

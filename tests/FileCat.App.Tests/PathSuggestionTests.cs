@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -122,6 +123,21 @@ public sealed class PathSuggestionTests
             for (int i = 0; i < 250 && panel.ActiveTab?.Location?.Path != Path.Combine(files, "alpha", "inner"); i++) await Task.Delay(20, ct);
             Assert.Equal(Path.Combine(files, "alpha", "inner"), panel.ActiveTab?.Location?.Path);
             Assert.Empty(view.PathSuggestionsShown);
+
+            // A click on a suggestion chooses it too (the press leaves the keyboard in the box, so the list stays open).
+            view.FocusPathBox();
+            for (int i = 0; i < 100 && !box.IsFocused; i++) await Task.Delay(20, ct);
+            box.Text = Path.Combine(files, "alp");
+            for (int i = 0; i < 250 && view.PathSuggestionsShown.Count != 2; i++) await Task.Delay(20, ct);
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Folder suggestions" && l.IsEffectivelyVisible);
+            for (int i = 0; i < 100 && list.ContainerFromIndex(1) is not ListBoxItem { Bounds.Height: > 0 }; i++) await Task.Delay(20, ct);
+            var item = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(1)); // alpine
+            var point = item.TranslatePoint(new Avalonia.Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            Assert.True(box.IsFocused);
+            window.MouseUp(point, MouseButton.Left);
+            for (int i = 0; i < 250 && panel.ActiveTab?.Location?.Path != Path.Combine(files, "alpine"); i++) await Task.Delay(20, ct);
+            Assert.Equal(Path.Combine(files, "alpine"), panel.ActiveTab?.Location?.Path);
         }
         finally
         {

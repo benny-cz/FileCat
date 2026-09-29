@@ -62,12 +62,12 @@ internal sealed class PathCompletion
                 if (HandleKey(e)) e.Handled = true;
             }, RoutingStrategies.Tunnel);
         }
-        _list.Tapped += (_, _) =>
+        // A click chooses a folder; the box keeps the keyboard meanwhile (losing it would close the list first).
+        ListClicks.ChooseOnClick<string>(_list, path =>
         {
-            if (_list.SelectedItem is not string path) return;
             Close();
             Chosen?.Invoke(path);
-        };
+        });
     }
 
     /// <summary>A suggestion chosen with Enter or a click.</summary>

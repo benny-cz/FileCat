@@ -8,7 +8,6 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
-using Avalonia.VisualTree;
 using FileCat.App.Services;
 
 namespace FileCat.App.Views;
@@ -89,13 +88,8 @@ internal sealed class CommandSearchBar
             if (_popup.IsOpen) Update();
         };
         box.AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
-        // A click on a command runs it (not one on the scroll bar).
-        _list.Tapped += (_, e) =>
-        {
-            if (e.Source is Visual source && source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null
-                && _list.SelectedItem is CommandSearch.Entry entry)
-                Choose(entry);
-        };
+        // A click on a command runs it (not one on the scroll bar); the box keeps the keyboard meanwhile.
+        Controls.ListClicks.ChooseOnClick<CommandSearch.Entry>(_list, Choose);
     }
 
     /// <summary>The commands listed now; empty while the list is closed.</summary>
