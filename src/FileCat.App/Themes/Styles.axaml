@@ -62,6 +62,15 @@
     <Setter Property="MinHeight" Value="24" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
+  <!-- The filter box, and while it filters: in the accent color, so a filtered panel is not taken for a whole folder. -->
+  <Style Selector="TextBox.filter">
+    <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
+    <Setter Property="HorizontalContentAlignment" Value="Right" />
+  </Style>
+  <Style Selector="TextBox.filter.active">
+    <Setter Property="Foreground" Value="{DynamicResource FcActiveAccent}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
   <Style Selector="TextBox.path:focus">
     <Setter Property="Background" Value="{DynamicResource FcCard}" />
   </Style>

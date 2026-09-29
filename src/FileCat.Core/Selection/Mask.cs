@@ -77,6 +77,15 @@ public sealed class Mask
     /// <summary>Matches a single item name.</summary>
     public bool IsMatch(string name, bool isDirectory = false) => IsMatch(name.AsSpan(), isDirectory);
 
+    /// <summary>Whether a part of the mask is for folders only (it ends in \ or /).</summary>
+    public bool NamesFolders => _include.Any(p => p.DirectoriesOnly) || _exclude.Any(p => p.DirectoriesOnly);
+
+    /// <summary>
+    /// Whether a panel filtered by this mask shows an item: a file when it matches; a folder always, as in Salamander
+    /// and Total Commander (the way on stays open), unless the mask names folders itself.
+    /// </summary>
+    public bool Shows(ReadOnlySpan<char> name, bool isFolder) => isFolder ? !NamesFolders || IsMatch(name, true) : IsMatch(name, false);
+
     /// <summary>Matches a single item name in place (spilled listings are matched without building strings).</summary>
     public bool IsMatch(ReadOnlySpan<char> name, bool isDirectory = false)
     {

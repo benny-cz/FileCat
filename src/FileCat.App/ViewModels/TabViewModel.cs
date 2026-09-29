@@ -56,6 +56,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _quickSearchNoMatch;
     [ObservableProperty] private string? _comparisonLabel;
     [ObservableProperty] private string? _banner;
+    /// <summary>The filter's mask as typed, or null when every item shows (the panel's filter box shows it).</summary>
+    [ObservableProperty] private string? _filterText;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isActiveTab;
 
@@ -366,9 +368,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void SetFilter(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(text) || Mask.TryParse(text, out var all, out _) && all.IsMatchAll)
         {
+            // "*" and "*.*" show everything: no filter.
             Listing.Filter = null;
+            FilterText = null;
             Banner = null;
             UpdateStatus();
             return;
@@ -379,6 +383,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             return;
         }
         Listing.Filter = mask;
+        FilterText = mask.Text;
         UpdateStatus();
     }
 

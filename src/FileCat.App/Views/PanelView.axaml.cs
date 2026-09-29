@@ -44,12 +44,33 @@ public partial class PanelView : UserControl
         _completion = new PathCompletion(PathBox, AddressRow, () => Panel?.Services.Settings.ShowHidden == true, () => Panel?.ActiveTab?.DisplayPath,
             handleKeys: false);
         _completion.Chosen += path => PathSubmitted?.Invoke(path);
-        PathBox.LostFocus += (_, _) => RevertPath();
+        PathBox.LostFocus += (_, _) =>
+        {
+            RevertPath();
+            PathLinks.IsVisible = true;
+        };
+        PathBox.GotFocus += (_, _) => PathLinks.IsVisible = false;
+        PathLinks.NavigateRequested += OnPathPartChosen;
+        PathLinks.EditRequested += () =>
+        {
+            Activated?.Invoke();
+            FocusPathBox();
+        };
+        PathLinks.CopyRequested += text => _ = CopyToClipboardAsync(text);
+        PathLinks.MenuRequested += ShowPathMenu;
+        FilterBox.AddHandler(KeyDownEvent, OnFilterKeyDown, RoutingStrategies.Tunnel);
+        FilterBox.GotFocus += (_, _) =>
+        {
+            Activated?.Invoke();
+            Dispatcher.UIThread.Post(FilterBox.SelectAll, DispatcherPriority.Input);
+        };
+        FilterBox.LostFocus += (_, _) => ShowFilter();
         PathBox.AddHandler(KeyDownEvent, OnPathKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) =>
         {
             HookQuickView();
             ShowActiveTab();
+            HookTab();
         };
         // Resizing the panel or adding tabs can make the tabs fit, or not.
         TabScroller.ScrollChanged += (_, _) => UpdateTabOverflow();
@@ -86,8 +107,145 @@ public partial class PanelView : UserControl
     private void OnPanelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PanelViewModel.QuickViewSource)) AttachQuickView();
-        else if (e.PropertyName == nameof(PanelViewModel.ActiveTab)) ShowActiveTab();
+        else if (e.PropertyName == nameof(PanelViewModel.ActiveTab))
+        {
+            ShowActiveTab();
+            HookTab();
+        }
     }
+
+    private TabViewModel? _hookedTab;
+
+    /// <summary>The path line follows the active tab's location.</summary>
+    private void HookTab()
+    {
+        if (_hookedTab is not null) _hookedTab.PropertyChanged -= OnTabPropertyChanged;
+        _hookedTab = Panel?.ActiveTab;
+        if (_hookedTab is not null) _hookedTab.PropertyChanged += OnTabPropertyChanged;
+        UpdatePathLinks();
+        ShowFilter();
+    }
+
+    private void OnTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(TabViewModel.DisplayPath) or nameof(TabViewModel.Location)) UpdatePathLinks();
+        else if (e.PropertyName == nameof(TabViewModel.FilterText)) ShowFilter();
+    }
+
+    /// <summary>What shows everything: "*.*" on Windows, as Salamander and Total Commander write it; "*" elsewhere.</summary>
+    public static string AllItemsMask => OperatingSystem.IsWindows() ? "*.*" : "*";
+
+    /// <summary>The filter box shows the tab's filter (or the mask for everything), and stands out while it filters.</summary>
+    private void ShowFilter()
+    {
+        if (FilterBox.IsFocused) return;
+        string? filter = Panel?.ActiveTab?.FilterText;
+        FilterBox.Text = filter ?? AllItemsMask;
+        FilterBox.Classes.Set("active", filter is not null);
+    }
+
+    private void OnFilterKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            Panel?.ActiveTab?.SetFilter(FilterBox.Text);
+            List.Focus();
+        }
+        else if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            List.Focus();
+        }
+    }
+
+    /// <summary>
+    /// The path with each folder up to it a link: the folders come from the location's parents (so archives, servers,
+    /// and the Registry work as folders do), as long as each one's path begins the path shown.
+    /// </summary>
+    private void UpdatePathLinks()
+    {
+        var tab = Panel?.ActiveTab;
+        string text = tab?.DisplayPath ?? "";
+        var segments = new List<PathLine.Segment>();
+        if (tab?.Location is { } location && Panel?.Services.Providers is { } providers)
+        {
+            var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            int guard = 0;
+            for (var p = location; p is not null && p.Scheme != Core.Resources.Schemes.Computer && guard++ < 256; p = providers.For(p).GetParent(p))
+            {
+                string shown = providers.For(p).GetDisplayPath(p);
+                // A root keeps its separator ("C:\", "/"); a folder's part ends at its name.
+                string part = shown.Length > 1 && !shown.EndsWith(":\\", StringComparison.Ordinal) ? shown.TrimEnd('\\', '/') : shown;
+                if (part.Length == 0 || !text.StartsWith(part, comparison) || (segments.Count > 0 && part.Length >= segments[0].End)) break;
+                segments.Insert(0, new PathLine.Segment(part.Length, p));
+            }
+            // The location itself always ends at the text's end.
+            if (segments.Count > 0 && segments[^1].Target == location && segments[^1].End != text.Length)
+                segments[^1] = segments[^1] with { End = text.Length };
+        }
+        PathLinks.SetPath(text, segments);
+    }
+
+    /// <summary>A folder up the path was clicked: the panel goes there, with the folder it came from under the cursor.</summary>
+    private void OnPathPartChosen(Core.Resources.Location target, bool newTab)
+    {
+        Activated?.Invoke();
+        if (Panel is not { } panel || panel.ActiveTab is not { } tab) return;
+        if (newTab)
+        {
+            panel.OpenTab(target);
+            return;
+        }
+        var segments = PathLinks.Segments;
+        int index = segments.ToList().FindIndex(s => s.Target == target);
+        string? focus = index >= 0 && index + 1 < segments.Count ? panel.Services.Providers.For(segments[index + 1].Target).GetNameInParent(segments[index + 1].Target) : null;
+        tab.Navigate(target, focus);
+        List.Focus();
+    }
+
+    private async Task CopyToClipboardAsync(string text)
+    {
+        if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
+        await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
+        if (TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm) vm.Notify("Copied " + text);
+    }
+
+    /// <summary>The path's context menu: copy the whole path, the part clicked, or the name; go there; edit the path.</summary>
+    private void ShowPathMenu(Avalonia.Point point, int segment)
+    {
+        Activated?.Invoke();
+        var segments = PathLinks.Segments;
+        if (segments.Count == 0) return;
+        int last = segments.Count - 1;
+        var items = new List<Control>();
+        void Add(string header, string icon, Action run)
+        {
+            var item = new MenuItem { Header = header, Icon = MenuIconFactory.Create(icon) };
+            item.Click += (_, _) => run();
+            items.Add(item);
+        }
+        Add("Copy full path", Core.Commands.CommandIds.CopyPaths, () => _ = CopyToClipboardAsync(PathLinks.Text));
+        if (segment >= 0 && segment < last)
+            Add($"Copy \u201C{PathLinks.PathUpTo(segment)}\u201D", Core.Commands.CommandIds.CopyPaths, () => _ = CopyToClipboardAsync(PathLinks.PathUpTo(segment)));
+        int named = segment >= 0 ? segment : last;
+        if (PathLinks.NameOf(named) is { Length: > 0 } name)
+            Add($"Copy the name \u201C{name}\u201D", Core.Commands.CommandIds.CopyNames, () => _ = CopyToClipboardAsync(name));
+        if (segment >= 0 && segment < last)
+        {
+            items.Add(new Separator());
+            var target = segments[segment].Target;
+            Add($"Go to \u201C{PathLinks.NameOf(segment)}\u201D", Core.Commands.CommandIds.GoTo, () => OnPathPartChosen(target, false));
+            Add($"Open \u201C{PathLinks.NameOf(segment)}\u201D in a new tab", Core.Commands.CommandIds.NewTab, () => OnPathPartChosen(target, true));
+        }
+        items.Add(new Separator());
+        Add("Edit the path", Core.Commands.CommandIds.Edit, FocusPathBox);
+        var menu = new ContextMenu { ItemsSource = items, Placement = PlacementMode.Pointer };
+        menu.Open(PathLinks);
+    }
+
+    /// <summary>The path's parts as links (tests).</summary>
+    internal PathLine PathLinksControl => PathLinks;
 
     private void OnSourcePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {

@@ -93,7 +93,7 @@ internal static class ExternalViewBuilder
 
     /// <summary>Hidden-item and filter rules of a view (the name is materialized only when a filter is set).</summary>
     internal static bool Passes(scoped in EntryView e, Mask? filter, bool showHidden) =>
-        (showHidden || (e.Flags & EntryFlags.Hidden) == 0) && (filter is null || filter.IsMatch(e.Name.ToString(), e.IsContainer));
+        (showHidden || (e.Flags & EntryFlags.Hidden) == 0) && (filter is null || filter.Shows(e.Name, e.IsContainer));
 
     private static bool HasParent(EntryStore store, int count) => count > 0 && store[0].Kind == EntryKind.Parent;
 

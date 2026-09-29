@@ -125,4 +125,21 @@ public class MaskTests
         Assert.False(Mask.Parse("*.txt").IsMatchAll);
         Assert.False(Mask.Parse("*|*.bak").IsMatchAll);
     }
+
+    [Fact]
+    public void A_panel_filter_shows_every_folder_unless_the_mask_names_folders()
+    {
+        var files = Mask.Parse("*.txt");
+        Assert.True(files.Shows("notes.txt", isFolder: false));
+        Assert.False(files.Shows("notes.log", isFolder: false));
+        Assert.True(files.Shows("src", isFolder: true)); // the way on stays open
+        // A mask that names folders filters them too.
+        var folders = Mask.Parse("*.txt;src\\");
+        Assert.True(folders.NamesFolders);
+        Assert.True(folders.Shows("src", isFolder: true));
+        Assert.False(folders.Shows("bin", isFolder: true));
+        var excluded = Mask.Parse("*|obj\\");
+        Assert.False(excluded.Shows("obj", isFolder: true));
+        Assert.True(excluded.Shows("src", isFolder: true));
+    }
 }
