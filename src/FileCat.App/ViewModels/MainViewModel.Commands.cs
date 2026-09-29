@@ -669,12 +669,17 @@ public sealed partial class MainViewModel
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, ct =>
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, token);
-            return DirectorySizer.Compute(path, p => Services.Ui.Post(() => listing.SetComputedSize(name, p.Bytes, false)), linked.Token);
+            // Sizes land only while the panel still shows that folder's parent: another folder may hold one of the same name.
+            return DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
+            {
+                if (listing.Location == vol) listing.SetComputedSize(name, p.Bytes, false);
+            }), linked.Token);
         }, token).ContinueWith(t =>
         {
             Services.Ui.Post(() =>
             {
                 EndSizing(key, token);
+                if (listing.Location != vol) return;
                 if (t.IsCompletedSuccessfully)
                 {
                     listing.SetComputedSize(name, t.Result.Bytes, true);

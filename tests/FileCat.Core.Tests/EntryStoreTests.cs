@@ -110,6 +110,32 @@ public sealed class EntryStoreTests
     }
 
     [Fact]
+    public async Task A_size_measured_while_its_folder_is_listed_again_lands_when_its_row_returns()
+    {
+        using var folder = new TempDir();
+        using var scratch = new TempDir();
+        Directory.CreateDirectory(Path.Combine(folder.Path, "sub"));
+        folder.File("keep.txt");
+        using var ui = new TestDispatcher();
+        using var io = new FileCat.Core.Threading.DeviceIoScheduler();
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new ComputerProvider());
+        var listing = await ui.InvokeAsync(() => new ListingModel(providers, io, ui, scratch.Path, 1024));
+        // The size arrives after the rows were replaced and before the folder's row is back (the folder watcher's
+        // reread on a busy machine): it used to be dropped.
+        await ui.InvokeAsync(() =>
+        {
+            listing.Load(Location.FileSystem(folder.Path));
+            listing.SetComputedSize("sub", 5000, true);
+        });
+        await ui.WaitUntilAsync(() => listing.State == ListingState.Complete);
+        long size = await ui.InvokeAsync(() => listing.GetVisible(Enumerable.Range(0, listing.VisibleCount).First(i => listing.GetVisible(i).Name == "sub")).Size);
+        Assert.Equal(5000L, size);
+        await ui.InvokeAsync(listing.Dispose);
+    }
+
+    [Fact]
     public async Task A_computed_folder_size_survives_a_refresh_until_the_folder_changes()
     {
         using var folder = new TempDir();

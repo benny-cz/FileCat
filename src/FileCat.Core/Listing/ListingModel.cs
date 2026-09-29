@@ -71,6 +71,10 @@ public sealed class ListingModel : IDisposable
     /// </summary>
     private Dictionary<string, (long Size, long Modified)> _computedSizes = new(StringComparer.Ordinal);
     private Dictionary<string, (long Size, long Modified)>? _pendingSizes;
+    /// <summary>A pending size measured while its folder was being listed again: it applies whatever the folder's time.</summary>
+    private const long MeasuredDuringRefresh = long.MinValue;
+    /// <summary>Entries are still arriving (a load, or a refresh after it replaced the rows) and names may not be found yet.</summary>
+    private bool _awaitingEntries;
     private readonly List<string> _issues = [];
     private bool _disposed;
 
@@ -303,6 +307,7 @@ public sealed class ListingModel : IDisposable
         _pendingMarks = null;
         _computedSizes = new(StringComparer.Ordinal);
         _pendingSizes = null;
+        _awaitingEntries = true;
         _lastOperation = null;
         Error = null;
         State = ListingState.Loading;
@@ -468,6 +473,7 @@ public sealed class ListingModel : IDisposable
         _pendingMarks = marked.Count > 0 ? marked : null;
         _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
         _computedSizes = new(StringComparer.Ordinal);
+        _awaitingEntries = true;
         _pendingFocusName = focusName;
         _pendingFocusKind = focusKind;
         _focusStore = -1;
@@ -497,7 +503,7 @@ public sealed class ListingModel : IDisposable
                 // A folder whose own time is unchanged keeps the size computed for it before the refresh.
                 if (_pendingSizes is not null && e.Kind == EntryKind.Directory && _pendingSizes.GetAlternateLookup<ReadOnlySpan<char>>().Remove(e.Name, out _, out var kept))
                 {
-                    if (kept.Modified == e.Modified) (sized ??= []).Add((i, kept.Size));
+                    if (kept.Modified == e.Modified || kept.Modified == MeasuredDuringRefresh) (sized ??= []).Add((i, kept.Size));
                 }
                 if (RemovePendingMark(e.Kind, e.Name))
                 {
@@ -554,6 +560,7 @@ public sealed class ListingModel : IDisposable
         {
             _pendingMarks = null;
             _pendingSizes = null;
+            _awaitingEntries = false;
             _pendingFocusName = null;
             _pendingFocusKind = null;
             LastLoadDuration = Stopwatch.GetElapsedTime(p.StartedTimestamp);
@@ -881,7 +888,12 @@ public sealed class ListingModel : IDisposable
     public void SetComputedSize(string name, long bytes, bool complete)
     {
         int si = FindStoreIndex(name);
-        if (si < 0) return;
+        if (si < 0)
+        {
+            // Measured while the folder is being listed again and before its row came back: the size waits for it.
+            if (_awaitingEntries && complete && bytes >= 0) (_pendingSizes ??= new(StringComparer.Ordinal))[name] = (bytes, MeasuredDuringRefresh);
+            return;
+        }
         var e = _store[si];
         e.Size = bytes;
         e.Flags = complete ? e.Flags | EntryFlags.SizeComputed : e.Flags & ~EntryFlags.SizeComputed;
