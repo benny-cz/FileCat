@@ -68,6 +68,12 @@ public sealed class RecoveryUiTests
             Assert.False(((Views.OverlayDialogService)vm.Dialogs).IsOpen);
             Assert.Contains("only reads", vm.Notification ?? "", StringComparison.Ordinal);
             Assert.True(File.Exists(image));
+            // FileCat's own item menu there: every item with its icon, and nothing that would change the source.
+            var menuItems = Views.ContextMenuFactory.Build(vm).Items.OfType<Avalonia.Controls.MenuItem>().ToList();
+            Assert.NotEmpty(menuItems);
+            Assert.All(menuItems, item => Assert.NotNull(item.Icon));
+            foreach (var id in new[] { CommandIds.CutToClipboard, CommandIds.Edit, CommandIds.Move, CommandIds.Delete })
+                Assert.DoesNotContain(menuItems, item => item.Header as string == services.Commands.Get(id)!.Title);
 
             // Recover deleted files again, here: the volume's free space is offered first, and searched after a confirmation.
             var location = tab.Location;

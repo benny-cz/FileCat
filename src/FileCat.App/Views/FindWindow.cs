@@ -354,27 +354,27 @@ public sealed class FindWindow : Window, IViewActions
             CommandItem(CommandIds.MarkAll, "Select all"), CommandItem(CommandIds.MarkNone, "Unselect all"),
             CommandItem(CommandIds.MarkInvert, "Invert selection"), CommandItem(CommandIds.MarkSelectMask, "Select…"),
             CommandItem(CommandIds.MarkUnselectMask, "Unselect…"), new Separator(),
-            ActionItem("Hide selected items", "Ctrl+H", HideSelected, () => _tab is not null),
-            ActionItem("Hide duplicate names", null, HideDuplicateNames, () => _tab is not null),
+            ActionItem("Hide selected items", "Ctrl+H", HideSelected, () => _tab is not null, "find.hideSelected"),
+            ActionItem("Hide duplicate names", null, HideDuplicateNames, () => _tab is not null, "find.hideDuplicates"),
             new Separator(),
-            ActionItem("Select all but one in each group", null, SelectAllButOnePerGroup, () => _groups.Count > 0),
+            ActionItem("Select all but one in each group", null, SelectAllButOnePerGroup, () => _groups.Count > 0, "find.allButOne"),
         ]));
         menu.Items.Add(Submenu("F_ind", [
-            ActionItem("Find", "Enter", () => StartSearch(RefineMode.Replace)),
-            ActionItem("Keep only items found again", "Ctrl+I", () => StartSearch(RefineMode.Intersect), () => _set is not null),
-            ActionItem("Remove items found again", "Ctrl+S", () => StartSearch(RefineMode.Subtract), () => _set is not null),
-            ActionItem("Add new finds", "Ctrl+W", () => StartSearch(RefineMode.Append), () => _set is not null),
+            ActionItem("Find", "Enter", () => StartSearch(RefineMode.Replace), icon: "find.run"),
+            ActionItem("Keep only items found again", "Ctrl+I", () => StartSearch(RefineMode.Intersect), () => _set is not null, "find.keepAgain"),
+            ActionItem("Remove items found again", "Ctrl+S", () => StartSearch(RefineMode.Subtract), () => _set is not null, "find.removeAgain"),
+            ActionItem("Add new finds", "Ctrl+W", () => StartSearch(RefineMode.Append), () => _set is not null, "find.addNew"),
             new Separator(),
-            ActionItem("Stop", "Escape", Stop, () => IsSearching),
-            ActionItem("Skip current folder", null, () => _session?.SkipCurrentFolder(), () => IsSearching),
+            ActionItem("Stop", "Escape", Stop, () => IsSearching, "find.stop"),
+            ActionItem("Skip current folder", null, () => _session?.SkipCurrentFolder(), () => IsSearching, "find.skipFolder"),
             new Separator(),
-            ActionItem("Find duplicates…", null, () => _ = FindDuplicatesAsync()),
+            ActionItem("Find duplicates…", null, () => _ = FindDuplicatesAsync(), icon: "find.duplicates"),
             new Separator(),
-            ActionItem("Show in panel", null, ShowInPanel, () => _set is not null),
-            ActionItem("Search log…", null, () => _ = ShowLogAsync(), () => _session?.Log.Count > 0),
+            ActionItem("Show in panel", null, ShowInPanel, () => _set is not null, CommandIds.OpenInTarget),
+            ActionItem("Search log…", null, () => _ = ShowLogAsync(), () => _session?.Log.Count > 0, "find.log"),
         ]));
         menu.Items.Add(Submenu("_View", [
-            CommandItem(CommandIds.SortName), ActionItem("Sort by folder", null, () => _tab?.SortByMetadata(ColumnSpec.FolderSortKey), () => _tab is not null),
+            CommandItem(CommandIds.SortName), ActionItem("Sort by folder", null, () => _tab?.SortByMetadata(ColumnSpec.FolderSortKey), () => _tab is not null, "find.sortFolder"),
             CommandItem(CommandIds.SortExtension), CommandItem(CommandIds.SortTime),
             CommandItem(CommandIds.SortSize), CommandItem(CommandIds.SortNone), new Separator(), CommandItem(CommandIds.Refresh, "Check the items again"),
         ]));
@@ -391,11 +391,11 @@ public sealed class FindWindow : Window, IViewActions
             _services.SaveSettings();
         };
         menu.Items.Add(Submenu("_Options", [
-            ActionItem("Advanced criteria…", "Ctrl+D", () => _ = EditAdvancedAsync()),
-            ActionItem("Ignored folders…", null, () => _ = EditIgnoredFoldersAsync()),
+            ActionItem("Advanced criteria…", "Ctrl+D", () => _ = EditAdvancedAsync(), icon: CommandIds.QuickFilter),
+            ActionItem("Ignored folders…", null, () => _ = EditIgnoredFoldersAsync(), icon: "find.ignored"),
             new Separator(),
-            ActionItem("Save search…", null, () => _ = SaveSearchAsync()),
-            ActionItem("Saved searches…", null, () => _ = LoadSearchAsync()),
+            ActionItem("Save search…", null, () => _ = SaveSearchAsync(), icon: CommandIds.SaveWorkspace),
+            ActionItem("Saved searches…", null, () => _ = LoadSearchAsync(), icon: CommandIds.LoadWorkspace),
             new Separator(),
             logOnErrors,
         ]));
@@ -404,8 +404,8 @@ public sealed class FindWindow : Window, IViewActions
 
     private List<Control> FileItems() =>
     [
-        ActionItem("Open", "Enter", OpenFocused, () => _tab is not null),
-        ActionItem("Show in the active panel", "Space", () => FocusInPanel(enter: false), () => _tab is not null),
+        ActionItem("Open", "Enter", OpenFocused, () => _tab is not null, CommandIds.Open),
+        ActionItem("Show in the active panel", "Space", () => FocusInPanel(enter: false), () => _tab is not null, CommandIds.GoTo),
         CommandItem(CommandIds.View), CommandItem(CommandIds.ViewAlternate), CommandItem(CommandIds.Edit), new Separator(),
         CommandItem(CommandIds.Copy), CommandItem(CommandIds.Move), CommandItem(CommandIds.Delete), CommandItem(CommandIds.DeletePermanent),
         new Separator(),
@@ -431,9 +431,9 @@ public sealed class FindWindow : Window, IViewActions
         return top;
     }
 
-    private MenuItem ActionItem(string header, string? gesture, Action run, Func<bool>? available = null)
+    private MenuItem ActionItem(string header, string? gesture, Action run, Func<bool>? available = null, string? icon = null)
     {
-        var item = new MenuItem { Header = header };
+        var item = new MenuItem { Header = header, Icon = MenuIcon(icon) };
         if (gesture is not null) item.InputGesture = KeyGesture.Parse(gesture);
         item.Click += (_, _) => run();
         if (available is not null) item.Tag = new Func<(bool, string?)>(() => (available(), null));
@@ -443,7 +443,7 @@ public sealed class FindWindow : Window, IViewActions
     private MenuItem CommandItem(string id, string? header = null)
     {
         var def = _services.Commands.Get(id);
-        var item = new MenuItem { Header = header ?? def?.Title ?? id };
+        var item = new MenuItem { Header = header ?? def?.Title ?? id, Icon = MenuIcon(id) };
         var chord = _services.Keymap.GetChords(id).FirstOrDefault();
         // A key this window uses itself (Ctrl+I keeps only items found again here) is not the command's key here.
         if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } gesture && !OwnKeys.Contains(gesture.ToString())) item.InputGesture = gesture;
@@ -457,9 +457,12 @@ public sealed class FindWindow : Window, IViewActions
         return item;
     }
 
+    /// <summary>The icon a command shows in every menu (D-49), and this window's own for its actions.</summary>
+    private static Image? MenuIcon(string? id) => id is not null && CommandIcons.Get(id) is { } icon ? new Image { Source = icon, Width = 16, Height = 16 } : null;
+
     private void ShowListMenu(Point point)
     {
-        var menu = new ContextMenu { ItemsSource = FileItems().Concat([new Separator(), ActionItem("Hide selected items", "Ctrl+H", HideSelected)]).ToList() };
+        var menu = new ContextMenu { ItemsSource = FileItems().Concat([new Separator(), ActionItem("Hide selected items", "Ctrl+H", HideSelected, icon: "find.hideSelected")]).ToList() };
         foreach (var item in menu.Items.OfType<MenuItem>())
             if (item.Tag is Func<(bool Enabled, string? Reason)> state) item.IsEnabled = state().Enabled;
         menu.Open(_list);

@@ -57,6 +57,7 @@ public static class CommandIcons
     private static readonly Dictionary<string, Part[]> Drawings = new(StringComparer.Ordinal)
     {
         // File
+        [CommandIds.Open] = [new(Box, "TextMuted"), new("M4.5,8 L11.5,8 M9,5.5 L11.5,8 L9,10.5", "ActiveAccent")],
         [CommandIds.View] = [new(Eye), new(Pupil, "ActiveAccent", Fill: true)],
         [CommandIds.ViewAlternate] = [new(Eye), new(Pupil, "TextMuted", Fill: true)],
         [CommandIds.Edit] = [new("M2.5,13.5 L3,10.5 L10.5,3 L13,5.5 L5.5,13 Z M9.5,4 L12,6.5"), new("M2.5,13.5 L5.5,13", "ActiveAccent")],
@@ -198,6 +199,20 @@ public static class CommandIcons
         [CommandIds.LoadWorkspace] = [new(Folder, "FolderIcon"), new("M8,11.5 L8,7 M6,9 L8,7 L10,9", "OnAccent")],
         [CommandIds.HexRecovery] = [new(Box, "TextMuted"), new("M4.5,5 L4.5,11 M4.5,8 L7,8 M7,5 L7,11 M9,5 L12,11 M12,5 L9,11", "Warning")],
         [CommandIds.DiagnosticsExport] = [new("M1.5,8 L4.5,8 L6,4 L9,12.5 L10.5,8 L14.5,8", "ActiveAccent")],
+        // The Find window's own actions.
+        ["find.run"] = [new(Magnifier)],
+        ["find.keepAgain"] = [new(Magnifier, "TextMuted"), new("M9,12 L11,14 L14.5,10", "Success")],
+        ["find.removeAgain"] = [new(Magnifier, "TextMuted"), new(Minus, "Error")],
+        ["find.addNew"] = [new(Magnifier, "TextMuted"), new(Plus, "Success")],
+        ["find.stop"] = [new("M4,4 L12,4 L12,12 L4,12 Z", "Error", Fill: true)],
+        ["find.skipFolder"] = [new(Folder, "FolderIcon", Opacity: 0.8), new("M6,7 L8.5,9 L6,11 M9,7 L11.5,9 L9,11", "ActiveAccent")],
+        ["find.duplicates"] = [new("M1.5,2 L7,2 L7,11 L1.5,11 Z M9,5 L14.5,5 L14.5,14 L9,14 Z", "TextMuted"), new("M3,5 L5.5,5 M3,7.5 L5.5,7.5 M10.5,8 L13,8 M10.5,10.5 L13,10.5", "Warning")],
+        ["find.hideSelected"] = [new("M1.5,3 L10.5,3 M1.5,7 L10.5,7 M1.5,11 L6,11", "TextMuted"), new(Minus, "Error")],
+        ["find.hideDuplicates"] = [new("M1.5,2 L7,2 L7,9 L1.5,9 Z M4,4.5 L9.5,4.5 L9.5,11 L7,11", "TextMuted"), new(Minus, "Error")],
+        ["find.allButOne"] = [new("M1.5,3.5 L3,5 L5.5,2 M1.5,8.5 L3,10 L5.5,7", "TextMarked"), new("M2,12 L5,12 L5,15 L2,15 Z", "TextMuted"), new("M8,3.5 L14.5,3.5 M8,8.5 L14.5,8.5 M8,13.5 L14.5,13.5")],
+        ["find.log"] = [new(Page, "TextMuted"), new("M6,7 L10.5,7 M6,9.5 L10.5,9.5 M6,12 L9,12", "Text")],
+        ["find.sortFolder"] = [new("M1.5,4 L1.5,12 L9,12 L9,5.5 L5,5.5 L4,4 Z", "FolderIcon"), new("M12.5,3 L12.5,13 M10.5,11 L12.5,13 L14.5,11", "ActiveAccent")],
+        ["find.ignored"] = [new(Folder, "FolderIcon", Opacity: 0.8), new("M3,14.5 L13,4", "Error")],
         // Help
         [CommandIds.Help] = [new(Circle), new("M6.2,6.2 C6.2,4.2 9.8,4.2 9.8,6.2 C9.8,7.6 8,7.9 8,9.3 M8,11.3 L8,11.4", "ActiveAccent")],
         [CommandIds.CheckUpdates] = [new("M2.5,10.5 L2.5,13.5 L13.5,13.5 L13.5,10.5", "TextMuted"), new("M8,2 L8,10 M5,7 L8,10 L11,7", "ActiveAccent")],
