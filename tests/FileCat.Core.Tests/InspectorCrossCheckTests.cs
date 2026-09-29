@@ -108,7 +108,7 @@ public sealed class InspectorCrossCheckTests
         // A file this size is read whole: its checksum is compared, and it matches unless the header leaves it unset.
         if (optional.CheckSum != 0 && new FileInfo(path).Length < 128 << 20)
             Assert.EndsWith("(matches the file)", Field(report, "Optional header", "Checksum"));
-        Assert.Empty(report.Warnings.Where(w => w.Contains("could not be read", StringComparison.Ordinal) || w.Contains("damaged", StringComparison.Ordinal)));
+        Assert.DoesNotContain(report.Warnings, w => w.Contains("could not be read", StringComparison.Ordinal) || w.Contains("damaged", StringComparison.Ordinal));
 
         // .NET assemblies: the metadata as the runtime reads it.
         if (pe.HasMetadata)

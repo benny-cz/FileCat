@@ -50,6 +50,36 @@ public class PathAndStateTests
     }
 
     [Fact]
+    public void Drive_letters_show_upper_case_however_they_were_typed()
+    {
+        var fs = new LocalFileSystemProvider();
+        if (!OperatingSystem.IsWindows())
+        {
+            // No drive letters here: paths are shown as they are.
+            Assert.Equal("/home/c:x", PathUtil.WithUpperDrive("/home/c:x"));
+            return;
+        }
+        Assert.Equal(@"C:\Users\x", PathUtil.WithUpperDrive(@"c:\Users\x"));
+        Assert.Equal(@"\\?\D:\x", PathUtil.WithUpperDrive(@"\\?\d:\x"));
+        Assert.Equal(@"\\server\c$", PathUtil.WithUpperDrive(@"\\server\c$"));
+        Assert.Equal("X:", PathUtil.WithUpperDrive("x:"));
+
+        // Typed: the location itself carries the upper case letter.
+        Assert.True(fs.TryParse(@"c:\windows", null, out var typed));
+        Assert.Equal(@"C:\windows", typed!.Path);
+        Assert.True(fs.TryParse("d:", null, out var root));
+        Assert.Equal(@"D:\", root!.Path);
+
+        // Stored or linked with a lower case letter: shown upper case all the same, in the path, a root's tab name,
+        // and an archive's path.
+        var stored = Location.FileSystem(@"e:\data");
+        Assert.Equal(@"E:\data", fs.GetDisplayPath(stored));
+        Assert.Equal(@"E:\", fs.GetDisplayName(Location.FileSystem(@"e:\")));
+        var zip = new Core.Archives.ZipProvider(Path.GetTempPath());
+        Assert.Equal(@"E:\data\a.zip\inner", zip.GetDisplayPath(new Location(Schemes.Zip, "inner", Location.FileSystem(@"e:\data\a.zip"))));
+    }
+
+    [Fact]
     public void Unique_names_do_not_stack_suffixes()
     {
         var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "a.txt", "a (2).txt", "a (3).txt" };

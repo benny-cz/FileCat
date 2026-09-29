@@ -63,7 +63,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     private static string DisplayArchive(Location l)
     {
         var container = l.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
-        if (container.IsFileSystem) return container.Path;
+        if (container.IsFileSystem) return PathUtil.WithUpperDrive(container.Path);
         return Path.Combine(DisplayArchive(container), container.Path.Replace('/', Path.DirectorySeparatorChar));
     }
 

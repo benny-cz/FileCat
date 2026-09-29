@@ -113,7 +113,7 @@ public sealed class PathLineTests
             // The text files, the folder (folders always show), and "..".
             Assert.Equal(["..", "folder", "a.txt", "b.txt"], Enumerable.Range(0, listing.VisibleCount).Select(i => listing.GetVisible(i).Name));
             Assert.Equal("*.txt", tab.FilterText);
-            Assert.True(box.Classes.Contains("active"));
+            Assert.Contains("active", box.Classes);
 
             // "*.*" shows everything again.
             box.Focus();
@@ -122,7 +122,7 @@ public sealed class PathLineTests
             for (int i = 0; i < 100 && listing.VisibleCount != 5; i++) await Task.Delay(20, ct);
             Assert.Equal(5, listing.VisibleCount);
             Assert.Null(tab.FilterText);
-            Assert.False(box.Classes.Contains("active"));
+            Assert.DoesNotContain("active", box.Classes);
             Assert.Equal(PanelView.AllItemsMask, box.Text);
         }
         finally
@@ -158,7 +158,7 @@ public sealed class PathLineTests
             thisPc.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
             for (int i = 0; i < 250 && tab.Location?.Scheme != Core.Resources.Schemes.Computer; i++) await Task.Delay(20, ct);
             Assert.Equal(Core.Resources.Schemes.Computer, tab.Location!.Scheme);
-            Assert.True(thisPc.Classes.Contains("current"));
+            Assert.Contains("current", thisPc.Classes);
 
             // The drive the other panel is on opens at that panel's folder, as in the location menu.
             current.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));

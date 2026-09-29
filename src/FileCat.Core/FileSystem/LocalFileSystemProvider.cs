@@ -44,13 +44,14 @@ public class LocalFileSystemProvider : ResourceProvider
 
     public IContainerDetector? ContainerDetector { get; set; }
 
-    public override string GetDisplayPath(Location location) => location.Path;
+    /// <summary>The path, with a drive letter upper case however it was typed or stored.</summary>
+    public override string GetDisplayPath(Location location) => PathUtil.WithUpperDrive(location.Path);
 
     public override string GetDisplayName(Location location)
     {
         var t = Path.TrimEndingDirectorySeparator(location.Path);
         var name = Path.GetFileName(t);
-        return string.IsNullOrEmpty(name) ? location.Path : name;
+        return string.IsNullOrEmpty(name) ? PathUtil.WithUpperDrive(location.Path) : name;
     }
 
     public override Location? GetParent(Location location)
@@ -215,9 +216,10 @@ public class LocalFileSystemProvider : ResourceProvider
         return false;
     }
 
-    /// <summary>Keeps roots with their separator ("C:\", "/") and trims it elsewhere.</summary>
+    /// <summary>Keeps roots with their separator ("C:\", "/") and trims it elsewhere; a typed drive letter becomes upper case.</summary>
     public static string NormalizeUserPath(string full)
     {
+        full = PathUtil.WithUpperDrive(full);
         var trimmed = Path.TrimEndingDirectorySeparator(full);
         return string.IsNullOrEmpty(Path.GetFileName(trimmed)) && !PathUtil.IsUncShareRoot(trimmed) ? full : trimmed;
     }

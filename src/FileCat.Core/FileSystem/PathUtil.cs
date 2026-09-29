@@ -44,6 +44,18 @@ public static class PathUtil
     public static bool IsUncPath(string path) =>
         path.Length > 2 && IsSep(path[0]) && IsSep(path[1]) && path[2] != '?' && path[2] != '.';
 
+    /// <summary>
+    /// A Windows path with its drive letter upper case ("c:\x" → "C:\x", also after "\\?\"), as Windows shows drives;
+    /// the rest of the path, and any path elsewhere, stays as it is.
+    /// </summary>
+    public static string WithUpperDrive(string path)
+    {
+        if (!IsWindows) return path;
+        int at = path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.StartsWith(@"\\.\", StringComparison.Ordinal) ? 4 : 0;
+        if (path.Length < at + 2 || path[at + 1] != ':' || !char.IsAsciiLetterLower(path[at])) return path;
+        return string.Concat(path.AsSpan(0, at), [char.ToUpperInvariant(path[at])], path.AsSpan(at + 1));
+    }
+
     /// <summary>"\\server" for any UNC path, otherwise null.</summary>
     public static string? GetUncServer(string path)
     {
