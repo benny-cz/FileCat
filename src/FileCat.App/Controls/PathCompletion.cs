@@ -3,7 +3,6 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
-using Avalonia.Threading;
 using FileCat.App.Services;
 
 namespace FileCat.App.Controls;
@@ -21,7 +20,6 @@ internal sealed class PathCompletion
     private readonly ListBox _list;
     private readonly Func<bool> _includeHidden;
     private readonly Func<string?> _unchanged;
-    private CancellationTokenSource? _pending;
 
     /// <param name="host">Where the list's popup lives (any panel around the box).</param>
     /// <param name="includeHidden">Whether hidden folders are suggested ("Show hidden").</param>
@@ -80,41 +78,55 @@ internal sealed class PathCompletion
 
     public void Close()
     {
-        _pending?.Cancel();
-        _pending = null;
+        _wanted = null;
         _popup.IsOpen = false;
     }
 
+    // The text to suggest for (null: closed), and whether a lookup runs. Both are touched on the UI thread only.
+    private string? _wanted;
+    private bool _looking;
+
     private void Update()
     {
-        _pending?.Cancel();
-        var cts = _pending = new CancellationTokenSource();
-        string text = _box.Text ?? string.Empty;
-        bool hidden = _includeHidden();
+        _wanted = _box.Text ?? string.Empty;
         // Match the list's width to the box's (the popup is placed under it).
         _list.MinWidth = _box.Bounds.Width;
-        _ = Task.Run(async () =>
+        if (!_looking) _ = LookAsync();
+    }
+
+    /// <summary>
+    /// One lookup at a time, for the latest text: an unreachable network path can hold a lookup for half a minute, and
+    /// typing meanwhile must not start more of them.
+    /// </summary>
+    private async Task LookAsync()
+    {
+        _looking = true;
+        try
         {
-            try
+            while (true)
             {
-                await Task.Delay(120, cts.Token); // typing settles first
-                var found = PathSuggestions.For(text, hidden, cts.Token);
-                Dispatcher.UIThread.Post(() =>
+                await Task.Delay(120); // typing settles first
+                if (_wanted is not { } text) return;
+                bool hidden = _includeHidden();
+                var found = await Task.Run(() => PathSuggestions.For(text, hidden, CancellationToken.None));
+                if (_wanted is null || !_box.IsFocused) return;
+                if (_wanted != text) continue; // typed on meanwhile: look again, for what is there now
+                // Nothing to offer when the one folder found is what is already typed.
+                if (found.Count == 0 || found.Count == 1 && string.Equals(found[0], text.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
                 {
-                    if (cts.IsCancellationRequested || !_box.IsFocused) return;
-                    // Nothing to offer when the one folder found is what is already typed.
-                    if (found.Count == 0 || found.Count == 1 && string.Equals(found[0], text.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
-                    {
-                        Close();
-                        return;
-                    }
-                    _list.ItemsSource = found;
-                    _list.SelectedIndex = -1;
-                    _popup.IsOpen = true;
-                });
+                    _popup.IsOpen = false;
+                    return;
+                }
+                _list.ItemsSource = found;
+                _list.SelectedIndex = -1;
+                _popup.IsOpen = true;
+                return;
             }
-            catch (OperationCanceledException) { }
-        });
+        }
+        finally
+        {
+            _looking = false;
+        }
     }
 
     /// <summary>The list's keys while it is shown; false for any other key (the box handles it as before).</summary>
