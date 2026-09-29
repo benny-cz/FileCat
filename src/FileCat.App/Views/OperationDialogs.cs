@@ -373,7 +373,7 @@ public static class OperationDialogs
         return r is DecisionAction act ? new Decision(act, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
     }
 
-    private static string FormatTime(DateTime utc) => utc <= DateTime.MinValue.AddDays(1) ? "unknown" : Formatters.Date(utc.Ticks) + ":" + utc.ToLocalTime().Second.ToString("00");
+    private static string FormatTime(DateTime utc) => utc <= DateTime.MinValue.AddDays(1) ? "unknown" : Formatters.DateWithSeconds(utc.Ticks);
 
     private static string Attr(FileAttributes a)
     {

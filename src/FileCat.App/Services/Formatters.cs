@@ -52,6 +52,21 @@ public static class Formatters
     public static string Date(DateTime local) =>
         DateFormat == "Culture" ? local.ToString("g", CultureInfo.CurrentCulture) : local.ToString(DateFormat, CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// A time as the date columns show it, with seconds (conflicts compare times a minute apart): the culture's long
+    /// time ("9/29/2026 5:29:34 AM"), or the chosen format with seconds after its minutes.
+    /// </summary>
+    public static string DateWithSeconds(long utcTicks)
+    {
+        if (utcTicks <= 0) return string.Empty;
+        var local = new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime();
+        if (DateFormat == "Culture") return local.ToString("G", CultureInfo.CurrentCulture);
+        string format = DateFormat.Contains("ss", StringComparison.Ordinal) || !DateFormat.Contains("mm", StringComparison.Ordinal)
+            ? DateFormat
+            : DateFormat.Replace("mm", "mm:ss", StringComparison.Ordinal);
+        return local.ToString(format, CultureInfo.InvariantCulture);
+    }
+
     public static string Attributes(in EntryData e)
     {
         if (e.Kind is EntryKind.Parent or EntryKind.Drive or EntryKind.Server or EntryKind.Share) return string.Empty;

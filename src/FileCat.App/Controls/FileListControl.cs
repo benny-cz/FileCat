@@ -440,6 +440,12 @@ public sealed class FileListControl : Control
 
     private void OnDateFormatChanged()
     {
+        // The format is a process-wide setting: whoever changes it, the list redraws on its own thread.
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(OnDateFormatChanged);
+            return;
+        }
         UpdateDateScale();
         ClearTextCache();
         InvalidateArrange();
