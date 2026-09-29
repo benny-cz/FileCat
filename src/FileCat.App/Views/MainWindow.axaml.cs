@@ -464,6 +464,10 @@ public partial class MainWindow : Window, IViewActions
             case "Space" when chord.Mods is KeyMods.None or KeyMods.Shift:
                 // Space extends the search text (arrives as text input).
                 return true;
+            case var _ when TypesText(e.Key, e.KeyModifiers):
+                // A letter, digit, or punctuation extends the search: its text follows the key press, and only while
+                // the key press is not handled (Windows drops the text of a handled one).
+                return true;
             case "Enter":
                 tab.EndQuickSearch();
                 handled = false;
@@ -480,6 +484,18 @@ public partial class MainWindow : Window, IViewActions
             _suppressTextInput = true;
         }
         return handled;
+    }
+
+    /// <summary>
+    /// Whether a key types a character: letters, digits (the Czech number row's accented letters too), and punctuation,
+    /// with Shift or none; Ctrl+Alt as well, which is AltGr on Windows keyboards ("@" on a Czech one).
+    /// </summary>
+    private static bool TypesText(Key key, KeyModifiers modifiers)
+    {
+        var command = modifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta);
+        if (command != 0 && command != (KeyModifiers.Control | KeyModifiers.Alt)) return false;
+        return key is >= Key.A and <= Key.Z or >= Key.D0 and <= Key.D9 or >= Key.NumPad0 and <= Key.NumPad9 or Key.Decimal
+            or >= Key.OemSemicolon and <= Key.OemBackslash;
     }
 
     private bool HandleEscape(TabViewModel? tab)

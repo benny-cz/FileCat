@@ -51,6 +51,62 @@ public sealed class PanelKeysTests
     }
 
     [AvaloniaFact]
+    public async Task Typing_in_a_panel_goes_to_the_first_name_that_starts_so()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string folder = Path.Combine(root, "files");
+            foreach (var name in new[] { "beta.txt", "bravo.txt", "charlie.txt" }) File.WriteAllText(Path.Combine(folder, name), name);
+            var tab = vm.ActiveTab!;
+            tab.Refresh();
+            var listing = tab.Listing;
+            for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 6); i++) await Task.Delay(20, ct);
+            listing.SetFocus(0);
+            vm.View.FocusActivePanel();
+            await Task.Delay(50, ct);
+            // Each key press, then the text it types, as the keyboard delivers them. On Windows the text follows only when
+            // nothing handled the key press, so a handled letter key would type nothing in the real app.
+            bool keyHandled = false;
+            window.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, (_, e) => keyHandled |= e.Handled, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            void Type(Key key, PhysicalKey physical, string text)
+            {
+                window.KeyPress(key, RawInputModifiers.None, physical, text);
+                if (!keyHandled) window.KeyTextInput(text);
+                window.KeyRelease(key, RawInputModifiers.None, physical, text);
+            }
+            string Focused() => listing.GetVisible(listing.FocusedIndex).Name;
+
+            Type(Key.B, PhysicalKey.B, "b");
+            Assert.Equal(("b", "b.txt"), (tab.QuickSearch, Focused()));
+            // Further letters narrow the search (they used to end it and start again from the new letter).
+            Type(Key.R, PhysicalKey.R, "r");
+            Assert.Equal(("br", "bravo.txt"), (tab.QuickSearch, Focused()));
+            Assert.False(keyHandled, "A letter's key press was handled, so Windows would not type it.");
+            // A letter that matches nothing is refused and said; the search and the item found stay.
+            Type(Key.X, PhysicalKey.X, "x");
+            Assert.Equal(("br", true, "bravo.txt"), (tab.QuickSearch, tab.QuickSearchNoMatch, Focused()));
+            window.KeyPress(Key.Back, RawInputModifiers.None, PhysicalKey.Backspace, null);
+            Assert.Equal("b", tab.QuickSearch);
+
+            // The search shows in the status line, not over the list, where it would hide the item it found.
+            await Task.Delay(50, ct);
+            var box = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.Border>().First(x => x.Classes.Contains("quicksearch") && x.IsEffectivelyVisible);
+            var list = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Controls.FileListControl>().First(x => x.IsEffectivelyVisible);
+            var boxTop = Avalonia.VisualExtensions.TranslatePoint(box, new Avalonia.Point(0, 0), window)!.Value.Y;
+            var listBottom = Avalonia.VisualExtensions.TranslatePoint(list, new Avalonia.Point(0, list.Bounds.Height), window)!.Value.Y;
+            Assert.True(boxTop >= listBottom - 1, $"The quick search box (top {boxTop}) covers the list (bottom {listBottom}).");
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Assert.Null(tab.QuickSearch);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task The_toolbar_runs_commands_names_their_keys_shows_switches_and_can_be_hidden()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

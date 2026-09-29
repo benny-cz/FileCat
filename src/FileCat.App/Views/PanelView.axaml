@@ -58,6 +58,16 @@
           <TextBlock Text="{Binding ActiveTab.StatusLeft}" Classes="small" TextTrimming="CharacterEllipsis" />
           <TextBlock Grid.Column="1" Text="{Binding ActiveTab.StatusRight}" Classes="small" Margin="12,0,0,0"
                      MaxWidth="420" TextTrimming="CharacterEllipsis" />
+          <!-- Typing in the list searches it (plan §4.3). The search shows here, over the status, so it never hides the
+               item it found at the bottom of the list. -->
+          <Border Grid.ColumnSpan="2" Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.QuickSearchNoMatch}"
+                  IsVisible="{Binding ActiveTab.IsQuickSearchActive}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Classes="small" Text="Quick search: " />
+              <TextBlock Classes="small" Text="{Binding ActiveTab.QuickSearch}" FontWeight="Bold" />
+              <TextBlock Classes="small warning" Text="  · no name matches" IsVisible="{Binding ActiveTab.QuickSearchNoMatch}" />
+            </StackPanel>
+          </Border>
         </Grid>
       </Border>
 
@@ -81,14 +91,6 @@
         <ctl:FileListControl x:Name="List" Tab="{Binding ActiveTab}" IsActivePanel="{Binding IsActive}"
                              FontSize="{Binding $parent[Window].((vm:MainViewModel)DataContext).ListFontSize, FallbackValue=13}"
                              AutomationProperties.Name="File list" />
-        <Border Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.QuickSearchNoMatch}"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                IsVisible="{Binding ActiveTab.IsQuickSearchActive}">
-          <TextBlock>
-            <Run Text="Quick search: " />
-            <Run Text="{Binding ActiveTab.QuickSearch}" FontWeight="Bold" />
-          </TextBlock>
-        </Border>
       </Panel>
     </DockPanel>
   </Border>

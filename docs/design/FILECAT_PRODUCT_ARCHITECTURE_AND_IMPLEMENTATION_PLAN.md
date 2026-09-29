@@ -303,7 +303,10 @@ Direct typing starts name-prefix quick search. In the search text, `*` matches a
 
 - Space and other characters extend the search text;
 - Ctrl+Enter and Ctrl+Shift+Enter cycle to the next and previous match (FAR);
-- Escape exits quick search before canceling unrelated work.
+- Escape exits quick search before canceling unrelated work;
+- a character that matches no name is refused and said ("no name matches"), and the search text stays.
+
+The search text shows in the panel's status line, never over the list, where it would hide the item found at its bottom.
 
 Outside quick search, Ctrl+Enter inserts the focused name into the command line (all three references). Current-panel filtering, recursive search, and fuzzy navigation have distinct labels and shortcuts.
 

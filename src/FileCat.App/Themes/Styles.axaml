@@ -285,9 +285,9 @@
     <Setter Property="Background" Value="{DynamicResource FcCard}" />
     <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="4" />
-    <Setter Property="Padding" Value="8,3" />
-    <Setter Property="Margin" Value="8" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Padding" Value="5,0" />
+    <Setter Property="Margin" Value="-5,-1" />
   </Style>
   <Style Selector="Border.quicksearch.nomatch">
     <Setter Property="BorderBrush" Value="{DynamicResource FcError}" />
