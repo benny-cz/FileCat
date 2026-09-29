@@ -35,8 +35,12 @@ public sealed record ColumnSpec(ColumnField Field, string Header, double Width, 
         ColumnField.Created => Core.Listing.SortField.Created,
         ColumnField.Attributes => Core.Listing.SortField.Attributes,
         ColumnField.Metadata => Core.Listing.SortField.Metadata,
+        ColumnField.Folder => Core.Listing.SortField.Metadata,
         _ => null,
     };
+
+    /// <summary>The sort key a Folder column uses (<see cref="ViewModels.TabViewModel"/> supplies each item's folder).</summary>
+    public const string FolderSortKey = "folder";
 }
 
 /// <summary>Built-in column profiles (the defaults of <see cref="ColumnProfileSet"/>) and dedicated layouts.</summary>
@@ -122,10 +126,20 @@ public static class ColumnProfiles
     [
         new(ColumnField.Name, "Name", 180, Star: true),
         new(ColumnField.Kind, "Kind", 70),
-        new(ColumnField.Folder, "Folder", 220, Star: true),
+        new(ColumnField.Folder, "Folder", 220, Star: true) { MetadataId = ColumnSpec.FolderSortKey },
         new(ColumnField.Size, "Size", 86, RightAlign: true),
         new(ColumnField.Modified, "Modified", 128),
         new(ColumnField.Attributes, "Attr", 50),
+    ];
+
+    /// <summary>Find's duplicates: each file's group beside it, the groups in the order found.</summary>
+    public static ColumnSpec[] Duplicates { get; } =
+    [
+        new(ColumnField.Name, "Name", 180, Star: true),
+        new(ColumnField.Details, "Duplicates", 150),
+        new(ColumnField.Folder, "Folder", 220, Star: true) { MetadataId = ColumnSpec.FolderSortKey },
+        new(ColumnField.Size, "Size", 86, RightAlign: true),
+        new(ColumnField.Modified, "Modified", 128),
     ];
 
     /// <summary>The list of working sets: each set's name, size in items, and when it last changed.</summary>

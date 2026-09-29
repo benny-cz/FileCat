@@ -10,6 +10,7 @@ public sealed class ResultSet(string id, string title, string provenance)
     private readonly object _lock = new();
     private readonly List<ItemRef> _items = [];
     private readonly Dictionary<ItemRef, string> _relative = new();
+    private readonly Dictionary<ItemRef, string> _notes = new();
 
     public string Id { get; } = id;
     public string Title { get; set; } = title;
@@ -27,6 +28,23 @@ public sealed class ResultSet(string id, string title, string provenance)
     /// come from several folders; working sets always do).
     /// </summary>
     public bool FullFolders { get; set; }
+
+    /// <summary>
+    /// The items are groups of alike files (Find's duplicates): the list keeps their order and each item's note names
+    /// its group.
+    /// </summary>
+    public bool ShowsGroups { get; set; }
+
+    /// <summary>A short note shown beside an item ("group 3 of 12 · 2 files").</summary>
+    public void SetNote(ItemRef item, string note)
+    {
+        lock (_lock) _notes[item] = note;
+    }
+
+    public string? NoteOf(ItemRef item)
+    {
+        lock (_lock) return _notes.GetValueOrDefault(item);
+    }
     public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
     public DateTime ModifiedUtc { get; set; } = DateTime.UtcNow;
 
@@ -219,7 +237,7 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
                 folders[item.Parent] = folder = providers.TryGet(item.Parent.Scheme, out var owner) && owner is not null ? owner.GetDisplayPath(item.Parent) : item.Parent.ToString();
             var e = new EntryData(item.Name, item.Kind, info?.Size ?? item.Size, info?.ModifiedUtc.Ticks ?? item.Modified)
             {
-                Tag = new ResultTag(item.Parent, rel, item.Kind) { Folder = folder, Ordinal = item.Ordinal },
+                Tag = new ResultTag(item.Parent, rel, item.Kind) { Folder = folder, Ordinal = item.Ordinal, Note = set.NoteOf(item) },
                 Attributes = info is null ? 0 : (uint)info.Attributes,
                 Flags = info is null && item.FileSystemPath is not null ? EntryFlags.Unavailable : info is null ? item.Flags : LocalFileSystemProvider.MapFlags(info.Attributes),
             };

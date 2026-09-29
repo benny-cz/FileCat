@@ -319,6 +319,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             e.Handled = true;
             Finish(confirm.Result);
         }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+        // Enter on a check box or an option confirms, as in Windows dialogs (Space toggles it): Avalonia would click it.
+        card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+        {
+            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || e.Source is not (CheckBox or RadioButton)) return;
+            e.Handled = true;
+            if (confirm is not null && confirmAvailable?.Invoke() != false) Finish(confirm.Result);
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         var cancel = buttons.FirstOrDefault(b => b.IsCancel);
         session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result));
         closer?.Attach(Finish);

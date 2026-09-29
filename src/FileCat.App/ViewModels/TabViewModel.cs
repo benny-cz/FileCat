@@ -78,7 +78,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public ColumnSpec[] Columns => Core.Search.ResultSetProvider.IsWorkingSetList(Location)
         ? ColumnProfiles.WorkingSetList
-        : Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
+        : Location is { Scheme: Schemes.ResultSet } set && Services.ResultSets.Get(set) is { ShowsGroups: true }
+            ? ColumnProfiles.Duplicates
+            : Services.Columns.Get(_columnProfile, Location?.Scheme ?? Schemes.FileSystem);
 
     /// <summary>Stores a dragged column width in the active profile (dedicated layouts keep it for this view only).</summary>
     public bool SetColumnWidth(int column, double width)
@@ -592,6 +594,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
         Listing.MetadataKeys ??= MetadataKey;
         Listing.Sort = s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending };
+        if (fieldId == ColumnSpec.FolderSortKey) return; // every item's folder is known at once
         var field = Services.Metadata.Field(fieldId);
         Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View → Analyze folder to compute every value.";
     }
@@ -601,6 +604,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var loc = Location;
         if (loc is null || storeIndex >= store.Count) return null;
         var e = store[storeIndex];
+        if (fieldId == ColumnSpec.FolderSortKey) return GetFolderText(e);
         var field = Services.Metadata.Field(fieldId);
         if (field is null || Services.Providers.For(loc).GetItemRef(loc, e).FileSystemPath is not { } path) return null;
         var v = Services.Metadata.Get(fieldId, path, e, Services.Providers.For(loc).GetDeviceKey(loc), IsSlowLocation, () => false);

@@ -103,6 +103,11 @@ public sealed class FindWindow : Window, IViewActions
     private DateTime _lastRefresh;
     private int _shownCount = -1;
     private bool _closed;
+    // Duplicates: what makes files alike (asked before the search), the groups found, and their comparison's cancel.
+    private DuplicateCriteria? _duplicates;
+    private IReadOnlyList<IReadOnlyList<ItemRef>> _groups = [];
+    private CancellationTokenSource? _grouping;
+    private bool _comparing;
 
     /// <summary>Open Find windows, oldest first.</summary>
     public static IReadOnlyList<FindWindow> OpenWindows => s_open;
@@ -346,6 +351,8 @@ public sealed class FindWindow : Window, IViewActions
             CommandItem(CommandIds.MarkUnselectMask, "Unselect…"), new Separator(),
             ActionItem("Hide selected items", "Ctrl+H", HideSelected, () => _tab is not null),
             ActionItem("Hide duplicate names", null, HideDuplicateNames, () => _tab is not null),
+            new Separator(),
+            ActionItem("Select all but one in each group", null, SelectAllButOnePerGroup, () => _groups.Count > 0),
         ]));
         menu.Items.Add(Submenu("F_ind", [
             ActionItem("Find", "Enter", () => StartSearch(RefineMode.Replace)),
@@ -356,11 +363,14 @@ public sealed class FindWindow : Window, IViewActions
             ActionItem("Stop", "Escape", Stop, () => IsSearching),
             ActionItem("Skip current folder", null, () => _session?.SkipCurrentFolder(), () => IsSearching),
             new Separator(),
+            ActionItem("Find duplicates…", null, () => _ = FindDuplicatesAsync()),
+            new Separator(),
             ActionItem("Show in panel", null, ShowInPanel, () => _set is not null),
             ActionItem("Search log…", null, () => _ = ShowLogAsync(), () => _session?.Log.Count > 0),
         ]));
         menu.Items.Add(Submenu("_View", [
-            CommandItem(CommandIds.SortName), CommandItem(CommandIds.SortExtension), CommandItem(CommandIds.SortTime),
+            CommandItem(CommandIds.SortName), ActionItem("Sort by folder", null, () => _tab?.SortByMetadata(ColumnSpec.FolderSortKey), () => _tab is not null),
+            CommandItem(CommandIds.SortExtension), CommandItem(CommandIds.SortTime),
             CommandItem(CommandIds.SortSize), CommandItem(CommandIds.SortNone), new Separator(), CommandItem(CommandIds.Refresh, "Check the items again"),
         ]));
         var logOnErrors = new MenuItem
@@ -561,8 +571,11 @@ public sealed class FindWindow : Window, IViewActions
         if (r.Index >= 0) ShowNotification($"Loaded \"{list[r.Index].Name}\". Enter searches.");
     }
 
-    /// <summary>Starts a search; a refining one combines its matches with the items found so far when it finishes.</summary>
-    internal void StartSearch(RefineMode mode)
+    /// <summary>
+    /// Starts a search; a refining one combines its matches with the items found so far when it finishes, and one for
+    /// <paramref name="duplicates"/> groups the files it finds when it finishes.
+    /// </summary>
+    internal void StartSearch(RefineMode mode, DuplicateCriteria? duplicates = null)
     {
         ShowError(null);
         if (mode != RefineMode.Replace && _set is null) mode = RefineMode.Replace;
@@ -578,6 +591,9 @@ public sealed class FindWindow : Window, IViewActions
         if (criteria.Text.Length > 0) AppServices.RememberText(history.SearchTexts, criteria.Text);
         if (_within is null) AppServices.RememberText(history.SearchFolders, criteria.LookIn.Trim());
         _cts?.Cancel();
+        _grouping?.Cancel();
+        _groups = [];
+        _duplicates = mode == RefineMode.Replace ? duplicates : null;
         var found = _services.ResultSets.Create(TitleOf(criteria), query!.Describe());
         found.FullFolders = true;
         _mode = mode;
@@ -635,7 +651,100 @@ public sealed class FindWindow : Window, IViewActions
         _lastRefresh = DateTime.UtcNow;
     }
 
-    private void Stop() => _cts?.Cancel();
+    private void Stop()
+    {
+        _cts?.Cancel();
+        _grouping?.Cancel();
+    }
+
+    /// <summary>Asks what makes files alike, then searches with the criteria shown and groups what it finds.</summary>
+    private async Task FindDuplicatesAsync()
+    {
+        if (_dialogs.IsOpen) return;
+        if (await FindDialogs.DuplicatesAsync(_dialogs) is not { } alike) return;
+        StartSearch(RefineMode.Replace, alike);
+    }
+
+    /// <summary>
+    /// Compares the found files off the UI thread (contents can take a while), then lists only the duplicates, each
+    /// group together and named, in the order the groups were found.
+    /// </summary>
+    private async Task GroupDuplicatesAsync(DuplicateCriteria alike)
+    {
+        if (_set is not { } found) return;
+        _grouping = new CancellationTokenSource();
+        var token = _grouping.Token;
+        var items = found.Snapshot().Select(s => s.Item).ToList();
+        _status.Text = $"Comparing {Formatters.Plural(items.Count(i => !i.IsContainer), "file", "files")}…";
+        _comparing = true;
+        UpdateButtons();
+        DuplicateResult result;
+        try
+        {
+            result = await Task.Run(() => DuplicateFinder.Find(items, alike, token), token);
+        }
+        catch (OperationCanceledException)
+        {
+            _status.Text = "Comparing stopped; the list shows everything found.";
+            return;
+        }
+        finally
+        {
+            _comparing = false;
+            UpdateButtons();
+        }
+        if (_closed || !ReferenceEquals(found, _set)) return;
+        var groups = _services.ResultSets.Create(found.Title.Replace("Search", "Duplicates", StringComparison.Ordinal),
+            found.Provenance + "; duplicates by " + Describe(alike));
+        groups.FullFolders = true;
+        groups.ShowsGroups = true;
+        var relative = found.Snapshot().ToDictionary(s => s.Item, s => s.Relative);
+        for (int g = 0; g < result.Groups.Count; g++)
+        {
+            var group = result.Groups[g];
+            foreach (var item in group)
+            {
+                groups.Add(item, relative.GetValueOrDefault(item, string.Empty));
+                groups.SetNote(item, $"group {g + 1} · {group.Count} files");
+            }
+        }
+        groups.IsComplete = true;
+        _groups = result.Groups;
+        _set = groups;
+        ShowSet(groups);
+        // The groups keep the order found; a column header sorts them otherwise.
+        _tab!.Listing.Sort = new Core.Listing.SortSpec(Core.Listing.SortField.None);
+        Refresh(force: true);
+        int files = result.Groups.Sum(g => g.Count);
+        _status.Text = result.Groups.Count == 0
+            ? "No duplicates among the found files."
+            : $"{Formatters.Plural(result.Groups.Count, "group", "groups")} of duplicates · {Formatters.Plural(files, "file", "files")}";
+        if (result.Unreadable.Count > 0)
+            ShowNotification($"{Formatters.Plural(result.Unreadable.Count, "file", "files")} could not be read and were left out: {string.Join(", ", result.Unreadable.Take(3).Select(Path.GetFileName))}{(result.Unreadable.Count > 3 ? ", …" : "")}", true);
+    }
+
+    private static string Describe(DuplicateCriteria alike)
+    {
+        var parts = new List<string>();
+        if ((alike & DuplicateCriteria.Name) != 0) parts.Add("name");
+        if ((alike & DuplicateCriteria.Content) != 0) parts.Add("content");
+        else if ((alike & DuplicateCriteria.Size) != 0) parts.Add("size");
+        return string.Join(" and ", parts);
+    }
+
+    /// <summary>Marks every duplicate but the first of its group (the copies to delete or move away).</summary>
+    private void SelectAllButOnePerGroup()
+    {
+        if (_tab is null || _groups.Count == 0) return;
+        var extra = _groups.SelectMany(g => g.Skip(1)).ToHashSet();
+        var listing = _tab.Listing;
+        for (int row = 0; row < listing.VisibleCount; row++)
+        {
+            if (listing.GetVisible(row).Kind == EntryKind.Parent) continue;
+            listing.SetMark(row, extra.Contains(listing.GetItemRef(listing.GetStoreIndex(row))));
+        }
+        ShowNotification($"Selected {Formatters.Plural(extra.Count, "extra copy", "extra copies")}; the first file of each group stays unselected.");
+    }
 
     private void OnTick()
     {
@@ -668,6 +777,12 @@ public sealed class FindWindow : Window, IViewActions
             }
             Refresh(force: true);
             UpdateButtons();
+            if (_duplicates is { } alike && _mode == RefineMode.Replace)
+            {
+                _duplicates = null;
+                if (_set.IsComplete) _ = GroupDuplicatesAsync(alike);
+                else _message.Text = "The search stopped before it finished, so duplicates were not compared.";
+            }
             if (session.Log.Count > 0 && _services.Settings.SearchLogOnErrors && !_closed) _ = ShowLogAsync();
         }
         else
@@ -712,7 +827,7 @@ public sealed class FindWindow : Window, IViewActions
 
     private void UpdateButtons()
     {
-        bool searching = IsSearching;
+        bool searching = IsSearching || _comparing;
         _find.IsEnabled = true;
         _stop.IsEnabled = searching;
         _skip.IsEnabled = searching && _within is null;
@@ -869,8 +984,8 @@ public sealed class FindWindow : Window, IViewActions
         if (e.Key == Key.Escape && mods == KeyModifiers.None)
         {
             e.Handled = true;
-            // Esc stops a search; with none running, it closes the window.
-            if (IsSearching) Stop();
+            // Esc stops a search (or the comparing of duplicates); with none running, it closes the window.
+            if (IsSearching || _comparing) Stop();
             else Close();
             return;
         }
@@ -970,6 +1085,12 @@ public sealed class FindWindow : Window, IViewActions
     internal void OpenSaveSearch() => _ = SaveSearchAsync();
 
     internal void OpenSavedSearches() => _ = LoadSearchAsync();
+
+    internal void OpenDuplicates() => _ = FindDuplicatesAsync();
+
+    internal void SelectDuplicateCopies() => SelectAllButOnePerGroup();
+
+    internal IReadOnlyList<IReadOnlyList<ItemRef>> Groups => _groups;
 
     internal string AdvancedSummary => _advancedSummary.Text ?? string.Empty;
 

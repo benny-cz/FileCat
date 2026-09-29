@@ -297,6 +297,42 @@ internal static class FindDialogs
         return answer as string == "ok" ? [.. entries] : null;
     }
 
+    /// <summary>
+    /// What makes files duplicates (plan §11): the same name, size, content, or any combination. Returns the choice, or
+    /// null when canceled.
+    /// </summary>
+    public static async Task<DuplicateCriteria?> DuplicatesAsync(IDialogService dialogs)
+    {
+        var name = new CheckBox { Content = "Same name" };
+        var size = new CheckBox { Content = "Same size", IsChecked = true };
+        var content = new CheckBox { Content = "Same content", IsChecked = true };
+        ToolTip.SetTip(content, "Compares the bytes of files of equal size only: their first 64 KB, then all of them");
+        content.IsCheckedChanged += (_, _) =>
+        {
+            // The same content means the same size.
+            if (content.IsChecked == true) size.IsChecked = true;
+            size.IsEnabled = content.IsChecked != true;
+        };
+        size.IsEnabled = false;
+        DuplicateCriteria Chosen() =>
+            (name.IsChecked == true ? DuplicateCriteria.Name : 0) | (size.IsChecked == true ? DuplicateCriteria.Size : 0)
+            | (content.IsChecked == true ? DuplicateCriteria.Content : 0);
+        var body = new StackPanel
+        {
+            Spacing = 6,
+            MaxWidth = 560,
+            Children =
+            {
+                Muted("Find searches with the criteria shown, then lists the files that are alike, each group together. Edit → Select all but one in each group marks the extra copies."),
+                name, size, content,
+            },
+        };
+        var answer = await dialogs.ShowCustomAsync("Find duplicates", body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Find duplicates", "ok", IsDefault: true)],
+            content, canConfirm: () => Chosen() != DuplicateCriteria.None);
+        return answer as string == "ok" ? Chosen() : null;
+    }
+
     /// <summary>One line describing saved criteria ("*.log in C:\Logs · containing "error" · at least 1 MB").</summary>
     public static string Describe(SearchCriteria c)
     {

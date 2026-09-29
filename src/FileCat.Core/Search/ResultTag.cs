@@ -14,6 +14,9 @@ public sealed record ResultTag(Location Parent, string RelativeFolder, EntryKind
     /// <summary>Distinguishes duplicate names in one container (archives), so the entry maps back to its exact member.</summary>
     public int Ordinal { get; init; }
 
+    /// <summary>What the result set says about the item (its group among duplicates), shown in a details column.</summary>
+    public string? Note { get; init; }
+
     public string KindText => Kind switch
     {
         EntryKind.RegistryKey => "Key",
@@ -21,7 +24,7 @@ public sealed record ResultTag(Location Parent, string RelativeFolder, EntryKind
         EntryKind.Directory => "Folder",
         _ => "File",
     };
-    public string DetailsText => string.Empty;
+    public string DetailsText => Note ?? string.Empty;
 }
 
 /// <summary>An entry in the list of working sets: the set it opens and how many items it holds.</summary>

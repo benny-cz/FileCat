@@ -1006,7 +1006,7 @@ public sealed class FileListControl : Control
         if (pos.Y < _headerHeight)
         {
             int col = ColumnAt(pos);
-            if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col] is { Field: ColumnField.Metadata, MetadataId: { } mid }) Tab?.SortByMetadata(mid);
+            if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col] is { Field: ColumnField.Metadata or ColumnField.Folder, MetadataId: { } mid }) Tab?.SortByMetadata(mid);
             else if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col].SortField is { } sf) Tab?.SortBy(sf);
             e.Handled = true;
             return;

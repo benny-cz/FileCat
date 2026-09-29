@@ -261,6 +261,49 @@ public sealed class FindWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Duplicates_are_listed_in_groups_and_all_but_one_copy_can_be_selected()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string files = Path.Combine(root, "files");
+            Directory.CreateDirectory(Path.Combine(files, "one"));
+            Directory.CreateDirectory(Path.Combine(files, "two"));
+            File.WriteAllText(Path.Combine(files, "one", "a.txt"), "alpha"); // same as a.txt
+            File.WriteAllText(Path.Combine(files, "two", "copy.txt"), "alpha");
+            File.WriteAllText(Path.Combine(files, "two", "other.txt"), "alpah"); // same size, other content
+            var find = await OpenFindAsync(vm, ct);
+            find.NamesBox.Text = "*.txt";
+            find.OpenDuplicates();
+            await WaitFor(() => find.GetVisualDescendants().OfType<CheckBox>().Any(c => c.Content as string == "Same content" && c.IsFocused), ct);
+            find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null); // same size and content
+            await WaitFor(() => find.Groups.Count > 0, ct);
+            var group = Assert.Single(find.Groups);
+            Assert.Equal(["a.txt", "a.txt", "copy.txt"], group.Select(i => i.Name).Order());
+            Assert.Equal(Controls.ColumnProfiles.Duplicates, find.ResultsTab!.Columns);
+            var listing = find.ResultsTab.Listing;
+            await WaitFor(() => listing.VisibleCount == 3, ct);
+            Assert.Equal(3, listing.VisibleCount); // only the duplicates
+
+            find.SelectDuplicateCopies();
+            Assert.Equal(2, listing.GetSelection().Count);
+            Assert.Contains("2 extra copies", find.Message);
+
+            // The Folder column sorts by folder.
+            find.ResultsTab.SortByMetadata(Controls.ColumnSpec.FolderSortKey);
+            await Task.Delay(100, ct);
+            var folders = Enumerable.Range(0, listing.VisibleCount).Select(r => find.ResultsTab.GetFolderText(listing.GetVisible(r))).ToList();
+            Assert.Equal(folders.Order(StringComparer.CurrentCulture), folders);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Hex_criteria_that_cannot_work_say_why_in_the_window()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
