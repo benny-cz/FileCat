@@ -15,6 +15,33 @@ public class UnixFileOperations : PortableFileOperations
     public const string QuarantineAttribute = "com.apple.quarantine";
     public const string OriginAttribute = "user.xdg.origin.url";
 
+    /// <summary>
+    /// A rename, never a copy: .NET's File.Move copies and deletes when a rename crosses file systems (btrfs subvolumes,
+    /// bind mounts, overlays), unguarded, which the job engine then does itself, verified and journaled. Without
+    /// replacing, the new name is claimed atomically (renameat2 with RENAME_NOREPLACE on Linux, renamex_np with
+    /// RENAME_EXCL on macOS), so an item that appears there meanwhile is never overwritten; only a file system that
+    /// cannot do that is checked just before the rename.
+    /// </summary>
+    public override void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
+    {
+        if (replaceExisting && Directory.Exists(source) && new DirectoryInfo(source).LinkTarget is null)
+            throw new IOException("Directories are merged item by item, never replaced wholesale.");
+        if (!replaceExisting)
+        {
+            int errno = UnixRename.NoReplace(source, destination);
+            if (errno == 0) return;
+            // The destination is the source itself: a new letter case on a file system that ignores it (FAT, exFAT).
+            if (errno == 17 && UnixFiles.Stat(source) is { } from && UnixFiles.Stat(destination) is { } to && from.Device == to.Device && from.Inode == to.Inode)
+                errno = UnixRename.Replace(source, destination);
+            if (errno == 0) return;
+            if (!UnixRename.Unsupported(errno)) throw UnixRename.Failure(errno, source, destination);
+            if (File.Exists(destination) || Directory.Exists(destination) || new FileInfo(destination).LinkTarget is not null)
+                throw UnixRename.Failure(17 /* EEXIST */, source, destination);
+        }
+        int error = UnixRename.Replace(source, destination);
+        if (error != 0) throw UnixRename.Failure(error, source, destination);
+    }
+
     public override string? ReadOriginMark(string path)
     {
         if (OperatingSystem.IsMacOS())

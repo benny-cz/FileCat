@@ -25,9 +25,12 @@ public interface IOriginMarkSource
 /// <summary>
 /// Common byte-stream strategy (plan §7.1): copies items from any provider that exposes content (archives,
 /// remote, recovery) into a file-system destination, through staged names, with Mark-of-the-Web propagated
-/// from the outermost container to every extracted item (plan §8.1, §15).
+/// from the outermost container to every extracted item (plan §8.1, §15). A folder counts as completed only when all of
+/// it arrived: a move (from a server) deletes the source of completed folders only, so a skipped link or a file the
+/// filter left out keeps its folder on the server.
 /// </summary>
-internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal, ProviderRegistry providers) : ExecutorBase(job, fs, journal)
+internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal, ProviderRegistry providers)
+    : ExecutorBase(job, fs, journal), IHonorsTransferFilter
 {
     private const int BufferSize = 1024 * 1024;
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
@@ -161,6 +164,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 Job.ItemSkipped();
                 Issue(IssueSeverity.Info, c.Name, "Links to folders are not followed while copying; open the link and copy its contents if you need them.", StepOutcome.Skipped);
+                all &= Job.Kind != JobKind.Move;
+                continue;
+            }
+            // "Only files matching": the others stay where they are, and so does their folder when moving.
+            if (!c.IsContainer && Job.Request.Options.Filter is { } filter && !filter.IsMatch(c.Name))
+            {
+                all &= Job.Kind != JobKind.Move;
                 continue;
             }
             var child = provider.GetItemRef(location, c);

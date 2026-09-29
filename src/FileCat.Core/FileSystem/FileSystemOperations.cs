@@ -166,6 +166,13 @@ public interface IFileSystemOperations
 
     /// <summary>A stable identity of the file (volume and file ID), without following links; null where unavailable.</summary>
     string? GetFileIdentity(string path);
+
+    /// <summary>
+    /// Where <paramref name="path"/> really is: its full path with every link on the way and at its end resolved
+    /// (junctions, symbolic links, and on Windows mapped drives, as a UNC path). Null where the platform cannot tell or the
+    /// path does not exist.
+    /// </summary>
+    string? GetFinalPath(string path);
 }
 
 public enum LinkKind
@@ -541,7 +548,11 @@ public class PortableFileOperations : IFileSystemOperations
         }
     }
 
-    public virtual string? GetFileIdentity(string path) => null;
+    /// <summary>Linux and macOS: the device and inode of the path's own entry (Windows overrides with volume and file ID).</summary>
+    public virtual string? GetFileIdentity(string path) => UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
+
+    /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
+    public virtual string? GetFinalPath(string path) => UnixFiles.RealPath(path);
 
     /// <summary>Streaming content hash for verification and checksum features.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)

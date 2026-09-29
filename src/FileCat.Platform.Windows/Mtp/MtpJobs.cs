@@ -50,7 +50,7 @@ internal abstract class MtpExecutorBase(Job job, IFileSystemOperations fs, JobJo
         name.Length == 0 ? "The name is empty." : name.Contains('/') || name.Contains('\\') ? "The name contains a slash." : null;
 }
 
-internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJournal journal, MtpProvider mtp) : MtpExecutorBase(job, fs, journal, mtp)
+internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJournal journal, MtpProvider mtp) : MtpExecutorBase(job, fs, journal, mtp), IHonorsTransferFilter
 {
     private const int BufferSize = 1024 * 1024;
     private bool Moving => Job.Request.Kind == JobKind.Move;
@@ -163,6 +163,12 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             foreach (var entry in Directory.EnumerateFileSystemEntries(source))
             {
                 Job.Checkpoint();
+                // "Only files matching": the others stay here, and so does their folder when moving.
+                if (File.Exists(entry) && Job.Request.Options.Filter is { } filter && !filter.IsMatch(Path.GetFileName(entry)))
+                {
+                    all &= !Moving;
+                    continue;
+                }
                 all &= Upload(entry, child, Path.GetFileName(entry));
             }
             if (all && Moving) TryIo(source, "remove the moved folder", () => Directory.Delete(source, recursive: false));

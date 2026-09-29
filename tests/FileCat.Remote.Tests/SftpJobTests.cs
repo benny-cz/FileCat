@@ -286,6 +286,42 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(JobState.Failed, (await RunAsync(new JobRequest { Kind = JobKind.CreateDirectory, Destination = Remote("/r"), NewName = "made" })).State);
     }
 
+    /// <summary>
+    /// "Only files matching" moves only those: the others stay where they were, with their folders, in both directions;
+    /// a move the executor cannot filter (a rename on the server) is refused before anything changes.
+    /// </summary>
+    [Fact]
+    public async Task A_filtered_move_moves_only_the_matching_files_and_keeps_the_rest()
+    {
+        var logs = new TransferOptions { Filter = Core.Selection.Mask.Parse("*.log") };
+        LocalFile("f/a.log", "a");
+        LocalFile("f/b.txt", "b");
+        LocalFile("f/sub/c.log", "c");
+        _server.Dir("/up");
+        var up = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(Path.Combine(_local, "f"), EntryKind.Directory)], Destination = Remote("/up"), Options = logs });
+        Assert.Equal("a", _server.Read("/up/f/a.log"));
+        Assert.Equal("c", _server.Read("/up/f/sub/c.log"));
+        Assert.False(_server.Exists("/up/f/b.txt"));
+        Assert.False(File.Exists(Path.Combine(_local, "f", "a.log")));
+        Assert.Equal("b", File.ReadAllText(Path.Combine(_local, "f", "b.txt")));
+        Assert.NotEqual(JobState.Failed, up.State);
+
+        _server.File("/m2/logs/x.log", "x");
+        _server.File("/m2/logs/y.txt", "y");
+        string dest = Directory.CreateDirectory(Path.Combine(_dir, "down")).FullName;
+        await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [RemoteItem("/m2", "logs", EntryKind.Directory)], Destination = Location.FileSystem(dest), Options = logs });
+        Assert.Equal("x", File.ReadAllText(Path.Combine(dest, "logs", "x.log")));
+        Assert.False(File.Exists(Path.Combine(dest, "logs", "y.txt")));
+        // The folder holds a file the filter left out, so it stays on the server, with that file.
+        Assert.Equal("y", _server.Read("/m2/logs/y.txt"));
+
+        _server.File("/src2/keep.txt", "k");
+        var refused = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [RemoteItem("/", "src2", EntryKind.Directory)], Destination = Remote("/up"), Options = logs });
+        Assert.Contains(refused.Issues, i => i.Message.Contains("Only files matching", StringComparison.Ordinal));
+        Assert.Equal("k", _server.Read("/src2/keep.txt"));
+        Assert.False(_server.Exists("/up/src2"));
+    }
+
     [Fact]
     public async Task Moving_to_a_local_folder_deletes_on_the_server_only_what_arrived_completely()
     {

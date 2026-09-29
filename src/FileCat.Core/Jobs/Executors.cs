@@ -11,10 +11,25 @@ public interface IJobExecutor
     void Execute();
 }
 
+/// <summary>
+/// An executor that applies <see cref="TransferOptions.Filter"/> ("only files matching"). A copy or move with a filter
+/// that its executor would not apply is refused before anything changes: it would copy or move more than was asked.
+/// </summary>
+public interface IHonorsTransferFilter;
+
 public static class JobExecutors
 {
     /// <summary>Typed dispatch per operation (plan §7.1): no Cartesian product of provider methods.</summary>
     public static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+    {
+        var executor = CreateFor(job, fs, providers, journal);
+        if (job.Request.Options.Filter is not null && job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract && executor is not IHonorsTransferFilter)
+            return new RefusedExecutor(job, fs, journal,
+                "\"Only files matching\" is not available for this copy or move (it works between folders on disk, from archives, servers, and phones to disk, and from disk to servers and phones). Nothing was copied or moved.");
+        return executor;
+    }
+
+    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
     {
         var r = job.Request;
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
@@ -74,6 +89,23 @@ public static class JobExecutors
         var from = r.Sources.FirstOrDefault()?.Parent.Scheme ?? "?";
         var to = r.Destination?.Scheme ?? "?";
         return $"{r.Kind} from a {from} location to a {to} location is not supported. Nothing was changed.";
+    }
+}
+
+/// <summary>A request refused before anything changed: every item fails with the reason.</summary>
+internal sealed class RefusedExecutor(Job job, IFileSystemOperations fs, JobJournal journal, string reason) : ExecutorBase(job, fs, journal)
+{
+    public override void Execute()
+    {
+        var sources = Job.Request.Sources;
+        Job.AddTotals(Math.Max(1, sources.Count), 0);
+        Issue(IssueSeverity.Error, sources.Count > 0 ? sources[0].Name : string.Empty, reason, StepOutcome.CanceledBeforeChange);
+        for (int i = 0; i < sources.Count; i++)
+        {
+            Job.ItemFailed();
+            Job.RootFailed(i);
+        }
+        if (sources.Count == 0) Job.ItemFailed();
     }
 }
 
@@ -139,6 +171,9 @@ public static class ErrorText
     {
         if (ex is UnauthorizedAccessException) return "access";
         if (ex is FileNotFoundException or DirectoryNotFoundException) return "notfound";
+        // Linux and macOS: .NET reports the C library's error number itself, whose numbers mean other things on Windows
+        // (17 is "exists" there, not "another drive"). A Windows-style code (0x8007xxxx) is read as one everywhere.
+        if (!OperatingSystem.IsWindows() && (ex.HResult & 0xFFFF0000) == 0) return ClassifyErrno(ex.HResult);
         return Win32Code(ex) switch
         {
             32 or 33 or 1224 => "sharing",
@@ -160,6 +195,41 @@ public static class ErrorText
             80 or 183 => "exists",
             6000 => "encryption",
             17 => "crossdevice",
+            _ => "io",
+        };
+    }
+
+    /// <summary>A Linux or macOS error number (errno), in the same classes as Windows' codes.</summary>
+    public static string ClassifyErrno(int errno)
+    {
+        bool mac = OperatingSystem.IsMacOS();
+        switch (errno)
+        {
+            case 1 or 13: return "access"; // EPERM, EACCES
+            case 2: return "notfound"; // ENOENT
+            case 5: return "hardware"; // EIO
+            case 6 or 19: return "device"; // ENXIO, ENODEV
+            case 16 or 26: return "sharing"; // EBUSY, ETXTBSY
+            case 17: return "exists"; // EEXIST
+            case 18: return "crossdevice"; // EXDEV
+            case 28: return "diskfull"; // ENOSPC
+            case 30: return "writeprotect"; // EROFS
+        }
+        if (mac)
+            return errno switch
+            {
+                63 => "toolong", // ENAMETOOLONG
+                69 => "quota", // EDQUOT
+                45 or 102 => "unsupported", // ENOTSUP, EOPNOTSUPP
+                50 or 51 or 54 or 57 or 60 or 64 or 65 or 70 => "offline", // ENETDOWN … ESTALE
+                _ => "io",
+            };
+        return errno switch
+        {
+            36 => "toolong", // ENAMETOOLONG
+            122 => "quota", // EDQUOT
+            95 => "unsupported", // EOPNOTSUPP
+            100 or 101 or 104 or 107 or 110 or 112 or 113 or 116 => "offline", // ENETDOWN … ESTALE
             _ => "io",
         };
     }
@@ -195,7 +265,7 @@ public static class ErrorText
 /// source only after the copy is published and the source is revalidated; directories are removed only when
 /// empty, never recursively.
 /// </summary>
-internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
+internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal), IHonorsTransferFilter
 {
     private static readonly EnumerationOptions ChildOptions = new() { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false };
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
@@ -297,16 +367,19 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         var dst = Path.Combine(targetDir, name);
-        if (info.IsDirectory && !info.IsLink && PathUtil.IsSameOrUnder(dst, src))
+        if (info.IsDirectory && !info.IsLink && InsideItself(dst, src))
         {
             Job.ItemFailed();
-            Issue(IssueSeverity.Error, src, "A folder cannot be copied or moved into itself.", StepOutcome.Failed);
+            Issue(IssueSeverity.Error, src, "A folder cannot be copied or moved into itself (the destination leads into it, perhaps through a link).", StepOutcome.Failed);
             return Result.Failed;
         }
-        if (Move && string.Equals(PathUtil.NormalizeForCompare(src), PathUtil.NormalizeForCompare(dst), StringComparison.Ordinal))
+        string srcText = PathUtil.NormalizeForCompare(src), dstText = PathUtil.NormalizeForCompare(dst);
+        // The same text, or (other than in letter case, which is a rename) the same item reached through a link.
+        if (Move && (string.Equals(srcText, dstText, StringComparison.Ordinal) ||
+                     !string.Equals(srcText, dstText, StringComparison.OrdinalIgnoreCase) && SameItem(src, dst)))
         {
             Job.ItemSkipped();
-            Issue(IssueSeverity.Info, src, "Source and destination are the same; nothing to move.", StepOutcome.Skipped);
+            Issue(IssueSeverity.Info, src, "Source and destination are the same item; nothing to move.", StepOutcome.Skipped);
             return Result.Skipped;
         }
         if (Move && SameVolume(src, dst)) return MoveByRename(src, dst, info);
@@ -340,6 +413,29 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private bool SameVolume(string a, string b) => string.Equals(VolumeRootOf(a), VolumeRootOf(b), PathUtil.SafetyComparison);
 
+    /// <summary>
+    /// Whether two paths name the same item: the same text, or the same file or folder reached another way (a junction
+    /// or symbolic link on the way, a mapped drive, a hard link). Replacing an item with itself, or deleting a moved
+    /// source that is its own destination, would lose it.
+    /// </summary>
+    private bool SameItem(string a, string b) =>
+        string.Equals(PathUtil.NormalizeForCompare(a), PathUtil.NormalizeForCompare(b), PathUtil.SafetyComparison) ||
+        Fs.GetFileIdentity(a) is { } x && x == Fs.GetFileIdentity(b);
+
+    /// <summary>
+    /// Whether <paramref name="dst"/> lies in the folder <paramref name="src"/>, also when a link on the way leads there:
+    /// copying a folder into itself never ends, and moving it would delete what was copied. Where the destination really
+    /// is shows in its deepest folder that exists, with every link resolved; the rest of it is plain names.
+    /// </summary>
+    private bool InsideItself(string dst, string src)
+    {
+        if (PathUtil.IsSameOrUnder(dst, src)) return true;
+        if (Fs.GetFinalPath(src) is not { } source) return false;
+        for (var at = dst; !string.IsNullOrEmpty(at); at = Path.GetDirectoryName(at))
+            if (Fs.GetFinalPath(at) is { } real) return PathUtil.IsSameOrUnder(real, source);
+        return false;
+    }
+
     // ---- Same-volume move -----------------------------------------------------------------------------
 
     private Result MoveByRename(string src, string dst, FileSystemItemInfo info)
@@ -356,7 +452,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             {
                 if (info.IsDirectory && !info.IsLink && existing.IsDirectory && !existing.IsLink)
                     return MergeMoveDirectory(src, dst);
-                var d = ResolveConflict(src, dst, info, existing);
+                var d = ResolveConflict(src, dst, info, existing, replaceable: !existing.IsDirectory);
                 switch (d)
                 {
                     case DecisionAction.Skip:
@@ -437,7 +533,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var target = dst;
         if (existing is not null && (!existing.IsDirectory || existing.IsLink))
         {
-            var d = ResolveConflict(src, dst, info, existing);
+            // Merging into a folder link would write wherever it points: only skipping or keeping both are offered.
+            var d = ResolveConflict(src, dst, info, existing, replaceable: false);
             if (d == DecisionAction.KeepBothRenameIncoming) target = UniqueSibling(dst, true);
             else if (d == DecisionAction.KeepBothRenameExisting)
             {
@@ -753,7 +850,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Info, src, "Copied; the original was kept because the destination cannot store all of its metadata.", StepOutcome.Skipped);
             return Result.Skipped;
         }
-        return DeleteMovedSource(src, info);
+        return DeleteMovedSource(src, target, info);
     }
 
     /// <summary>
@@ -821,7 +918,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         return $"{vol.FileSystem ?? "The destination"} cannot store {string.Join(" or ", parts)}";
     }
 
-    private Result DeleteMovedSource(string src, FileSystemItemInfo before)
+    private Result DeleteMovedSource(string src, string target, FileSystemItemInfo before)
     {
         // Revalidate: a source that changed while it was copied is kept (plan §9.2).
         var now = Fs.TryGetInfo(src);
@@ -830,6 +927,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Warning, src, "The copy was published, but the source had already disappeared.", StepOutcome.Uncertain);
             Job.ItemDone();
             return Result.Committed;
+        }
+        // The only irreversible step of a move: the published copy must be another file than the source, never the
+        // source itself reached through a link.
+        if (Fs.GetFileIdentity(src) is { } source && source == Fs.GetFileIdentity(target))
+        {
+            Issue(IssueSeverity.Warning, src, "Not deleted: the destination turned out to be the source itself (reached through a link), so it stays where it is.", StepOutcome.PartiallyApplied);
+            Job.ItemDone();
+            return Result.Failed;
         }
         if (now.Size != before.Size || now.ModifiedUtc != before.ModifiedUtc)
         {
@@ -851,9 +956,17 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private Result CopyLink(string src, string target, FileSystemItemInfo info, bool replace)
     {
-        if (replace && !TryIo(target, "remove the existing item", () => Fs.DeleteFile(target))) return Result.Failed;
-        if (Fs.TryCopyLink(src, target, info.IsDirectory, out var error))
+        // A replaced item goes only once its replacement exists: the new link is made under a staged name first.
+        string linkAt = target;
+        if (replace)
         {
+            var dir = Path.GetDirectoryName(target)!;
+            if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
+            linkAt = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _stagedCounter)}.tmp");
+        }
+        if (Fs.TryCopyLink(src, linkAt, info.IsDirectory, out var error))
+        {
+            if (replace && !PublishLink(src, linkAt, target, info.IsDirectory)) return Result.Failed;
             if (Move) DeleteLinkSource(src, info);
             Job.ItemDone();
             return Result.Committed;
@@ -871,8 +984,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 var targetInfo = new FileSystemItemInfo(src, info.IsDirectory, false, info.Size, info.ModifiedUtc, info.CreatedUtc, info.Attributes & ~FileAttributes.ReparsePoint);
                 return info.IsDirectory ? CopyDirectory(src, target, targetInfo) : CopyFileItem(src, target, targetInfo);
             case DecisionAction.CreateJunction when info.LinkTarget is not null:
-                if (TryIo(target, "create a junction", () => Junctions.Create(target, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(src)!, info.LinkTarget)))))
+                if (TryIo(linkAt, "create a junction", () => Junctions.Create(linkAt, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(src)!, info.LinkTarget)))))
                 {
+                    if (replace && !PublishLink(src, linkAt, target, isDirectory: true)) return Result.Failed;
+                    if (Move) DeleteLinkSource(src, info);
                     Job.ItemDone();
                     return Result.Committed;
                 }
@@ -884,6 +999,31 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             default:
                 throw new OperationCanceledException();
         }
+    }
+
+    /// <summary>Puts a staged link in the place of the item it replaces; if that fails, the staged link goes and the item stays.</summary>
+    private bool PublishLink(string src, string staged, string target, bool isDirectory)
+    {
+        int step = Journal.Intent("replace", src, target, staged);
+        bool ok = TryIo(target, "replace the existing item", () =>
+        {
+            // A folder link cannot be renamed over another folder link: the old one (only a link) is removed just before.
+            if (isDirectory && Fs.TryGetInfo(target) is { IsDirectory: true, IsLink: true }) Fs.DeleteDirectory(target);
+            Fs.Move(staged, target, replaceExisting: !isDirectory);
+        });
+        Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.CanceledBeforeChange);
+        if (ok) return true;
+        try
+        {
+            if (isDirectory) Fs.DeleteDirectory(staged);
+            else Fs.DeleteFile(staged);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Issue(IssueSeverity.Warning, staged, "A temporary link could not be removed; it can be deleted safely.", StepOutcome.PartiallyApplied);
+        }
+        Job.ItemFailed();
+        return false;
     }
 
     private void DeleteLinkSource(string src, FileSystemItemInfo info)
@@ -904,13 +1044,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         return Result.Failed;
     }
 
-    private DecisionAction ResolveConflict(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing)
+    /// <param name="replaceable">False where the existing item must not be replaced (a folder, or a folder link that
+    /// a merge would write through): the question then offers only skipping and keeping both.</param>
+    private DecisionAction ResolveConflict(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing, bool replaceable = true)
     {
         bool typeMismatch = incoming.IsDirectory != existing.IsDirectory;
-        bool same = string.Equals(PathUtil.NormalizeForCompare(src), PathUtil.NormalizeForCompare(dst), PathUtil.SafetyComparison);
+        bool same = SameItem(src, dst);
         bool newer = IsIncomingNewer(src, dst, incoming, existing);
         var policy = Options.Conflicts;
-        if (!typeMismatch && !same)
+        if (!typeMismatch && !same && (replaceable || policy is not (ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer)))
         {
             switch (policy)
             {
@@ -925,13 +1067,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var request = new ConflictRequest(
             same ? "Copying an item onto itself" : typeMismatch ? "A file and a folder have the same name" : "An item with this name already exists",
             Path.GetFileName(dst), incoming, existing, src, dst,
-            CanReplace: !typeMismatch && !same, SameItem: same, TypeMismatch: typeMismatch, IncomingIsNewer: newer,
+            CanReplace: !typeMismatch && !same && replaceable, SameItem: same, TypeMismatch: typeMismatch, IncomingIsNewer: newer,
             SuggestedIncomingName: Path.GetFileName(UniqueSibling(dst, incoming.IsDirectory)),
             SuggestedExistingName: same ? null : Path.GetFileName(UniqueSibling(dst, existing.IsDirectory)));
         var d = Job.Ask(request);
-        if (d.Action == DecisionAction.ReplaceIfNewer) return newer ? DecisionAction.Replace : DecisionAction.Skip;
-        if (same && d.Action is DecisionAction.Replace or DecisionAction.KeepBothRenameExisting) return DecisionAction.KeepBothRenameIncoming;
-        return d.Action;
+        var action = d.Action == DecisionAction.ReplaceIfNewer ? newer ? DecisionAction.Replace : DecisionAction.Skip : d.Action;
+        // An answer given for all conflicts can say Replace where nothing may be replaced here.
+        if (same && action is DecisionAction.Replace or DecisionAction.KeepBothRenameExisting) return DecisionAction.KeepBothRenameIncoming;
+        if (!replaceable && action == DecisionAction.Replace) return DecisionAction.KeepBothRenameIncoming;
+        return action;
     }
 
     private bool IsIncomingNewer(string src, string dst, FileSystemItemInfo incoming, FileSystemItemInfo existing)

@@ -77,6 +77,12 @@ public sealed partial class MainViewModel
             Notify("Only files and folders from disk can be added to an archive. Extract items from other archives first.", true);
             return;
         }
+        if (options.Filter is not null)
+        {
+            // Adding would take every file of the folders, not only the matching ones.
+            Notify("\"Only files matching\" is not available when adding to an archive; nothing was added. Mark the files to add instead.", true);
+            return;
+        }
         if (items.Count > MaxArchiveBatch) { Notify($"Add at most {MaxArchiveBatch:N0} items at a time.", true); return; }
         if (!CheckWritable(destination)) return;
         string archive = ArchiveFile(destination);

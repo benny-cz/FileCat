@@ -21,23 +21,47 @@ public static unsafe partial class UnixFiles
     private const uint StatxType = 0x1, StatxIno = 0x100, StatxSize = 0x200;
     private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000;
 
-    /// <summary>The path's own entry (a link is reported as a link), or null when it does not exist or cannot be read.</summary>
-    public static UnixStat? Stat(string path)
+    /// <summary>
+    /// The path's own entry (a link is reported as a link), or with <paramref name="followLinks"/> what a link at its end
+    /// leads to; null when it does not exist or cannot be read. Links on the way to the last part are always followed.
+    /// </summary>
+    public static UnixStat? Stat(string path, bool followLinks = false)
     {
         if (OperatingSystem.IsWindows()) return null;
         byte* buffer = stackalloc byte[256];
         try
         {
             if (OperatingSystem.IsLinux())
-                return Statx(AtFdCwd, path, AtSymlinkNoFollow, StatxType | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
+                return Statx(AtFdCwd, path, followLinks ? 0 : AtSymlinkNoFollow, StatxType | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
             if (OperatingSystem.IsMacOS())
-                return (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacLstat(path, buffer) : MacLstatInode64(path, buffer)) == 0
-                    ? FromMacStat(buffer) : null;
+            {
+                bool arm = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
+                int result = followLinks
+                    ? arm ? MacStat(path, buffer) : MacStatInode64(path, buffer)
+                    : arm ? MacLstat(path, buffer) : MacLstatInode64(path, buffer);
+                return result == 0 ? FromMacStat(buffer) : null;
+            }
         }
         catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
         {
         }
         return null;
+    }
+
+    /// <summary>The full path with every link resolved (realpath), or null when it does not exist or cannot be read.</summary>
+    public static string? RealPath(string path)
+    {
+        if (OperatingSystem.IsWindows()) return null;
+        // PATH_MAX is 4096 on Linux and 1024 on macOS, the terminating zero included.
+        byte* buffer = stackalloc byte[4096 + 1];
+        try
+        {
+            return RealPathNative(path, buffer) is null ? null : Marshal.PtrToStringUTF8((nint)buffer);
+        }
+        catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
+        {
+            return null;
+        }
     }
 
     /// <summary>The file an open handle refers to, or null when the system cannot say.</summary>
@@ -125,11 +149,20 @@ public static unsafe partial class UnixFiles
         return best;
     }
 
+    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial byte* RealPathNative(string path, byte* resolved);
+
     [LibraryImport("libc", EntryPoint = "statx", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int Statx(int directory, string path, int flags, uint mask, byte* buffer);
 
     [LibraryImport("libc", EntryPoint = "lstat", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int MacLstat(string path, byte* buffer);
+
+    [LibraryImport("libc", EntryPoint = "stat", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int MacStat(string path, byte* buffer);
+
+    [LibraryImport("libc", EntryPoint = "stat$INODE64", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int MacStatInode64(string path, byte* buffer);
 
     [LibraryImport("libc", EntryPoint = "lstat$INODE64", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int MacLstatInode64(string path, byte* buffer);

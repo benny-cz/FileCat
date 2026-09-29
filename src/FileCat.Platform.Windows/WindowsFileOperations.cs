@@ -7,7 +7,7 @@ namespace FileCat.Platform.Windows;
 /// Windows file mutations: native volume profiles, Recycle Bin classification, and Mark-of-the-Web
 /// (<c>Zone.Identifier</c>) handling. Native copy and Shell recycle are layered on in WindowsFileOperations.Native.cs.
 /// </summary>
-public sealed partial class WindowsFileOperations : PortableFileOperations
+public partial class WindowsFileOperations : PortableFileOperations
 {
     private const string ZoneStream = ":Zone.Identifier";
 

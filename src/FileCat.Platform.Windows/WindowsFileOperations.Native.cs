@@ -12,7 +12,7 @@ namespace FileCat.Platform.Windows;
 /// MoveFileEx for renames and publishing, and the Shell's IFileOperation for recycling with verified
 /// per-item outcomes (plan §9.2).
 /// </summary>
-public sealed partial class WindowsFileOperations
+public partial class WindowsFileOperations
 {
     private const uint COPY_FILE_FAIL_IF_EXISTS = 0x00000001;
     private const uint COPY_FILE_COPY_SYMLINK = 0x00000800;
@@ -310,6 +310,19 @@ public sealed partial class WindowsFileOperations
         {
             return null;
         }
+    }
+
+    public override string? GetFinalPath(string path)
+    {
+        const uint FILE_READ_ATTRIBUTES = 0x80, SHARE_ALL = 7, OPEN_EXISTING = 3, FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+        const uint VOLUME_NAME_DOS = 0, VOLUME_NAME_GUID = 1;
+        using var handle = CreateFileForIdentity(Long(path), FILE_READ_ATTRIBUTES, SHARE_ALL, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+        if (handle.IsInvalid) return null;
+        // A volume without a drive letter or folder keeps its \\?\Volume{…} name.
+        string? final = Elevation.ElevationPaths.FinalPath(handle, VOLUME_NAME_DOS) ?? Elevation.ElevationPaths.FinalPath(handle, VOLUME_NAME_GUID);
+        if (final is null) return null;
+        if (final.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) return @"\\" + final[8..];
+        return final.StartsWith(@"\\?\", StringComparison.Ordinal) && final.Length > 6 && final[5] == ':' ? final[4..] : final;
     }
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]

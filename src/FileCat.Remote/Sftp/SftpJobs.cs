@@ -217,7 +217,7 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
 /// the old file just before. A move deletes a local source only after its copy is published and checked.
 /// </summary>
 internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp, ProviderRegistry providers)
-    : SftpExecutorBase(job, fs, journal, sftp)
+    : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter
 {
     private const int BufferSize = 256 * 1024;
     private byte[]? _buffer;
@@ -282,6 +282,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             {
                 foreach (var f in new DirectoryInfo(p).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true }))
                 {
+                    if (Options.Filter is { } filter && !filter.IsMatch(f.Name)) continue;
                     files++;
                     bytes += f.Length;
                 }
@@ -312,6 +313,13 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             {
                 Job.ItemSkipped();
                 Issue(IssueSeverity.Info, child.FullName, "Links are not followed while copying to a server; it was skipped.", StepOutcome.Skipped);
+                all &= !Moving; // a move keeps the folder that still holds it
+                continue;
+            }
+            // "Only files matching": the others stay here, and so does their folder when moving.
+            if (child is FileInfo && Options.Filter is { } filter && !filter.IsMatch(child.Name))
+            {
+                all &= !Moving;
                 continue;
             }
             all &= child is DirectoryInfo ? UploadLocalFolder(child.FullName, dst, child.Name) : UploadLocalFile(child.FullName, dst, child.Name);
@@ -388,6 +396,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             foreach (var c in children)
             {
                 if (c.Kind == EntryKind.Parent) continue;
+                if (!c.IsContainer && Options.Filter is { } filter && !filter.IsMatch(c.Name)) continue;
                 if (c.Has(EntryFlags.Link) && c.IsContainer)
                 {
                     Job.ItemSkipped();
@@ -767,8 +776,12 @@ internal sealed class SftpDeleteExecutor(Job job, IFileSystemOperations fs, JobJ
 /// Moves from a server to a local folder: the common download runs first, and only items that arrived completely
 /// (every file published and checked) are then deleted on the server.
 /// </summary>
+/// <summary>
+/// A move from a server to disk: the general transfer copies (and applies the filter), and only the items that arrived
+/// completely, whole folders included, are then deleted on the server.
+/// </summary>
 internal sealed class SftpDownloadMoveExecutor(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp, ProviderRegistry providers)
-    : SftpExecutorBase(job, fs, journal, sftp)
+    : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter
 {
     protected override Location ConnectionLocation => Job.Request.Sources[0].Parent;
 
