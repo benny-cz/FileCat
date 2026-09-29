@@ -404,6 +404,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var all = o.Items.Select((item, index) => new ChoiceRow(item, index)).ToList();
         var filter = new TextBox { PlaceholderText = "Type to filter…", MinWidth = 520 };
         Avalonia.Automation.AutomationProperties.SetName(filter, "Filter " + o.Title);
+        // Rows showing an icon, by item: platform icons load in the background and replace the stand-ins.
+        var icons = new Dictionary<ChoiceRow, Image>();
         var list = new ListBox
         {
             Classes = { "choices" },
@@ -411,8 +413,15 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             MinHeight = 60,
             ItemTemplate = new FuncDataTemplate<ChoiceRow>((row, _) =>
             {
-                var g = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+                var g = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+                if (row?.Item.Icon is { } icon)
+                {
+                    var image = new Image { Width = 16, Height = 16, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Source = icon() };
+                    icons[row] = image;
+                    g.Children.Add(image);
+                }
                 var left = new StackPanel { Orientation = Orientation.Vertical };
+                Grid.SetColumn(left, 1);
                 left.Children.Add(new TextBlock
                 {
                     Text = (row?.Pinned == true ? "📌 " : string.Empty) + row?.Item.Title,
@@ -425,7 +434,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 if (!string.IsNullOrEmpty(row?.Item.Gesture))
                 {
                     var gesture = new TextBlock { Text = row.Item.Gesture, Classes = { "muted", "small" }, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(gesture, 1);
+                    Grid.SetColumn(gesture, 2);
                     g.Children.Add(gesture);
                 }
                 return g;
@@ -463,9 +472,19 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 list.ScrollIntoView(list.SelectedIndex);
             }
         }
+        Action? iconsLoaded = null;
+        if (o.Icons?.Native is { } native)
+        {
+            iconsLoaded = () =>
+            {
+                foreach (var (row, image) in icons) image.Source = row.Item.Icon?.Invoke();
+            };
+            native.IconsLoaded += iconsLoaded;
+        }
         void Finish(ChoiceResult r)
         {
             if (tcs.Task.IsCompleted) return;
+            if (iconsLoaded is not null) o.Icons!.Native!.IconsLoaded -= iconsLoaded;
             Close(session!);
             tcs.TrySetResult(r);
         }

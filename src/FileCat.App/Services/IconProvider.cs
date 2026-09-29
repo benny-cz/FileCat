@@ -24,6 +24,12 @@ public enum IconKind
     Share,
     RegistryKey,
     RegistryValue,
+    /// <summary>This PC.</summary>
+    Computer,
+    /// <summary>Phones and cameras.</summary>
+    Phone,
+    /// <summary>Working sets: items collected from many folders.</summary>
+    Collection,
 }
 
 /// <summary>
@@ -85,6 +91,16 @@ public sealed class IconProvider
             if (img is not null) return ThemeManager.Current.IconTint is { } tint ? Tinted(img, tint) : img;
         }
         var kind = Classify(e);
+        return _vector.GetOrAdd((kind, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
+    }
+
+    /// <summary>
+    /// A place's icon (This PC, phones, working sets, servers, the Registry, drives): the platform's own where it has
+    /// one, as its file manager shows it, otherwise FileCat's.
+    /// </summary>
+    public IImage GetPlaceIcon(IconKind kind)
+    {
+        if (UseNativeIcons && Native?.GetPlaceIcon(kind) is { } img) return ThemeManager.Current.IconTint is { } tint ? Tinted(img, tint) : img;
         return _vector.GetOrAdd((kind, ThemeManager.Current.Name), k => VectorIcons.Create(k.Item1));
     }
 
@@ -171,6 +187,9 @@ public interface INativeIconSource
     /// <summary>Icons are made for this many device pixels (16 times the display's scaling).</summary>
     void SetPixelSize(int size) { }
 
+    /// <summary>The platform's icon for a place (<see cref="IconProvider.GetPlaceIcon"/>); null while it loads or when there is none.</summary>
+    IImage? GetPlaceIcon(IconKind kind) => null;
+
     event Action? IconsLoaded;
 }
 
@@ -183,6 +202,9 @@ public static class VectorIcons
     private const string DrivePath = "M1.5,5 L14.5,5 L14.5,12 L1.5,12 Z M11.5,8.5 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0";
     private const string ServerPath = "M3,1.5 L13,1.5 L13,6.5 L3,6.5 Z M3,8.5 L13,8.5 L13,13.5 L3,13.5 Z";
     private const string KeyPath = "M1,4 L6,4 L7,5 L15,5 L15,13 L1,13 Z";
+    private const string ComputerPath = "M1.5,2.5 L14.5,2.5 L14.5,11 L1.5,11 Z";
+    private const string PhonePath = "M5,1.5 L11,1.5 C11.6,1.5 12,1.9 12,2.5 L12,13.5 C12,14.1 11.6,14.5 11,14.5 L5,14.5 C4.4,14.5 4,14.1 4,13.5 L4,2.5 C4,1.9 4.4,1.5 5,1.5 Z";
+    private const string CollectionPath = "M2.5,4.5 L10,4.5 L10,14.5 L2.5,14.5 Z";
 
     public static IImage Create(IconKind kind)
     {
@@ -202,6 +224,9 @@ public static class VectorIcons
             IconKind.Server or IconKind.Share => (ServerPath, "FcDriveIcon", null),
             IconKind.RegistryKey => (KeyPath, "FcFolderIcon", null),
             IconKind.RegistryValue => (FilePath, "FcCodeIcon", "M5.5,7 L10.5,7 M5.5,9.5 L10.5,9.5 M5.5,12 L8.5,12"),
+            IconKind.Computer => (ComputerPath, "FcDriveIcon", "M8,11 L8,13.5 M5,13.5 L11,13.5"),
+            IconKind.Phone => (PhonePath, "FcDriveIcon", "M7,12.5 L9,12.5"),
+            IconKind.Collection => (CollectionPath, "FcFileIcon", "M5,4.5 L5,2 L12.5,2 L12.5,12 L10,12 M4.5,8 L8,8 M4.5,10.5 L8,10.5"),
             _ => (FilePath, "FcFileIcon", null),
         };
         var color = Resolve(colorKey);

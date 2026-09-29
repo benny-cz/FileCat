@@ -47,13 +47,14 @@ public class ComputerProvider : ResourceProvider
     public override async Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
     {
         var drives = GetDriveRoots();
-        var tasks = drives.Select(root => Task.Run(() => QueryDrive(root), ct)).ToArray();
+        var tasks = drives.Select(root => Task.Run(() => QueryListed(root), ct)).ToArray();
         for (int i = 0; i < drives.Count; i++)
         {
             DriveTag tag;
             try
             {
-                tag = await tasks[i].WaitAsync(DriveQueryTimeout, ct).ConfigureAwait(false);
+                if (await tasks[i].WaitAsync(DriveQueryTimeout, ct).ConfigureAwait(false) is not { } answered) continue;
+                tag = answered;
             }
             catch (TimeoutException)
             {
@@ -71,6 +72,47 @@ public class ComputerProvider : ResourceProvider
             };
             sink.AddBatch([e]);
         }
+    }
+
+    /// <summary>
+    /// The drives this list shows, each as it describes itself within <paramref name="budget"/>: a drive that takes
+    /// longer (a dropped network share) is listed as not responding rather than holding up the caller.
+    /// </summary>
+    public async Task<IReadOnlyList<DriveTag>> QueryDrivesAsync(TimeSpan budget, CancellationToken ct)
+    {
+        var roots = GetDriveRoots();
+        var tasks = roots.Select(root => Task.Run(() => QueryListed(root), ct)).ToArray();
+        try
+        {
+            await Task.WhenAll(tasks).WaitAsync(budget, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Past the budget, or a drive failed: each one's own outcome is read below.
+        }
+        var tags = new List<DriveTag>(roots.Count);
+        for (int i = 0; i < roots.Count; i++)
+        {
+            var task = tasks[i];
+            if (task.IsCompletedSuccessfully)
+            {
+                if (task.Result is { } tag) tags.Add(tag);
+            }
+            else tags.Add(new DriveTag(roots[i], null, task.IsCompleted ? "Unavailable" : "Not responding", null, -1, -1, false));
+        }
+        return tags;
+    }
+
+    /// <summary>
+    /// A drive's description, or null for a Unix mount point that is not one to list: not a folder (a file bound over
+    /// another), or memory-backed scratch space (tmpfs). Runs in its own task: statfs can hang on a dead network mount.
+    /// </summary>
+    private DriveTag? QueryListed(string root)
+    {
+        if (PathUtil.IsWindows) return QueryDrive(root);
+        if (!Directory.Exists(root)) return null;
+        var tag = QueryDrive(root);
+        return tag.DriveType == nameof(DriveType.Ram) && root != "/" ? null : tag;
     }
 
     protected virtual IReadOnlyList<string> GetDriveRoots()

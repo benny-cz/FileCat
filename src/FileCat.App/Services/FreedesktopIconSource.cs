@@ -68,6 +68,15 @@ public sealed class FreedesktopIconSource : INativeIconSource
         }
     }
 
+    public IImage? GetPlaceIcon(IconKind kind) => kind switch
+    {
+        IconKind.Computer => Get("names:computer,user-desktop"),
+        IconKind.Phone => Get("names:phone,multimedia-player,drive-removable-media"),
+        IconKind.Collection => Get("names:folder-saved-search,edit-find"),
+        IconKind.Server or IconKind.Share => Get("names:network-server,folder-remote"),
+        _ => null,
+    };
+
     private IImage? Get(string key)
     {
         var sized = (PixelSize, key);

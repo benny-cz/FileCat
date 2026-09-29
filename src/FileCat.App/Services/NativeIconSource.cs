@@ -103,6 +103,31 @@ public sealed class NativeIconSource : INativeIconSource
         }
     }
 
+    public IImage? GetPlaceIcon(IconKind kind) => kind switch
+    {
+        IconKind.Computer => Shared("stock:" + WindowsIcons.StockDesktopPc),
+        IconKind.Phone => Shared("stock:" + WindowsIcons.StockPhone),
+        IconKind.Collection => Shared("stock:" + WindowsIcons.StockStack),
+        IconKind.Server => Shared("stock:" + WindowsIcons.StockServer),
+        IconKind.Share => Shared("stock:" + WindowsIcons.StockServerShare),
+        IconKind.RegistryKey => RegistryEditorIcon(),
+        _ => null,
+    };
+
+    /// <summary>The Registry as Windows shows it: Registry Editor's own icon (through the Shell helper, when allowed).</summary>
+    private IImage? RegistryEditorIcon()
+    {
+        var regedit = new FileInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "regedit.exe"));
+        try
+        {
+            return regedit.Exists ? OwnIcon(regedit.FullName, regedit.LastWriteTimeUtc.Ticks, regedit.Attributes) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The installed Shell overlay composed with the ordinary icon, when Windows has assigned one.</summary>
     internal IImage? GetOverlayIcon(string path, long modified, FileAttributes attributes, GitStatusKind status)
     {

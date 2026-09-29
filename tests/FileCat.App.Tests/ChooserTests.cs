@@ -46,4 +46,41 @@ public sealed class ChooserTests
         }
         finally { window.Close(); }
     }
+
+    [Fact]
+    public void Drives_in_the_location_menu_say_their_name_and_free_space_or_why_not()
+    {
+        const long gb = 1024L * 1024 * 1024;
+        Assert.Equal("SYSTEM · 214 GB free", MainViewModel.DriveDetail(new(@"C:\", "SYSTEM", "Fixed", "NTFS", 214 * gb, 900 * gb, true)));
+        // Linux and macOS name a volume by its mount point: the file system says more.
+        Assert.Equal("ext4 · 214 GB free", MainViewModel.DriveDetail(new("/mnt/data", "/mnt/data", "Fixed", "ext4", 214 * gb, 900 * gb, true)));
+        Assert.Equal("No disc", MainViewModel.DriveDetail(new(@"D:\", null, "CDRom", null, -1, -1, false)));
+        Assert.Equal("Not responding", MainViewModel.DriveDetail(new(@"Z:\", null, "Not responding", null, -1, -1, false)));
+    }
+
+    /// <summary>Alt+F1: drives, This PC, phones, working sets, the Registry, and folders each show their icon.</summary>
+    [AvaloniaFact]
+    public async Task The_location_menu_shows_an_icon_for_every_place()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            vm.Execute(Core.Commands.CommandIds.LocationMenuLeft);
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            List<ListBoxItem> Rows() => window.GetVisualDescendants().OfType<ListBoxItem>().ToList();
+            for (int i = 0; i < 250 && Rows().Count == 0; i++) await Task.Delay(20, ct);
+            var rows = Rows();
+            Assert.NotEmpty(rows);
+            Assert.All(rows, row => Assert.NotNull(row.GetVisualDescendants().OfType<Image>().FirstOrDefault()?.Source));
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            Assert.False(dialogs.IsOpen);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

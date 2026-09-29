@@ -14,30 +14,52 @@ public sealed partial class MainViewModel
         if (panel?.ActiveTab is null) return;
         var items = new List<ChoiceItem>();
         var locations = new List<Location>();
-        void Add(string title, string? detail, Location loc)
+        var icons = Services.Icons;
+        void Add(string title, string? detail, Location loc, Func<Avalonia.Media.IImage?> icon)
         {
-            items.Add(new ChoiceItem(title, detail) { });
+            items.Add(new ChoiceItem(title, detail) { Icon = icon });
             locations.Add(loc);
         }
-        foreach (var d in SafeDrives())
+        // Folders as Explorer shows them where it lists them (Desktop, Documents, and Downloads have their own icons).
+        Func<Avalonia.Media.IImage?> FolderIcon(Location loc)
         {
-            var root = d.Name;
-            string detail;
-            try { detail = d.IsReady ? $"{(string.IsNullOrEmpty(d.VolumeLabel) ? d.DriveType.ToString() : d.VolumeLabel)} · {Formatters.Size(d.AvailableFreeSpace)} free" : $"{d.DriveType} · not ready"; }
-            catch (Exception) { detail = d.DriveType.ToString(); }
-            Add(PathUtil.IsWindows ? root.TrimEnd('\\') : root, detail, Location.FileSystem(root));
+            if (!loc.IsFileSystem) return loc.Scheme switch
+            {
+                Schemes.Registry => () => icons.GetPlaceIcon(IconKind.RegistryKey),
+                Schemes.Computer => () => icons.GetPlaceIcon(IconKind.Computer),
+                Schemes.Sftp or Schemes.Ftp => () => icons.GetPlaceIcon(IconKind.Server),
+                _ => () => icons.GetPlaceIcon(IconKind.Folder),
+            };
+            var path = loc.Path.TrimEnd('\\', '/');
+            var parent = Path.GetDirectoryName(path);
+            var entry = new EntryData(Path.GetFileName(path), EntryKind.Directory);
+            var folder = parent is null ? null : Location.FileSystem(parent);
+            return () => icons.GetIcon(entry, folder);
         }
-        Add("This PC", "All drives", new Location(Schemes.Computer, string.Empty));
+        // The drives This PC lists, as each describes itself within a moment: a dropped network drive shows as not
+        // responding instead of holding up the menu (the queries run off the UI thread).
+        var computer = Services.Providers.For(new Location(Schemes.Computer, string.Empty)) as ComputerProvider;
+        var drives = computer is null ? [] : await computer.QueryDrivesAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None);
+        foreach (var tag in drives)
+        {
+            string name = PathUtil.IsWindows ? tag.RootPath.TrimEnd('\\') : tag.RootPath;
+            var drive = new EntryData(name, EntryKind.Drive) { Tag = tag };
+            Add(name, DriveDetail(tag), Location.FileSystem(tag.RootPath), () => icons.GetIcon(drive));
+        }
+        var thisPc = new Location(Schemes.Computer, string.Empty); // "This PC" on Windows, "Computer" elsewhere
+        Add(Services.Providers.Display(thisPc), "All drives", thisPc, () => icons.GetPlaceIcon(IconKind.Computer));
         if (Services.Providers.IsRegistered(Schemes.Mtp))
-            Add("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices);
+            Add("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices,
+                () => icons.GetPlaceIcon(IconKind.Phone));
         int workingSets = Services.WorkingSets.All.Count;
         Add("Working sets", workingSets == 0 ? "Collect items from many folders (references, never copies)" : $"{Formatters.Plural(workingSets, "set", "sets")} of items collected from many folders",
-            Core.Search.ResultSetProvider.WorkingSetList);
+            Core.Search.ResultSetProvider.WorkingSetList, () => icons.GetPlaceIcon(IconKind.Collection));
         if (Services.Providers.IsRegistered(Schemes.Registry))
         {
             foreach (var view in new[] { "default", "64", "32" })
                 Add($"Registry ({FileCat.Platform.Windows.WindowsRegistryProvider.ViewLabel(view)})",
-                    "Local Registry · keys and typed values", FileCat.Platform.Windows.WindowsRegistryProvider.Home(view));
+                    "Local Registry · keys and typed values", FileCat.Platform.Windows.WindowsRegistryProvider.Home(view),
+                    () => icons.GetPlaceIcon(IconKind.RegistryKey));
         }
         foreach (var (name, folder) in new[]
                  {
@@ -46,19 +68,22 @@ public sealed partial class MainViewModel
                  })
         {
             var p = Environment.GetFolderPath(folder);
-            if (!string.IsNullOrEmpty(p)) Add(name, p, Location.FileSystem(p));
+            if (!string.IsNullOrEmpty(p)) Add(name, p, Location.FileSystem(p), FolderIcon(Location.FileSystem(p)));
         }
         var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        if (Directory.Exists(downloads)) Add("Downloads", downloads, Location.FileSystem(downloads));
+        if (Directory.Exists(downloads)) Add("Downloads", downloads, Location.FileSystem(downloads), FolderIcon(Location.FileSystem(downloads)));
         foreach (var b in Services.History.Bookmarks.Where(b => b.Location is not null).OrderBy(b => b.Slot ?? 99))
-            Add((b.Slot is { } s ? $"[{s}] " : "★ ") + (string.IsNullOrEmpty(b.Name) ? Services.Providers.Display(b.Location!) : b.Name), Services.Providers.Display(b.Location!), b.Location!);
+            Add((b.Slot is { } s ? $"[{s}] " : "★ ") + (string.IsNullOrEmpty(b.Name) ? Services.Providers.Display(b.Location!) : b.Name), Services.Providers.Display(b.Location!), b.Location!,
+                FolderIcon(b.Location!));
         foreach (var p in Services.Settings.RemoteProfiles)
-            Add(RemoteProtocols.Describe(p.Protocol).Split(' ', ':')[0] + ": " + (p.Name.Length > 0 ? p.Name : p.Display), p.Display + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""), Remote.Sftp.SftpProvider.At(p, p.InitialPath));
+            Add(RemoteProtocols.Describe(p.Protocol).Split(' ', ':')[0] + ": " + (p.Name.Length > 0 ? p.Name : p.Display), p.Display + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""), Remote.Sftp.SftpProvider.At(p, p.InitialPath),
+                () => icons.GetPlaceIcon(IconKind.Server));
         int connectIndex = items.Count;
-        items.Add(new ChoiceItem("Connect to a server…", "SFTP, FTPS, or FTP: new or saved connection"));
+        items.Add(new ChoiceItem("Connect to a server…", "SFTP, FTPS, or FTP: new or saved connection") { Icon = () => icons.GetPlaceIcon(IconKind.Server) });
         var r = await Dialogs.ChooseAsync(new ChoiceOptions($"Location for panel {panel.Number}", items)
         {
             Hint = "Type to filter · Enter opens · Shift+Enter opens in a new tab",
+            Icons = icons,
         });
         if (r.Index < 0) return;
         if (r.Index == connectIndex)
@@ -72,10 +97,16 @@ public sealed partial class MainViewModel
         View.FocusActivePanel();
     }
 
-    private static IEnumerable<DriveInfo> SafeDrives()
+    /// <summary>
+    /// "SYSTEM · 214 GB free": the label (on Linux and macOS, where the label is the mount point, the file system
+    /// instead), then free space; or why the drive says nothing.
+    /// </summary>
+    internal static string DriveDetail(DriveTag tag)
     {
-        try { return DriveInfo.GetDrives().Where(d => PathUtil.IsWindows || d.Name == "/" || d.Name.StartsWith("/media", StringComparison.Ordinal) || d.Name.StartsWith("/Volumes", StringComparison.Ordinal) || d.Name.StartsWith("/mnt", StringComparison.Ordinal)).ToList(); }
-        catch (Exception) { return []; }
+        if (tag.DriveType is "Not responding" or "Unavailable") return tag.DriveType;
+        if (!tag.Ready) return tag.DriveType == "CDRom" ? "No disc" : "Not ready";
+        string name = !string.IsNullOrEmpty(tag.Label) && tag.Label != tag.RootPath ? tag.Label : tag.Format ?? tag.DriveType;
+        return tag.FreeBytes >= 0 ? $"{name} · {Formatters.Size(tag.FreeBytes)} free" : name;
     }
 
     private async Task ShowFolderHistoryAsync(bool findFolder = false)

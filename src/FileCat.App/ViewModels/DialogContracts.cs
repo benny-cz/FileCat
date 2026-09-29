@@ -21,6 +21,9 @@ public sealed record ChoiceItem(string Title, string? Detail = null, string? Ges
 {
     public bool IsHeader { get; init; }
     public bool Pinned { get; init; }
+
+    /// <summary>The item's icon, asked for again as icons finish loading (see <see cref="ChoiceOptions.Icons"/>).</summary>
+    public Func<Avalonia.Media.IImage?>? Icon { get; init; }
 }
 
 /// <param name="Index">Chosen item index, or -1 when canceled.</param>
@@ -44,6 +47,9 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
     /// <summary>Insert pins or unpins the selected item (history lists keep pinned items first and never trim them).</summary>
     public bool AllowPin { get; init; }
     public string? AlternateHint { get; init; }
+
+    /// <summary>Where the items' icons come from: rows show platform icons as they finish loading.</summary>
+    public Services.IconProvider? Icons { get; init; }
 }
 
 /// <summary>A button in a custom dialog; <see cref="Result"/> is returned when chosen.</summary>
