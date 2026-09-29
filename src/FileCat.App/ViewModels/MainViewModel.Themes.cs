@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
                     Children =
                     {
                         new TextBlock { Text = ThemeManager.DisplayName(name), FontWeight = FontWeight.SemiBold },
-                        new TextBlock { Text = ThemeManager.Description(name), Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 500 },
+                        new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = ThemeManager.Description(name), Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 500 },
                     },
                 },
             });

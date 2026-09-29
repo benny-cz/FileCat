@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using FileCat.App.Services;
@@ -172,9 +173,10 @@ public sealed partial class MainViewModel
     {
         var state = Services.EditSessions.StateOf(session);
         var body = new StackPanel { Spacing = 6 };
-        body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = session.DisplayContainer });
+        body.Children.Add(new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = session.DisplayContainer });
         body.Children.Add(new TextBlock
         {
+            HorizontalAlignment = HorizontalAlignment.Left,
             TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
             Text = $"{Describe(state)}. Working copy: {session.WorkingPath}" +
                    (session.LastCommitUtc is { } at ? $". Last committed {at.ToLocalTime():g}." : "."),
@@ -219,6 +221,7 @@ public sealed partial class MainViewModel
                 var answer = await Dialogs.ShowCustomAsync("Edit conflict",
                     new TextBlock
                     {
+                        HorizontalAlignment = HorizontalAlignment.Left,
                         TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
                         Text = $"\"{session.MemberPath}\" was changed or removed in {Path.GetFileName(session.ArchivePath)} after you started editing. " +
                                "Committing would overwrite that change. Your edit is kept either way.",
@@ -278,7 +281,7 @@ public sealed partial class MainViewModel
         {
             case CommitCheck.ArchiveMissing:
                 var gone = await Dialogs.ShowCustomAsync("File not on the server",
-                    new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"\"{session.RemotePath}\" is no longer on {profile.Display}. Your edit is kept." },
+                    new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"\"{session.RemotePath}\" is no longer on {profile.Display}. Your edit is kept." },
                     [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Save my copy…", "copy"), new DialogButton("Create it again", "create", IsDefault: true)]);
                 if (gone as string == "copy") await SaveSessionCopyAsync(session);
                 if (gone as string != "create") return;
@@ -288,6 +291,7 @@ public sealed partial class MainViewModel
                 var answer = await Dialogs.ShowCustomAsync("Edit conflict",
                     new TextBlock
                     {
+                        HorizontalAlignment = HorizontalAlignment.Left,
                         TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
                         Text = $"\"{session.RemotePath}\" changed on {profile.Display} after you started editing. Committing would overwrite that change. Your edit is kept either way.",
                     },

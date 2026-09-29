@@ -26,6 +26,28 @@ public sealed partial class MainViewModel
                 Notify("Select a checksum manifest (.sha256, .sha512, .sha1, .md5, .sfv, SHA256SUMS…) to verify the files it lists.", true);
                 return;
             }
+            // A file whose name does not say it is a manifest is looked into first: a text file without a single checksum
+            // line would otherwise "verify" nothing.
+            if (manifests.Count == 1 && !ChecksumManifests.IsManifestName(manifests[0].Name) && manifests[0].FileSystemPath is { } path)
+            {
+                string? problem = await Task.Run(() =>
+                {
+                    try
+                    {
+                        return ChecksumManifests.Load(path).Verifiable > 0 ? null
+                            : "none of its lines is a checksum line (as sha256sum and similar tools write them, BSD-tagged, or SFV).";
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+                    {
+                        return ex.Message;
+                    }
+                });
+                if (problem is not null)
+                {
+                    Notify($"\"{manifests[0].Name}\" is not a checksum manifest: {problem}", true);
+                    return;
+                }
+            }
         }
         var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.VerifyChecksums, Sources = manifests });
         if (ActiveTab is { } tab) Track(job, tab);

@@ -112,7 +112,7 @@ public sealed partial class MainViewModel
                 return CommandAvailability.No(Services.Providers.For(loc).ExplainUnavailable(loc, LocationCapabilities.Rename));
             case CommandIds.Copy or CommandIds.Move or CommandIds.Delete or CommandIds.DeletePermanent or CommandIds.View or CommandIds.Edit
                 or CommandIds.Rename or CommandIds.Duplicate or CommandIds.CopyNames or CommandIds.CopyPaths:
-                return hasItem ? CommandAvailability.Yes : CommandAvailability.No("Nothing is focused or marked.");
+                return hasItem ? CommandAvailability.Yes : CommandAvailability.No(NothingChosenReason(tab));
             case CommandIds.Back:
                 return tab?.CanGoBack == true ? CommandAvailability.Yes : CommandAvailability.No("No earlier location in this tab.");
             case CommandIds.Forward:

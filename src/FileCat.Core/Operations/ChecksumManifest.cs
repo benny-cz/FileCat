@@ -376,11 +376,15 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
             var parts = new List<string>();
             bool canceled = Job.IsCancellationRequested;
             if (canceled) parts.Add($"canceled after {verified + mismatched + unreadable:N0} of {planned:N0} files");
-            parts.Add(mismatched == 0 && missing == 0 && unreadable == 0 && !canceled ? $"{verified:N0} verified, all match" : $"{verified:N0} match");
+            // "All match" only about files that were compared: a manifest without a usable line verified nothing.
+            if (verified + mismatched + missing + unreadable == 0 && !canceled)
+                parts.Add(skipped > 0 ? $"nothing verified: none of its {skipped:N0} lines is a checksum line" : "nothing verified: the manifest lists no files");
+            else
+                parts.Add(mismatched == 0 && missing == 0 && unreadable == 0 && !canceled ? $"{verified:N0} verified, all match" : $"{verified:N0} match");
             if (mismatched > 0) parts.Add($"{mismatched:N0} do not match");
             if (missing > 0) parts.Add($"{missing:N0} missing");
             if (unreadable > 0) parts.Add($"{unreadable:N0} unreadable");
-            if (skipped > 0) parts.Add($"{skipped:N0} lines not verified");
+            if (skipped > 0 && verified + mismatched + missing + unreadable > 0) parts.Add($"{skipped:N0} lines not verified");
             Job.SetSummary(string.Join(", ", parts));
         }
     }

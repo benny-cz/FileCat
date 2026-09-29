@@ -49,7 +49,7 @@ public sealed partial class MainViewModel
         var shell = new CheckBox { Content = $"Run through the shell ({shellName}: pipes, redirection, built-in commands; names are quoted for it)" };
         var preview = new ListBox { Height = 220, MinWidth = 640 };
         Avalonia.Automation.AutomationProperties.SetName(preview, "Commands to run");
-        var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
+        var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
         IReadOnlyList<ApplyInvocation> rows = [];
         ApplyCommandSpec? plannedFor = null;
         int generation = 0;
@@ -92,6 +92,7 @@ public sealed partial class MainViewModel
                 command,
                 new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
                     Text = "{file} full path · {name} name · {stem} name without extension · {ext} extension · {dir} item's folder · {target} target panel folder · {index} 1, 2, 3… · Up and Down recall earlier commands",
                 },

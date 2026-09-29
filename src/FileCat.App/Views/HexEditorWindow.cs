@@ -603,9 +603,9 @@ public sealed class HexEditorWindow : Window
                 Spacing = 10,
                 Children =
                 {
-                    new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
+                    new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
                         Text = $"Write {Formatters.Plural(dirty, "modified byte", "modified bytes")} into {_file.LocalPath}?" },
-                    new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
+                    new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
                         Text = "The file keeps its length, identity, permissions, and links; only the modified bytes are written. " +
                                "Several ranges cannot be written atomically, so a recovery journal first records the original and new bytes: " +
                                "a save stopped by a crash or power loss can be finished or rolled back afterwards." },
@@ -617,6 +617,7 @@ public sealed class HexEditorWindow : Window
                 // Linux and macOS (D-45): detection instead of exclusion, said before the user chooses it.
                 body.Children.Insert(2, new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     TextWrapping = TextWrapping.Wrap,
                     MaxWidth = 620,
                     Classes = { "warning" },
@@ -878,6 +879,7 @@ public sealed class HexEditorWindow : Window
         var answer = await _dialogs.ShowCustomAsync("Save changes?",
             new TextBlock
             {
+                HorizontalAlignment = HorizontalAlignment.Left,
                 TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
                 Text = $"{Formatters.Plural(_overlay.DirtyBytes, "modified byte is", "modified bytes are")} not saved. The file on disk has not been changed by them.",
             },

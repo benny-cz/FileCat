@@ -109,4 +109,15 @@ public sealed class ChecksumManifestTests : IDisposable
         Assert.Equal("1 verified, all match", ok.Summary);
         Assert.Contains(ok.Issues, i => i.Severity == IssueSeverity.Info && i.Message.Contains("MD5", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task A_manifest_without_a_checksum_line_verifies_nothing_and_says_so()
+    {
+        string notes = _dir.File("notes.sha256", "just\nsome words\nhere\n");
+        var job = await VerifyAsync(notes);
+        Assert.Equal("nothing verified: none of its 3 lines is a checksum line", job.Summary);
+        Assert.DoesNotContain("all match", job.Summary, StringComparison.Ordinal);
+        var empty = await VerifyAsync(_dir.File("empty.md5", ""));
+        Assert.Equal("nothing verified: the manifest lists no files", empty.Summary);
+    }
 }

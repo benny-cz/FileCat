@@ -845,7 +845,9 @@ public sealed class FileListControl : Control
         {
             message = listing.Filter is not null && listing.TotalCount > 0
                 ? $"No items match the filter \"{listing.Filter.Text}\".\nEsc clears the filter."
-                : "This location is empty.";
+                : Core.Search.ResultSetProvider.IsWorkingSetList(listing.Location)
+                    ? "No working sets yet.\nF7 creates one; Ctrl+Shift+W adds marked items to a set."
+                    : "This location is empty.";
         }
         if (message is null) return;
         var ft = new FormattedText(message, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, _typeface, FontSize > 0 ? FontSize : 13, brush)

@@ -128,7 +128,7 @@ public sealed partial class MainViewModel
         var items = tab.Listing.GetSelection(includeHiddenMarks: true);
         if (items.Count == 0)
         {
-            Notify("Nothing is focused or marked.");
+            Notify(NothingChosenReason(tab));
             return null;
         }
         // A captured (huge) selection is exactly the marks: summarize from the cached statistics, not by enumerating.
@@ -243,6 +243,12 @@ public sealed partial class MainViewModel
         }
         return list;
     }
+
+    /// <summary>Why a command that acts on items has none: the cursor on "..", or an empty folder.</summary>
+    internal static string NothingChosenReason(TabViewModel? tab) =>
+        tab is not null && tab.Listing.TryGetFocused(out var focused) && focused.Kind == EntryKind.Parent
+            ? "The cursor is on \"..\" (the folder above): move it to an item, or mark items."
+            : "Nothing is focused or marked.";
 
     /// <summary>Releases captured selections that did not become a job's sources (the job's are released when it finishes).</summary>
     private static void ReleaseUnsubmitted(IReadOnlyList<ItemRef>? submitted, params IReadOnlyList<ItemRef>?[] captured)

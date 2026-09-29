@@ -62,7 +62,7 @@ public sealed partial class MainViewModel
 
     private static TextBlock Para(string text, params string[] classes)
     {
-        var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 };
+        var t = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 };
         foreach (var c in classes) t.Classes.Add(c);
         return t;
     }
@@ -295,7 +295,7 @@ public sealed partial class MainViewModel
             IsChecked = persistent && existing?.SaveSecret == true,
             IsEnabled = persistent,
         };
-        var problem = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 };
+        var problem = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Classes = { "error" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 };
         var authRow = new StackPanel { Spacing = 2, Children = { new TextBlock { Text = "Sign in with:" }, auth } };
         void UpdateKey()
         {

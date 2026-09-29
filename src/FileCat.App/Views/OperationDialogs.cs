@@ -40,7 +40,7 @@ public static class OperationDialogs
     private static TextBlock Muted(string text) => new() { Text = text, Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
 
     private static TextBlock Text(string text, bool bold = false) =>
-        new() { Text = text, TextWrapping = TextWrapping.Wrap, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal, MaxWidth = 680 };
+        new() { Text = text, TextWrapping = TextWrapping.Wrap, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal, MaxWidth = 680, HorizontalAlignment = HorizontalAlignment.Left };
 
     /// <summary>The first names only: a captured selection may hold a million items.</summary>
     private static string NameList(IReadOnlyList<ItemRef> items, int max = 6)

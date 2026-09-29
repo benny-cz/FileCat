@@ -354,7 +354,7 @@ public sealed class CommandRegistry
             Add(CommandIds.ColumnProfilePrefix + i, $"Column profile {i}", V, null, CommandContext.Panel, $"Alt+{i}");
         Add(CommandIds.QuickFilter, "Quick filter…", V, null, CommandContext.Panel, "Ctrl+S");
         Add(CommandIds.FlatView, "Flat view (all files below this folder)", V, null, CommandContext.Panel, "Ctrl+B");
-        Add(CommandIds.AnalyzeFolder, "Analyze folder (complete metadata sort)", V);
+        Add(CommandIds.AnalyzeFolder, "Analyze folder…", V);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         Add(CommandIds.RegistryExport, "Export Registry selection to .reg…", F);
@@ -415,6 +415,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.CompareFiles, "Two marked files, one marked in each panel, or the file under the cursor and the file of the same name in the other panel.");
         r.Describe(CommandIds.FindDeleted, "Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.");
         r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
+        r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, where files came from) for every item, then sorts by it.");
         r.Describe(CommandIds.CompareDirectories, "Marks what differs between the two panels' folders; Include subfolders lists every difference below and can synchronize.");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
@@ -477,7 +478,9 @@ public sealed class CommandRegistry
         K(CommandIds.FileHistory, "recent files");
         K(CommandIds.WorkingSets, "collections", "basket");
         K(CommandIds.Undo, "revert", "take back");
-        K(CommandIds.AnalyzeFolder, "folder sizes", "space usage", "largest files", "disk usage");
+        K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin");
+        K(CommandIds.MarkToggle, "folder size", "folder sizes", "calculate size");
+        K(CommandIds.SortSize, "largest files", "biggest files");
         K(CommandIds.UserMenu, "custom commands", "tools");
         K(CommandIds.SaveWorkspace, "session", "save layout");
         K(CommandIds.LoadWorkspace, "session", "restore layout");

@@ -23,7 +23,16 @@ public sealed class WindowsPlatform : PortablePlatform
     /// <summary>Owner window for Shell warnings (e.g. the permanent-deletion warning during recycle).</summary>
     public static void SetOwnerWindow(nint hwnd) => WindowsFileOperations.OwnerWindow = hwnd;
 
-    public override string Name => $"Windows {Environment.OSVersion.Version}";
+    /// <summary>"Windows 11 (build 26220)": Windows 11 still reports version 10.0, which read as Windows 10.</summary>
+    public override string Name
+    {
+        get
+        {
+            var v = Environment.OSVersion.Version;
+            string product = v.Major == 10 ? v.Build >= 22000 ? "Windows 11" : "Windows 10" : $"Windows {v.Major}.{v.Minor}";
+            return $"{product} (build {v.Build})";
+        }
+    }
 
     public override void RegisterProviders(ProviderRegistry registry)
     {

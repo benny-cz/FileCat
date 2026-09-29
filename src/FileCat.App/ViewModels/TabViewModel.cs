@@ -510,6 +510,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             Schemes.Registry => $"{Formatters.Plural(totals.Directories, "key", "keys")}, {Formatters.Plural(totals.Files, "value", "values")}",
             Schemes.Computer => Formatters.Plural(totals.Directories + totals.Files, "item", "items"),
+            Schemes.ResultSet when Core.Search.ResultSetProvider.IsWorkingSetList(Location) => Formatters.Plural(totals.Directories + totals.Files, "working set", "working sets"),
             _ => $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}",
         };
         if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
@@ -518,7 +519,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (l.State == ListingState.Loading) left += " · " + (l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) left += " · " + (l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
-        if (_freeBytes >= 0) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
+        // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
+        if (_freeBytes >= 0 && Location is { IsFileSystem: true }) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
         StatusLeft = left;
 
         var stats = l.GetMarkStats();
@@ -588,13 +590,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
     }
 
-    public void SortByMetadata(string fieldId)
+    /// <param name="analyzing">Every value is about to be computed (Analyze folder): no note that the order is partial.</param>
+    public void SortByMetadata(string fieldId, bool analyzing = false)
     {
         var s = Listing.Sort;
         bool same = s.Field == SortField.Metadata && s.MetadataId == fieldId;
         Listing.MetadataKeys ??= MetadataKey;
         Listing.Sort = s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending };
-        if (fieldId == ColumnSpec.FolderSortKey) return; // every item's folder is known at once
+        if (fieldId == ColumnSpec.FolderSortKey || analyzing) return; // every item's folder is known at once
         var field = Services.Metadata.Field(fieldId);
         Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View → Analyze folder to compute every value.";
     }

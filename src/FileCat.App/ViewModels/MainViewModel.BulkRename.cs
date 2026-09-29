@@ -50,7 +50,7 @@ public sealed partial class MainViewModel
         var counterDigits = Box("1", "Counter digits", 40);
         var preview = new ListBox { Height = 280, MinWidth = 700 };
         Avalonia.Automation.AutomationProperties.SetName(preview, "Preview of new names");
-        var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 720 };
+        var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 720 };
         var editorButton = new Button { Content = "Edit names in editor…" };
         IReadOnlyList<string>? explicitNames = null;
         IReadOnlyList<RenamePreview> rows = [];
@@ -113,6 +113,7 @@ public sealed partial class MainViewModel
                 Row(new TextBlock { Text = "Name:" }, nameMask, new TextBlock { Text = "Extension:" }, extMask),
                 new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 720,
                     Text = "[N] name · [N2-5] characters 2 to 5 · [N3-] from 3 on · [E] extension · [C] counter · [P] folder · [YMD] date · [hms] time; other text is kept as typed",
                 },

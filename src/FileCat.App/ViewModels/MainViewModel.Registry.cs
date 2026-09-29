@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia;
 using Avalonia.Platform.Storage;
@@ -109,8 +110,8 @@ public sealed partial class MainViewModel
         };
         var body = new StackPanel { Spacing = 8, Children =
         {
-            new TextBlock { Text = $"Scope: {Services.Providers.Display(scope)}\nFile: {path}\nAdd {plan.AddedKeys:N0} keys and {plan.AddedValues:N0} values; overwrite {plan.OverwrittenValues:N0} values; delete {plan.DeletedValues:N0} values and {plan.DeletedTrees:N0} subtrees. {plan.DataBytes:N0} incoming bytes.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
-            new TextBlock { Text = "The file's paths must stay inside this scope. The selected Registry view applies to every change. Import is not atomic: completed steps remain if a later step fails. Existing values and subtrees are checked again before mutation.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
+            new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = $"Scope: {Services.Providers.Display(scope)}\nFile: {path}\nAdd {plan.AddedKeys:N0} keys and {plan.AddedValues:N0} values; overwrite {plan.OverwrittenValues:N0} values; delete {plan.DeletedValues:N0} values and {plan.DeletedTrees:N0} subtrees. {plan.DataBytes:N0} incoming bytes.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
+            new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = "The file's paths must stay inside this scope. The selected Registry view applies to every change. Import is not atomic: completed steps remain if a later step fails. Existing values and subtrees are checked again before mutation.", TextWrapping = TextWrapping.Wrap, MaxWidth = 690 },
             detail,
         } };
         var result = await Dialogs.ShowCustomAsync("Review Registry import", body,
@@ -222,7 +223,7 @@ public sealed partial class MainViewModel
         var input = new TextBox { Text = initial, MinWidth = 500, MaxHeight = 280, PlaceholderText = "Stored data" }; // lines: set per type below
         Avalonia.Automation.AutomationProperties.SetName(input, "Registry value data");
         var reinterpret = new CheckBox { Content = "Reinterpret original bytes as the selected type", IsVisible = original is not null };
-        var preview = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 650, Classes = { "muted" } };
+        var preview = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 650, Classes = { "muted" } };
         // Shown only while they say something (empty lines would still take the dialog's spacing).
         var issue = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" }, IsVisible = false };
         var changed = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "error" }, IsVisible = false };
@@ -345,9 +346,10 @@ public sealed partial class MainViewModel
             : $"{Formatters.Plural(plan.Values, "value", "values")} and {Formatters.Plural(plan.Keys, "key", "keys")}" +
               (plan.Keys > 0 ? $" with {plan.NestedKeys:N0} keys and {plan.NestedValues:N0} values beneath them" : "");
         var body = new StackPanel { Spacing = 8 };
-        body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"Delete {what} ({plan.Bytes:N0} bytes of data) permanently?" });
+        body.Children.Add(new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = $"Delete {what} ({plan.Bytes:N0} bytes of data) permanently?" });
         body.Children.Add(new TextBlock
         {
+            HorizontalAlignment = HorizontalAlignment.Left,
             TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
             Text = "Registry data does not go to the Recycle Bin. Undo (Ctrl+Z) restores deleted values while nothing else changed them; deleted keys can be restored only from a backup. " +
                    "FileCat checks everything again right before deleting and stops at the first change it finds; deleting several items is not atomic." +
@@ -361,7 +363,7 @@ public sealed partial class MainViewModel
         };
         body.Children.Add(backup);
         if (plan.Links > 0)
-            body.Children.Add(new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" }, Text = "No backup is offered: a .reg file cannot represent Registry links." });
+            body.Children.Add(new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" }, Text = "No backup is offered: a .reg file cannot represent Registry links." });
         var answer = await Dialogs.ShowCustomAsync("Delete from the Registry", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Delete permanently", "delete", IsDefault: true, IsDanger: true)]);
         if (answer as string != "delete") return;
@@ -847,6 +849,7 @@ public sealed partial class MainViewModel
             var result = await Dialogs.ShowCustomAsync("Registry value · read only",
                 new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     Text = $"{display}\n{value.TypeName} · {value.Length:N0} bytes\n\n{RegistryRaw.Preview(value)}\n\nStored data is shown without expanding variables or executing it.",
                     TextWrapping = TextWrapping.Wrap,
                     MaxWidth = 640,

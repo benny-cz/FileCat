@@ -255,7 +255,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     private static Control MessageBody(string message)
     {
         var lines = OneLineBreak(message).Split('\n');
-        if (lines.Length == 1) return new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+        if (lines.Length == 1) return new SelectableTextBlock { HorizontalAlignment = HorizontalAlignment.Left, Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
         var body = new StackPanel { MaxWidth = 620 };
         bool paragraph = false;
         foreach (var line in lines)

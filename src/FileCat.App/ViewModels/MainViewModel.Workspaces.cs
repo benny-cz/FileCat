@@ -108,14 +108,48 @@ public sealed partial class MainViewModel
                 await ShowUserMenuAsync();
                 return true;
             case CommandIds.AnalyzeFolder:
-                if (ActiveTab is { } tab && tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } mid })
-                    await tab.AnalyzeAsync(mid);
-                else
-                    Notify("Sort by a metadata column (Version, Dimensions, Origin, Link target) first; analysis then computes every value.");
+                await AnalyzeFolderAsync();
                 return true;
         }
         return false;
     }
+
+    /// <summary>
+    /// View → Analyze folder (plan §10, META-002): computes a column's value for every item and sorts by it. Sorted by
+    /// such a column already, that one is analyzed; otherwise the columns to choose from, each with what it shows.
+    /// </summary>
+    private async Task AnalyzeFolderAsync()
+    {
+        if (ActiveTab is not { Location: not null } tab) return;
+        if (tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } current } && current != Controls.ColumnSpec.FolderSortKey)
+        {
+            await tab.AnalyzeAsync(current);
+            return;
+        }
+        var fields = Services.Metadata.Fields.Where(f => OperatingSystem.IsWindows() ? f.Id is not ("permissions" or "owner" or "group") : f.Id != "version")
+            .OrderBy(f => f.Title, StringComparer.CurrentCulture).ToList();
+        if (fields.Count == 0) return;
+        var items = fields.Select(f => new ChoiceItem(f.Title, AnalysisDescription(f.Id))).ToList();
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions("Analyze folder", items)
+        {
+            Hint = "Reads the value for every item in this folder, then sorts by it (Esc stops it) · Enter starts",
+        });
+        if (r.Index < 0 || r.Index >= fields.Count) return;
+        tab.SortByMetadata(fields[r.Index].Id, analyzing: true);
+        await tab.AnalyzeAsync(fields[r.Index].Id);
+    }
+
+    private static string AnalysisDescription(string fieldId) => fieldId switch
+    {
+        "version" => "Program and library versions (.exe, .dll, and similar)",
+        "dimensions" => "Picture sizes in pixels",
+        "linkTarget" => "Where links and junctions point",
+        "zone" => "Where files came from (downloaded from the internet, say)",
+        "permissions" => "Who may read, write, and run each item",
+        "owner" => "The user each item belongs to",
+        "group" => "The group each item belongs to",
+        _ => "A column's value for every item",
+    };
 
     /// <summary>A previewable diagnostic bundle without secrets or file contents (plan §19.2).</summary>
     private async Task ExportDiagnosticsAsync()

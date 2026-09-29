@@ -270,9 +270,14 @@ public sealed partial class MainViewModel
             return;
         }
         var items = candidates.Select(p => new ChoiceItem($"{p.Number}: {p.ActiveTab?.Title}", p.ActiveTab?.DisplayPath, p.IsActive ? "active" : p.IsTarget ? "target" : null)).ToList();
+        // The current target is chosen: to keep it, or as the panel to go to (the active panel would change nothing).
+        var target = Workspace.GetTarget(source);
+        int preselected = target is null ? -1 : candidates.IndexOf(target);
+        if (preselected < 0 && focus) preselected = (candidates.IndexOf(source) + 1) % candidates.Count;
         var r = await Dialogs.ChooseAsync(new ChoiceOptions(focus ? "Focus panel" : $"Target for panel {source.Number}", items)
         {
             Hint = focus ? "Type the panel number or filter · Enter focuses" : "The chosen panel receives F5/F6 from this panel",
+            SelectedIndex = Math.Max(0, preselected),
         });
         if (r.Index < 0) return;
         var chosen = candidates[r.Index];

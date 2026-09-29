@@ -120,6 +120,7 @@ public sealed partial class MainViewModel
             var answer = await Dialogs.ShowCustomAsync("Names already in the archive",
                 new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
                     Text = $"{Formatters.Plural(clashes, "item has a name", "items have names")} that already exist in {Path.GetFileName(archive)}. Replace the members with the new files, or keep the members and skip those files?",
                 },
@@ -244,11 +245,12 @@ public sealed partial class MainViewModel
             Spacing = 8,
             Children =
             {
-                new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Text = $"Pack {sel.Value.Summary} into:" },
+                new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Text = $"Pack {sel.Value.Summary} into:" },
                 pathBox,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = "Compression:", VerticalAlignment = VerticalAlignment.Center }, level } },
                 new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Left,
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Classes = { "muted" },
                     Text = "An existing ZIP gets the items added (you choose what happens to names it already has). Links are not followed or stored.",
                 },

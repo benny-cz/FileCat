@@ -70,12 +70,13 @@ public sealed partial class MainViewModel
         var relative = new CheckBox { Content = "Store the target relative to the link's folder" };
         var privilege = new TextBlock
         {
+            HorizontalAlignment = HorizontalAlignment.Left,
             Classes = { "error" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
             Text = "This account cannot create symbolic links: that needs Developer Mode (Settings → System → For developers) or administrator rights. A junction works for folders on local drives, and a hard link for files on the same drive.",
         };
         var preview = new ListBox { Height = 200, MinWidth = 640 };
         Avalonia.Automation.AutomationProperties.SetName(preview, "Links to create");
-        var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
+        var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
         IReadOnlyList<LinkPreview> rows = [];
         string? pathProblem = "Checking…";
         (string, LinkKind, bool)? plannedFor = null;

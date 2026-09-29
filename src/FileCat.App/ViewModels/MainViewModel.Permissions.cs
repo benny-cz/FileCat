@@ -146,6 +146,7 @@ public sealed partial class MainViewModel
         body.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = "Octal:", VerticalAlignment = VerticalAlignment.Center }, octal, summary } });
         body.Children.Add(new TextBlock
         {
+            HorizontalAlignment = HorizontalAlignment.Left,
             Text = "Only what you change is applied; a mixed box leaves each item as it is. Execute lets people open a folder; inside folders it is added only to files that are already executable.",
             Classes = { "muted", "small" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 520,
         });
