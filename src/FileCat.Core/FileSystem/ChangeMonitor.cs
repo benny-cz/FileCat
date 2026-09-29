@@ -49,6 +49,9 @@ public sealed class ChangeMonitor : IDisposable
     /// <summary>Minimum time between refreshes; set from the last listing duration.</summary>
     public TimeSpan MinInterval { get; set; } = TimeSpan.FromMilliseconds(300);
 
+    /// <summary>Reports a change once more, as a notification would (one that arrived while the folder was being read).</summary>
+    public void Again() => Pending();
+
     private void Pending()
     {
         lock (_lock)

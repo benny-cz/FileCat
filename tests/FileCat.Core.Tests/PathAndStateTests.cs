@@ -50,6 +50,27 @@ public class PathAndStateTests
     }
 
     [Fact]
+    public async Task A_folder_the_system_does_not_report_is_followed_by_its_time_stamp()
+    {
+        using var dir = new TempDir();
+        // A local temporary folder is not on the network: its changes are reported by notifications.
+        Assert.False(PathUtil.IsOnNetwork(dir.Path));
+        int changes = 0;
+        using var poller = new FolderPoller(dir.Path, () => Interlocked.Increment(ref changes), TimeSpan.FromMilliseconds(100));
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        Assert.Equal(0, changes);
+        // A file made in it moves the folder's time stamp: reported within a few reads.
+        var before = Directory.GetLastWriteTimeUtc(dir.Path);
+        for (int i = 0; Directory.GetLastWriteTimeUtc(dir.Path) == before && i < 50; i++)
+        {
+            File.WriteAllText(Path.Combine(dir.Path, $"new-{i}.txt"), "x");
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+        for (int i = 0; i < 100 && Volatile.Read(ref changes) == 0; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+        Assert.True(changes > 0);
+    }
+
+    [Fact]
     public void Drive_letters_show_upper_case_however_they_were_typed()
     {
         var fs = new LocalFileSystemProvider();

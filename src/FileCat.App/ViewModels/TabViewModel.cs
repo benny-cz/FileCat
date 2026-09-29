@@ -109,8 +109,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     // ---- Change watching (plan §8.2): only the visible tab of each panel watches its folder ------------------
 
     private ChangeMonitor? _monitor;
+    private FolderPoller? _poller;
     private RegistryChangeMonitor? _registryMonitor;
     private bool _registryDirty;
+    /// <summary>The folder changed while it was being read: it is read again once that read completes.</summary>
+    private bool _folderDirty;
     private DateTime _folderStampAtLoad;
 
     partial void OnIsActiveTabChanged(bool value)
@@ -144,22 +147,39 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             return;
         }
         if (!loc.IsFileSystem) return;
-        var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() =>
-        {
-            // The notification may arrive after the tab closed (the post outlives the watcher).
-            if (!_disposed && Location == loc && Listing.State == ListingState.Complete && !Listing.IsRefreshing) Listing.Refresh();
-        }));
+        var monitor = new ChangeMonitor(loc.Path, () => Services.Ui.Post(() => OnFolderChanged(loc)));
         _monitor = monitor.IsActive ? monitor : null;
         if (!monitor.IsActive) monitor.Dispose();
+        // Changes made on a server are not reported to its mounts (inotify never sees them, some SMB servers send
+        // nothing), nor anything in a folder that cannot be watched: their time stamp is read every few seconds too.
+        bool watched = monitor.IsActive;
+        _ = Task.Run(() => !watched || PathUtil.IsOnNetwork(loc.Path)).ContinueWith(t => Services.Ui.Post(() =>
+        {
+            if (!t.IsCompletedSuccessfully || !t.Result || _disposed || !IsActiveTab || Location != loc || _poller is not null) return;
+            _poller = new FolderPoller(loc.Path, () => Services.Ui.Post(() => OnFolderChanged(loc)), TimeSpan.FromSeconds(3));
+        }), TaskScheduler.Default);
+    }
+
+    /// <summary>The folder shown changed (a notification, or its time stamp): it is read again.</summary>
+    private void OnFolderChanged(Location loc)
+    {
+        // The report may arrive after the tab closed or moved on (the post outlives the watcher).
+        if (_disposed || Location != loc) return;
+        if (Listing.State == ListingState.Complete && !Listing.IsRefreshing) Listing.Refresh();
+        // A read already under way may have passed what changed: another follows it.
+        else _folderDirty = true;
     }
 
     private void StopWatching()
     {
         _monitor?.Dispose();
         _monitor = null;
+        _poller?.Dispose();
+        _poller = null;
         _registryMonitor?.Dispose();
         _registryMonitor = null;
         _registryDirty = false;
+        _folderDirty = false;
     }
 
     /// <summary>An inactive tab was not watched: a cheap folder timestamp check decides whether to refresh.</summary>
@@ -191,12 +211,48 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Services.Ui.Post(() => { if (!_disposed && !Listing.IsRefreshing) Listing.Refresh(); });
         }
         if (_monitor is not null) _monitor.MinInterval = TimeSpan.FromMilliseconds(Math.Clamp(Listing.LastLoadDuration.TotalMilliseconds * 3, 300, 10_000));
+        // Read again what changed during the read, through the monitor's throttle: a folder in constant churn is not
+        // reread back to back.
+        if (_folderDirty && !Listing.IsRefreshing)
+        {
+            _folderDirty = false;
+            if (_monitor is { } monitor) monitor.Again();
+            // Only the time stamp is read here, and it already told of this change: read the folder again now.
+            else Services.Ui.Post(() => { if (!_disposed && !Listing.IsRefreshing) Listing.Refresh(); });
+        }
         if (Location is { IsFileSystem: true } loc)
         {
             var device = Services.Providers.For(loc).GetDeviceKey(loc);
             _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, _ => Directory.GetLastWriteTimeUtc(loc.Path))
                 .ContinueWith(t => { if (t.IsCompletedSuccessfully) _folderStampAtLoad = t.Result; }, TaskScheduler.Default);
         }
+    }
+
+    private bool _leaving;
+
+    /// <summary>
+    /// The folder shown was deleted or moved by another program while its drive is still there: the panel goes to the
+    /// nearest folder that still exists and says why, as Explorer and Total Commander do. A drive that went away, or a
+    /// network that dropped, keeps the listing and its banner.
+    /// </summary>
+    private void LeaveVanishedFolder(Location gone)
+    {
+        if (_leaving) return;
+        _leaving = true;
+        _ = Task.Run(() =>
+        {
+            if (MainViewModel.DriveRootOf(gone) is not { } root || !Directory.Exists(root)) return null;
+            for (string? dir = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(gone.Path)); dir is not null; dir = Path.GetDirectoryName(dir))
+                if (Directory.Exists(dir)) return dir;
+            return null;
+        }).ContinueWith(t => Services.Ui.Post(() =>
+        {
+            _leaving = false;
+            if (_disposed || Location != gone || !t.IsCompletedSuccessfully || t.Result is not { } parent) return;
+            string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(gone.Path));
+            Navigate(Location.FileSystem(LocalFileSystemProvider.NormalizeUserPath(parent)));
+            Banner = $"“{name}” is no longer there: another program deleted or moved it. This is the nearest folder that still exists.";
+        }), TaskScheduler.Default);
     }
 
     // ---- Navigation ----------------------------------------------------------------------------------------
@@ -470,6 +526,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             {
                 RequestFreeSpace();
                 OnLoadCompleted();
+                if (Listing.LastRefreshError is DirectoryNotFoundException && Location is { IsFileSystem: true } gone) LeaveVanishedFolder(gone);
             }
         }
         if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset)) != 0) UpdateStatus();

@@ -97,6 +97,9 @@ public sealed class ListingModel : IDisposable
     public ListingState State { get; private set; }
     public string? Error { get; private set; }
     public IReadOnlyList<string> Issues => _issues;
+
+    /// <summary>Why the last reread failed (its rows were kept), or null; the folder may have gone, say.</summary>
+    public Exception? LastRefreshError { get; private set; }
     public bool HasParentRow { get; private set; }
     public int Generation => _generation;
     public EntryStore Store => _store;
@@ -300,6 +303,7 @@ public sealed class ListingModel : IDisposable
         _marks = new MarkSet();
         _statsCache = null;
         _issues.Clear();
+        LastRefreshError = null;
         _focusStore = HasParentRow ? 0 : -1;
         _focusVisibleHint = 0;
         _focusAnchored = false;
@@ -419,6 +423,7 @@ public sealed class ListingModel : IDisposable
                 r.External?.Dispose();
                 p.Retire();
                 _issues.Add($"Refresh failed: {r.Error.Message}");
+                LastRefreshError = r.Error;
                 Raise(ListingChange.State);
                 return;
             }
@@ -471,6 +476,7 @@ public sealed class ListingModel : IDisposable
         _statsCache = null;
         _appliedCount = 0;
         _issues.Clear();
+        LastRefreshError = null;
         _pendingMarks = marked.Count > 0 ? marked : null;
         _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
         _computedSizes = new(StringComparer.Ordinal);

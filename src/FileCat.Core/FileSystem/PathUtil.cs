@@ -45,6 +45,26 @@ public static class PathUtil
         path.Length > 2 && IsSep(path[0]) && IsSep(path[1]) && path[2] != '?' && path[2] != '.';
 
     /// <summary>
+    /// Whether a folder is on a network file system (a UNC path or mapped drive on Windows; NFS, SMB, and the like
+    /// elsewhere), whose changes made on the server the system may not report. It may wait on a slow mount: call it
+    /// off the UI thread.
+    /// </summary>
+    public static bool IsOnNetwork(string path)
+    {
+        try
+        {
+            if (IsWindows)
+            {
+                if (IsUncPath(path)) return true;
+                string? root = Path.GetPathRoot(path);
+                return root is { Length: > 0 } && new DriveInfo(root).DriveType == DriveType.Network;
+            }
+            return UnixFiles.MountOf(Path.GetFullPath(path))?.DriveType == DriveType.Network;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return false; }
+    }
+
+    /// <summary>
     /// A Windows path with its drive letter upper case ("c:\x" → "C:\x", also after "\\?\"), as Windows shows drives;
     /// the rest of the path, and any path elsewhere, stays as it is.
     /// </summary>
