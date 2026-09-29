@@ -159,6 +159,31 @@ public sealed class PictureViewerTests
             Assert.NotNull(viewer.PictureLoad);
             await viewer.PictureLoad;
             Assert.Equal((640, 400), (viewer.Picture!.Width, viewer.Picture.Height));
+
+            // The wheel zooms around the pointer: the point of the picture under it stays under it (away from the edges,
+            // where the picture is kept from leaving empty space).
+            var view = viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().Single(v => v.IsEffectivelyVisible);
+            await Task.Delay(50, ct);
+            Assert.True(view.Fit);
+            double fitted = view.Zoom;
+            var at = new Avalonia.Point(view.Bounds.Width / 2 + 20, view.Bounds.Height / 2 - 10);
+            var before = view.Offset;
+            double pictureX = (at.X - before.X) / fitted;
+            view.ZoomBy(3, at);
+            Assert.False(view.Fit);
+            Assert.Equal(fitted * Math.Pow(1.25, 3), view.Zoom, 3);
+            Assert.Equal(pictureX, (at.X - view.Offset.X) / view.Zoom, 1);
+            // Dragging moves the enlarged picture; it never leaves empty space at its edges.
+            var start = Avalonia.VisualExtensions.TranslatePoint(view, at, viewer)!.Value;
+            viewer.MouseDown(start, Avalonia.Input.MouseButton.Left);
+            viewer.MouseMove(new Avalonia.Point(start.X + 40, start.Y + 30));
+            viewer.MouseUp(new Avalonia.Point(start.X + 40, start.Y + 30), Avalonia.Input.MouseButton.Left);
+            Assert.NotEqual(before, view.Offset);
+            Assert.True(view.Offset.X <= 0 && view.Offset.Y <= 0);
+            // 0 fits again.
+            viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.Digit0, Avalonia.Input.RawInputModifiers.None);
+            Assert.True(view.Fit);
+            Assert.Equal(fitted, view.Zoom, 3);
             viewer.KeyPressQwerty(Avalonia.Input.PhysicalKey.F4, Avalonia.Input.RawInputModifiers.None);
             Assert.Null(viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().FirstOrDefault(v => v.IsEffectivelyVisible));
         }

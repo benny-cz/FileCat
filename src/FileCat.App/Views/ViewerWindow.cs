@@ -107,7 +107,7 @@ public sealed class ViewerWindow : Window
         toolbar.Children.Add(_modeInfo);
         toolbar.Children.Add(_actualSize);
         ToolTip.SetTip(_modePicture, "The picture (Ctrl+P)");
-        ToolTip.SetTip(_actualSize, "Actual size or fitted to the window (Z)");
+        ToolTip.SetTip(_actualSize, "Actual size or fitted to the window (Z). The mouse wheel zooms around the pointer and dragging moves the picture; + and − zoom, 0 fits, 1 is actual size, a double click switches.");
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
@@ -162,6 +162,12 @@ public sealed class ViewerWindow : Window
             Dispatcher.UIThread.Post(UpdateStatus, DispatcherPriority.Background);
         };
         _picture.SizeChanged += (_, _) => { if (_isPicture) UpdateStatus(); };
+        // Zooming with the wheel or the keys leaves the fitted view: the button says so too.
+        _picture.ZoomChanged += () =>
+        {
+            _actualSize.IsChecked = !_picture.Fit;
+            if (_isPicture) UpdateStatus();
+        };
         _wrap.IsCheckedChanged += (_, _) =>
         {
             _text.Wrap = _wrap.IsChecked == true;
