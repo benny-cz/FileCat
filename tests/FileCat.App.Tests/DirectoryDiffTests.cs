@@ -119,8 +119,15 @@ public sealed class DirectoryDiffTests
             sync.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
             Assert.False(remove.Include);
             sync.Run();
-            for (int i = 0; i < 500 && !(File.Exists(Path.Combine(r, "sub", "new.txt")) && File.ReadAllText(Path.Combine(r, "changed.txt")) == "newer"); i++)
+            // The job may be writing the file just then.
+            static string? Read(string path)
+            {
+                try { return File.ReadAllText(path); }
+                catch (IOException) { return null; }
+            }
+            for (int i = 0; i < 500 && !(File.Exists(Path.Combine(r, "sub", "new.txt")) && Read(Path.Combine(r, "changed.txt")) == "newer"); i++)
                 await Task.Delay(20, ct);
+            for (int i = 0; i < 250 && services.Jobs.HasActiveWork; i++) await Task.Delay(20, ct);
             Assert.Equal("new", File.ReadAllText(Path.Combine(r, "sub", "new.txt")));
             Assert.Equal("newer", File.ReadAllText(Path.Combine(r, "changed.txt")));
             Assert.True(File.Exists(Path.Combine(r, "extra.txt")));

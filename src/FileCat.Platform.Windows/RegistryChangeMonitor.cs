@@ -31,7 +31,9 @@ public sealed partial class RegistryChangeMonitor : IDisposable
     {
         if (location.Scheme != Schemes.Registry || location.Path.Length == 0)
             throw new ArgumentException("A concrete Registry key is required.", nameof(location));
-        _worker = Task.Run(() => Watch(location, changed, failed));
+        // A thread of its own: it waits for as long as the key is shown, which would hold a pool thread all that time.
+        _worker = Task.Factory.StartNew(() => Watch(location, changed, failed), CancellationToken.None,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 
     public Task Ready => _ready.Task;

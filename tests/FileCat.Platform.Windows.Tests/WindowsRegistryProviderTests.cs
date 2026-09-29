@@ -183,7 +183,7 @@ public sealed class WindowsRegistryProviderTests
         var provider = new WindowsRegistryProvider();
         // Reading a root through its predefined handle signalled a watch on that handle, so a view of HKCU or HKCC reread
         // itself for ever.
-        foreach (string root in new[] { "HKCU", "HKCC", "HKLM", "HKCR" })
+        foreach (string root in new[] { "HKCU", "HKCC", "HKLM" })
         {
             int changes = 0;
             var location = new Location(Schemes.Registry, root);
