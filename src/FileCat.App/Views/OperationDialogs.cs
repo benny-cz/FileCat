@@ -249,7 +249,10 @@ public static class OperationDialogs
     {
         var body = new StackPanel { Spacing = 8, MinWidth = 600 };
         body.Children.Add(Muted(job.Title));
-        body.Children.Add(Text($"\"{Formatters.SafeName(c.Message)}\" already exists in {Path.GetDirectoryName(c.DestinationPath)}", bold: true));
+        // The title above usually names the destination already: the folder is repeated only when it says more.
+        string folder = Path.GetDirectoryName(c.DestinationPath) ?? string.Empty;
+        string where = folder.Length > 0 && job.Title.Contains(folder, StringComparison.OrdinalIgnoreCase) ? "there" : "in " + folder;
+        body.Children.Add(Text($"\"{Formatters.SafeName(c.Message)}\" already exists {where}.", bold: true));
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,*"), RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto") };
         void Cell(int r, int col, string text, bool bold = false)
         {
@@ -266,9 +269,13 @@ public static class OperationDialogs
         Cell(2, 0, "Modified");
         Cell(2, 1, FormatTime(c.Incoming.ModifiedUtc) + (c.IncomingIsNewer ? "  (newer)" : ""));
         Cell(2, 2, FormatTime(c.Existing.ModifiedUtc) + (!c.IncomingIsNewer && c.Existing.ModifiedUtc > c.Incoming.ModifiedUtc ? "  (newer)" : ""));
-        Cell(3, 0, "Attributes");
-        Cell(3, 1, Attr(c.Incoming.Attributes));
-        Cell(3, 2, Attr(c.Existing.Attributes));
+        string incomingAttributes = Attr(c.Incoming.Attributes), existingAttributes = Attr(c.Existing.Attributes);
+        if (incomingAttributes != Attr(0) || existingAttributes != Attr(0))
+        {
+            Cell(3, 0, "Attributes");
+            Cell(3, 1, incomingAttributes);
+            Cell(3, 2, existingAttributes);
+        }
         body.Children.Add(grid);
         if (c.TypeMismatch) body.Children.Add(new TextBlock { Text = "A file and a folder cannot replace each other.", Classes = { "warning" } });
         if (c.SameItem) body.Children.Add(new TextBlock { Text = "Source and destination are the same item: only a renamed copy is possible.", Classes = { "warning" } });
@@ -301,7 +308,7 @@ public static class OperationDialogs
         var buttons = new List<DialogButton>();
         if (c.CanReplace)
         {
-            buttons.Add(new DialogButton("Replace", DecisionAction.Replace, IsDefault: !c.IncomingIsNewer || true));
+            buttons.Add(new DialogButton("Replace", DecisionAction.Replace, IsDefault: true));
             buttons.Add(new DialogButton("Replace if newer", DecisionAction.ReplaceIfNewer));
         }
         buttons.Add(new DialogButton("Skip", DecisionAction.Skip, IsDefault: !c.CanReplace && !c.SameItem));
