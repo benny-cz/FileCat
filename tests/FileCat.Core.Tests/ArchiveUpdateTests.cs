@@ -165,6 +165,12 @@ public sealed class ArchiveUpdateTests : IDisposable
         while (!test.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Contains(test.Issues, i => i.Path.Contains("bad.txt", StringComparison.Ordinal) && i.Severity == IssueSeverity.Error);
         Assert.Contains(test.Issues, i => i.Message.StartsWith("1 members intact", StringComparison.Ordinal));
+        Assert.Equal("1 members intact, 1 damaged", test.Summary);
+        string intact = MakeZip("intact.zip", ("a.txt", "a"), ("b.txt", "b"));
+        var clean = _jobs.Submit(new JobRequest { Kind = JobKind.ArchiveTest, Sources = [ItemRef.ForFileSystemPath(intact, EntryKind.File)] });
+        while (!clean.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal(JobState.Completed, clean.State);
+        Assert.Equal("all 2 members intact", clean.Summary);
 
         string locked = MakeZip("encrypted.zip", ("secret.txt", "s"));
         var raw = File.ReadAllBytes(locked);

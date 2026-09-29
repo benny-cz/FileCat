@@ -316,6 +316,6 @@ public sealed partial class MainViewModel
             Description = archives.Count == 1 ? $"Test \"{archives[0].Name}\"" : $"Test {archives.Count:N0} archives",
         });
         if (ActiveTab is { } tab) Track(job, tab);
-        Notify("Testing… the result appears in the operations pane (Ctrl+J).");
+        Notify("Testing… the result shows here when it is done (details: Ctrl+J).");
     }
 }

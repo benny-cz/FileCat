@@ -380,63 +380,83 @@ internal sealed class ZipTestExecutor(Job job, IFileSystemOperations fs, JobJour
     {
         var sources = Job.Request.Sources;
         var buffer = new byte[1024 * 1024];
-        for (int index = 0; index < sources.Count; index++)
+        int allOk = 0, allDamaged = 0, allEncrypted = 0, unreadable = 0;
+        try
         {
-            var path = sources[index].FileSystemPath ?? throw new NotSupportedException("Only archives in folders can be tested.");
-            Job.SetCurrent(path);
-            int ok = 0, damaged = 0, encrypted = 0;
-            try
+            for (int index = 0; index < sources.Count; index++)
+                TestOne(index, buffer, ref allOk, ref allDamaged, ref allEncrypted, ref unreadable);
+        }
+        finally
+        {
+            // What the operation says when it ends: every member intact, or how many are not.
+            var parts = new List<string> { allDamaged == 0 && unreadable == 0 ? $"all {allOk:N0} members intact" : $"{allOk:N0} members intact" };
+            if (allDamaged > 0) parts.Add($"{allDamaged:N0} damaged");
+            if (allEncrypted > 0) parts.Add($"{allEncrypted:N0} encrypted (not tested)");
+            if (unreadable > 0) parts.Add($"{unreadable:N0} {(unreadable == 1 ? "archive" : "archives")} not readable");
+            Job.SetSummary(string.Join(", ", parts));
+        }
+    }
+
+    private void TestOne(int index, byte[] buffer, ref int allOk, ref int allDamaged, ref int allEncrypted, ref int unreadable)
+    {
+        var path = Job.Request.Sources[index].FileSystemPath ?? throw new NotSupportedException("Only archives in folders can be tested.");
+        Job.SetCurrent(path);
+        int ok = 0, damaged = 0, encrypted = 0;
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+            Job.AddTotals(archive.Entries.Count, archive.Entries.Sum(e => Math.Max(0, e.Length)));
+            foreach (var entry in archive.Entries)
             {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
-                using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
-                Job.AddTotals(archive.Entries.Count, archive.Entries.Sum(e => Math.Max(0, e.Length)));
-                foreach (var entry in archive.Entries)
+                Job.Checkpoint();
+                if (entry.FullName.EndsWith('/')) { Job.ItemDone(); ok++; continue; }
+                if (entry.IsEncrypted)
                 {
-                    Job.Checkpoint();
-                    if (entry.FullName.EndsWith('/')) { Job.ItemDone(); ok++; continue; }
-                    if (entry.IsEncrypted)
+                    encrypted++;
+                    Job.ItemSkipped();
+                    continue;
+                }
+                try
+                {
+                    using var data = entry.Open();
+                    long total = 0, cap = Math.Min(ZipProvider.MaxSpooledMember, Math.Max(0, entry.Length) + 1024 * 1024);
+                    uint crc = 0;
+                    int n;
+                    while ((n = data.Read(buffer, 0, buffer.Length)) > 0)
                     {
-                        encrypted++;
-                        Job.ItemSkipped();
-                        continue;
+                        total += n;
+                        if (total > cap) throw new InvalidDataException("it expands beyond its declared size");
+                        crc = Crc32.Append(crc, buffer.AsSpan(0, n));
+                        Job.AddBytes(n);
                     }
-                    try
-                    {
-                        using var data = entry.Open();
-                        long total = 0, cap = Math.Min(ZipProvider.MaxSpooledMember, Math.Max(0, entry.Length) + 1024 * 1024);
-                        uint crc = 0;
-                        int n;
-                        while ((n = data.Read(buffer, 0, buffer.Length)) > 0)
-                        {
-                            total += n;
-                            if (total > cap) throw new InvalidDataException("it expands beyond its declared size");
-                            crc = Crc32.Append(crc, buffer.AsSpan(0, n));
-                            Job.AddBytes(n);
-                        }
-                        if (crc != entry.Crc32 || total != entry.Length) throw new InvalidDataException("its checksum or size does not match");
-                        ok++;
-                        Job.ItemDone();
-                    }
-                    catch (InvalidDataException ex)
-                    {
-                        damaged++;
-                        Job.ItemFailed();
-                        Issue(IssueSeverity.Error, $"{Path.GetFileName(path)}: {entry.FullName}", $"Damaged: {ex.Message}.", StepOutcome.Failed);
-                    }
+                    if (crc != entry.Crc32 || total != entry.Length) throw new InvalidDataException("its checksum or size does not match");
+                    ok++;
+                    Job.ItemDone();
+                }
+                catch (InvalidDataException ex)
+                {
+                    damaged++;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, $"{Path.GetFileName(path)}: {entry.FullName}", $"Damaged: {ex.Message}.", StepOutcome.Failed);
                 }
             }
-            catch (InvalidDataException ex)
-            {
-                Job.ItemFailed();
-                Issue(IssueSeverity.Error, path, "Not a readable ZIP archive: " + ex.Message, StepOutcome.Failed);
-                Job.RootFailed(index);
-                continue;
-            }
-            Issue(damaged > 0 ? IssueSeverity.Error : encrypted > 0 ? IssueSeverity.Warning : IssueSeverity.Info, path,
-                $"{ok:N0} members intact" + (damaged > 0 ? $", {damaged:N0} damaged" : "") + (encrypted > 0 ? $", {encrypted:N0} encrypted (not tested)" : "") + ".",
-                damaged > 0 ? StepOutcome.Failed : StepOutcome.Committed);
-            if (damaged > 0) Job.RootFailed(index);
-            else Job.RootCompleted(index);
         }
+        catch (InvalidDataException ex)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, path, "Not a readable ZIP archive: " + ex.Message, StepOutcome.Failed);
+            Job.RootFailed(index);
+            unreadable++;
+            return;
+        }
+        allOk += ok;
+        allDamaged += damaged;
+        allEncrypted += encrypted;
+        Issue(damaged > 0 ? IssueSeverity.Error : encrypted > 0 ? IssueSeverity.Warning : IssueSeverity.Info, path,
+            $"{ok:N0} members intact" + (damaged > 0 ? $", {damaged:N0} damaged" : "") + (encrypted > 0 ? $", {encrypted:N0} encrypted (not tested)" : "") + ".",
+            damaged > 0 ? StepOutcome.Failed : StepOutcome.Committed);
+        if (damaged > 0) Job.RootFailed(index);
+        else Job.RootCompleted(index);
     }
 }
