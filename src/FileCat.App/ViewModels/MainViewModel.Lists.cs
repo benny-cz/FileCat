@@ -304,7 +304,27 @@ public sealed partial class MainViewModel
 
     private async Task ShowKeyboardReferenceAsync()
     {
-        var commands = Services.Commands.All
+        // After a shortcut changes, the reference opens again on that command with the new shortcut shown.
+        string? selected = null;
+        while (true)
+        {
+            var choice = await Dialogs.KeyboardReferenceAsync(KeyboardHelpEntries(), selected);
+            if (choice is null) return;
+            if (choice.ChangeShortcut)
+            {
+                await ChangeShortcutAsync(choice.CommandId);
+                selected = choice.CommandId;
+                continue;
+            }
+            View.FocusActivePanel();
+            await ExecuteAsync(choice.CommandId);
+            return;
+        }
+    }
+
+    private KeyboardHelpEntry[] KeyboardHelpEntries()
+    {
+        return Services.Commands.All
             .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
@@ -316,9 +336,5 @@ public sealed partial class MainViewModel
                     Services.Keymap.GetGestureText(d.Id), d.Description, availability.Enabled, availability.Reason);
             })
             .ToArray();
-        var id = await Dialogs.KeyboardReferenceAsync(commands);
-        if (id is null) return;
-        View.FocusActivePanel();
-        await ExecuteAsync(id);
     }
 }

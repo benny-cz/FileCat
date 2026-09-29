@@ -242,6 +242,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             tcs.TrySetResult(r);
         }
         var gated = new List<(Button Button, Func<bool> Available)>();
+        DialogButton? confirm = null;
+        Func<bool>? confirmAvailable = null;
         var btns = buttons.Select(b =>
         {
             var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
@@ -251,6 +253,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
                 : b.IsAvailable;
             if (available is not null) gated.Add((btn, available));
+            if (b.IsDefault && confirm is null) (confirm, confirmAvailable) = (b, available);
             btn.Click += (_, _) => { if (available?.Invoke() != false) Finish(b.Result); };
             return btn;
         }).ToArray();
@@ -267,15 +270,17 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             requery.Start();
         }
         var card = Card(title, content, ButtonRow(btns), 760);
-        // A focused list item takes Enter for itself; in a dialog, Enter there still means the default button (unless
-        // the content acted on it already and so ended the dialog).
+        // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
+        // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
+        // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter
+        // there still confirms (unless the content acted on it already and so ended the dialog).
         card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
         {
             if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || e.Source is not Visual source) return;
-            if (source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not { } item || !card.IsVisualAncestorOf(item)) return;
-            if (btns.FirstOrDefault(b => b.IsDefault) is not { IsEffectivelyEnabled: true } confirm) return;
+            bool inListItem = source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { } item && card.IsVisualAncestorOf(item);
+            if (e.Handled && !inListItem || confirm is null || confirmAvailable?.Invoke() == false) return;
             e.Handled = true;
-            confirm.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Finish(confirm.Result);
         }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
         var cancel = buttons.FirstOrDefault(b => b.IsCancel);
         session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result));
@@ -283,9 +288,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         return tcs.Task;
     }
 
-    public Task<string?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands)
+    public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null)
     {
-        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<KeyboardReferenceChoice?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var search = new TextBox { PlaceholderText = "Search command, shortcut, or command ID", MinWidth = 220 };
         Avalonia.Automation.AutomationProperties.SetName(search, "Search keyboard reference");
         var categories = new[] { "All categories" }.Concat(commands.Select(c => c.Category).Distinct().Order()).ToArray();
@@ -314,6 +319,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, MinHeight = 24 };
         var count = new TextBlock { Classes = { "muted", "small" } };
         var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = true };
+        var change = new Button { Content = "Change shortcut…" };
+        Avalonia.Controls.ToolTip.SetTip(change, "Press a new shortcut for the selected command (F2)");
         var close = new Button { Content = "Close", IsCancel = true };
         var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         filters.Children.Add(search);
@@ -329,21 +336,25 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         body.Children.Add(count);
         body.Children.Add(list);
         body.Children.Add(detail);
-        body.Children.Add(new TextBlock { Text = "Shortcuts reflect your current settings. Select a command and press Enter to run it; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(new TextBlock { Text = "Shortcuts reflect your current settings. Select a command and press Enter to run it; F2 changes its shortcut; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
         Session? session = null;
-        void Finish(string? id)
+        void Finish(KeyboardReferenceChoice? choice)
         {
             if (tcs.Task.IsCompleted) return;
             Close(session!);
-            tcs.TrySetResult(id);
+            tcs.TrySetResult(choice);
         }
         void Accept()
         {
-            if (list.SelectedItem is KeyboardHelpEntry { Enabled: true } selected) Finish(selected.Id);
+            if (list.SelectedItem is KeyboardHelpEntry { Enabled: true } selected) Finish(new KeyboardReferenceChoice(selected.Id, ChangeShortcut: false));
+        }
+        void ChangeShortcut()
+        {
+            if (list.SelectedItem is KeyboardHelpEntry selected) Finish(new KeyboardReferenceChoice(selected.Id, ChangeShortcut: true));
         }
         void Apply()
         {
-            var selectedId = (list.SelectedItem as KeyboardHelpEntry)?.Id;
+            var keepId = (list.SelectedItem as KeyboardHelpEntry)?.Id ?? selectedId;
             var terms = (search.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var group = category.SelectedItem as string;
             var filtered = commands.Where(c =>
@@ -351,7 +362,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 terms.All(t => (c.Title + " " + c.Category + " " + c.Gestures + " " + c.Id + " " + c.Description).Contains(t, StringComparison.CurrentCultureIgnoreCase)))
                 .OrderBy(c => c.Category).ThenBy(c => c.Title).ToArray();
             list.ItemsSource = filtered;
-            list.SelectedItem = filtered.FirstOrDefault(c => c.Id == selectedId) ?? filtered.FirstOrDefault();
+            list.SelectedItem = filtered.FirstOrDefault(c => c.Id == keepId) ?? filtered.FirstOrDefault();
+            if (list.SelectedIndex >= 0) list.ScrollIntoView(list.SelectedIndex);
             count.Text = $"{filtered.Length} of {commands.Count} commands";
             run.IsEnabled = list.SelectedItem is KeyboardHelpEntry { Enabled: true };
         }
@@ -364,11 +376,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 !item.Enabled ? "Unavailable: " + (item.UnavailableReason ?? "not available here") :
                 string.IsNullOrWhiteSpace(item.Description) ? item.Title : item.Description;
             run.IsEnabled = item?.Enabled == true;
+            change.IsEnabled = item is not null;
         };
         search.KeyDown += (_, e) =>
         {
             int n = (list.ItemsSource as KeyboardHelpEntry[])?.Length ?? 0;
             if (e.Key == Key.Enter) { e.Handled = true; Accept(); return; }
+            if (e.Key == Key.F2) { e.Handled = true; ChangeShortcut(); return; }
             if (n == 0) return;
             int next = e.Key switch
             {
@@ -388,11 +402,17 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             Accept();
             return true;
         });
+        Controls.ListKeys.OnKey(list, Key.F2, _ =>
+        {
+            ChangeShortcut();
+            return true;
+        });
         list.DoubleTapped += (_, _) => Accept();
         run.Click += (_, _) => Accept();
+        change.Click += (_, _) => ChangeShortcut();
         close.Click += (_, _) => Finish(null);
         Apply();
-        session = Show(Card("Keyboard reference", body, ButtonRow(close, run), 840), search, top: false, () => Finish(null));
+        session = Show(Card("Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
         return tcs.Task;
     }
 

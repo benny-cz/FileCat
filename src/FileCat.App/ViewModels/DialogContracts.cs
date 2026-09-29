@@ -39,6 +39,9 @@ public sealed record ChoiceResult(int Index, bool Alternate, IReadOnlyList<int> 
 
 public sealed record KeyboardHelpEntry(string Id, string Title, string Category, string? Gestures, string? Description, bool Enabled = true, string? UnavailableReason = null);
 
+/// <summary>What the keyboard reference was left with: a command to run, or one whose shortcut to change.</summary>
+public sealed record KeyboardReferenceChoice(string CommandId, bool ChangeShortcut);
+
 public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items)
 {
     public string? Hint { get; init; }
@@ -80,7 +83,8 @@ public interface IDialogService
     Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel");
     Task AlertAsync(string title, string message);
     Task<ChoiceResult> ChooseAsync(ChoiceOptions options);
-    Task<string?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands);
+    /// <param name="selectedId">The command selected when it opens (after changing its shortcut).</param>
+    Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null);
     /// <summary>
     /// Hosts arbitrary content with buttons; returns the chosen button result or null on Esc. The default button is
     /// enabled only while <paramref name="canConfirm"/> (cheap, side-effect free; re-evaluated while open) is true.

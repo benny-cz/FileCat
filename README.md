@@ -61,7 +61,7 @@ A portable copy keeps its settings in `Data/` next to the executable (marker fil
 | Alt+F7 / Ctrl+B / Ctrl+F10 | Find files / flat view / compare directories |
 | Ctrl+Shift+P / F1 / Ctrl+J | Command palette / keyboard reference / operations |
 
-Every binding can be changed in Settings (Ctrl+,).
+Every binding can be changed: in the keyboard reference (F1), select a command and press F2, then the new keys; or in Settings (Ctrl+,).
 
 ## Documentation
 

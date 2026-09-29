@@ -16,6 +16,9 @@ using FileCat.Core.State;
 // One application and dispatcher for all tests: recreating them per test raced with Avalonia's shared render loop
 // ("a different thread owns it" while setting up the next test, seen on macOS CI). Tests restore what they change.
 [assembly: AvaloniaTestIsolation(AvaloniaTestIsolationLevel.PerAssembly)]
+// One test at a time: keyboard focus and the active window are shared by every window, so a test pressing keys in
+// its window could lose them to another test activating its own. (All UI work shares one dispatcher: no slower.)
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace FileCat.App.Tests;
 

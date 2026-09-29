@@ -32,7 +32,7 @@ public sealed class KeyboardReferenceTests
             await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.Single(list.ItemsSource!.Cast<KeyboardHelpEntry>());
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            Assert.Equal("file.move", await task);
+            Assert.Equal(new KeyboardReferenceChoice("file.move", ChangeShortcut: false), await task);
             Assert.False(dialogs.IsOpen);
             var unavailable = dialogs.KeyboardReferenceAsync([
                 new KeyboardHelpEntry("app.settings", "Settings", "App", null, null, false, "No active workspace"),
