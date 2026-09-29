@@ -30,6 +30,8 @@ public enum IconKind
     Phone,
     /// <summary>Working sets: items collected from many folders.</summary>
     Collection,
+    /// <summary>The Network: computers and file servers nearby.</summary>
+    Network,
 }
 
 /// <summary>
@@ -205,6 +207,7 @@ public static class VectorIcons
     private const string ComputerPath = "M1.5,2.5 L14.5,2.5 L14.5,11 L1.5,11 Z";
     private const string PhonePath = "M5,1.5 L11,1.5 C11.6,1.5 12,1.9 12,2.5 L12,13.5 C12,14.1 11.6,14.5 11,14.5 L5,14.5 C4.4,14.5 4,14.1 4,13.5 L4,2.5 C4,1.9 4.4,1.5 5,1.5 Z";
     private const string CollectionPath = "M2.5,4.5 L10,4.5 L10,14.5 L2.5,14.5 Z";
+    private const string NetworkPath = "M1.5,1.5 L7.5,1.5 L7.5,6 L1.5,6 Z M8.5,9 L14.5,9 L14.5,13.5 L8.5,13.5 Z";
 
     public static IImage Create(IconKind kind)
     {
@@ -227,6 +230,7 @@ public static class VectorIcons
             IconKind.Computer => (ComputerPath, "FcDriveIcon", "M8,11 L8,13.5 M5,13.5 L11,13.5"),
             IconKind.Phone => (PhonePath, "FcDriveIcon", "M7,12.5 L9,12.5"),
             IconKind.Collection => (CollectionPath, "FcFileIcon", "M5,4.5 L5,2 L12.5,2 L12.5,12 L10,12 M4.5,8 L8,8 M4.5,10.5 L8,10.5"),
+            IconKind.Network => (NetworkPath, "FcDriveIcon", "M4.5,6 L4.5,11.25 L8.5,11.25 M2.5,14.5 L6.5,14.5"),
             _ => (FilePath, "FcFileIcon", null),
         };
         var color = Resolve(colorKey);

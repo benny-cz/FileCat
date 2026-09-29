@@ -115,6 +115,10 @@ public sealed partial class MainViewModel
         }
         var thisPc = new Location(Schemes.Computer, string.Empty); // "This PC" on Windows, "Computer" elsewhere
         places.Add(new Place(Services.Providers.Display(thisPc), "All drives", thisPc, () => icons.GetPlaceIcon(IconKind.Computer)) { Group = PlaceGroup.Devices });
+        // The computers and file servers on the local network, and their shares (D-54).
+        if (Services.Providers.IsRegistered(Schemes.Network))
+            places.Add(new Place("Network", "Computers and file servers on this network, and their shares", new Location(Schemes.Network, string.Empty),
+                () => icons.GetPlaceIcon(IconKind.Network)) { Group = PlaceGroup.Devices });
         if (Services.Providers.IsRegistered(Schemes.Mtp))
             places.Add(new Place("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices,
                 () => icons.GetPlaceIcon(IconKind.Phone)) { Group = PlaceGroup.Devices });

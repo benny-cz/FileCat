@@ -74,6 +74,7 @@ public sealed class FreedesktopIconSource : INativeIconSource
         IconKind.Phone => Get("names:phone,multimedia-player,drive-removable-media"),
         IconKind.Collection => Get("names:folder-saved-search,edit-find"),
         IconKind.Server or IconKind.Share => Get("names:network-server,folder-remote"),
+        IconKind.Network => Get("names:network-workgroup,network-server,folder-remote"),
         _ => null,
     };
 

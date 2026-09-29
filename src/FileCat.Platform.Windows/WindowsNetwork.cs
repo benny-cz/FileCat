@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Network;
 using FileCat.Core.Resources;
 using static FileCat.Platform.Windows.Native.NativeMethods;
 
@@ -9,20 +10,30 @@ namespace FileCat.Platform.Windows;
 public sealed record ShareTag(string Server, string Share, string? Remark, bool IsSpecial);
 
 /// <summary>
-/// Share listing for <c>\\server</c> roots (which cannot be enumerated as directories), credential prompts
-/// through the Windows networking UI, and connect/disconnect network drive dialogs (plan §8.2, NET-004).
+/// The Network (D-54): the computers and file servers on the local network (servers already reached first, then
+/// those that answer discovery); share listing for <c>\\server</c> roots (which cannot be enumerated as
+/// directories), credential prompts through the Windows networking UI, and connect/disconnect network drive dialogs
+/// (plan §8.2, NET-004).
 /// </summary>
 public sealed class NetworkShareProvider : ResourceProvider
 {
+    /// <summary>How long the Network listing waits for answers.</summary>
+    public static readonly TimeSpan DiscoveryWait = TimeSpan.FromSeconds(3);
+
     public override string Scheme => Schemes.Network;
 
-    public override string GetDisplayPath(Location location) => location.Path;
+    /// <summary>Servers already reached (history, mapped drives): listed at once, before discovery answers.</summary>
+    public Func<IEnumerable<string>>? KnownServers { get; set; }
 
-    public override string GetDisplayName(Location location) => location.Path.TrimStart('\\');
+    public static Location Root { get; } = new(Schemes.Network, string.Empty);
 
-    public override Location? GetParent(Location location) => new Location(Schemes.Computer, string.Empty);
+    public override string GetDisplayPath(Location location) => location.Path.Length == 0 ? "Network" : location.Path;
 
-    public override string? GetNameInParent(Location location) => null;
+    public override string GetDisplayName(Location location) => location.Path.Length == 0 ? "Network" : location.Path.TrimStart('\\');
+
+    public override Location? GetParent(Location location) => location.Path.Length == 0 ? null : Root;
+
+    public override string? GetNameInParent(Location location) => location.Path.Length == 0 ? null : location.Path.TrimStart('\\');
 
     public override string GetDeviceKey(Location location) => PathUtil.GetDeviceKey(location.Path);
 
@@ -32,6 +43,11 @@ public sealed class NetworkShareProvider : ResourceProvider
     {
         location = null;
         var t = text.Trim();
+        if (t.Equals("Network", StringComparison.OrdinalIgnoreCase) || t.Equals("network:", StringComparison.OrdinalIgnoreCase))
+        {
+            location = Root;
+            return true;
+        }
         if (!PathUtil.IsUncServerRoot(t)) return false;
         location = new Location(Schemes.Network, t.TrimEnd('\\', '/'));
         return true;
@@ -39,6 +55,7 @@ public sealed class NetworkShareProvider : ResourceProvider
 
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
     {
+        if (location.Path.Length == 0) return EnumerateNetworkAsync(sink, ct);
         var server = location.Path.TrimEnd('\\');
         foreach (var share in WindowsNetwork.EnumerateShares(server))
         {
@@ -50,8 +67,49 @@ public sealed class NetworkShareProvider : ResourceProvider
         return Task.CompletedTask;
     }
 
-    public override Location? GetChildLocation(Location parent, in EntryData entry) =>
-        entry.Kind == EntryKind.Share ? Location.FileSystem(parent.Path.TrimEnd('\\') + "\\" + entry.Name) : null;
+    public override Location? GetChildLocation(Location parent, in EntryData entry) => entry.Kind switch
+    {
+        EntryKind.Share => Location.FileSystem(parent.Path.TrimEnd('\\') + "\\" + entry.Name),
+        EntryKind.Server when entry.Tag is NetworkHostTag host => new Location(Schemes.Network, "\\\\" + host.Host.Server),
+        _ => null,
+    };
+
+    /// <summary>Servers already reached, then every computer and file server that answers within moments.</summary>
+    private async Task EnumerateNetworkAsync(IEnumerationSink sink, CancellationToken ct)
+    {
+        var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(NetworkHost host)
+        {
+            lock (listed)
+            {
+                if (!listed.Add(host.Server)) return;
+                sink.AddBatch([new EntryData(host.Name, EntryKind.Server) { Tag = new NetworkHostTag(host) }]);
+            }
+        }
+        foreach (string server in KnownServers?.Invoke() ?? [])
+            if (NetworkDiscovery.IsHostName(server)) Add(new NetworkHost(server, server, null, "known"));
+        await NetworkDiscovery.DiscoverAsync(Add, DiscoveryWait, ct).ConfigureAwait(false);
+        if (listed.Count == 0)
+            sink.ReportIssue("No computer or file server answered on this network. Type \\\\server in the path to open one by its name: some devices do not announce themselves.");
+    }
+}
+
+/// <summary>A computer or file server in the Network listing.</summary>
+public sealed record NetworkHostTag(NetworkHost Host) : IDisplayDetails
+{
+    public string KindText => Host.Source switch
+    {
+        "WS-Discovery" => "Computer",
+        "Bonjour" => "File server",
+        _ => "Server",
+    };
+
+    public string DetailsText => string.Join(" · ", new[]
+    {
+        Host.Detail,
+        Host.Address?.ToString(),
+        Host.Source == "known" ? "reached before" : "announced by " + Host.Source,
+    }.Where(s => !string.IsNullOrEmpty(s)));
 }
 
 /// <summary>Thrown when a server requires credentials; the UI offers the Windows credential prompt.</summary>

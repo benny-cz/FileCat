@@ -38,6 +38,9 @@ public sealed class AppServices : IDisposable
         Shell = Platform.Shell;
         Providers = new ProviderRegistry();
         Platform.RegisterProviders(Providers);
+        if (OperatingSystem.IsWindows() && Providers.IsRegistered(Schemes.Network) &&
+            Providers.For(FileCat.Platform.Windows.NetworkShareProvider.Root) is FileCat.Platform.Windows.NetworkShareProvider network)
+            network.KnownServers = KnownNetworkServers;
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
@@ -196,6 +199,36 @@ public sealed class AppServices : IDisposable
     }
 
     public void ReloadKeymap() => Keymap = new Keymap(Commands, Settings.KeyBindings);
+
+    /// <summary>
+    /// The servers already reached (D-54): those of mapped network drives, then of the folder history and bookmarks,
+    /// most recent first.
+    /// </summary>
+    internal IEnumerable<string> KnownNetworkServers()
+    {
+        var servers = new List<string>();
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                try
+                {
+                    if (drive.DriveType == DriveType.Network && FileCat.Platform.Windows.WindowsNetwork.GetRemoteName(drive.Name.TrimEnd('\\')) is { } remote &&
+                        PathUtil.GetUncServer(remote) is { } server) servers.Add(server.TrimStart('\\'));
+                }
+                catch (IOException) { }
+            }
+        }
+        // Read off the UI thread while navigating adds to the history: copies, not enumerations of the live lists.
+        foreach (var location in History.Folders.ToArray().Select(h => h.Location).Concat(History.Bookmarks.ToArray().Select(b => b.Location)))
+        {
+            if (location?.Root is not { } root) continue;
+            string path = root.Path;
+            if (root.Scheme == Schemes.Network && path.Length > 0) servers.Add(path.TrimStart('\\'));
+            else if (root.IsFileSystem && PathUtil.GetUncServer(path) is { } server) servers.Add(server.TrimStart('\\'));
+        }
+        return servers.Distinct(StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <summary>Settings or history were saved (or would have been): bookmarks, saved servers, and other places may have changed.</summary>
     public event Action? Saved;

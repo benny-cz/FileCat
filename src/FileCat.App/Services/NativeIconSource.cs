@@ -109,6 +109,7 @@ public sealed class NativeIconSource : INativeIconSource
         IconKind.Phone => Shared("stock:" + WindowsIcons.StockPhone),
         IconKind.Collection => Shared("stock:" + WindowsIcons.StockStack),
         IconKind.Server => Shared("stock:" + WindowsIcons.StockServer),
+        IconKind.Network => Shared("stock:" + WindowsIcons.StockNetwork),
         IconKind.Share => Shared("stock:" + WindowsIcons.StockServerShare),
         IconKind.RegistryKey => RegistryEditorIcon(),
         _ => null,

@@ -305,7 +305,7 @@ public partial class PanelView : UserControl
                 {
                     Core.Resources.Schemes.FileSystem => at.IsFileSystem && string.Equals(Core.FileSystem.PathUtil.NormalizeForCompare(at.Path),
                         Core.FileSystem.PathUtil.NormalizeForCompare(place.Path), Core.FileSystem.PathUtil.SafetyComparison),
-                    Core.Resources.Schemes.Computer or Core.Resources.Schemes.Mtp or Core.Resources.Schemes.Registry => at.Scheme == place.Scheme,
+                    Core.Resources.Schemes.Computer or Core.Resources.Schemes.Mtp or Core.Resources.Schemes.Registry or Core.Resources.Schemes.Network => at.Scheme == place.Scheme,
                     Core.Resources.Schemes.Sftp or Core.Resources.Schemes.Ftp => at.Scheme == place.Scheme && at.Session == place.Session,
                     _ => at.Equals(place),
                 });
