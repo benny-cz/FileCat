@@ -558,8 +558,23 @@ public partial class MainWindow : Window, IViewActions
         e.Handled = true;
     }
 
+    private CommandLineCompletion.Cycle? _completionCycle;
+
     private void OnCommandLineKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key != Key.Tab && !KeyMapper.IsModifierKey(e.Key)) _completionCycle = null;
+        if (e.Key == Key.Tab && (e.KeyModifiers & ~KeyModifiers.Shift) == 0 && !string.IsNullOrEmpty(CommandLine.Text) &&
+            _vm.ActiveTab?.Location is { IsFileSystem: true } here)
+        {
+            // Shell-style: the word before the caret, completed from the panel's folder; Tab again for the next name.
+            e.Handled = true;
+            if (CommandLineCompletion.Complete(CommandLine.Text, CommandLine.CaretIndex, here.Path,
+                    backwards: (e.KeyModifiers & KeyModifiers.Shift) != 0, _completionCycle) is not { } done) return;
+            CommandLine.Text = done.Text;
+            CommandLine.CaretIndex = done.Caret;
+            _completionCycle = done.Cycle;
+            return;
+        }
         if (e.Key == Key.Escape)
         {
             e.Handled = true;

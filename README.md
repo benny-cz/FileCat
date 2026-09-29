@@ -60,6 +60,7 @@ A portable copy keeps its settings in `Data/` next to the executable (marker fil
 | Ctrl+T / Ctrl+W / Ctrl+Tab | New / close / next tab |
 | Alt+F7 / Ctrl+B / Ctrl+F10 | Find files / flat view / compare directories |
 | Ctrl+Shift+P / F1 / Ctrl+J | Command palette / keyboard reference / operations |
+| Ctrl+E, then Tab | Command line; Tab completes names from the panel's folder (again for the next) |
 
 Every binding can be changed: in the keyboard reference (F1), select a command and press F2, then the new keys; or in Settings (Ctrl+,).
 
