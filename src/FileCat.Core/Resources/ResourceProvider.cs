@@ -85,6 +85,12 @@ public abstract class ResourceProvider
     /// <summary>The location to navigate to when an entry is opened, or null when it is not navigable.</summary>
     public abstract Location? GetChildLocation(Location parent, in EntryData entry);
 
+    /// <summary>
+    /// A location reached only after work that may take moments or ask the user, such as a network share mounted first
+    /// (D-54): that work, giving the location to show instead; null for an ordinary location.
+    /// </summary>
+    public virtual Task<Location>? PrepareAsync(Location location, CancellationToken ct) => null;
+
     /// <summary>Identity of an entry listed at <paramref name="listing"/>. Result sets override this.</summary>
     public virtual ItemRef GetItemRef(Location listing, in EntryData entry) => ItemRef.FromEntry(listing, entry);
 

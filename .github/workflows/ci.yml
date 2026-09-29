@@ -117,6 +117,15 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gnome-keyring dbus libsecret-1-0
           dbus-run-session -- bash -c 'gnome-keyring-daemon --components=secrets --daemonize --unlock <<< "ci-keyring" > /dev/null &&
             FILECAT_REQUIRE_SECRET_STORE=1 dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~SecretStoreTests"'
+      # D-54: a real Samba server with a guest share, listed by smbclient or gvfs and mounted by gvfs in a D-Bus session.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends samba smbclient gvfs-backends gvfs-fuse dbus
+          sudo mkdir -p /srv/filecat-public && echo hello | sudo tee /srv/filecat-public/hello.txt > /dev/null && sudo chmod -R a+rX /srv/filecat-public
+          printf '[filecat-public]\n  path = /srv/filecat-public\n  guest ok = yes\n  read only = yes\n' | sudo tee -a /etc/samba/smb.conf > /dev/null
+          sudo systemctl restart smbd
+          export XDG_RUNTIME_DIR="$(mktemp -d)" && chmod 700 "$XDG_RUNTIME_DIR"
+          FILECAT_TEST_SAMBA=1 FILECAT_TEST_GVFS=1 dbus-run-session -- dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~UnixNetworkTests"
       # Real-server SFTP tests start a user-mode sshd (macOS ships one).
       - if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends openssh-server

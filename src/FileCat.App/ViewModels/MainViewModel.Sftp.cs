@@ -52,7 +52,40 @@ public sealed partial class MainViewModel
         }
     }
 
-    private void AttachRemoteInteraction() => Services.Sftp.Interaction = new WindowInteraction(this);
+    private void AttachRemoteInteraction()
+    {
+        Services.Sftp.Interaction = new WindowInteraction(this);
+        // SMB sign-in on Linux (D-54); macOS asks in its own dialog, Windows through its networking prompt.
+        if (Services.Providers.IsRegistered(Core.Resources.Schemes.Network) &&
+            Services.Providers.For(new Core.Resources.Location(Core.Resources.Schemes.Network, string.Empty)) is Core.Network.UnixNetworkProvider network)
+            network.SignIn = (server, share, why) => Dispatcher.UIThread.InvokeAsync(() => AskNetworkSignInAsync(server, share, why));
+    }
+
+    /// <summary>A user name, an optional domain or workgroup, and a password for an SMB server or share (Linux).</summary>
+    internal async Task<Core.Network.NetworkCredentials?> AskNetworkSignInAsync(string server, string? share, string why)
+    {
+        // Tabs restored at start never ask: the user opens them again when they want to sign in.
+        if (QuietConnect) return null;
+        var user = new TextBox { MinWidth = 320, Text = Environment.UserName };
+        var domain = new TextBox { MinWidth = 320, PlaceholderText = "WORKGROUP (optional)" };
+        var password = new TextBox { MinWidth = 320, PasswordChar = '•' };
+        Avalonia.Automation.AutomationProperties.SetName(user, "User name");
+        Avalonia.Automation.AutomationProperties.SetName(domain, "Domain or workgroup");
+        Avalonia.Automation.AutomationProperties.SetName(password, "Password");
+        var body = new StackPanel { Spacing = 8 };
+        body.Children.Add(Para(share is null ? $"Sign in to {server}." : $"Sign in to “{share}” on {server}."));
+        body.Children.Add(Para(why, "muted"));
+        body.Children.Add(Para("User name"));
+        body.Children.Add(user);
+        body.Children.Add(Para("Domain or workgroup"));
+        body.Children.Add(domain);
+        body.Children.Add(Para("Password"));
+        body.Children.Add(password);
+        var answer = await Dialogs.ShowCustomAsync("Sign in", body,
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Sign in", "ok", IsDefault: true)], password);
+        if (answer as string != "ok" || string.IsNullOrWhiteSpace(user.Text)) return null;
+        return new Core.Network.NetworkCredentials(user.Text.Trim(), string.IsNullOrWhiteSpace(domain.Text) ? null : domain.Text.Trim(), password.Text ?? "");
+    }
 
     /// <summary>
     /// True from startup until the user's first key press, click, or command: connections that need a question fail

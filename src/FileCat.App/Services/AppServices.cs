@@ -38,9 +38,12 @@ public sealed class AppServices : IDisposable
         Shell = Platform.Shell;
         Providers = new ProviderRegistry();
         Platform.RegisterProviders(Providers);
-        if (OperatingSystem.IsWindows() && Providers.IsRegistered(Schemes.Network) &&
-            Providers.For(FileCat.Platform.Windows.NetworkShareProvider.Root) is FileCat.Platform.Windows.NetworkShareProvider network)
-            network.KnownServers = KnownNetworkServers;
+        if (Providers.IsRegistered(Schemes.Network))
+        {
+            var networkRoot = new Location(Schemes.Network, string.Empty);
+            if (OperatingSystem.IsWindows() && Providers.For(networkRoot) is FileCat.Platform.Windows.NetworkShareProvider network) network.KnownServers = KnownNetworkServers;
+            else if (Providers.For(networkRoot) is Core.Network.UnixNetworkProvider unixNetwork) unixNetwork.KnownServers = KnownNetworkServers;
+        }
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
@@ -224,8 +227,16 @@ public sealed class AppServices : IDisposable
         {
             if (location?.Root is not { } root) continue;
             string path = root.Path;
-            if (root.Scheme == Schemes.Network && path.Length > 0) servers.Add(path.TrimStart('\\'));
+            if (root.Scheme == Schemes.Network && path.Length > 0)
+            {
+                // \\server on Windows, smb://server/share elsewhere.
+                if (Core.Network.UnixNetworkProvider.Parse(path).Server is { } smb) servers.Add(smb);
+                else servers.Add(path.TrimStart('\\'));
+            }
             else if (root.IsFileSystem && PathUtil.GetUncServer(path) is { } server) servers.Add(server.TrimStart('\\'));
+            // A share gvfs mounted: …/gvfs/smb-share:server=NAME,share=SHARE/…
+            else if (root.IsFileSystem && path.Split('/').Select(Core.Network.SmbTools.ParseGvfsName).FirstOrDefault(g => g is not null) is { } gvfs)
+                servers.Add(gvfs.Server);
         }
         return servers.Distinct(StringComparer.OrdinalIgnoreCase);
     }

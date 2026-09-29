@@ -278,6 +278,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 return;
             }
         }
+        // A location reached only after some work (a network share mounted first, D-54): that work, then the location it gives.
+        if (Services.Providers.IsRegistered(location.Scheme) && Services.Providers.For(location).PrepareAsync(location, CancellationToken.None) is { } preparing)
+        {
+            _ = PrepareThenNavigateAsync(location, preparing, focusName, record);
+            return;
+        }
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
             Panel.OpenTab(location, focusName, activate: true);
@@ -300,6 +306,23 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
+    private async Task PrepareThenNavigateAsync(Location requested, Task<Location> preparing, string? focusName, bool record)
+    {
+        string what = Services.Providers.Display(requested);
+        Banner = $"Opening {what}…";
+        Location ready;
+        try
+        {
+            ready = await preparing;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException or TimeoutException or InvalidOperationException)
+        {
+            if (!_disposed) Banner = ex is OperationCanceledException ? null : $"{what} could not be opened: {ex.Message}";
+            return;
+        }
+        if (!_disposed) Navigate(ready, focusName, record);
+    }
+
     private async Task ConnectThenNavigateAsync(Location location, string? focusName, bool record)
     {
         try

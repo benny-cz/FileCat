@@ -41,6 +41,8 @@ public class PortablePlatform : IPlatform
         FileSystemProvider = CreateFileSystemProvider();
         registry.Register(FileSystemProvider);
         registry.Register(new ComputerProvider());
+        // The local network's computers and their SMB shares (D-54).
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) registry.Register(new Network.UnixNetworkProvider());
     }
 
     protected virtual LocalFileSystemProvider CreateFileSystemProvider() => new PortableFileSystemProvider();
