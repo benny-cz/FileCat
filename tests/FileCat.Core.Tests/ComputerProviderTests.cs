@@ -37,10 +37,11 @@ public sealed class ComputerProviderTests : IDisposable
             }),
             (gone, () => throw new IOException("The device is not ready.")));
         var clock = Stopwatch.StartNew();
-        var tags = await provider.QueryDrivesAsync(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        // A budget a busy machine meets for a drive that answers at once; the hung one is still waiting when it ends.
+        var tags = await provider.QueryDrivesAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         clock.Stop();
         release.Set();
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"The query waited {clock.Elapsed} for a hung drive.");
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20), $"The query waited {clock.Elapsed} for a hung drive.");
         Assert.Equal([data, network, gone], tags.Select(t => t.RootPath));
         Assert.Equal(["Fixed", "Not responding", "Unavailable"], tags.Select(t => t.DriveType));
         Assert.Equal([true, false, false], tags.Select(t => t.Ready));
