@@ -30,6 +30,7 @@ public sealed partial class MainViewModel
         var caps = loc is null ? LocationCapabilities.None : Services.Providers.For(loc).GetCapabilities(loc);
         bool hasItem = tab is not null && tab.Listing.TryGetFocused(out var f) && f.Kind != EntryKind.Parent || tab?.Listing.HasMarks == true;
         bool registryItem = TryGetFocusedRegistryItem(out var focusedRegistry);
+        if (LayoutAvailability(id) is { } layout) return layout;
         if (Core.Search.ResultSetProvider.IsWorkingSetList(loc))
         {
             // The list of working sets: file commands act on the sets themselves.
@@ -315,12 +316,8 @@ public sealed partial class MainViewModel
                 }
                 break;
             case CommandIds.AddPanel:
-                // Every panel keeps a usable width: names, sizes, and dates must stay readable (plan §4.2).
-                if (View.TopLevel is { } top && top.Bounds.Width / (Workspace.Panels.Count + 1) < MinimumPanelWidth)
-                {
-                    Notify($"There is no room for another panel: each would be narrower than {MinimumPanelWidth} pixels. Widen the window or close a panel first.");
-                    break;
-                }
+                // Every panel keeps a usable size: names, sizes, and dates must stay readable (plan §4.2).
+                if (panel is not null && !RoomForPanel(panel, Core.State.DockSide.Right)) break;
                 Workspace.Activate(Workspace.AddPanel());
                 View.FocusActivePanel();
                 break;
@@ -730,8 +727,6 @@ public sealed partial class MainViewModel
         }
         listing.Changed += Handler;
     }
-
-    private const double MinimumPanelWidth = 300;
 
     /// <summary>Lists open viewer and hex editor windows; Enter brings one to the front.</summary>
     private async Task ShowViewerWindowsAsync()

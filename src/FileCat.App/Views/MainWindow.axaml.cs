@@ -67,6 +67,7 @@ public partial class MainWindow : Window, IViewActions
             },
             vm.ChangeShortcutAsync, FocusActivePanel);
         MenuRow.SizeChanged += (_, _) => FitCommandSearch();
+        WorkspaceHost.SizeChanged += (_, _) => UpdateLayoutStrip();
         MainMenu.SizeChanged += (_, _) => FitCommandSearch();
         if (placement is { Width: > 200, Height: > 200 })
         {
@@ -76,6 +77,13 @@ public partial class MainWindow : Window, IViewActions
         }
 
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        // Moving a panel by dragging its number: the handle keeps the pointer, and its events reach the window.
+        AddHandler(PointerMovedEvent, OnPanelDragMoved, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnPanelDragReleased, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(PointerCaptureLostEvent, (_, e) =>
+        {
+            if (_panelDrag is { } drag && ReferenceEquals(e.Pointer, drag.Pointer)) EndPanelDrag();
+        }, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(KeyUpEvent, OnPreviewKeyUp, RoutingStrategies.Tunnel);
         AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
         CommandLine.AddHandler(KeyDownEvent, OnCommandLineKeyDown, RoutingStrategies.Tunnel);
@@ -228,65 +236,10 @@ public partial class MainWindow : Window, IViewActions
         v.PathSubmitted += text => NavigateToText(p, text);
         v.LocationMenuRequested += () => _vm.Execute(_vm.Workspace.Panels.Count == 2 && _vm.Workspace.Panels.IndexOf(p) == 1 ? CommandIds.LocationMenuRight : CommandIds.LocationMenuLeft);
         v.MiddleClick += row => OpenRowInNewTab(p, row);
+        v.MoveRequested += (press, handle) => BeginPanelDrag(p, press, handle);
         AttachDragDrop(v, p);
         _panelViews[p] = v;
         return v;
-    }
-
-    private void RebuildPanels()
-    {
-        var ws = _vm.Workspace;
-        foreach (var dead in _panelViews.Keys.Where(k => !ws.Panels.Contains(k)).ToList()) _panelViews.Remove(dead);
-        WorkspaceHost.Children.Clear();
-        WorkspaceHost.ColumnDefinitions.Clear();
-        WorkspaceHost.RowDefinitions.Clear();
-        var panels = ws.MaximizedPanel is { } max && ws.Panels.Contains(max) ? [max] : ws.Panels.ToList();
-        bool rows = ws.Layout == "Rows";
-        for (int i = 0; i < panels.Count; i++)
-        {
-            if (i > 0)
-            {
-                var splitter = new GridSplitter
-                {
-                    ResizeDirection = rows ? GridResizeDirection.Rows : GridResizeDirection.Columns,
-                    Background = Avalonia.Media.Brushes.Transparent,
-                    Focusable = false,
-                };
-                if (rows)
-                {
-                    WorkspaceHost.RowDefinitions.Add(new RowDefinition(5, GridUnitType.Pixel));
-                    Grid.SetRow(splitter, WorkspaceHost.RowDefinitions.Count - 1);
-                }
-                else
-                {
-                    WorkspaceHost.ColumnDefinitions.Add(new ColumnDefinition(5, GridUnitType.Pixel));
-                    Grid.SetColumn(splitter, WorkspaceHost.ColumnDefinitions.Count - 1);
-                }
-                WorkspaceHost.Children.Add(splitter);
-            }
-            var view = GetView(panels[i]);
-            double weight = Math.Max(0.1, panels[i].Size);
-            if (rows)
-            {
-                WorkspaceHost.RowDefinitions.Add(new RowDefinition(weight, GridUnitType.Star) { MinHeight = 140 });
-                Grid.SetRow(view, WorkspaceHost.RowDefinitions.Count - 1);
-                Grid.SetColumn(view, 0);
-            }
-            else
-            {
-                WorkspaceHost.ColumnDefinitions.Add(new ColumnDefinition(weight, GridUnitType.Star) { MinWidth = 260 });
-                Grid.SetColumn(view, WorkspaceHost.ColumnDefinitions.Count - 1);
-                Grid.SetRow(view, 0);
-            }
-            WorkspaceHost.Children.Add(view);
-        }
-        MaximizedStrip.IsVisible = ws.MaximizedPanel is not null;
-        if (ws.MaximizedPanel is { } m)
-        {
-            var target = ws.GetTarget(m);
-            MaximizedText.Text = $"Panel {m.Number} maximized · F11 restores" + (target is null ? " · no target panel" : $" · target: panel {target.Number} ({target.ActiveTab?.DisplayPath})");
-        }
-        UpdateTitle();
     }
 
     private void NavigateToText(PanelViewModel panel, string text)
@@ -403,6 +356,13 @@ public partial class MainWindow : Window, IViewActions
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         _suppressTextInput = false;
+        if (_panelDrag is not null && e.Key == Key.Escape)
+        {
+            // Esc cancels moving a panel.
+            EndPanelDrag();
+            e.Handled = true;
+            return;
+        }
         if (KeyMapper.IsModifierKey(e.Key))
         {
             _vm.UpdateKeyBar(KeyMapper.ToMods(e.KeyModifiers));

@@ -71,6 +71,27 @@
     <Setter Property="BorderThickness" Value="0" />
   </Style>
 
+  <!-- Where a dragged panel would go: the focus color, or the error color when there is no room -->
+  <Style Selector="Border.dockPreview">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcFocusBorder}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Opacity" Value="0.85" />
+  </Style>
+  <Style Selector="Border.dockPreview.refused">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcError}" />
+  </Style>
+  <Style Selector="TextBlock.dockPreview">
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Margin" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource FcFocusText}" />
+  </Style>
+
   <!-- Command search in the menu bar: a field on the menu's glass, outlined in the focus color while typing -->
   <Style Selector="TextBox.commandSearch">
     <Setter Property="MinHeight" Value="24" />

@@ -89,6 +89,7 @@ public sealed partial class MainViewModel
 
     private async Task<bool> ExecuteWorkspaceCommandAsync(string id)
     {
+        if (ExecuteLayoutCommand(id)) return true;
         switch (id)
         {
             case CommandIds.SaveWorkspace:

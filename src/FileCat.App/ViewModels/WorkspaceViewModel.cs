@@ -32,6 +32,70 @@ public sealed partial class WorkspaceViewModel : ObservableObject
 
     public event Action? LayoutChanged;
 
+    /// <summary>Where each panel is (ADR-18): splits side by side or stacked, with proportional sizes.</summary>
+    public PanelLayoutNode LayoutTree { get; private set; } = PanelLayoutNode.Panel("none");
+
+    /// <summary>
+    /// Shows a new arrangement: the panels are numbered in reading order (left to right, top to bottom), and each keeps
+    /// its identity, target, and tabs.
+    /// </summary>
+    private void ApplyLayout(PanelLayoutNode tree)
+    {
+        LayoutTree = tree;
+        var order = PanelLayout.PanelIds(tree);
+        for (int i = 0; i < order.Count; i++)
+        {
+            int at = -1;
+            for (int j = 0; j < Panels.Count; j++)
+                if (Panels[j].Id == order[i]) at = j;
+            if (at >= 0 && at != i) Panels.Move(at, i);
+        }
+        UpdateIndicators();
+        LayoutChanged?.Invoke();
+    }
+
+    /// <summary>Moves a panel to a side of another (a drop on that panel's edge).</summary>
+    public void DockPanel(PanelViewModel panel, PanelViewModel target, DockSide side)
+    {
+        if (ReferenceEquals(panel, target)) return;
+        MaximizedPanel = null;
+        ApplyLayout(PanelLayout.Dock(LayoutTree, panel.Id, target.Id, side));
+    }
+
+    /// <summary>Two panels trade places (a drop on a panel's middle); their locations, tabs, and targets go with them.</summary>
+    public void SwapPanelPlaces(PanelViewModel a, PanelViewModel b)
+    {
+        if (ReferenceEquals(a, b)) return;
+        MaximizedPanel = null;
+        ApplyLayout(PanelLayout.Swap(LayoutTree, a.Id, b.Id));
+    }
+
+    /// <summary>Moves a panel one step that way; false when it is already at that edge.</summary>
+    public bool MovePanelToward(PanelViewModel panel, DockSide direction)
+    {
+        var moved = PanelLayout.MoveToward(LayoutTree, panel.Id, direction);
+        if (moved.ToString() == LayoutTree.ToString()) return false;
+        MaximizedPanel = null;
+        ApplyLayout(moved);
+        return true;
+    }
+
+    /// <summary>The split holding the panel turns between side by side and stacked; false for a lone panel.</summary>
+    public bool RotateSplit(PanelViewModel panel)
+    {
+        if (LayoutTree.IsPanel) return false;
+        MaximizedPanel = null;
+        ApplyLayout(PanelLayout.Rotate(LayoutTree, panel.Id));
+        return true;
+    }
+
+    /// <summary>Every split shares its space equally.</summary>
+    public void EqualizeSizes() => ApplyLayout(PanelLayout.Equalize(LayoutTree));
+
+    /// <summary>The layout the drop would make, to check that it fits before it is made.</summary>
+    public PanelLayoutNode PreviewDock(PanelViewModel panel, PanelViewModel target, DockSide? side) =>
+        side is { } s ? PanelLayout.Dock(LayoutTree, panel.Id, target.Id, s) : PanelLayout.Swap(LayoutTree, panel.Id, target.Id);
+
     public TabViewModel? ActiveTab => ActivePanel?.ActiveTab;
 
     partial void OnActivePanelChanged(PanelViewModel? oldValue, PanelViewModel? newValue)
@@ -84,10 +148,15 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         UpdateIndicators();
     }
 
-    public PanelViewModel AddPanel(Location? location = null)
+    /// <summary>Adds a panel beside the active one (to its right unless <paramref name="side"/> says otherwise).</summary>
+    public PanelViewModel AddPanel(Location? location = null, DockSide side = DockSide.Right)
     {
         var source = ActivePanel;
         var panel = new PanelViewModel(this, Services);
+        var beside = source ?? Panels.LastOrDefault();
+        var existing = Panels.Select(p => p.Id).ToList();
+        if (!PanelLayout.Matches(LayoutTree, existing) && existing.Count > 0) LayoutTree = PanelLayout.Default(existing);
+        LayoutTree = beside is null ? PanelLayoutNode.Panel(panel.Id) : PanelLayout.Insert(LayoutTree, panel.Id, beside.Id, side);
         Panels.Add(panel);
         panel.OpenTab(location ?? source?.ActiveTab?.Location ?? DefaultLocation());
         if (Panels.Count == 3)
@@ -100,8 +169,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         }
         // The new panel gets a visible target assignment before its first transfer.
         panel.TargetPanelId = source?.Id ?? Panels[0].Id;
-        UpdateIndicators();
-        LayoutChanged?.Invoke();
+        MaximizedPanel = null;
+        ApplyLayout(LayoutTree);
         return panel;
     }
 
@@ -110,6 +179,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         if (Panels.Count <= 1) return;
         foreach (var t in panel.Tabs) RememberClosed(t.ToState());
         int idx = Panels.IndexOf(panel);
+        LayoutTree = PanelLayout.Remove(LayoutTree, panel.Id);
         Panels.Remove(panel);
         foreach (var p in Panels) if (p.TargetPanelId == panel.Id) p.TargetPanelId = null;
         if (Panels.Count == 2)
@@ -120,18 +190,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         if (ReferenceEquals(ActivePanel, panel)) ActivePanel = Panels[Math.Min(idx, Panels.Count - 1)];
         if (ReferenceEquals(MaximizedPanel, panel)) MaximizedPanel = null;
         foreach (var t in panel.Tabs) t.Dispose();
-        UpdateIndicators();
-        LayoutChanged?.Invoke();
-    }
-
-    public void MovePanel(PanelViewModel panel, int delta)
-    {
-        int i = Panels.IndexOf(panel);
-        int j = Math.Clamp(i + delta, 0, Panels.Count - 1);
-        if (i == j) return;
-        Panels.Move(i, j);
-        UpdateIndicators();
-        LayoutChanged?.Invoke();
+        ApplyLayout(LayoutTree);
     }
 
     public void ToggleMaximize()
@@ -181,13 +240,24 @@ public sealed partial class WorkspaceViewModel : ObservableObject
 
     // ---- Persistence -----------------------------------------------------------------------------------------
 
-    public WorkspaceState ToState(WindowPlacement? window) => new()
+    public WorkspaceState ToState(WindowPlacement? window)
     {
-        Panels = Panels.Select(p => p.ToState()).ToList(),
-        ActivePanelId = ActivePanel?.Id,
-        Layout = Layout,
-        Window = window,
-    };
+        var rects = PanelLayout.Arrange(LayoutTree);
+        return new WorkspaceState
+        {
+            Panels = Panels.Select(p =>
+            {
+                var state = p.ToState();
+                // Sizes as P2 read them, for a version without the tree.
+                if (rects.TryGetValue(p.Id, out var r)) state.Size = LayoutTree is { IsPanel: false, Stacked: true } ? r.Height : r.Width;
+                return state;
+            }).ToList(),
+            ActivePanelId = ActivePanel?.Id,
+            Layout = LayoutTree is { IsPanel: false, Stacked: true } ? "Rows" : "Columns",
+            Tree = LayoutTree.Clone(),
+            Window = window,
+        };
+    }
 
     /// <summary>Restores panels lazily; an unreadable or empty state yields the default two panels.</summary>
     public void LoadState(WorkspaceState? state)
@@ -223,8 +293,12 @@ public sealed partial class WorkspaceViewModel : ObservableObject
             panel.OpenTab(Panels.Count == 1 ? DefaultLocation() : new Location(Schemes.Computer, string.Empty));
         }
         if (Panels.Count == 2) foreach (var p in Panels) p.TargetPanelId = null;
+        // The saved tree when it shows exactly these panels; otherwise one split, as P2 laid them out.
+        var ids = Panels.Select(p => p.Id).ToList();
+        LayoutTree = PanelLayout.Matches(state?.Tree, ids)
+            ? PanelLayout.Normalize(state!.Tree!.Clone())
+            : PanelLayout.Default(ids, Layout == "Rows", Panels.Select(p => p.Size).ToList());
         ActivePanel = Panels.FirstOrDefault(p => p.Id == state?.ActivePanelId) ?? Panels[0];
-        UpdateIndicators();
-        LayoutChanged?.Invoke();
+        ApplyLayout(LayoutTree);
     }
 }

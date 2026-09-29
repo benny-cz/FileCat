@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
@@ -23,6 +24,16 @@ public partial class PanelView : UserControl
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
         List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
         List.GotFocus += (_, _) => Activated?.Invoke();
+        // The number, or the tab strip beside the tabs, moves the whole panel.
+        NumberBadge.PointerPressed += (_, e) =>
+        {
+            MoveRequested?.Invoke(e, NumberBadge);
+            e.Handled = true;
+        };
+        TabHeader.PointerPressed += (_, e) =>
+        {
+            if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is null) MoveRequested?.Invoke(e, TabHeader);
+        };
         PathBox.GotFocus += (_, _) =>
         {
             Activated?.Invoke();
@@ -103,6 +114,9 @@ public partial class PanelView : UserControl
 
     public event Action? Activated;
     public event Action? OpenRequested;
+
+    /// <summary>A press on the panel's number or tab strip that may start moving the panel (and the element pressed).</summary>
+    public event Action<PointerPressedEventArgs, Control>? MoveRequested;
     public event Action<string>? PathSubmitted;
     public event Action? LocationMenuRequested;
     public event Action<int>? MiddleClick;

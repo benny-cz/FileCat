@@ -154,8 +154,10 @@ public sealed class WorkspaceState : IVersionedState
     public string Name { get; set; } = "Default";
     public List<PanelState> Panels { get; set; } = [];
     public string? ActivePanelId { get; set; }
-    /// <summary>"Columns" (side by side) or "Rows".</summary>
+    /// <summary>"Columns" (side by side) or "Rows": how P2 laid out every panel, read when <see cref="Tree"/> is missing.</summary>
     public string Layout { get; set; } = "Columns";
+    /// <summary>Where each panel is (ADR-18); a tree that does not show exactly the saved panels is ignored.</summary>
+    public PanelLayoutNode? Tree { get; set; }
     public WindowPlacement? Window { get; set; }
     public bool OperationsPaneOpen { get; set; }
 }

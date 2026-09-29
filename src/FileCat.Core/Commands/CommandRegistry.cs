@@ -105,6 +105,14 @@ public static class CommandIds
     public const string FocusPanelPicker = "panel.focusPicker";
     public const string ChooseTarget = "panel.chooseTarget";
     public const string MaximizePanel = "panel.maximize";
+    public const string PanelMoveLeft = "panel.moveLeft";
+    public const string PanelMoveRight = "panel.moveRight";
+    public const string PanelMoveUp = "panel.moveUp";
+    public const string PanelMoveDown = "panel.moveDown";
+    public const string PanelSwapPlaces = "panel.swapPlaces";
+    public const string AddPanelBelow = "panel.addBelow";
+    public const string EqualizePanels = "panel.equalize";
+    public const string RotatePanels = "panel.rotate";
 
     public const string NewTab = "tab.new";
     public const string CloseTab = "tab.close";
@@ -301,11 +309,20 @@ public sealed class CommandRegistry
             "Ctrl+Left", "Ctrl+Right", "Ctrl+Shift+Left", "Ctrl+Shift+Right");
         Add(CommandIds.TargetToSource, "Set target panel to this location", P, null, CommandContext.Panel, "Ctrl+Shift+Down");
         Add(CommandIds.QuickView, "Quick view in target panel", P, null, CommandContext.Panel, "Ctrl+Q");
-        Add(CommandIds.AddPanel, "Add panel", P);
+        Add(CommandIds.AddPanel, "Add panel to the right", P);
+        Add(CommandIds.AddPanelBelow, "Add panel below", P);
         Add(CommandIds.ClosePanel, "Close panel", P);
         Add(CommandIds.FocusPanelPicker, "Focus panel…", P, "Panels", CommandContext.Panel, "F12");
         Add(CommandIds.ChooseTarget, "Choose target panel…", P, "Target", CommandContext.Panel, "Shift+F12");
         Add(CommandIds.MaximizePanel, "Maximize or restore panel", P, "Maximize", CommandContext.Panel, "F11");
+        // Arranging panels (ADR-18): the keyboard's way to do what dragging a panel's number does.
+        Add(CommandIds.PanelMoveLeft, "Move panel left", P, null, CommandContext.Panel, "Alt+Shift+Left");
+        Add(CommandIds.PanelMoveRight, "Move panel right", P, null, CommandContext.Panel, "Alt+Shift+Right");
+        Add(CommandIds.PanelMoveUp, "Move panel up", P, null, CommandContext.Panel, "Alt+Shift+Up");
+        Add(CommandIds.PanelMoveDown, "Move panel down", P, null, CommandContext.Panel, "Alt+Shift+Down");
+        Add(CommandIds.PanelSwapPlaces, "Swap places with the target panel", P);
+        Add(CommandIds.RotatePanels, "Turn panels side by side or stacked", P);
+        Add(CommandIds.EqualizePanels, "Equalize panel sizes", P);
 
         Add(CommandIds.NewTab, "New tab", T, null, CommandContext.Panel, "Ctrl+T");
         Add(CommandIds.CloseTab, "Close tab", T, null, CommandContext.Panel, "Ctrl+W");
@@ -420,7 +437,13 @@ public sealed class CommandRegistry
         K(CommandIds.ThemeCycle, "switch theme", "change theme");
         K(CommandIds.SwapPanels, "exchange panels", "switch sides");
         K(CommandIds.MaximizePanel, "zoom", "full screen", "maximize");
-        K(CommandIds.AddPanel, "new panel", "split", "third panel");
+        K(CommandIds.AddPanel, "new panel", "split", "third panel", "vertical split", "dock");
+        K(CommandIds.AddPanelBelow, "new panel", "split", "horizontal split", "stack", "dock");
+        foreach (var move in new[] { CommandIds.PanelMoveLeft, CommandIds.PanelMoveRight, CommandIds.PanelMoveUp, CommandIds.PanelMoveDown })
+            K(move, "dock", "arrange", "layout", "rearrange", "move panel");
+        K(CommandIds.PanelSwapPlaces, "exchange panels", "switch places", "dock", "layout", "arrange");
+        K(CommandIds.RotatePanels, "vertical", "horizontal", "stacked", "side by side", "orientation", "rotate", "layout");
+        K(CommandIds.EqualizePanels, "same size", "even", "balance", "reset sizes", "layout");
         K(CommandIds.ClosePanel, "remove panel");
         K(CommandIds.QuickView, "preview pane", "thumbnail");
         K(CommandIds.Operations, "jobs", "progress", "transfers", "queue", "tasks", "background");
