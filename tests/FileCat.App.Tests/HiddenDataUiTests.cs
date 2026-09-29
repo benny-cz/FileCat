@@ -16,10 +16,13 @@ namespace FileCat.App.Tests;
 /// <summary>D-55 in the window: a file's streams and attributes open as a list, are copied out, and deleted.</summary>
 public sealed class HiddenDataUiTests
 {
-    private static async Task Until(Func<bool> condition, string what)
+    private static Task Until(Func<bool> condition, string what) => Until(condition, () => what);
+
+    /// <summary>Waits for <paramref name="condition"/>; <paramref name="what"/> says, when it fails, what the window showed then.</summary>
+    private static async Task Until(Func<bool> condition, Func<string> what)
     {
         for (int i = 0; i < 400 && !condition(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);
-        Assert.True(condition(), what);
+        Assert.True(condition(), what());
     }
 
     private static async Task Click(Window window, string text)
@@ -87,7 +90,9 @@ public sealed class HiddenDataUiTests
             tab.Listing.SetFocus(Rows(tab).FindIndex(e => e.Name == payload) + (tab.Listing.HasParentRow ? 1 : 0));
             vm.Execute(CommandIds.Delete);
             await Click(window, "Delete");
-            await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing && Rows(tab).All(e => e.Name != payload), "the payload is gone");
+            await Until(() => tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing && Rows(tab).All(e => e.Name != payload),
+                () => $"the payload is gone (FileCat said: {vm.Notification ?? "nothing"}; listed: {string.Join(", ", Rows(tab).Select(e => e.Name))}; " +
+                      $"on disk: {string.Join(", ", (OperatingSystem.IsWindows() ? (IHiddenData)new FileCat.Platform.Windows.WindowsHiddenData() : new UnixHiddenData()).List(file).Select(i => i.Name))})");
             Assert.Contains(Rows(tab), e => e.Name == mark);
             Assert.Equal("contents", File.ReadAllText(file));
 
