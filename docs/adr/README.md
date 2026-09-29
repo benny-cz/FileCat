@@ -22,5 +22,6 @@ The IDs and rationale are the plan's.
 | [ADR-15](ADR-15-installation-signing-servicing.md) | Per-machine installer plus portable and framework-dependent ZIPs; SignPath signing; notify-only update check | Decided; signing pending |
 | [ADR-16](ADR-16-keyboard-model.md) | Agreement-first keymap with recorded additions (no Ctrl+Alt+letter chords) | Decided for v1; TV-10 manual part pending |
 | [ADR-17](ADR-17-sftp-engine.md) | SFTP over SSH.NET behind a narrow channel; remote changes only through listing entries (SSH.NET's path operations follow links); own known_hosts seeded by OpenSSH's; temporary-name publishing. Addendum: FTP/FTPS over FluentFTP behind the same channel, pinned certificates, explicit unencrypted FTP | Decided for P6 and P8; TV-12 external checks pending |
+| [ADR-18](ADR-18-workspace-layout.md) | Panels in a normalized split tree: docked beside, above, or below another panel or swapped, by drag-and-drop or keyboard; targets follow identity, not position; persisted with the workspace | Decided for P11 (D-41) |
 
 All plan ADRs are decided; external validations (TV-04, TV-05, TV-09 on real drives, TV-10, TV-12, TV-13, TV-15) remain release gates.
