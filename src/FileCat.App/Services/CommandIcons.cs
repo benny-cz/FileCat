@@ -183,6 +183,7 @@ public static class CommandIcons
         [CommandIds.SortTime] = [new("M5.5,3.5 C7.7,3.5 9.5,5.3 9.5,7.5 C9.5,9.7 7.7,11.5 5.5,11.5 C3.3,11.5 1.5,9.7 1.5,7.5 C1.5,5.3 3.3,3.5 5.5,3.5 Z M5.5,5.5 L5.5,7.5 L7,8.5"), new("M12.5,3 L12.5,13 M10.5,11 L12.5,13 L14.5,11", "ActiveAccent")],
         [CommandIds.SortSize] = [new("M2,13 L2,10 M4.5,13 L4.5,7 M7,13 L7,4"), new("M11.5,3 L11.5,13 M9.5,11 L11.5,13 L13.5,11", "ActiveAccent")],
         [CommandIds.SortNone] = [new("M2,4 L9,4 M2,8 L13,8 M2,12 L6,12")],
+        [CommandIds.ToggleDriveButtons] = [new("M1.5,4.5 L7,4.5 L7,9.5 L1.5,9.5 Z M9,4.5 L14.5,4.5 L14.5,9.5 L9,9.5 Z"), new("M3,7 L4,7 M10.5,7 L11.5,7", "ActiveAccent"), new("M1.5,12.5 L14.5,12.5", "TextMuted")],
         [CommandIds.ToggleToolbar] = [new("M1.5,3 L14.5,3 L14.5,7.5 L1.5,7.5 Z"), new("M4,5.25 L5,5.25 M7.5,5.25 L8.5,5.25 M11,5.25 L12,5.25", "ActiveAccent"), new("M1.5,10.5 L14.5,10.5 M1.5,13.5 L10,13.5", "TextMuted")],
         [CommandIds.AnalyzeFolder] = [new(Circle), new("M8,8 L8,1.5 M8,8 L13.6,11.2", "ActiveAccent")],
         [CommandIds.ThemePick] = [new("M8,1.5 C4.4,1.5 1.5,4.2 1.5,7.6 C1.5,11.1 4.3,14.5 7.6,14.5 C9.2,14.5 9,12.8 8.3,12 C7.6,11.2 8.3,9.8 9.6,9.8 L11.4,9.8 C13.4,9.8 14.5,8.6 14.5,7 C14.5,3.9 11.6,1.5 8,1.5 Z"),

@@ -34,6 +34,14 @@
         <Button Grid.Column="2" Classes="flat" Content="+" Click="OnNewTabClick" ToolTip.Tip="New tab (Ctrl+T)" />
       </Grid>
 
+      <!-- Drive buttons: a drive, home, or This PC with one click (D-52), as Total Commander's drive bar. -->
+      <Border x:Name="DriveBar" DockPanel.Dock="Top" Classes="drivebar"
+              IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).ShowDriveButtons, FallbackValue=True}">
+        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+          <StackPanel x:Name="DriveButtonsPanel" Orientation="Horizontal" />
+        </ScrollViewer>
+      </Border>
+
       <!-- Address row -->
       <Grid x:Name="AddressRow" DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Background="{DynamicResource FcPanel}">
         <!-- The panel's number is also its handle: drag it onto another panel to move this one (ADR-18). -->
@@ -46,7 +54,7 @@
         <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
         <!-- The path: its folders are links (PathLine) until it is edited in the box beneath (a click on its last part). -->
         <Panel Grid.Column="2">
-          <TextBox x:Name="PathBox" Classes="path" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
+          <TextBox x:Name="PathBox" Classes="path linked" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
                    AutomationProperties.Name="Location" />
           <ctl:PathLine x:Name="PathLinks" Margin="6,0" AutomationProperties.Name="Path" />
         </Panel>

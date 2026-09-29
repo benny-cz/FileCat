@@ -100,6 +100,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _showKeyBar = true;
     [ObservableProperty] private bool _showCommandLine = true;
     [ObservableProperty] private bool _showToolbar = true;
+    [ObservableProperty] private bool _showDriveButtons = true;
     /// <summary>Hidden and system items are shown (the setting, observable for the toolbar's switch).</summary>
     [ObservableProperty] private bool _showHiddenItems = true;
 
@@ -115,8 +116,10 @@ public sealed partial class MainViewModel : ObservableObject
         ListFontSize = Services.Settings.FontSize;
         ShowCommandLine = Services.Settings.ShowCommandLine;
         ShowToolbar = Services.Settings.ShowToolbar;
+        ShowDriveButtons = Services.Settings.ShowDriveButtons;
         ShowHiddenItems = Services.Settings.ShowHidden;
         QuietConnect = state is not null;
+        _ = RefreshDriveButtonsAsync();
         Workspace.LoadState(state);
         if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)
             Notify("Settings were written by a newer FileCat and are opened read-only; changes will not be saved.", true);

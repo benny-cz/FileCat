@@ -29,7 +29,7 @@ public sealed class PathLine : Control
     private int[] _map = [];
     private int _hot = -1;
     private Point? _pressedAt;
-    private IBrush _textBrush = Brushes.Black, _linkBrush = Brushes.Blue, _background = Brushes.White;
+    private IBrush _textBrush = Brushes.Black, _linkBrush = Brushes.Blue;
 
     public PathLine()
     {
@@ -91,7 +91,6 @@ public sealed class PathLine : Control
         IBrush B(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
         _textBrush = B("FcText", Brushes.Black);
         _linkBrush = B("FcTextLink", Brushes.Blue);
-        _background = B("FcPanel", Brushes.White);
         _layout = null;
         InvalidateVisual();
     }
@@ -134,8 +133,8 @@ public sealed class PathLine : Control
 
     public override void Render(DrawingContext context)
     {
-        // The whole line takes clicks, text or not, and covers the edit box beneath it until that is edited.
-        context.FillRectangle(_background, new Rect(Bounds.Size));
+        // The whole line takes clicks, text or not (the edit box beneath hides its own text meanwhile).
+        context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         if (_text.Length == 0) return;
         if (_layout is null) Arrange(Bounds.Width);
         _layout!.Draw(context, new Point(0, (Bounds.Height - _layout.Height) / 2));

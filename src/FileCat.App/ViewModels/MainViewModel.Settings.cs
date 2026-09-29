@@ -21,6 +21,7 @@ public sealed partial class MainViewModel
         ShowKeyBar = s.ShowFunctionKeyBar;
         ShowCommandLine = s.ShowCommandLine;
         ShowToolbar = s.ShowToolbar;
+        ShowDriveButtons = s.ShowDriveButtons;
         ShowHiddenItems = s.ShowHidden;
         Formatters.DateFormat = s.DateFormat;
         AppLog.DiagnosticMode = s.DiagnosticMode;

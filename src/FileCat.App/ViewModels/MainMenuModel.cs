@@ -42,7 +42,7 @@ public static class MainMenuModel
         ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
             CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemePick, CommandIds.ThemeCycle, "-",
-            CommandIds.ToggleToolbar]),
+            CommandIds.ToggleToolbar, CommandIds.ToggleDriveButtons]),
         ("_Tools", [CommandIds.FindDeleted, "-", CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
             CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
         ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),

@@ -130,4 +130,52 @@ public sealed class PathLineTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task Drive_buttons_open_a_drive_home_or_This_PC_with_one_click()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var panel = vm.Workspace.Panels[0];
+            var tab = panel.ActiveTab!;
+            for (int i = 0; i < 250 && tab.Location?.Path != Path.Combine(root, "files"); i++) await Task.Delay(20, ct);
+            var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
+            List<Avalonia.Controls.Button> Buttons() => view.GetVisualDescendants().OfType<Avalonia.Controls.Button>().Where(b => b.Classes.Contains("drive")).ToList();
+            for (int i = 0; i < 250 && Buttons().Count < 3; i++) await Task.Delay(20, ct);
+            var buttons = Buttons();
+            // The drives, then Home and This PC; each named for screen readers and with its details in its tooltip.
+            Assert.True(buttons.Count >= 3, $"{buttons.Count} buttons");
+            Assert.All(buttons, b => Assert.False(string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(b))));
+            // The drive this panel is on is outlined.
+            var current = Assert.Single(buttons, b => b.Classes.Contains("current"));
+            Assert.Equal(Core.Resources.Schemes.FileSystem, ((Location)current.Tag!).Scheme);
+            Assert.True(root.StartsWith(((Location)current.Tag!).Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase) || ((Location)current.Tag!).Path == "/");
+
+            // This PC with one click; its button is then the outlined one.
+            var thisPc = buttons.Last();
+            thisPc.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            for (int i = 0; i < 250 && tab.Location?.Scheme != Core.Resources.Schemes.Computer; i++) await Task.Delay(20, ct);
+            Assert.Equal(Core.Resources.Schemes.Computer, tab.Location!.Scheme);
+            Assert.True(thisPc.Classes.Contains("current"));
+
+            // The drive the other panel is on opens at that panel's folder, as in the location menu.
+            current.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            for (int i = 0; i < 250 && tab.Location?.Scheme != Core.Resources.Schemes.FileSystem; i++) await Task.Delay(20, ct);
+            Assert.Equal(vm.Workspace.Panels[1].ActiveTab!.Location!.Path, tab.Location!.Path);
+
+            // View → Hide the drive buttons.
+            vm.Execute(Core.Commands.CommandIds.ToggleDriveButtons);
+            Assert.False(vm.ShowDriveButtons);
+            var bar = view.GetVisualDescendants().OfType<Avalonia.Controls.Border>().First(b => b.Name == "DriveBar");
+            Assert.False(bar.IsVisible);
+            vm.Execute(Core.Commands.CommandIds.ToggleDriveButtons);
+            Assert.True(bar.IsVisible);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

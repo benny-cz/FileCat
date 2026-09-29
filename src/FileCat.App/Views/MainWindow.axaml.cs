@@ -66,7 +66,7 @@ public partial class MainWindow : Window, IViewActions
         // Switches the keyboard flips too (Ctrl+H) show their state on the toolbar.
         vm.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(MainViewModel.ShowHiddenItems) or nameof(MainViewModel.ShowToolbar))
+            if (e.PropertyName is nameof(MainViewModel.ShowHiddenItems) or nameof(MainViewModel.ShowToolbar) or nameof(MainViewModel.ShowDriveButtons))
                 foreach (var button in Toolbar.Children.OfType<Button>())
                     if (button.Tag is string id && CheckedState(id) is { } on)
                     {
@@ -692,6 +692,7 @@ public partial class MainWindow : Window, IViewActions
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems ? "Hide hidden and system items" : "Show hidden and system items",
         CommandIds.ToggleToolbar => _vm.ShowToolbar ? "Hide the toolbar" : "Show the toolbar",
+        CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons ? "Hide the drive buttons" : "Show the drive buttons",
         _ => title,
     };
 
@@ -708,6 +709,7 @@ public partial class MainWindow : Window, IViewActions
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems,
         CommandIds.ToggleToolbar => _vm.ShowToolbar,
+        CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons,
         _ => null,
     };
 

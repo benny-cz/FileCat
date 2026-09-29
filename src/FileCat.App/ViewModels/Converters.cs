@@ -15,8 +15,8 @@ public static class Converters
 
     /// <summary>The panel number's background: the active color, else the header's (its muted number stays readable in every theme).</summary>
     public static readonly IValueConverter ActiveAccent =
-        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcActiveAccent", Brushes.SteelBlue) : Resource("FcHeader", Brushes.LightGray));
+        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcAccentFill", Brushes.SteelBlue) : Resource("FcHeader", Brushes.LightGray));
 
     public static readonly IValueConverter ActiveAccentText =
-        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcPanel", Brushes.White) : Resource("FcTextMuted", Brushes.Gray));
+        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcOnAccent", Brushes.White) : Resource("FcTextMuted", Brushes.Gray));
 }

@@ -48,8 +48,13 @@ public partial class PanelView : UserControl
         {
             RevertPath();
             PathLinks.IsVisible = true;
+            PathBox.Classes.Add("linked");
         };
-        PathBox.GotFocus += (_, _) => PathLinks.IsVisible = false;
+        PathBox.GotFocus += (_, _) =>
+        {
+            PathLinks.IsVisible = false;
+            PathBox.Classes.Remove("linked");
+        };
         PathLinks.NavigateRequested += OnPathPartChosen;
         PathLinks.EditRequested += () =>
         {
@@ -74,6 +79,23 @@ public partial class PanelView : UserControl
         };
         // Resizing the panel or adding tabs can make the tabs fit, or not.
         TabScroller.ScrollChanged += (_, _) => UpdateTabOverflow();
+        AttachedToVisualTree += (_, _) =>
+        {
+            if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
+            _main = vm;
+            vm.DriveButtonsChanged += BuildDriveButtons;
+            if (vm.Services.Icons.Native is { } native) native.IconsLoaded += OnIconsLoaded;
+            BuildDriveButtons();
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            if (_main is not null)
+            {
+                _main.DriveButtonsChanged -= BuildDriveButtons;
+                if (_main.Services.Icons.Native is { } native) native.IconsLoaded -= OnIconsLoaded;
+            }
+            _main = null;
+        };
         // The mouse's back and forward buttons go through this panel's history, wherever in the panel they are pressed.
         AddHandler(PointerPressedEvent, OnHistoryButton, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
@@ -94,6 +116,89 @@ public partial class PanelView : UserControl
 
     private PanelViewModel? _hookedPanel;
     private PanelViewModel? _hookedSource;
+    private MainViewModel? _main;
+
+    /// <summary>
+    /// One button per drive (its icon and letter; on Linux and macOS the mount point's name), then Home and This PC. A
+    /// click opens it in this panel, a middle click in a new tab.
+    /// </summary>
+    private void BuildDriveButtons()
+    {
+        DriveButtonsPanel.Children.Clear();
+        if (_main is not { } vm) return;
+        var icons = vm.Services.Icons;
+        void Add(string label, string tip, Core.Resources.Location target, Func<Avalonia.Media.IImage?> icon)
+        {
+            var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 3 };
+            if (icon() is { } image) content.Children.Add(new Image { Source = image, Width = 16, Height = 16 });
+            if (label.Length > 0) content.Children.Add(new TextBlock { Text = label, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+            var button = new Button { Classes = { "drive" }, Content = content, Tag = target };
+            ToolTip.SetTip(button, tip);
+            Avalonia.Automation.AutomationProperties.SetName(button, tip.Split(" · ")[0]);
+            button.Click += (_, _) => OpenFromBar(target, newTab: false);
+            button.PointerReleased += (_, e) =>
+            {
+                if (e.InitialPressMouseButton != MouseButton.Middle) return;
+                OpenFromBar(target, newTab: true);
+                e.Handled = true;
+            };
+            DriveButtonsPanel.Children.Add(button);
+        }
+        foreach (var tag in vm.DriveButtons)
+        {
+            string root = tag.RootPath;
+            string name = OperatingSystem.IsWindows() ? root.TrimEnd('\\') : root;
+            string label = OperatingSystem.IsWindows() ? name.TrimEnd(':') : root == "/" ? "/" : Path.GetFileName(root.TrimEnd('/'));
+            var drive = new Core.Resources.EntryData(name, Core.Resources.EntryKind.Drive) { Tag = tag };
+            Add(label, $"{name} · {MainViewModel.DriveDetail(tag)} · a middle click opens it in a new tab", Core.Resources.Location.FileSystem(root), () => icons.GetIcon(drive));
+        }
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (home.Length > 0)
+        {
+            var folder = new Core.Resources.EntryData(Path.GetFileName(home), Core.Resources.EntryKind.Directory);
+            var parent = Path.GetDirectoryName(home) is { } p ? Core.Resources.Location.FileSystem(p) : null;
+            Add("", $"Home · {home}", Core.Resources.Location.FileSystem(home), () => icons.GetIcon(folder, parent));
+        }
+        var thisPc = new Core.Resources.Location(Core.Resources.Schemes.Computer, string.Empty);
+        Add("", $"{vm.Services.Providers.Display(thisPc)} · all drives", thisPc, () => icons.GetPlaceIcon(IconKind.Computer));
+        MarkCurrentDrive();
+    }
+
+    private bool _iconsPending;
+
+    /// <summary>The platform's icons load in the background: the buttons take them when they arrive (once per batch).</summary>
+    private void OnIconsLoaded()
+    {
+        if (_iconsPending) return;
+        _iconsPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _iconsPending = false;
+            BuildDriveButtons();
+        }, DispatcherPriority.Background);
+    }
+
+    private void OpenFromBar(Core.Resources.Location target, bool newTab)
+    {
+        Activated?.Invoke();
+        if (_main is { } vm && Panel is { } panel) vm.OpenDrive(panel, target, newTab);
+    }
+
+    /// <summary>The button of the drive this panel shows is outlined (This PC's when it shows This PC).</summary>
+    private void MarkCurrentDrive()
+    {
+        var location = Panel?.ActiveTab?.Location;
+        string? root = MainViewModel.DriveRootOf(location)?.TrimEnd('\\', '/');
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        foreach (var button in DriveButtonsPanel.Children.OfType<Button>())
+        {
+            bool current = button.Tag is Core.Resources.Location target && (target.Scheme == Core.Resources.Schemes.Computer
+                ? location?.Scheme == Core.Resources.Schemes.Computer
+                : root is not null && target.IsFileSystem && ToolTip.GetTip(button) is string tip && !tip.StartsWith("Home", StringComparison.Ordinal) &&
+                  string.Equals(target.Path.TrimEnd('\\', '/'), root, comparison) && (root.Length > 0 || target.Path == "/"));
+            button.Classes.Set("current", current);
+        }
+    }
 
     /// <summary>Keeps the quick-view pane attached to the source panel's current tab.</summary>
     private void HookQuickView()
@@ -124,11 +229,16 @@ public partial class PanelView : UserControl
         if (_hookedTab is not null) _hookedTab.PropertyChanged += OnTabPropertyChanged;
         UpdatePathLinks();
         ShowFilter();
+        MarkCurrentDrive();
     }
 
     private void OnTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(TabViewModel.DisplayPath) or nameof(TabViewModel.Location)) UpdatePathLinks();
+        if (e.PropertyName is nameof(TabViewModel.DisplayPath) or nameof(TabViewModel.Location))
+        {
+            UpdatePathLinks();
+            MarkCurrentDrive();
+        }
         else if (e.PropertyName == nameof(TabViewModel.FilterText)) ShowFilter();
     }
 

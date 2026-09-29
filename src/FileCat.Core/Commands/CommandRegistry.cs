@@ -93,6 +93,7 @@ public static class CommandIds
     public const string BookmarkTargetPrefix = "nav.targetBookmark";
     public const string ToggleHidden = "nav.toggleHidden";
     public const string ToggleToolbar = "view.toolbar";
+    public const string ToggleDriveButtons = "view.driveButtons";
     public const string Home = "nav.home";
 
     public const string SwitchPanel = "panel.switch";
@@ -348,6 +349,7 @@ public sealed class CommandRegistry
 
         Add(CommandIds.SortName, "Sort by name", V, "Name", CommandContext.Panel, "Ctrl+F3");
         Add(CommandIds.ToggleToolbar, "Show the toolbar", V);
+        Add(CommandIds.ToggleDriveButtons, "Show the drive buttons", V);
         Add(CommandIds.SortExtension, "Sort by extension", V, "Ext", CommandContext.Panel, "Ctrl+F4");
         Add(CommandIds.SortTime, "Sort by time", V, "Time", CommandContext.Panel, "Ctrl+F5");
         Add(CommandIds.SortSize, "Sort by size", V, "Size", CommandContext.Panel, "Ctrl+F6");
@@ -449,6 +451,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.OpenTerminal, "Opens a terminal in this panel's folder.");
         r.Describe(CommandIds.ToggleHidden, "Shows or hides hidden and system items in every panel.");
         r.Describe(CommandIds.ToggleToolbar, "Shows or hides this toolbar; Settings → Appearance has it too.");
+        r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides each panel's drive buttons, which open a drive with one click.");
         r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
         r.Describe(CommandIds.Help, "Every command with its key: run one from there, or change its key.");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");

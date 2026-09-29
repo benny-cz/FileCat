@@ -69,6 +69,8 @@ public sealed class AppSettings : IVersionedState
     public bool ShowFunctionKeyBar { get; set; } = true;
     public bool ShowCommandLine { get; set; } = true;
     public bool ShowToolbar { get; set; } = true;
+    /// <summary>Each panel's row of drive buttons (D-52).</summary>
+    public bool ShowDriveButtons { get; set; } = true;
     public bool ShowTabsAlways { get; set; } = true;
     public string FontFamily { get; set; } = string.Empty;
     public double FontSize { get; set; } = 13;

@@ -447,6 +447,10 @@ public sealed partial class MainViewModel
                 Services.Settings.ShowToolbar = ShowToolbar = !ShowToolbar;
                 Services.SaveSettings();
                 break;
+            case CommandIds.ToggleDriveButtons:
+                Services.Settings.ShowDriveButtons = ShowDriveButtons = !ShowDriveButtons;
+                Services.SaveSettings();
+                break;
             case CommandIds.ThemeCycle:
                 Services.Settings.Theme = ThemeManager.NextThemeName(Services.Settings.Theme);
                 ThemeManager.Apply(Services.Settings.Theme);

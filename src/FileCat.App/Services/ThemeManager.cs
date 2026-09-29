@@ -280,6 +280,10 @@ public static class ThemeManager
         // bright green accent).
         Add("OnAccent", OnColor(p.ActiveAccent));
         Add("OnTarget", OnColor(p.TargetAccent));
+        // Fills with text on them keep still: the psychedelic theme's drifting accents pass through colors (a bright
+        // yellow, say) that the text chosen for the accent cannot be read on. Only edges and lines drift.
+        d["FcAccentFill"] = new SolidColorBrush(Color.Parse(p.ActiveAccent));
+        d["FcTargetFill"] = new SolidColorBrush(Color.Parse(p.TargetAccent));
         // Fluent's selection controls otherwise keep the operating system's blue accent inside every custom theme.
         // Use separate brushes so the psychedelic theme drifts only its decorative edges, not form state colors.
         var selection = new SolidColorBrush(Color.Parse(p.ActiveAccent));
@@ -323,6 +327,7 @@ public static class ThemeManager
         }
         double luminance = 0.2126 * Linear(c.R) + 0.7152 * Linear(c.G) + 0.0722 * Linear(c.B);
         double onWhite = 1.05 / (luminance + 0.05), onBlack = (luminance + 0.05) / 0.05;
-        return onBlack > 1.5 * onWhite ? "#FF000000" : "#FFFFFFFF";
+        // White where it reads well enough for text (WCAG's 4.5:1), as Windows puts it on accents; else the better one.
+        return onWhite >= 4.5 || onWhite >= onBlack ? "#FFFFFFFF" : "#FF000000";
     }
 }
