@@ -118,7 +118,7 @@ public sealed partial class MainViewModel
         var locs = new List<Location>();
         foreach (var h in entries)
         {
-            items.Add(new ChoiceItem(Services.Providers.Display(h.Location!), h.LastUsedUtc.ToLocalTime().ToString("g"), h.Pinned ? "pinned" : null) { Pinned = h.Pinned });
+            items.Add(new ChoiceItem(Services.Providers.Display(h.Location!), Formatters.Date(h.LastUsedUtc.ToUniversalTime().Ticks), h.Pinned ? "pinned" : null) { Pinned = h.Pinned });
             locs.Add(h.Location!);
         }
         int scanIndex = -1;

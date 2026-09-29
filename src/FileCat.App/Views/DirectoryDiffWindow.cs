@@ -245,7 +245,7 @@ public sealed class DirectoryDiffWindow : Window
     };
 
     private static string Side(EntryData? e) =>
-        e is not { } d ? "" : d.IsContainer ? "folder" : $"{Formatters.Size(d.Size)}  {(d.ModifiedUtc is { } m ? m.ToLocalTime().ToString("g") : "")}";
+        e is not { } d ? "" : d.IsContainer ? "folder" : $"{Formatters.Size(d.Size)}  {(d.ModifiedUtc is { } m ? Formatters.Date(m.ToUniversalTime().Ticks) : "")}";
 
     private static Control Row(TreeDiffEntry e)
     {
