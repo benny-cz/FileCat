@@ -96,7 +96,8 @@ public sealed class ResumeTransferTests : IDisposable
         var deadline = DateTime.UtcNow.AddSeconds(30);
         while (!job.State.IsFinished())
         {
-            if (job.Decision is { } asked)
+            // A question stays on the job until its thread takes the answer: each is answered once.
+            if (job.Decision is { Task.IsCompleted: false } asked)
             {
                 if (answer is null) Assert.Fail($"Unexpected question: {asked.Request.Title}: {asked.Request.Message}");
                 asked.Resolve(answer(asked));

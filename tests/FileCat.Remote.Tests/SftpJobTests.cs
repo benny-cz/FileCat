@@ -98,7 +98,7 @@ public sealed class SftpJobTests : IDisposable
         int asked = 0;
         while (!job.State.IsFinished())
         {
-            if (job.Decision is { } d)
+            if (job.Decision is { Task.IsCompleted: false } d)
             {
                 asked++;
                 _server.Down = false; // the connection is back
@@ -126,7 +126,7 @@ public sealed class SftpJobTests : IDisposable
         var changed = Enumerable.Repeat((byte)7, 3 * 1024 * 1024).ToArray();
         while (!job.State.IsFinished())
         {
-            if (job.Decision is { } d)
+            if (job.Decision is { Task.IsCompleted: false } d)
             {
                 File.WriteAllBytes(big, changed); // edited while the connection was down
                 File.SetLastWriteTimeUtc(big, DateTime.UtcNow.AddMinutes(1));
