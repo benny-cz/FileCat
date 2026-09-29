@@ -657,7 +657,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var existing = Fs.TryGetInfo(dst);
         if (existing is not null)
         {
-            var d = ResolveConflict(src, dst, info, existing);
+            // A real folder is never replaced by a file or a link: that question offers skipping or keeping both.
+            var d = ResolveConflict(src, dst, info, existing, replaceable: !(existing.IsDirectory && !existing.IsLink));
             switch (d)
             {
                 case DecisionAction.Skip:
