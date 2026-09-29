@@ -109,6 +109,49 @@ public sealed class EntryStoreTests
         await ui.WaitUntilAsync(() => !Directory.EnumerateFiles(scratch.Path, "listing-*").Any());
     }
 
+    [Fact]
+    public async Task A_computed_folder_size_survives_a_refresh_until_the_folder_changes()
+    {
+        using var folder = new TempDir();
+        using var scratch = new TempDir();
+        Directory.CreateDirectory(Path.Combine(folder.Path, "sub"));
+        Directory.CreateDirectory(Path.Combine(folder.Path, "other"));
+        folder.File("keep.txt");
+        using var ui = new TestDispatcher();
+        using var io = new FileCat.Core.Threading.DeviceIoScheduler();
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new ComputerProvider());
+        var listing = await ui.InvokeAsync(() => new ListingModel(providers, io, ui, scratch.Path, 1024));
+        await ui.InvokeAsync(() => listing.Load(Location.FileSystem(folder.Path)));
+        await ui.WaitUntilAsync(() => listing.State == ListingState.Complete);
+        long SizeOf(string name) => ui.InvokeAsync(() => listing.GetVisible(Enumerable.Range(0, listing.VisibleCount).First(i => listing.GetVisible(i).Name == name)).Size).Result;
+        await ui.InvokeAsync(() =>
+        {
+            listing.SetComputedSize("sub", 5000, true);
+            listing.SetComputedSize("other", 7000, true);
+        });
+
+        // A refresh (the folder watcher's, say) keeps sizes of folders that did not change.
+        await ui.InvokeAsync(() => listing.Refresh());
+        await ui.WaitUntilAsync(() => !listing.IsRefreshing && listing.State == ListingState.Complete);
+        Assert.Equal((5000L, 7000L), (SizeOf("sub"), SizeOf("other")));
+
+        // One that changed inside has a stale size: it goes.
+        File.WriteAllText(Path.Combine(folder.Path, "other", "new.txt"), "changed");
+        Directory.SetLastWriteTimeUtc(Path.Combine(folder.Path, "other"), DateTime.UtcNow.AddMinutes(1));
+        await ui.InvokeAsync(() => listing.Refresh());
+        await ui.WaitUntilAsync(() => !listing.IsRefreshing && listing.State == ListingState.Complete);
+        Assert.Equal(5000L, SizeOf("sub"));
+        Assert.True(SizeOf("other") < 0);
+
+        // Leaving the folder forgets them.
+        await ui.InvokeAsync(() => listing.Load(Location.FileSystem(folder.Path)));
+        await ui.WaitUntilAsync(() => listing.State == ListingState.Complete);
+        Assert.True(SizeOf("sub") < 0);
+        await ui.InvokeAsync(listing.Dispose);
+    }
+
     [Theory]
     [InlineData(SortField.Name, false)]
     [InlineData(SortField.Size, true)]

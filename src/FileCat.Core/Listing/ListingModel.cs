@@ -65,6 +65,12 @@ public sealed class ListingModel : IDisposable
     private string? _pendingFocusName;
     private EntryKind? _pendingFocusKind;
     private Dictionary<EntryKind, HashSet<string>>? _pendingMarks;
+    /// <summary>
+    /// Folder sizes computed here (Space), by name, with the folder's own time then. A refresh (a change the folder
+    /// watcher saw, Ctrl+R) carries each over while that time is unchanged; a change in the folder makes it stale.
+    /// </summary>
+    private Dictionary<string, (long Size, long Modified)> _computedSizes = new(StringComparer.Ordinal);
+    private Dictionary<string, (long Size, long Modified)>? _pendingSizes;
     private readonly List<string> _issues = [];
     private bool _disposed;
 
@@ -295,6 +301,8 @@ public sealed class ListingModel : IDisposable
         _pendingFocusName = focusName;
         _pendingFocusKind = null;
         _pendingMarks = null;
+        _computedSizes = new(StringComparer.Ordinal);
+        _pendingSizes = null;
         _lastOperation = null;
         Error = null;
         State = ListingState.Loading;
@@ -458,6 +466,8 @@ public sealed class ListingModel : IDisposable
         _appliedCount = 0;
         _issues.Clear();
         _pendingMarks = marked.Count > 0 ? marked : null;
+        _pendingSizes = _computedSizes.Count > 0 ? _computedSizes : null;
+        _computedSizes = new(StringComparer.Ordinal);
         _pendingFocusName = focusName;
         _pendingFocusKind = focusKind;
         _focusStore = -1;
@@ -476,13 +486,19 @@ public sealed class ListingModel : IDisposable
         var change = ListingChange.Rows;
 
         // Resolve names that were waiting for their entry to arrive.
-        if (_pendingMarks is not null || _pendingFocusName is not null)
+        List<(int Index, long Size)>? sized = null;
+        if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
             for (int i = previousCount; i < r.Count; i++)
             {
                 var e = scan[i];
                 if (e.Kind == EntryKind.Parent) continue;
+                // A folder whose own time is unchanged keeps the size computed for it before the refresh.
+                if (_pendingSizes is not null && e.Kind == EntryKind.Directory && _pendingSizes.GetAlternateLookup<ReadOnlySpan<char>>().Remove(e.Name, out _, out var kept))
+                {
+                    if (kept.Modified == e.Modified) (sized ??= []).Add((i, kept.Size));
+                }
                 if (RemovePendingMark(e.Kind, e.Name))
                 {
                     _marks.Set(i, true);
@@ -497,6 +513,18 @@ public sealed class ListingModel : IDisposable
                     change |= ListingChange.Focus;
                 }
             }
+        }
+        if (sized is not null)
+        {
+            foreach (var (index, size) in sized)
+            {
+                var entry = _store[index];
+                entry.Size = size;
+                entry.Flags |= EntryFlags.SizeComputed;
+                _store.Update(index, entry);
+                _computedSizes[entry.Name] = (size, entry.Modified);
+            }
+            change |= ListingChange.Rows;
         }
 
         if (!_focusAnchored && _pendingFocusName is null)
@@ -525,6 +553,7 @@ public sealed class ListingModel : IDisposable
         if (r.Completion)
         {
             _pendingMarks = null;
+            _pendingSizes = null;
             _pendingFocusName = null;
             _pendingFocusKind = null;
             LastLoadDuration = Stopwatch.GetElapsedTime(p.StartedTimestamp);
@@ -857,6 +886,8 @@ public sealed class ListingModel : IDisposable
         e.Size = bytes;
         e.Flags = complete ? e.Flags | EntryFlags.SizeComputed : e.Flags & ~EntryFlags.SizeComputed;
         _store.Update(si, e);
+        if (complete && e.Kind == EntryKind.Directory && bytes >= 0) _computedSizes[e.Name] = (bytes, e.Modified);
+        else _computedSizes.Remove(e.Name);
         _statsCache = null;
         if (_sort.Field == SortField.Size && complete) PushSpec();
         Raise(ListingChange.Rows | ListingChange.Marks);
