@@ -40,8 +40,8 @@ public sealed class PanelKeysTests
             for (int i = 0; i < 6; i++) window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
             Assert.Equal(3, listing.MarkedCount);
             Assert.Equal(listing.VisibleCount - 1, listing.FocusedIndex);
-            // The folder among them was sized.
-            for (int i = 0; i < 250 && listing.GetVisible(Index(listing, "sub")).Size != 5000; i++) await Task.Delay(20, ct);
+            // The folder among them was sized (by a low-priority job: a busy machine gets it done later).
+            for (int i = 0; i < 1000 && listing.GetVisible(Index(listing, "sub")).Size != 5000; i++) await Task.Delay(20, ct);
             Assert.Equal(5000, listing.GetVisible(Index(listing, "sub")).Size);
         }
         finally

@@ -292,7 +292,8 @@ public sealed class CompareWindow : Window
         Dispatcher.UIThread.Post(() =>
         {
             if (view != _view || _closed) return;
-            if (_shown == Shown.Text ? _differenceRows.Count > 0 : _differences.Count > 0) GoTo(0);
+            // Unless a difference was chosen meanwhile: the user's choice stands.
+            if (_current < 0 && _pastListed is null && (_shown == Shown.Text ? _differenceRows.Count > 0 : _differences.Count > 0)) GoTo(0);
             if (!_contentFocused && IsActive)
             {
                 // The first view takes the keys (arrows and Page Down scroll); later ones leave the focus where it is.

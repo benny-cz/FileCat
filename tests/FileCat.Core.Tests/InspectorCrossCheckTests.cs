@@ -135,7 +135,13 @@ public sealed class InspectorCrossCheckTests
             // The file's own version resource, as Windows reads it when asked for the neutral one: by default Windows
             // (and FileVersionInfo) answers from the language's .mui file beside it, which can be of another build.
             var neutral = NeutralVersion(path);
-            Assert.Equal(neutral.FileVersion, Field(report, "Version information", "File version"));
+            // Windows answers processes that are not declared for Windows 10 (a test host, say) with 6.2 for its own files'
+            // version: that compatibility answer aside, the versions agree. FileCat shows what the file holds.
+            string shown = Field(report, "Version information", "File version");
+            string answered = neutral.FileVersion.StartsWith("6.2.", StringComparison.Ordinal) && shown.StartsWith("10.0.", StringComparison.Ordinal)
+                ? "10.0." + neutral.FileVersion["6.2.".Length..]
+                : neutral.FileVersion;
+            Assert.Equal(answered, shown);
             foreach (var key in new[] { "CompanyName", "FileDescription", "OriginalFilename", "ProductVersion", "FileVersion" })
                 Assert.Equal(neutral.Strings[key], Field(report, "Version information", key));
             // An embedded signature: the certificate that signed it, as Windows extracts it; catalog-signed files have none.
