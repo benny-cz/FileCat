@@ -92,9 +92,14 @@ public sealed class EscAuditTests
             vm.Execute(CommandIds.View);
             await EscCloses(() => ViewerWindow.OpenWindows, "The viewer");
 
-            listing.FocusName("a.txt");
-            vm.Execute(CommandIds.HexEdit);
-            await EscCloses(() => HexEditorWindow.OpenWindows, "The hex editor");
+            if (OperatingSystem.IsWindows())
+            {
+                // The hex editor is Windows-only; elsewhere the command says so instead of opening.
+                listing.FocusName("a.txt");
+                vm.Execute(CommandIds.HexEdit);
+                await EscCloses(() => HexEditorWindow.OpenWindows, "The hex editor");
+            }
+            else Assert.False(vm.GetAvailability(CommandIds.HexEdit).Enabled);
 
             vm.Execute(CommandIds.MarkAll);
             vm.Execute(CommandIds.CompareFiles);
