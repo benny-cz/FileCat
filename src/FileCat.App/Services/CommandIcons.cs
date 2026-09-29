@@ -213,6 +213,15 @@ public static class CommandIcons
         ["find.log"] = [new(Page, "TextMuted"), new("M6,7 L10.5,7 M6,9.5 L10.5,9.5 M6,12 L9,12", "Text")],
         ["find.sortFolder"] = [new("M1.5,4 L1.5,12 L9,12 L9,5.5 L5,5.5 L4,4 Z", "FolderIcon"), new("M12.5,3 L12.5,13 M10.5,11 L12.5,13 L14.5,11", "ActiveAccent")],
         ["find.ignored"] = [new(Folder, "FolderIcon", Opacity: 0.8), new("M3,14.5 L13,4", "Error")],
+        // The comparison window's own actions.
+        ["compare.first"] = [new("M3,2.5 L13,2.5"), new("M8,14 L8,5 M4.5,8.5 L8,5 L11.5,8.5", "ActiveAccent")],
+        ["compare.previous"] = [new("M8,13.5 L8,3 M4,7 L8,3 L12,7", "ActiveAccent")],
+        ["compare.next"] = [new("M8,2.5 L8,13 M4,9 L8,13 L12,9", "ActiveAccent")],
+        ["compare.last"] = [new("M3,13.5 L13,13.5"), new("M8,2 L8,11 M4.5,7.5 L8,11 L11.5,7.5", "ActiveAccent")],
+        ["compare.copyHex"] = [new(Clipboard), new("M5.5,8 L7,8 M9,8 L10.5,8 M5.5,11 L7,11 M9,11 L10.5,11", "ActiveAccent")],
+        ["compare.copyText"] = [new(Clipboard), new("M5.5,7.5 L10.5,7.5 M8,7.5 L8,12", "ActiveAccent")],
+        ["compare.copyOffset"] = [new(Clipboard), new("M5.5,9.5 L10.5,9.5 M8.5,7.5 L10.5,9.5 L8.5,11.5", "ActiveAccent")],
+        ["compare.selectAll"] = [new(Box, "TextMuted", Dashed: true), new("M5,5.5 L11,5.5 L11,10.5 L5,10.5 Z", "ActiveAccent", Fill: true, Opacity: 0.6)],
         // Help
         [CommandIds.Help] = [new(Circle), new("M6.2,6.2 C6.2,4.2 9.8,4.2 9.8,6.2 C9.8,7.6 8,7.9 8,9.3 M8,11.3 L8,11.4", "ActiveAccent")],
         [CommandIds.CheckUpdates] = [new("M2.5,10.5 L2.5,13.5 L13.5,13.5 L13.5,10.5", "TextMuted"), new("M8,2 L8,10 M5,7 L8,10 L11,7", "ActiveAccent")],

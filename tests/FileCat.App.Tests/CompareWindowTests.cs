@@ -28,9 +28,16 @@ public sealed class CompareWindowTests
             Assert.StartsWith("2 differences: 1 changed, 0 only left, 1 only right", diff.Summary);
             var rows = diff.Rows.OfType<CompareRow>().ToList();
             Assert.Equal([DiffKind.Equal, DiffKind.Changed, DiffKind.Equal, DiffKind.RightOnly], rows.Select(r => r.Kind));
+            // Every difference is listed to go to, as Salamander's comparator lists them.
+            Assert.Equal(["1: 1 line changed at line 2", "2: 1 line only right, at line 4"], diff.DifferenceTexts);
+            for (int i = 0; i < 100 && diff.CurrentDifference != 0; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(0, diff.CurrentDifference);
             diff.Go(+1);
-            diff.Go(+1);
+            Assert.Equal((1, 3), (diff.CurrentDifference, diff.CurrentRow));
             diff.Go(+1); // wraps to the first difference
+            Assert.Equal((0, 1), (diff.CurrentDifference, diff.CurrentRow));
+            diff.GoLast();
+            Assert.Equal("2: 1 line only right, at line 4", diff.CurrentDifferenceText);
         }
         finally
         {
@@ -50,7 +57,7 @@ public sealed class CompareWindowTests
         try
         {
             Assert.StartsWith("2 differing byte ranges at the same offsets; lengths 5 and 4 bytes.", binary.Summary);
-            Assert.Equal(2, binary.Rows.Count);
+            Assert.Equal(["1: 2 bytes changed at offset 0x1", "2: 1 byte only in the left file, from offset 0x4"], binary.DifferenceTexts);
         }
         finally
         {
@@ -100,11 +107,9 @@ public sealed class CompareWindowTests
             await Settled();
             Assert.StartsWith("Aligned: 1 stretch inserted (5 bytes), none removed, none changed; 100% of the left file was found again in order.", window.Summary);
             Assert.Contains("Heuristic", window.Summary);
-            var rows = window.Rows.OfType<AlignedRow>().ToList();
-            Assert.Equal([DiffKind.Equal, DiffKind.RightOnly, DiffKind.Equal], rows.Select(r => r.Kind));
-            Assert.Equal("+ left 0x00000003E8  right 0x00000003E8  5 bytes only right (inserted)   01 02 03 04 05", rows[1].Text);
-            for (int i = 0; i < 100 && window.CurrentRow != 1; i++) await Task.Delay(20, ct);
-            Assert.Equal(1, window.CurrentRow);
+            Assert.Equal(["1: 5 bytes inserted (only right) at 0x3E8"], window.DifferenceTexts);
+            for (int i = 0; i < 100 && window.CurrentDifference != 0; i++) await Task.Delay(20, ct);
+            Assert.Equal(0, window.CurrentDifference);
 
             // Back to the exact comparison, and aligned again from what was already found.
             align.IsChecked = false;
@@ -113,6 +118,98 @@ public sealed class CompareWindowTests
             align.IsChecked = true;
             await Settled();
             Assert.StartsWith("Aligned: 1 stretch inserted", window.Summary);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Bytes_show_side_by_side_and_a_click_or_the_arrows_choose_the_difference()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var a = new byte[4096];
+        new Random(7).NextBytes(a);
+        a[0] = 0; // looks binary
+        var b = (byte[])a.Clone();
+        b[0x40] ^= 0xFF;
+        b[0x50] ^= 0xFF;
+        b[0x51] ^= 0xFF;
+        var window = CompareWindow.Open("a.bin", new MemoryContentSource("a.bin", a), "b.bin", new MemoryContentSource("b.bin", b));
+        try
+        {
+            for (int i = 0; i < 250 && window.IsComparing; i++) await Task.Delay(20, ct);
+            Assert.Equal(["1: 1 byte changed at offset 0x40", "2: 2 bytes changed at offset 0x50"], window.DifferenceTexts);
+            var hex = window.GetVisualDescendants().OfType<Controls.HexCompareView>().Single();
+            Assert.True(hex.IsVisible);
+            // As many bytes per row as fit in half the window, four at a time.
+            Assert.Equal(0, hex.BytesPerRow % 4);
+            Assert.InRange(hex.BytesPerRow, 4, 64);
+            for (int i = 0; i < 100 && window.CurrentDifference != 0; i++) await Task.Delay(20, ct);
+
+            // The last difference, then a click on the first one's byte on the right makes it current again.
+            window.KeyPress(Avalonia.Input.Key.End, Avalonia.Input.RawInputModifiers.Alt, Avalonia.Input.PhysicalKey.End, null);
+            Assert.Equal("2: 2 bytes changed at offset 0x50", window.CurrentDifferenceText);
+            var at = hex.PointOf(1, 0x40)!.Value;
+            var inWindow = Avalonia.VisualExtensions.TranslatePoint(hex, at, window)!.Value;
+            window.MouseDown(inWindow, Avalonia.Input.MouseButton.Left);
+            window.MouseUp(inWindow, Avalonia.Input.MouseButton.Left);
+            Assert.Equal(0, window.CurrentDifference);
+            Assert.Equal((1, 0x40L, 1L), hex.Selection);
+
+            // Ctrl+C copies the selected bytes as hex.
+            window.KeyPress(Avalonia.Input.Key.C, Avalonia.Input.RawInputModifiers.Control, Avalonia.Input.PhysicalKey.C, null);
+            for (int i = 0; i < 100 && !hex.Status.StartsWith("Copied", StringComparison.Ordinal); i++) await Task.Delay(20, ct);
+            Assert.Equal("Copied 1 byte as hex.", hex.Status);
+            Assert.Equal(b[0x40].ToString("X2"), await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Differences_past_the_listed_ones_are_found_by_reading_on()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // Every other byte differs: 15,000 differences, more than a comparison lists.
+        var a = new byte[40_000];
+        var b = new byte[40_000];
+        for (int i = 0; i < 30_000; i += 2) b[i] = 1;
+        var window = CompareWindow.Open("a.bin", new MemoryContentSource("a.bin", a), "b.bin", new MemoryContentSource("b.bin", b));
+        async Task Found()
+        {
+            await Task.Delay(20, ct);
+            for (int i = 0; i < 250 && window.IsSearching; i++) await Task.Delay(20, ct);
+        }
+        try
+        {
+            for (int i = 0; i < 250 && window.IsComparing; i++) await Task.Delay(20, ct);
+            Assert.StartsWith($"{10_000:N0}+ differing byte ranges at the same offsets; the first {10_000:N0} are listed, and Next difference finds the rest.", window.Summary);
+            Assert.Equal(BinaryDiff.MaxRanges, window.DifferenceTexts.Count);
+
+            // Next after the last listed one: found by reading on, and listed with its number.
+            window.GoTo(BinaryDiff.MaxRanges - 1);
+            window.Go(+1);
+            await Found();
+            Assert.Equal($"{10_001:N0}: 1 byte changed at offset 0x4E20", window.CurrentDifferenceText);
+            Assert.Equal(BinaryDiff.MaxRanges, window.CurrentDifference);
+
+            // The last one is found from the end, without a number (the ones between were not counted); so is the one before it.
+            window.GoLast();
+            await Found();
+            Assert.Equal((-1, "Past the listed ones: 1 byte changed at offset 0x752E"), (window.CurrentDifference, window.CurrentDifferenceText));
+            window.Go(-1);
+            await Found();
+            Assert.Equal("Past the listed ones: 1 byte changed at offset 0x752C", window.CurrentDifferenceText);
+            // Past the last one, the first one follows.
+            window.Go(+1);
+            await Found();
+            window.Go(+1);
+            await Found();
+            Assert.Equal((0, "1: 1 byte changed at offset 0x0"), (window.CurrentDifference, window.CurrentDifferenceText));
         }
         finally
         {

@@ -161,6 +161,40 @@ public sealed class FileCompareTests
     }
 
     [Fact]
+    public void Next_and_previous_differences_walk_the_comparisons_runs_both_ways()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var rng = new Random(12);
+        foreach (int extra in new[] { 0, 1000, -700 })
+        {
+            var a = new byte[(5 << 19) + 3];
+            rng.NextBytes(a);
+            var b = (byte[])a.Clone();
+            // Runs of all lengths, some across the 1 MiB reads, one at the very start and one at the common end.
+            for (int i = 0; i < 300; i++)
+            {
+                int at = rng.Next(a.Length), length = rng.Next(1, 40);
+                for (int j = at; j < Math.Min(a.Length, at + length); j++) b[j] ^= 0x5A;
+            }
+            foreach (int at in new[] { 0, (1 << 20) - 2, 1 << 20, (2 << 20) + 5, a.Length - 1 })
+                for (int j = at; j < Math.Min(a.Length, at + 4); j++) b[j] ^= 0x33;
+            b = extra >= 0 ? [.. b, .. new byte[extra]] : b[..^(-extra)];
+            var left = new MemoryContentSource("a", a);
+            var right = new MemoryContentSource("b", b);
+            var expected = BinaryDiff.Compare(left, right, ct).Ranges;
+
+            var forward = new List<(long, long)>();
+            for (long from = 0; BinaryDiff.NextDifference(left, right, a.Length, b.Length, from, ct) is { } run; from = run.Offset + run.Length) forward.Add(run);
+            Assert.Equal(expected, forward);
+
+            var backward = new List<(long, long)>();
+            for (long before = Math.Max(a.Length, b.Length); BinaryDiff.PreviousDifference(left, right, a.Length, b.Length, before, ct) is { } run; before = run.Offset) backward.Add(run);
+            backward.Reverse();
+            Assert.Equal(expected, backward);
+        }
+    }
+
+    [Fact]
     public void Large_similar_and_dissimilar_inputs_finish_quickly()
     {
         var rng = new Random(3);

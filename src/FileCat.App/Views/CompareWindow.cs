@@ -4,9 +4,11 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using FileCat.App.Controls;
 using FileCat.App.Services;
 using FileCat.Core.Compare;
 using FileCat.Core.Content;
@@ -17,14 +19,9 @@ namespace FileCat.App.Views;
 /// <summary>One row of the side-by-side view: a line on either side (or a gap), how they relate, and a note row's text.</summary>
 public sealed record CompareRow(DiffKind Kind, int? LeftLine, string LeftText, int? RightLine, string RightText, bool EndingDiffers = false, string? Note = null);
 
-/// <summary>One stretch of the aligned binary view: how the two files relate there, and the row's text.</summary>
-public sealed record AlignedRow(DiffKind Kind, string Text)
-{
-    public override string ToString() => Text;
-}
-
 /// <summary>
-/// File comparison (plan §16.2, TV-08): text side by side with within-line changes, or exact binary ranges. Both sides
+/// File comparison (plan §16.2, TV-08): text side by side with within-line changes, or both files' bytes side by side
+/// (after Salamander's File Comparator). Every difference is listed and can be gone to, first to last. Both sides
 /// scroll together because each row holds both. The summary claims "identical" only when every byte matched; a region
 /// that could not be aligned within limits is shown and labelled, never presented as exact. A file that changes after
 /// it was compared is reported when the window is activated again, and F5 compares anew.
@@ -37,42 +34,60 @@ public sealed class CompareWindow : Window
     private static readonly IBrush UnalignedBrush = new SolidColorBrush(Color.FromArgb(0x30, 0x90, 0x90, 0xA0));
     private static readonly IBrush InlineBrush = new SolidColorBrush(Color.FromArgb(0x70, 0xE0, 0x90, 0x20));
     private static readonly FontFamily Mono = new("Cascadia Mono,Consolas,Menlo,monospace");
+    /// <summary>At most this many differences are listed to choose from; the arrows go through all of them.</summary>
+    public const int MaxListed = 20_000;
+    private const string BytesHint = "Drag over bytes to select them; Ctrl+C copies them as hex. Clicking a difference makes it the current one.";
 
     private IContentSource _left, _right;
+    private ViewSource _leftView, _rightView;
     private readonly string _leftName, _rightName;
     private readonly Func<(IContentSource Left, IContentSource Right)>? _reopen;
     private readonly ListBox _rows = new();
+    private readonly HexCompareView _hex = new() { IsVisible = false };
+    private readonly ComboBox _differenceBox = new() { MinWidth = 320, MaxWidth = 560, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _changed = new() { TextWrapping = TextWrapping.Wrap, Classes = { "warning" } };
-    private readonly Border _changedBanner;
+    private readonly TextBlock _status = new() { TextTrimming = TextTrimming.CharacterEllipsis, Classes = { "muted" } };
+    private readonly Border _changedBanner, _statusBar;
     private readonly CheckBox _ignoreWhitespace = new() { Content = "Ignore whitespace", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _ignoreCase = new() { Content = "Ignore case", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _binary = new() { Content = "Binary", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _collapse = new() { Content = "Hide equal lines", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _align = new() { Content = "Align shifted bytes", VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
-    private readonly Button _previous = new() { Content = "Previous difference" };
-    private readonly Button _next = new() { Content = "Next difference" };
-    private readonly Button _again = new() { Content = "Compare again" };
-    private List<int> _differenceRows = [];
+    private readonly Button _first, _previous, _next, _last;
+    private readonly Button _again = new() { Content = "Compare again", VerticalAlignment = VerticalAlignment.Center };
     private CancellationTokenSource? _work;
     private Task _loading = Task.CompletedTask;
     private BinaryDiffResult? _bytes;
-    private IReadOnlyList<string> _byteRows = [];
+    private (PagedReader Left, PagedReader Right)? _pages;
     /// <summary>
     /// The aligned comparison of the contents now shown, once asked for: computed off the UI thread, kept while the
     /// contents stay, and stopped when its view is left before it is ready (large files take a while).
     /// </summary>
-    private Task<(AlignedBinaryResult Result, List<object> Rows)>? _aligning;
+    private Task<(AlignedBinaryResult Result, List<AlignedRange> Differences)>? _aligning;
     private CancellationTokenSource? _aligningStop;
-    /// <summary>Every aligning started, stopped ones too: the contents are released only after they stopped reading.</summary>
-    private Task _aligningRuns = Task.CompletedTask;
-    /// <summary>At most this many aligned stretches are listed; the summary counts them all.</summary>
-    private const int MaxAlignedRows = 20_000;
+    /// <summary>Every aligning and search for differences started, stopped ones too: the contents are released only after they stopped reading.</summary>
+    private Task _runs = Task.CompletedTask;
     private TextSide? _leftText, _rightText;
     private string? _textProblem;
     private (ContentRevision? Left, ContentRevision? Right) _revisions;
-    private bool _closed, _reopening, _binaryForced, _settingOptions;
+    private bool _closed, _reopening, _binaryForced, _settingOptions, _settingDifference, _searching, _contentFocused;
     private int _view;
+    private Shown _shown;
+
+    /// <summary>What the window shows: the lines, the bytes at the same offsets, or the bytes aligned.</summary>
+    private enum Shown { Nothing, Text, Bytes, Aligned }
+
+    // The differences of the view shown. Text: the row each starts on. Bytes: the differing runs listed, in file order
+    // (at the same offsets, the first ones found; more are searched for past them when the comparison had too many to
+    // list). Aligned: every stretch that is not equal.
+    private List<int> _differenceRows = [];
+    private List<AlignedRange> _differences = [];
+    private List<string> _descriptions = [];
+    private bool _moreDifferences;
+    /// <summary>The current difference: its index among those listed, or -1 (none, or one found past them: <see cref="_pastListed"/>).</summary>
+    private int _current = -1;
+    private AlignedRange? _pastListed;
 
     private static readonly List<CompareWindow> s_open = [];
 
@@ -98,21 +113,27 @@ public sealed class CompareWindow : Window
     {
         _left = left;
         _right = right;
+        _leftView = new ViewSource(left);
+        _rightView = new ViewSource(right);
         _leftName = leftName;
         _rightName = rightName;
         _reopen = reopen;
         Title = $"Compare: {Path.GetFileName(leftName.TrimEnd('/', '\\'))} ↔ {Path.GetFileName(rightName.TrimEnd('/', '\\'))}";
         Width = 1200; Height = 760; MinWidth = 640; MinHeight = 320;
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
+        _first = NavigationButton("compare.first", "First difference", "Alt+Home", GoFirst);
+        _previous = NavigationButton("compare.previous", "Previous difference", "Alt+Up or Shift+F8", () => Go(-1));
+        _next = NavigationButton("compare.next", "Next difference", "Alt+Down or F8", () => Go(+1));
+        _last = NavigationButton("compare.last", "Last difference", "Alt+End", GoLast);
         Avalonia.Automation.AutomationProperties.SetName(_rows, "Differences");
-        ToolTip.SetTip(_next, "Next difference (Alt+Down or F8)");
-        ToolTip.SetTip(_previous, "Previous difference (Alt+Up or Shift+F8)");
+        Avalonia.Automation.AutomationProperties.SetName(_hex, "Bytes of both files");
+        Avalonia.Automation.AutomationProperties.SetName(_differenceBox, "Difference");
+        ToolTip.SetTip(_differenceBox, "Go to a difference (Alt+D)");
         ToolTip.SetTip(_again, "Read both files again and compare them (F5)");
         _again.IsVisible = reopen is not null;
         _rows.ItemTemplate = new FuncDataTemplate<object>((item, _) => item switch
         {
             CompareRow row => BuildRow(row),
-            AlignedRow row => new TextBlock { Text = row.Text, FontFamily = Mono, Padding = new Thickness(4, 1), Background = KindBrush(row.Kind) },
             string text => new TextBlock { Text = text, FontFamily = Mono, Margin = new Thickness(4, 1) },
             _ => new TextBlock(),
         });
@@ -125,7 +146,13 @@ public sealed class CompareWindow : Window
         Grid.SetColumn(rightHeader, 1);
         header.Children.Add(leftHeader);
         header.Children.Add(rightHeader);
-        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6), Children = { _previous, _next, _again, _binary, _align, _ignoreWhitespace, _ignoreCase, _collapse } };
+        var bar = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(8, 6, 8, 2),
+            Children = { _first, _previous, _next, _last, _differenceBox, _again, _binary, _align, _ignoreWhitespace, _ignoreCase, _collapse },
+        };
+        foreach (var child in bar.Children.OfType<Control>()) child.Margin = new Thickness(0, 0, child is Button { Content: Image } ? 2 : 10, 4);
         var root = new DockPanel();
         DockPanel.SetDock(bar, Dock.Top);
         DockPanel.SetDock(header, Dock.Top);
@@ -133,28 +160,62 @@ public sealed class CompareWindow : Window
         DockPanel.SetDock(summaryBorder, Dock.Top);
         _changedBanner = new Border { Child = _changed, Padding = new Thickness(8, 4), Classes = { "banner" }, IsVisible = false };
         DockPanel.SetDock(_changedBanner, Dock.Top);
+        _statusBar = new Border { Child = _status, Padding = new Thickness(8, 3), IsVisible = false };
+        DockPanel.SetDock(_statusBar, Dock.Bottom);
         root.Children.Add(bar);
         root.Children.Add(summaryBorder);
         root.Children.Add(_changedBanner);
         root.Children.Add(header);
-        root.Children.Add(_rows);
+        root.Children.Add(_statusBar);
+        root.Children.Add(new Panel { Children = { _rows, _hex } });
         Content = root;
 
-        _next.Click += (_, _) => Go(+1);
-        _previous.Click += (_, _) => Go(-1);
         _again.Click += (_, _) => CompareAgain();
         foreach (var box in new[] { _ignoreWhitespace, _ignoreCase, _binary, _collapse, _align }) box.IsCheckedChanged += (_, _) => Recompute();
         ToolTip.SetTip(_align, "Finds content that moved because bytes were inserted or removed, instead of comparing at the same offsets. A heuristic view: whether the files are identical is the exact comparison's answer.");
+        _differenceBox.SelectionChanged += (_, _) =>
+        {
+            if (!_settingDifference && _differenceBox.SelectedIndex >= 0) GoTo(_differenceBox.SelectedIndex);
+        };
+        _rows.SelectionChanged += (_, _) => FollowRow();
+        _hex.DifferenceClicked += index => ShowDifference(index);
+        _hex.StatusChanged += () => _status.Text = _hex.Status.Length > 0 ? _hex.Status : BytesHint;
+        _status.Text = BytesHint;
+        // Navigation keys work wherever the focus is (the list and the difference box have their own uses for arrows).
+        AddHandler(KeyDownEvent, OnNavigationKey, RoutingStrategies.Tunnel);
         KeyDown += OnKey;
         Activated += (_, _) => CheckInputs();
+        ThemeManager.ThemeChanged += RefreshIcons;
         Closed += (_, _) =>
         {
             _closed = true;
+            ThemeManager.ThemeChanged -= RefreshIcons;
             _work?.Cancel();
-            ReleaseWhenIdle(_left, _right);
+            ReleaseWhenIdle(_left, _right, _leftView, _rightView);
         };
         _summary.Text = "Comparing…";
         Opened += (_, _) => _loading = LoadAsync();
+    }
+
+    private static Button NavigationButton(string icon, string title, string keys, Action run)
+    {
+        var button = new Button
+        {
+            Content = new Image { Source = CommandIcons.Get(icon), Width = 16, Height = 16 },
+            Tag = icon,
+            Padding = new Thickness(6, 4),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTip.SetTip(button, $"{title} ({keys})");
+        Avalonia.Automation.AutomationProperties.SetName(button, title);
+        button.Click += (_, _) => run();
+        return button;
+    }
+
+    private void RefreshIcons()
+    {
+        foreach (var button in new[] { _first, _previous, _next, _last })
+            if (button is { Tag: string icon, Content: Image image }) image.Source = CommandIcons.Get(icon);
     }
 
     public string Summary => _summary.Text ?? "";
@@ -165,17 +226,41 @@ public sealed class CompareWindow : Window
     /// <summary>Whether the files are still being read or their lines aligned (the rows and summary are not final yet).</summary>
     public bool IsComparing { get; private set; } = true;
 
+    /// <summary>Whether a difference past the listed ones is being searched for.</summary>
+    public bool IsSearching => _searching;
+
+    /// <summary>The text view's rows.</summary>
     public IReadOnlyList<object> Rows => _rows.ItemsSource as IReadOnlyList<object> ?? [];
 
-    /// <summary>The row the comparison shows as current (the first difference when it opens).</summary>
+    /// <summary>The row the text comparison shows as current (the first difference when it opens).</summary>
     public int CurrentRow => _rows.SelectedIndex;
+
+    /// <summary>The differences listed to choose from, as the difference box says them.</summary>
+    public IReadOnlyList<string> DifferenceTexts => _descriptions;
+
+    /// <summary>The current difference's index among those listed; -1 when there is none or it was found past them.</summary>
+    public int CurrentDifference => _current;
+
+    /// <summary>What the difference box says about the current difference.</summary>
+    public string CurrentDifferenceText =>
+        _current >= 0 && _current < _descriptions.Count ? _descriptions[_current] : _differenceBox.PlaceholderText ?? "";
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
+        if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None) return;
+        Close();
+        e.Handled = true;
+    }
+
+    private void OnNavigationKey(object? sender, KeyEventArgs e)
+    {
         switch (e.Key)
         {
-            case Key.Escape:
-                Close();
+            case Key.Home when e.KeyModifiers == KeyModifiers.Alt:
+                GoFirst();
+                break;
+            case Key.End when e.KeyModifiers == KeyModifiers.Alt:
+                GoLast();
                 break;
             case Key.Down when e.KeyModifiers == KeyModifiers.Alt:
             case Key.F8 when e.KeyModifiers == KeyModifiers.None:
@@ -184,6 +269,10 @@ public sealed class CompareWindow : Window
             case Key.Up when e.KeyModifiers == KeyModifiers.Alt:
             case Key.F8 when e.KeyModifiers == KeyModifiers.Shift:
                 Go(-1);
+                break;
+            case Key.D when e.KeyModifiers == KeyModifiers.Alt:
+                _differenceBox.Focus();
+                _differenceBox.IsDropDownOpen = _differenceBox.ItemCount > 0;
                 break;
             case Key.F5 when e.KeyModifiers == KeyModifiers.None && _reopen is not null:
             case Key.R when e.KeyModifiers == KeyModifiers.Control && _reopen is not null:
@@ -195,30 +284,235 @@ public sealed class CompareWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>A comparison opens on its first difference: the equal lines before it are what the user did not come for.</summary>
+    /// <summary>A comparison opens on its first difference: the equal lines or bytes before it are what the user did not come for.</summary>
     private void ShowFirstDifference()
     {
-        if (_differenceRows.Count == 0) return;
-        int first = _differenceRows[0];
-        // After layout, so the list can scroll there.
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        int view = _view;
+        // After layout, so the view can scroll there.
+        Dispatcher.UIThread.Post(() =>
         {
-            if (_differenceRows.Count == 0 || _differenceRows[0] != first) return;
-            _rows.SelectedIndex = first;
-            _rows.ScrollIntoView(first);
-        }, Avalonia.Threading.DispatcherPriority.Loaded);
+            if (view != _view || _closed) return;
+            if (_shown == Shown.Text ? _differenceRows.Count > 0 : _differences.Count > 0) GoTo(0);
+            if (!_contentFocused && IsActive)
+            {
+                // The first view takes the keys (arrows and Page Down scroll); later ones leave the focus where it is.
+                _contentFocused = true;
+                (_shown == Shown.Text ? (Control)_rows : _hex).Focus();
+            }
+        }, DispatcherPriority.Loaded);
     }
 
-    /// <summary>Moves to the next or previous difference after the selected row (wrapping around).</summary>
+    /// <summary>Goes to the listed difference <paramref name="index"/> (the difference box's choice).</summary>
+    public void GoTo(int index)
+    {
+        if (_shown == Shown.Text)
+        {
+            if (index < 0 || index >= _differenceRows.Count) return;
+            int row = _differenceRows[index];
+            _rows.SelectedIndex = row;
+            _rows.ScrollIntoView(row);
+            SetCurrent(index, null);
+        }
+        else ShowDifference(index);
+    }
+
+    public void GoFirst()
+    {
+        if (_shown == Shown.Text || _differences.Count > 0) GoTo(0);
+    }
+
+    /// <summary>
+    /// The last difference. When more differences exist than were listed, the last one is found by reading backwards
+    /// from the end of the files (it is not numbered then: the ones between were not counted).
+    /// </summary>
+    public void GoLast()
+    {
+        if (_shown == Shown.Text) GoTo(_differenceRows.Count - 1);
+        else if (_moreDifferences && _bytes is { } bytes) Search(forward: false, Math.Max(bytes.LeftLength, bytes.RightLength));
+        else GoTo(_differences.Count - 1);
+    }
+
+    /// <summary>Moves to the next or previous difference (wrapping around at either end).</summary>
     public void Go(int direction)
     {
-        if (_differenceRows.Count == 0) return;
-        int current = _rows.SelectedIndex;
-        int target = direction > 0
-            ? _differenceRows.FirstOrDefault(r => r > current, _differenceRows[0])
-            : _differenceRows.LastOrDefault(r => r < current, _differenceRows[^1]);
-        _rows.SelectedIndex = target;
-        _rows.ScrollIntoView(target);
+        if (_shown == Shown.Text)
+        {
+            if (_differenceRows.Count == 0) return;
+            int current = _rows.SelectedIndex;
+            int target = direction > 0
+                ? _differenceRows.FindIndex(r => r > current)
+                : _differenceRows.FindLastIndex(r => r < current);
+            GoTo(target >= 0 ? target : direction > 0 ? 0 : _differenceRows.Count - 1);
+            return;
+        }
+        if (_shown is not (Shown.Bytes or Shown.Aligned) || _differences.Count == 0 && !_moreDifferences) return;
+        if (direction > 0)
+        {
+            if (_current >= 0 && _current + 1 < _differences.Count) ShowDifference(_current + 1);
+            else if (_current < 0 && _pastListed is null) GoFirst();
+            else if (_moreDifferences && _bytes is not null)
+            {
+                var from = _pastListed ?? _differences[^1];
+                Search(forward: true, from.LeftOffset + Math.Max(from.LeftLength, from.RightLength));
+            }
+            else GoFirst();
+        }
+        else
+        {
+            if (_current > 0) ShowDifference(_current - 1);
+            else if (_pastListed is { } past) Search(forward: false, past.LeftOffset);
+            else GoLast();
+        }
+    }
+
+    /// <summary>Shows the listed binary difference <paramref name="index"/> as the current one.</summary>
+    private void ShowDifference(int index)
+    {
+        if (index < 0 || index >= _differences.Count) return;
+        SetCurrent(index, null);
+        _hex.ShowDifference(_differences[index]);
+    }
+
+    /// <summary>The difference box shows the current difference: a listed one, or one found past them.</summary>
+    private void SetCurrent(int index, string? pastListed)
+    {
+        _current = index;
+        _settingDifference = true;
+        try
+        {
+            bool listed = index >= 0 && index < _differenceBox.ItemCount;
+            _differenceBox.SelectedIndex = listed ? index : -1;
+            _differenceBox.PlaceholderText = listed ? null : index >= 0 ? _descriptions[index] : pastListed;
+        }
+        finally
+        {
+            _settingDifference = false;
+        }
+        if (index >= 0) _pastListed = null;
+    }
+
+    /// <summary>A row chosen in the text view makes the difference it is in (or the last one before it) current.</summary>
+    private void FollowRow()
+    {
+        if (_shown != Shown.Text || _settingDifference) return;
+        int row = _rows.SelectedIndex;
+        int index = _differenceRows.FindLastIndex(r => r <= row);
+        if (index != _current && index >= 0) SetCurrent(index, null);
+    }
+
+    /// <summary>
+    /// Past the listed differences (a comparison with more than <see cref="BinaryDiff.MaxRanges"/>), the next or previous
+    /// one is found by reading on from <paramref name="from"/>, off the UI thread. One found right after the last listed
+    /// one is listed too; others are shown without a number.
+    /// </summary>
+    private async void Search(bool forward, long from)
+    {
+        if (_searching || _bytes is not { } bytes || _closed) return;
+        _searching = true;
+        int view = _view;
+        var (left, right) = (_left, _right);
+        var ct = _work?.Token ?? CancellationToken.None;
+        bool afterListed = forward && (_current == _differences.Count - 1 && _current >= 0);
+        _status.Text = forward ? "Looking for the next difference…" : "Looking for the previous difference…";
+        var run = Task.Run(() => forward
+            ? BinaryDiff.NextDifference(left, right, bytes.LeftLength, bytes.RightLength, from, ct)
+            : BinaryDiff.PreviousDifference(left, right, bytes.LeftLength, bytes.RightLength, from, ct), ct);
+        _runs = Task.WhenAll(_runs, run);
+        (long Offset, long Length)? found;
+        try
+        {
+            found = await run;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or UnauthorizedAccessException or ObjectDisposedException)
+        {
+            if (!_closed && view == _view) _status.Text = ex is OperationCanceledException ? BytesHint : "The files could not be read: " + ex.Message;
+            return;
+        }
+        finally
+        {
+            _searching = false;
+        }
+        if (_closed || view != _view) return;
+        _status.Text = _hex.Status.Length > 0 ? _hex.Status : BytesHint;
+        if (found is not { } f)
+        {
+            // Nothing further that way: the listed ones were all when nothing follows the last of them.
+            if (afterListed)
+            {
+                _moreDifferences = false;
+                SetSummary(bytes);
+            }
+            if (forward) GoFirst();
+            else if (_differences.Count > 0) ShowDifference(_differences.Count - 1);
+            return;
+        }
+        var difference = SameOffsetDifference(f, bytes);
+        int index = _differences.FindIndex(d => d.LeftOffset == difference.LeftOffset);
+        if (index < 0 && afterListed)
+        {
+            // Right after the last listed one: it is the next in order, so it is listed (and numbered) too.
+            _differences.Add(difference);
+            _descriptions.Add(Describe(difference, _differences.Count - 1));
+            SetDifferences(keepCurrent: true);
+            index = _differences.Count - 1;
+        }
+        if (index >= 0)
+        {
+            ShowDifference(index);
+            return;
+        }
+        SetCurrent(-1, Describe(difference, -1));
+        _pastListed = difference;
+        _hex.ShowDifference(difference);
+    }
+
+    /// <summary>A differing run of the exact comparison: changed in place, or past the shorter file's end, only in the longer one.</summary>
+    private static AlignedRange SameOffsetDifference((long Offset, long Length) run, BinaryDiffResult bytes)
+    {
+        long common = Math.Min(bytes.LeftLength, bytes.RightLength);
+        if (run.Offset >= common && bytes.LeftLength != bytes.RightLength)
+            return bytes.LeftLength > bytes.RightLength
+                ? new AlignedRange(DiffKind.LeftOnly, run.Offset, run.Length, run.Offset, 0)
+                : new AlignedRange(DiffKind.RightOnly, run.Offset, 0, run.Offset, run.Length);
+        return new AlignedRange(DiffKind.Changed, run.Offset, run.Length, run.Offset, run.Length);
+    }
+
+    /// <summary>How the difference box says a binary difference ("2: 1 byte changed at offset 0x2AAC4").</summary>
+    private string Describe(AlignedRange d, int index)
+    {
+        string number = index >= 0 ? $"{index + 1:N0}: " : "Past the listed ones: ";
+        string text = d.Kind switch
+        {
+            DiffKind.Changed when d.LeftOffset == d.RightOffset && d.LeftLength == d.RightLength => $"{Bytes(d.LeftLength)} changed at offset 0x{d.LeftOffset:X}",
+            DiffKind.Changed => $"{Bytes(d.LeftLength, d.RightLength)} changed at 0x{d.LeftOffset:X} ↔ 0x{d.RightOffset:X}",
+            DiffKind.LeftOnly when _shown == Shown.Bytes => $"{Bytes(d.LeftLength)} only in the left file, from offset 0x{d.LeftOffset:X}",
+            DiffKind.RightOnly when _shown == Shown.Bytes => $"{Bytes(d.RightLength)} only in the right file, from offset 0x{d.RightOffset:X}",
+            DiffKind.LeftOnly => $"{Bytes(d.LeftLength)} removed (only left) at 0x{d.LeftOffset:X}",
+            DiffKind.RightOnly => $"{Bytes(d.RightLength)} inserted (only right) at 0x{d.RightOffset:X}",
+            _ => $"{d.LeftLength:N0} ↔ {d.RightLength:N0} bytes not aligned at 0x{d.LeftOffset:X} ↔ 0x{d.RightOffset:X}",
+        };
+        return number + text;
+    }
+
+    /// <summary>The difference box lists the view's differences (the first <see cref="MaxListed"/>).</summary>
+    private void SetDifferences(bool keepCurrent = false)
+    {
+        int current = _current;
+        _settingDifference = true;
+        try
+        {
+            _differenceBox.ItemsSource = _descriptions.Count > MaxListed ? _descriptions.GetRange(0, MaxListed) : _descriptions.ToList();
+            _differenceBox.IsEnabled = _descriptions.Count > 0 || _moreDifferences;
+            _differenceBox.PlaceholderText = _descriptions.Count == 0 ? "No differences" : null;
+        }
+        finally
+        {
+            _settingDifference = false;
+        }
+        foreach (var button in new[] { _first, _previous, _next, _last }) button.IsEnabled = _descriptions.Count > 0;
+        if (keepCurrent && current >= 0) SetCurrent(current, null);
+        else _current = -1;
+        _pastListed = null;
     }
 
     /// <summary>
@@ -231,7 +525,7 @@ public sealed class CompareWindow : Window
         var work = new CancellationTokenSource();
         _work = work;
         var ct = work.Token;
-        var (left, right) = (_left, _right);
+        var (left, right, leftView, rightView) = (_left, _right, _leftView, _rightView);
         IsComparing = true;
         _summary.Text = "Comparing…";
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -257,7 +551,8 @@ public sealed class CompareWindow : Window
                 var revisions = (Revision(left), Revision(right));
                 long total = Math.Max(left.Length, right.Length);
                 var bytes = BinaryDiff.Compare(left, right, ct, done => Progress(done, total));
-                var rows = ByteRows(left, right, bytes, ct);
+                // The byte view reads through pages of its own, a page at a time as it is scrolled.
+                var pages = (new PagedReader(leftView, 64), new PagedReader(rightView, 64));
                 TextSide? l = null, r = null;
                 string? problem = null;
                 try
@@ -275,10 +570,10 @@ public sealed class CompareWindow : Window
                     problem = ex.Message;
                     l = r = null;
                 }
-                return (bytes, rows, l, r, problem, revisions);
+                return (bytes, pages, l, r, problem, revisions);
             }, ct);
             if (_closed || ct.IsCancellationRequested) return;
-            (_bytes, _byteRows, _leftText, _rightText, _textProblem, _revisions) = loaded;
+            (_bytes, _pages, _leftText, _rightText, _textProblem, _revisions) = loaded;
             _aligning = null;
         }
         catch (OperationCanceledException)
@@ -316,15 +611,18 @@ public sealed class CompareWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException or NotSupportedException) { return null; }
     }
 
-    /// <summary>Contents are disposed once nothing reads them any more (a comparison or aligning stops at its next megabyte).</summary>
-    private void ReleaseWhenIdle(IContentSource left, IContentSource right)
+    /// <summary>
+    /// Contents are disposed once nothing reads them any more: a comparison, aligning or search stops at its next
+    /// megabyte, and the byte view's page reads are let finish (and later ones refused).
+    /// </summary>
+    private void ReleaseWhenIdle(IContentSource left, IContentSource right, ViewSource leftView, ViewSource rightView)
     {
         void Release()
         {
             left.Dispose();
             right.Dispose();
         }
-        var readers = Task.WhenAll(_loading, _aligningRuns);
+        var readers = Task.WhenAll(_loading, _runs, leftView.CloseAsync(), rightView.CloseAsync());
         if (readers.IsCompleted) Release();
         else readers.ContinueWith(_ => Release(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
     }
@@ -346,8 +644,9 @@ public sealed class CompareWindow : Window
                 right.Dispose();
                 return;
             }
-            ReleaseWhenIdle(_left, _right);
+            ReleaseWhenIdle(_left, _right, _leftView, _rightView);
             (_left, _right) = (left, right);
+            (_leftView, _rightView) = (new ViewSource(left), new ViewSource(right));
             _changedBanner.IsVisible = false;
             _loading = LoadAsync();
             await _loading;
@@ -383,28 +682,15 @@ public sealed class CompareWindow : Window
         _changedBanner.IsVisible = true;
     }
 
-    /// <summary>One row per differing byte range, with the first bytes of each side (read here, off the UI thread).</summary>
-    private static List<string> ByteRows(IContentSource left, IContentSource right, BinaryDiffResult bytes, CancellationToken ct)
-    {
-        var rows = new List<string>(bytes.Ranges.Count);
-        foreach (var (offset, length) in bytes.Ranges)
-        {
-            ct.ThrowIfCancellationRequested();
-            rows.Add($"0x{offset:X10}  {length,12:N0} {(length == 1 ? "byte " : "bytes")}   left {Hex(left, offset, length),-HexWidth}   right {Hex(right, offset, length)}");
-        }
-        return rows;
-    }
-
     /// <summary>Shows the comparison with the current options; lines are aligned off the UI thread (a million take a second).</summary>
     private async void Recompute()
     {
         if (_bytes is not { } bytes || _settingOptions) return;
         int view = ++_view;
-        _ignoreWhitespace.IsEnabled = _ignoreCase.IsEnabled = _collapse.IsEnabled = _binary.IsChecked != true;
         bool binary = _binary.IsChecked == true || _leftText is null || _rightText is null;
+        // Options show where they apply: aligning to bytes, the rest to lines.
         _align.IsVisible = binary;
-        // Byte rows are wider than most windows; text rows fit their columns to the window.
-        ScrollViewer.SetHorizontalScrollBarVisibility(_rows, binary ? Avalonia.Controls.Primitives.ScrollBarVisibility.Auto : Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+        _ignoreWhitespace.IsVisible = _ignoreCase.IsVisible = _collapse.IsVisible = !binary;
         // Identical files need no aligning: the exact comparison says so.
         bool aligned = binary && _align.IsChecked == true && !bytes.Equal;
         if (!aligned && _aligning is { IsCompleted: false })
@@ -429,41 +715,65 @@ public sealed class CompareWindow : Window
         var shown = await Task.Run(() => BuildText(left, right, bytes, options, collapse));
         // Options changed meanwhile, or the files were compared again: a newer view is on its way.
         if (view != _view || _closed) return;
+        Show(Shown.Text);
         _rows.ItemsSource = shown.Rows;
         _differenceRows = shown.Differences;
+        _descriptions = shown.Descriptions;
+        _moreDifferences = false;
+        SetDifferences();
         ShowFirstDifference();
         _summary.Text = shown.Summary;
         IsComparing = false;
     }
 
+    /// <summary>The text rows, or the bytes (with the status line under them).</summary>
+    private void Show(Shown shown)
+    {
+        _shown = shown;
+        bool text = shown == Shown.Text;
+        _rows.IsVisible = text;
+        _hex.IsVisible = !text;
+        _statusBar.IsVisible = !text;
+        if (text) _hex.SetContent(null, null, null, []);
+        else _rows.ItemsSource = null;
+    }
+
     private void ShowBinary(BinaryDiffResult bytes)
     {
         _view++;
-        var rows = new List<object>(_byteRows);
-        var diff = Enumerable.Range(0, rows.Count).ToList();
-        _rows.ItemsSource = rows;
-        _differenceRows = diff;
+        Show(Shown.Bytes);
+        _differences = [.. bytes.Ranges.Select(r => SameOffsetDifference(r, bytes))];
+        _descriptions = [.. _differences.Select(Describe)];
+        _moreDifferences = bytes.RangesTruncated;
+        SetDifferences();
+        _hex.SetContent(_pages?.Left, _pages?.Right, null, _differences);
         ShowFirstDifference();
-        string note = _textProblem is { } p && _leftText is null ? " " + p : "";
-        _summary.Text = bytes.Equal
-            ? $"Identical: every byte was compared ({bytes.LeftLength:N0} bytes).{note}"
-            : $"{bytes.Ranges.Count:N0}{(bytes.RangesTruncated ? "+" : "")} differing byte ranges at the same offsets" +
-              (bytes.LeftLength != bytes.RightLength ? $"; lengths {bytes.LeftLength:N0} and {bytes.RightLength:N0} bytes" : "") +
-              (bytes.RangesTruncated ? $"; the first {BinaryDiff.MaxRanges:N0} are listed" : "") +
-              ". Shifted content shows as differences from the shift on (Align shifted bytes finds it again)." + note;
+        SetSummary(bytes);
         IsComparing = false;
     }
 
+    private void SetSummary(BinaryDiffResult bytes)
+    {
+        string note = _textProblem is { } p && _leftText is null ? " " + p : "";
+        _summary.Text = bytes.Equal
+            ? $"Identical: every byte was compared ({bytes.LeftLength:N0} bytes).{note}"
+            : $"{_differences.Count:N0}{(_moreDifferences ? "+" : "")} differing byte ranges at the same offsets" +
+              (bytes.LeftLength != bytes.RightLength ? $"; lengths {bytes.LeftLength:N0} and {bytes.RightLength:N0} bytes" : "") +
+              (_moreDifferences ? $"; the first {_differences.Count:N0} are listed, and Next difference finds the rest" : "") +
+              ". Shifted content shows as differences from the shift on (Align shifted bytes finds it again)." + note;
+    }
+
     /// <summary>
-    /// Binary content aligned where bytes were inserted or removed (plan §16.2): each stretch is a row, every stretch that
-    /// is not equal is a difference to go to, and the summary says what was found and that the pairing is heuristic.
+    /// Binary content aligned where bytes were inserted or removed (plan §16.2): the stretches side by side, every
+    /// stretch that is not equal is a difference to go to, and the summary says what was found and that the pairing is
+    /// heuristic.
     /// </summary>
     private async Task ShowAlignedAsync(int view)
     {
         IsComparing = true;
         var task = _aligning ??= StartAligning();
         if (!task.IsCompleted) _summary.Text = "Aligning shifted bytes…";
-        (AlignedBinaryResult Result, List<object> Rows) shown;
+        (AlignedBinaryResult Result, List<AlignedRange> Differences) shown;
         try
         {
             shown = await task;
@@ -482,15 +792,19 @@ public sealed class CompareWindow : Window
             return;
         }
         if (view != _view || _closed) return;
-        var (aligned, rows) = shown;
-        _rows.ItemsSource = rows;
-        _differenceRows = [.. Enumerable.Range(0, rows.Count).Where(i => rows[i] is AlignedRow { Kind: not DiffKind.Equal })];
+        var (aligned, differences) = shown;
+        Show(Shown.Aligned);
+        _differences = differences;
+        _descriptions = [.. differences.Select(Describe)];
+        _moreDifferences = false;
+        SetDifferences();
+        _hex.SetContent(_pages?.Left, _pages?.Right, aligned.Ranges, differences);
         ShowFirstDifference();
-        _summary.Text = AlignedSummary(aligned);
+        _summary.Text = AlignedSummary(aligned, differences.Count);
         IsComparing = false;
     }
 
-    private Task<(AlignedBinaryResult Result, List<object> Rows)> StartAligning()
+    private Task<(AlignedBinaryResult Result, List<AlignedRange> Differences)> StartAligning()
     {
         var stop = CancellationTokenSource.CreateLinkedTokenSource(_work?.Token ?? CancellationToken.None);
         _aligningStop = stop;
@@ -512,39 +826,17 @@ public sealed class CompareWindow : Window
                     if (!ct.IsCancellationRequested && !_closed) _summary.Text = text;
                 });
             });
-            return (result, AlignedRows(left, right, result, ct));
+            return (result, result.Ranges.Where(r => r.Kind != DiffKind.Equal).ToList());
         }, ct);
-        _aligningRuns = Task.WhenAll(_aligningRuns, run);
+        _runs = Task.WhenAll(_runs, run);
         return run;
-    }
-
-    /// <summary>One row per aligned stretch, with offsets and the first bytes of what differs (read here, off the UI thread).</summary>
-    private static List<object> AlignedRows(IContentSource left, IContentSource right, AlignedBinaryResult aligned, CancellationToken ct)
-    {
-        int count = Math.Min(aligned.Ranges.Count, MaxAlignedRows);
-        var rows = new List<object>(count + 1);
-        foreach (var r in aligned.Ranges.Take(count))
-        {
-            ct.ThrowIfCancellationRequested();
-            string at = $"left 0x{r.LeftOffset:X10}  right 0x{r.RightOffset:X10}  ";
-            rows.Add(new AlignedRow(r.Kind, r.Kind switch
-            {
-                DiffKind.Equal => $"= {at}{Bytes(r.LeftLength)} equal",
-                DiffKind.Changed => $"≠ {at}{Bytes(r.LeftLength, r.RightLength)} changed   left {Hex(left, r.LeftOffset, r.LeftLength)}   right {Hex(right, r.RightOffset, r.RightLength)}",
-                DiffKind.LeftOnly => $"− {at}{Bytes(r.LeftLength)} only left (removed)   {Hex(left, r.LeftOffset, r.LeftLength)}",
-                DiffKind.RightOnly => $"+ {at}{Bytes(r.RightLength)} only right (inserted)   {Hex(right, r.RightOffset, r.RightLength)}",
-                _ => $"… {at}{r.LeftLength:N0} left and {r.RightLength:N0} right bytes not aligned: the work limit was reached",
-            }));
-        }
-        if (aligned.Ranges.Count > count) rows.Add($"   ⋯ {aligned.Ranges.Count - count:N0} more stretches are not listed");
-        return rows;
     }
 
     /// <summary>"1 byte", "40,000 bytes"; two different counts as "3 → 5 bytes".</summary>
     private static string Bytes(long left, long? right = null) =>
         right is { } r && r != left ? $"{left:N0} → {r:N0} bytes" : left == 1 ? "1 byte" : $"{left:N0} bytes";
 
-    private static string AlignedSummary(AlignedBinaryResult aligned)
+    private static string AlignedSummary(AlignedBinaryResult aligned, int differences)
     {
         static string Stretches(IReadOnlyList<AlignedRange> ranges, DiffKind kind, string what)
         {
@@ -571,33 +863,34 @@ public sealed class CompareWindow : Window
         }
         summary.Append('.');
         if (!aligned.Complete) summary.Append(" The work limit was reached: the rest is not aligned.");
-        if (aligned.Ranges.Count > MaxAlignedRows) summary.Append($" The first {MaxAlignedRows:N0} stretches are listed.");
+        if (differences > MaxListed) summary.Append($" The first {MaxListed:N0} differences are listed; the arrows go through all of them.");
         summary.Append($" Heuristic: matched in blocks of {aligned.BlockSize:N0} bytes, so shorter equal stretches and moved or repeated content can be paired differently.");
         return summary.ToString();
     }
 
-    /// <summary>The widest <see cref="Hex"/> text: 16 bytes and an ellipsis (columns of rows line up at it).</summary>
-    private const int HexWidth = 16 * 3 - 1 + 2;
-
-    private static string Hex(IContentSource source, long offset, long length)
-    {
-        var buffer = new byte[(int)Math.Min(16, Math.Max(0, length))];
-        int n;
-        try { n = source.Read(offset, buffer); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException) { return "?"; }
-        return n == 0 ? "(end)" : BitConverter.ToString(buffer, 0, n).Replace('-', ' ') + (length > 16 ? " …" : "");
-    }
-
-    private static (List<object> Rows, List<int> Differences, string Summary) BuildText(TextSide left, TextSide right, BinaryDiffResult bytes,
+    private static (List<object> Rows, List<int> Differences, List<string> Descriptions, string Summary) BuildText(TextSide left, TextSide right, BinaryDiffResult bytes,
         TextDiffOptions options, bool collapse)
     {
         var result = TextDiff.Compare(left.Lines, right.Lines, options);
         var rows = new List<object>();
         var diff = new List<int>();
+        var descriptions = new List<string>();
         int endings = 0, changed = 0, leftOnly = 0, rightOnly = 0;
+        static string Lines(int n) => n == 1 ? "1 line" : $"{n:N0} lines";
         foreach (var block in result.Blocks)
         {
-            if (block.Kind != DiffKind.Equal) diff.Add(rows.Count);
+            if (block.Kind != DiffKind.Equal)
+            {
+                diff.Add(rows.Count);
+                int l = block.LeftStart + 1, r = block.RightStart + 1;
+                descriptions.Add($"{diff.Count:N0}: " + block.Kind switch
+                {
+                    DiffKind.Changed => $"{Lines(block.LeftCount)} changed at line {l:N0}" + (r != l ? $" (right {r:N0})" : ""),
+                    DiffKind.LeftOnly => $"{Lines(block.LeftCount)} only left, at line {l:N0}",
+                    DiffKind.RightOnly => $"{Lines(block.RightCount)} only right, at line {r:N0}",
+                    _ => $"{block.LeftCount:N0} left and {block.RightCount:N0} right lines not aligned, at line {l:N0}",
+                });
+            }
             switch (block.Kind)
             {
                 case DiffKind.Equal:
@@ -654,7 +947,7 @@ public sealed class CompareWindow : Window
             summary.Append('.');
             if (result.Approximate) summary.Append(" Some regions were too large to align line by line; they are shown unaligned, not paired.");
         }
-        return (rows, diff, summary.ToString());
+        return (rows, diff, descriptions, summary.ToString());
     }
 
     private static IBrush KindBrush(DiffKind kind) => kind switch
@@ -706,5 +999,58 @@ public sealed class CompareWindow : Window
         if (!number && text.Length > 80) ToolTip.SetTip(block, text);
         Grid.SetColumn(block, column);
         grid.Children.Add(block);
+    }
+
+    /// <summary>
+    /// The byte view's way to a content: its reads are counted, so the content is disposed only after the ones under way
+    /// finished, and refused once the window let go of it (the view's page loads run on pool threads).
+    /// </summary>
+    private sealed class ViewSource(IContentSource inner) : IContentSource
+    {
+        private readonly object _lock = new();
+        private readonly TaskCompletionSource _idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _reading;
+        private bool _closed;
+
+        public string DisplayName => inner.DisplayName;
+        public long Length => inner.Length;
+        public bool CanSeek => inner.CanSeek;
+        public string? LocalPath => inner.LocalPath;
+
+        public int Read(long offset, Span<byte> buffer)
+        {
+            lock (_lock)
+            {
+                ObjectDisposedException.ThrowIf(_closed, this);
+                _reading++;
+            }
+            try
+            {
+                return inner.Read(offset, buffer);
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    if (--_reading == 0 && _closed) _idle.TrySetResult();
+                }
+            }
+        }
+
+        public ContentRevision? GetRevision() => inner.GetRevision();
+
+        /// <summary>Refuses further reads; completes when the ones under way finished.</summary>
+        public Task CloseAsync()
+        {
+            lock (_lock)
+            {
+                _closed = true;
+                if (_reading == 0) _idle.TrySetResult();
+            }
+            return _idle.Task;
+        }
+
+        /// <summary>The window disposes the content itself.</summary>
+        public void Dispose() { }
     }
 }
