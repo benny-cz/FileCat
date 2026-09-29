@@ -1,12 +1,14 @@
 using System.Security.Cryptography;
 using System.Text;
 using FileCat.Core.Content;
+using FileCat.Core.FileSystem;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
 /// <summary>A durable journal of one in-place save: target identity, length, and original/replacement ranges.</summary>
 /// <param name="WrittenRanges">Ranges the save recorded as written and flushed before it stopped (the next may be partial).</param>
-public sealed record HexRecoveryRecord(string JournalPath, string TargetPath, WindowsFileIdentity Identity,
+public sealed record HexRecoveryRecord(string JournalPath, string TargetPath, FileIdentity Identity,
     long Length, IReadOnlyList<HexPatchRange> Ranges, int WrittenRanges, DateTime CreatedUtc);
 
 /// <summary>What the target holds now, compared with a journal. <see cref="Blocker"/> is set when recovery is unsafe.</summary>
@@ -125,7 +127,7 @@ public static class HexSaveJournal
         int pathLength = reader.ReadInt32();
         if (pathLength < 1 || pathLength > 32768) throw new InvalidDataException("Invalid hex journal path.");
         string target = new UTF8Encoding(false, true).GetString(reader.ReadBytes(pathLength));
-        var identity = new WindowsFileIdentity(reader.ReadUInt64(), Convert.ToHexString(reader.ReadBytes(16)));
+        var identity = new FileIdentity(reader.ReadUInt64(), Convert.ToHexString(reader.ReadBytes(16)));
         long length = reader.ReadInt64();
         int count = reader.ReadInt32();
         if (length < 0 || count < 0 || count > HexPatchOverlay.MaxTouchedBytes)
@@ -162,20 +164,37 @@ public static class HexSaveJournal
 
     /// <summary>
     /// Compares the target with the journal without changing anything. Opens the path with full sharing, so it also
-    /// works while another program reads the file; recovery itself re-verifies under the protected handle.
+    /// works while another program reads the file; recovery itself re-verifies under the protected handle. An editor
+    /// that still has the file open passes it as <paramref name="openFile"/>, which reads what the save wrote.
     /// </summary>
-    public static HexRecoveryInspection Inspect(HexRecoveryRecord record)
+    public static HexRecoveryInspection Inspect(HexRecoveryRecord record, ProtectedHexFile? openFile = null)
     {
+        if (openFile is not null)
+        {
+            if (openFile.FileIdentity != record.Identity)
+                return new HexRecoveryInspection(0, 0, 0, "A different file now has this name, so the journal no longer applies to it.");
+            if (openFile.Length != record.Length)
+                return new HexRecoveryInspection(0, 0, 0, "The file's length changed after the save stopped, so another program modified it.");
+            return Compare(record.Ranges, (offset, buffer) => openFile.Read(offset, buffer));
+        }
         string path;
         try { path = ProtectedHexFile.LocalFullPath(record.TargetPath); }
         catch (NotSupportedException ex) { return new HexRecoveryInspection(0, 0, 0, ex.Message); }
         if (!File.Exists(path)) return new HexRecoveryInspection(0, 0, 0, "The file no longer exists at this path.");
-        using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (ProtectedHexFile.Identity(handle) != record.Identity)
-            return new HexRecoveryInspection(0, 0, 0, "A different file now has this name, so the journal no longer applies to it.");
-        if (RandomAccess.GetLength(handle) != record.Length)
-            return new HexRecoveryInspection(0, 0, 0, "The file's length changed after the save stopped, so another program modified it.");
-        return Compare(record.Ranges, (offset, buffer) => RandomAccess.Read(handle, buffer, offset));
+        SafeFileHandle handle;
+        try { handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete); }
+        catch (IOException ex) when (ex is not FileNotFoundException)
+        {
+            return new HexRecoveryInspection(0, 0, 0, "Another program holds the file (a hex editor may have it open). Close it, then look again.");
+        }
+        using (handle)
+        {
+            if (ProtectedHexFile.Identity(handle) != record.Identity)
+                return new HexRecoveryInspection(0, 0, 0, "A different file now has this name, so the journal no longer applies to it.");
+            if (RandomAccess.GetLength(handle) != record.Length)
+                return new HexRecoveryInspection(0, 0, 0, "The file's length changed after the save stopped, so another program modified it.");
+            return Compare(record.Ranges, (offset, buffer) => RandomAccess.Read(handle, buffer, offset));
+        }
     }
 
     /// <summary>

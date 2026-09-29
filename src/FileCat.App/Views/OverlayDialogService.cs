@@ -219,7 +219,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var tcs = new TaskCompletionSource<bool>();
         var ok = new Button { Content = confirmText, IsDefault = true, Classes = { danger ? "danger" : "primary" } };
         var cancel = new Button { Content = cancelText, IsCancel = true };
-        var text = new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+        var text = MessageBody(message);
         Session? session = null;
         void Finish(bool r)
         {
@@ -248,6 +248,34 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     /// </summary>
     private static string OneLineBreak(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
+    /// <summary>
+    /// A message as selectable text, a block per line, with space where a blank line separated paragraphs: a line
+    /// break inside one wrapped text makes Avalonia's text layout (headless, at least) add empty lines without end.
+    /// </summary>
+    private static Control MessageBody(string message)
+    {
+        var lines = OneLineBreak(message).Split('\n');
+        if (lines.Length == 1) return new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+        var body = new StackPanel { MaxWidth = 620 };
+        bool paragraph = false;
+        foreach (var line in lines)
+        {
+            if (line.Trim().Length == 0)
+            {
+                paragraph = body.Children.Count > 0;
+                continue;
+            }
+            body.Children.Add(new SelectableTextBlock
+            {
+                Text = line,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, paragraph ? 10 : 0, 0, 0),
+            });
+            paragraph = false;
+        }
+        return body;
+    }
+
     public Task AlertAsync(string title, string message)
     {
         message = OneLineBreak(message);
@@ -261,7 +289,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             tcs.TrySetResult();
         }
         ok.Click += (_, _) => Finish();
-        session = Show(Card(title, new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 }, ButtonRow(ok), 680), ok, top: false, Finish);
+        session = Show(Card(title, MessageBody(message), ButtonRow(ok), 680), ok, top: false, Finish);
         return tcs.Task;
     }
 

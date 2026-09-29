@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using FileCat.Core.Content;
+using FileCat.Core.FileSystem;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
@@ -89,9 +90,18 @@ public static partial class HexSaveAs
         }
     }
 
-    /// <summary>Mark-of-the-Web is security metadata (plan §8.1): a derived copy of downloaded content keeps it.</summary>
+    /// <summary>
+    /// Mark-of-the-Web is security metadata (plan §8.1): a derived copy of downloaded content keeps it (on Linux and
+    /// macOS, the extended attributes that stand for it).
+    /// </summary>
     private static HexOriginMark CopyOriginMark(string source, string target)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            var unix = new UnixFileOperations();
+            if (unix.ReadOriginMark(source) is not { } origin) return HexOriginMark.None;
+            return unix.WriteOriginMark(target, origin) ? HexOriginMark.Copied : HexOriginMark.Lost;
+        }
         string? mark;
         try { mark = File.Exists(source + ZoneStream) ? File.ReadAllText(source + ZoneStream) : null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { mark = null; }
@@ -155,8 +165,15 @@ public static partial class HexSaveAs
         return DeviceIoControl(handle, SetSparse, null, 0, null, 0, out _, IntPtr.Zero);
     }
 
-    private static long FreeBytes(string directory) =>
-        Native.NativeMethods.GetDiskFreeSpaceEx(directory, out ulong available, out _, out _) ? (long)Math.Min(available, long.MaxValue) : -1;
+    private static long FreeBytes(string directory)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            try { return UnixFiles.MountOf(Path.GetFullPath(directory))?.AvailableFreeSpace ?? -1; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return -1; }
+        }
+        return Native.NativeMethods.GetDiskFreeSpaceEx(directory, out ulong available, out _, out _) ? (long)Math.Min(available, long.MaxValue) : -1;
+    }
 
     private static string Format(long bytes) => bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.#} GiB" : $"{bytes / (double)(1L << 20):0.#} MiB";
 

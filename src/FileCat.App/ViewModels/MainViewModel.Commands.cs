@@ -73,8 +73,6 @@ public sealed partial class MainViewModel
                 return CommandAvailability.No(Platform.Windows.RegistryAliases.ReadOnlyReason);
             case CommandIds.HexEdit:
             {
-                if (!OperatingSystem.IsWindows())
-                    return CommandAvailability.No("Editing bytes works on Windows in this version; View as hex (Alt+F3) shows them here.");
                 if (tab is null || !tab.Listing.TryGetFocused(out var hexRow) || hexRow.IsContainer || hexRow.Kind == EntryKind.Parent)
                     return CommandAvailability.No("Focus a file to edit its bytes.");
                 var hexPath = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath;

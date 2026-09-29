@@ -16,7 +16,6 @@ public sealed class HexEditorSmokeTests
     [AvaloniaFact]
     public void Hex_editor_types_both_columns_undoes_saves_in_place_and_holds_exit_while_dirty()
     {
-        if (!OperatingSystem.IsWindows()) return;
         string root = Path.Combine(Path.GetTempPath(), "filecat-hexui-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string file = Path.Combine(root, "small.bin");

@@ -100,7 +100,8 @@ public sealed class HexEditorWindow : Window
         var hint = new TextBlock
         {
             Classes = { "small", "muted" },
-            Text = "Type hex digits to overwrite bytes · Tab switches between the hex and text columns · the file length never changes · modified bytes are underlined",
+            Text = "Type hex digits to overwrite bytes · Tab switches between the hex and text columns · the file length never changes · modified bytes are underlined"
+                + (ProtectedHexFile.ExcludesWriters ? string.Empty : " · other programs can still write this file here, so each save first checks that the bytes it replaces are unchanged"),
             Margin = new Thickness(8, 0, 8, 4),
             TextWrapping = TextWrapping.Wrap,
         };
@@ -611,6 +612,19 @@ public sealed class HexEditorWindow : Window
                     dontAsk,
                 },
             };
+            if (!ProtectedHexFile.ExcludesWriters)
+            {
+                // Linux and macOS (D-45): detection instead of exclusion, said before the user chooses it.
+                body.Children.Insert(2, new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 620,
+                    Classes = { "warning" },
+                    Text = "Other programs can write this file while it is open here. FileCat first checks that this is still the same file " +
+                           "and that every byte it replaces still holds the value you saw, and saves nothing otherwise; a program writing " +
+                           "the same bytes during the save itself could still be overwritten. Save As writes a new file instead.",
+                });
+            }
             var answer = await _dialogs.ShowCustomAsync("Save in place?", body,
                 [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Save in place", "save", IsDefault: true)]);
             if (answer as string != "save") return;
@@ -649,14 +663,15 @@ public sealed class HexEditorWindow : Window
         try { _interrupted = HexSaveJournal.Read(journalPath); }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            _ = _dialogs.AlertAsync("Save stopped", reason + "\n\nIts recovery journal could not be read back: " + ex.Message +
-                "\nClose this editor and use Tools → Recover interrupted hex save.");
+            // One paragraph: line breaks inside one wrapped text spin Avalonia's headless layout.
+            _ = _dialogs.AlertAsync("Save stopped", reason + " Its recovery journal could not be read back: " + ex.Message +
+                " Close this editor and use Tools → Recover interrupted hex save.");
             return;
         }
         string state;
         try
         {
-            var inspection = HexSaveJournal.Inspect(_interrupted);
+            var inspection = HexSaveJournal.Inspect(_interrupted, _file);
             state = inspection.Blocker ?? $"{inspection.ReplacedRanges} of {_interrupted.Ranges.Count} changed ranges have the new bytes" +
                 (inspection.MixedRanges > 0 ? $", {inspection.MixedRanges} partly" : "") + ".";
         }
