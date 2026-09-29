@@ -66,7 +66,7 @@ public sealed class ChooserTests
         try
         {
             var ct = TestContext.Current.CancellationToken;
-            vm.Execute(Core.Commands.CommandIds.LocationMenuLeft);
+            vm.Execute(Core.Commands.CommandIds.LocationMenuSource);
             var dialogs = (OverlayDialogService)vm.Dialogs;
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             List<ListBoxItem> Rows() => window.GetVisualDescendants().OfType<ListBoxItem>().ToList();

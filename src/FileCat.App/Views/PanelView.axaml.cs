@@ -83,21 +83,56 @@ public partial class PanelView : UserControl
         {
             if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
             _main = vm;
-            vm.DriveButtonsChanged += BuildDriveButtons;
+            vm.PlacesChanged += OnPlacesChanged;
             if (vm.Services.Icons.Native is { } native) native.IconsLoaded += OnIconsLoaded;
-            BuildDriveButtons();
+            ThemeManager.ThemeChanged += OnThemeChanged;
+            BuildPlaceButtons(force: true);
         };
         DetachedFromVisualTree += (_, _) =>
         {
             if (_main is not null)
             {
-                _main.DriveButtonsChanged -= BuildDriveButtons;
+                _main.PlacesChanged -= OnPlacesChanged;
                 if (_main.Services.Icons.Native is { } native) native.IconsLoaded -= OnIconsLoaded;
+                ThemeManager.ThemeChanged -= OnThemeChanged;
             }
             _main = null;
         };
         // The mouse's back and forward buttons go through this panel's history, wherever in the panel they are pressed.
         AddHandler(PointerPressedEvent, OnHistoryButton, RoutingStrategies.Tunnel, handledEventsToo: true);
+        // A press anywhere in a panel makes it the source (and, with two panels, the other one the target).
+        AddHandler(PointerPressedEvent, OnAnyPress, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    private void OnPlacesChanged() => BuildPlaceButtons();
+
+    /// <summary>
+    /// A press anywhere in the panel (its list, tabs, path, place buttons, or status line) makes it the source panel,
+    /// and the keyboard follows when it was in another panel. "Set as target" on another panel is the exception: it
+    /// changes where F5 and F6 go and the keyboard stays where it is.
+    /// </summary>
+    private void OnAnyPress(object? sender, PointerPressedEventArgs e)
+    {
+        if (Panel is not { } panel) return;
+        if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is { } button &&
+            ReferenceEquals(button, RoleButton) && panel.OffersTarget) return;
+        if (!panel.IsActive) Activated?.Invoke();
+        // After the press is handled: a press that gave the keyboard to something here (the path box, a rename) keeps it.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (FocusIsInAnotherPanel() is not false) List.Focus();
+        }, DispatcherPriority.Input);
+    }
+
+    /// <summary>
+    /// Whether the keyboard is in another panel of this window: false when it is in this one or elsewhere in the window
+    /// (the command line, say), null when nothing has it (a press on something that takes no keyboard clears it).
+    /// </summary>
+    private bool? FocusIsInAnotherPanel()
+    {
+        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is not Visual focused) return null;
+        if (ReferenceEquals(focused, this) || this.IsVisualAncestorOf(focused)) return false;
+        return focused.FindAncestorOfType<PanelView>() is not null;
     }
 
     private void OnHistoryButton(object? sender, PointerPressedEventArgs e)
@@ -118,50 +153,117 @@ public partial class PanelView : UserControl
     private PanelViewModel? _hookedSource;
     private MainViewModel? _main;
 
+    private string? _placesShown;
+
     /// <summary>
-    /// One button per drive (its icon and letter; on Linux and macOS the mount point's name), then Home and This PC. A
-    /// click opens it in this panel, a middle click in a new tab.
+    /// The place buttons (D-52, D-53): everything the location menu (Alt+F1, Alt+F2) offers, one button each, in its
+    /// order and groups: drives with their letters (on Linux and macOS the mount point's name), This PC, phones, working
+    /// sets, the Registry, the home and special folders, then bookmarks and saved servers by name. A click opens the
+    /// place in this panel, a middle click in a new tab; the right button offers both and a place's other views. They
+    /// are made anew only when what they show changed, or their icons did.
     /// </summary>
-    private void BuildDriveButtons()
+    private void BuildPlaceButtons(bool force = false)
     {
+        if (_main is not { } vm)
+        {
+            DriveButtonsPanel.Children.Clear();
+            _placesShown = null;
+            return;
+        }
+        var places = vm.BarPlaces();
+        string shown = string.Join("\n", places.Select(p => $"{p.Group}|{p.Title}|{p.Detail}|{p.BarLabel}|{p.Location}|{p.Location?.Session}"));
+        if (!force && shown == _placesShown)
+        {
+            MarkCurrentPlace();
+            return;
+        }
+        _placesShown = shown;
         DriveButtonsPanel.Children.Clear();
-        if (_main is not { } vm) return;
-        var icons = vm.Services.Icons;
-        void Add(string label, string tip, Core.Resources.Location target, Func<Avalonia.Media.IImage?> icon)
+        PlaceGroup? group = null;
+        foreach (var place in places)
         {
-            var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 3 };
-            if (icon() is { } image) content.Children.Add(new Image { Source = image, Width = 16, Height = 16 });
-            if (label.Length > 0) content.Children.Add(new TextBlock { Text = label, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
-            var button = new Button { Classes = { "drive" }, Content = content, Tag = target };
-            ToolTip.SetTip(button, tip);
-            Avalonia.Automation.AutomationProperties.SetName(button, tip.Split(" · ")[0]);
-            button.Click += (_, _) => OpenFromBar(target, newTab: false);
-            button.PointerReleased += (_, e) =>
+            if (group is { } previous && previous != place.Group) DriveButtonsPanel.Children.Add(new Border { Classes = { "placeGap" } });
+            group = place.Group;
+            DriveButtonsPanel.Children.Add(PlaceButton(place));
+        }
+        // Last: the places that do not fit the row.
+        var more = new Button { Classes = { "drive" }, Content = new TextBlock { Text = "»", FontWeight = Avalonia.Media.FontWeight.Bold, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center } };
+        ToolTip.SetTip(more, "More places: those the row has no room for");
+        Avalonia.Automation.AutomationProperties.SetName(more, "More places");
+        more.Click += (_, _) => ShowMorePlaces(more);
+        DriveButtonsPanel.Children.Add(more);
+        MarkCurrentPlace();
+    }
+
+    /// <summary>The » button's menu: the places the row has no room for, in their groups, each with its icon.</summary>
+    private void ShowMorePlaces(Button more)
+    {
+        var items = new List<Control>();
+        PlaceGroup? group = null;
+        foreach (var place in DriveButtonsPanel.Hidden.Select(c => c.Tag).OfType<Place>())
+        {
+            if (group is { } previous && previous != place.Group) items.Add(new Separator());
+            group = place.Group;
+            var item = new MenuItem { Header = place.Title };
+            if (place.Icon() is { } image) item.Icon = new Image { Source = image, Width = 16, Height = 16 };
+            ToolTip.SetTip(item, place.Detail);
+            item.Click += (_, _) => OpenPlace(place, newTab: false);
+            items.Add(item);
+        }
+        if (items.Count > 0) new ContextMenu { ItemsSource = items }.Open(more);
+    }
+
+    private Button PlaceButton(Place place)
+    {
+        var content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 3 };
+        if (place.Icon() is { } image) content.Children.Add(new Image { Source = image, Width = 16, Height = 16 });
+        if (place.BarLabel is { Length: > 0 } label)
+            content.Children.Add(new TextBlock
             {
-                if (e.InitialPressMouseButton != MouseButton.Middle) return;
-                OpenFromBar(target, newTab: true);
+                Text = label,
+                MaxWidth = 120,
+                TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            });
+        var button = new Button { Classes = { "drive" }, Content = content, Tag = place };
+        var tip = new List<string> { place.Title };
+        if (place.Detail is { Length: > 0 } detail) tip.Add(detail);
+        if (place.BarTip is { } more) tip.Add(more);
+        if (!place.Connects) tip.Add("a middle click opens it in a new tab");
+        if (place.Variants.Count > 0) tip.Add("the right button offers " + string.Join(" and ", place.Variants.Select(v => v.Title)));
+        ToolTip.SetTip(button, string.Join(" · ", tip));
+        Avalonia.Automation.AutomationProperties.SetName(button, place.Title);
+        button.Click += (_, _) => OpenPlace(place, newTab: false);
+        button.PointerReleased += (_, e) =>
+        {
+            if (e.InitialPressMouseButton != MouseButton.Middle || place.Connects) return;
+            OpenPlace(place, newTab: true);
+            e.Handled = true;
+        };
+        if (!place.Connects)
+            button.ContextRequested += (_, e) =>
+            {
                 e.Handled = true;
+                PlaceMenu(place).Open(button);
             };
-            DriveButtonsPanel.Children.Add(button);
-        }
-        foreach (var tag in vm.DriveButtons)
+        return button;
+    }
+
+    /// <summary>A place button's menu: here or in a new tab, and the place's other views.</summary>
+    private ContextMenu PlaceMenu(Place place)
+    {
+        var items = new List<Control>();
+        void Add(string header, Action act)
         {
-            string root = tag.RootPath;
-            string name = OperatingSystem.IsWindows() ? root.TrimEnd('\\') : root;
-            string label = OperatingSystem.IsWindows() ? name.TrimEnd(':') : root == "/" ? "/" : Path.GetFileName(root.TrimEnd('/'));
-            var drive = new Core.Resources.EntryData(name, Core.Resources.EntryKind.Drive) { Tag = tag };
-            Add(label, $"{name} · {MainViewModel.DriveDetail(tag)} · a middle click opens it in a new tab", Core.Resources.Location.FileSystem(root), () => icons.GetIcon(drive));
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) => act();
+            items.Add(item);
         }
-        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (home.Length > 0)
-        {
-            var folder = new Core.Resources.EntryData(Path.GetFileName(home), Core.Resources.EntryKind.Directory);
-            var parent = Path.GetDirectoryName(home) is { } p ? Core.Resources.Location.FileSystem(p) : null;
-            Add("", $"Home · {home}", Core.Resources.Location.FileSystem(home), () => icons.GetIcon(folder, parent));
-        }
-        var thisPc = new Core.Resources.Location(Core.Resources.Schemes.Computer, string.Empty);
-        Add("", $"{vm.Services.Providers.Display(thisPc)} · all drives", thisPc, () => icons.GetPlaceIcon(IconKind.Computer));
-        MarkCurrentDrive();
+        Add("Open here", () => OpenPlace(place, newTab: false));
+        Add("Open in a new tab", () => OpenPlace(place, newTab: true));
+        if (place.Variants.Count > 0) items.Add(new Separator());
+        foreach (var variant in place.Variants) Add(variant.Title, () => OpenPlace(variant, newTab: false));
+        return new ContextMenu { ItemsSource = items };
     }
 
     private bool _iconsPending;
@@ -174,28 +276,39 @@ public partial class PanelView : UserControl
         Dispatcher.UIThread.Post(() =>
         {
             _iconsPending = false;
-            BuildDriveButtons();
+            BuildPlaceButtons(force: true);
         }, DispatcherPriority.Background);
     }
 
-    private void OpenFromBar(Core.Resources.Location target, bool newTab)
+    private void OnThemeChanged() => Dispatcher.UIThread.Post(() => BuildPlaceButtons(force: true), DispatcherPriority.Background);
+
+    private void OpenPlace(Place place, bool newTab)
     {
         Activated?.Invoke();
-        if (_main is { } vm && Panel is { } panel) vm.OpenDrive(panel, target, newTab);
+        if (_main is { } vm && Panel is { } panel) vm.OpenPlace(panel, place, newTab);
     }
 
-    /// <summary>The button of the drive this panel shows is outlined (This PC's when it shows This PC).</summary>
-    private void MarkCurrentDrive()
+    /// <summary>
+    /// The button of where this panel is, outlined: its drive, This PC, phones, the Registry, a server, or a folder
+    /// or bookmark it shows exactly.
+    /// </summary>
+    private void MarkCurrentPlace()
     {
-        var location = Panel?.ActiveTab?.Location;
-        string? root = MainViewModel.DriveRootOf(location)?.TrimEnd('\\', '/');
+        var at = Panel?.ActiveTab?.Location;
+        string? root = MainViewModel.DriveRootOf(at)?.TrimEnd('\\', '/');
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         foreach (var button in DriveButtonsPanel.Children.OfType<Button>())
         {
-            bool current = button.Tag is Core.Resources.Location target && (target.Scheme == Core.Resources.Schemes.Computer
-                ? location?.Scheme == Core.Resources.Schemes.Computer
-                : root is not null && target.IsFileSystem && ToolTip.GetTip(button) is string tip && !tip.StartsWith("Home", StringComparison.Ordinal) &&
-                  string.Equals(target.Path.TrimEnd('\\', '/'), root, comparison) && (root.Length > 0 || target.Path == "/"));
+            bool current = at is not null && button.Tag is Place { Location: { } place } p && (p.Drive is not null
+                ? root is not null && string.Equals(place.Path.TrimEnd('\\', '/'), root, comparison) && (root.Length > 0 || place.Path == "/")
+                : place.Scheme switch
+                {
+                    Core.Resources.Schemes.FileSystem => at.IsFileSystem && string.Equals(Core.FileSystem.PathUtil.NormalizeForCompare(at.Path),
+                        Core.FileSystem.PathUtil.NormalizeForCompare(place.Path), Core.FileSystem.PathUtil.SafetyComparison),
+                    Core.Resources.Schemes.Computer or Core.Resources.Schemes.Mtp or Core.Resources.Schemes.Registry => at.Scheme == place.Scheme,
+                    Core.Resources.Schemes.Sftp or Core.Resources.Schemes.Ftp => at.Scheme == place.Scheme && at.Session == place.Session,
+                    _ => at.Equals(place),
+                });
             button.Classes.Set("current", current);
         }
     }
@@ -229,7 +342,7 @@ public partial class PanelView : UserControl
         if (_hookedTab is not null) _hookedTab.PropertyChanged += OnTabPropertyChanged;
         UpdatePathLinks();
         ShowFilter();
-        MarkCurrentDrive();
+        MarkCurrentPlace();
     }
 
     private void OnTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -237,7 +350,7 @@ public partial class PanelView : UserControl
         if (e.PropertyName is nameof(TabViewModel.DisplayPath) or nameof(TabViewModel.Location))
         {
             UpdatePathLinks();
-            MarkCurrentDrive();
+            MarkCurrentPlace();
         }
         else if (e.PropertyName == nameof(TabViewModel.FilterText)) ShowFilter();
     }

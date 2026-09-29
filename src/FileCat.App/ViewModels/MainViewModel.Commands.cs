@@ -233,11 +233,13 @@ public sealed partial class MainViewModel
                     foreach (var t in p.Tabs) t.Listing.ShowHidden = Services.Settings.ShowHidden;
                 Notify(Services.Settings.ShowHidden ? "Hidden and system items are shown (dimmed)." : "Hidden and system items are hidden.");
                 break;
-            case CommandIds.LocationMenuLeft:
-                await ShowLocationMenuAsync(Workspace.Panels.Count == 2 ? Workspace.Panels[0] : panel);
+            case CommandIds.LocationMenuSource:
+                await ShowLocationMenuAsync(panel);
                 break;
-            case CommandIds.LocationMenuRight:
-                await ShowLocationMenuAsync(Workspace.Panels.Count == 2 ? Workspace.Panels[1] : Workspace.ActiveTarget ?? panel);
+            case CommandIds.LocationMenuTarget:
+                // Where F5 and F6 go, pointed elsewhere without leaving the source (D-53). One panel is its own target.
+                if (Workspace.Panels.Count < 2) await ShowLocationMenuAsync(panel);
+                else if (RequireTarget() is { } target) await ShowLocationMenuAsync(target, activate: false);
                 break;
             case CommandIds.FolderHistory:
                 await ShowFolderHistoryAsync();

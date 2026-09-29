@@ -262,7 +262,12 @@ public partial class MainWindow : Window, IViewActions
         v.Activated += () => _vm.Workspace.Activate(p);
         v.OpenRequested += () => _vm.Execute(CommandIds.Open);
         v.PathSubmitted += text => NavigateToText(p, text);
-        v.LocationMenuRequested += () => _vm.Execute(_vm.Workspace.Panels.Count == 2 && _vm.Workspace.Panels.IndexOf(p) == 1 ? CommandIds.LocationMenuRight : CommandIds.LocationMenuLeft);
+        // A panel's own location button: that panel is the source, and its menu opens.
+        v.LocationMenuRequested += () =>
+        {
+            _vm.Workspace.Activate(p);
+            _vm.Execute(CommandIds.LocationMenuSource);
+        };
         v.MiddleClick += row => OpenRowInNewTab(p, row);
         v.MoveRequested += (press, handle) => BeginPanelDrag(p, press, handle);
         AttachDragDrop(v, p);
@@ -692,7 +697,7 @@ public partial class MainWindow : Window, IViewActions
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems ? "Hide hidden and system items" : "Show hidden and system items",
         CommandIds.ToggleToolbar => _vm.ShowToolbar ? "Hide the toolbar" : "Show the toolbar",
-        CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons ? "Hide the drive buttons" : "Show the drive buttons",
+        CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons ? "Hide the place buttons" : "Show the place buttons",
         _ => title,
     };
 

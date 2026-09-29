@@ -197,11 +197,17 @@ public sealed class AppServices : IDisposable
 
     public void ReloadKeymap() => Keymap = new Keymap(Commands, Settings.KeyBindings);
 
+    /// <summary>Settings or history were saved (or would have been): bookmarks, saved servers, and other places may have changed.</summary>
+    public event Action? Saved;
+
     public void SaveSettings()
     {
-        if (SettingsReadOnly) return;
-        try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving settings failed", ex); }
+        if (!SettingsReadOnly)
+        {
+            try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving settings failed", ex); }
+        }
+        Saved?.Invoke();
     }
 
     /// <summary>Saved filters for <c>@name</c> in masks; looked up at parse time, so edits apply to the next mask.</summary>
@@ -210,9 +216,12 @@ public sealed class AppServices : IDisposable
 
     public void SaveHistory()
     {
-        if (HistoryStatus == StateLoadStatus.NewerSchemaReadOnly) return;
-        try { JsonFileStore.Save(Paths.HistoryFile, History, StateJsonContext.Default.HistoryState); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving history failed", ex); }
+        if (HistoryStatus != StateLoadStatus.NewerSchemaReadOnly)
+        {
+            try { JsonFileStore.Save(Paths.HistoryFile, History, StateJsonContext.Default.HistoryState); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving history failed", ex); }
+        }
+        Saved?.Invoke();
     }
 
     /// <summary>Forgets recent locations and typed text (privacy). Bookmarks stay; pinned entries stay unless included.</summary>

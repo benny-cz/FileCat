@@ -199,6 +199,48 @@ public sealed class PanelKeysTests
     }
 
     [AvaloniaFact]
+    public async Task Alt_F1_changes_the_source_and_Alt_F2_the_target_while_the_keyboard_stays()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var panels = vm.Workspace.Panels;
+            var dialogs = (Views.OverlayDialogService)vm.Dialogs;
+            string? Menu() => Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>()
+                .Select(Avalonia.Automation.AutomationProperties.GetName).FirstOrDefault(n => n?.StartsWith("Filter Location", StringComparison.Ordinal) == true);
+            // The right panel is the source: Alt+F1 is its menu, whichever side it is on.
+            vm.Workspace.Activate(panels[1]);
+            ((Views.MainWindow)window).FocusActivePanel();
+            window.KeyPress(Key.F1, RawInputModifiers.Alt, PhysicalKey.F1, null);
+            for (int i = 0; i < 250 && Menu() is null; i++) await Task.Delay(20, ct);
+            Assert.Equal("Filter Location for panel 2 (source)", Menu());
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+
+            // Alt+F2: the target's menu. What is chosen there opens in the target, and the source stays the source.
+            window.KeyPress(Key.F2, RawInputModifiers.Alt, PhysicalKey.F2, null);
+            for (int i = 0; i < 250 && Menu() is null; i++) await Task.Delay(20, ct);
+            Assert.Equal("Filter Location for panel 1 (target)", Menu());
+            await Task.Delay(50, ct);
+            // "This PC" ("Computer" elsewhere), by a part that no drive letter begins.
+            // Typed as a keyboard types: the key goes down before its text arrives.
+            window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+            window.KeyTextInput(OperatingSystem.IsWindows() ? " PC" : "Computer");
+            await Task.Delay(100, ct);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            for (int i = 0; i < 250 && panels[0].ActiveTab!.Location?.Scheme != Schemes.Computer; i++) await Task.Delay(20, ct);
+            Assert.Equal(Schemes.Computer, panels[0].ActiveTab!.Location!.Scheme);
+            Assert.Same(panels[1], vm.Workspace.ActivePanel);
+            Assert.NotEqual(Schemes.Computer, panels[1].ActiveTab!.Location!.Scheme);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task A_drive_letter_opens_the_drive_at_once_at_the_folder_another_panel_shows_there()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Drive letters are Windows'.");
@@ -212,7 +254,7 @@ public sealed class PanelKeysTests
             panels[1].ActiveTab!.Navigate(new Location(Schemes.Computer, string.Empty));
             vm.Workspace.Activate(panels[0]);
             var dialogs = (Views.OverlayDialogService)vm.Dialogs;
-            vm.Execute(CommandIds.LocationMenuRight);
+            vm.Execute(CommandIds.LocationMenuTarget);
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             // One key, no Enter: the drive the left panel is on, at the left panel's folder.
@@ -223,7 +265,7 @@ public sealed class PanelKeysTests
             Assert.Equal(folder, panels[1].ActiveTab!.Location!.Path);
 
             // Typed after other text, the same letter only filters.
-            vm.Execute(CommandIds.LocationMenuRight);
+            vm.Execute(CommandIds.LocationMenuTarget);
             for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
             await Task.Delay(50, ct);
             window.KeyTextInput("x" + drive);

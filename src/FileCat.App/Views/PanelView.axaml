@@ -34,12 +34,11 @@
         <Button Grid.Column="2" Classes="flat" Content="+" Click="OnNewTabClick" ToolTip.Tip="New tab (Ctrl+T)" />
       </Grid>
 
-      <!-- Drive buttons: a drive, home, or This PC with one click (D-52), as Total Commander's drive bar. -->
+      <!-- Place buttons: every place of the location menu with one click (D-52, D-53), as Total Commander's drive bar.
+           One row: what does not fit is on the » button at its end. -->
       <Border x:Name="DriveBar" DockPanel.Dock="Top" Classes="drivebar"
               IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).ShowDriveButtons, FallbackValue=True}">
-        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-          <StackPanel x:Name="DriveButtonsPanel" Orientation="Horizontal" />
-        </ScrollViewer>
+        <ctl:PlaceBarPanel x:Name="DriveButtonsPanel" />
       </Border>
 
       <!-- Address row -->

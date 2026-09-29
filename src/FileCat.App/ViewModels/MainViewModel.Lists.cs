@@ -1,5 +1,6 @@
 using FileCat.App.Services;
 using FileCat.Core.Commands;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
@@ -9,17 +10,80 @@ namespace FileCat.App.ViewModels;
 /// <summary>Type-to-filter lists: location menu, histories, bookmarks, tabs, panels, palette (plan §11, §4.4).</summary>
 public sealed partial class MainViewModel
 {
-    private async Task ShowLocationMenuAsync(PanelViewModel? panel)
+    /// <summary>
+    /// The location menu (Alt+F1 for the source panel, Alt+F2 for the target, or a panel's own button): every place,
+    /// as <see cref="Places"/> lists them. The drives are asked anew, each within a moment.
+    /// </summary>
+    /// <param name="activate">Whether the panel becomes the source; Alt+F2 points the target elsewhere and the keyboard stays.</param>
+    private async Task ShowLocationMenuAsync(PanelViewModel? panel, bool activate = true)
     {
         if (panel?.ActiveTab is null) return;
-        var items = new List<ChoiceItem>();
-        var locations = new List<Location>();
-        var icons = Services.Icons;
-        void Add(string title, string? detail, Location loc, Func<Avalonia.Media.IImage?> icon)
+        // The drives This PC lists, as each describes itself within a moment: a dropped network drive shows as not
+        // responding instead of holding up the menu (the queries run off the UI thread).
+        var computer = Services.Providers.For(new Location(Schemes.Computer, string.Empty)) as ComputerProvider;
+        var drives = computer is null ? [] : await computer.QueryDrivesAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None);
+        var shown = Places(drives).SelectMany(p => p.Variants.Prepend(p)).ToList();
+        var items = shown.Select(p => new ChoiceItem(p.Title, p.Detail) { Icon = p.Icon }).ToList();
+        // A drive letter typed first opens that drive at once, as in Salamander's and Total Commander's drive menus.
+        var letters = new Dictionary<char, int>();
+        for (int i = 0; i < shown.Count; i++)
+            if (shown[i].Letter is { } letter) letters[letter] = i;
+        string role = Workspace.Panels.Count < 2 ? ""
+            : ReferenceEquals(panel, Workspace.ActivePanel) ? " (source)"
+            : ReferenceEquals(panel, Workspace.ActiveTarget) ? " (target)" : "";
+        var r = await Dialogs.ChooseAsync(new ChoiceOptions($"Location for panel {panel.Number}{role}", items)
         {
-            items.Add(new ChoiceItem(title, detail) { Icon = icon });
-            locations.Add(loc);
+            Hint = (letters.Count > 0 ? "A drive letter opens that drive · " : "") + "Type to filter · Enter opens · Shift+Enter opens in a new tab",
+            Icons = Services.Icons,
+            Accelerators = letters,
+        });
+        if (r.Index < 0) return;
+        await OpenPlaceAsync(panel, shown[r.Index], r.Alternate, activate);
+    }
+
+    /// <summary>
+    /// Opens a place in a panel, in a new tab when asked: a drive at the folder another panel shows there (Total
+    /// Commander does the same), or the connection dialog.
+    /// </summary>
+    /// <param name="activate">Whether the panel becomes the source (the keyboard goes with it).</param>
+    public async Task OpenPlaceAsync(PanelViewModel panel, Place place, bool newTab, bool activate = true)
+    {
+        if (place.Connects)
+        {
+            await ConnectSftpAsync(panel);
+            return;
         }
+        if (place.Location is not { } chosen) return;
+        if (place.Drive is not null && FolderOnDrive(panel, chosen) is { } there) chosen = there;
+        if (newTab) panel.OpenTab(chosen);
+        else panel.ActiveTab?.Navigate(chosen);
+        if (activate) Workspace.Activate(panel);
+        View.FocusActivePanel();
+    }
+
+    /// <summary>A place button: the place opens in its panel, which becomes the source; a failure is said, not thrown.</summary>
+    public async void OpenPlace(PanelViewModel panel, Place place, bool newTab)
+    {
+        try
+        {
+            await OpenPlaceAsync(panel, place, newTab);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error($"Opening {place.Title} failed", ex);
+            Notify($"{place.Title} could not be opened: {ex.Message}", true);
+        }
+    }
+
+    /// <summary>
+    /// Every place the location menu offers, and the place buttons above each panel show (D-52, D-53), in the menu's
+    /// order: <paramref name="drives"/>, This PC, phones, working sets, the Registry, the home and special folders,
+    /// bookmarks, saved servers, and a new connection.
+    /// </summary>
+    public List<Place> Places(IReadOnlyList<DriveTag> drives)
+    {
+        var icons = Services.Icons;
+        var places = new List<Place>();
         // Folders as Explorer shows them where it lists them (Desktop, Documents, and Downloads have their own icons).
         Func<Avalonia.Media.IImage?> FolderIcon(Location loc)
         {
@@ -36,35 +100,33 @@ public sealed partial class MainViewModel
             var folder = parent is null ? null : Location.FileSystem(parent);
             return () => icons.GetIcon(entry, folder);
         }
-        // The drives This PC lists, as each describes itself within a moment: a dropped network drive shows as not
-        // responding instead of holding up the menu (the queries run off the UI thread).
-        var computer = Services.Providers.For(new Location(Schemes.Computer, string.Empty)) as ComputerProvider;
-        var drives = computer is null ? [] : await computer.QueryDrivesAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None);
-        var letters = new Dictionary<char, int>();
-        var driveItems = new HashSet<int>();
         foreach (var tag in drives)
         {
             string name = PathUtil.IsWindows ? tag.RootPath.TrimEnd('\\') : tag.RootPath;
             var drive = new EntryData(name, EntryKind.Drive) { Tag = tag };
-            // A drive letter typed first opens that drive at once, as in Salamander's and Total Commander's drive menus.
-            if (PathUtil.IsWindows && name.Length == 2 && name[1] == ':' && char.IsAsciiLetter(name[0])) letters[char.ToUpperInvariant(name[0])] = items.Count;
-            driveItems.Add(items.Count);
-            Add(name, DriveDetail(tag), Location.FileSystem(tag.RootPath), () => icons.GetIcon(drive));
+            bool lettered = PathUtil.IsWindows && name.Length == 2 && name[1] == ':' && char.IsAsciiLetter(name[0]);
+            places.Add(new Place(name, DriveDetail(tag), Location.FileSystem(tag.RootPath), () => icons.GetIcon(drive))
+            {
+                Group = PlaceGroup.Drives,
+                Drive = tag,
+                Letter = lettered ? char.ToUpperInvariant(name[0]) : null,
+                BarLabel = lettered ? name[..1].ToUpperInvariant() : name == "/" ? "/" : Path.GetFileName(name.TrimEnd('/')),
+            });
         }
         var thisPc = new Location(Schemes.Computer, string.Empty); // "This PC" on Windows, "Computer" elsewhere
-        Add(Services.Providers.Display(thisPc), "All drives", thisPc, () => icons.GetPlaceIcon(IconKind.Computer));
+        places.Add(new Place(Services.Providers.Display(thisPc), "All drives", thisPc, () => icons.GetPlaceIcon(IconKind.Computer)) { Group = PlaceGroup.Devices });
         if (Services.Providers.IsRegistered(Schemes.Mtp))
-            Add("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices,
-                () => icons.GetPlaceIcon(IconKind.Phone));
+            places.Add(new Place("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices,
+                () => icons.GetPlaceIcon(IconKind.Phone)) { Group = PlaceGroup.Devices });
         int workingSets = Services.WorkingSets.All.Count;
-        Add("Working sets", workingSets == 0 ? "Collect items from many folders (references, never copies)" : $"{Formatters.Plural(workingSets, "set", "sets")} of items collected from many folders",
-            Core.Search.ResultSetProvider.WorkingSetList, () => icons.GetPlaceIcon(IconKind.Collection));
+        places.Add(new Place("Working sets", workingSets == 0 ? "Collect items from many folders (references, never copies)" : $"{Formatters.Plural(workingSets, "set", "sets")} of items collected from many folders",
+            Core.Search.ResultSetProvider.WorkingSetList, () => icons.GetPlaceIcon(IconKind.Collection)) { Group = PlaceGroup.Collections });
         if (Services.Providers.IsRegistered(Schemes.Registry))
         {
-            foreach (var view in new[] { "default", "64", "32" })
-                Add($"Registry ({FileCat.Platform.Windows.WindowsRegistryProvider.ViewLabel(view)})",
-                    "Local Registry · keys and typed values", FileCat.Platform.Windows.WindowsRegistryProvider.Home(view),
-                    () => icons.GetPlaceIcon(IconKind.RegistryKey));
+            var views = new[] { "default", "64", "32" }.Select(view => new Place($"Registry ({FileCat.Platform.Windows.WindowsRegistryProvider.ViewLabel(view)})",
+                "Local Registry · keys and typed values", FileCat.Platform.Windows.WindowsRegistryProvider.Home(view),
+                () => icons.GetPlaceIcon(IconKind.RegistryKey)) { Group = PlaceGroup.Collections }).ToList();
+            places.Add(views[0] with { Variants = views.Skip(1).ToList() });
         }
         foreach (var (name, folder) in new[]
                  {
@@ -73,37 +135,35 @@ public sealed partial class MainViewModel
                  })
         {
             var p = Environment.GetFolderPath(folder);
-            if (!string.IsNullOrEmpty(p)) Add(name, p, Location.FileSystem(p), FolderIcon(Location.FileSystem(p)));
+            if (!string.IsNullOrEmpty(p)) places.Add(new Place(name, p, Location.FileSystem(p), FolderIcon(Location.FileSystem(p))) { Group = PlaceGroup.Folders });
         }
         var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        if (Directory.Exists(downloads)) Add("Downloads", downloads, Location.FileSystem(downloads), FolderIcon(Location.FileSystem(downloads)));
+        if (Directory.Exists(downloads)) places.Add(new Place("Downloads", downloads, Location.FileSystem(downloads), FolderIcon(Location.FileSystem(downloads))) { Group = PlaceGroup.Folders });
         foreach (var b in Services.History.Bookmarks.Where(b => b.Location is not null).OrderBy(b => b.Slot ?? 99))
-            Add((b.Slot is { } s ? $"[{s}] " : "★ ") + (string.IsNullOrEmpty(b.Name) ? Services.Providers.Display(b.Location!) : b.Name), Services.Providers.Display(b.Location!), b.Location!,
-                FolderIcon(b.Location!));
-        foreach (var p in Services.Settings.RemoteProfiles)
-            Add(RemoteProtocols.Describe(p.Protocol).Split(' ', ':')[0] + ": " + (p.Name.Length > 0 ? p.Name : p.Display), p.Display + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""), Remote.Sftp.SftpProvider.At(p, p.InitialPath),
-                () => icons.GetPlaceIcon(IconKind.Server));
-        int connectIndex = items.Count;
-        items.Add(new ChoiceItem("Connect to a server…", "SFTP, FTPS, or FTP: new or saved connection") { Icon = () => icons.GetPlaceIcon(IconKind.Server) });
-        var r = await Dialogs.ChooseAsync(new ChoiceOptions($"Location for panel {panel.Number}", items)
         {
-            Hint = (letters.Count > 0 ? "A drive letter opens that drive · " : "") + "Type to filter · Enter opens · Shift+Enter opens in a new tab",
-            Icons = icons,
-            Accelerators = letters,
-        });
-        if (r.Index < 0) return;
-        if (r.Index == connectIndex)
-        {
-            await ConnectSftpAsync(panel);
-            return;
+            string display = Services.Providers.Display(b.Location!);
+            // A bookmark set with Ctrl+Shift+digit is named by its whole path: on its button, its folder's name says enough.
+            string name = string.IsNullOrEmpty(b.Name) || b.Name == display ? Services.Providers.For(b.Location!).GetDisplayName(b.Location!) : b.Name;
+            places.Add(new Place((b.Slot is { } s ? $"[{s}] " : "★ ") + (string.IsNullOrEmpty(b.Name) ? display : b.Name), display, b.Location!, FolderIcon(b.Location!))
+            {
+                Group = PlaceGroup.Bookmarks,
+                BarLabel = name,
+                BarTip = b.Slot is { } slot ? $"Ctrl+{slot} opens it too" : null,
+            });
         }
-        var chosen = locations[r.Index];
-        // The drive another panel is on opens at that panel's folder there (Total Commander does the same).
-        if (driveItems.Contains(r.Index) && FolderOnDrive(panel, chosen) is { } there) chosen = there;
-        if (r.Alternate) panel.OpenTab(chosen);
-        else panel.ActiveTab?.Navigate(chosen);
-        Workspace.Activate(panel);
-        View.FocusActivePanel();
+        foreach (var p in Services.Settings.RemoteProfiles)
+        {
+            string name = p.Name.Length > 0 ? p.Name : p.Display;
+            places.Add(new Place(RemoteProtocols.Describe(p.Protocol).Split(' ', ':')[0] + ": " + name, p.Display + (p.InitialPath is { Length: > 0 } ip ? " · " + ip : ""), Remote.Sftp.SftpProvider.At(p, p.InitialPath),
+                () => icons.GetPlaceIcon(IconKind.Server)) { Group = PlaceGroup.Servers, BarLabel = name });
+        }
+        places.Add(new Place("Connect to a server…", "SFTP, FTPS, or FTP: new or saved connection", null, () => icons.GetPlaceIcon(IconKind.Server))
+        {
+            Group = PlaceGroup.Servers,
+            Connects = true,
+            BarLabel = "Connect…",
+        });
+        return places;
     }
 
     /// <summary>
@@ -417,4 +477,34 @@ public sealed partial class MainViewModel
             })
             .ToArray();
     }
+}
+
+/// <summary>The groups of places, in the location menu's order; the place buttons leave a gap between groups.</summary>
+public enum PlaceGroup { Drives, Devices, Collections, Folders, Bookmarks, Servers }
+
+/// <summary>
+/// A place the location menu (Alt+F1, Alt+F2) offers and the place buttons above each panel show (D-52, D-53).
+/// <see cref="Location"/> is null only for a new connection.
+/// </summary>
+public sealed record Place(string Title, string? Detail, Location? Location, Func<Avalonia.Media.IImage?> Icon)
+{
+    public PlaceGroup Group { get; init; }
+
+    /// <summary>The drive it is, which opens at the folder another panel shows there.</summary>
+    public DriveTag? Drive { get; init; }
+
+    /// <summary>The drive letter that opens it at once in the menu.</summary>
+    public char? Letter { get; init; }
+
+    /// <summary>What its button says beside the icon, where the icon alone would not tell it apart (a drive's letter, a bookmark's name).</summary>
+    public string? BarLabel { get; init; }
+
+    /// <summary>More for its button's tip (a bookmark's key).</summary>
+    public string? BarTip { get; init; }
+
+    /// <summary>Other views of the place (the Registry's 64-bit and 32-bit views): listed after it in the menu, on its button's menu.</summary>
+    public IReadOnlyList<Place> Variants { get; init; } = [];
+
+    /// <summary>Opens the connection dialog instead of a place.</summary>
+    public bool Connects { get; init; }
 }

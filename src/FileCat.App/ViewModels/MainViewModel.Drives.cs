@@ -37,10 +37,23 @@ public sealed partial class MainViewModel
                $"{Formatters.Plural(moved, "tab", "tabs")} that showed {(change.Removed.Count == 1 ? "it" : "them")} now {(moved == 1 ? "shows" : "show")} {Services.Providers.Display(thisPc)}.");
     }
 
-    /// <summary>The drives the panels' drive buttons show (D-52), in This PC's order; replaced whole when drives change.</summary>
+    /// <summary>The drives the panels' place buttons show (D-52), in This PC's order; replaced whole when drives change.</summary>
     public IReadOnlyList<DriveTag> DriveButtons { get; private set; } = [];
 
-    public event Action? DriveButtonsChanged;
+    /// <summary>
+    /// The drives, bookmarks, or saved servers may have changed: the place buttons are listed anew (and made anew only
+    /// when something they show did change).
+    /// </summary>
+    public event Action? PlacesChanged;
+
+    /// <summary>What the place buttons above each panel show: everything the location menu offers (D-53).</summary>
+    public List<Place> BarPlaces() => Places(DriveButtons);
+
+    private void OnStateSaved()
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) PlacesChanged?.Invoke();
+        else Avalonia.Threading.Dispatcher.UIThread.Post(() => PlacesChanged?.Invoke());
+    }
 
     /// <summary>Lists the drives off the UI thread, each within a moment: a hung network drive does not hold the buttons up.</summary>
     public async Task RefreshDriveButtonsAsync()
@@ -50,20 +63,7 @@ public sealed partial class MainViewModel
         try { drives = await computer.QueryDrivesAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return; }
         DriveButtons = drives;
-        DriveButtonsChanged?.Invoke();
-    }
-
-    /// <summary>
-    /// A drive button: the panel opens the drive (at the folder another panel shows there, as the location menu does),
-    /// in a new tab when asked.
-    /// </summary>
-    public void OpenDrive(PanelViewModel panel, Location root, bool newTab)
-    {
-        var chosen = root.IsFileSystem && FolderOnDrive(panel, root) is { } there ? there : root;
-        if (newTab) panel.OpenTab(chosen);
-        else panel.ActiveTab?.Navigate(chosen);
-        Workspace.Activate(panel);
-        View.FocusActivePanel();
+        PlacesChanged?.Invoke();
     }
 
     /// <summary>The root of the drive a location is on ("C:\", or the mount point on Linux and macOS), or null.</summary>

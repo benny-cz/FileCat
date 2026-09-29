@@ -3,8 +3,10 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 
 namespace FileCat.App.Tests;
 
@@ -132,7 +134,7 @@ public sealed class PathLineTests
     }
 
     [AvaloniaFact]
-    public async Task Drive_buttons_open_a_drive_home_or_This_PC_with_one_click()
+    public async Task The_place_buttons_offer_everything_the_location_menu_does()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -142,36 +144,104 @@ public sealed class PathLineTests
             var tab = panel.ActiveTab!;
             for (int i = 0; i < 250 && tab.Location?.Path != Path.Combine(root, "files"); i++) await Task.Delay(20, ct);
             var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
-            List<Avalonia.Controls.Button> Buttons() => view.GetVisualDescendants().OfType<Avalonia.Controls.Button>().Where(b => b.Classes.Contains("drive")).ToList();
-            for (int i = 0; i < 250 && Buttons().Count < 3; i++) await Task.Delay(20, ct);
+            List<Avalonia.Controls.Button> Buttons() => view.GetVisualDescendants().OfType<Avalonia.Controls.Button>().Where(b => b.Tag is Place).ToList();
+            Place PlaceOf(Avalonia.Controls.Button b) => (Place)b.Tag!;
+            for (int i = 0; i < 250 && !Buttons().Any(b => PlaceOf(b).Drive is not null); i++) await Task.Delay(20, ct);
             var buttons = Buttons();
-            // The drives, then Home and This PC; each named for screen readers and with its details in its tooltip.
-            Assert.True(buttons.Count >= 3, $"{buttons.Count} buttons");
+            // Everything the location menu (Alt+F1, Alt+F2) lists, in its order: the drives, This PC, working sets, the
+            // home and special folders, and a new connection; each named for screen readers, its details in its tooltip.
+            Assert.Equal(vm.Places(vm.DriveButtons).Select(p => p.Title), buttons.Select(b => PlaceOf(b).Title));
+            Assert.Contains(buttons, b => PlaceOf(b).Location?.Scheme == Core.Resources.Schemes.Computer);
+            Assert.Contains(buttons, b => PlaceOf(b).Title == "Working sets");
+            Assert.Contains(buttons, b => PlaceOf(b).Title == "Home");
+            Assert.True(PlaceOf(buttons[^1]).Connects);
             Assert.All(buttons, b => Assert.False(string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(b))));
-            // The drive this panel is on is outlined.
-            var current = Assert.Single(buttons, b => b.Classes.Contains("current"));
-            Assert.Equal(Core.Resources.Schemes.FileSystem, ((Location)current.Tag!).Scheme);
-            Assert.True(root.StartsWith(((Location)current.Tag!).Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase) || ((Location)current.Tag!).Path == "/");
+            // Groups are set apart.
+            Assert.Contains(view.GetVisualDescendants().OfType<Avalonia.Controls.Border>(), b => b.Classes.Contains("placeGap"));
+
+            // A bookmark gets its button, named, as soon as it is saved; it is outlined while the panel is there, as is the drive.
+            services.History.Bookmarks.Add(new BookmarkEntry { Name = "Project files", Location = Location.FileSystem(Path.Combine(root, "files")) });
+            services.SaveHistory();
+            for (int i = 0; i < 250 && !Buttons().Any(b => PlaceOf(b).BarLabel == "Project files"); i++) await Task.Delay(20, ct);
+            buttons = Buttons();
+            var bookmark = Assert.Single(buttons, b => PlaceOf(b).BarLabel == "Project files");
+            Assert.Contains("current", bookmark.Classes);
+            var drive = Assert.Single(buttons, b => PlaceOf(b).Drive is not null && b.Classes.Contains("current"));
+            Assert.True(root.StartsWith(PlaceOf(drive).Location!.Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase) || PlaceOf(drive).Location!.Path == "/");
 
             // This PC with one click; its button is then the outlined one.
-            var thisPc = buttons.Last();
+            var thisPc = buttons.First(b => PlaceOf(b).Location?.Scheme == Core.Resources.Schemes.Computer);
             thisPc.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
             for (int i = 0; i < 250 && tab.Location?.Scheme != Core.Resources.Schemes.Computer; i++) await Task.Delay(20, ct);
             Assert.Equal(Core.Resources.Schemes.Computer, tab.Location!.Scheme);
             Assert.Contains("current", thisPc.Classes);
+            Assert.DoesNotContain("current", bookmark.Classes);
 
             // The drive the other panel is on opens at that panel's folder, as in the location menu.
-            current.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            drive.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
             for (int i = 0; i < 250 && tab.Location?.Scheme != Core.Resources.Schemes.FileSystem; i++) await Task.Delay(20, ct);
             Assert.Equal(vm.Workspace.Panels[1].ActiveTab!.Location!.Path, tab.Location!.Path);
 
-            // View → Hide the drive buttons.
+            // A button on the other panel makes that panel the source.
+            vm.Workspace.Activate(panel);
+            var other = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, vm.Workspace.Panels[1]));
+            var otherHome = other.GetVisualDescendants().OfType<Avalonia.Controls.Button>().First(b => b.Tag is Place { Title: "Home" });
+            otherHome.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            Assert.Same(vm.Workspace.Panels[1], vm.Workspace.ActivePanel);
+
+            // A narrow panel: the row stays one line, and the places it has no room for are on the » button at its end.
+            var row = view.GetVisualDescendants().OfType<FileCat.App.Controls.PlaceBarPanel>().Single();
+            double rowHeight = row.Bounds.Height;
+            window.Width = 520;
+            for (int i = 0; i < 100 && row.ShownCount >= row.Children.Count - 1; i++) await Task.Delay(20, ct);
+            Assert.True(row.ShownCount < row.Children.Count - 1);
+            Assert.NotEmpty(row.Hidden.Select(c => c.Tag).OfType<Place>());
+            Assert.Equal(rowHeight, row.Bounds.Height);
+            var moreButton = row.Children[^1];
+            Assert.Equal("More places", Avalonia.Automation.AutomationProperties.GetName(moreButton));
+            Assert.True(moreButton.Bounds.Right <= row.Bounds.Width, $"{moreButton.Bounds} in {row.Bounds}");
+            window.Width = 1200;
+
+            // View → Hide the place buttons.
             vm.Execute(Core.Commands.CommandIds.ToggleDriveButtons);
             Assert.False(vm.ShowDriveButtons);
             var bar = view.GetVisualDescendants().OfType<Avalonia.Controls.Border>().First(b => b.Name == "DriveBar");
             Assert.False(bar.IsVisible);
             vm.Execute(Core.Commands.CommandIds.ToggleDriveButtons);
             Assert.True(bar.IsVisible);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_press_anywhere_in_a_panel_makes_it_the_source_and_the_keyboard_follows()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var panels = vm.Workspace.Panels;
+            vm.Workspace.Activate(panels[0]);
+            ((MainWindow)window).FocusActivePanel();
+            var right = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panels[1]));
+            var left = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panels[0]));
+            Assert.True(left.List.IsFocused);
+            // The right panel's number takes no keyboard itself: a press there still makes the panel the source, its number
+            // lit and the left one the target, and the keyboard moves there.
+            var badge = right.GetVisualDescendants().OfType<Avalonia.Controls.Border>().First(b => b.Name == "NumberBadge");
+            var point = badge.TranslatePoint(new Avalonia.Point(badge.Bounds.Width / 2, badge.Bounds.Height / 2), window)!.Value;
+            window.CaptureRenderedFrame();
+            window.MouseDown(point, Avalonia.Input.MouseButton.Left, Avalonia.Input.RawInputModifiers.None);
+            window.MouseUp(point, Avalonia.Input.MouseButton.Left, Avalonia.Input.RawInputModifiers.None);
+            for (int i = 0; i < 100 && !right.List.IsFocused; i++) await Task.Delay(20, ct);
+            Assert.Same(panels[1], vm.Workspace.ActivePanel);
+            Assert.True(panels[1].IsActive);
+            Assert.True(panels[0].IsTarget);
+            Assert.Equal("TARGET", panels[0].RoleLabel);
+            Assert.True(right.List.IsFocused);
         }
         finally
         {

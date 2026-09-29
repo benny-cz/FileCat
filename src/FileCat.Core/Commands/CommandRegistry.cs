@@ -81,8 +81,10 @@ public static class CommandIds
     public const string Forward = "nav.forward";
     public const string GoTo = "nav.goto";
     public const string Refresh = "nav.refresh";
-    public const string LocationMenuLeft = "nav.locationLeft";
-    public const string LocationMenuRight = "nav.locationRight";
+    /// <summary>Alt+F1: the source panel's location menu (the id keeps its first name, for saved key bindings).</summary>
+    public const string LocationMenuSource = "nav.locationLeft";
+    /// <summary>Alt+F2: the target panel's location menu.</summary>
+    public const string LocationMenuTarget = "nav.locationRight";
     public const string FindFolder = "nav.findFolder";
     public const string FileHistory = "nav.fileHistory";
     public const string FolderHistory = "nav.folderHistory";
@@ -297,8 +299,8 @@ public sealed class CommandRegistry
         Add(CommandIds.Forward, "Forward", N, null, CommandContext.Panel, "Alt+Right");
         Add(CommandIds.GoTo, "Go to path…", N, "Go to", CommandContext.Panel, "Shift+F7", "Ctrl+L");
         Add(CommandIds.Refresh, "Reread", N, null, CommandContext.Panel, "Ctrl+R");
-        Add(CommandIds.LocationMenuLeft, "Change left (or active) location…", N, "Left", CommandContext.Panel, "Alt+F1");
-        Add(CommandIds.LocationMenuRight, "Change right (or target) location…", N, "Right", CommandContext.Panel, "Alt+F2");
+        Add(CommandIds.LocationMenuSource, "Change source location…", N, "Source", CommandContext.Panel, "Alt+F1");
+        Add(CommandIds.LocationMenuTarget, "Change target location…", N, "Target", CommandContext.Panel, "Alt+F2");
         Add(CommandIds.FindFolder, "Find folder…", N, "Find dir", CommandContext.Panel, "Alt+F10");
         Add(CommandIds.FileHistory, "File history…", N, "File hist", CommandContext.Panel, "Alt+F11");
         Add(CommandIds.FolderHistory, "Folder history…", N, "Dir hist", CommandContext.Panel, "Alt+F12");
@@ -349,7 +351,7 @@ public sealed class CommandRegistry
 
         Add(CommandIds.SortName, "Sort by name", V, "Name", CommandContext.Panel, "Ctrl+F3");
         Add(CommandIds.ToggleToolbar, "Show the toolbar", V);
-        Add(CommandIds.ToggleDriveButtons, "Show the drive buttons", V);
+        Add(CommandIds.ToggleDriveButtons, "Show the place buttons", V);
         Add(CommandIds.SortExtension, "Sort by extension", V, "Ext", CommandContext.Panel, "Ctrl+F4");
         Add(CommandIds.SortTime, "Sort by time", V, "Time", CommandContext.Panel, "Ctrl+F5");
         Add(CommandIds.SortSize, "Sort by size", V, "Size", CommandContext.Panel, "Ctrl+F6");
@@ -427,8 +429,8 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.Parent, "Goes up to the folder that holds this one (Backspace too).");
         r.Describe(CommandIds.Root, "Goes to the top of this drive or location.");
         r.Describe(CommandIds.Refresh, "Reads the folder again, with whatever changed in it.");
-        r.Describe(CommandIds.LocationMenuLeft, "Drives, places, bookmarks, and servers for the left panel (the active one with more panels); a drive letter opens that drive at once.");
-        r.Describe(CommandIds.LocationMenuRight, "Drives, places, bookmarks, and servers for the right panel (the target with more panels); a drive letter opens that drive at once.");
+        r.Describe(CommandIds.LocationMenuSource, "Drives, places, bookmarks, and servers for the source panel (the one you work in); a drive letter opens that drive at once.");
+        r.Describe(CommandIds.LocationMenuTarget, "Drives, places, bookmarks, and servers for the target panel (where F5 and F6 go), while you stay in the source; a drive letter opens that drive at once.");
         r.Describe(CommandIds.SwapPanels, "The source and target panels trade their folders.");
         r.Describe(CommandIds.NewTab, "Opens another tab in this panel, at the same folder.");
         r.Describe(CommandIds.CutToClipboard, "Puts the marked items (or the one under the cursor) on the clipboard, to be moved where you paste them.");
@@ -451,7 +453,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.OpenTerminal, "Opens a terminal in this panel's folder.");
         r.Describe(CommandIds.ToggleHidden, "Shows or hides hidden and system items in every panel.");
         r.Describe(CommandIds.ToggleToolbar, "Shows or hides this toolbar; Settings → Appearance has it too.");
-        r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides each panel's drive buttons, which open a drive with one click.");
+        r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides the buttons above each panel that open a drive, This PC, a special folder, a bookmark, or a saved server with one click: everything Alt+F1 and Alt+F2 offer.");
         r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
         r.Describe(CommandIds.Help, "Every command with its key: run one from there, or change its key.");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
@@ -485,6 +487,7 @@ public sealed class CommandRegistry
         K(CommandIds.QuickFilter, "filter", "narrow");
         K(CommandIds.FlatView, "branch view", "all files", "recursive listing", "flatten");
         K(CommandIds.ToggleHidden, "hidden files", "show hidden", "dotfiles", "system files");
+        K(CommandIds.ToggleDriveButtons, "drive buttons", "drive bar", "places", "bookmarks bar");
         K(CommandIds.ThemePick, "appearance", "colors", "colours", "dark mode", "light mode", "skin", "look");
         K(CommandIds.ThemeCycle, "switch theme", "change theme");
         K(CommandIds.SwapPanels, "exchange panels", "switch sides");
@@ -523,8 +526,8 @@ public sealed class CommandRegistry
         K(CommandIds.LoadWorkspace, "session", "restore layout");
         K(CommandIds.EditSessions, "remote edits", "pending uploads", "edited files");
         K(CommandIds.CommandLineFocus, "prompt", "command line");
-        K(CommandIds.LocationMenuLeft, "drives", "change drive", "locations");
-        K(CommandIds.LocationMenuRight, "drives", "change drive", "locations");
+        K(CommandIds.LocationMenuSource, "drives", "change drive", "locations", "left");
+        K(CommandIds.LocationMenuTarget, "drives", "change drive", "locations", "right", "other panel");
         K(CommandIds.FindFolder, "jump to folder", "go to folder", "cd");
         K(CommandIds.GoTo, "path", "address", "location", "cd");
         K(CommandIds.Refresh, "reload", "rescan", "reread");

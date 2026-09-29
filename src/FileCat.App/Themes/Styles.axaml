@@ -361,7 +361,7 @@
   <Style Selector="Button.toolbar.checked /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
   </Style>
-  <!-- A panel's drive buttons: small, flat, the panel's own drive outlined. -->
+  <!-- A panel's place buttons: small, flat, where the panel is outlined. -->
   <Style Selector="Border.drivebar">
     <Setter Property="Background" Value="{DynamicResource FcPanel}" />
     <Setter Property="Padding" Value="2,1,2,0" />
@@ -384,6 +384,14 @@
   </Style>
   <Style Selector="Button.drive.current /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
+  </Style>
+  <!-- Between groups of place buttons: drives, devices, collections, folders, bookmarks, servers. -->
+  <Style Selector="Border.placeGap">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="Margin" Value="4,0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Background" Value="{DynamicResource FcBorder}" />
   </Style>
   <Style Selector="Border.toolbarSeparator">
     <Setter Property="Width" Value="1" />

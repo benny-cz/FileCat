@@ -26,7 +26,7 @@ public static class MainMenuModel
             CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, "-",
             CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths]),
         ("_Navigate", [CommandIds.Parent, CommandIds.Enter, CommandIds.Root, CommandIds.Back, CommandIds.Forward, CommandIds.Home, "-",
-            CommandIds.GoTo, CommandIds.LocationMenuLeft, CommandIds.LocationMenuRight, CommandIds.FindFolder, CommandIds.FolderHistory,
+            CommandIds.GoTo, CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget, CommandIds.FindFolder, CommandIds.FolderHistory,
             CommandIds.FileHistory, CommandIds.Bookmarks, CommandIds.WorkingSets, "-", CommandIds.Refresh, CommandIds.ToggleHidden]),
         ("_Commands", [CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.FlatView, CommandIds.QuickFilter, "-",
             CommandIds.CommandLineFocus, CommandIds.InsertName, CommandIds.InsertPath, CommandIds.OpenTerminal, CommandIds.UserMenu, "-",
@@ -55,7 +55,7 @@ public static class MainMenuModel
     public static readonly string[] Toolbar =
     [
         CommandIds.Back, CommandIds.Forward, CommandIds.Parent, CommandIds.Root, CommandIds.Refresh, "-",
-        CommandIds.LocationMenuLeft, CommandIds.LocationMenuRight, CommandIds.SwapPanels, CommandIds.NewTab, "-",
+        CommandIds.LocationMenuSource, CommandIds.LocationMenuTarget, CommandIds.SwapPanels, CommandIds.NewTab, "-",
         CommandIds.CutToClipboard, CommandIds.CopyToClipboard, CommandIds.PasteFromClipboard, "-",
         CommandIds.Copy, CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.Properties, "-",
         CommandIds.Pack, CommandIds.Unpack, "-",
