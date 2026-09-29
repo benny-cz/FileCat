@@ -255,6 +255,8 @@ With two panels, F5/F6 initializes the destination from the other panel's active
 
 The target header shows its panel number and current location. A user can set the target through the header, a keyboard destination picker, or a context command. If the designated panel closes while three or more panels remain, becomes the source, or cannot accept the operation, show a destination picker; do not silently redirect to a recent panel. Panel numbers can change after reorder, but stored pairings use stable panel IDs.
 
+**Implemented (2026-09-29).** Every panel's header carries a role chip. With three or more panels the target reads TARGET and has a frame in the target color; every other panel offers "Set as target", which one click turns into the active panel's target while the keyboard stays where it is; the active panel's chip ("→ 2 ▾", or "no target ▾") lists the panels to choose from, as Shift+F12 does. With two panels the other panel's chip reads TARGET. The F5/F6 dialog offers every other panel's folder as a one-click destination (Alt and the panel number), the one in the box highlighted, so a transfer can go elsewhere without changing the target.
+
 Tab moves focus to the active panel's designated target — with two panels, the other panel, exactly as in all three references — and Shift+Tab returns. Other panels are reached through a spatial focus chord and a numbered panel overlay; ADR-16 sets the bindings and TV-10 validates them. The following commands address the designated target:
 
 - "open focused folder in target panel" (Salamander Ctrl+Shift+←/→, Total Commander Ctrl+←/→);

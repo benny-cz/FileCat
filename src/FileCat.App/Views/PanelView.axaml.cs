@@ -259,6 +259,37 @@ public partial class PanelView : UserControl
         }
     }
 
+    /// <summary>
+    /// The role chip: "Set as target" makes this panel the active panel's target without leaving the active panel; on
+    /// the active panel it lists the other panels to choose the target from.
+    /// </summary>
+    private void OnRoleClick(object? sender, RoutedEventArgs e)
+    {
+        if (Panel is not { } panel || TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
+        var ws = panel.Workspace;
+        if (panel.OffersTarget && ws.ActivePanel is { } active)
+        {
+            vm.SetPanelTarget(active, panel);
+            return;
+        }
+        if (!panel.IsActive || ws.Panels.Count <= 2) return;
+        var current = ws.GetTarget(panel);
+        var items = new List<Control>();
+        foreach (var other in ws.Panels.Where(p => !ReferenceEquals(p, panel)))
+        {
+            var choice = other;
+            var item = new MenuItem
+            {
+                Header = $"Panel {other.Number}: {other.ActiveTab?.DisplayPath}",
+                ToggleType = MenuItemToggleType.Radio,
+                IsChecked = ReferenceEquals(other, current),
+            };
+            item.Click += (_, _) => vm.SetPanelTarget(panel, choice);
+            items.Add(item);
+        }
+        new ContextMenu { ItemsSource = items }.Open(RoleButton);
+    }
+
     private void OnLocationMenuClick(object? sender, RoutedEventArgs e)
     {
         Activated?.Invoke();

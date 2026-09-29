@@ -27,7 +27,12 @@ public sealed partial class PanelViewModel : ObservableObject
     [ObservableProperty] private int _number = 1;
     /// <summary>Explicit target panel id; used only with three or more panels (D-09).</summary>
     [ObservableProperty] private string? _targetPanelId;
+    /// <summary>The role chip's text: TARGET, "Set as target" (three or more panels), or the active panel's own target.</summary>
     [ObservableProperty] private string _roleLabel = string.Empty;
+    /// <summary>What the role chip means, and what clicking it does.</summary>
+    [ObservableProperty] private string _roleTip = string.Empty;
+    /// <summary>Clicking the chip makes this panel the active panel's target (three or more panels).</summary>
+    [ObservableProperty] private bool _offersTarget;
     [ObservableProperty] private double _size = 1;
     /// <summary>When set, this panel shows a quick view of that panel's focused item (Ctrl+Q).</summary>
     [ObservableProperty] private PanelViewModel? _quickViewSource;

@@ -17,7 +17,12 @@ using FileCat.Core.Operations;
 
 namespace FileCat.App.Views;
 
-public sealed record TransferDialogInput(JobKind Kind, IReadOnlyList<ItemRef> Items, string Summary, string Destination, string? TargetLabel, int HiddenMarked, bool FromResultSet);
+/// <param name="Panels">The folders of the panels F5 and F6 can go to, offered as one-click destinations when there are several.</param>
+public sealed record TransferDialogInput(JobKind Kind, IReadOnlyList<ItemRef> Items, string Summary, string Destination, string? TargetLabel, int HiddenMarked, bool FromResultSet,
+    IReadOnlyList<PanelDestination>? Panels = null);
+
+/// <summary>A panel's folder as a destination: its number, a short name, and the text that goes in the destination box.</summary>
+public sealed record PanelDestination(int Number, string Name, string Destination);
 
 public sealed record TransferDialogResult(string Destination, TransferOptions Options, bool Queue, bool IncludeHidden);
 
@@ -57,13 +62,46 @@ public static class OperationDialogs
               (single is { IsContainer: false, Size: >= 0 } ? $" ({Formatters.SizeWithUnit(single.Size)})" : string.Empty);
         body.Children.Add(Text($"{verb} {what}", bold: true));
         if (single is null) body.Children.Add(Muted(NameList(input.Items)));
-        body.Children.Add(new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", Margin = new Thickness(0, 6, 0, 0) });
+        var toLabel = new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", Margin = new Thickness(0, 6, 0, 0) };
+        body.Children.Add(toLabel);
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
         // Typing a destination suggests the folders that complete it; choosing one fills it in (Enter then starts).
         // The box's own panel holds the suggestions' popup (the stack would space it like a row).
         var destHost = new Panel { Children = { dest } };
         body.Children.Add(destHost);
+        // Several panels: each one's folder is a click (or Alt and its number) away, whichever panel is the target.
+        if (input.Panels is { Count: > 1 } panels)
+        {
+            var row = new WrapPanel { ItemSpacing = 6, LineSpacing = 4 };
+            row.Children.Add(new TextBlock { Text = "Panels:", Classes = { "muted", "small" }, VerticalAlignment = VerticalAlignment.Center });
+            var buttons = new List<(Button Button, PanelDestination Panel)>();
+            foreach (var panel in panels)
+            {
+                var choice = panel;
+                var button = new Button { Content = $"_{panel.Number} {panel.Name.Replace("_", "__", StringComparison.Ordinal)}", Padding = new Thickness(8, 2), MinHeight = 22 };
+                ToolTip.SetTip(button, $"To panel {panel.Number}: {panel.Destination} (Alt+{panel.Number})");
+                AutomationProperties.SetName(button, $"To panel {panel.Number}: {panel.Destination}");
+                button.Click += (_, _) =>
+                {
+                    dest.Text = choice.Destination;
+                    dest.CaretIndex = choice.Destination.Length;
+                    toLabel.Text = $"To (panel {choice.Number}):";
+                    dest.Focus();
+                };
+                buttons.Add((button, choice));
+                row.Children.Add(button);
+            }
+            // The panel whose folder the box names stands out, typed or chosen.
+            void Highlight()
+            {
+                foreach (var (button, panel) in buttons)
+                    button.Classes.Set("accent", string.Equals((dest.Text ?? "").Trim(), panel.Destination, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            }
+            dest.TextChanged += (_, _) => Highlight();
+            Highlight();
+            body.Children.Add(row);
+        }
         var completion = new PathCompletion(dest, destHost, () => vm.Services.Settings.ShowHidden, () => input.Destination);
         completion.Chosen += path =>
         {

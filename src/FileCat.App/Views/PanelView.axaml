@@ -4,7 +4,7 @@
              xmlns:ctl="using:FileCat.App.Controls"
              x:Class="FileCat.App.Views.PanelView"
              x:DataType="vm:PanelViewModel">
-  <Border Classes="panel" Classes.active="{Binding IsActive}" CornerRadius="4" BorderThickness="{Binding IsActive, Converter={x:Static vm:Converters.ActiveBorder}}">
+  <Border Classes="panel" Classes.active="{Binding IsActive}" Classes.target="{Binding IsTarget}" CornerRadius="4" BorderThickness="{Binding IsActive, Converter={x:Static vm:Converters.ActiveBorder}}">
     <DockPanel>
       <!-- Tabs -->
       <Grid x:Name="TabHeader" DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Background="{DynamicResource FcHeader}">
@@ -46,9 +46,10 @@
         <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
         <TextBox x:Name="PathBox" Grid.Column="2" Classes="path" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
                  AutomationProperties.Name="Location" />
-        <Border Grid.Column="3" Classes="badge target" IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-          <TextBlock Text="{Binding RoleLabel}" />
-        </Border>
+        <!-- TARGET, "Set as target" on the other panels, or the active panel's own target (plan §4.2). -->
+        <Button x:Name="RoleButton" Grid.Column="3" Classes="role" Classes.target="{Binding IsTarget}" Classes.offer="{Binding OffersTarget}"
+                Content="{Binding RoleLabel}" ToolTip.Tip="{Binding RoleTip}" AutomationProperties.Name="{Binding RoleTip}" Click="OnRoleClick"
+                IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </Grid>
 
       <!-- Status -->

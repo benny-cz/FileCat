@@ -184,7 +184,7 @@ public sealed partial class MainViewModel
             var summary = explicitItems is null ? sel!.Value.Summary : SizeSummary(items);
             var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(
                 kind, items, summary, destText, target is null ? null : $"panel {target.Number}",
-                sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet));
+                sel?.HiddenMarked ?? 0, source.Scheme == Schemes.ResultSet, explicitDestination is null ? PanelDestinations(tab) : null));
             if (request is null) return;
             Location? destLocation;
             string? newName = null;
@@ -230,6 +230,18 @@ public sealed partial class MainViewModel
         {
             ReleaseUnsubmitted(submitted, sel?.Items, finalItems);
         }
+    }
+
+    /// <summary>The other panels' folders on disk that F5 and F6 can go to, in panel order.</summary>
+    private List<PanelDestination> PanelDestinations(TabViewModel source)
+    {
+        var list = new List<PanelDestination>();
+        foreach (var panel in Workspace.Panels)
+        {
+            if (ReferenceEquals(panel, source.Panel) || panel.ActiveTab?.Location is not { IsFileSystem: true } location) continue;
+            list.Add(new PanelDestination(panel.Number, panel.ActiveTab.Title, AppendSeparator(location.Path)));
+        }
+        return list;
     }
 
     /// <summary>Releases captured selections that did not become a job's sources (the job's are released when it finishes).</summary>

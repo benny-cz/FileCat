@@ -280,9 +280,21 @@ public sealed partial class MainViewModel
         else if (Workspace.Panels.Count <= 2) Notify("With two panels the target is always the other panel.");
         else
         {
-            Workspace.SetTarget(source, chosen);
-            Notify($"Panel {source.Number} now targets panel {chosen.Number}.");
+            SetPanelTarget(source, chosen);
+            return;
         }
+        View.FocusActivePanel();
+    }
+
+    /// <summary>
+    /// Makes <paramref name="target"/> the panel <paramref name="source"/> copies and moves to (three or more panels):
+    /// Shift+F12, the active panel's "→ n" chip, or "Set as target" on the target itself. The keyboard stays in the active panel.
+    /// </summary>
+    public void SetPanelTarget(PanelViewModel source, PanelViewModel target)
+    {
+        if (Workspace.Panels.Count <= 2 || ReferenceEquals(source, target) || !Workspace.Panels.Contains(source) || !Workspace.Panels.Contains(target)) return;
+        Workspace.SetTarget(source, target);
+        Notify($"Panel {source.Number} now copies and moves to panel {target.Number} (F5, F6).");
         View.FocusActivePanel();
     }
 

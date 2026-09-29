@@ -181,6 +181,8 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         int idx = Panels.IndexOf(panel);
         LayoutTree = PanelLayout.Remove(LayoutTree, panel.Id);
         Panels.Remove(panel);
+        // A panel that sent to the closed one has no target until the user chooses one (D-09: never a guess); its chip
+        // says so, and F5 and F6 offer every panel's folder.
         foreach (var p in Panels) if (p.TargetPanelId == panel.Id) p.TargetPanelId = null;
         if (Panels.Count == 2)
         {
@@ -199,18 +201,33 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         LayoutChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Numbers, roles, and role chips (plan §4.2). With two panels the other one is the target. With more, the active
+    /// panel's chip names its target and lists the others to choose from, the target says TARGET, and every other
+    /// panel offers "Set as target": one click there changes where F5 and F6 go, and the keyboard stays where it is.
+    /// </summary>
     public void UpdateIndicators()
     {
         for (int i = 0; i < Panels.Count; i++) Panels[i].Number = i + 1;
-        var target = ActivePanel is null ? null : GetTarget(ActivePanel);
+        var active = ActivePanel;
+        var target = active is null ? null : GetTarget(active);
         foreach (var p in Panels)
         {
-            p.IsActive = ReferenceEquals(p, ActivePanel);
+            p.IsActive = ReferenceEquals(p, active);
             p.IsTarget = ReferenceEquals(p, target);
+            p.OffersTarget = Panels.Count > 2 && active is not null && !p.IsActive && !p.IsTarget;
             var own = GetTarget(p);
-            p.RoleLabel = Panels.Count <= 2
-                ? p.IsTarget ? "TARGET" : string.Empty
-                : (p.IsTarget ? "TARGET · " : string.Empty) + (own is null ? "no target set" : $"→ {own.Number}");
+            (p.RoleLabel, p.RoleTip) = active is null || Panels.Count < 2 ? (string.Empty, string.Empty)
+                : Panels.Count == 2 ? p.IsTarget
+                    ? ("TARGET", $"Panel {active.Number} copies and moves here (F5, F6). With two panels the other panel is always the target.")
+                    : (string.Empty, string.Empty)
+                : p.IsActive ? own is null
+                    ? ("no target ▾", "F5 and F6 have no panel to copy and move to. Click to choose one (Shift+F12), or click “Set as target” on another panel.")
+                    : ($"→ {own.Number} ▾", $"F5 and F6 copy and move to panel {own.Number}. Click to choose another target (Shift+F12), or click “Set as target” on another panel.")
+                : p.IsTarget
+                    ? ("TARGET", $"Panel {active.Number} copies and moves here (F5, F6). “Set as target” on another panel changes that.")
+                    : ("Set as target", $"Make this panel the target of panel {active.Number}: F5 and F6 there copy and move here." +
+                                        (own is null ? string.Empty : $" (Working in this panel, F5 and F6 go to panel {own.Number}.)"));
         }
         OnPropertyChanged(nameof(ActiveTarget));
     }

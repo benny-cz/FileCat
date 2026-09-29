@@ -13,8 +13,9 @@ public static class Converters
     public static readonly IValueConverter ActiveBorder =
         new FuncValueConverter<bool, Thickness>(active => active ? new Thickness(2) : new Thickness(1));
 
+    /// <summary>The panel number's background: the active color, else the header's (its muted number stays readable in every theme).</summary>
     public static readonly IValueConverter ActiveAccent =
-        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcActiveAccent", Brushes.SteelBlue) : Resource("FcGridLine", Brushes.LightGray));
+        new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcActiveAccent", Brushes.SteelBlue) : Resource("FcHeader", Brushes.LightGray));
 
     public static readonly IValueConverter ActiveAccentText =
         new FuncValueConverter<bool, IBrush>(active => active ? Resource("FcPanel", Brushes.White) : Resource("FcTextMuted", Brushes.Gray));
