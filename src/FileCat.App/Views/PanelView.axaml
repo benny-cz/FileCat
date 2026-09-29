@@ -7,9 +7,9 @@
   <Border Classes="panel" Classes.active="{Binding IsActive}" CornerRadius="4" BorderThickness="{Binding IsActive, Converter={x:Static vm:Converters.ActiveBorder}}">
     <DockPanel>
       <!-- Tabs -->
-      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Background="{DynamicResource FcHeader}">
-        <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-          <ItemsControl ItemsSource="{Binding Tabs}">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Background="{DynamicResource FcHeader}">
+        <ScrollViewer x:Name="TabScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+          <ItemsControl x:Name="TabStrip" ItemsSource="{Binding Tabs}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <StackPanel Orientation="Horizontal" />
@@ -28,7 +28,10 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </ScrollViewer>
-        <Button Grid.Column="1" Classes="flat" Content="+" Click="OnNewTabClick" ToolTip.Tip="New tab (Ctrl+T)" />
+        <!-- Shown only when the tabs do not all fit: every tab, including the hidden ones. -->
+        <Button x:Name="TabOverflow" Grid.Column="1" Classes="flat" Content="⋯" Click="OnTabOverflowClick" IsVisible="False"
+                ToolTip.Tip="All tabs (Ctrl+Shift+L)" AutomationProperties.Name="All tabs" />
+        <Button Grid.Column="2" Classes="flat" Content="+" Click="OnNewTabClick" ToolTip.Tip="New tab (Ctrl+T)" />
       </Grid>
 
       <!-- Address row -->

@@ -29,7 +29,13 @@ public partial class PanelView : UserControl
         };
         PathBox.LostFocus += (_, _) => RevertPath();
         PathBox.AddHandler(KeyDownEvent, OnPathKeyDown, RoutingStrategies.Tunnel);
-        DataContextChanged += (_, _) => HookQuickView();
+        DataContextChanged += (_, _) =>
+        {
+            HookQuickView();
+            ShowActiveTab();
+        };
+        // Resizing the panel or adding tabs can make the tabs fit, or not.
+        TabScroller.ScrollChanged += (_, _) => UpdateTabOverflow();
     }
 
     private PanelViewModel? _hookedPanel;
@@ -47,11 +53,38 @@ public partial class PanelView : UserControl
     private void OnPanelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PanelViewModel.QuickViewSource)) AttachQuickView();
+        else if (e.PropertyName == nameof(PanelViewModel.ActiveTab)) ShowActiveTab();
     }
 
     private void OnSourcePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PanelViewModel.ActiveTab)) QuickView.Attach(_hookedSource?.ActiveTab);
+    }
+
+    /// <summary>The active tab stays in sight when the tabs do not all fit (a new tab opens at the end).</summary>
+    private void ShowActiveTab()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (Panel?.ActiveTab is { } tab && TabStrip.ContainerFromItem(tab) is { } container) container.BringIntoView();
+            UpdateTabOverflow();
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void UpdateTabOverflow() => TabOverflow.IsVisible = TabScroller.Extent.Width > TabScroller.Viewport.Width + 1;
+
+    private void OnTabOverflowClick(object? sender, RoutedEventArgs e)
+    {
+        Activated?.Invoke();
+        if (TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm) vm.Execute(Core.Commands.CommandIds.TabList);
+    }
+
+    /// <summary>Whether the tab strip offers its "⋯" button, and whether the active tab is in sight (tests).</summary>
+    internal (bool Overflowing, bool ActiveTabVisible) TabStripState()
+    {
+        bool visible = Panel?.ActiveTab is { } tab && TabStrip.ContainerFromItem(tab) is { } c &&
+                       c.TranslatePoint(new Avalonia.Point(0, 0), TabScroller) is { } p && p.X >= -0.5 && p.X + c.Bounds.Width <= TabScroller.Viewport.Width + 0.5;
+        return (TabOverflow.IsVisible, visible);
     }
 
     private void AttachQuickView()
