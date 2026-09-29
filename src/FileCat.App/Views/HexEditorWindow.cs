@@ -70,7 +70,7 @@ public sealed class HexEditorWindow : Window
         _reader = new PagedReader(_overlay);
         Attach();
 
-        Width = 1000; Height = 720; MinWidth = 620; MinHeight = 360;
+        Width = 1040; Height = 720; MinWidth = 620; MinHeight = 360; // the toolbar on one row
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
         ToolTip.SetTip(_save, "Save in place (Ctrl+S): writes only the modified bytes, through a recovery journal");
         ToolTip.SetTip(_saveAs, "Save the edited content as a new file (Ctrl+Shift+S); the original stays unchanged");

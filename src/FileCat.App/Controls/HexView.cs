@@ -184,6 +184,11 @@ public sealed class HexView : Control
     private int VisibleRows => Math.Max(1, (int)(Bounds.Height / _rowHeight));
     private int OffsetDigits => _reader is null || _reader.Length <= 0xFFFFFFFFL ? 8 : _reader.Length <= 0xFFFFFFFFFFFFL ? 12 : 16;
 
+    /// <summary>Room left of the offsets, so they do not touch the window's edge.</summary>
+    private const double Gutter = 8;
+
+    private double HexColumnX => Gutter + (OffsetDigits + 2) * _charWidth;
+
     protected override Size ArrangeOverride(Size finalSize)
     {
         double sbw = _vbar.DesiredSize.Width > 0 ? _vbar.DesiredSize.Width : 12;
@@ -214,8 +219,8 @@ public sealed class HexView : Control
         dc.FillRectangle(_bg, new Rect(Bounds.Size));
         if (_reader is null) return;
         int digits = OffsetDigits;
-        double xHex = (digits + 2) * _charWidth;
-        double xText = xHex + (BytesPerRow * 3 + 2) * _charWidth;
+        double xHex = HexColumnX;
+        double xText = TextColumnX;
         var sel = Selection;
         var buffer = new byte[BytesPerRow];
         long len = _reader.Length;
@@ -226,7 +231,7 @@ public sealed class HexView : Control
             if (offset >= len && len > 0 || len == 0 && r > 0) break;
             double y = r * _rowHeight;
             bool ok = _reader.TryRead(offset, buffer, out int n);
-            DrawText(dc, offset.ToString("X" + digits, CultureInfo.InvariantCulture), 0, y, _muted);
+            DrawText(dc, offset.ToString("X" + digits, CultureInfo.InvariantCulture), Gutter, y, _muted);
             var hex = new StringBuilder(BytesPerRow * 3 + 2);
             var text = new StringBuilder(BytesPerRow);
             for (int i = 0; i < BytesPerRow; i++)
@@ -385,13 +390,13 @@ public sealed class HexView : Control
         e.Pointer.Capture(null);
     }
 
-    private double TextColumnX => (OffsetDigits + 2) * _charWidth + (BytesPerRow * 3 + 2) * _charWidth;
+    private double TextColumnX => HexColumnX + (BytesPerRow * 3 + 2) * _charWidth;
 
     private long HitTest(Point p)
     {
         if (_reader is null) return -1;
         long row = _topRow + (long)(p.Y / _rowHeight);
-        double xHex = (OffsetDigits + 2) * _charWidth;
+        double xHex = HexColumnX;
         double xText = TextColumnX;
         int col;
         if (p.X >= xText) col = (int)((p.X - xText) / _charWidth);
