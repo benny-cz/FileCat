@@ -559,6 +559,29 @@ public partial class MainWindow : Window, IViewActions
     }
 
     private CommandLineCompletion.Cycle? _completionCycle;
+    private bool _completing;
+
+    /// <summary>
+    /// Reads the folder off the UI thread (a network folder may be slow; after 3 s nothing is completed) and completes
+    /// the command line unless it was edited meanwhile.
+    /// </summary>
+    private async Task CompleteCommandLineAsync(string text, int caret, string folder, bool backwards)
+    {
+        _completing = true;
+        try
+        {
+            var cycle = _completionCycle;
+            var work = Task.Run(() => CommandLineCompletion.Complete(text, caret, folder, backwards, cycle));
+            if (await Task.WhenAny(work, Task.Delay(3000)) != work || work.Result is not { } done || CommandLine.Text != text) return;
+            CommandLine.Text = done.Text;
+            CommandLine.CaretIndex = done.Caret;
+            _completionCycle = done.Cycle;
+        }
+        finally
+        {
+            _completing = false;
+        }
+    }
 
     private void OnCommandLineKeyDown(object? sender, KeyEventArgs e)
     {
@@ -568,11 +591,7 @@ public partial class MainWindow : Window, IViewActions
         {
             // Shell-style: the word before the caret, completed from the panel's folder; Tab again for the next name.
             e.Handled = true;
-            if (CommandLineCompletion.Complete(CommandLine.Text, CommandLine.CaretIndex, here.Path,
-                    backwards: (e.KeyModifiers & KeyModifiers.Shift) != 0, _completionCycle) is not { } done) return;
-            CommandLine.Text = done.Text;
-            CommandLine.CaretIndex = done.Caret;
-            _completionCycle = done.Cycle;
+            if (!_completing) _ = CompleteCommandLineAsync(CommandLine.Text, CommandLine.CaretIndex, here.Path, (e.KeyModifiers & KeyModifiers.Shift) != 0);
             return;
         }
         if (e.Key == Key.Escape)

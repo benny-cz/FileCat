@@ -68,6 +68,7 @@ public sealed class CommandLineCompletionTests
             line.Text = "type b";
             line.CaretIndex = 6;
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            for (int i = 0; i < 250 && line.Text != "type b.txt"; i++) await Task.Delay(20, ct); // read off the UI thread
             Assert.Equal("type b.txt", line.Text);
             Assert.True(line.IsFocused); // Tab completed instead of leaving the command line
         }
