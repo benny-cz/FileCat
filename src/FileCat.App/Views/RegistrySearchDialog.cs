@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
@@ -118,9 +119,25 @@ public static class RegistrySearchDialog
             status.Text = "Searching…";
         };
         stop.Click += (_, _) => running?.Cancel();
+        // Enter or a double-click on a result goes to it (Enter would otherwise start the search again).
+        var closer = new DialogCloser();
+        Controls.ListKeys.OnKey(results, Avalonia.Input.Key.Enter, _ =>
+        {
+            if (results.SelectedItem is not Row) return false;
+            closer.Close("go");
+            return true;
+        });
+        results.DoubleTapped += (_, e) =>
+        {
+            if (results.SelectedItem is Row && e.Source is Avalonia.Visual v && v.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null)
+                closer.Close("go");
+        };
         var result = await vm.Dialogs.ShowCustomAsync("Find in Registry", body,
-            [new DialogButton("Close", "close", IsCancel: true), new DialogButton("Go to selected", "go"),
-             new DialogButton("Show in panel", "show")], term);
+            [
+                new DialogButton("Close", "close", IsCancel: true),
+                new DialogButton("Go to selected", "go") { IsAvailable = () => results.SelectedItem is Row },
+                new DialogButton("Show in panel", "show") { IsAvailable = () => set is not null },
+            ], term, closer: closer);
         if (result as string == "go" && results.SelectedItem is Row selected)
         {
             running?.Cancel();

@@ -49,8 +49,13 @@ public static class OperationDialogs
     {
         string verb = input.Kind == JobKind.Move ? "Move" : "Copy";
         var body = new StackPanel { Spacing = 6, MinWidth = 560 };
-        body.Children.Add(Text($"{verb} {input.Summary}", bold: true));
-        body.Children.Add(Muted(NameList(input.Items)));
+        // The title is the verb; the body says what (one item by name, several counted and then named).
+        var single = input.Items.Count == 1 ? input.Items[0] : null;
+        string what = single is null ? input.Summary
+            : (single.IsContainer ? "the folder " : string.Empty) + $"\"{Formatters.SafeName(single.Name)}\"" +
+              (single is { IsContainer: false, Size: >= 0 } ? $" ({Formatters.SizeWithUnit(single.Size)})" : string.Empty);
+        body.Children.Add(Text($"{verb} {what}", bold: true));
+        if (single is null) body.Children.Add(Muted(NameList(input.Items)));
         body.Children.Add(new TextBlock { Text = input.TargetLabel is null ? "To:" : $"To ({input.TargetLabel}):", Margin = new Thickness(0, 6, 0, 0) });
         var dest = new TextBox { Text = input.Destination };
         AutomationProperties.SetName(dest, "Destination");
@@ -140,8 +145,7 @@ public static class OperationDialogs
 
         while (true)
         {
-            var result = await vm.Dialogs.ShowCustomAsync($"{verb} {(input.Items.Count == 1 ? "\"" + Formatters.SafeName(input.Items[0].Name) + "\"" : input.Items.Count + " items")}",
-                body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Queue", "queue"), new DialogButton(verb, "start", IsDefault: true)], dest);
+            var result = await vm.Dialogs.ShowCustomAsync(verb, body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Queue", "queue"), new DialogButton(verb, "start", IsDefault: true)], dest);
             if (result is not ("start" or "queue")) return null;
             Mask? mask = null;
             if (!string.IsNullOrWhiteSpace(filter.Text))

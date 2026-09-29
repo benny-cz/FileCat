@@ -164,6 +164,12 @@ public sealed partial class MainViewModel
             Notify("Mark two files, or focus a file in each of two panels, to compare them.", true);
             return;
         }
+        await OpenFileComparisonAsync(a, b);
+    }
+
+    /// <summary>Opens a comparison window for two files (contents open off the UI thread).</summary>
+    private async Task OpenFileComparisonAsync(ItemRef a, ItemRef b)
+    {
         string Display(ItemRef i) => i.FileSystemPath ?? Services.Providers.Display(i.Parent).TrimEnd('/', '\\') + "/" + i.Name;
         try
         {
@@ -300,7 +306,12 @@ public sealed partial class MainViewModel
                 var panel = leftSide ? leftPanel : rightPanel;
                 panel.OpenTab(ResultSetProvider.LocationOf(set));
                 Workspace.Activate(panel);
-            }, sync);
+            }, sync,
+            entry =>
+            {
+                if (entry is not { Left: { } l, Right: { } r, LeftFolder: { } lf, RightFolder: { } rf }) return;
+                _ = OpenFileComparisonAsync(Services.Providers.For(lf).GetItemRef(lf, l), Services.Providers.For(rf).GetItemRef(rf, r));
+            });
     }
 
     /// <summary>Starts a previewed one-way synchronization as ordinary jobs, run one after another.</summary>

@@ -4,6 +4,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.Core.Compare;
 using FileCat.Core.Resources;
@@ -38,6 +39,14 @@ public sealed class DirectoryDiffWindow : Window
     private readonly Button _openRight = new() { Content = "Open right items as results", IsEnabled = false };
     private readonly Button _sync = new() { Content = "Synchronize…", IsEnabled = false };
     private SyncContext? _syncContext;
+    private Action<TreeDiffEntry>? _compareFiles;
+    private readonly TextBlock _compareHint = new()
+    {
+        Text = "Enter or a double-click on a file present on both sides compares their contents.",
+        Classes = { "muted", "small" },
+        TextWrapping = TextWrapping.Wrap,
+        IsVisible = false,
+    };
     private readonly ListBox _list = new();
     private readonly ComboBox _filter = new() { MinWidth = 180 };
     private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap };
@@ -48,10 +57,13 @@ public sealed class DirectoryDiffWindow : Window
     /// <param name="compare">The comparison (progress: the folder being compared).</param>
     /// <param name="openSide">Opens the given entries of one side (true: left) as a result set in that side's panel.</param>
     /// <param name="sync">How a one-way synchronization of these folders starts; null offers none.</param>
+    /// <param name="compareFiles">Compares the two files of an entry (Enter or a double-click on it); null offers nothing.</param>
     public static DirectoryDiffWindow Start(string leftName, string rightName, string criteria,
-        Func<Action<string>, CancellationToken, TreeCompareResult> compare, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide, SyncContext? sync = null)
+        Func<Action<string>, CancellationToken, TreeCompareResult> compare, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide, SyncContext? sync = null,
+        Action<TreeDiffEntry>? compareFiles = null)
     {
-        var window = new DirectoryDiffWindow(leftName, rightName, criteria, openSide) { _syncContext = sync };
+        var window = new DirectoryDiffWindow(leftName, rightName, criteria, openSide) { _syncContext = sync, _compareFiles = compareFiles };
+        window._compareHint.IsVisible = compareFiles is not null;
         window._sync.IsVisible = sync is not null;
         s_open.Add(window);
         window.Closed += (_, _) =>
@@ -104,6 +116,11 @@ public sealed class DirectoryDiffWindow : Window
         _filter.SelectedIndex = 0;
         _filter.SelectionChanged += (_, _) => Refresh();
         _list.ItemTemplate = new FuncDataTemplate<TreeDiffEntry>((e, _) => e is null ? new TextBlock() : Row(e));
+        Controls.ListKeys.OnKey(_list, Key.Enter, _ => CompareSelected());
+        _list.DoubleTapped += (_, e) =>
+        {
+            if (e.Source is Visual v && v.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null) CompareSelected();
+        };
         var openLeft = _openLeft;
         var openRight = _openRight;
         _stopButton.Click += (_, _) => _stop.Cancel();
@@ -125,6 +142,7 @@ public sealed class DirectoryDiffWindow : Window
             {
                 new TextBlock { Text = $"{leftName}  ↔  {rightName}", TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeight.SemiBold },
                 new TextBlock { Text = criteria, Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap },
+                _compareHint,
                 _summary,
             },
         };
@@ -162,6 +180,21 @@ public sealed class DirectoryDiffWindow : Window
     }
 
     public void OpenSide(bool left) => _openSide(Shown().Where(e => left ? e.Left is not null : e.Right is not null).ToList(), left);
+
+    /// <summary>Compares the contents of the selected entry's two files; false when it is not a file on both sides.</summary>
+    public bool CompareSelected()
+    {
+        if (_compareFiles is null || _list.SelectedItem is not TreeDiffEntry { Left: not null, Right: not null, IsFolder: false } entry) return false;
+        _compareFiles(entry);
+        return true;
+    }
+
+    /// <summary>Selects the entry with <paramref name="relativePath"/> (tests).</summary>
+    internal bool Select(string relativePath)
+    {
+        _list.SelectedItem = Shown().FirstOrDefault(e => e.RelativePath == relativePath);
+        return _list.SelectedItem is not null;
+    }
 
     private List<TreeDiffEntry> Shown()
     {

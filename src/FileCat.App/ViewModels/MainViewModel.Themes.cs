@@ -51,7 +51,15 @@ public sealed partial class MainViewModel
         if (ThemeAnimation.SystemPrefersReducedMotion())
             body.Children.Add(new TextBlock { Text = "The system asks for reduced motion, so animated themes stand still.", Classes = { "muted" } });
 
-        var answer = await Dialogs.ShowCustomAsync("Theme", body, [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Keep", true, IsDefault: true)], list);
+        // A double-click keeps the theme clicked, as Enter does.
+        var closer = new DialogCloser();
+        list.DoubleTapped += (_, e) =>
+        {
+            if (e.Source is Avalonia.Visual v && Avalonia.VisualTree.VisualExtensions.FindAncestorOfType<ListBoxItem>(v, includeSelf: true) is not null)
+                closer.Close(true);
+        };
+        var answer = await Dialogs.ShowCustomAsync("Theme", body, [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Keep", true, IsDefault: true)], list,
+            closer: closer);
         if (answer is true && list.SelectedItem is ListBoxItem { Tag: string kept })
         {
             s.Theme = kept;

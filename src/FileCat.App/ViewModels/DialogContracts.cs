@@ -47,7 +47,25 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
 }
 
 /// <summary>A button in a custom dialog; <see cref="Result"/> is returned when chosen.</summary>
-public sealed record DialogButton(string Text, object Result, bool IsDefault = false, bool IsCancel = false, bool IsDanger = false);
+public sealed record DialogButton(string Text, object Result, bool IsDefault = false, bool IsCancel = false, bool IsDanger = false)
+{
+    /// <summary>
+    /// When set, the button is enabled only while this is true ("Go to" needs a result): cheap and side-effect free, it
+    /// is re-evaluated while the dialog is open.
+    /// </summary>
+    public Func<bool>? IsAvailable { get; init; }
+}
+
+/// <summary>Lets a custom dialog's content end it as one of its buttons would (Enter on a search result: "Go to").</summary>
+public sealed class DialogCloser
+{
+    private Action<object?>? _close;
+
+    internal void Attach(Action<object?> close) => _close = close;
+
+    /// <summary>Ends the dialog with <paramref name="result"/>; nothing happens once it has ended.</summary>
+    public void Close(object? result) => _close?.Invoke(result);
+}
 
 /// <summary>Overlay dialogs owned by the main window. All are keyboard-first: Enter confirms, Esc cancels.</summary>
 public interface IDialogService
@@ -60,9 +78,10 @@ public interface IDialogService
     /// <summary>
     /// Hosts arbitrary content with buttons; returns the chosen button result or null on Esc. The default button is
     /// enabled only while <paramref name="canConfirm"/> (cheap, side-effect free; re-evaluated while open) is true.
+    /// <paramref name="closer"/> lets the content end the dialog itself.
     /// </summary>
     Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
-        Func<bool>? canConfirm = null);
+        Func<bool>? canConfirm = null, DialogCloser? closer = null);
     bool IsOpen { get; }
 }
 

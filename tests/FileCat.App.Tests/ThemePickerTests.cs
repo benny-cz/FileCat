@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -65,6 +66,22 @@ public sealed class ThemePickerTests
             await picking;
             Assert.Equal("Psychedelic", ThemeManager.Current.Name);
             Assert.Equal("Psychedelic", services.Settings.Theme);
+
+            // By keyboard alone, as the picker says: arrows try, Enter keeps.
+            var ct = TestContext.Current.CancellationToken;
+            picking = vm.ChooseThemeAsync();
+            list = await Picker(window);
+            for (int i = 0; i < 100 && window.FocusManager?.GetFocusedElement() is not ListBoxItem; i++) await Task.Delay(20, ct);
+            int start = list.SelectedIndex;
+            window.KeyPress(Avalonia.Input.Key.Up, Avalonia.Input.RawInputModifiers.None, Avalonia.Input.PhysicalKey.ArrowUp, null);
+            for (int i = 0; i < 100 && list.SelectedIndex == start; i++) await Task.Delay(20, ct);
+            string tried = ThemeManager.Names[list.SelectedIndex];
+            Assert.NotEqual("Psychedelic", tried);
+            Assert.Equal(tried, ThemeManager.Current.Name);
+            window.KeyPress(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.None, Avalonia.Input.PhysicalKey.Enter, null);
+            for (int i = 0; i < 100 && !picking.IsCompleted; i++) await Task.Delay(20, ct);
+            Assert.True(picking.IsCompleted, "Enter did not keep the theme.");
+            Assert.Equal(tried, services.Settings.Theme);
         }
         finally
         {

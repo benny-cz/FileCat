@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
 
 namespace FileCat.App.Views;
@@ -56,7 +57,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         host.Children.Add(session.Layer);
         host.IsVisible = true;
         _open++;
-        Dispatcher.UIThread.Post(() => (initialFocus ?? card).Focus(NavigationMethod.Tab), DispatcherPriority.Input);
+        // A list takes focus through its selected item, so its arrow keys work at once.
+        Dispatcher.UIThread.Post(() => Controls.ListKeys.Focus(initialFocus ?? card), DispatcherPriority.Input);
         return session;
     }
 
@@ -227,7 +229,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     }
 
     public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
-        Func<bool>? canConfirm = null)
+        Func<bool>? canConfirm = null, DialogCloser? closer = null)
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
@@ -239,25 +241,45 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             Close(session!);
             tcs.TrySetResult(r);
         }
+        var gated = new List<(Button Button, Func<bool> Available)>();
         var btns = buttons.Select(b =>
         {
             var btn = new Button { Content = b.Text, IsDefault = b.IsDefault, IsCancel = b.IsCancel };
             if (b.IsDanger) btn.Classes.Add("danger");
             else if (b.IsDefault) btn.Classes.Add("primary");
-            btn.Click += (_, _) => { if (!b.IsDefault || canConfirm?.Invoke() != false) Finish(b.Result); };
+            var available = b.IsDefault && canConfirm is not null
+                ? b.IsAvailable is { } own ? () => own() && canConfirm() : canConfirm
+                : b.IsAvailable;
+            if (available is not null) gated.Add((btn, available));
+            btn.Click += (_, _) => { if (available?.Invoke() != false) Finish(b.Result); };
             return btn;
         }).ToArray();
-        // The confirm button shows whether it would do anything (the predicate is cheap and side-effect free).
-        if (canConfirm is not null && btns.FirstOrDefault(b => b.IsDefault) is { } confirm)
+        // Buttons show whether they would do anything (the predicates are cheap and side-effect free).
+        if (gated.Count > 0)
         {
-            confirm.IsEnabled = canConfirm();
+            void Requery()
+            {
+                foreach (var (button, available) in gated) button.IsEnabled = available();
+            }
+            Requery();
             requery = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            requery.Tick += (_, _) => confirm.IsEnabled = canConfirm();
+            requery.Tick += (_, _) => Requery();
             requery.Start();
         }
         var card = Card(title, content, ButtonRow(btns), 760);
+        // A focused list item takes Enter for itself; in a dialog, Enter there still means the default button (unless
+        // the content acted on it already and so ended the dialog).
+        card.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+        {
+            if (e.Key != Key.Enter || e.KeyModifiers != KeyModifiers.None || tcs.Task.IsCompleted || e.Source is not Visual source) return;
+            if (source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not { } item || !card.IsVisualAncestorOf(item)) return;
+            if (btns.FirstOrDefault(b => b.IsDefault) is not { IsEffectivelyEnabled: true } confirm) return;
+            e.Handled = true;
+            confirm.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
         var cancel = buttons.FirstOrDefault(b => b.IsCancel);
         session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result));
+        closer?.Attach(Finish);
         return tcs.Task;
     }
 
@@ -361,7 +383,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             list.ScrollIntoView(next);
             e.Handled = true;
         };
-        list.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; Accept(); } };
+        Controls.ListKeys.OnKey(list, Key.Enter, _ =>
+        {
+            Accept();
+            return true;
+        });
         list.DoubleTapped += (_, _) => Accept();
         run.Click += (_, _) => Accept();
         close.Click += (_, _) => Finish(null);
@@ -486,14 +512,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             e.Handled = true;
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         list.DoubleTapped += (_, _) => Accept(false);
-        list.KeyDown += (_, e) =>
+        Controls.ListKeys.OnKey(list, Key.Enter, e =>
         {
-            if (e.Key == Key.Enter)
-            {
-                e.Handled = true;
-                Accept((e.KeyModifiers & KeyModifiers.Shift) != 0);
-            }
-        };
+            Accept((e.KeyModifiers & KeyModifiers.Shift) != 0);
+            return true;
+        });
         Apply();
         session = Show(Card(o.Title, body, null, 720), filter, top: true, () => Finish(new ChoiceResult(-1, false, deleted) { PinToggled = [.. pinToggled] }));
         return tcs.Task;

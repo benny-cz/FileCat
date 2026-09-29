@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.Core.Resources;
@@ -190,14 +191,27 @@ public static class SearchDialog
         };
         stop.Click += (_, _) => cts?.Cancel();
         skip.Click += (_, _) => session?.SkipCurrentFolder();
-        list.KeyDown += (_, e) =>
+        // Enter or a double-click on a result goes to it.
+        var closer = new DialogCloser();
+        Controls.ListKeys.OnKey(list, Key.Enter, _ =>
         {
-            if (e.Key == Key.Enter && list.SelectedItem is Row) e.Handled = true;
+            if (list.SelectedItem is not SearchDialog.Row) return false;
+            closer.Close(SearchDialogOutcome.GoTo);
+            return true;
+        });
+        list.DoubleTapped += (_, e) =>
+        {
+            if (list.SelectedItem is Row && e.Source is Visual v && v.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null)
+                closer.Close(SearchDialogOutcome.GoTo);
         };
 
         var result = await vm.Dialogs.ShowCustomAsync(withinItems is null ? "Find files" : "Find within results", body,
-            [new DialogButton("Close", SearchDialogOutcome.Closed, IsCancel: true), new DialogButton("Go to", SearchDialogOutcome.GoTo), new DialogButton("Show in panel", SearchDialogOutcome.ShowInPanel)],
-            names);
+            [
+                new DialogButton("Close", SearchDialogOutcome.Closed, IsCancel: true),
+                new DialogButton("Go to", SearchDialogOutcome.GoTo) { IsAvailable = () => rows.Count > 0 },
+                new DialogButton("Show in panel", SearchDialogOutcome.ShowInPanel) { IsAvailable = () => set is not null },
+            ],
+            names, closer: closer);
         timer.Stop();
         var outcome = result as SearchDialogOutcome? ?? SearchDialogOutcome.Closed;
         switch (outcome)

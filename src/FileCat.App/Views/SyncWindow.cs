@@ -61,16 +61,17 @@ public sealed class SyncWindow : Window
         _showAll.IsCheckedChanged += (_, _) => Refresh();
         _permanent.IsCheckedChanged += (_, _) => UpdateSummary();
         _list.ItemTemplate = new FuncDataTemplate<SyncItem>((item, _) => item is null ? new TextBlock() : Row(item));
-        _list.KeyDown += (_, e) =>
+        // Space includes or excludes the selected steps (all of them the same way), before the list's items take it.
+        Controls.ListKeys.OnKey(_list, Key.Space, _ =>
         {
-            if (e.Key != Key.Space || _list.SelectedItems is null) return;
-            // Space includes or excludes the selected steps (all of them the same way).
+            if (_list.SelectedItems is null) return false;
             var selected = _list.SelectedItems.OfType<SyncItem>().Where(i => i.CanInclude).ToList();
             bool include = selected.Any(i => !i.Include);
             foreach (var i in selected) i.Include = include;
             Refresh(keepSelection: true);
-            e.Handled = true;
-        };
+            Controls.ListKeys.Focus(_list); // the refreshed list has new rows: keep the keyboard in it
+            return true;
+        });
         var cancel = new Button { Content = "Cancel" };
         cancel.Click += (_, _) => Close();
         _run.Click += (_, _) => Run();
@@ -102,7 +103,8 @@ public sealed class SyncWindow : Window
                 e.Handled = true;
             }
         };
-        Opened += (_, _) => _list.Focus();
+        // Once shown and laid out, the steps have the keyboard (arrows move, Space includes or excludes).
+        Opened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() => Controls.ListKeys.Focus(_list), Avalonia.Threading.DispatcherPriority.Input);
         Propose();
     }
 

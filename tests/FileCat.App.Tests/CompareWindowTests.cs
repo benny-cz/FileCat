@@ -84,8 +84,10 @@ public sealed class CompareWindowTests
             for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3); i++) await Task.Delay(20, ct);
             vm.Execute(CommandIds.MarkAll);
             vm.Execute(CommandIds.CompareFiles);
-            for (int i = 0; i < 250 && CompareWindow.OpenWindows.Count == 0; i++) await Task.Delay(20, ct);
-            var compare = Assert.Single(CompareWindow.OpenWindows);
+            // Other tests may have comparisons open at the same time: this one is a.txt ↔ b.txt.
+            static bool Mine(CompareWindow w) => w.Title == "Compare: a.txt ↔ b.txt";
+            for (int i = 0; i < 250 && !CompareWindow.OpenWindows.Any(Mine); i++) await Task.Delay(20, ct);
+            var compare = Assert.Single(CompareWindow.OpenWindows, Mine);
             for (int i = 0; i < 250 && compare.Summary == "Comparing…"; i++) await Task.Delay(20, ct);
             Assert.StartsWith("1 difference: 1 changed", compare.Summary);
             compare.Close();
