@@ -49,7 +49,8 @@ public static class HiddenDataDecoder
             case HiddenKind.NtfsAttribute:
                 return NtfsAttribute(name, v, item.Size);
             default:
-                return OperatingSystem.IsMacOS() || name.StartsWith("com.apple.", StringComparison.Ordinal) ? MacAttribute(name, v, item.Size) : LinuxAttribute(name, v);
+                // By name, not by the system running: an attribute copied between Linux and a Mac still says what it says.
+                return name.StartsWith("com.apple.", StringComparison.Ordinal) ? MacAttribute(name, v, item.Size) : LinuxAttribute(name, v);
         }
     }
 
