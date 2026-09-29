@@ -113,6 +113,18 @@ public partial class MainWindow : Window, IViewActions
         Action editorsChanged = vm.RefreshSessionActivity;
         HexEditorWindow.UnsavedStateChanged += editorsChanged;
         Closed += (_, _) => HexEditorWindow.UnsavedStateChanged -= editorsChanged;
+        // Windows says at once when a volume or the medium in a drive arrives or goes (WM_DEVICECHANGE), which the drive
+        // watcher's own check every two seconds would otherwise find a moment later, or (for a medium) not at all.
+        if (OperatingSystem.IsWindows())
+            Win32Properties.AddWndProcHookCallback(this, (IntPtr _, uint message, IntPtr wParam, IntPtr lParam, ref bool _) =>
+            {
+                const uint WM_DEVICECHANGE = 0x0219;
+                const int DBT_DEVICEARRIVAL = 0x8000, DBT_DEVICEREMOVECOMPLETE = 0x8004, DBT_DEVTYP_VOLUME = 2;
+                if (message == WM_DEVICECHANGE && (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) && lParam != IntPtr.Zero &&
+                    System.Runtime.InteropServices.Marshal.ReadInt32(lParam, 4) == DBT_DEVTYP_VOLUME)
+                    vm.Services.Drives.Check(mediaChanged: true);
+                return IntPtr.Zero;
+            });
         Opened += (_, _) =>
         {
             if (OperatingSystem.IsWindows() && TryGetPlatformHandle()?.Handle is { } hwnd)

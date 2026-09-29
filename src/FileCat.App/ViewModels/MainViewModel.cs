@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
         Services = services;
         Workspace = new WorkspaceViewModel(services);
         AttachRemoteInteraction();
+        _drives = services.Drives.Listen(change => services.Ui.Post(() => OnDrivesChanged(change)));
         for (int i = 1; i <= 12; i++) KeyBar.Add(new KeyBarItem(i));
         UpdateKeyBar(KeyMods.None);
         Workspace.PropertyChanged += (_, e) =>

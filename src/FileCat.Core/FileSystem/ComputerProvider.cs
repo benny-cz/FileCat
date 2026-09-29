@@ -115,6 +115,9 @@ public class ComputerProvider : ResourceProvider
         return tag.DriveType == nameof(DriveType.Ram) && root != "/" ? null : tag;
     }
 
+    /// <summary>The roots this list shows now (drive letters, or mount points on Unix); no drive is queried.</summary>
+    public IReadOnlyList<string> CurrentRoots() => GetDriveRoots();
+
     protected virtual IReadOnlyList<string> GetDriveRoots()
     {
         try

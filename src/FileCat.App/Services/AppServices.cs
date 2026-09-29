@@ -61,6 +61,8 @@ public sealed class AppServices : IDisposable
             Recovery.SharesDisk = FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk;
         }
         Providers.Register(Recovery);
+        // Drives coming and going: This PC lists them anew, and panels leave a drive that is gone (plan §8.2).
+        Drives = new DriveWatcher(() => Providers.TryGet(Schemes.Computer, out var p) && p is ComputerProvider computer ? computer.CurrentRoots() : []);
         Zip.OtherArchives = Archives;
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
@@ -113,6 +115,9 @@ public sealed class AppServices : IDisposable
     public Core.Metadata.MetadataService Metadata { get; }
 
     public FileCat.Recovery.RecoveryProvider Recovery { get; }
+
+    /// <summary>Tells when drives or mount points come and go (checked while the main window listens).</summary>
+    public DriveWatcher Drives { get; }
 
     public Core.Archives.ZipProvider Zip { get; private set; } = null!;
 
@@ -260,6 +265,7 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        Drives.Dispose();
         Recovery.CloseAll(); // drives' helper sessions end with FileCat
         WorkingSets.Dispose();
         ShellPictures?.Dispose();

@@ -564,6 +564,8 @@ Use batches and a bounded directory index rather than retaining a UI model per i
 
 Watch open relevant locations, not every persisted tab recursively. Coalesce notifications; invalidate affected metadata and schedules. On overflow, reconnect, ambiguity, or volume identity change, re-enumerate and reconcile. A watcher is not proof that a resource has not changed. [Watcher limitations][watcher]
 
+The list of drives is watched too (implemented 2026-09-29): the roots This PC shows are compared every two seconds while the main window runs (one system call, no I/O on any drive), and Windows' device notifications (`WM_DEVICECHANGE` for volumes) report arrivals, removals, and a medium changing in a drive at once. This PC lists the drives anew, and a tab that showed a drive that is gone, or an archive or disk image on it, shows This PC with a notice instead of an error.
+
 Initial Windows integration covers:
 
 - drive/volume listing;
