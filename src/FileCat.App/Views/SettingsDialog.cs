@@ -109,7 +109,7 @@ public static class SettingsDialog
             Text = string.Join(Environment.NewLine, s.KeyBindings.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}")),
             PlaceholderText = "command.id = Ctrl+Shift+X, F12",
         };
-        var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Command ids are listed in the keyboard reference (F1) and the command palette (Ctrl+Shift+P).", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
+        var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Easier: in the keyboard reference (F1), select a command and press F2, then the new keys. Command ids are listed there and in the command palette (Ctrl+Shift+P).", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
         tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", reference)) });
 
         // ---- Privacy
