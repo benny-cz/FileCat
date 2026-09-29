@@ -230,6 +230,84 @@ public static partial class RegistryRaw
     private const int FileNotFound = 2, PathNotFound = 3;
 
     public static IEnumerable<string> SubKeyNames(RegistryKey key) => EnumerateNames(key, values: false);
+
+    /// <summary>
+    /// Keys to watch for changes to <paramref name="location"/>. A key below a root is itself. A root is opened by its
+    /// kernel path, never watched through its predefined handle (HKEY_CURRENT_USER and the like): reading a root
+    /// through that shared handle signals the notifications on it, so a view that rereads on each change would reread
+    /// for ever. HKCR is the machine's and the user's classes together.
+    /// </summary>
+    public static List<RegistryKey> OpenForWatching(Location location)
+    {
+        if (location.Path.Contains('\\')) return [WindowsRegistryProvider.Open(location, writable: false)];
+        string user = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value
+                      ?? throw new UnauthorizedAccessException("The current user's Registry cannot be found.");
+        string[] paths = location.Path switch
+        {
+            "HKLM" => [@"\Registry\Machine"],
+            "HKU" => [@"\Registry\User"],
+            "HKCU" => [$@"\Registry\User\{user}"],
+            "HKCC" => [@"\Registry\Machine\System\CurrentControlSet\Hardware Profiles\Current"],
+            "HKCR" => [@"\Registry\Machine\Software\Classes", $@"\Registry\User\{user}_Classes"],
+            _ => throw new ArgumentException("A Registry root is required.", nameof(location)),
+        };
+        var view = location.Session switch { "32" => RegistryView.Registry32, "64" => RegistryView.Registry64, _ => RegistryView.Default };
+        var keys = new List<RegistryKey>();
+        Exception? failure = null;
+        foreach (string path in paths)
+        {
+            // The user's classes may not be loaded; the machine's alone still tell most changes.
+            try { keys.Add(RegistryKey.FromHandle(OpenKernelPath(path), view)); }
+            catch (Win32Exception ex) { failure ??= ex; }
+        }
+        return keys.Count > 0 ? keys : throw failure!;
+    }
+
+    private static SafeRegistryHandle OpenKernelPath(string path)
+    {
+        nint buffer = Marshal.StringToHGlobalUni(path);
+        try
+        {
+            var name = new UnicodeString { Length = (ushort)(path.Length * 2), MaximumLength = (ushort)(path.Length * 2 + 2), Buffer = buffer };
+            nint namePointer = Marshal.AllocHGlobal(Marshal.SizeOf<UnicodeString>());
+            try
+            {
+                Marshal.StructureToPtr(name, namePointer, false);
+                var attributes = new ObjectAttributes { Length = Marshal.SizeOf<ObjectAttributes>(), ObjectName = namePointer, Attributes = 0x40 /* OBJ_CASE_INSENSITIVE */ };
+                int status = NtOpenKey(out var handle, KeyRead, ref attributes);
+                if (status < 0)
+                {
+                    handle.Dispose();
+                    throw new Win32Exception(RtlNtStatusToDosError(status));
+                }
+                return handle;
+            }
+            finally { Marshal.FreeHGlobal(namePointer); }
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct UnicodeString
+    {
+        public ushort Length;
+        public ushort MaximumLength;
+        public nint Buffer;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ObjectAttributes
+    {
+        public int Length;
+        public nint RootDirectory;
+        public nint ObjectName;
+        public uint Attributes;
+        public nint SecurityDescriptor;
+        public nint SecurityQualityOfService;
+    }
+
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtOpenKey(out SafeRegistryHandle handle, int access, ref ObjectAttributes attributes);
     public static IEnumerable<string> ValueNames(RegistryKey key) => EnumerateNames(key, values: true);
 
     private static IEnumerable<string> EnumerateNames(RegistryKey key, bool values)

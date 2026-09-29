@@ -110,6 +110,28 @@ public sealed class EntryStoreTests
     }
 
     [Fact]
+    public async Task A_location_nothing_can_list_leaves_the_listing_as_it_was()
+    {
+        using var folder = new TempDir();
+        using var scratch = new TempDir();
+        folder.File("keep.txt");
+        using var ui = new TestDispatcher();
+        using var io = new FileCat.Core.Threading.DeviceIoScheduler();
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        providers.Register(new ComputerProvider());
+        var listing = await ui.InvokeAsync(() => new ListingModel(providers, io, ui, scratch.Path, 1024));
+        await ui.InvokeAsync(() => listing.Load(Location.FileSystem(folder.Path)));
+        await ui.WaitUntilAsync(() => listing.State == ListingState.Complete);
+        // No provider for it: the navigation fails, and the folder still shown can still be read (saving the workspace
+        // on exit read a released store and failed).
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ui.InvokeAsync(() => listing.Load(new Location("nowhere", "x"))));
+        Assert.Equal(folder.Path, (await ui.InvokeAsync(() => listing.Location))!.Path);
+        Assert.Equal("keep.txt", await ui.InvokeAsync(() => listing.GetVisible(1).Name));
+        await ui.InvokeAsync(listing.Dispose);
+    }
+
+    [Fact]
     public async Task A_size_measured_while_its_folder_is_listed_again_lands_when_its_row_returns()
     {
         using var folder = new TempDir();

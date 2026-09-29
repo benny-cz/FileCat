@@ -168,6 +168,50 @@ public sealed class WindowsRegistryProviderTests
         }
     }
 
+    private sealed class CountingSink : IEnumerationSink
+    {
+        public int Count;
+        public void AddBatch(ReadOnlySpan<EntryData> entries) => Count += entries.Length;
+        public void ReportIssue(string message) { }
+    }
+
+    [Fact]
+    public async Task Reading_a_root_is_no_change_and_a_burst_of_writes_is_one()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var ct = TestContext.Current.CancellationToken;
+        var provider = new WindowsRegistryProvider();
+        // Reading a root through its predefined handle signalled a watch on that handle, so a view of HKCU or HKCC reread
+        // itself for ever.
+        foreach (string root in new[] { "HKCU", "HKCC", "HKLM", "HKCR" })
+        {
+            int changes = 0;
+            var location = new Location(Schemes.Registry, root);
+            using var monitor = new RegistryChangeMonitor(location, () => Interlocked.Increment(ref changes));
+            await monitor.Ready.WaitAsync(TimeSpan.FromSeconds(5), ct);
+            var sink = new CountingSink();
+            for (int i = 0; i < 3; i++) await provider.EnumerateAsync(location, sink, ct);
+            await Task.Delay(500, ct);
+            Assert.True(sink.Count > 0, root);
+            Assert.True(changes == 0, $"{root}: {changes} changes reported while it was only read");
+        }
+
+        // Fifty values written at once are one change, reported when the writing settles.
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            int changes = 0;
+            using var monitor = new RegistryChangeMonitor(new Location(Schemes.Registry, "HKCU\\" + path), () => Interlocked.Increment(ref changes));
+            await monitor.Ready.WaitAsync(TimeSpan.FromSeconds(5), ct);
+            for (int i = 0; i < 50; i++) fixture.SetValue("v" + i, i);
+            for (int i = 0; i < 150 && Volatile.Read(ref changes) == 0; i++) await Task.Delay(20, ct);
+            await Task.Delay(600, ct);
+            Assert.Equal(1, changes);
+        }
+        finally { Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false); }
+    }
+
     [Fact]
     public async Task Registry_change_monitor_reports_value_edits_and_stops()
     {

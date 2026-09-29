@@ -286,8 +286,9 @@ public sealed class ListingModel : IDisposable
     /// <summary>Navigates to a location. Marks are cleared; <paramref name="focusName"/> is focused when it arrives.</summary>
     public void Load(Location location, string? focusName = null)
     {
-        CancelPipelines();
+        // First: a location nothing can list leaves the listing as it was, not its store released under it.
         var provider = _providers.For(location);
+        CancelPipelines();
         Location = location;
         Provider = provider;
         _store = CreateStore(location);
