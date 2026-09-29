@@ -132,6 +132,13 @@ public static class OperationDialogs
                 return;
             }
             bool sep = t.EndsWith('\\') || t.EndsWith('/');
+            // Asking a server about a folder can take long, and this runs as you type: network paths are checked when
+            // the operation starts.
+            if (IsNetworkPath(loc.Path))
+            {
+                interpretation.Text = $"→ {loc.Path} (on the network: checked when the operation starts)";
+                return;
+            }
             if (Directory.Exists(loc.Path)) interpretation.Text = $"→ into the folder {loc.Path}";
             else if (!sep && input.Items.Count == 1 && Directory.Exists(Path.GetDirectoryName(loc.Path) ?? ""))
                 interpretation.Text = $"→ as \"{Path.GetFileName(loc.Path)}\" in {Path.GetDirectoryName(loc.Path)}";
@@ -202,6 +209,21 @@ public static class OperationDialogs
                 Flatten = flatten.IsChecked == true,
             };
             return new TransferDialogResult(dest.Text!.Trim(), options, result as string == "queue", includeHidden?.IsChecked != false);
+        }
+    }
+
+    /// <summary>A server's share or a mapped network drive (Windows): what may take long to answer.</summary>
+    internal static bool IsNetworkPath(string path)
+    {
+        if (path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal)) return true;
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            return Path.GetPathRoot(path) is { Length: > 0 } root && new DriveInfo(root).DriveType == DriveType.Network;
+        }
+        catch (ArgumentException)
+        {
+            return false;
         }
     }
 

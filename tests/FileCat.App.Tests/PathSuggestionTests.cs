@@ -38,6 +38,15 @@ public sealed class PathSuggestionTests
         }
     }
 
+    /// <summary>The copy dialog checks a typed destination as you type, except on the network, where that can take long.</summary>
+    [Fact]
+    public void Network_paths_are_told_apart_from_local_ones()
+    {
+        Assert.True(OperationDialogs.IsNetworkPath(@"\\server\share\folder"));
+        Assert.True(OperationDialogs.IsNetworkPath("//server/share"));
+        Assert.False(OperationDialogs.IsNetworkPath(Path.GetTempPath()));
+    }
+
     /// <summary>F5's destination box suggests folders too; choosing one fills it in and does not start the copy.</summary>
     [AvaloniaFact]
     public async Task The_copy_destination_suggests_folders_and_choosing_one_only_fills_it_in()
