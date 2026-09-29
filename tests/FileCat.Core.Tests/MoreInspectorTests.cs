@@ -64,7 +64,72 @@ public sealed class MoreInspectorTests
         Assert.Equal(["libc.so.6", "libm.so.6"], libs.Where(f => f.Name == "Needs").Select(f => f.Value));
         var security = Fields(report, "Security");
         Assert.Equal(("yes", "yes", "full (with BIND_NOW)"), (security["Position independent (PIE)"], security["Non-executable stack"], security["RELRO"]));
-        Assert.Contains(report.Sections, s => s.Title.StartsWith("Sections", StringComparison.Ordinal) && s.Fields.Any(f => f.Name == ".text"));
+        Assert.Contains(report.Sections.First(s => s.Title.StartsWith("Sections", StringComparison.Ordinal)).Table!.Rows, row => row[1] == ".text" && row[2] == "PROGBITS" && row[6] == "AX");
+        // readelf's tables: program headers and the dynamic section, decoded.
+        Assert.Equal(["INTERP", "LOAD", "DYNAMIC", "GNU_STACK", "GNU_RELRO"], report.Sections.First(s => s.Title.StartsWith("Program headers", StringComparison.Ordinal)).Table!.Rows.Select(r => r[0]));
+        var dynamic = report.Sections.First(s => s.Title.StartsWith("Dynamic section", StringComparison.Ordinal)).Table!.Rows;
+        Assert.Contains(dynamic, row => row[0] == "NEEDED" && row[1] == "libm.so.6");
+        Assert.Contains(dynamic, row => row[0] == "FLAGS_1" && row[1] == "0x1 (NOW)");
+        Assert.Contains("ELF header", report.ToText(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A shared object with a dynamic symbol table: two imports with their glibc versions, one export, a build ID note,
+    /// and an x86 property note for CET.
+    /// </summary>
+    internal static byte[] ElfWithSymbols()
+    {
+        var w = new Writer();
+        w.Bytes([0x7F, (byte)'E', (byte)'L', (byte)'F', 2, 1, 1, 0]).At(16);
+        w.U16(3).U16(62).U32(1).U64(0x1000).U64(0x40).U64(0x800).U32(0).U16(64).U16(56).U16(3).U16(64).U16(7).U16(6);
+        void Ph(uint type, uint flags, ulong offset, ulong size) => w.U32(type).U32(flags).U64(offset).U64(offset).U64(offset).U64(size).U64(size).U64(8);
+        w.At(0x40);
+        Ph(1, 5, 0, 0x1000);    // PT_LOAD over the file
+        Ph(2, 6, 0x400, 0x40);  // PT_DYNAMIC
+        Ph(4, 4, 0x500, 56);    // PT_NOTE
+        // .dynsym: none, puts and __stack_chk_fail (undefined), my_export (defined).
+        w.At(0x100).Bytes(new byte[24]);
+        w.U32(1).U8(0x12).U8(0).U16(0).U64(0).U64(0);
+        w.U32(6).U8(0x12).U8(0).U16(0).U64(0).U64(0);
+        w.U32(23).U8(0x12).U8(0).U16(1).U64(0x1234).U64(42);
+        w.At(0x200).Ascii("\0puts\0__stack_chk_fail\0my_export\0libc.so.6\0GLIBC_2.2.5\0GLIBC_2.4\0");
+        // .gnu.version: puts GLIBC_2.2.5 (2), __stack_chk_fail GLIBC_2.4 (3), my_export global (1).
+        w.At(0x280).U16(0).U16(2).U16(3).U16(1);
+        // .gnu.version_r: libc.so.6 needs GLIBC_2.2.5 and GLIBC_2.4.
+        w.At(0x2A0).U16(1).U16(2).U32(33).U32(16).U32(0);
+        w.U32(0).U16(0).U16(2).U32(43).U32(16);
+        w.U32(0).U16(0).U16(3).U32(55).U32(0);
+        w.At(0x400).U64(1).U64(33).U64(5).U64(0x200).U64(10).U64(65).U64(0).U64(0);
+        // Notes: a build ID, and the x86 feature property with IBT and SHSTK.
+        w.At(0x500).U32(4).U32(8).U32(3).Ascii("GNU\0").Bytes([0xDE, 0xAD, 0xBE, 0xEF, 1, 2, 3, 4]);
+        w.U32(4).U32(16).U32(5).Ascii("GNU\0").U32(0xC0000002).U32(4).U32(3).U32(0);
+        w.At(0x700).Ascii("\0.dynsym\0.dynstr\0.gnu.version\0.gnu.version_r\0.note\0.shstrtab\0");
+        w.At(0x800).Bytes(new byte[64]);
+        void Sh(uint name, uint type, ulong offset, ulong size, uint link, uint info, ulong align, ulong entsize) =>
+            w.U32(name).U32(type).U64(2).U64(offset).U64(offset).U64(size).U32(link).U32(info).U64(align).U64(entsize);
+        Sh(1, 11, 0x100, 96, 2, 1, 8, 24);
+        Sh(9, 3, 0x200, 65, 0, 0, 1, 0);
+        Sh(17, 0x6FFFFFFF, 0x280, 8, 1, 0, 2, 2);
+        Sh(30, 0x6FFFFFFE, 0x2A0, 48, 2, 1, 8, 0);
+        Sh(45, 7, 0x500, 56, 0, 0, 4, 0);
+        Sh(51, 3, 0x700, 61, 0, 0, 1, 0);
+        return w.ToArray();
+    }
+
+    [Fact]
+    public void ELF_symbols_come_with_their_versions_and_notes_with_build_ID_and_CET()
+    {
+        var report = Inspect(ElfWithSymbols())!;
+        Assert.Equal("deadbeef01020304", Fields(report, "Header")["Build ID"]);
+        var imports = report.Sections.First(s => s.Title.StartsWith("Imported symbols", StringComparison.Ordinal)).Table!.Rows;
+        Assert.Equal([["puts", "GLIBC_2.2.5", "function", "global"], ["__stack_chk_fail", "GLIBC_2.4", "function", "global"]], imports);
+        var exports = report.Sections.First(s => s.Title.StartsWith("Exported symbols", StringComparison.Ordinal)).Table!.Rows;
+        Assert.Equal([["my_export", "", "function", "0x1234", "42"]], exports);
+        // The newest glibc the imports need: the oldest system the file runs on.
+        Assert.Equal("GLIBC_2.4", Fields(report, "Dynamic linking")["Newest glibc version needed"]);
+        var security = Fields(report, "Security");
+        Assert.Equal(("yes (__stack_chk_fail is used)", "yes", "yes"), (security["Stack protector"], security["Indirect branch tracking (CET IBT)"], security["Shadow stack (CET SHSTK)"]));
+        Assert.Equal("IBT, SHSTK", Fields(report, "Notes")["x86 features"]);
     }
 
     // ---- Mach-O and Java class ---------------------------------------------------------------------------------------
@@ -90,7 +155,7 @@ public sealed class MoreInspectorTests
         var header = Fields(thin, "Header");
         Assert.Equal(("Executable", "yes"), (header["Type"], header["Position independent (PIE)"]));
         Assert.Equal(("macOS", "14.0", "15.2"), (Fields(thin, "Build")["Platform"], Fields(thin, "Build")["Minimum OS"], Fields(thin, "Build")["SDK"]));
-        Assert.Equal("/usr/lib/libSystem.B.dylib", Fields(thin, "Libraries")["Loads"]);
+        Assert.Equal(["load", "1.0", "1.0", "/usr/lib/libSystem.B.dylib"], thin.Sections.First(s => s.Title.StartsWith("Libraries", StringComparison.Ordinal)).Table!.Rows.Single());
         Assert.StartsWith("Present, not verified", Fields(thin, "Signature")["Status"]);
 
         var x64 = MachO(0x01000007);
@@ -105,6 +170,63 @@ public sealed class MoreInspectorTests
 
         var java = Inspect(new Writer().U32(0xCAFEBABE, big: true).U16(0, big: true).U16(61, big: true).Bytes(new byte[40]).ToArray())!;
         Assert.Equal("Java class file · Java 17", java.Format);
+    }
+
+    /// <summary>
+    /// A signed Mach-O executable: a __TEXT segment with its section, a symbol table with an import and an export, and a
+    /// code signature whose code directory names the identifier and team and asks for the hardened runtime, with
+    /// entitlements.
+    /// </summary>
+    internal static byte[] MachOSigned()
+    {
+        const int SymbolsAt = 0x1000, StringsAt = 0x1020, SignatureAt = 0x1040;
+        var cmds = new Writer();
+        cmds.U32(0x19).U32(152).Ascii("__TEXT").Bytes(new byte[10]).U64(0x100000000).U64(0x4000).U64(0).U64(0x2000).U32(5).U32(5).U32(1).U32(0);
+        cmds.Ascii("__text").Bytes(new byte[10]).Ascii("__TEXT").Bytes(new byte[10]).U64(0x100000400).U64(0x100).U32(0x400).U32(4).U32(0).U32(0).U32(0x80000400).U32(0).U32(0).U32(0);
+        var dylib = "/usr/lib/libSystem.B.dylib\0\0\0\0\0\0";
+        cmds.U32(0xC).U32((uint)(24 + dylib.Length)).U32(24).U32(2).U32(0x05180000).U32(0x10000).Ascii(dylib);
+        cmds.U32(0x2).U32(24).U32(SymbolsAt).U32(2).U32(StringsAt).U32(13);
+        // The signature: a SuperBlob (big-endian) holding a code directory and entitlements.
+        var cd = new Writer();
+        string identifier = "com.example.tool\0", team = "ABCDE12345\0";
+        int identOffset = 88, teamOffset = identOffset + identifier.Length, hashOffset = teamOffset + team.Length;
+        cd.U32(0xFADE0C02, big: true).U32((uint)(hashOffset + 32), big: true).U32(0x20400, big: true).U32(0x10000, big: true)
+          .U32((uint)hashOffset, big: true).U32((uint)identOffset, big: true).U32(0, big: true).U32(1, big: true).U32(0x2000, big: true)
+          .U8(32).U8(2).U8(0).U8(12).U32(0, big: true).U32(0, big: true).U32((uint)teamOffset, big: true).U32(0, big: true)
+          .U64(0, big: true).U64(0, big: true).U64(0, big: true).U64(0, big: true)
+          .Ascii(identifier).Ascii(team).Bytes(new byte[32]);
+        var cdBytes = cd.ToArray();
+        var xml = "<plist><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>";
+        var entitlements = new Writer().U32(0xFADE7171, big: true).U32((uint)(8 + xml.Length), big: true).Ascii(xml).ToArray();
+        int total = 28 + cdBytes.Length + entitlements.Length;
+        var blob = new Writer().U32(0xFADE0CC0, big: true).U32((uint)total, big: true).U32(2, big: true)
+            .U32(0, big: true).U32(28, big: true).U32(5, big: true).U32((uint)(28 + cdBytes.Length), big: true).Bytes(cdBytes).Bytes(entitlements).ToArray();
+        cmds.U32(0x1D).U32(16).U32(SignatureAt).U32((uint)blob.Length);
+        cmds.U32(0x80000028).U32(24).U64(0x400).U64(0);
+        var c = cmds.ToArray();
+        var w = new Writer().U32(0xFEEDFACF).U32(0x0100000C).U32(0).U32(2).U32(5).U32((uint)c.Length).U32(0x200085).U32(0).Bytes(c);
+        // Symbols: _puts (undefined, from the first library) and _main (defined in section 1).
+        w.At(SymbolsAt).U32(1).U8(0x01).U8(0).U16(0x0100).U64(0);
+        w.U32(7).U8(0x0F).U8(1).U16(0).U64(0x100000400);
+        w.At(StringsAt).Ascii("\0_puts\0_main\0");
+        w.At(SignatureAt).Bytes(blob);
+        return w.ToArray();
+    }
+
+    [Fact]
+    public void A_signed_Mach_O_shows_its_signature_symbols_segments_and_libraries()
+    {
+        var report = Inspect(MachOSigned())!;
+        var signature = Fields(report, "Signature");
+        Assert.Equal(("com.example.tool", "ABCDE12345"), (signature["Identifier"], signature["Team ID"]));
+        Assert.Contains("hardened runtime", signature["Code signing flags"]);
+        Assert.Equal("yes", Fields(report, "Security")["Hardened runtime"]);
+        Assert.Contains(report.Sections.First(s => s.Title == "Signature").Children.Single(c => c.Title == "Entitlements").Lines, l => l.Contains("app-sandbox", StringComparison.Ordinal));
+        Assert.Equal([["_puts", "/usr/lib/libSystem.B.dylib"]], report.Sections.First(s => s.Title.StartsWith("Imported symbols", StringComparison.Ordinal)).Table!.Rows);
+        Assert.Equal([["_main", "0x100000400"]], report.Sections.First(s => s.Title.StartsWith("Exported symbols", StringComparison.Ordinal)).Table!.Rows);
+        Assert.Contains(report.Sections.First(s => s.Title.StartsWith("Sections", StringComparison.Ordinal)).Table!.Rows, row => row[0] == "__TEXT" && row[1] == "__text" && row[6] == "regular");
+        Assert.Equal(["load", "1304.0", "1.0", "/usr/lib/libSystem.B.dylib"], report.Sections.First(s => s.Title.StartsWith("Libraries", StringComparison.Ordinal)).Table!.Rows.Single());
+        Assert.Contains(report.Sections.First(s => s.Title.StartsWith("Load commands", StringComparison.Ordinal)).Table!.Rows, row => row[1] == "LC_CODE_SIGNATURE");
     }
 
     // ---- APK and AAB -------------------------------------------------------------------------------------------------
@@ -330,7 +452,7 @@ public sealed class MoreInspectorTests
     {
         var rng = new Random(23);
         var apk = Zip(("AndroidManifest.xml", BinaryManifest()));
-        foreach (var seed in new[] { Elf(), MachO(), Wav()[..4096], Flac(), Mp3()[..2048], Mp4(), Webm(), Html(), apk, BinaryManifest() })
+        foreach (var seed in new[] { Elf(), ElfWithSymbols(), MachO(), MachOSigned(), Wav()[..4096], Flac(), Mp3()[..2048], Mp4(), Webm(), Html(), apk, BinaryManifest() })
         {
             for (int round = 0; round < 250; round++)
             {

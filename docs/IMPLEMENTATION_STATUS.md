@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 417, Windows integration 81 (9 need a phone, 6 a USB stick), App headless 128 (1 needs a USB stick), Remote 43 tests
+dotnet test FileCat.slnx                              # Core 432, Windows integration 81 (9 need a phone, 6 a USB stick), App headless 130 (1 needs a USB stick), Remote 43 tests
 eng/package-linux.sh VERSION linux-x64                # Linux .tar.gz, .deb, AppImage (on Linux); eng/package-macos.sh VERSION on macOS
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
@@ -55,7 +55,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 
 1. **The plan is implemented in engineering scope (P1–P11), all ADRs are decided,** and the phase measurements are recorded in `docs/validation/` (plan §22 lists what ran). New requests arrive as product decisions (D-xx) first.
 2. **External release gates:** the dedicated-media TV-03 fixtures, TV-04's external fixtures, TV-05/TV-15 in virtual machines, TV-10 with screen readers and users, TV-12 with more server kinds, TV-13 on clean machines, and P10's elevated read in the installed build. They need hardware, VMs, people, or signing.
-3. **Approved beyond the first plan (2026-09-29), done:** D-46 lost partitions, D-47 drives on Linux and macOS, D-48 Windows ARM64 packages, D-49's UX requests. D-50: binary comparison side by side (done); the PE/ELF/Mach-O inspector at Salamander PE Viewer depth (next); then the panel path's parts as links and header location buttons. New requests arrive as product decisions.
+3. **Approved beyond the first plan (2026-09-29), done:** D-46 lost partitions, D-47 drives on Linux and macOS, D-48 Windows ARM64 packages, D-49's UX requests. D-50 (done): binary comparison side by side; PE/ELF/Mach-O inspected at Salamander PE Viewer, dumpbin, readelf, and otool depth (Rich header, signatures, symbols), cross-checked against those tools, and F3 opens programs on Info. Quick search takes more than one letter. Next, in order: picture zoom and pan; D-51 HTML rendered by the system browser engine with scripts off (Windows, Linux, macOS); the panel path's parts as links with copying; an extension-mask filter box beside the path; location buttons in the panel header. New requests arrive as product decisions.
 
 ## Notes for the next session
 

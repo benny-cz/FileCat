@@ -47,11 +47,13 @@ public sealed class ViewerWindow : Window
 
     /// <summary>The longest side a picture is decoded to (actual size beyond it shows the scaled picture, and says so).</summary>
     private const int PictureSide = 4096;
-    private readonly TextBox _info = new()
-    {
-        IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, IsVisible = false,
-        FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"),
-    };
+    /// <summary>
+    /// The Info report in a text view of its own: long reports (thousands of imports and exports) scroll without laying
+    /// out all of their text, and Find searches them like any text.
+    /// </summary>
+    private readonly TextViewer _info = new() { IsVisible = false, Wrap = false };
+    private PagedReader? _infoReader;
+    private string _infoText = "";
     private readonly IContentSource _source;
     private bool _isInfo, _infoLoaded;
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
@@ -109,6 +111,7 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
+        ShowInfoText("");
         var encodingLabel = new TextBlock { Text = "Encoding:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
         var goTo = new Button { Content = "Go to…" };
         goTo.Click += async (_, _) => await GoToAsync();
@@ -227,8 +230,21 @@ public sealed class ViewerWindow : Window
         // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
         _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
         if (_modePicture.IsVisible && forceHexIfBinary) ShowPicture();
+        // Programs and libraries open on their structure, as Salamander's viewer opens them in its PE viewer; their bytes
+        // are an F4 away.
+        else if (IsExecutable(prefix) && forceHexIfBinary) await ShowInfoAsync();
         else if (_guess.LooksBinary && forceHexIfBinary) SetMode(true);
         UpdateStatus();
+    }
+
+    /// <summary>Windows (PE and DOS), Linux (ELF), and Apple (Mach-O, universal) programs and libraries, and Java classes.</summary>
+    internal static bool IsExecutable(ReadOnlySpan<byte> prefix)
+    {
+        if (prefix.Length < 8) return false;
+        if (prefix[0] == 'M' && prefix[1] == 'Z') return true;
+        if (prefix[0] == 0x7F && prefix[1] == 'E' && prefix[2] == 'L' && prefix[3] == 'F') return true;
+        uint little = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(prefix), big = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(prefix);
+        return little is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE || big is 0xCAFEBABE or 0xCAFEBABF;
     }
 
     /// <summary>The picture mode: decoded once, by the worker, while the window stays responsive.</summary>
@@ -286,19 +302,24 @@ public sealed class ViewerWindow : Window
     public async Task ShowInfoAsync()
     {
         LeavePicture();
+        if (!_isInfo) _lastHit = -1;
         _isInfo = true;
         _info.IsVisible = true;
         _text.IsVisible = _hex.IsVisible = false;
         _modeInfo.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = false;
+        // Find works in the report; the text-only settings do not apply to it.
+        foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase;
+        _info.Focus();
+        UpdateStatus();
         if (!_infoLoaded)
         {
             _infoLoaded = true;
-            _info.Text = "Reading the file's structure…";
+            ShowInfoText("Reading the file's structure…");
             try
             {
                 var report = await Task.Run(() => FileCat.Core.Inspect.Inspectors.Inspect(_source, _closing.Token), _closing.Token);
-                _info.Text = report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {_source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}";
+                ShowInfoText(report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {_source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}");
             }
             catch (Exception) when (_closing.IsCancellationRequested)
             {
@@ -307,17 +328,33 @@ public sealed class ViewerWindow : Window
             catch (Exception ex)
             {
                 // Inspectors report damage as warnings; anything else is shown here rather than ending the application.
-                _info.Text = "The file's structure could not be read: " + ex.Message;
+                ShowInfoText("The file's structure could not be read: " + ex.Message);
             }
+            UpdateStatus();
         }
-        _info.Focus();
     }
 
-    public string InfoText => _info.Text ?? "";
+    private void ShowInfoText(string text)
+    {
+        _infoText = text;
+        _infoReader = new PagedReader(new MemoryContentSource("Info", Encoding.UTF8.GetBytes(text)));
+        _info.SetReader(_infoReader, new UTF8Encoding(false), 0);
+        _lastHit = -1;
+    }
+
+    public string InfoText => _infoText;
+
+    /// <summary>Whether Info mode is shown, the status line, and where the report is scrolled to (tests).</summary>
+    internal bool IsInfoShown => _isInfo;
+
+    internal string StatusText => _status.Text ?? "";
+
+    internal long InfoTop => _info.TopOffset;
 
     private void SetMode(bool hex)
     {
         LeavePicture();
+        if (_isInfo) _lastHit = -1;
         _isInfo = false;
         _info.IsVisible = false;
         _modeInfo.IsChecked = false;
@@ -336,6 +373,7 @@ public sealed class ViewerWindow : Window
     private void FocusContent()
     {
         if (_isPicture) _picture.Focus();
+        else if (_isInfo) _info.Focus();
         else if (_isHex) _hex.Focus();
         else _text.Focus();
     }
@@ -350,6 +388,12 @@ public sealed class ViewerWindow : Window
                   (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
                   $" · {Formatters.ExactSize(_reader.Length)}"
                 : Formatters.ExactSize(_reader.Length);
+            return;
+        }
+        if (_isInfo)
+        {
+            int lines = _infoText.Count(c => c == '\n');
+            _status.Text = $"The file's structure: {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
             return;
         }
         long len = _reader.Length;
@@ -379,9 +423,7 @@ public sealed class ViewerWindow : Window
         bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
         var focused = FocusManager?.GetFocusedElement();
-        // The Info text keeps its own selection and copy keys; Esc, F4 and F10 still leave it.
-        if (focused == _info && e.Key is not (Key.Escape or Key.F4 or Key.F10)) return;
-        if (focused is TextBox && focused != _info && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
+        if (focused is TextBox && e.Key is not (Key.F3 or Key.F4 or Key.F8 or Key.F10)) return;
         switch (e.Key)
         {
             case Key.Escape when _lineCts is not null:
@@ -393,7 +435,8 @@ public sealed class ViewerWindow : Window
                 Close();
                 break;
             case Key.F4:
-                SetMode(_isInfo || _isPicture ? _isPicture : !_isHex);
+                // From a picture to its bytes; from Info to the bytes as they read best (hex for a binary file).
+                SetMode(_isPicture || (_isInfo ? _guess.LooksBinary : !_isHex));
                 break;
             case Key.P when e.KeyModifiers == KeyModifiers.Control && _modePicture.IsVisible:
                 ShowPicture();
@@ -410,7 +453,7 @@ public sealed class ViewerWindow : Window
             case Key.F8:
                 _encodingBox.SelectedIndex = (_encodingBox.SelectedIndex + 1) % TextDecoding.Choices.Count;
                 break;
-            case Key.F2 when !_isHex:
+            case Key.F2 when !_isHex && !_isInfo:
                 _wrap.IsChecked = !_wrap.IsChecked;
                 break;
             case Key.F when ctrl:
@@ -421,7 +464,7 @@ public sealed class ViewerWindow : Window
             case Key.F3:
                 await FindAsync(!shift);
                 break;
-            case Key.G when ctrl:
+            case Key.G when ctrl && !_isInfo:
                 await GoToAsync();
                 break;
             case Key.C when ctrl:
@@ -434,11 +477,13 @@ public sealed class ViewerWindow : Window
             case Key.Add when ctrl:
                 _text.FontSize += 1;
                 _hex.FontSize += 1;
+                _info.FontSize += 1;
                 break;
             case Key.OemMinus when ctrl:
             case Key.Subtract when ctrl:
                 _text.FontSize -= 1;
                 _hex.FontSize -= 1;
+                _info.FontSize -= 1;
                 break;
             default:
                 return;
@@ -463,15 +508,19 @@ public sealed class ViewerWindow : Window
         }
         _searchCts?.Cancel();
         var cts = _searchCts = new CancellationTokenSource();
-        long from = _lastHit >= 0 ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : _isHex ? _hex.CursorOffset : _text.TopOffset;
-        bool hexMode = _hexSearch.IsChecked == true;
+        // In Info mode Find searches the report, as text.
+        bool info = _isInfo && _infoReader is not null;
+        var reader = info ? _infoReader! : _reader;
+        var view = info ? _info : _text;
+        long from = _lastHit >= 0 ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : info ? _info.TopOffset : _isHex ? _hex.CursorOffset : _text.TopOffset;
+        bool hexMode = _hexSearch.IsChecked == true && !info;
         byte[]? bytes = hexMode ? ContentSearch.ParseHex(pattern) : null;
         if (hexMode && bytes is null)
         {
             _status.Text = "Hex search expects bytes such as \"4D 5A 90\".";
             return;
         }
-        var enc = _text.Encoding;
+        var enc = info ? new UTF8Encoding(false) : _text.Encoding;
         bool matchCase = _matchCase.IsChecked == true;
         _status.Text = "Searching…";
         long found;
@@ -480,21 +529,21 @@ public sealed class ViewerWindow : Window
             found = await Task.Run(() =>
             {
                 if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(_reader, from, bytes, cts.Token) : ContentSearch.FindBytesBackward(_reader, from, bytes, cts.Token);
+                    return forward ? ContentSearch.FindBytes(reader, from, bytes, cts.Token) : ContentSearch.FindBytesBackward(reader, from, bytes, cts.Token);
                 if (!forward)
                 {
                     // Backward text search: search forward from a window before the position and keep the last hit.
                     long start = Math.Max(0, from - 4 * 1024 * 1024), last = -1, p = start;
                     while (true)
                     {
-                        long hit = ContentSearch.FindText(_reader, enc, p, pattern, matchCase, cts.Token);
+                        long hit = ContentSearch.FindText(reader, enc, p, pattern, matchCase, cts.Token);
                         if (hit < 0 || hit >= from) break;
                         last = hit;
                         p = hit + 1;
                     }
                     return last;
                 }
-                return ContentSearch.FindText(_reader, enc, from, pattern, matchCase, cts.Token);
+                return ContentSearch.FindText(reader, enc, from, pattern, matchCase, cts.Token);
             }, cts.Token);
         }
         catch (OperationCanceledException)
@@ -509,7 +558,13 @@ public sealed class ViewerWindow : Window
         }
         _lastHit = found;
         _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
-        _text.SetHighlight(bytes is null ? pattern : null, matchCase);
+        view.SetHighlight(bytes is null ? pattern : null, matchCase);
+        if (info)
+        {
+            _info.ScrollToOffset(found);
+            UpdateStatus();
+            return;
+        }
         if (_isHex) _hex.GoTo(found, select: true, _lastHitLength);
         else _text.ScrollToOffset(found);
         _hex.GoTo(found, select: true, _lastHitLength);
@@ -622,7 +677,7 @@ public sealed class ViewerWindow : Window
     private async Task CopyAsync()
     {
         if (Clipboard is null) return;
-        if (_isHex)
+        if (_isHex && !_isInfo)
         {
             var bytes = await Task.Run(() => _hex.ReadSelection(1024 * 1024));
             await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, Convert.ToHexString(bytes));
@@ -630,7 +685,7 @@ public sealed class ViewerWindow : Window
         }
         else
         {
-            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, _text.GetSelectedOrVisibleText());
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, (_isInfo ? _info : _text).GetSelectedOrVisibleText());
             _status.Text = "Copied text.";
         }
     }
