@@ -115,6 +115,18 @@ foreach (var theme in themes)
         tabs.SelectedIndex = tabIndex;
         Pump(TimeSpan.FromSeconds(1));
     }
+    // --type <text>: typed into the active panel's location box (its folder suggestions show).
+    if (Option("--type", "") is { Length: > 0 } typed)
+    {
+        vm.View.FocusPathBox();
+        Pump(TimeSpan.FromMilliseconds(300));
+        if (Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().FirstOrDefault(t => t.IsFocused) is { } box)
+        {
+            box.Text = typed;
+            box.CaretIndex = typed.Length;
+        }
+        Pump(TimeSpan.FromSeconds(1));
+    }
     // --press Enter,Tab: keys after the commands (confirm a dialog, then see what follows).
     foreach (var key in presses)
     {

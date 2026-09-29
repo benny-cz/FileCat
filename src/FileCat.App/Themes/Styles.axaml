@@ -171,6 +171,10 @@
   <Style Selector="ListBox.choices">
     <Setter Property="Background" Value="Transparent" />
   </Style>
+  <!-- Suggestions under a text box: clicking one must not take the keyboard from the box. -->
+  <Style Selector="ListBox.suggestions ListBoxItem">
+    <Setter Property="Focusable" Value="False" />
+  </Style>
   <Style Selector="ListBox.choices ListBoxItem">
     <Setter Property="Padding" Value="8,4" />
     <Setter Property="MinHeight" Value="0" />

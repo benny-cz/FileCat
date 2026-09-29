@@ -11,7 +11,8 @@ what failed, and what remains uncertain.
 ## Highlights
 
 - **Panels and tabs**: two panels by default, more when there is room, each with its own target;
-  locked tabs, recently closed tabs, bookmarks (Ctrl+0–9), histories (Alt+F11/F12), named workspaces.
+  locked tabs, recently closed tabs, bookmarks (Ctrl+0–9), histories (Alt+F11/F12), named workspaces;
+  typing a path in the location box suggests the folders that complete it (Tab completes).
 - **Fast listings**: a custom virtualized list streams millions of entries without per-row controls;
   quick search as you type, quick filter (Ctrl+S), column profiles (Alt+0–4), lazy metadata columns.
 - **Safe operations**: staged copies published only when complete, Start or Queue per drive, overlap

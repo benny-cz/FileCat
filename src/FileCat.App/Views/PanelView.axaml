@@ -45,6 +45,14 @@
         <Button Grid.Column="1" Classes="flat" Content="▾" Click="OnLocationMenuClick" ToolTip.Tip="Change location (Alt+F1 / Alt+F2)" />
         <TextBox x:Name="PathBox" Grid.Column="2" Classes="path" Text="{Binding ActiveTab.DisplayPath, Mode=OneWay}"
                  AutomationProperties.Name="Location" />
+        <!-- Folders completing what is typed: Down/Up choose, Tab completes, Enter goes. Never takes the keyboard. -->
+        <Popup x:Name="PathPopup" Grid.Column="2" PlacementTarget="{Binding #PathBox}" Placement="BottomEdgeAlignedLeft">
+          <Border Background="{DynamicResource FcCard}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="1"
+                  CornerRadius="4" Padding="2">
+            <ListBox x:Name="PathSuggestionList" Classes="choices suggestions" Focusable="False" MaxHeight="320"
+                     MinWidth="{Binding #PathBox.Bounds.Width}" AutomationProperties.Name="Folder suggestions" />
+          </Border>
+        </Popup>
         <Border Grid.Column="3" Classes="badge target" IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
           <TextBlock Text="{Binding RoleLabel}" />
         </Border>
