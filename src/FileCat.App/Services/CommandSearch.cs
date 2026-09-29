@@ -10,7 +10,7 @@ internal static class CommandSearch
 {
     /// <summary>A command as the search sees and shows it.</summary>
     internal sealed record Entry(string Id, string Title, string Category, string? Gesture, string? MenuPath,
-        IReadOnlyList<string> Keywords, bool Enabled = true, string? Reason = null);
+        IReadOnlyList<string> Keywords, bool Enabled = true, string? Reason = null, string? Description = null);
 
     /// <summary>
     /// The commands matching <paramref name="query"/>, best first; with nothing typed, the recently used ones in the
@@ -61,7 +61,8 @@ internal static class CommandSearch
     internal static string Detail(Entry entry)
     {
         string where = entry.MenuPath ?? entry.Category;
-        return entry.Enabled ? where : $"{where} · unavailable here: {entry.Reason}";
+        if (!entry.Enabled) return $"{where} · unavailable here: {entry.Reason}";
+        return entry.Description is { Length: > 0 } description ? $"{where} · {description}" : where;
     }
 
     private static int IndexOf(IReadOnlyList<string> list, string id)

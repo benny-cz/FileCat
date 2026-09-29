@@ -200,6 +200,15 @@ public sealed class CommandRegistry
         _all.Add(definition);
     }
 
+    /// <summary>Gives a command its one-line description (the command search and the keyboard reference show it).</summary>
+    public void Describe(string id, string description)
+    {
+        if (!_byId.TryGetValue(id, out var definition)) return;
+        var updated = definition with { Description = description };
+        _byId[id] = updated;
+        _all[_all.IndexOf(definition)] = updated;
+    }
+
     /// <summary>Adds search words to a command (plan §4.4); unknown ids are ignored.</summary>
     public void AddKeywords(string id, params string[] keywords)
     {
@@ -402,6 +411,11 @@ public sealed class CommandRegistry
     private static void AddSearchWords(CommandRegistry r)
     {
         void K(string id, params string[] words) => r.AddKeywords(id, words);
+        // What a title cannot say: which items a command takes, and where its result goes.
+        r.Describe(CommandIds.CompareFiles, "Two marked files, one marked in each panel, or the file under the cursor and the file of the same name in the other panel.");
+        r.Describe(CommandIds.FindDeleted, "Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.");
+        r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
+        r.Describe(CommandIds.CompareDirectories, "Marks what differs between the two panels' folders; Include subfolders lists every difference below and can synchronize.");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
         K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");

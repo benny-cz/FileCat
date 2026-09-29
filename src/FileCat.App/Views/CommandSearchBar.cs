@@ -68,7 +68,7 @@ internal sealed class CommandSearchBar
             Child = new Border
             {
                 Child = body,
-                Width = 520,
+                Width = 600,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(2),
@@ -196,7 +196,13 @@ internal sealed class CommandSearchBar
         var left = new StackPanel();
         left.Children.Add(new TextBlock { Text = entry?.Title, TextTrimming = TextTrimming.CharacterEllipsis });
         if (entry is not null)
-            left.Children.Add(new TextBlock { Text = CommandSearch.Detail(entry), Classes = { "muted", "small" }, TextTrimming = TextTrimming.CharacterEllipsis });
+        {
+            // Where it is, and what it does in a line or two (the whole text on hover).
+            string detail = CommandSearch.Detail(entry);
+            var line = new TextBlock { Text = detail, Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis };
+            ToolTip.SetTip(line, detail);
+            left.Children.Add(line);
+        }
         grid.Children.Add(left);
         if (!string.IsNullOrEmpty(entry?.Gesture))
         {

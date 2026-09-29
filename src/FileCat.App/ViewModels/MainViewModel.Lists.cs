@@ -336,7 +336,7 @@ public sealed partial class MainViewModel
             }
             var availability = GetAvailability(d.Id);
             entries.Add(new CommandSearch.Entry(d.Id, title, d.Category, Services.Keymap.GetGestureText(d.Id),
-                MainMenuModel.PathOf(d.Id), d.Keywords, availability.Enabled, availability.Reason));
+                MainMenuModel.PathOf(d.Id), d.Keywords, availability.Enabled, availability.Reason, d.Description));
         }
         return entries;
     }
