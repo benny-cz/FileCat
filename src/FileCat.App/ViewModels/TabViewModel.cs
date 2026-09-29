@@ -593,7 +593,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Listing.MetadataKeys ??= MetadataKey;
         Listing.Sort = s with { Field = SortField.Metadata, MetadataId = fieldId, Descending = same && !s.Descending };
         var field = Services.Metadata.Field(fieldId);
-        Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View > Analyze folder to compute every value.";
+        Banner = $"Sorted by {field?.Title ?? fieldId} using the values computed so far; items without a value are listed last. Choose View → Analyze folder to compute every value.";
     }
 
     private IComparable? MetadataKey(EntryStore store, int storeIndex, string fieldId)

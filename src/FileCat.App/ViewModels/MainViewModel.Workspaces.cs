@@ -55,7 +55,7 @@ public sealed partial class MainViewModel
         var names = NamedWorkspaces();
         if (names.Count == 0)
         {
-            Notify("No saved workspaces yet. Use Tools > Save workspace as… first.");
+            Notify("No saved workspaces yet. Use Tools → Save workspace as… first.");
             return;
         }
         if (name is null)
@@ -140,7 +140,7 @@ public sealed partial class MainViewModel
         var tools = level ?? Services.Settings.UserCommands;
         if (tools.Count == 0)
         {
-            Notify("No user commands are configured yet. Add them in Settings > Tools.");
+            Notify("No user commands are configured yet. Add them in Settings → Tools.");
             return;
         }
         var items = tools.Select(t => new ChoiceItem(t.Children is { Count: > 0 } ? t.Name + " ▸" : t.Name,
