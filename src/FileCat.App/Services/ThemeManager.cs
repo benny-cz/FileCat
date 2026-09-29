@@ -146,8 +146,30 @@ public sealed record ThemePalette(
         Description = "Maximum contrast. Always used when the system asks for high contrast.",
     };
 
+    /// <summary>
+    /// The text-mode commanders (Norton Commander, Volkov Commander, FAR Manager) in the 16 colors of the PC's text
+    /// screen: blue panels, light cyan names, white folders, yellow marks and column titles, a cyan bar under the
+    /// cursor, a black key bar, and a fixed-width font.
+    /// </summary>
+    public static readonly ThemePalette DosCommander = new("DosCommander", true,
+        "#000000", "#0000AA", "#0000AA", "#0000AA", "#55FFFF", "#00AAAA", "#5555FF",
+        "#FFFFFF", "#FF55FF", "#55FF55", "#FFFFFF",
+        "#FFFF55", "#0000AA", "#00AAAA", "#000000", "#00AAAA", "#5555FF",
+        "#00AAAA", "#FFFF55", "#00AAAA", "#FFFF55",
+        "#000000", "#FFFFFF", "#00AAAA", "#0000AA",
+        "#FFFF55", "#FF5555", "#55FF55", "#55FFFF",
+        "#0000AA", "#00AAAA", "#AA000000",
+        "#FFFF55", "#55FFFF", "#FF55FF", "#AAAAAA", "#55FF55", "#FF5555", "#FFFFFF",
+        "#AA0000", "#AA5500")
+    {
+        DisplayName = "DOS Commander",
+        Description = "Blue panels, cyan names, and yellow marks: the look of Norton Commander, Volkov Commander, and FAR Manager.",
+        FontFamily = "Cascadia Mono, Consolas, DejaVu Sans Mono, Menlo, Liberation Mono, monospace",
+        MenuBackground = "#000000",
+    };
+
     /// <summary>In the order the theme picker shows them.</summary>
-    public static IReadOnlyList<ThemePalette> All { get; } = [Classic, ClassicDark, HighContrast, Cyberpunk, Psychedelic, Steampunk];
+    public static IReadOnlyList<ThemePalette> All { get; } = [Classic, ClassicDark, HighContrast, Cyberpunk, Psychedelic, Steampunk, DosCommander];
 
     public static ThemePalette? Find(string name) => All.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 }
