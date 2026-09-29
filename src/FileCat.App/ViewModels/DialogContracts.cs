@@ -59,6 +59,12 @@ public sealed record ChoiceOptions(string Title, IReadOnlyList<ChoiceItem> Items
     /// by synonyms and recent use). Without it, every typed word must appear in an item's title, detail, or shortcut.
     /// </summary>
     public Func<string, IReadOnlyList<int>>? Search { get; init; }
+
+    /// <summary>
+    /// Keys that choose an item at once when typed into the empty filter (upper case; the location menu's drive letters).
+    /// Typing anything else first filters as usual, and then these keys filter too.
+    /// </summary>
+    public IReadOnlyDictionary<char, int>? Accelerators { get; init; }
 }
 
 /// <summary>A button in a custom dialog; <see cref="Result"/> is returned when chosen.</summary>

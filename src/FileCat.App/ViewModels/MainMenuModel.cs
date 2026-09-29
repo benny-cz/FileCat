@@ -41,10 +41,27 @@ public static class MainMenuModel
             CommandIds.OpenInNewTargetTab]),
         ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
-            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemePick, CommandIds.ThemeCycle]),
+            CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4", "-", CommandIds.ThemePick, CommandIds.ThemeCycle, "-",
+            CommandIds.ToggleToolbar]),
         ("_Tools", [CommandIds.FindDeleted, "-", CommandIds.Operations, CommandIds.Palette, CommandIds.Settings, "-", CommandIds.SaveWorkspace, CommandIds.LoadWorkspace, "-",
             CommandIds.DiagnosticsExport, CommandIds.HexRecovery]),
         ("_Help", [CommandIds.Help, CommandIds.CheckUpdates, CommandIds.About]),
+    ];
+
+    /// <summary>
+    /// The toolbar's commands (D-49), grouped as Salamander groups its top toolbar: moving around, the panels, the
+    /// clipboard, file operations, archives, marking, finding and comparing, and the view; "-" separates the groups.
+    /// </summary>
+    public static readonly string[] Toolbar =
+    [
+        CommandIds.Back, CommandIds.Forward, CommandIds.Parent, CommandIds.Root, CommandIds.Refresh, "-",
+        CommandIds.LocationMenuLeft, CommandIds.LocationMenuRight, CommandIds.SwapPanels, CommandIds.NewTab, "-",
+        CommandIds.CutToClipboard, CommandIds.CopyToClipboard, CommandIds.PasteFromClipboard, "-",
+        CommandIds.Copy, CommandIds.Move, CommandIds.Rename, CommandIds.MakeDirectory, CommandIds.Delete, CommandIds.Properties, "-",
+        CommandIds.Pack, CommandIds.Unpack, "-",
+        CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask, CommandIds.MarkInvert, CommandIds.MarkAll, "-",
+        CommandIds.FindFiles, CommandIds.CompareDirectories, CommandIds.CompareFiles, CommandIds.QuickView, CommandIds.OpenTerminal, "-",
+        CommandIds.ToggleHidden, CommandIds.Settings, CommandIds.Help,
     ];
 
     private static readonly Lazy<Dictionary<string, string>> s_paths = new(() =>

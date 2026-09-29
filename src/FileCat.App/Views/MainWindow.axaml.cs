@@ -59,6 +59,22 @@ public partial class MainWindow : Window, IViewActions
             foreach (var pv in _panelViews.Values) pv.List.InvalidateVisual();
         };
         BuildMenu();
+        BuildToolbar();
+        // A new theme draws the menus' and the toolbar's icons in its colors.
+        ThemeManager.ThemeChanged += OnThemeChanged;
+        Closed += (_, _) => ThemeManager.ThemeChanged -= OnThemeChanged;
+        // Switches the keyboard flips too (Ctrl+H) show their state on the toolbar.
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(MainViewModel.ShowHiddenItems) or nameof(MainViewModel.ShowToolbar))
+                foreach (var button in Toolbar.Children.OfType<Button>())
+                    if (button.Tag is string id && CheckedState(id) is { } on)
+                    {
+                        button.Classes.Set("checked", on);
+                        ToolTip.SetTip(button, ToolbarTip(id));
+                        Avalonia.Automation.AutomationProperties.SetName(button, TitleOf(id, _vm.Services.Commands.Get(id)?.Title ?? id));
+                    }
+        };
         _commandSearch = new CommandSearchBar(CommandSearchBox, MenuRow, vm.CommandSearchEntries, () => vm.Services.History.RecentCommands,
             id =>
             {
@@ -320,8 +336,9 @@ public partial class MainWindow : Window, IViewActions
             var def = _vm.Services.Commands.Get(id);
             if (def is null) continue;
             var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
-            var mi = new MenuItem { Header = def.Title, Tag = id };
+            var mi = new MenuItem { Header = TitleOf(id, def.Title), Tag = id };
             if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } g) mi.InputGesture = g;
+            if (CommandIcons.Get(id) is { } icon) mi.Icon = new Image { Source = icon, Width = 16, Height = 16 };
             mi.Click += (_, _) =>
             {
                 FocusActivePanel();
@@ -338,6 +355,8 @@ public partial class MainWindow : Window, IViewActions
                 {
                     var a = _vm.GetAvailability(cid);
                     c.IsEnabled = a.Enabled;
+                    // A switch says what choosing it does now: "Hide hidden and system items" while they show.
+                    if (CheckedState(cid) is not null && _vm.Services.Commands.Get(cid) is { } switchDef) c.Header = TitleOf(cid, switchDef.Title);
                     ToolTip.SetTip(c, a.Enabled ? null : a.Reason);
                     // Column profiles by their names ("Columns: Details"), which Settings can change.
                     if (cid.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal) &&
@@ -638,7 +657,68 @@ public partial class MainWindow : Window, IViewActions
     public void ReloadChrome()
     {
         BuildMenu();
+        BuildToolbar(); // tooltips name the shortcuts, which may have changed
         FitCommandSearch(); // its hint names the shortcut
+    }
+
+    private void OnThemeChanged()
+    {
+        CommandIcons.Clear();
+        BuildMenu();
+        BuildToolbar();
+    }
+
+    /// <summary>A switch's title as choosing it would act now; every other command keeps its own.</summary>
+    private string TitleOf(string id, string title) => id switch
+    {
+        CommandIds.ToggleHidden => _vm.ShowHiddenItems ? "Hide hidden and system items" : "Show hidden and system items",
+        CommandIds.ToggleToolbar => _vm.ShowToolbar ? "Hide the toolbar" : "Show the toolbar",
+        _ => title,
+    };
+
+    /// <summary>A toolbar button's tooltip: what it does now and its key, then what it takes and where its result goes.</summary>
+    private string ToolbarTip(string id)
+    {
+        var def = _vm.Services.Commands.Get(id);
+        var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
+        return TitleOf(id, def?.Title ?? id) + (chord.Key is null ? "" : $" ({chord})") + (def?.Description is { Length: > 0 } d ? "\n" + d : "");
+    }
+
+    /// <summary>Commands that switch something on and off: their toolbar buttons show the state, and their titles say what choosing them does.</summary>
+    private bool? CheckedState(string id) => id switch
+    {
+        CommandIds.ToggleHidden => _vm.ShowHiddenItems,
+        CommandIds.ToggleToolbar => _vm.ShowToolbar,
+        _ => null,
+    };
+
+    /// <summary>
+    /// The toolbar (D-49): the commands used most, grouped as Salamander groups its top toolbar. A button runs its command
+    /// as the key would (the panel keeps the keyboard), and its tooltip names the key.
+    /// </summary>
+    private void BuildToolbar()
+    {
+        Toolbar.Children.Clear();
+        foreach (var id in MainMenuModel.Toolbar)
+        {
+            if (id == "-")
+            {
+                Toolbar.Children.Add(new Border { Classes = { "toolbarSeparator" } });
+                continue;
+            }
+            if (_vm.Services.Commands.Get(id) is not { } def || CommandIcons.Get(id) is not { } icon) continue;
+            var button = new Button { Classes = { "toolbar" }, Content = new Image { Source = icon, Width = 16, Height = 16 }, Tag = id };
+            ToolTip.SetTip(button, ToolbarTip(id));
+            Avalonia.Automation.AutomationProperties.SetName(button, TitleOf(id, def.Title));
+            if (CheckedState(id) == true) button.Classes.Add("checked");
+            button.Click += (_, _) =>
+            {
+                FocusActivePanel();
+                _vm.RememberCommand(id);
+                _vm.Execute(id);
+            };
+            Toolbar.Children.Add(button);
+        }
     }
 
     IClipboard? IViewActions.Clipboard => Clipboard;

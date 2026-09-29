@@ -13,13 +13,19 @@
     <!-- Behind everything: quiet circuitry, psychedelic light, or steampunk iron and glass. -->
     <controls:ThemeBackdrop x:Name="Backdrop" Grid.Row="0" Grid.RowSpan="5" />
 
-    <Grid x:Name="MenuRow" Grid.Row="0" ColumnDefinitions="Auto,*">
-      <Menu x:Name="MainMenu" />
-      <!-- Runs any command without walking the menus (plan §4.4); its width follows the room the menus leave. -->
-      <TextBox x:Name="CommandSearchBox" Grid.Column="1" Classes="commandSearch" HorizontalAlignment="Right"
-               Margin="8,2,6,2" PlaceholderText="Search commands"
-               AutomationProperties.Name="Search commands" />
-    </Grid>
+    <StackPanel Grid.Row="0">
+      <Grid x:Name="MenuRow" ColumnDefinitions="Auto,*">
+        <Menu x:Name="MainMenu" />
+        <!-- Runs any command without walking the menus (plan §4.4); its width follows the room the menus leave. -->
+        <TextBox x:Name="CommandSearchBox" Grid.Column="1" Classes="commandSearch" HorizontalAlignment="Right"
+                 Margin="8,2,6,2" PlaceholderText="Search commands"
+                 AutomationProperties.Name="Search commands" />
+      </Grid>
+      <!-- The toolbar (D-49): the commands used most, under the menu as in Salamander; View → Show the toolbar hides it. -->
+      <Border x:Name="ToolbarRow" Classes="toolbar" IsVisible="{Binding ShowToolbar}">
+        <WrapPanel x:Name="Toolbar" />
+      </Border>
+    </StackPanel>
 
     <Grid x:Name="WorkspaceHost" Grid.Row="1" Margin="4,2,4,2" />
 

@@ -99,6 +99,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _notificationIsError;
     [ObservableProperty] private bool _showKeyBar = true;
     [ObservableProperty] private bool _showCommandLine = true;
+    [ObservableProperty] private bool _showToolbar = true;
+    /// <summary>Hidden and system items are shown (the setting, observable for the toolbar's switch).</summary>
+    [ObservableProperty] private bool _showHiddenItems = true;
 
     private KeyMods _mods;
 
@@ -111,6 +114,8 @@ public sealed partial class MainViewModel : ObservableObject
         ShowKeyBar = Services.Settings.ShowFunctionKeyBar;
         ListFontSize = Services.Settings.FontSize;
         ShowCommandLine = Services.Settings.ShowCommandLine;
+        ShowToolbar = Services.Settings.ShowToolbar;
+        ShowHiddenItems = Services.Settings.ShowHidden;
         QuietConnect = state is not null;
         Workspace.LoadState(state);
         if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)

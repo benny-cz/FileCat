@@ -40,10 +40,15 @@ public sealed partial class MainViewModel
         // responding instead of holding up the menu (the queries run off the UI thread).
         var computer = Services.Providers.For(new Location(Schemes.Computer, string.Empty)) as ComputerProvider;
         var drives = computer is null ? [] : await computer.QueryDrivesAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None);
+        var letters = new Dictionary<char, int>();
+        var driveItems = new HashSet<int>();
         foreach (var tag in drives)
         {
             string name = PathUtil.IsWindows ? tag.RootPath.TrimEnd('\\') : tag.RootPath;
             var drive = new EntryData(name, EntryKind.Drive) { Tag = tag };
+            // A drive letter typed first opens that drive at once, as in Salamander's and Total Commander's drive menus.
+            if (PathUtil.IsWindows && name.Length == 2 && name[1] == ':' && char.IsAsciiLetter(name[0])) letters[char.ToUpperInvariant(name[0])] = items.Count;
+            driveItems.Add(items.Count);
             Add(name, DriveDetail(tag), Location.FileSystem(tag.RootPath), () => icons.GetIcon(drive));
         }
         var thisPc = new Location(Schemes.Computer, string.Empty); // "This PC" on Windows, "Computer" elsewhere
@@ -82,8 +87,9 @@ public sealed partial class MainViewModel
         items.Add(new ChoiceItem("Connect to a server…", "SFTP, FTPS, or FTP: new or saved connection") { Icon = () => icons.GetPlaceIcon(IconKind.Server) });
         var r = await Dialogs.ChooseAsync(new ChoiceOptions($"Location for panel {panel.Number}", items)
         {
-            Hint = "Type to filter · Enter opens · Shift+Enter opens in a new tab",
+            Hint = (letters.Count > 0 ? "A drive letter opens that drive · " : "") + "Type to filter · Enter opens · Shift+Enter opens in a new tab",
             Icons = icons,
+            Accelerators = letters,
         });
         if (r.Index < 0) return;
         if (r.Index == connectIndex)
@@ -91,10 +97,30 @@ public sealed partial class MainViewModel
             await ConnectSftpAsync(panel);
             return;
         }
-        if (r.Alternate) panel.OpenTab(locations[r.Index]);
-        else panel.ActiveTab?.Navigate(locations[r.Index]);
+        var chosen = locations[r.Index];
+        // The drive another panel is on opens at that panel's folder there (Total Commander does the same).
+        if (driveItems.Contains(r.Index) && FolderOnDrive(panel, chosen) is { } there) chosen = there;
+        if (r.Alternate) panel.OpenTab(chosen);
+        else panel.ActiveTab?.Navigate(chosen);
         Workspace.Activate(panel);
         View.FocusActivePanel();
+    }
+
+    /// <summary>
+    /// The folder another panel shows on the drive <paramref name="root"/> (the active panel first, then the target, then
+    /// the others), or null when none is there.
+    /// </summary>
+    private Location? FolderOnDrive(PanelViewModel panel, Location root)
+    {
+        var comparison = PathUtil.IsWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var others = new[] { Workspace.ActivePanel, Workspace.ActiveTarget }.Concat(Workspace.Panels).OfType<PanelViewModel>().Distinct().Where(p => p != panel);
+        foreach (var other in others)
+        {
+            if (other.ActiveTab?.Location is not { IsFileSystem: true } there) continue;
+            string? otherRoot = PathUtil.IsWindows ? Path.GetPathRoot(there.Path) : UnixFiles.MountOf(there.Path)?.Name;
+            if (otherRoot is not null && string.Equals(otherRoot.TrimEnd('\\', '/'), root.Path.TrimEnd('\\', '/'), comparison)) return there;
+        }
+        return null;
     }
 
     /// <summary>

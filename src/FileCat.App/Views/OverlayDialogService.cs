@@ -586,6 +586,16 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (list.SelectedItem is ChoiceRow row && !row.Item.IsHeader) Finish(new ChoiceResult(row.Index, alternate, deleted) { PinToggled = [.. pinToggled] });
         }
         filter.TextChanged += (_, _) => Apply();
+        // An accelerator typed into the empty filter chooses its item at once (a drive letter in the location menu).
+        if (o.Accelerators is { Count: > 0 } accelerators)
+            filter.AddHandler(InputElement.TextInputEvent, (_, e) =>
+            {
+                if (string.IsNullOrEmpty(filter.Text) && e.Text is { Length: 1 } typed && accelerators.TryGetValue(char.ToUpperInvariant(typed[0]), out int index))
+                {
+                    e.Handled = true;
+                    Finish(new ChoiceResult(index, false, deleted) { PinToggled = [.. pinToggled] });
+                }
+            }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         // Tunneling: the text box would otherwise take Ctrl+Delete (delete word) before the chooser sees it.
         filter.AddHandler(InputElement.KeyDownEvent, (_, e) =>
         {

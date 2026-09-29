@@ -223,7 +223,7 @@ public sealed partial class MainViewModel
                 tab?.Navigate(WorkspaceViewModel.DefaultLocation());
                 break;
             case CommandIds.ToggleHidden:
-                Services.Settings.ShowHidden = !Services.Settings.ShowHidden;
+                Services.Settings.ShowHidden = ShowHiddenItems = !Services.Settings.ShowHidden;
                 foreach (var p in Workspace.Panels)
                     foreach (var t in p.Tabs) t.Listing.ShowHidden = Services.Settings.ShowHidden;
                 Notify(Services.Settings.ShowHidden ? "Hidden and system items are shown (dimmed)." : "Hidden and system items are hidden.");
@@ -438,6 +438,10 @@ public sealed partial class MainViewModel
             case CommandIds.ThemePick:
                 await ChooseThemeAsync();
                 break;
+            case CommandIds.ToggleToolbar:
+                Services.Settings.ShowToolbar = ShowToolbar = !ShowToolbar;
+                Services.SaveSettings();
+                break;
             case CommandIds.ThemeCycle:
                 Services.Settings.Theme = ThemeManager.NextThemeName(Services.Settings.Theme);
                 ThemeManager.Apply(Services.Settings.Theme);
@@ -633,7 +637,10 @@ public sealed partial class MainViewModel
         var listing = tab?.Listing;
         if (tab is null || listing is null) return;
         int fi = listing.FocusedIndex;
-        if (fi < 0 || !listing.TryGetFocused(out var e) || e.Kind == EntryKind.Parent) return;
+        if (fi < 0 || !listing.TryGetFocused(out var e)) return;
+        // The next item has the cursor then: holding Space marks, and sizes, everything below.
+        listing.SetFocus(fi + 1);
+        if (e.Kind == EntryKind.Parent) return;
         listing.ToggleMark(fi);
         bool marked = listing.IsVisibleMarked(fi);
         var key = tab.GetHashCode() + "|" + e.Name;
@@ -643,7 +650,7 @@ public sealed partial class MainViewModel
             return;
         }
         if (!e.IsContainer || !Services.Settings.SizeFolderOnSpace || e.Has(EntryFlags.Link)) return;
-        var item = listing.GetItemRef(listing.FocusedStoreIndex);
+        var item = listing.GetItemRef(listing.GetStoreIndex(fi));
         if (item.FileSystemPath is not { } path) return;
         var vol = tab.Location!;
         if (!Services.Settings.SizeFolderOnSlowLocations && (e.Has(EntryFlags.Offline) || IsSlowLocation(path)))

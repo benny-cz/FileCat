@@ -92,6 +92,7 @@ public static class CommandIds
     /// <summary>Distinct from <see cref="BookmarkGoPrefix"/>, which would prefix-match a longer id.</summary>
     public const string BookmarkTargetPrefix = "nav.targetBookmark";
     public const string ToggleHidden = "nav.toggleHidden";
+    public const string ToggleToolbar = "view.toolbar";
     public const string Home = "nav.home";
 
     public const string SwitchPanel = "panel.switch";
@@ -273,7 +274,7 @@ public sealed class CommandRegistry
         Add(CommandIds.RemoveFromSet, "Remove from set (keeps the items)", F, null, CommandContext.Panel, "Ctrl+Delete");
 
         Add(CommandIds.MarkToggleDown, "Mark and move down", M, null, CommandContext.Panel, "Insert");
-        Add(CommandIds.MarkToggle, "Mark (sizes a folder)", M, null, CommandContext.Panel, "Space");
+        Add(CommandIds.MarkToggle, "Mark and move down, sizing folders", M, null, CommandContext.Panel, "Space");
         Add(CommandIds.MarkSelectMask, "Select by mask…", M, null, CommandContext.Panel, "Num+");
         Add(CommandIds.MarkUnselectMask, "Unselect by mask…", M, null, CommandContext.Panel, "Num-");
         Add(CommandIds.MarkInvert, "Invert selection (files)", M, null, CommandContext.Panel, "Num*");
@@ -346,6 +347,7 @@ public sealed class CommandRegistry
         Add(CommandIds.OpenInNewTargetTab, "Open focused folder in new target tab", T, null, CommandContext.Panel, "Ctrl+Shift+Up");
 
         Add(CommandIds.SortName, "Sort by name", V, "Name", CommandContext.Panel, "Ctrl+F3");
+        Add(CommandIds.ToggleToolbar, "Show the toolbar", V);
         Add(CommandIds.SortExtension, "Sort by extension", V, "Ext", CommandContext.Panel, "Ctrl+F4");
         Add(CommandIds.SortTime, "Sort by time", V, "Time", CommandContext.Panel, "Ctrl+F5");
         Add(CommandIds.SortSize, "Sort by size", V, "Size", CommandContext.Panel, "Ctrl+F6");
@@ -417,6 +419,38 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
         r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, where files came from) for every item, then sorts by it.");
         r.Describe(CommandIds.CompareDirectories, "Marks what differs between the two panels' folders; Include subfolders lists every difference below and can synchronize.");
+        // The toolbar's commands (D-49): their tooltips say this under the title and key.
+        r.Describe(CommandIds.Back, "Goes back to the folder this tab showed before.");
+        r.Describe(CommandIds.Forward, "Goes forward again after going back.");
+        r.Describe(CommandIds.Parent, "Goes up to the folder that holds this one (Backspace too).");
+        r.Describe(CommandIds.Root, "Goes to the top of this drive or location.");
+        r.Describe(CommandIds.Refresh, "Reads the folder again, with whatever changed in it.");
+        r.Describe(CommandIds.LocationMenuLeft, "Drives, places, bookmarks, and servers for the left panel (the active one with more panels); a drive letter opens that drive at once.");
+        r.Describe(CommandIds.LocationMenuRight, "Drives, places, bookmarks, and servers for the right panel (the target with more panels); a drive letter opens that drive at once.");
+        r.Describe(CommandIds.SwapPanels, "The source and target panels trade their folders.");
+        r.Describe(CommandIds.NewTab, "Opens another tab in this panel, at the same folder.");
+        r.Describe(CommandIds.CutToClipboard, "Puts the marked items (or the one under the cursor) on the clipboard, to be moved where you paste them.");
+        r.Describe(CommandIds.CopyToClipboard, "Puts the marked items (or the one under the cursor) on the clipboard, to be copied where you paste them.");
+        r.Describe(CommandIds.PasteFromClipboard, "Copies or moves the items on the clipboard into this folder; a path on the clipboard is opened instead.");
+        r.Describe(CommandIds.Copy, "Copies the marked items (or the one under the cursor) to the target panel's folder, or to a place you choose.");
+        r.Describe(CommandIds.Move, "Moves the marked items (or the one under the cursor) to the target panel's folder, or renames them.");
+        r.Describe(CommandIds.Rename, "Renames the item under the cursor right in the list.");
+        r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
+        r.Describe(CommandIds.Delete, "Moves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently.");
+        r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
+        r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
+        r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");
+        r.Describe(CommandIds.MarkSelectMask, "Marks the items whose names match a mask, such as *.txt.");
+        r.Describe(CommandIds.MarkUnselectMask, "Unmarks the items whose names match a mask, such as *.txt.");
+        r.Describe(CommandIds.MarkInvert, "Marks the files that are not marked, and unmarks those that are.");
+        r.Describe(CommandIds.MarkAll, "Marks every item in the list.");
+        r.Describe(CommandIds.FindFiles, "Searches by name, content, size, and date, in this folder and below or on any drive.");
+        r.Describe(CommandIds.QuickView, "The target panel shows the file under the cursor as you move through the list.");
+        r.Describe(CommandIds.OpenTerminal, "Opens a terminal in this panel's folder.");
+        r.Describe(CommandIds.ToggleHidden, "Shows or hides hidden and system items in every panel.");
+        r.Describe(CommandIds.ToggleToolbar, "Shows or hides this toolbar; Settings → Appearance has it too.");
+        r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
+        r.Describe(CommandIds.Help, "Every command with its key: run one from there, or change its key.");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
         K(CommandIds.Settings, "options", "preferences", "configuration", "configure", "setup");

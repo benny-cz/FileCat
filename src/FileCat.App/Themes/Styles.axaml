@@ -312,6 +312,37 @@
     <Setter Property="Background" Value="{DynamicResource FcMenuBackground}" />
   </Style>
 
+  <!-- The toolbar (D-49): flat icon buttons that show a frame when pointed at, and thin rules between the groups. -->
+  <Style Selector="Border.toolbar">
+    <Setter Property="Background" Value="{DynamicResource FcMenuBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="4,1" />
+  </Style>
+  <Style Selector="Button.toolbar">
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Padding" Value="4" />
+    <Setter Property="Margin" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+  <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FcFocusBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+  </Style>
+  <Style Selector="Button.toolbar.checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource FcActiveAccent}" />
+  </Style>
+  <Style Selector="Border.toolbarSeparator">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Margin" Value="5,5" />
+    <Setter Property="Background" Value="{DynamicResource FcBorder}" />
+  </Style>
+
   <Style Selector="ContextMenu">
     <Setter Property="Background" Value="{DynamicResource FcCard}" />
   </Style>

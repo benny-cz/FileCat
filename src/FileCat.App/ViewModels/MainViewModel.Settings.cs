@@ -20,6 +20,8 @@ public sealed partial class MainViewModel
         ListFontSize = s.FontSize;
         ShowKeyBar = s.ShowFunctionKeyBar;
         ShowCommandLine = s.ShowCommandLine;
+        ShowToolbar = s.ShowToolbar;
+        ShowHiddenItems = s.ShowHidden;
         Formatters.DateFormat = s.DateFormat;
         AppLog.DiagnosticMode = s.DiagnosticMode;
         foreach (var p in Workspace.Panels)
