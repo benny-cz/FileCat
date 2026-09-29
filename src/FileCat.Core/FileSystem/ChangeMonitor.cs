@@ -15,6 +15,8 @@ public sealed class ChangeMonitor : IDisposable
     private bool _disposed;
     private Timer? _rearm;
     private int _rearmAttempts;
+    private readonly Timer? _rootCheck;
+    private int _checking;
 
     public ChangeMonitor(string path, Action onChange)
     {
@@ -36,6 +38,10 @@ public sealed class ChangeMonitor : IDisposable
             _watcher.Error += (_, e) => OnError(e);
             _watcher.EnableRaisingEvents = true;
             IsActive = true;
+            // On Linux and macOS the watch says nothing when its own folder is deleted or moved away (inotify and
+            // FSEvents do, the watcher does not pass it on): a look every two seconds notices, and reports it.
+            if (!OperatingSystem.IsWindows())
+                _rootCheck = new Timer(_ => CheckRoot(path), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
@@ -101,6 +107,19 @@ public sealed class ChangeMonitor : IDisposable
         }
     }
 
+    private void CheckRoot(string path)
+    {
+        // A look that hangs on a dead mount holds up only the next looks.
+        if (Interlocked.Exchange(ref _checking, 1) != 0) return;
+        try
+        {
+            if (Directory.Exists(path)) return;
+            _rootCheck?.Change(Timeout.Infinite, Timeout.Infinite);
+            Pending();
+        }
+        finally { Volatile.Write(ref _checking, 0); }
+    }
+
     private void Fire()
     {
         lock (_lock)
@@ -120,5 +139,6 @@ public sealed class ChangeMonitor : IDisposable
         _watcher?.Dispose();
         _debounce.Dispose();
         _rearm?.Dispose();
+        _rootCheck?.Dispose();
     }
 }
