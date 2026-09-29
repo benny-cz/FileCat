@@ -18,6 +18,9 @@ public interface IPlatform : IDisposable
     /// <summary>The data files carry beside their contents: streams and attributes (D-55).</summary>
     HiddenData.IHiddenData HiddenData { get; }
 
+    /// <summary>What the file system itself records about an item: IDs, exact times, journals, raw records (D-56).</summary>
+    Records.IFileRecords FileRecords { get; }
+
     /// <summary>Registers the file-system, computer, network, and OS-specific providers.</summary>
     void RegisterProviders(ProviderRegistry registry);
 }
@@ -39,6 +42,7 @@ public class PortablePlatform : IPlatform
     public State.ISecretStore Secrets { get; protected init; } = State.SecretStores.ForThisOs();
     public HiddenData.IHiddenData HiddenData { get; protected init; } =
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new HiddenData.UnixHiddenData() : new HiddenData.NoHiddenData();
+    public Records.IFileRecords FileRecords { get; protected init; } = new Records.NoFileRecords();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }
 
     public virtual void RegisterProviders(ProviderRegistry registry)

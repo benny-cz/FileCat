@@ -40,6 +40,14 @@ public sealed class TextViewer : Control
     private (int Row, int Col)? _selStart;
     private (int Row, int Col)? _selEnd;
     private IBrush _text = Brushes.Black, _muted = Brushes.Gray, _bg = Brushes.White, _hit = Brushes.Yellow, _sel = Brushes.LightBlue;
+    private IBrush _accent = Brushes.SteelBlue, _warning = Brushes.DarkOrange;
+    private Typeface _bold = new(new FontFamily("Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"), FontStyle.Normal, FontWeight.Bold);
+
+    /// <summary>
+    /// Reports FileCat writes (Info, file-system records): lines that start at the margin are headings, drawn bold in the
+    /// accent colour; lines starting with ⚠ in the warning colour; table rules muted.
+    /// </summary>
+    public bool ReportStyle { get; set; }
 
     private sealed record Row(long LineStart, int Sub, string Text, long NextLine, bool IsLastRowOfLine);
 
@@ -137,6 +145,8 @@ public sealed class TextViewer : Control
         _bg = B("FcPanel", Brushes.White);
         _hit = B("FcSearchHit", Brushes.Yellow);
         _sel = B("FcFocusBackground", Brushes.LightBlue);
+        _accent = B("FcActiveAccent", Brushes.SteelBlue);
+        _warning = B("FcWarning", Brushes.DarkOrange);
         InvalidateVisual();
     }
 
@@ -373,11 +383,14 @@ public sealed class TextViewer : Control
                 UpdateScroll();
             }, DispatcherPriority.Background);
         }
+        (IBrush Brush, Typeface Face) lineStyle = (_text, _typeface);
         for (int i = 0; i < _rows.Count; i++)
         {
             var row = _rows[i];
             double y = i * _rowHeight;
             if (row.Text.Length == 0) continue;
+            // A wrapped line keeps the style of its first row.
+            if (row.Sub == 0 || i == 0) lineStyle = ReportStyle && row.Sub == 0 ? StyleOf(row.Text) : (_text, _typeface);
             DrawSelection(dc, i, row, y);
             if (_highlight is not null)
             {
@@ -388,7 +401,7 @@ public sealed class TextViewer : Control
                     idx = row.Text.IndexOf(_highlight, idx + 1, _highlightCase ? StringComparison.Ordinal : StringComparison.CurrentCultureIgnoreCase);
                 }
             }
-            var ft = new FormattedText(row.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, _fontSize, _text);
+            var ft = new FormattedText(row.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, lineStyle.Face, _fontSize, lineStyle.Brush);
             dc.DrawText(ft, new Point(8, y + (_rowHeight - ft.Height) / 2));
         }
         if (_layoutIncomplete && _rows.Count < VisibleRows)
@@ -401,6 +414,13 @@ public sealed class TextViewer : Control
             var ft = new FormattedText("The file is empty.", CultureInfo.CurrentCulture, FlowDirection.LeftToRight, _typeface, _fontSize, _muted);
             dc.DrawText(ft, new Point(8, 0));
         }
+    }
+
+    private (IBrush, Typeface) StyleOf(string line)
+    {
+        if (line[0] == '⚠') return (_warning, _typeface);
+        if (line[0] != ' ') return (_accent, _bold);
+        return line.TrimStart().StartsWith('─') ? (_muted, _typeface) : (_text, _typeface);
     }
 
     private void DrawSelection(DrawingContext dc, int index, Row row, double y)

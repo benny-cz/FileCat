@@ -43,6 +43,7 @@ public static class CommandIds
     public const string Properties = "file.properties";
     /// <summary>The focused item's alternate data streams and extended attributes (D-55).</summary>
     public const string HiddenData = "file.hiddenData";
+    public const string FileRecord = "file.fileRecord";
     public const string ContextMenu = "file.contextMenu";
     public const string Reveal = "file.reveal";
     public const string Checksum = "file.checksum";
@@ -263,6 +264,7 @@ public sealed class CommandRegistry
         Add(CommandIds.OpenWithSystem, "Open with system application", F, null, CommandContext.Panel, "Shift+Enter");
         Add(CommandIds.Properties, "Properties", F, null, CommandContext.Panel, "Alt+Enter");
         Add(CommandIds.HiddenData, "Streams and attributes", F, null, CommandContext.Panel, "Alt+Shift+Enter");
+        Add(CommandIds.FileRecord, "File-system record", F, null, CommandContext.Panel, "Ctrl+Alt+Enter");
         Add(CommandIds.ContextMenu, "Context menu", F, null, CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
@@ -445,6 +447,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.MakeDirectory, "Creates a new folder in this panel's folder.");
         r.Describe(CommandIds.Delete, "Moves the marked items (or the one under the cursor) to the Recycle Bin or trash; Shift+Del deletes permanently.");
         r.Describe(CommandIds.Properties, "Shows the properties of the item under the cursor.");
+        r.Describe(CommandIds.FileRecord, "Shows what the file system itself records about the item: its IDs, every time to the 100 ns with checks for times set by a program, the change journal, hard links, object ID, reparse data, clusters, and security. As administrator on NTFS also its MFT record and its history in the change journal.");
         r.Describe(CommandIds.HiddenData, "Lists what the item carries beside its contents: alternate data streams and NTFS attributes on Windows, extended attributes (and the resource fork) on Linux and macOS, each decoded. F3 views one, F5 saves it as a file, F8 deletes it.");
         r.Describe(CommandIds.Pack, "Packs the marked items (or the one under the cursor) into a new ZIP file.");
         r.Describe(CommandIds.Unpack, "Unpacks the archive under the cursor, or the marked archives.");
@@ -485,6 +488,7 @@ public sealed class CommandRegistry
         K(CommandIds.Move, "relocate", "rename");
         K(CommandIds.Rename, "rename file");
         K(CommandIds.Properties, "info", "details", "file properties");
+        K(CommandIds.FileRecord, "MFT", "USN", "change journal", "timestomping", "inode", "forensics", "file ID", "hard links", "clusters", "fragments", "SDDL");
         K(CommandIds.HiddenData, "alternate data streams", "ADS", "xattr", "extended attributes", "resource fork", "Zone.Identifier", "Mark of the Web", "quarantine", "capabilities");
         K(CommandIds.Reveal, "explorer", "show in folder", "finder", "file manager");
         K(CommandIds.OpenWithSystem, "open with", "default program", "associated program");

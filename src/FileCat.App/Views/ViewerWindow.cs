@@ -58,7 +58,7 @@ public sealed class ViewerWindow : Window
     /// The Info report in a text view of its own: long reports (thousands of imports and exports) scroll without laying
     /// out all of their text, and Find searches them like any text.
     /// </summary>
-    private readonly TextViewer _info = new() { IsVisible = false, Wrap = false };
+    private readonly TextViewer _info = new() { IsVisible = false, Wrap = false, ReportStyle = true };
     private PagedReader? _infoReader;
     private string _infoText = "";
     private readonly IContentSource _source;
