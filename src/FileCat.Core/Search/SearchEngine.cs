@@ -14,6 +14,10 @@ public sealed class SearchQuery
     public string? Text { get; init; }
     public bool MatchCase { get; init; }
     public bool Regex { get; init; }
+    /// <summary>The text (or each regex match) only where it is a whole word: no letter, digit, or underscore beside it.</summary>
+    public bool WholeWords { get; init; }
+    /// <summary>Bytes to find in files instead of text (hex mode, <see cref="HexPattern"/>).</summary>
+    public byte[]? Bytes { get; init; }
     public bool Recursive { get; init; } = true;
     public int MaxDepth { get; init; } = int.MaxValue;
     public bool IncludeHidden { get; init; } = true;
@@ -22,6 +26,19 @@ public sealed class SearchQuery
     public long? MaxSize { get; init; }
     public DateTime? ModifiedAfterUtc { get; init; }
     public DateTime? ModifiedBeforeUtc { get; init; }
+    public DateTime? CreatedAfterUtc { get; init; }
+    public DateTime? CreatedBeforeUtc { get; init; }
+    /// <summary>Attributes a match must have; <see cref="FileAttributes.Directory"/> finds folders only.</summary>
+    public FileAttributes AttributesSet { get; init; }
+    /// <summary>Attributes a match must not have; <see cref="FileAttributes.Directory"/> finds files only.</summary>
+    public FileAttributes AttributesClear { get; init; }
+
+    /// <summary>
+    /// Folders whose contents are not searched (plan §11): a name or relative path ("node_modules", "bin\Debug") skips
+    /// every folder whose path ends with it; a leading separator ("\build") anchors it to each searched folder; a full
+    /// path skips that one folder.
+    /// </summary>
+    public IReadOnlyList<string> IgnoredFolders { get; init; } = [];
 
     /// <summary>
     /// Searches these earlier results instead of folders: each item is tested against the criteria as it is now,
@@ -29,17 +46,46 @@ public sealed class SearchQuery
     /// </summary>
     public IReadOnlyList<(ItemRef Item, string Relative)>? WithinResults { get; init; }
 
+    internal bool HasContent => Bytes is { Length: > 0 } || !string.IsNullOrEmpty(Text);
+
     public string Describe()
     {
         var parts = new List<string>();
         if (Names is { IsMatchAll: false }) parts.Add($"names \"{Names.Text}\"");
-        if (!string.IsNullOrEmpty(Text)) parts.Add((Regex ? "regex " : "text ") + $"\"{Text}\"");
+        if (Bytes is { Length: > 0 } bytes) parts.Add($"bytes {HexPattern.Format(bytes)}");
+        else if (!string.IsNullOrEmpty(Text)) parts.Add((Regex ? "regex " : "text ") + $"\"{Text}\"" + (WholeWords ? " (whole words)" : ""));
         if (MinSize is not null || MaxSize is not null) parts.Add("size filter");
         if (ModifiedAfterUtc is not null || ModifiedBeforeUtc is not null) parts.Add("date filter");
+        if (CreatedAfterUtc is not null || CreatedBeforeUtc is not null) parts.Add("creation date filter");
+        if ((AttributesSet | AttributesClear) != 0) parts.Add("attribute filter");
         var what = parts.Count == 0 ? "all items" : string.Join(", ", parts);
         if (WithinResults is { } within) return $"{what} within {within.Count:N0} earlier results";
         return $"{what} in {string.Join("; ", Roots)}{(Recursive ? "" : " (top level only)")}";
     }
+}
+
+public enum SearchLogKind
+{
+    /// <summary>A folder or file that could not be read (access denied, a device error): it was not searched.</summary>
+    Inaccessible,
+    /// <summary>A folder on the ignore list: its contents were not searched.</summary>
+    Ignored,
+    /// <summary>A folder skipped while it was being searched (Skip current folder).</summary>
+    Skipped,
+    /// <summary>An earlier result that no longer exists (searching within results).</summary>
+    Gone,
+}
+
+/// <summary>A line of a search's log (plan §11): what was not searched, and why.</summary>
+public sealed record SearchLogEntry(SearchLogKind Kind, string Path, string? Detail = null)
+{
+    public string Describe() => Kind switch
+    {
+        SearchLogKind.Inaccessible => $"Not searched (inaccessible): {Path}" + (Detail is null ? string.Empty : $" · {Detail}"),
+        SearchLogKind.Ignored => $"Not searched (on the ignore list): {Path}",
+        SearchLogKind.Skipped => $"Not searched (skipped while searching): {Path}",
+        _ => $"No longer exists (not searched): {Path}",
+    };
 }
 
 /// <summary>
@@ -50,23 +96,39 @@ public sealed class SearchQuery
 public sealed class SearchSession
 {
     private const int ChunkBytes = 1024 * 1024;
+    private const int MaxLog = 5000;
     private static readonly EnumerationOptions Options = new() { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false };
     private readonly SearchQuery _query;
     private readonly ResultSet _results;
     private readonly Regex? _regex;
     private readonly bool _plainAsciiText;
+    private readonly IgnoredFolder[] _ignored;
     private volatile string? _skip;
-    private readonly object _issuesLock = new();
-    private readonly List<string> _inaccessible = [];
-    private readonly List<string> _gone = [];
+    private readonly object _logLock = new();
+    private readonly List<SearchLogEntry> _log = [];
 
     public SearchSession(SearchQuery query, ResultSet results)
     {
         _query = query;
         _results = results;
-        if (!string.IsNullOrEmpty(query.Text) && query.Regex)
-            _regex = new Regex(query.Text, RegexOptions.CultureInvariant | RegexOptions.Multiline | (query.MatchCase ? 0 : RegexOptions.IgnoreCase), TimeSpan.FromSeconds(1));
+        if (query.Bytes is not { Length: > 0 } && !string.IsNullOrEmpty(query.Text) && (query.Regex || query.WholeWords))
+            _regex = new Regex(Pattern(query), RegexOptions.CultureInvariant | RegexOptions.Multiline | (query.MatchCase ? 0 : RegexOptions.IgnoreCase), TimeSpan.FromSeconds(1));
         _plainAsciiText = query.Text is { Length: > 0 } t && IsPlainAscii(t);
+        _ignored = query.IgnoredFolders.Select(IgnoredFolder.Parse).OfType<IgnoredFolder>().ToArray();
+    }
+
+    /// <summary>
+    /// The regular expression a text search runs: the query's own, or its text taken literally; whole words guard the
+    /// ends that are word characters (a literal "#include" may follow a letter).
+    /// </summary>
+    private static string Pattern(SearchQuery q)
+    {
+        string text = q.Text!;
+        if (q.Regex) return q.WholeWords ? $@"(?<!\w)(?:{text})(?!\w)" : text;
+        string escaped = System.Text.RegularExpressions.Regex.Escape(text);
+        bool wordStart = char.IsLetterOrDigit(text[0]) || text[0] == '_';
+        bool wordEnd = char.IsLetterOrDigit(text[^1]) || text[^1] == '_';
+        return (wordStart ? @"(?<!\w)" : "") + escaped + (wordEnd ? @"(?!\w)" : "");
     }
 
     public long FoldersVisited;
@@ -76,11 +138,21 @@ public sealed class SearchSession
     public volatile bool Finished;
     public volatile bool RegexTimedOut;
 
+    /// <summary>Folders and files that could not be read.</summary>
     public IReadOnlyList<string> Inaccessible
     {
         get
         {
-            lock (_issuesLock) return _inaccessible.ToList();
+            lock (_logLock) return _log.Where(e => e.Kind == SearchLogKind.Inaccessible).Select(e => e.Path).ToList();
+        }
+    }
+
+    /// <summary>What was not searched, and why (the first 5,000 entries).</summary>
+    public IReadOnlyList<SearchLogEntry> Log
+    {
+        get
+        {
+            lock (_logLock) return _log.ToList();
         }
     }
 
@@ -90,7 +162,7 @@ public sealed class SearchSession
     public static bool TryValidate(SearchQuery q, out string? error)
     {
         error = null;
-        if (!string.IsNullOrEmpty(q.Text) && q.Regex)
+        if (q.Bytes is not { Length: > 0 } && !string.IsNullOrEmpty(q.Text) && q.Regex)
         {
             try { _ = new Regex(q.Text); }
             catch (ArgumentException ex)
@@ -98,6 +170,22 @@ public sealed class SearchSession
                 error = "Regular expression: " + ex.Message;
                 return false;
             }
+        }
+        if (q.MinSize is { } min && q.MaxSize is { } max && min > max)
+        {
+            error = "The size at least is more than the size at most, so nothing could match.";
+            return false;
+        }
+        if (q.ModifiedAfterUtc is { } after && q.ModifiedBeforeUtc is { } before && after > before
+            || q.CreatedAfterUtc is { } createdAfter && q.CreatedBeforeUtc is { } createdBefore && createdAfter > createdBefore)
+        {
+            error = "The time range ends before it starts, so nothing could match.";
+            return false;
+        }
+        if ((q.AttributesSet & q.AttributesClear) != 0)
+        {
+            error = "An attribute cannot be both required and excluded.";
+            return false;
         }
         return true;
     }
@@ -127,13 +215,20 @@ public sealed class SearchSession
         finally
         {
             Finished = true;
-            lock (_issuesLock)
+            lock (_logLock)
             {
                 _results.Issues.Clear();
-                _results.Issues.AddRange(_inaccessible.Take(50).Select(p => "Not searched (inaccessible): " + p));
-                _results.Issues.AddRange(_gone.Take(50).Select(p => "No longer exists (not searched): " + p));
+                _results.Issues.AddRange(_log.Take(100).Select(e => e.Describe()));
             }
             _results.NotifyChanged();
+        }
+    }
+
+    private void AddLog(SearchLogKind kind, string path, string? detail = null)
+    {
+        lock (_logLock)
+        {
+            if (_log.Count < MaxLog) _log.Add(new SearchLogEntry(kind, path, detail));
         }
     }
 
@@ -147,10 +242,7 @@ public sealed class SearchSession
             FileSystemInfo info = item.IsContainer ? new DirectoryInfo(path) : new FileInfo(path);
             if (!info.Exists)
             {
-                lock (_issuesLock)
-                {
-                    if (_gone.Count < 1000) _gone.Add(path);
-                }
+                AddLog(SearchLogKind.Gone, path);
                 continue;
             }
             if ((info.Attributes & FileAttributes.Hidden) != 0 && !_query.IncludeHidden) continue;
@@ -169,10 +261,7 @@ public sealed class SearchSession
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
         {
-            lock (_issuesLock)
-            {
-                if (_inaccessible.Count < 1000) _inaccessible.Add(dir);
-            }
+            AddLog(SearchLogKind.Inaccessible, dir, ex.Message);
             return;
         }
         var subdirs = new List<string>();
@@ -181,14 +270,22 @@ public sealed class SearchSession
             ct.ThrowIfCancellationRequested();
             if (_skip is { } skip && PathUtil.IsSameOrUnder(dir, skip))
             {
-                if (string.Equals(skip, dir, StringComparison.OrdinalIgnoreCase)) _skip = null;
+                if (string.Equals(skip, dir, StringComparison.OrdinalIgnoreCase))
+                {
+                    _skip = null;
+                    AddLog(SearchLogKind.Skipped, dir);
+                }
                 return;
             }
             bool isDir = info is DirectoryInfo;
             bool isLink = (info.Attributes & FileAttributes.ReparsePoint) != 0;
             bool hidden = (info.Attributes & FileAttributes.Hidden) != 0;
             if (hidden && !_query.IncludeHidden) continue;
-            if (isDir && !isLink && _query.Recursive && depth < _query.MaxDepth) subdirs.Add(info.FullName);
+            if (isDir && !isLink && _query.Recursive && depth < _query.MaxDepth)
+            {
+                if (IsIgnored(root, info.FullName)) AddLog(SearchLogKind.Ignored, info.FullName);
+                else subdirs.Add(info.FullName);
+            }
             if (IsMatch(info, isDir, ct)) Add(root, info, isDir);
         }
         foreach (var sub in subdirs)
@@ -196,12 +293,25 @@ public sealed class SearchSession
             if (_skip is { } skip && PathUtil.IsSameOrUnder(sub, skip)) continue;
             Walk(root, sub, depth + 1, ct);
         }
-        if (_skip is { } s && string.Equals(s, dir, StringComparison.OrdinalIgnoreCase)) _skip = null;
+        if (_skip is { } s && string.Equals(s, dir, StringComparison.OrdinalIgnoreCase))
+        {
+            _skip = null;
+            AddLog(SearchLogKind.Skipped, dir);
+        }
+    }
+
+    private bool IsIgnored(string root, string dir)
+    {
+        foreach (var entry in _ignored)
+            if (entry.Matches(root, dir)) return true;
+        return false;
     }
 
     private bool IsMatch(FileSystemInfo info, bool isDir, CancellationToken ct)
     {
-        if (isDir && (!_query.IncludeDirectories || !string.IsNullOrEmpty(_query.Text))) return false;
+        if (isDir && (!_query.IncludeDirectories || _query.HasContent)) return false;
+        var attributes = info.Attributes;
+        if ((attributes & _query.AttributesSet) != _query.AttributesSet || (attributes & _query.AttributesClear) != 0) return false;
         if (_query.Names is { } names && !names.IsMatch(info.Name, isDir))
         {
             if (names.RegexTimedOut) RegexTimedOut = true;
@@ -215,66 +325,106 @@ public sealed class SearchSession
         }
         if (_query.ModifiedAfterUtc is { } after && info.LastWriteTimeUtc < after) return false;
         if (_query.ModifiedBeforeUtc is { } before && info.LastWriteTimeUtc > before) return false;
-        if (!isDir && !string.IsNullOrEmpty(_query.Text))
+        if (_query.CreatedAfterUtc is { } createdAfter && info.CreationTimeUtc < createdAfter) return false;
+        if (_query.CreatedBeforeUtc is { } createdBefore && info.CreationTimeUtc > createdBefore) return false;
+        if (!isDir && _query.HasContent)
         {
             Interlocked.Increment(ref FilesExamined);
-            if ((info.Attributes & (FileAttributes.Offline | (FileAttributes)0x440000)) != 0) return false; // never recall cloud files for a search
-            return ContainsText(info.FullName, ct);
+            if ((attributes & (FileAttributes.Offline | (FileAttributes)0x440000)) != 0) return false; // never recall cloud files for a search
+            return ContainsContent(info.FullName, ct);
         }
         return true;
     }
 
-    private bool ContainsText(string path, CancellationToken ct)
+    private bool ContainsContent(string path, CancellationToken ct)
     {
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
-            // A session reads one file at a time, so its buffers are made once (per file, they allocated gigabytes).
-            var bytes = _bytes ??= new byte[ChunkBytes];
-            int hn = fs.Read(bytes, 0, (int)Math.Min(4096, fs.Length));
-            var guess = TextDecoding.Detect(bytes.AsSpan(0, hn));
-            var encoding = guess.Encoding;
-            fs.Position = guess.PreambleLength;
-            var text = _query.Text!;
-            int overlapChars = _regex is null ? text.Length + 4 : 1024;
-            int need = overlapChars + encoding.GetMaxCharCount(ChunkBytes);
-            if (_chars is null || _chars.Length < need) _chars = new char[need];
-            var chars = _chars;
-            var decoder = encoding.GetDecoder();
-            int carried = 0, n;
-            while ((n = fs.Read(bytes, 0, bytes.Length)) > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                int c = decoder.GetChars(bytes, 0, n, chars, carried);
-                var window = chars.AsSpan(0, carried + c);
-                if (_regex is not null)
-                {
-                    try
-                    {
-                        if (_regex.IsMatch(window)) return true;
-                    }
-                    catch (RegexMatchTimeoutException)
-                    {
-                        RegexTimedOut = true;
-                        return false;
-                    }
-                }
-                else if (Contains(window, text))
-                {
-                    return true;
-                }
-                // The end of this window starts the next one, so text split across two reads is found.
-                carried = Math.Min(overlapChars, window.Length);
-                window[^carried..].CopyTo(chars);
-            }
-            return false;
+            return _query.Bytes is { Length: > 0 } pattern ? ContainsBytes(fs, pattern, ct) : ContainsText(fs, ct);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            lock (_issuesLock)
+            AddLog(SearchLogKind.Inaccessible, path, ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>The bytes anywhere in the file; the end of each read starts the next, so bytes split across two are found.</summary>
+    private bool ContainsBytes(FileStream fs, byte[] pattern, CancellationToken ct)
+    {
+        var buffer = pattern.Length <= ChunkBytes / 2 ? _bytes ??= new byte[ChunkBytes] : new byte[pattern.Length * 2];
+        int carried = 0, n;
+        while ((n = fs.Read(buffer, carried, buffer.Length - carried)) > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            var window = buffer.AsSpan(0, carried + n);
+            if (window.IndexOf(pattern) >= 0) return true;
+            carried = Math.Min(pattern.Length - 1, window.Length);
+            window[^carried..].CopyTo(buffer);
+        }
+        return false;
+    }
+
+    private bool ContainsText(FileStream fs, CancellationToken ct)
+    {
+        // A session reads one file at a time, so its buffers are made once (per file, they allocated gigabytes).
+        var bytes = _bytes ??= new byte[ChunkBytes];
+        int hn = fs.Read(bytes, 0, (int)Math.Min(4096, fs.Length));
+        var guess = TextDecoding.Detect(bytes.AsSpan(0, hn));
+        var encoding = guess.Encoding;
+        fs.Position = guess.PreambleLength;
+        var text = _query.Text!;
+        int overlapChars = _regex is null ? text.Length + 4 : 1024;
+        int need = overlapChars + encoding.GetMaxCharCount(ChunkBytes);
+        if (_chars is null || _chars.Length < need) _chars = new char[need];
+        var chars = _chars;
+        var decoder = encoding.GetDecoder();
+        int carried = 0, n;
+        bool first = true, matchAtEnd = false;
+        while ((n = fs.Read(bytes, 0, bytes.Length)) > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            int c = decoder.GetChars(bytes, 0, n, chars, carried);
+            var window = chars.AsSpan(0, carried + c);
+            if (_regex is not null)
             {
-                if (_inaccessible.Count < 1000) _inaccessible.Add(path);
+                if (RegexMatches(window, first, out matchAtEnd)) return true;
             }
+            else if (Contains(window, text))
+            {
+                return true;
+            }
+            // The end of this window starts the next one, so text split across two reads is found.
+            carried = Math.Min(overlapChars, window.Length);
+            window[^carried..].CopyTo(chars);
+            first = false;
+        }
+        return matchAtEnd;
+    }
+
+    /// <summary>
+    /// A regex match in the window. With whole words, a match at the window's first character is left to the window
+    /// before, which saw what precedes it, and a match that ends with the window waits for the next read to show what
+    /// follows (<paramref name="atEnd"/>: when the file ends there, it counts).
+    /// </summary>
+    private bool RegexMatches(ReadOnlySpan<char> window, bool first, out bool atEnd)
+    {
+        atEnd = false;
+        try
+        {
+            if (!_query.WholeWords) return _regex!.IsMatch(window);
+            foreach (var match in _regex!.EnumerateMatches(window, first ? 0 : 1))
+            {
+                if (match.Index + match.Length < window.Length) return true;
+                atEnd = true;
+            }
+            return false;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            RegexTimedOut = true;
+            atEnd = false;
             return false;
         }
     }
@@ -314,5 +464,33 @@ public sealed class SearchSession
         _results.Add(item, relativeFolder);
         long m = Interlocked.Increment(ref Matches);
         if (m < 50 || m % 200 == 0) _results.NotifyChanged();
+    }
+
+    /// <summary>An entry of the ignore list, as <see cref="SearchQuery.IgnoredFolders"/> describes.</summary>
+    private sealed record IgnoredFolder(string Folder, bool Anchored, bool FullPath)
+    {
+        private static readonly char Sep = Path.DirectorySeparatorChar;
+
+        public static IgnoredFolder? Parse(string entry)
+        {
+            string e = entry.Trim().Replace('/', Sep);
+            bool unc = e.StartsWith(new string(Sep, 2), StringComparison.Ordinal);
+            bool full = Path.IsPathFullyQualified(e);
+            bool anchored = !unc && e.StartsWith(Sep);
+            string folder = Path.TrimEndingDirectorySeparator(e);
+            if (anchored && !full) folder = folder.TrimStart(Sep);
+            // On Linux and macOS "/build" is both a full path and anchored: it skips either folder.
+            return folder.Length == 0 ? null : new IgnoredFolder(folder, anchored, full);
+        }
+
+        public bool Matches(string root, string dir)
+        {
+            var comparison = PathUtil.SafetyComparison;
+            string path = Path.TrimEndingDirectorySeparator(dir);
+            if (FullPath && string.Equals(path, Folder, comparison)) return true;
+            if (Anchored) return string.Equals(path, Path.TrimEndingDirectorySeparator(Path.Join(root, Folder.TrimStart(Sep))), comparison);
+            if (FullPath) return false;
+            return path.EndsWith(Folder, comparison) && (path.Length == Folder.Length || path[path.Length - Folder.Length - 1] == Sep);
+        }
     }
 }

@@ -38,12 +38,18 @@ public sealed class Mask
     /// <summary>Resolves <c>@name</c> to a saved filter's mask text, or null when there is none (set by the app).</summary>
     public static Func<string, string?>? SavedFilters { get; set; }
 
-    public static bool TryParse(string? text, out Mask mask, out string? error)
+    public static bool TryParse(string? text, out Mask mask, out string? error) => TryParse(text, false, out mask, out error);
+
+    /// <param name="plainMeansContains">
+    /// Find's rule, as in Salamander: a mask without <c>*</c>, <c>?</c>, or <c>.</c> (and not quoted) matches the names
+    /// that contain it, so <c>report</c> finds <c>Q3 report.pdf</c>.
+    /// </param>
+    public static bool TryParse(string? text, bool plainMeansContains, out Mask mask, out string? error)
     {
         error = null;
         try
         {
-            mask = ParseAt(text ?? string.Empty, 0);
+            mask = ParseAt(text ?? string.Empty, 0, plainMeansContains);
             return true;
         }
         catch (ArgumentException ex)
@@ -54,10 +60,11 @@ public sealed class Mask
         }
     }
 
-    private static Mask ParseAt(string text, int depth)
+    private static Mask ParseAt(string text, int depth, bool plainMeansContains = false)
     {
         var (inc, exc) = SplitTopLevel(text);
-        return new Mask(text, inc.Select(t => ParsePart(t, depth)).ToArray(), exc.Select(t => ParsePart(t, depth)).ToArray());
+        return new Mask(text, inc.Select(t => ParsePart(t, depth, plainMeansContains)).ToArray(),
+            exc.Select(t => ParsePart(t, depth, plainMeansContains)).ToArray());
     }
 
     /// <summary>A saved-filter name: <c>@</c> followed by a name without wildcards (<c>@*.txt</c> stays a glob).</summary>
@@ -178,7 +185,7 @@ public sealed class Mask
         }
     }
 
-    private static MaskPart ParsePart(string token, int depth)
+    private static MaskPart ParsePart(string token, int depth, bool plainMeansContains = false)
     {
         if (IsSavedFilterReference(token))
         {
@@ -200,9 +207,11 @@ public sealed class Mask
                 }
             }
         }
-        var glob = token.Length >= 2 && token[0] == '"' && token[^1] == '"' ? token[1..^1] : token.Replace("\"", "");
+        bool quoted = token.Length >= 2 && token[0] == '"' && token[^1] == '"';
+        var glob = quoted ? token[1..^1] : token.Replace("\"", "");
         bool dirOnly = glob.Length > 1 && (glob.EndsWith('\\') || glob.EndsWith('/'));
         if (dirOnly) glob = glob[..^1];
+        if (plainMeansContains && !quoted && glob.IndexOfAny(['*', '?', '.']) < 0) glob = "*" + glob + "*";
         if (glob == "*.*") glob = "*";
         return new MaskPart(glob, null, dirOnly);
     }

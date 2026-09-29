@@ -83,6 +83,12 @@ public sealed class AppSettings : IVersionedState
     public List<ToolDefinition> UserCommands { get; set; } = [];
     /// <summary>Named masks used as <c>@name</c> wherever a mask is accepted (plan §11 saved filters).</summary>
     public List<SavedFilter> SavedFilters { get; set; } = [];
+    /// <summary>Find's saved searches (plan §11); one may load whenever Find opens.</summary>
+    public List<Search.SavedSearch> SavedSearches { get; set; } = [];
+    /// <summary>Folders Find does not search, each switchable.</summary>
+    public List<Search.IgnoredFolderEntry> SearchIgnoredFolders { get; set; } = [];
+    /// <summary>Find shows its log by itself after a search that could not read something.</summary>
+    public bool SearchLogOnErrors { get; set; }
     /// <summary>Saved SFTP connections (no secrets; see <see cref="ISecretStore"/>).</summary>
     public List<RemoteProfile> RemoteProfiles { get; set; } = [];
     public List<ToolDefinition> Associations { get; set; } = [];
