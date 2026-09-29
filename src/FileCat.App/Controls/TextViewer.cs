@@ -263,16 +263,31 @@ public sealed class TextViewer : Control
         return sb?.ToString() ?? s;
     }
 
-    private IEnumerable<string> Segments(string line)
+    /// <summary>
+    /// The rows that show a line: the whole line when it fits (or wrapping is off), otherwise wrapped after the last
+    /// space that keeps a row within the width; a word longer than half a row is cut at the width instead. Put together,
+    /// the rows are the line: a row keeps the space it wraps at (invisible, even when it is one past the width).
+    /// </summary>
+    internal static IEnumerable<string> Segments(string line, int cols, bool wrap)
     {
-        int cols = Columns;
-        if (!_wrap || line.Length <= cols)
+        if (!wrap || line.Length <= cols)
         {
             yield return line;
             yield break;
         }
-        for (int i = 0; i < line.Length; i += cols) yield return line.Substring(i, Math.Min(cols, line.Length - i));
+        int start = 0;
+        while (line.Length - start > cols)
+        {
+            int end = start + cols;
+            int space = line.LastIndexOf(' ', end - 1, cols);
+            int next = line[end] == ' ' ? end + 1 : space >= start + cols / 2 ? space + 1 : end;
+            yield return line[start..next];
+            start = next;
+        }
+        if (start < line.Length) yield return line[start..];
     }
+
+    private IEnumerable<string> Segments(string line) => Segments(line, Columns, _wrap);
 
     /// <summary>Start of the line before <paramref name="lineStart"/> (bounded backward scan).</summary>
     private bool TryFindPreviousLineStart(long lineStart, out long previous)
