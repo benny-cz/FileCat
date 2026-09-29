@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- D-51 on macOS: WKWebView wants the main thread and its run loop, which tests on the thread pool do not have.
+       This program runs the page engine on its main thread; CI's macOS job runs it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FileCat.App\FileCat.App.csproj" />
+  </ItemGroup>
+</Project>

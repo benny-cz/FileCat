@@ -154,7 +154,8 @@ internal static class PageEngines
             }
             return LinuxPageEngine.Create(offscreen: false, out unavailable);
         }
-        unavailable = "Web pages are not drawn on this system yet.";
+        if (OperatingSystem.IsMacOS()) return MacPageEngine.Create(dataFolder, out unavailable);
+        unavailable = "Web pages are not drawn on this system.";
         return null;
     }
 }

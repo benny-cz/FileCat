@@ -132,6 +132,9 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libwebkit2gtk-4.1-0 xvfb
           FILECAT_REQUIRE_WEBKIT=1 xvfb-run -a dotnet test tests/FileCat.App.Tests -c Release --no-build --filter "FullyQualifiedName~LinuxPageEngineTests" --blame-hang-timeout 3m --blame-hang-dump-type mini
+      # D-51 on macOS: WKWebView on the runner's display, from a program whose main thread runs the run loop.
+      - if: runner.os == 'macOS'
+        run: dotnet run --project tests/FileCat.PageEngineSmoke -c Release
       - uses: actions/upload-artifact@v7
         if: always()
         with:
