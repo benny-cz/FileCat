@@ -241,6 +241,7 @@ public static class MachOInspector
         // Symbols: undefined external ones are imports (with the library that provides them), defined external ones exports.
         var imports = new List<string[]>();
         var exports = new List<string[]>();
+        int localSymbols = 0;
         if (symtab is { } st && st.NSyms > 0)
         {
             int entry = is64 ? 16 : 12;
@@ -253,7 +254,12 @@ public static class MachOInspector
                 var s = table.AsSpan(i * entry, entry);
                 uint strx = U32(s, 0);
                 byte nType = s[4];
-                if ((nType & 0xE0) != 0 || (nType & 0x01) == 0 || strx >= names.Length) continue; // debug entries, local symbols
+                if ((nType & 0xE0) != 0 || strx >= names.Length) continue; // debug entries
+                if ((nType & 0x01) == 0)
+                {
+                    if ((nType & 0x0E) == 0x0E) localSymbols++;
+                    continue;
+                }
                 string name = Cstr(names.AsSpan((int)strx));
                 int kind = nType & 0x0E;
                 if (kind == 0)
@@ -272,6 +278,7 @@ public static class MachOInspector
                 else if (kind == 0x0E && (nType & 0x10) == 0) exports.Add([name, $"0x{(is64 ? U64(s, 8) : U32(s, 8)):X}"]);
             }
             if (st.NSyms > MaxSymbols) warnings.Add($"The symbol table has {st.NSyms:N0} entries; only the first {MaxSymbols:N0} are read.");
+            header.Add(("Symbols", $"{exports.Count:N0} exported, {imports.Count:N0} imported, {localSymbols:N0} local{(localSymbols == 0 ? " (stripped)" : "")}"));
         }
 
         // The code signature: a big-endian SuperBlob of the code directory, requirements, entitlements, and CMS signature.

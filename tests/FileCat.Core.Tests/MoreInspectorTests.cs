@@ -81,7 +81,7 @@ public sealed class MoreInspectorTests
     {
         var w = new Writer();
         w.Bytes([0x7F, (byte)'E', (byte)'L', (byte)'F', 2, 1, 1, 0]).At(16);
-        w.U16(3).U16(62).U32(1).U64(0x1000).U64(0x40).U64(0x800).U32(0).U16(64).U16(56).U16(3).U16(64).U16(7).U16(6);
+        w.U16(3).U16(62).U32(1).U64(0x1000).U64(0x40).U64(0x800).U32(0).U16(64).U16(56).U16(3).U16(64).U16(8).U16(6);
         void Ph(uint type, uint flags, ulong offset, ulong size) => w.U32(type).U32(flags).U64(offset).U64(offset).U64(offset).U64(size).U64(size).U64(8);
         w.At(0x40);
         Ph(1, 5, 0, 0x1000);    // PT_LOAD over the file
@@ -103,7 +103,7 @@ public sealed class MoreInspectorTests
         // Notes: a build ID, and the x86 feature property with IBT and SHSTK.
         w.At(0x500).U32(4).U32(8).U32(3).Ascii("GNU\0").Bytes([0xDE, 0xAD, 0xBE, 0xEF, 1, 2, 3, 4]);
         w.U32(4).U32(16).U32(5).Ascii("GNU\0").U32(0xC0000002).U32(4).U32(3).U32(0);
-        w.At(0x700).Ascii("\0.dynsym\0.dynstr\0.gnu.version\0.gnu.version_r\0.note\0.shstrtab\0");
+        w.At(0x700).Ascii("\0.dynsym\0.dynstr\0.gnu.version\0.gnu.version_r\0.note\0.shstrtab\0.symtab\0");
         w.At(0x800).Bytes(new byte[64]);
         void Sh(uint name, uint type, ulong offset, ulong size, uint link, uint info, ulong align, ulong entsize) =>
             w.U32(name).U32(type).U64(2).U64(offset).U64(offset).U64(size).U32(link).U32(info).U64(align).U64(entsize);
@@ -112,7 +112,9 @@ public sealed class MoreInspectorTests
         Sh(17, 0x6FFFFFFF, 0x280, 8, 1, 0, 2, 2);
         Sh(30, 0x6FFFFFFE, 0x2A0, 48, 2, 1, 8, 0);
         Sh(45, 7, 0x500, 56, 0, 0, 4, 0);
-        Sh(51, 3, 0x700, 61, 0, 0, 1, 0);
+        Sh(51, 3, 0x700, 69, 0, 0, 1, 0);
+        // Not stripped: a full symbol table (here the same entries as the dynamic one).
+        Sh(61, 2, 0x100, 96, 2, 1, 8, 24);
         return w.ToArray();
     }
 
@@ -130,6 +132,11 @@ public sealed class MoreInspectorTests
         var security = Fields(report, "Security");
         Assert.Equal(("yes (__stack_chk_fail is used)", "yes", "yes"), (security["Stack protector"], security["Indirect branch tracking (CET IBT)"], security["Shadow stack (CET SHSTK)"]));
         Assert.Equal("IBT, SHSTK", Fields(report, "Notes")["x86 features"]);
+        // The full symbol table of a file that is not stripped.
+        Assert.Equal("4 (not stripped)", Fields(report, "Header")["Symbols"]);
+        var symbols = report.Sections.First(s => s.Title.StartsWith("Symbol table", StringComparison.Ordinal)).Table!.Rows;
+        Assert.Contains(symbols, row => row.SequenceEqual(new[] { "my_export", "function", "global", ".dynsym", "0x1234", "42" }));
+        Assert.Contains(symbols, row => row[0] == "puts" && row[3] == "undefined");
     }
 
     // ---- Mach-O and Java class ---------------------------------------------------------------------------------------

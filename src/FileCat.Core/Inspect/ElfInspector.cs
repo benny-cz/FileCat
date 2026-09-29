@@ -252,6 +252,15 @@ public static class ElfInspector
                 Table = new InspectionTable(["Symbol", "Version", "Type", "Address", "Size"], [.. exports.Take(MaxListed)]) { More = exports.Count > MaxListed ? $"{exports.Count - MaxListed:N0} more are not listed" : null },
             });
         if (symbolCount >= MaxSymbols) warnings.Add($"The dynamic symbol table is larger than {MaxSymbols:N0} entries; the rest are not read.");
+        // A file that is not stripped keeps its full symbol table: every function and variable with its address.
+        if (localSymbols > 0 && FullSymbols(r, sectionHeaders, is64, U16, U32, U64, ct) is { Count: > 0 } symbols)
+            sections.Add(new InspectionSection($"Symbol table ({localSymbols:N0})", []) with
+            {
+                Table = new InspectionTable(["Symbol", "Type", "Binding", "Section", "Address", "Size"], [.. symbols.Take(MaxListed)])
+                {
+                    More = symbols.Count > MaxListed ? $"{symbols.Count - MaxListed:N0} more are not listed" : null,
+                },
+            });
         return new InspectionReport($"ELF {(is64 ? "64" : "32")}-bit {typeName.ToLowerInvariant()} · {Machine(machine)}", sections, warnings);
     }
 
@@ -341,6 +350,42 @@ public static class ElfInspector
             else if (visibility is 0 or 3) exports.Add([name, version, symbolType, $"0x{value:X}", $"{size:N0}"]);
         }
         return (imports, exports, count, needed);
+    }
+
+    /// <summary>The static symbol table (.symtab) of a file that is not stripped: named functions, variables, and thread-locals.</summary>
+    private static List<string[]> FullSymbols(ContentReader r, List<SectionHeader> sections, bool is64, Reader16 u16, Reader32 u32, Reader64 u64, CancellationToken ct)
+    {
+        var rows = new List<string[]>();
+        var symtab = sections.FirstOrDefault(s => s.Type == 2);
+        if (symtab.Type != 2 || symtab.EntSize < (is64 ? 24u : 16u) || symtab.EntSize > 256 || symtab.Link >= sections.Count) return rows;
+        var strtab = sections[(int)symtab.Link];
+        int count = (int)Math.Min(symtab.Size / symtab.EntSize, MaxSymbols);
+        int entrySize = (int)symtab.EntSize;
+        var table = r.Read((long)Math.Min(symtab.Offset, long.MaxValue), count * entrySize);
+        for (int i = 1; (i + 1) * entrySize <= table.Length; i++)
+        {
+            if (i % 4096 == 0) ct.ThrowIfCancellationRequested();
+            var s = table.AsSpan(i * entrySize, entrySize);
+            uint nameOffset = u32(s, 0);
+            byte info = is64 ? s[4] : s[12];
+            ushort section = is64 ? u16(s, 6) : u16(s, 14);
+            ulong value = is64 ? u64(s, 8) : u32(s, 4), size = is64 ? u64(s, 16) : u32(s, 8);
+            int kind = info & 0xF, binding = info >> 4;
+            // Functions, variables, and thread-locals with names; sections and file names are left out.
+            if (kind is not (1 or 2 or 6 or 10) || nameOffset == 0 || nameOffset >= strtab.Size) continue;
+            string name = r.AsciiZ((long)Math.Min(strtab.Offset, long.MaxValue) + nameOffset, 256);
+            string sectionName = section switch
+            {
+                0 => "undefined",
+                0xFFF1 => "absolute",
+                0xFFF2 => "common",
+                _ when section < sections.Count => sections[section].Name,
+                _ => $"#{section}",
+            };
+            rows.Add([name, kind switch { 1 => "object", 2 => "function", 6 => "thread-local", _ => "indirect function" },
+                binding switch { 0 => "local", 1 => "global", 2 => "weak", 10 => "unique", _ => $"{binding}" }, sectionName, $"0x{value:X}", $"{size:N0}"]);
+        }
+        return rows;
     }
 
     /// <summary>For each library, the newest version of its symbols needed ("GLIBC_2.34"): versions compare part by part.</summary>
