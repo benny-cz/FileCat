@@ -65,10 +65,16 @@ internal static class GitStatusReader
 {
     private const int MaxOutputChars = 4_000_000;
     private static readonly SemaphoreSlim Gate = new(2);
+    private static readonly Lazy<string?> s_git = new(() => FindGit(Environment.GetEnvironmentVariable("PATH")));
 
-    internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string gitExecutable = "git")
+    /// <param name="gitExecutable">Git by full path; by default the one on PATH.</param>
+    internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string? gitExecutable = null)
     {
         if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder) || OperatingSystem.IsWindows() && !WindowsIcons.IsLocal(folder)) return null;
+        // Outside a repository Git has nothing to say (and is not started); inside one whose configuration names
+        // programs, running Git would run them.
+        if (SafeRepository(folder) is null || (gitExecutable ?? s_git.Value) is not { } git) return null;
+        gitExecutable = git;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(8));
         try
@@ -76,7 +82,8 @@ internal static class GitStatusReader
             await Gate.WaitAsync(timeout.Token).ConfigureAwait(false);
             try
             {
-                string? status = await RunAsync(folder, timeout.Token, gitExecutable, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--", ".").ConfigureAwait(false);
+                // Submodules are not entered: their configurations are not checked here.
+                string? status = await RunAsync(folder, timeout.Token, gitExecutable, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignore-submodules=all", "--", ".").ConfigureAwait(false);
                 if (status is null) return null;
                 string? tracked = await RunAsync(folder, timeout.Token, gitExecutable, "ls-files", "--cached", "-z", "--", ".").ConfigureAwait(false);
                 return tracked is null ? null : GitStatusSnapshot.Parse(tracked, status);
@@ -87,6 +94,91 @@ internal static class GitStatusReader
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }
         catch (Win32Exception) { return null; } // Git is optional.
+    }
+
+    /// <summary>
+    /// The work tree <paramref name="folder"/> belongs to, found as Git finds it, when Git may read it without running
+    /// the repository's own programs; null outside a repository. A downloaded folder controls its repository's
+    /// configuration, and "git status" runs the clean filters it names while comparing files, and reads the files its
+    /// include sections name; such repositories get no badges. (core.fsmonitor is overridden on Git's command line, the
+    /// index is not rewritten, so no hooks run, and submodules are not entered.)
+    /// </summary>
+    internal static string? SafeRepository(string folder)
+    {
+        try
+        {
+            for (var dir = new DirectoryInfo(folder); dir is not null; dir = dir.Parent)
+            {
+                string dotGit = Path.Join(dir.FullName, ".git");
+                if (Directory.Exists(dotGit)) return ConfigFiles(dotGit).All(IsHarmless) ? dir.FullName : null;
+                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && ConfigFiles(linked).All(IsHarmless) ? dir.FullName : null;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
+        return null;
+    }
+
+    /// <summary>A work tree's ".git" file (linked work trees, submodules): "gitdir: path", relative to the work tree.</summary>
+    private static string? LinkedGitDir(string dotGitFile, string workTree)
+    {
+        if (new FileInfo(dotGitFile).Length > 4096) return null;
+        string text = File.ReadAllText(dotGitFile).Trim();
+        if (!text.StartsWith("gitdir:", StringComparison.Ordinal)) return null;
+        string path = text["gitdir:".Length..].Trim();
+        string full = Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(workTree, path));
+        return Directory.Exists(full) ? full : null;
+    }
+
+    /// <summary>The repository's own configuration files, and those of the repository a linked work tree shares.</summary>
+    private static IEnumerable<string> ConfigFiles(string gitDir)
+    {
+        yield return Path.Join(gitDir, "config");
+        yield return Path.Join(gitDir, "config.worktree");
+        string commonDir = Path.Join(gitDir, "commondir");
+        if (File.Exists(commonDir) && new FileInfo(commonDir).Length <= 4096)
+        {
+            string common = File.ReadAllText(commonDir).Trim();
+            string full = Path.GetFullPath(Path.IsPathRooted(common) ? common : Path.Join(gitDir, common));
+            yield return Path.Join(full, "config");
+            yield return Path.Join(full, "config.worktree");
+        }
+    }
+
+    /// <summary>
+    /// No [filter …] and no [include]/[includeIf …] section (names are case-insensitive; "[filter.x]" is the old
+    /// spelling of a subsection). A missing file is harmless; an outsized one is not a configuration to trust.
+    /// </summary>
+    internal static bool IsHarmless(string configPath)
+    {
+        var info = new FileInfo(configPath);
+        if (!info.Exists) return true;
+        if (info.Length > 1_000_000) return false;
+        foreach (string raw in File.ReadLines(configPath))
+        {
+            var line = raw.AsSpan().TrimStart();
+            if (line.Length == 0 || line[0] != '[') continue;
+            var name = line[1..].TrimStart();
+            if (name.StartsWith("include", StringComparison.OrdinalIgnoreCase)) return false;
+            if (name.StartsWith("filter", StringComparison.OrdinalIgnoreCase) && (name.Length == 6 || !char.IsLetterOrDigit(name[6]))) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Git by full path from the absolute entries of <paramref name="path"/> (PATH). Started by bare name, Windows would
+    /// first look in FileCat's current directory, where a git.exe could have been planted.
+    /// </summary>
+    internal static string? FindGit(string? path)
+    {
+        string name = OperatingSystem.IsWindows() ? "git.exe" : "git";
+        foreach (string entry in (path ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string dir = entry.Trim('"');
+            if (!Path.IsPathFullyQualified(dir)) continue; // "." and other relative entries follow the current directory
+            string candidate = Path.Join(dir, name);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
     }
 
     private static async Task<string?> RunAsync(string folder, CancellationToken cancellationToken, string gitExecutable, params string[] arguments)
