@@ -386,7 +386,7 @@ FileCat support is the intersection of its tested code, .NET support, Avalonia s
 | Target | Initial commitment | Planned growth and constraints |
 |---|---|---|
 | Windows 11 x64, currently supported OS releases | Tier A: release-blocking correctness, UX, performance, accessibility, and packaging tests | Minimum: Windows 11 releases still serviced for Home/Pro at release time. As of 2026-09-26 that is 25H2 or later, because 24H2 Home/Pro servicing ends 2026-10-13 [24H2 end of servicing][win11-24h2-eos]. NTFS and ReFS/Dev Drive integration first; exFAT/FAT and SMB semantics tested separately. |
-| Windows 11 ARM64 | Later target, explicitly preserved | Add native ARM64 dependencies, helper processes, installer, and physical-device tests. Do not treat x64 emulation as native support. |
+| Windows 11 ARM64 | Packages since D-48 (2026-09-29) | Native ARM64 build of FileCat and its helpers (every native library ARM64), installer and ZIPs; CI builds and tests it on an ARM64 runner and starts the package, which draws its window with the ARM64 Skia. x64 emulation is not native support: an x64 FileCat says in About that it runs emulated. Physical-device tests (TV-13) remain a release gate. |
 | Windows 10 | No initial support promise | Revisit only for concrete need and a supported runtime/OS combination. Avalonia's ability to run on a version does not establish .NET support. |
 | Ubuntu x64 | Tier B: development smoke/integration lane during v1; usable release after P9 gates | Provisionally Ubuntu 26.04 LTS, whose default GNOME session is Wayland-only and runs X11 applications through XWayland [Ubuntu 26.04][ubuntu-2604]; 24.04 LTS as a second lane if pinned dependencies allow. Avalonia's X11 backend runs through XWayland first. Its native Wayland backend (experimental opt-in since Avalonia 12.1) is promoted only after TV-10. |
 | macOS Apple Silicon | Tier B during v1; supported portable workflows after P9 | Choose supported macOS versions at packaging gate; test native permissions, trash, keyboard conventions, signing, and accessibility. |
@@ -1112,7 +1112,7 @@ For macOS, build Apple silicon bundles only; Intel Macs are not a target. Releas
 
 For Ubuntu, begin with a relocatable build and evaluate a .deb package with explicit native prerequisites. Ubuntu 26.04's default GNOME session is Wayland-only, so FileCat runs through XWayland until Avalonia's native Wayland backend passes TV-10. AppImage is optional; Flatpak is deferred until broad filesystem access and privileged workflows have a credible portal/sandbox story. Use the applicable trash/desktop standards instead of assuming Windows behavior. [Freedesktop Trash][freedesktop-trash]
 
-A Windows ARM64 package lane is added at P9 extensions when native libraries, signing, and physical-device tests are available. Pointer-sized types, endian assumptions, runtime identifiers, helper architectures, and IPC wire formats are reviewed from P1 so future ports do not require redesign.
+A Windows ARM64 package lane is added at P9 extensions when native libraries, signing, and physical-device tests are available. Pointer-sized types, endian assumptions, runtime identifiers, helper architectures, and IPC wire formats are reviewed from P1 so future ports do not require redesign. **D-48 (2026-09-29):** the lane exists: release builds publish `win-arm64` installers and ZIPs beside the x64 ones, and every push builds and tests FileCat natively on a Windows ARM64 runner, starts the ARM64 package, and has it draw its window; tests on physical ARM64 devices (TV-13) remain a release gate. Shell extensions that exist only as x64 DLLs cannot load into an ARM64 FileCat (Explorer on ARM64 has the same limit), so such thumbnails and context-menu entries are missing there.
 
 ### 19.4 Recommended repository/solution organization
 
@@ -1602,7 +1602,7 @@ Date: 2026-09-26. Confirmed entries consolidate the original specification, the 
 | D-45 / product owner | The hex editor edits files in place on Linux and macOS too, detecting other writers rather than excluding them (2026-09-29) | The same editor on every platform; the weaker guarantee is stated before each first save | Confirmed | ADR-05 |
 | D-46 / product owner | Recovery finds deleted partitions and erased tables on whole disks and images, and reads damaged boot sectors from their backups (2026-09-29; implemented) | "My partition is gone" and RAW volumes are the common recovery cases the per-volume scan could not reach | Confirmed | §17, ADR-08 |
 | D-47 / product owner | Recovery reads drives on Linux and macOS too, through the platform's own authorization (2026-09-29; implemented) | The same recovery on every platform, not images only | Confirmed | §17.2, ADR-08 |
-| D-48 / product owner | Windows ARM64 packages (2026-09-29) | PLATFORM-002's revisit: ARM64 Windows devices are common | Confirmed; in progress | PLATFORM-002, §28.3 |
+| D-48 / product owner | Windows ARM64 packages (2026-09-29; implemented, physical-device tests pending) | PLATFORM-002's revisit: ARM64 Windows devices are common | Confirmed | PLATFORM-002, §28.3 |
 | D-49 / product owner | Space marks and moves down (holding it marks and sizes everything); in the location menu a drive letter acts at once, and the drive another panel shows opens at its folder; menus have icons; a toolbar of the commands used most (2026-09-29; implemented) | Salamander and Total Commander habits; discoverability for mouse users | Confirmed | §4.2, §4.3, §4.4 |
 
 ## 28. Assumptions, unresolved decisions, and deferred complexity
@@ -1649,7 +1649,7 @@ If future validation disproves an accepted safety or UX commitment, bring the sp
 
 ### 28.3 Deferred complexity and revisit triggers
 
-The Shell integration host (P7) and the MTP provider (P8) were deferred here once and have shipped since.
+The Shell integration host (P7), the MTP provider (P8), and Windows ARM64 packages (D-48) were deferred here once and have shipped since.
 
 | Deferred item | Why defer | Current assumption / trap to avoid | Revisit trigger |
 |---|---|---|---|
@@ -1666,7 +1666,6 @@ The Shell integration host (P7) and the MTP provider (P8) were deferred here onc
 | Remote Registry/offline administration/general ACL editor | Privilege/identity/recovery complexity | Local typed model carries context/view; no machine-global hard-coded assumptions | Administrator workflow with safe fixtures and acceptance tests |
 | ext4/APFS undelete and damaged-media acquisition | High feasibility and source-safety uncertainty | Read-only session and confidence model permit future engines; do not promise recovery now | Licensed engine, reproducible evidence, and explicit support limits |
 | Advanced VSS/APFS snapshots and disk/VM formats | Platform, storage, encryption and format complexity | Container/recovery identity can retain provenance; no raw-device write requirement | Concrete restore/inspection need and independent validation |
-| Windows ARM64 promotion | Initial native package/test matrix cost | Preserve ABI/RID portability; audit dependencies at adoption | Hardware/CI, complete native inventory, upstream support and TV-13 |
 | Rich animations and elaborate theme effects | Can impair dense workflows and accessibility | Semantic tokens/static themes are complete without effects | Demonstrated usability and performance budget headroom |
 | Embedded terminal or captured command output | Terminal emulation and console hosting are a large surface | The command line runs commands in an external terminal | Demonstrated need that the external terminal cannot meet |
 | Keymap presets for Total Commander or FAR users | Supporting several conventions as equals creates redundant concepts | Stable command IDs and configurable bindings | Migration demand after v1 and TV-10 results |

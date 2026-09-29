@@ -23,16 +23,30 @@ public sealed class WindowsPlatform : PortablePlatform
     /// <summary>Owner window for Shell warnings (e.g. the permanent-deletion warning during recycle).</summary>
     public static void SetOwnerWindow(nint hwnd) => WindowsFileOperations.OwnerWindow = hwnd;
 
-    /// <summary>"Windows 11 (build 26220)": Windows 11 still reports version 10.0, which read as Windows 10.</summary>
+    /// <summary>
+    /// "Windows 11 (build 26220, x64)": Windows 11 still reports version 10.0, which read as Windows 10. An x64 FileCat on
+    /// an ARM64 computer says it runs emulated there, where the ARM64 package runs natively (D-48).
+    /// </summary>
     public override string Name
     {
         get
         {
             var v = Environment.OSVersion.Version;
             string product = v.Major == 10 ? v.Build >= 22000 ? "Windows 11" : "Windows 10" : $"Windows {v.Major}.{v.Minor}";
-            return $"{product} (build {v.Build})";
+            var process = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture;
+            var os = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture;
+            string architecture = process == os ? Architecture(process) : $"{Architecture(process)} emulated on {Architecture(os)}";
+            return $"{product} (build {v.Build}, {architecture})";
         }
     }
+
+    private static string Architecture(System.Runtime.InteropServices.Architecture architecture) => architecture switch
+    {
+        System.Runtime.InteropServices.Architecture.X64 => "x64",
+        System.Runtime.InteropServices.Architecture.Arm64 => "ARM64",
+        System.Runtime.InteropServices.Architecture.X86 => "x86",
+        _ => architecture.ToString(),
+    };
 
     public override void RegisterProviders(ProviderRegistry registry)
     {
