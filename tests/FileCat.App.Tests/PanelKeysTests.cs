@@ -86,6 +86,11 @@ public sealed class PanelKeysTests
             var file = Assert.IsType<Avalonia.Controls.MenuItem>(menu.Items[0]);
             var view = Assert.IsType<Avalonia.Controls.MenuItem>(file.Items[0]);
             Assert.IsType<Avalonia.Controls.Image>(view.Icon);
+            // Every command in the menus, submenus included, has one.
+            IEnumerable<Avalonia.Controls.MenuItem> All(Avalonia.Controls.MenuItem item) =>
+                item.Items.OfType<Avalonia.Controls.MenuItem>().SelectMany(child => All(child).Prepend(child));
+            var iconless = menu.Items.OfType<Avalonia.Controls.MenuItem>().SelectMany(All).Where(m => m.Icon is null).Select(m => m.Header).ToList();
+            Assert.True(iconless.Count == 0, "No icon: " + string.Join(", ", iconless));
 
             // View → Show the toolbar hides it, and the setting keeps that.
             vm.Execute(CommandIds.ToggleToolbar);

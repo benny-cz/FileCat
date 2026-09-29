@@ -11,6 +11,8 @@ internal static class MenuIconFactory
 {
     internal static Image Create(string id)
     {
+        // A command draws the icon its main-menu item and toolbar button show (D-49); these are for the rest.
+        if (CommandIcons.Get(id) is { } command) return new Image { Source = command, Width = 16, Height = 16 };
         var palette = ThemeManager.Current;
         string color = id is CommandIds.Delete or CommandIds.DeletePermanent or "tab.close" or "tab.closeOthers" ? palette.Error
             : id is CommandIds.Open or CommandIds.Copy or CommandIds.OpenInNewTab or CommandIds.OpenInTarget ? palette.ActiveAccent

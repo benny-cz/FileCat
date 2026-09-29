@@ -323,6 +323,9 @@ public partial class MainWindow : Window, IViewActions
             if (entry is MainMenuModel.Submenu sub)
             {
                 var submenu = new MenuItem { Header = sub.Header };
+                // A submenu shows the icon of its first command.
+                if (sub.Items.OfType<string>().Select(CommandIcons.Get).FirstOrDefault(i => i is not null) is { } first)
+                    submenu.Icon = new Image { Source = first, Width = 16, Height = 16 };
                 submenu.ItemsSource = BuildItems(submenu, sub.Items);
                 children.Add(submenu);
                 continue;
