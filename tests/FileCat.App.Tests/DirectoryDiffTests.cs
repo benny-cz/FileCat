@@ -92,6 +92,7 @@ public sealed class DirectoryDiffTests
             // Enter on a file present on both sides compares their contents.
             Assert.True(diff.Select("changed.txt"), string.Join(", ", diff.ShownEntries.Select(e => e.RelativePath)));
             var differences = diff.GetVisualDescendants().OfType<ListBox>().Single();
+            diff.Activate(); // keys go to the active window
             Assert.True(FileCat.App.Controls.ListKeys.Focus(differences)); // the selected row, laid out first
             diff.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             for (int i = 0; i < 250 && !CompareWindow.OpenWindows.Any(ChangedTxt); i++) await Task.Delay(20, ct);
@@ -109,6 +110,7 @@ public sealed class DirectoryDiffTests
             Assert.IsType<ListBoxItem>(sync.FocusManager?.GetFocusedElement()); // the steps have the keyboard when the preview opens
             var remove = sync.Items.Single(i => i.Action == SyncAction.Remove);
             steps.SelectedItem = remove;
+            sync.Activate();
             Assert.True(FileCat.App.Controls.ListKeys.Focus(steps));
             sync.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
             Assert.False(remove.Include);
