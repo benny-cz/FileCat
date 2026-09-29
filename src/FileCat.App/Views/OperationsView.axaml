@@ -61,7 +61,7 @@
         <DockPanel Grid.Row="1">
           <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="8,4">
             <TextBlock Text="Operations" FontWeight="SemiBold" VerticalAlignment="Center" />
-            <Button Classes="flat" Content="Clear finished" Click="OnClearFinished" />
+            <Button Classes="flat" Content="Clear finished" Click="OnClearFinished" IsVisible="{Binding HasFinished}" />
           </StackPanel>
           <Panel>
           <!-- Nothing yet: say what will appear here. -->

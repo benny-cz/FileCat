@@ -18,6 +18,8 @@ public sealed class ApplyCommandDialogTests
         try
         {
             var ct = TestContext.Current.CancellationToken;
+            var center = vm.Operations;
+            Assert.False(center.HasFinished); // nothing to clear yet
             var listing = vm.ActiveTab!.Listing;
             for (int i = 0; i < 250 && !(listing.State == Core.Listing.ListingState.Complete && listing.VisibleCount == 3); i++)
                 await Task.Delay(20, ct);
@@ -47,6 +49,12 @@ public sealed class ApplyCommandDialogTests
             Assert.StartsWith("x1", File.ReadAllText(Path.Combine(folder, "a.out")));
             Assert.StartsWith("x2", File.ReadAllText(Path.Combine(folder, "b.out")));
             Assert.Equal("echo x{index}> {stem}.out", services.History.ApplyCommands[0]);
+
+            // The finished job can be cleared from the operations panel; then there is nothing left to clear.
+            for (int i = 0; i < 250 && !center.HasFinished; i++) await Task.Delay(20, ct);
+            Assert.True(center.HasFinished);
+            center.RemoveFinished();
+            Assert.False(center.HasFinished);
         }
         finally
         {

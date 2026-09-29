@@ -58,7 +58,8 @@ public static class SettingsDialog
         };
         var single = new CheckBox { Content = "One FileCat window per profile (a new launch opens its paths in the running window)", IsChecked = s.SingleInstance };
         var awake = new CheckBox { Content = "Keep the computer awake while operations run", IsChecked = s.KeepAwakeDuringJobs };
-        var verify = new ComboBox { ItemsSource = new[] { "Native", "ReadBack" }, SelectedItem = s.DefaultVerify, MinWidth = 220 };
+        // Named as the copy dialog names them (stored as Native and ReadBack).
+        var verify = new ComboBox { ItemsSource = new[] { "Size and metadata (fast)", "Read back and compare content" }, SelectedIndex = s.DefaultVerify == "ReadBack" ? 1 : 0, MinWidth = 220 };
         tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify),
             ("Saved filters", savedFilters),
             ("", Note("One per line: name = mask. Use them as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
@@ -74,6 +75,7 @@ public static class SettingsDialog
             MinWidth = 460,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = Core.Tools.UserCommandsText.Format(s.UserCommands),
+            PlaceholderText = OperatingSystem.IsWindows() ? "Edit in Notepad | notepad.exe | {file} | key=Ctrl+Alt+N" : "Edit in gedit | gedit | {file} | key=Ctrl+Alt+N",
         };
         var associations = new TextBox
         {
@@ -87,10 +89,11 @@ public static class SettingsDialog
         tabs.Items.Add(new TabItem
         {
             Header = "Tools",
+            // Each box with its own explanation right below it.
             Content = Form(("Editor (F4) program", editorExe), ("Editor arguments", editorArgs), ("Command line shell", shell), ("User commands (F9)", userCommands),
+                ("", Note("One command per line: Name | program | arguments | options. \"Group > Name\" puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
                 ("Associations", associations),
-                ("", Note("Associations, one per line: mask | view, edit, or open | program | arguments. F3, F4, and Enter use the first matching line; Alt+F3 always opens the internal viewer.")),
-                ("", Note("One command per line: Name | program | arguments | options. \"Group > Name\" puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option."))),
+                ("", Note("Associations, one per line: mask | view, edit, or open | program | arguments. F3, F4, and Enter use the first matching line; Alt+F3 always opens the internal viewer."))),
         });
 
         // ---- Columns
@@ -188,7 +191,7 @@ public static class SettingsDialog
             s.QuickSearchMatchAnywhere = anywhere.IsChecked == true;
             s.SingleInstance = single.IsChecked == true;
             s.KeepAwakeDuringJobs = awake.IsChecked == true;
-            s.DefaultVerify = verify.SelectedItem as string ?? "Native";
+            s.DefaultVerify = verify.SelectedIndex == 1 ? "ReadBack" : "Native";
             s.SavedFilters = parsedFilters;
             s.Editor = string.IsNullOrWhiteSpace(editorExe.Text) ? null : new ToolDefinition
             {

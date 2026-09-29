@@ -159,6 +159,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     [ObservableProperty] private string _summary = string.Empty;
     [ObservableProperty] private bool _hasVisibleWork;
     [ObservableProperty] private int _activeCount;
+    /// <summary>Whether "Clear finished" would remove anything.</summary>
+    [ObservableProperty] private bool _hasFinished;
 
     public IReadOnlyList<JobIssue> SelectedIssues => Selected?.Job.Issues ?? [];
 
@@ -202,9 +204,10 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         Primary = active.FirstOrDefault(j => j.NeedsDecision) ?? active.FirstOrDefault(j => j.IsActive) ?? active.FirstOrDefault()
                   ?? Jobs.FirstOrDefault(j => j.IsFinished && j.Job.FinishedUtc > DateTime.UtcNow.AddSeconds(-20));
         HasVisibleWork = Primary is not null || Interrupted.Count > 0;
+        HasFinished = active.Count < Jobs.Count;
         Summary = active.Count switch
         {
-            0 => Interrupted.Count > 0 ? $"{Interrupted.Count} interrupted operation(s) need attention" : string.Empty,
+            0 => Interrupted.Count > 0 ? Formatters.Plural(Interrupted.Count, "interrupted operation needs", "interrupted operations need") + " attention" : string.Empty,
             1 => string.Empty,
             _ => $"+{active.Count - 1} more",
         };
