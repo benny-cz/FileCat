@@ -115,13 +115,15 @@ foreach (var theme in themes)
         tabs.SelectedIndex = tabIndex;
         Pump(TimeSpan.FromSeconds(1));
     }
+    // --in-window: --type and --press go to the last window a command opened (Find, say) instead of the main window.
+    Avalonia.Controls.Window keys = args.Contains("--in-window") && opened.LastOrDefault(w => w != window && w.IsVisible) is { } last ? last : window;
     // --type <text>: typed into the text box that has the keyboard (the command search after app.palette), or else into
     // the active panel's location box (its folder suggestions show).
     if (Option("--type", "") is { Length: > 0 } typed)
     {
         Avalonia.Controls.TextBox? FocusedBox() =>
-            Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Avalonia.Controls.TextBox>().FirstOrDefault(t => t.IsFocused);
-        if (FocusedBox() is null)
+            Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(keys).OfType<Avalonia.Controls.TextBox>().FirstOrDefault(t => t.IsFocused);
+        if (FocusedBox() is null && keys == window)
         {
             vm.View.FocusPathBox();
             Pump(TimeSpan.FromMilliseconds(300));
@@ -136,7 +138,7 @@ foreach (var theme in themes)
     // --press Enter,Tab: keys after the commands (confirm a dialog, then see what follows).
     foreach (var key in presses)
     {
-        window.KeyPressQwerty(Enum.Parse<Avalonia.Input.PhysicalKey>(key, ignoreCase: true), Avalonia.Input.RawInputModifiers.None);
+        keys.KeyPressQwerty(Enum.Parse<Avalonia.Input.PhysicalKey>(key, ignoreCase: true), Avalonia.Input.RawInputModifiers.None);
         Pump(TimeSpan.FromSeconds(Math.Max(1, wait / 2)));
     }
     for (int frame = 0; frame < frames; frame++)

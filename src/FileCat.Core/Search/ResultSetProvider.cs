@@ -21,6 +21,12 @@ public sealed class ResultSet(string id, string title, string provenance)
 
     /// <summary>A named working set collected by hand and kept between sessions (P7), rather than one query's results.</summary>
     public bool IsWorkingSet { get; init; }
+
+    /// <summary>
+    /// Items show their full folder rather than the one relative to where the search began (Find's results, which may
+    /// come from several folders; working sets always do).
+    /// </summary>
+    public bool FullFolders { get; set; }
     public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
     public DateTime ModifiedUtc { get; set; } = DateTime.UtcNow;
 
@@ -209,7 +215,7 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
             // Revalidate originals: vanished items stay visible as unavailable instead of disappearing silently.
             var info = item.FileSystemPath is { } p ? fs.TryGetInfo(p) : null;
             string? folder = null;
-            if (set.IsWorkingSet && !folders.TryGetValue(item.Parent, out folder))
+            if ((set.IsWorkingSet || set.FullFolders) && !folders.TryGetValue(item.Parent, out folder))
                 folders[item.Parent] = folder = providers.TryGet(item.Parent.Scheme, out var owner) && owner is not null ? owner.GetDisplayPath(item.Parent) : item.Parent.ToString();
             var e = new EntryData(item.Name, item.Kind, info?.Size ?? item.Size, info?.ModifiedUtc.Ticks ?? item.Modified)
             {

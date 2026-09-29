@@ -211,6 +211,7 @@ public sealed class AppServices : IDisposable
         History.Masks.Clear();
         History.SearchNames.Clear();
         History.SearchTexts.Clear();
+        History.SearchFolders.Clear();
         History.RecentCommands.Clear();
         SaveHistory();
     }

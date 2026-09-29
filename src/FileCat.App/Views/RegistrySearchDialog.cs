@@ -11,6 +11,15 @@ using FileCat.Platform.Windows;
 
 namespace FileCat.App.Views;
 
+public enum SearchDialogOutcome
+{
+    Closed,
+    ShowInPanel,
+    GoTo,
+}
+
+public sealed record SearchDialogResult(SearchDialogOutcome Outcome, ResultSet? Set, ItemRef? Item, CancellationTokenSource? Running);
+
 /// <summary>Registry-specific search fields; results reference original typed items.</summary>
 public static class RegistrySearchDialog
 {

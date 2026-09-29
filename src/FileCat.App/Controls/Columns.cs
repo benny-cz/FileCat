@@ -125,6 +125,7 @@ public static class ColumnProfiles
         new(ColumnField.Folder, "Folder", 220, Star: true),
         new(ColumnField.Size, "Size", 86, RightAlign: true),
         new(ColumnField.Modified, "Modified", 128),
+        new(ColumnField.Attributes, "Attr", 50),
     ];
 
     /// <summary>The list of working sets: each set's name, size in items, and when it last changed.</summary>

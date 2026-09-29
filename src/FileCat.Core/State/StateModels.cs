@@ -192,6 +192,8 @@ public sealed class HistoryState : IVersionedState
     public List<string> Masks { get; set; } = [];
     public List<string> SearchNames { get; set; } = [];
     public List<string> SearchTexts { get; set; } = [];
+    /// <summary>Where Find searched (its Look in field).</summary>
+    public List<string> SearchFolders { get; set; } = [];
     /// <summary>Command ids run from the command search, the palette, or the menus, most recent first (plan §4.4).</summary>
     public List<string> RecentCommands { get; set; } = [];
 }

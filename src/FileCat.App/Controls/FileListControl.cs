@@ -691,6 +691,8 @@ public sealed class FileListControl : Control
         bool active = IsActivePanel;
         dc.FillRectangle(active ? _bg : _bgInactive, bounds);
         double contentWidth = bounds.Width - (_vbar.IsVisible ? _vbar.Bounds.Width : 0);
+        // New columns (another tab or location) can reach a frame before the next arrange lays them out.
+        if (_columnW.Length != _columns.Length) LayoutColumns(contentWidth);
         RenderHeader(dc, contentWidth, active);
 
         var listing = _listing;

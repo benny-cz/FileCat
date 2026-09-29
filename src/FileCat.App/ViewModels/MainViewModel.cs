@@ -76,8 +76,22 @@ public sealed partial class MainViewModel : ObservableObject
     public AppServices Services { get; }
     public WorkspaceViewModel Workspace { get; }
     public ObservableCollection<KeyBarItem> KeyBar { get; } = [];
-    public IDialogService Dialogs { get; set; } = null!;
-    public IViewActions View { get; set; } = null!;
+    /// <summary>The main window's dialogs, or a Find window's while a command runs there (<see cref="ExecuteInAsync"/>).</summary>
+    public IDialogService Dialogs
+    {
+        get => Scope?.Dialogs ?? _dialogs;
+        set => _dialogs = value;
+    }
+
+    /// <summary>The main window, or a Find window while a command runs there.</summary>
+    public IViewActions View
+    {
+        get => Scope?.View ?? _view;
+        set => _view = value;
+    }
+
+    private IDialogService _dialogs = null!;
+    private IViewActions _view = null!;
 
     [ObservableProperty] private string _commandLineText = string.Empty;
     [ObservableProperty] private string? _notification;
@@ -89,7 +103,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public string CommandLinePrompt => (Workspace.ActiveTab?.DisplayPath ?? string.Empty) + ">";
 
-    public TabViewModel? ActiveTab => Workspace.ActiveTab;
+    public TabViewModel? ActiveTab => Scope?.Tab ?? Workspace.ActiveTab;
 
     public void Initialize(WorkspaceState? state)
     {
@@ -118,6 +132,13 @@ public sealed partial class MainViewModel : ObservableObject
 
     public void Notify(string message, bool isError = false)
     {
+        if (Scope?.View is { } scoped)
+        {
+            // A command in a Find window reports there.
+            scoped.ShowNotification(message, isError);
+            if (isError) AppLog.Warn("User notification: " + message);
+            return;
+        }
         Notification = message;
         NotificationIsError = isError;
         if (isError) AppLog.Warn("User notification: " + message);

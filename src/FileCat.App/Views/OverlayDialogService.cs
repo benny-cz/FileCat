@@ -20,6 +20,13 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     public bool IsOpen => _open > 0;
 
+    /// <summary>Cancels every open dialog, the topmost first, as Esc would (their window is closing).</summary>
+    public void CancelAll()
+    {
+        for (int i = _sessions.Count - 1; i >= 0; i--)
+            if (i < _sessions.Count) _sessions[i].OnEscape();
+    }
+
     private sealed class Session
     {
         public required Border Layer;

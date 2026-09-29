@@ -76,9 +76,10 @@ public sealed class AccessibilityTests
             listing.SetFocus(1); // a file, so F5 and F8 open their dialogs
             Assert.Empty(Unnamed(window));
 
+            // (Find is a window of its own; FindWindowTests audits it.)
             // Shift+F8 opens the delete dialog directly. (F8 in this portable test platform first asks "Delete permanently?",
             // whose long wrapped message spins Avalonia's headless text layout; the native app renders it normally.)
-            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.DeletePermanent, CommandIds.MakeDirectory, CommandIds.FindFiles, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink, CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.Attributes })
+            foreach (var command in new[] { CommandIds.Settings, CommandIds.Copy, CommandIds.DeletePermanent, CommandIds.MakeDirectory, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink, CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.Attributes })
             {
                 vm.Execute(command);
                 var dialogs = (OverlayDialogService)vm.Dialogs;

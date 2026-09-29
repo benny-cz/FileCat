@@ -74,20 +74,11 @@ public sealed partial class MainViewModel
         var root = tab?.Location is { IsFileSystem: true } l ? l.Path : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         // In a result set, Find searches within its items and the matches form a narrower set (plan §11).
         var within = tab?.Location is { Scheme: Schemes.ResultSet } rl ? Services.ResultSets.Get(rl) : null;
-        var r = await SearchDialog.ShowAsync(this, root, within);
-        switch (r.Outcome)
-        {
-            case SearchDialogOutcome.GoTo when r.Item is { } item:
-                tab?.Navigate(item.Parent, item.Name);
-                break;
-            case SearchDialogOutcome.ShowInPanel when r.Set is { } set:
-                OpenResultSet(set, r.Running);
-                break;
-        }
-        View.FocusActivePanel();
+        // A window of its own, so the panels stay free while it searches (plan §11, Salamander's Find).
+        FindWindow.Open(this, root, within);
     }
 
-    private void OpenResultSet(ResultSet set, CancellationTokenSource? running)
+    internal void OpenResultSet(ResultSet set, CancellationTokenSource? running)
     {
         var panel = Workspace.ActivePanel;
         if (panel is null) return;
@@ -107,7 +98,7 @@ public sealed partial class MainViewModel
                 if (tab.Location?.Session == set.Id) tab.Refresh();
             }));
         });
-        tab.Banner = set.Provenance + (running is null ? "" : " — still searching (Esc in the Find dialog stops it)");
+        tab.Banner = set.Provenance + (running is null ? "" : " — still searching (Esc in the Find window stops it)");
         if (running is not null) _ = WatchSearchCompletionAsync(set, tab, running);
     }
 

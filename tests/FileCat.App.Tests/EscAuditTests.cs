@@ -17,7 +17,7 @@ public sealed class EscAuditTests
     [
         CommandIds.Help, CommandIds.LocationMenuLeft, CommandIds.Bookmarks, CommandIds.TabList,
         CommandIds.ThemePick, CommandIds.Settings, CommandIds.About, CommandIds.Copy, CommandIds.Move, CommandIds.MakeDirectory,
-        CommandIds.EditNew, CommandIds.FindFiles, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink,
+        CommandIds.EditNew, CommandIds.MarkSelectMask, CommandIds.BulkRename, CommandIds.CreateLink,
         CommandIds.Checksum, CommandIds.ApplyCommand, CommandIds.SftpConnect, CommandIds.Attributes, CommandIds.CompareDirectories,
         CommandIds.Pack, CommandIds.DeletePermanent,
     ];
@@ -108,12 +108,17 @@ public sealed class EscAuditTests
             vm.Execute(CommandIds.CompareFiles);
             await EscCloses(() => CompareWindow.OpenWindows, "The file comparison");
             vm.Execute(CommandIds.MarkNone);
+
+            // Find is a window of its own; Esc closes it when no search runs.
+            vm.Execute(CommandIds.FindFiles);
+            await EscCloses(() => FindWindow.OpenWindows, "The Find window");
         }
         finally
         {
             foreach (var w in ViewerWindow.OpenWindows.ToList()) w.Close();
             foreach (var w in HexEditorWindow.OpenWindows.ToList()) w.Close();
             foreach (var w in CompareWindow.OpenWindows.ToList()) w.Close();
+            foreach (var w in FindWindow.OpenWindows.ToList()) w.Close();
             AccessibilityTests.Close(services, window, root);
         }
     }
