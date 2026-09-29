@@ -107,6 +107,42 @@ public sealed class PanelKeysTests
     }
 
     [AvaloniaFact]
+    public async Task The_mouse_back_and_forward_buttons_go_through_the_panels_history()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string folder = Path.Combine(root, "files");
+            string sub = Directory.CreateDirectory(Path.Combine(folder, "sub")).FullName;
+            // The right panel goes into a folder; the buttons act on the panel the mouse is over, and make it active.
+            var right = vm.Workspace.Panels[1];
+            var tab = right.ActiveTab!;
+            tab.Navigate(Location.FileSystem(sub));
+            for (int i = 0; i < 250 && tab.Location?.Path != sub; i++) await Task.Delay(20, ct);
+            vm.Workspace.Activate(vm.Workspace.Panels[0]);
+            var views = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window).OfType<Views.PanelView>().ToList();
+            var view = views.First(v => ReferenceEquals(v.DataContext, right));
+            var middle = Avalonia.VisualExtensions.TranslatePoint(view, new Avalonia.Point(view.Bounds.Width / 2, view.Bounds.Height / 2), window)!.Value;
+
+            window.MouseDown(middle, MouseButton.XButton1);
+            window.MouseUp(middle, MouseButton.XButton1);
+            for (int i = 0; i < 250 && tab.Location?.Path != folder; i++) await Task.Delay(20, ct);
+            Assert.Equal(folder, tab.Location!.Path);
+            Assert.Same(right, vm.Workspace.ActivePanel);
+
+            window.MouseDown(middle, MouseButton.XButton2);
+            window.MouseUp(middle, MouseButton.XButton2);
+            for (int i = 0; i < 250 && tab.Location?.Path != sub; i++) await Task.Delay(20, ct);
+            Assert.Equal(sub, tab.Location!.Path);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task The_toolbar_runs_commands_names_their_keys_shows_switches_and_can_be_hidden()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

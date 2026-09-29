@@ -53,6 +53,22 @@ public partial class PanelView : UserControl
         };
         // Resizing the panel or adding tabs can make the tabs fit, or not.
         TabScroller.ScrollChanged += (_, _) => UpdateTabOverflow();
+        // The mouse's back and forward buttons go through this panel's history, wherever in the panel they are pressed.
+        AddHandler(PointerPressedEvent, OnHistoryButton, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    private void OnHistoryButton(object? sender, PointerPressedEventArgs e)
+    {
+        var kind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+        if (kind is not (PointerUpdateKind.XButton1Pressed or PointerUpdateKind.XButton2Pressed)) return;
+        e.Handled = true;
+        Activated?.Invoke();
+        if (Panel?.ActiveTab is not { } tab) return;
+        if (kind == PointerUpdateKind.XButton1Pressed)
+        {
+            if (tab.CanGoBack) tab.GoBack();
+        }
+        else if (tab.CanGoForward) tab.GoForward();
     }
 
     private PanelViewModel? _hookedPanel;

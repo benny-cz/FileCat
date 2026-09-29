@@ -357,7 +357,7 @@ FileCat adopts a binding when at least two of the three references agree on it a
 | File history; folder history | Alt+F11; Alt+F12 | — (breadcrumb bars) | Alt+F11; Alt+F12 | Preserve Salamander/FAR |
 | Define/open folder shortcut 0–9 | Ctrl+Shift+0–9; Ctrl+0–9 | Directory hotlist (Ctrl+D) | Ctrl+Shift+0–9; RightCtrl+0–9 | Salamander; a modifier variant opens the shortcut in the target |
 | Pack; unpack | Alt+F5; Alt+F6/Alt+F9 | Alt+F5; Alt+F6/Alt+F9 | Shift+F1; Shift+F2 (Alt+F6 creates links) | Salamander/TC; unpack ZIP in v1, pack in P5 |
-| Back/forward | Alt+←/→ | Alt+←/→ | — | Preserve |
+| Back/forward | Alt+←/→ | Alt+←/→ | — | Preserve; the mouse's back and forward buttons act on the panel under the pointer |
 
 Conflicts and proposed resolutions (ADR-16, validated in TV-10):
 
