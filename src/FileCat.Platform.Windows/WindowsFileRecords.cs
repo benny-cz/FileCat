@@ -1055,6 +1055,9 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ConvertSecurityDescriptorToStringSecurityDescriptor(nint descriptor, uint revision, uint information, out nint text, out uint length);
 
+    [LibraryImport("advapi32.dll")]
+    private static partial int GetSecurityDescriptorLength(nint descriptor);
+
     [LibraryImport("kernel32.dll")]
     private static partial nint LocalFree(nint memory);
 }

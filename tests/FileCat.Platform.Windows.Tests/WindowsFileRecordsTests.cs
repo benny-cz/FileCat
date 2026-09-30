@@ -120,7 +120,9 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Contains(log.Table.Rows, r => r[2].Contains("Created 2019-05-01 12:00:00 (was", StringComparison.Ordinal));
             var secure = Section(report, "Security descriptor in $Secure");
             Assert.EndsWith("matches the descriptor", Field(secure, "Hash"), StringComparison.Ordinal);
-            Assert.Equal("the same owner, group, and DACL", Field(secure, "As Windows reports"));
+            string compared = Field(secure, "As Windows reports");
+            // (With "; Windows reports N of its entries as inherited" where the folder's DACL is not auto-inherited.)
+            Assert.True(compared.StartsWith("the same owner, group, and DACL", StringComparison.Ordinal), compared + "\n" + string.Join("\n", secure.Lines));
             var names = Section(report, "Names ($FILE_NAME)");
             Assert.Contains(names.Children, c => c.Title.StartsWith("“stomped.bin”", StringComparison.Ordinal));
             var record = Section(report, "MFT record");
@@ -234,6 +236,74 @@ public sealed partial class WindowsFileRecordsTests
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
+
+    [Fact]
+    public void Security_descriptors_are_compared_part_by_part_not_as_text()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        static byte[] Binary(string sddl)
+        {
+            var descriptor = new System.Security.AccessControl.RawSecurityDescriptor(sddl);
+            var bytes = new byte[descriptor.BinaryLength];
+            descriptor.GetBinaryForm(bytes, 0);
+            return bytes;
+        }
+        static WindowsFileRecords.SecurityComparison Compare(string stored, string live) => WindowsFileRecords.CompareSecurity(Binary(stored), Binary(live));
+        const string Stored = "O:BAG:SYD:AI(A;ID;FA;;;SY)(A;ID;FA;;;BA)(A;ID;0x1200a9;;;BU)";
+        Assert.Empty(Compare(Stored, Stored).Differences);
+        // A SACL, which the comparison leaves out, does not count.
+        Assert.Empty(Compare(Stored, Stored + "S:(ML;;NW;;;LW)").Differences);
+        Assert.Equal(["owner"], Compare(Stored, Stored.Replace("O:BA", "O:SY", StringComparison.Ordinal)).Differences);
+        Assert.Equal(["DACL flags"], Compare(Stored, Stored.Replace("D:AI", "D:PAI", StringComparison.Ordinal)).Differences);
+        Assert.Equal(["DACL order"], Compare(Stored, "O:BAG:SYD:AI(A;ID;FA;;;BA)(A;ID;FA;;;SY)(A;ID;0x1200a9;;;BU)").Differences);
+        Assert.Equal(["group", "DACL entries"], Compare(Stored, "O:BAG:BAD:AI(A;ID;FA;;;SY)(A;ID;FA;;;BA)(A;ID;FA;;;BU)").Differences);
+        // A DACL stored without inheritance marks (not auto-inherited): Windows marks the entries it finds in the folder
+        // inherited and lists the item's own first. The same DACL, read by Windows.
+        var unmarked = Compare("O:BAG:SYD:(A;;FA;;;SY)(A;;FA;;;BA)(A;;FR;;;WD)", "O:BAG:SYD:(A;;FR;;;WD)(A;ID;FA;;;SY)(A;ID;FA;;;BA)");
+        Assert.Empty(unmarked.Differences);
+        Assert.Equal(2, unmarked.MarkedInherited);
+        // An entry that differs in more than its mark still differs.
+        Assert.Equal(["DACL entries"], Compare("O:BAG:SYD:(A;;FA;;;SY)", "O:BAG:SYD:(A;ID;FR;;;SY)").Differences);
+        // An auto-inherited DACL's marks are its own: a mark Windows reports that the stored copy lacks is a difference.
+        Assert.Equal(["DACL entries"], Compare("O:BAG:SYD:AI(A;;FA;;;SY)", "O:BAG:SYD:AI(A;ID;FA;;;SY)").Differences);
+    }
+
+    [Fact]
+    public void As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports()
+    {
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) return;
+        string dir = NewFolder();
+        try
+        {
+            if (!OnNtfs(dir)) return;
+            // The folder's DACL set the pre-Windows 2000 way: inheritable entries, not marked auto-inherited (as some
+            // profile folders are, a runner's Temp among them). Its files get the entries without inheritance marks.
+            string user = System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value;
+            string old = Path.Combine(dir, "old");
+            Directory.CreateDirectory(old);
+            SetRawDacl(old, $"D:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;{user})");
+            string file = Path.Combine(old, "plain.txt");
+            File.WriteAllText(file, "x");
+            var secure = Section(Read(file), "Security descriptor in $Secure");
+            Assert.Equal("the same owner, group, and DACL; Windows reports 3 of its entries as inherited (see below)", Field(secure, "As Windows reports"));
+            Assert.Contains(secure.Lines, l => l.StartsWith("• Its DACL is stored without inheritance marks", StringComparison.Ordinal));
+            Assert.Contains(secure.Lines, l => l.Trim() == "(A;;FA;;;SY)");
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    /// <summary>Sets a DACL as given (SetFileSecurity: no inheritance worked out, no flags added).</summary>
+    private static void SetRawDacl(string path, string sddl)
+    {
+        var descriptor = new System.Security.AccessControl.RawSecurityDescriptor(sddl);
+        var bytes = new byte[descriptor.BinaryLength];
+        descriptor.GetBinaryForm(bytes, 0);
+        Assert.True(SetFileSecurity(path, 4 /* DACL_SECURITY_INFORMATION */, bytes), $"SetFileSecurity: {Marshal.GetLastPInvokeError()}");
+    }
+
+    [LibraryImport("advapi32.dll", EntryPoint = "SetFileSecurityW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetFileSecurity(string path, uint information, byte[] descriptor);
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]

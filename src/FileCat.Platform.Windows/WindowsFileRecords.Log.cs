@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using FileCat.Core.Inspect;
 using FileCat.Core.Records;
 using Microsoft.Win32.SafeHandles;
@@ -16,6 +17,79 @@ namespace FileCat.Platform.Windows;
 /// </summary>
 public sealed unsafe partial class WindowsFileRecords
 {
+    /// <summary>$Secure's copy of an item's descriptor, and how it compares with what Windows reports (null: not compared).</summary>
+    private sealed record SecureCopy(SecureEntry Entry, bool HashMatches, bool? MirrorMatches, string? Sddl, string? LiveSddl,
+        SecurityComparison? Comparison, int Descriptors);
+
+    /// <param name="Differences">The parts that differ, in words: "owner", "group", "DACL flags" (protected,
+    /// auto-inherited), "DACL entries", or "DACL order" when only their order does. Empty when none.</param>
+    /// <param name="MarkedInherited">
+    /// Entries Windows reports as inherited that the stored DACL does not mark so. A DACL not marked auto-inherited (set
+    /// the pre-Windows 2000 way, as some profile folders are) carries no inheritance marks; GetSecurityInfo works them
+    /// out by comparing its entries with the parent folder's inheritable ones, marks those inherited, and lists the
+    /// others first. That is Windows' reading of the same DACL, not a difference.
+    /// </param>
+    internal sealed record SecurityComparison(IReadOnlyList<string> Differences, int MarkedInherited);
+
+    private const byte InheritedAce = 0x10; // INHERITED_ACE, in an ACE header's flags (its second byte)
+
+    /// <summary>
+    /// Compares a descriptor as NTFS stores it with the one Windows reports for the item, both self-relative: owner,
+    /// group, and DACL, as structures rather than SDDL text (see <see cref="SecurityComparison"/>).
+    /// </summary>
+    internal static SecurityComparison CompareSecurity(byte[] stored, byte[] live)
+    {
+        RawSecurityDescriptor a, b;
+        try
+        {
+            a = new RawSecurityDescriptor(stored, 0);
+            b = new RawSecurityDescriptor(live, 0);
+        }
+        catch (ArgumentException)
+        {
+            return new(stored.AsSpan().SequenceEqual(live) ? [] : ["the descriptor (one could not be parsed)"], 0);
+        }
+        var parts = new List<string>();
+        if (a.Owner != b.Owner) parts.Add("owner");
+        if (a.Group != b.Group) parts.Add("group");
+        // Without the auto-inherited flag, Windows' marks and order are its own reading (see MarkedInherited).
+        bool unmarked = (a.ControlFlags & ControlFlags.DiscretionaryAclAutoInherited) == 0;
+        var daclFlags = ControlFlags.DiscretionaryAclPresent | ControlFlags.DiscretionaryAclProtected
+            | ControlFlags.DiscretionaryAclAutoInheritRequired | (unmarked ? 0 : ControlFlags.DiscretionaryAclAutoInherited);
+        if ((a.ControlFlags & daclFlags) != (b.ControlFlags & daclFlags)) parts.Add("DACL flags");
+        var first = Entries(a.DiscretionaryAcl);
+        var second = Entries(b.DiscretionaryAcl);
+        int marked = 0;
+        if (unmarked)
+        {
+            marked = Math.Max(0, second.Count(e => (e[1] & InheritedAce) != 0) - first.Count(e => (e[1] & InheritedAce) != 0));
+            if (!Unmarked(first).Order().SequenceEqual(Unmarked(second).Order())) parts.Add("DACL entries");
+        }
+        else if (!first.Select(Convert.ToHexString).SequenceEqual(second.Select(Convert.ToHexString)))
+            parts.Add(first.Select(Convert.ToHexString).Order().SequenceEqual(second.Select(Convert.ToHexString).Order()) ? "DACL order" : "DACL entries");
+        return new(parts, parts.Contains("DACL entries") ? 0 : marked);
+
+        static List<byte[]> Entries(RawAcl? acl)
+        {
+            var list = new List<byte[]>();
+            if (acl is null) return list;
+            foreach (GenericAce ace in acl)
+            {
+                var bytes = new byte[ace.BinaryLength];
+                ace.GetBinaryForm(bytes, 0);
+                list.Add(bytes);
+            }
+            return list;
+        }
+
+        static IEnumerable<string> Unmarked(List<byte[]> entries) => entries.Select(e =>
+        {
+            var copy = (byte[])e.Clone();
+            copy[1] &= unchecked((byte)~InheritedAce);
+            return Convert.ToHexString(copy);
+        });
+    }
+
     private sealed partial class Reader
     {
         /// <summary>$LogFile is 64 MiB unless made larger (chkdsk /L); read at most this much.</summary>
@@ -32,7 +106,7 @@ public sealed unsafe partial class WindowsFileRecords
         private ulong _logMadeAt;
         private string? _logProblem;
         private long _logBytes;
-        private (SecureEntry Entry, bool HashMatches, bool? MirrorMatches, string? Sddl, bool? SameAsWindows, int Descriptors)? _secure;
+        private SecureCopy? _secure;
         private string? _secureProblem;
 
         private void ReadLogAndSecure(SafeFileHandle volume, CancellationToken token)
@@ -376,9 +450,9 @@ public sealed unsafe partial class WindowsFileRecords
             bool hashMatches = NtfsSecure.Hash(descriptor) == header.Hash;
             bool? mirror = entry.Offset + NtfsSecure.MirrorDistance + entry.Length <= sdsSize && ReadRange(volume, runs, entry.Offset + NtfsSecure.MirrorDistance, (int)entry.Length) is { } copy
                 ? copy.AsSpan().SequenceEqual(stored) : null;
-            string? sddl = Sddl(descriptor);
-            bool? same = sddl is not null && LiveSddl() is { } live ? string.Equals(sddl, live, StringComparison.Ordinal) : null;
-            _secure = (header, hashMatches, mirror, sddl, same, entries.Select(e => e.SecurityId).Distinct().Count());
+            byte[]? live = LiveDescriptor();
+            _secure = new SecureCopy(header, hashMatches, mirror, Sddl(descriptor), live is null ? null : Sddl(live),
+                live is null ? null : CompareSecurity(descriptor, live), entries.Select(e => e.SecurityId).Distinct().Count());
         }
 
         /// <summary>Some bytes of a non-resident attribute, from the clusters that hold them only.</summary>
@@ -417,15 +491,15 @@ public sealed unsafe partial class WindowsFileRecords
             }
         }
 
-        private string? LiveSddl()
+        /// <summary>The owner, group, and DACL Windows reports for the item, as a self-relative descriptor.</summary>
+        private byte[]? LiveDescriptor()
         {
             int error = GetSecurityInfo(_item, 1 /* SE_FILE_OBJECT */, SddlParts, out _, out _, out _, out _, out nint descriptor);
             if (error != 0) return null;
             try
             {
-                if (!ConvertSecurityDescriptorToStringSecurityDescriptor(descriptor, 1, SddlParts, out nint text, out _)) return null;
-                try { return Marshal.PtrToStringUni(text); }
-                finally { LocalFree(text); }
+                int length = GetSecurityDescriptorLength(descriptor);
+                return length <= 0 ? null : new ReadOnlySpan<byte>((void*)descriptor, length).ToArray();
             }
             finally { LocalFree(descriptor); }
         }
@@ -434,16 +508,24 @@ public sealed unsafe partial class WindowsFileRecords
         {
             if (!_ntfs || !privileged || _record is null) return null;
             if (_secure is not { } s) return _secureProblem is null ? null : new InspectionSection("Security descriptor in $Secure", []) { Lines = Wrap(_secureProblem) };
+            bool differs = s.Comparison is { Differences.Count: > 0 };
+            int marked = s.Comparison?.MarkedInherited ?? 0;
             var fields = new List<(string, string)>
             {
                 ("Security ID", s.Entry.SecurityId.ToString(CultureInfo.CurrentCulture)),
                 ("In $SDS", $"at offset {s.Entry.Offset:N0} (0x{s.Entry.Offset:X}), {s.Entry.Length:N0} bytes with its header"),
                 ("Hash", $"0x{s.Entry.Hash:X8}: " + (s.HashMatches ? "matches the descriptor" : "does NOT match the descriptor stored there")),
                 ("Mirror copy", s.MirrorMatches switch { true => "the same (256 KiB further on)", false => "DIFFERS from it (256 KiB further on)", null => "not read" }),
-                ("As Windows reports", s.SameAsWindows switch { true => "the same owner, group, and DACL", false => "DIFFERENT from what Windows reports for the item", null => "not compared" }),
+                ("As Windows reports", s.Comparison switch
+                {
+                    null => "not compared",
+                    { Differences.Count: > 0 } c => "DIFFERENT: " + string.Join(", ", c.Differences) + " (both below)",
+                    _ when marked > 0 => $"the same owner, group, and DACL; Windows reports {marked:N0} of its entries as inherited (see below)",
+                    _ => "the same owner, group, and DACL",
+                }),
                 ("On this volume", $"{s.Descriptors:N0} distinct descriptors, each stored once; files point to them by ID"),
             };
-            if (!s.HashMatches || s.MirrorMatches == false || s.SameAsWindows == false)
+            if (!s.HashMatches || s.MirrorMatches == false || differs)
                 _warnings.Add("$Secure: its stored descriptor does not agree with its hash, its mirror, or Windows (see Security descriptor in $Secure).");
             var lines = new List<string>();
             if (s.Sddl is not null)
@@ -451,6 +533,15 @@ public sealed unsafe partial class WindowsFileRecords
                 lines.Add("As stored:");
                 lines.AddRange(AccessText.SddlLines(s.Sddl).Select(l => "  " + l));
             }
+            if (differs && s.LiveSddl is not null)
+            {
+                lines.Add("As Windows reports:");
+                lines.AddRange(AccessText.SddlLines(s.LiveSddl).Select(l => "  " + l));
+            }
+            else if (marked > 0)
+                lines.AddRange(Wrap("Its DACL is stored without inheritance marks: it is not marked auto-inherited, the way ACLs "
+                    + "were set before Windows 2000. Windows works out which entries came from the folder by comparing them with the "
+                    + $"folder's inheritable ones, and reports {(marked == 1 ? "1 entry" : $"{marked:N0} entries")} as inherited (see Security).", "• "));
             return new InspectionSection("Security descriptor in $Secure", fields) { Lines = lines };
         }
     }
