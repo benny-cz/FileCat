@@ -88,7 +88,7 @@ public sealed class FluentFtpConnector : ISftpConnector
         {
             client.Dispose();
             if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
-            throw new IOException($"Could not connect to {profile.Display}: {ex.Message}", ex);
+            throw new IOException($"Could not connect to {profile.Display}: {RemoteErrorText.Reason(ex)}", ex);
         }
         catch
         {
@@ -156,11 +156,11 @@ internal sealed class FtpChannel : ISftpChannel
         }
         catch (Exception ex) when (ex is SocketException or TimeoutException || ex is IOException && !_client.IsConnected)
         {
-            throw new RemoteDisconnectedException("The connection to the server was lost: " + ex.Message, ex);
+            throw new RemoteDisconnectedException("The connection to the server was lost: " + RemoteErrorText.Reason(ex), ex);
         }
         catch (FtpException ex)
         {
-            throw new IOException(ex.Message, ex);
+            throw new IOException(RemoteErrorText.Reason(ex), ex);
         }
     }
 

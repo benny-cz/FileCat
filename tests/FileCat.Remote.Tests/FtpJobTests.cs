@@ -113,4 +113,17 @@ public sealed class FtpJobTests : IDisposable
         Assert.False(profile.PlainTextAccepted);
         Assert.False(provider.TryParse("http://files.example", null, out _));
     }
+
+    [Fact]
+    public void A_dropped_encrypted_connection_is_described_by_what_happened()
+    {
+        // What .NET's TLS stream threw when the lab's FTPS server dropped an upload (E-V08-L1): its own words only point
+        // further down, and the user saw them.
+        var dropped = new IOException("The read operation failed, see inner exception.",
+            new IOException("Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.",
+                new System.Net.Sockets.SocketException(10054)));
+        Assert.Equal("Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.", RemoteErrorText.Reason(dropped));
+        Assert.Equal("The server refused.", RemoteErrorText.Reason(new IOException("The server refused.", new IOException("inner"))));
+        Assert.Equal("see inner exception", RemoteErrorText.Reason(new IOException("see inner exception")));
+    }
 }

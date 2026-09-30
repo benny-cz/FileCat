@@ -42,7 +42,6 @@ public sealed class RemoteLabTests : IDisposable
         public int UnencryptedAsked;
         public HostKeyDecision HostKeyAnswer = HostKeyDecision.AcceptAndRemember;
         public HostKeyDecision CertificateAnswer = HostKeyDecision.AcceptAndRemember;
-        public bool AllowPlain;
 
         public HostKeyDecision DecideHostKey(RemoteProfile profile, HostKeyCheck check)
         {
@@ -64,7 +63,7 @@ public sealed class RemoteLabTests : IDisposable
         public bool AllowUnencrypted(RemoteProfile profile)
         {
             Interlocked.Increment(ref UnencryptedAsked);
-            return AllowPlain;
+            return false; // the user declines
         }
     }
 
@@ -250,6 +249,65 @@ public sealed class RemoteLabTests : IDisposable
             using var check = stack.Connections.Lease(profile.Id, ct);
             var left = check.Channel.List(remoteRoot, ct).Select(e => $"{e.Name} ({e.Size} bytes)").ToList();
             Assert.True(left.Count == 0, "Left on the server: " + string.Join(", ", left));
+        }
+        finally
+        {
+            await RunAsync(stack, new JobRequest { Kind = JobKind.Delete, Sources = [new ItemRef(SftpProvider.At(profile, "."), remoteRoot, EntryKind.Directory)] });
+        }
+    }
+
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, 22)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, 21)]
+    public async Task An_upload_cut_off_by_the_server_continues_and_arrives_intact(string protocol, int port)
+    {
+        var lab = Lab();
+        // A command run on this machine that drops the test account's connections on the server (a server restart, a
+        // network cut); the lab's command kills the account's session processes.
+        string? drop = Environment.GetEnvironmentVariable("FILECAT_REMOTE_LAB_DROP");
+        if (string.IsNullOrEmpty(drop)) Assert.Skip("Set FILECAT_REMOTE_LAB_DROP to a command that drops the test account's connections.");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = Profile(protocol, port, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "drop-" + protocol));
+        string file = Path.Combine(Directory.CreateDirectory(Path.Combine(_dir, "drop-src-" + protocol)).FullName, "big.bin");
+        var bytes = new byte[128 << 20];
+        new Random(5).NextBytes(bytes);
+        File.WriteAllBytes(file, bytes);
+        string remoteRoot = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        using (var lease = stack.Connections.Lease(profile.Id, ct)) lease.Channel.CreateDirectory(remoteRoot);
+        // Whatever FileCat asks after the break (a connection error), the user says: try again.
+        var asked = new List<string>();
+        stack.Jobs.DecisionRequested += d =>
+        {
+            lock (asked) asked.Add(d.Request.Title + ": " + d.Request.Message);
+            d.Resolve(new Decision(DecisionAction.Retry));
+        };
+        try
+        {
+            var job = stack.Jobs.Submit(new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)],
+                Destination = SftpProvider.At(profile, remoteRoot),
+                Options = new TransferOptions { RateLimit = 16 << 20 }, // about eight seconds: time to cut it
+            });
+            while (!job.State.IsFinished() && job.BytesDone < bytes.Length * 3L / 10) await Task.Delay(20, ct);
+            Assert.False(job.State.IsFinished(), "The upload finished before the connection could be cut.");
+            using (var cut = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c " + drop) { UseShellExecute = false }))
+                await cut!.WaitForExitAsync(ct);
+            var deadline = DateTime.UtcNow.AddMinutes(5);
+            while (!job.State.IsFinished() && DateTime.UtcNow < deadline) await Task.Delay(50, ct);
+            string story = $"{job.State}; asked: {string.Join(" | ", asked)}; issues: {string.Join(" | ", job.Issues.Select(i => i.Message))}";
+            Assert.True(job.State == JobState.Completed, story);
+            // It continued after the part on the server was checked, rather than starting again.
+            Assert.Contains(job.Issues, i => i.Message.Contains("continued at", StringComparison.Ordinal));
+            // Intact on the server, read back through a fresh connection; nothing else left beside it.
+            using var check = stack.Connections.Lease(profile.Id, ct);
+            var entries = check.Channel.List(remoteRoot, ct);
+            Assert.Equal(["big.bin"], entries.Select(e => e.Name));
+            using (var s = check.Channel.OpenRead(RemotePath.Combine(remoteRoot, "big.bin")))
+                Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)), Convert.ToHexString(SHA256.HashData(s)));
+            TestContext.Current.TestOutputHelper?.WriteLine(story);
         }
         finally
         {

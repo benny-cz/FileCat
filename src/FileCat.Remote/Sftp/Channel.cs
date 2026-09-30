@@ -71,6 +71,20 @@ public interface ISftpChannel : IDisposable
 /// <summary>The connection broke; the work can continue after reconnecting only where it is provably safe.</summary>
 public sealed class RemoteDisconnectedException(string message, Exception? inner = null) : IOException(message, inner);
 
+internal static class RemoteErrorText
+{
+    /// <summary>
+    /// What a library failure says for the user: its own words, or, where those only point further down (.NET's TLS
+    /// stream says "The read operation failed, see inner exception." when the server drops an FTPS connection), the
+    /// first inner failure that says what happened.
+    /// </summary>
+    public static string Reason(Exception ex)
+    {
+        while (ex.InnerException is { } inner && ex.Message.Contains("inner exception", StringComparison.OrdinalIgnoreCase)) ex = inner;
+        return ex.Message;
+    }
+}
+
 /// <summary>Remote paths are POSIX: '/' separates, names are raw, and nothing is case-folded.</summary>
 public static class RemotePath
 {

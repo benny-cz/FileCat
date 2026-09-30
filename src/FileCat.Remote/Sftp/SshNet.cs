@@ -71,7 +71,7 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
         }
         catch (SshConnectionException ex)
         {
-            throw new IOException($"Could not connect to {profile.Display}: {ex.Message}", ex);
+            throw new IOException($"Could not connect to {profile.Display}: {RemoteErrorText.Reason(ex)}", ex);
         }
         catch (SshOperationTimeoutException ex)
         {
@@ -83,7 +83,7 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
         }
         catch (SshException ex)
         {
-            throw new IOException($"Could not connect to {profile.Display}: {ex.Message}", ex);
+            throw new IOException($"Could not connect to {profile.Display}: {RemoteErrorText.Reason(ex)}", ex);
         }
         finally
         {
@@ -229,7 +229,7 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
         }
         catch (SshConnectionException ex)
         {
-            throw new RemoteDisconnectedException("The connection to the server was lost: " + ex.Message, ex);
+            throw new RemoteDisconnectedException("The connection to the server was lost: " + RemoteErrorText.Reason(ex), ex);
         }
         catch (SshOperationTimeoutException ex)
         {
@@ -241,11 +241,11 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
         }
         catch (SocketException ex)
         {
-            throw new RemoteDisconnectedException("The connection to the server was lost: " + ex.Message, ex);
+            throw new RemoteDisconnectedException("The connection to the server was lost: " + RemoteErrorText.Reason(ex), ex);
         }
         catch (SshException ex)
         {
-            throw new IOException(ex.Message, ex);
+            throw new IOException(RemoteErrorText.Reason(ex), ex);
         }
     }
 
