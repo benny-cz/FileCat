@@ -49,7 +49,7 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Contains(layout.Fields, f => f.Name == "Fragments");
             Assert.Equal(["VCN", "LCN", "Clusters", "Where"], layout.Table!.Columns);
             var access = Section(report, "Security").Children.Single(c => c.Title == "Access");
-            Assert.Equal(["Type", "Who", "Rights", "Inherited"], access.Table!.Columns);
+            Assert.Equal(["Type", "Rights", "Inherited", "Who"], access.Table!.Columns);
             Assert.NotEmpty(access.Table.Rows);
         }
         finally { Directory.Delete(dir, recursive: true); }
@@ -175,8 +175,8 @@ public sealed partial class WindowsFileRecordsTests
             var report = Read(dir, privileged: false);
             Assert.Equal("folder", Field(Section(report, "Item"), "Kind"));
             var access = Section(report, "Security").Children.Single(c => c.Title == "Access");
-            Assert.Equal(["Type", "Who", "Rights", "Applies to", "Inherited"], access.Table!.Columns);
-            Assert.Contains(access.Table.Rows, r => r[3] == "This folder, subfolders and files");
+            Assert.Equal(["Type", "Rights", "Applies to", "Inherited", "Who"], access.Table!.Columns);
+            Assert.Contains(access.Table.Rows, r => r[2] == "This folder, subfolders and files");
             Assert.Contains(Section(report, "Security").Children, c => c.Title == "SDDL");
         }
         finally { Directory.Delete(dir, recursive: true); }

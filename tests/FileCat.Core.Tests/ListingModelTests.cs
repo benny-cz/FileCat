@@ -356,6 +356,56 @@ public sealed class ListingModelTests : IDisposable
         Assert.True(await _ui.InvokeAsync(() => model.TryGetFocused(out var e) && e.Name == expected));
         await _ui.InvokeAsync(model.Dispose);
     }
+    [Fact]
+    public async Task A_refresh_asked_for_during_a_refresh_runs_after_it_so_the_rows_are_current()
+    {
+        var provider = new ChangingProvider { Names = ["a.txt", "b.txt"] };
+        _providers.Register(provider);
+        var location = new Location("changing", "root");
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(location));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        Assert.Equal(["a.txt", "b.txt"], await VisibleNames(model));
+
+        // A refresh reads the names, then waits; b.txt goes away meanwhile, and the change asks for another refresh.
+        provider.Hold();
+        await _ui.InvokeAsync(model.Refresh);
+        Assert.True(provider.Read.Wait(TimeSpan.FromSeconds(10)));
+        provider.Names = ["a.txt"];
+        await _ui.InvokeAsync(model.Refresh);
+        provider.Let();
+        await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.State == ListingState.Complete && model.VisibleCount == 1);
+        Assert.Equal(["a.txt"], await VisibleNames(model));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
+    /// <summary>Lists its current names; when held, waits after reading them until let go.</summary>
+    private sealed class ChangingProvider : ResourceProvider
+    {
+        private readonly ManualResetEventSlim _go = new(true);
+        public volatile string[] Names = [];
+        public ManualResetEventSlim Read { get; } = new();
+        public override string Scheme => "changing";
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            var names = Names;
+            Read.Set();
+            _go.Wait(ct);
+            sink.AddBatch(names.Select(n => new EntryData(n, EntryKind.File)).ToArray());
+            return Task.CompletedTask;
+        }
+        public void Hold()
+        {
+            Read.Reset();
+            _go.Reset();
+        }
+        public void Let() => _go.Set();
+    }
+
     private sealed class GatedProvider(string first = "first.txt", string second = "second.txt") : ResourceProvider
     {
         private readonly ManualResetEventSlim _release = new();

@@ -31,5 +31,6 @@
     <ProjectReference Include="..\FileCat.ShellHost\FileCat.ShellHost.csproj" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
     <InternalsVisibleTo Include="FileCat.PageEngineSmoke" />
+    <InternalsVisibleTo Include="FileCat.Screenshots" />
   </ItemGroup>
 </Project>

@@ -53,6 +53,10 @@ public sealed class ListingModel : IDisposable
     private int _appliedCount;
     private Pipeline? _pipeline;
     private Pipeline? _pendingRefresh;
+    /// <summary>A refresh was asked for while one was under way: it runs when that one has finished.</summary>
+    private bool _refreshAgain;
+    /// <summary>The pipeline that began as a refresh and has not finished yet (it becomes the main one when it swaps in).</summary>
+    private Pipeline? _refreshing;
     private int _generation;
     private int _specVersion;
     private SortSpec _sort = new();
@@ -328,7 +332,13 @@ public sealed class ListingModel : IDisposable
     public void Refresh()
     {
         if (Location is null || Provider is null || _disposed) return;
-        if (_pendingRefresh is not null) return;
+        if (_pendingRefresh is not null)
+        {
+            // The refresh under way may have read the location before the change this one is for: run again after it
+            // (once, however many ask meanwhile), rather than dropping the request and keeping stale rows.
+            _refreshAgain = true;
+            return;
+        }
         if (State == ListingState.Loading && _pendingRefresh is null)
         {
             Load(Location, TryGetFocused(out var f) ? f.Name : null);
@@ -336,8 +346,18 @@ public sealed class ListingModel : IDisposable
         }
         var store = CreateStore(Location);
         if (HasParentRow) store.Append(new EntryData("..", EntryKind.Parent));
-        _pendingRefresh = StartPipeline(Location, Provider, store, isRefresh: true);
+        _pendingRefresh = _refreshing = StartPipeline(Location, Provider, store, isRefresh: true);
         Raise(ListingChange.State);
+    }
+
+    /// <summary>After a refresh has finished (or failed): the one asked for meanwhile, if any.</summary>
+    private void RefreshFinished(Pipeline p)
+    {
+        if (!ReferenceEquals(p, _refreshing)) return;
+        _refreshing = null;
+        if (!_refreshAgain) return;
+        _refreshAgain = false;
+        _ui.Post(Refresh);
     }
 
     public void CancelLoading()
@@ -346,6 +366,8 @@ public sealed class ListingModel : IDisposable
         _pipeline?.Cts.Cancel();
         _pendingRefresh?.Retire();
         _pendingRefresh = null;
+        _refreshing = null;
+        _refreshAgain = false;
         if (State == ListingState.Loading)
         {
             State = ListingState.Complete;
@@ -387,6 +409,9 @@ public sealed class ListingModel : IDisposable
         _pendingRefresh?.Retire();
         _pipeline = null;
         _pendingRefresh = null;
+        // A new load reads the location afresh: nothing is owed to the requests made before it.
+        _refreshing = null;
+        _refreshAgain = false;
     }
 
     private ViewSpec CurrentSpec() => new(_sort, _filter, _showHidden, _specVersion);
@@ -425,6 +450,7 @@ public sealed class ListingModel : IDisposable
                 _issues.Add($"Refresh failed: {r.Error.Message}");
                 LastRefreshError = r.Error;
                 Raise(ListingChange.State);
+                RefreshFinished(p);
                 return;
             }
             SwapToRefresh(p);
@@ -435,9 +461,11 @@ public sealed class ListingModel : IDisposable
             r.External?.Dispose();
             _issues.Add($"Could not update listing view: {DescribeError(r.Error!)}");
             Raise(ListingChange.State);
+            if (r.Done) RefreshFinished(p);
             return;
         }
         ApplyResult(p, r);
+        if (r.Done) RefreshFinished(p);
     }
 
     private void SwapToRefresh(Pipeline p)

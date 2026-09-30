@@ -146,8 +146,13 @@ public sealed class TextViewer : Control
         _hit = B("FcSearchHit", Brushes.Yellow);
         _sel = B("FcFocusBackground", Brushes.LightBlue);
         _accent = B("FcActiveAccent", Brushes.SteelBlue);
+        // Headings in the accent colour, unless it is close to the text's (the DOS theme's cyan on cyan): then in the
+        // colour of column titles (its yellow).
+        if (_accent is ISolidColorBrush a && _text is ISolidColorBrush t && Distance(a.Color, t.Color) < 160) _accent = B("FcHeaderText", _accent);
         _warning = B("FcWarning", Brushes.DarkOrange);
         InvalidateVisual();
+
+        static double Distance(Color x, Color y) => Math.Sqrt(Math.Pow(x.R - y.R, 2) + Math.Pow(x.G - y.G, 2) + Math.Pow(x.B - y.B, 2));
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

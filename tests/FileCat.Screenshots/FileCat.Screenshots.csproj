@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pictures of FileCat's windows for UI reviews, drawn offscreen by Skia with FileCat's own styles and themes:
+       nothing appears on the desktop, so it works on a locked screen and on CI runners. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FileCat.App\FileCat.App.csproj" />
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+</Project>

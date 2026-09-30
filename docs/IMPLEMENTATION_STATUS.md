@@ -67,6 +67,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 - **Commits:** check `dotnet test` exit codes before committing; grep output alone hides failures.
 - **Real-server SFTP tests** start a user-mode sshd (Linux/macOS CI). Locally in WSL: extract openssh-server and libwrap0 debs, then run with `FILECAT_SSHD` and `LD_LIBRARY_PATH` set.
 - **Stopping stuck test hosts:** only processes under `E:\FileCat` (other sessions run tests on this machine). A dialog with blank lines hangs headless layout: `dotnet-stack report -p <pid>` shows it.
+- **Pictures of windows without the desktop:** `tests/FileCat.Screenshots` draws FileCat's windows offscreen with Skia and its own styles and themes (`FileCat.Screenshots <out> record <path> [pages] [theme ...]`); it works on a locked screen. The App tests' headless drawing renders nothing.
 - **Junctions in tests:** .NET's recursive `Directory.Delete` fails on junctions here (its `DeleteVolumeMountPoint` call returns "parameter is incorrect"); delete junctions non-recursively first. Product deletes never use the recursive API.
 - **Benchmarks:** `FILECAT_COPY_BENCH=100000 FILECAT_COPY_BENCH_ROUNDS=2 dotnet test tests/FileCat.Platform.Windows.Tests --filter SmallFileCopyBenchmark --logger "console;verbosity=detailed"`.
   Rounds alternate the order. Other test runs or antivirus scans on the machine distort single runs by several times.

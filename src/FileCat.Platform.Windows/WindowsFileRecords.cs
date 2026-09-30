@@ -625,10 +625,11 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                         foreach (var finding in access.Findings.Where(f => f.Strong)) _warnings.Add("Permissions: " + finding.Text);
                         if (access.Entries.Count > 0)
                         {
-                            string[] columns = _isFolder ? ["Type", "Who", "Rights", "Applies to", "Inherited"] : ["Type", "Who", "Rights", "Inherited"];
+                            // Who last: an account's name or an unknown SID can be long, and the other columns stay in view.
+                            string[] columns = _isFolder ? ["Type", "Rights", "Applies to", "Inherited", "Who"] : ["Type", "Rights", "Inherited", "Who"];
                             var rows = access.Entries.Select(e => _isFolder
-                                ? new[] { e.Type, e.Who, e.Rights, e.AppliesTo, e.Inherited ? "yes" : "" }
-                                : new[] { e.Type, e.Who, e.Rights, e.Inherited ? "yes" : "" }).ToList();
+                                ? new[] { e.Type, e.Rights, e.AppliesTo, e.Inherited ? "yes" : "", e.Who }
+                                : new[] { e.Type, e.Rights, e.Inherited ? "yes" : "", e.Who }).ToList();
                             var lines = new List<string>();
                             foreach (var finding in access.Findings) lines.AddRange(Wrap(finding.Text, finding.Strong ? "⚠ " : "• "));
                             children.Add(new InspectionSection("Access", []) { Table = new InspectionTable(columns, rows), Lines = lines });
