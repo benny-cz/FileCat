@@ -213,10 +213,12 @@ public static class ThemeManager
         ThemeChanged?.Invoke();
     }
 
-    public static string NextThemeName(string current)
+    /// <summary>The theme <paramref name="step"/> places on in the list (1: next, -1: previous), round the end.</summary>
+    public static string CycleThemeName(string current, int step)
     {
         int i = Names.ToList().FindIndex(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));
-        return Names[(i + 1) % Names.Count];
+        if (i < 0) return step > 0 ? Names[0] : Names[^1];
+        return Names[((i + step) % Names.Count + Names.Count) % Names.Count];
     }
 
     /// <summary>Move decorative colors slowly while keeping text and semantic state colors stable.</summary>

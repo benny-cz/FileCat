@@ -454,7 +454,8 @@ public sealed partial class MainViewModel
                 Services.SaveSettings();
                 break;
             case CommandIds.ThemeCycle:
-                Services.Settings.Theme = ThemeManager.NextThemeName(Services.Settings.Theme);
+            case CommandIds.ThemePrevious:
+                Services.Settings.Theme = ThemeManager.CycleThemeName(Services.Settings.Theme, id == CommandIds.ThemePrevious ? -1 : 1);
                 ThemeManager.Apply(Services.Settings.Theme);
                 Services.Icons.ClearCache();
                 Services.SaveSettings();

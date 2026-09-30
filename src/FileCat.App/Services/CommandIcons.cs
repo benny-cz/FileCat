@@ -23,6 +23,7 @@ public static class CommandIcons
     private const string Drive = "M1.5,5.5 L14.5,5.5 L14.5,11.5 L1.5,11.5 Z";
     private const string Clipboard = "M5.5,2.5 L10.5,2.5 L10.5,4.5 L5.5,4.5 Z M5,3.5 L3,3.5 L3,14.5 L13,14.5 L13,3.5 L11,3.5";
     private const string Magnifier = "M6.5,2.5 C8.7,2.5 10.5,4.3 10.5,6.5 C10.5,8.7 8.7,10.5 6.5,10.5 C4.3,10.5 2.5,8.7 2.5,6.5 C2.5,4.3 4.3,2.5 6.5,2.5 Z M9.5,9.5 L14,14";
+    private const string PaletteShape = "M8,1.5 C4.4,1.5 1.5,4.2 1.5,7.6 C1.5,11.1 4.3,14.5 7.6,14.5 C9.2,14.5 9,12.8 8.3,12 C7.6,11.2 8.3,9.8 9.6,9.8 L11.4,9.8 C13.4,9.8 14.5,8.6 14.5,7 C14.5,3.9 11.6,1.5 8,1.5 Z";
     private const string Circle = "M8,1.5 C11.6,1.5 14.5,4.4 14.5,8 C14.5,11.6 11.6,14.5 8,14.5 C4.4,14.5 1.5,11.6 1.5,8 C1.5,4.4 4.4,1.5 8,1.5 Z";
     private const string Box = "M2.5,2.5 L13.5,2.5 L13.5,13.5 L2.5,13.5 Z";
     private const string Panes = "M1.5,2.5 L7,2.5 L7,13.5 L1.5,13.5 Z M9,2.5 L14.5,2.5 L14.5,13.5 L9,13.5 Z";
@@ -191,10 +192,11 @@ public static class CommandIcons
         [CommandIds.ToggleDriveButtons] = [new("M1.5,4.5 L7,4.5 L7,9.5 L1.5,9.5 Z M9,4.5 L14.5,4.5 L14.5,9.5 L9,9.5 Z"), new("M3,7 L4,7 M10.5,7 L11.5,7", "ActiveAccent"), new("M1.5,12.5 L14.5,12.5", "TextMuted")],
         [CommandIds.ToggleToolbar] = [new("M1.5,3 L14.5,3 L14.5,7.5 L1.5,7.5 Z"), new("M4,5.25 L5,5.25 M7.5,5.25 L8.5,5.25 M11,5.25 L12,5.25", "ActiveAccent"), new("M1.5,10.5 L14.5,10.5 M1.5,13.5 L10,13.5", "TextMuted")],
         [CommandIds.AnalyzeFolder] = [new(Circle), new("M8,8 L8,1.5 M8,8 L13.6,11.2", "ActiveAccent")],
-        [CommandIds.ThemePick] = [new("M8,1.5 C4.4,1.5 1.5,4.2 1.5,7.6 C1.5,11.1 4.3,14.5 7.6,14.5 C9.2,14.5 9,12.8 8.3,12 C7.6,11.2 8.3,9.8 9.6,9.8 L11.4,9.8 C13.4,9.8 14.5,8.6 14.5,7 C14.5,3.9 11.6,1.5 8,1.5 Z"),
+        [CommandIds.ThemePick] = [new(PaletteShape),
             new("M4.5,7 L4.6,7 M6.5,4.5 L6.6,4.5 M9.8,4.5 L9.9,4.5 M11.8,6.8 L11.9,6.8", "ActiveAccent")],
-        [CommandIds.ThemeCycle] = [new("M8,1.5 C4.4,1.5 1.5,4.2 1.5,7.6 C1.5,11.1 4.3,14.5 7.6,14.5 C9.2,14.5 9,12.8 8.3,12 C7.6,11.2 8.3,9.8 9.6,9.8 L11.4,9.8 C13.4,9.8 14.5,8.6 14.5,7 C14.5,3.9 11.6,1.5 8,1.5 Z", "TextMuted"),
-            new("M4.5,7 L4.6,7 M6.5,4.5 L6.6,4.5 M9.8,4.5 L9.9,4.5", "ActiveAccent")],
+        // Next and previous: the palette muted, an arrow across it (as Next tab and Previous tab draw theirs).
+        [CommandIds.ThemeCycle] = [new(PaletteShape, "TextMuted"), new("M4,6.5 L10.5,6.5 M8.25,4.25 L10.5,6.5 L8.25,8.75", "ActiveAccent")],
+        [CommandIds.ThemePrevious] = [new(PaletteShape, "TextMuted"), new("M10.5,6.5 L4,6.5 M6.25,4.25 L4,6.5 L6.25,8.75", "ActiveAccent")],
         // Tools
         [CommandIds.FindDeleted] = [new(Trash, "TextMuted"), new("M8,12.5 L8,7 M6,9 L8,7 L10,9", "Success")],
         [CommandIds.Operations] = [new("M1.5,3.5 L14.5,3.5 M1.5,8 L14.5,8 M1.5,12.5 L14.5,12.5", "TextMuted"), new("M1.5,3.5 L10,3.5 M1.5,8 L5.5,8", "Progress")],

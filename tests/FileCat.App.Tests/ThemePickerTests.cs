@@ -28,6 +28,21 @@ public sealed class ThemePickerTests
         throw new TimeoutException("The theme picker did not open.");
     }
 
+    [Fact]
+    public void Next_and_previous_theme_go_round_the_list_both_ways()
+    {
+        var names = ThemeManager.Names;
+        Assert.Equal(names[1], ThemeManager.CycleThemeName(names[0], 1));
+        Assert.Equal(names[0], ThemeManager.CycleThemeName(names[1], -1));
+        // Round the ends, and back to where it started.
+        Assert.Equal(names[0], ThemeManager.CycleThemeName(names[^1], 1));
+        Assert.Equal(names[^1], ThemeManager.CycleThemeName(names[0], -1));
+        Assert.Equal("Cyberpunk", ThemeManager.CycleThemeName(ThemeManager.CycleThemeName("Cyberpunk", -1), 1));
+        // A name it does not know (an old setting): the first theme forward, the last back.
+        Assert.Equal(names[0], ThemeManager.CycleThemeName("Gone", 1));
+        Assert.Equal(names[^1], ThemeManager.CycleThemeName("Gone", -1));
+    }
+
     [Theory]
     [InlineData("#FFFF00", "#FF000000")] // High Contrast's yellow: black text
     [InlineData("#23B04A", "#FF000000")] // a bright green

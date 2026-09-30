@@ -190,6 +190,7 @@ public static class CommandIds
     public const string LoadWorkspace = "app.loadWorkspace";
     public const string DiagnosticsExport = "app.diagnostics";
     public const string ThemeCycle = "app.themeCycle";
+    public const string ThemePrevious = "app.themePrevious";
     public const string ThemePick = "app.themePick";
 }
 
@@ -414,6 +415,7 @@ public sealed class CommandRegistry
         Add(CommandIds.DiagnosticsExport, "Export diagnostics…", A);
         Add(CommandIds.ThemePick, "Theme…", A);
         Add(CommandIds.ThemeCycle, "Next theme", A);
+        Add(CommandIds.ThemePrevious, "Previous theme", A);
         AddSearchWords(r);
         return r;
     }
@@ -504,6 +506,7 @@ public sealed class CommandRegistry
         K(CommandIds.ToggleDriveButtons, "drive buttons", "drive bar", "places", "bookmarks bar");
         K(CommandIds.ThemePick, "appearance", "colors", "colours", "dark mode", "light mode", "skin", "look");
         K(CommandIds.ThemeCycle, "switch theme", "change theme");
+        K(CommandIds.ThemePrevious, "switch theme", "change theme", "theme back");
         K(CommandIds.SwapPanels, "exchange panels", "switch sides");
         K(CommandIds.MaximizePanel, "zoom", "full screen", "maximize");
         K(CommandIds.AddPanel, "new panel", "split", "third panel", "vertical split", "dock");
