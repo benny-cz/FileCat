@@ -107,6 +107,26 @@ public sealed partial class WindowsFileRecordsTests
     }
 
     [Fact]
+    public void As_administrator_a_folder_shows_the_names_its_index_kept_after_deletes()
+    {
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) return;
+        string dir = NewFolder();
+        try
+        {
+            if (!OnNtfs(dir)) return;
+            string folder = Directory.CreateDirectory(Path.Combine(dir, "many")).FullName;
+            for (int i = 0; i < 300; i++) File.WriteAllText(Path.Combine(folder, $"entry-{i:000}-with-a-longer-name.txt"), "x");
+            for (int i = 250; i < 300; i++) File.Delete(Path.Combine(folder, $"entry-{i:000}-with-a-longer-name.txt"));
+            var index = Section(Read(folder), "Folder index ($I30)");
+            Assert.StartsWith("250 names in use", Field(index, "Entries"), StringComparison.Ordinal);
+            var left = index.Children.Single(c => c.Title.StartsWith("Left behind in its index (", StringComparison.Ordinal));
+            Assert.Contains(left.Table!.Rows, r => r[0].StartsWith("entry-2", StringComparison.Ordinal) && int.Parse(r[0][6..9]) >= 250 && r[5] == "gone");
+            Assert.DoesNotContain(left.Table.Rows, r => r[0] == "entry-100-with-a-longer-name.txt" && r[5] == "gone");
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
     public void A_junction_names_its_target_and_a_sparse_file_its_stored_ranges()
     {
         if (!OperatingSystem.IsWindows()) return;

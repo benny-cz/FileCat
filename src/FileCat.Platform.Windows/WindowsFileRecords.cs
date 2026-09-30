@@ -60,6 +60,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         private DateTime? _formatted;
         private int _clusterSize;
         private uint _reparseTag;
+        private (List<IndexName> Names, int Blocks, int BlocksInUse, int BlockSize)? _index;
 
         public InspectionReport Run()
         {
@@ -97,6 +98,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             _sections.Add(LayoutSection());
             if (SecuritySection() is { } security) _sections.Add(security);
             if (remote is not null) _sections.Add(remote);
+            if (_index is { } index) _sections.Add(IndexSection(index));
             if (_record is not null) _sections.Add(RecordSection(_record));
             return new InspectionReport($"File-system record · {(_remote ? "network file on " : "")}{fileSystem}", _sections, _warnings);
         }
@@ -154,6 +156,11 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                         if (_record.Sequence != UsnRecord.SequenceOf(id))
                             _warnings.Add($"The MFT record's sequence number ({_record.Sequence}) is not the item's ({UsnRecord.SequenceOf(id)}): it changed while being read.");
                         foreach (var problem in _record.Problems) _warnings.Add("MFT record: " + problem);
+                        if (_record.IsDirectory && _clusterSize > 0)
+                        {
+                            try { _index = ReadIndex(volume, _record); }
+                            catch (IOException ex) { _warnings.Add("Its index could not be read: " + ex.Message); }
+                        }
                     }
                 }
                 try { ReadJournal(volume); }
@@ -196,10 +203,12 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             return answered == number ? output.AsSpan(12, length).ToArray() : null;
         }
 
-        private byte[] ReadRuns(SafeFileHandle volume, NtfsAttribute attribute, int max)
+        private byte[] ReadRuns(SafeFileHandle volume, NtfsAttribute attribute, int max) => ReadRuns(volume, attribute.Runs, attribute.Size, max);
+
+        private byte[] ReadRuns(SafeFileHandle volume, IEnumerable<NtfsRun> runs, long size, int max)
         {
-            var data = new byte[(int)Math.Min(Math.Max(0, attribute.Size), max)];
-            foreach (var run in attribute.Runs)
+            var data = new byte[(int)Math.Min(Math.Max(0, size), max)];
+            foreach (var run in runs)
             {
                 long start = run.Vcn * _clusterSize;
                 if (run.IsSparse || start >= data.Length) continue;
@@ -210,6 +219,34 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 clusters.AsSpan(0, Math.Min(count, read)).CopyTo(data.AsSpan((int)start));
             }
             return data;
+        }
+
+        /// <summary>
+        /// A folder's $I30 index: the entries of its root (in the record) and of its blocks ($INDEX_ALLOCATION, read from the
+        /// volume, at most 16 MiB), with what was left behind in each; a block the index's bitmap marks unused is all left behind.
+        /// </summary>
+        private (List<IndexName> Names, int Blocks, int BlocksInUse, int BlockSize) ReadIndex(SafeFileHandle volume, NtfsRecord folder)
+        {
+            var names = new List<IndexName>();
+            var root = folder.Attributes.FirstOrDefault(a => a.Type == NtfsAttributeTypes.IndexRoot && a.Name == "$I30");
+            if (root?.Value is { } rootValue) names.AddRange(NtfsIndex.ReadRoot(rootValue, folder.Number, folder.Sequence));
+            int blockSize = root?.Value is { } value ? NtfsIndex.BlockSize(value) : 0;
+            var pieces = folder.Attributes.Where(a => a.Type == NtfsAttributeTypes.IndexAllocation && a.Name == "$I30" && !a.Resident).ToList();
+            if (pieces.Count == 0 || blockSize is < 512 or > 65536) return (names, 0, 0, blockSize);
+            long size = pieces.Max(a => a.Size);
+            var data = ReadRuns(volume, pieces.SelectMany(a => a.Runs).OrderBy(r => r.Vcn), size, 16 << 20);
+            byte[]? bitmap = folder.Attributes.FirstOrDefault(a => a.Type == NtfsAttributeTypes.Bitmap && a.Name == "$I30")?.Value;
+            int blocks = 0, inUse = 0;
+            for (int at = 0, i = 0; at + blockSize <= data.Length; at += blockSize, i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                blocks++;
+                bool used = bitmap is null || i / 8 < bitmap.Length && (bitmap[i / 8] >> (i % 8) & 1) != 0;
+                if (used) inUse++;
+                foreach (var name in NtfsIndex.ReadBlock(data.AsSpan(at, blockSize).ToArray(), folder.Number, folder.Sequence))
+                    names.Add(used ? name : name with { InSlack = true });
+            }
+            return (names, blocks, inUse, blockSize);
         }
 
         private void ReadJournal(SafeFileHandle volume)
@@ -628,6 +665,39 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         {
             try { return new SecurityIdentifier(sid).Translate(typeof(NTAccount)).Value; }
             catch (Exception ex) when (ex is ArgumentException or SystemException) { return null; }
+        }
+
+        private InspectionSection IndexSection((List<IndexName> Names, int Blocks, int BlocksInUse, int BlockSize) index)
+        {
+            var live = index.Names.Where(n => !n.InSlack && !n.Name.IsDosAlias).ToList();
+            var left = NtfsIndex.LeftBehind(index.Names);
+            var fields = new List<(string, string)> { ("Entries", $"{live.Count:N0} names in use") };
+            if (index.Blocks > 0) fields.Add(("Blocks", $"{index.Blocks:N0} of {RecordText.Bytes(index.BlockSize)}, {index.BlocksInUse:N0} in use"));
+            else fields.Add(("Blocks", "none: the whole index fits inside the folder's MFT record"));
+            var children = new List<InspectionSection>();
+            if (left.Count > 0)
+            {
+                var rows = left.Take(300).Select(n =>
+                {
+                    // Where its item is now, when its reference survived: renamed or moved away, or gone.
+                    string now = n.Record > 0 && PathOfId((UInt128)((ulong)n.Sequence << 48 | (ulong)n.Record)) is { } at
+                        ? string.Equals(Path.GetDirectoryName(at.TrimEnd('\\')), path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)
+                            ? "renamed to " + Path.GetFileName(at.TrimEnd('\\'))
+                            : "moved to " + at
+                        : "gone";
+                    return new[] { n.Name.Name, n.Record > 0 ? $"{n.Record:N0}/{n.Sequence}" : "unknown", RecordText.TimeSeconds(n.Name.Created), RecordText.TimeSeconds(n.Name.Modified), n.Name.Size.ToString("N0", CultureInfo.CurrentCulture), now };
+                }).ToList();
+                children.Add(new InspectionSection($"Left behind in its index ({left.Count:N0})", [])
+                {
+                    Lines = Wrap("NTFS moves and removes index entries without clearing the space they used. These names were in this folder and are not now: their items were deleted, renamed, or moved away (where it is says which, when the item's record survived)."),
+                    Table = new InspectionTable(["Name", "Record", "Created (UTC)", "Modified (UTC)", "Size", "Where it is"], rows)
+                    {
+                        More = left.Count > 300 ? $"{left.Count - 300:N0} more are not listed." : null,
+                    },
+                });
+            }
+            else children.Add(new InspectionSection("Left behind in its index", []) { Lines = ["Nothing: no earlier names were found in the unused space of its index."] });
+            return new InspectionSection("Folder index ($I30)", fields) { Children = children };
         }
 
         private InspectionSection RecordSection(NtfsRecord record)

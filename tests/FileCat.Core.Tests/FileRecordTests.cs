@@ -158,6 +158,59 @@ public sealed class FileRecordTests
         Assert.Contains(parsed.Problems, p => p.Contains("runs past", StringComparison.Ordinal));
     }
 
+    /// <summary>An index entry: file reference, lengths, flags, then a $FILE_NAME naming <paramref name="parent"/>.</summary>
+    private static byte[] IndexEntry(long record, string name, long parent = 40, ushort parentSequence = 3, uint flags = 0)
+    {
+        int key = 66 + name.Length * 2;
+        var e = new byte[(16 + key + 7) & ~7];
+        BinaryPrimitives.WriteUInt64LittleEndian(e, (ulong)record | 1UL << 48);
+        BinaryPrimitives.WriteUInt16LittleEndian(e.AsSpan(8), (ushort)e.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(e.AsSpan(10), (ushort)key);
+        BinaryPrimitives.WriteUInt32LittleEndian(e.AsSpan(12), flags);
+        BinaryPrimitives.WriteUInt64LittleEndian(e.AsSpan(16), (ulong)parent | (ulong)parentSequence << 48);
+        for (int i = 0; i < 4; i++) BinaryPrimitives.WriteInt64LittleEndian(e.AsSpan(24 + i * 8), Created);
+        BinaryPrimitives.WriteInt64LittleEndian(e.AsSpan(16 + 48), 1234);
+        e[16 + 64] = (byte)name.Length;
+        e[16 + 65] = 1;
+        Encoding.Unicode.GetBytes(name).CopyTo(e, 16 + 66);
+        return e;
+    }
+
+    [Fact]
+    public void A_folders_index_block_gives_its_names_and_those_left_behind()
+    {
+        var block = new byte[4096];
+        "INDX"u8.CopyTo(block);
+        BinaryPrimitives.WriteUInt16LittleEndian(block.AsSpan(4), 40);
+        BinaryPrimitives.WriteUInt16LittleEndian(block.AsSpan(6), 9);
+        int at = 64;
+        foreach (var entry in new[] { IndexEntry(100, "alpha.txt"), IndexEntry(101, "beta.txt") })
+        {
+            entry.CopyTo(block, at);
+            at += entry.Length;
+        }
+        // The last entry (no name) ends the live part; a deleted name lingers after it, and one of another folder's too.
+        BinaryPrimitives.WriteUInt16LittleEndian(block.AsSpan(at + 8), 16);
+        BinaryPrimitives.WriteUInt32LittleEndian(block.AsSpan(at + 12), 2);
+        int used = at + 16;
+        var deleted = IndexEntry(102, "deleted secret.docx");
+        deleted.CopyTo(block, used + 8);
+        IndexEntry(103, "elsewhere.txt", parent: 77).CopyTo(block, used + 8 + deleted.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(block.AsSpan(24), 40);          // entries start at 24 + 40
+        BinaryPrimitives.WriteUInt32LittleEndian(block.AsSpan(28), (uint)(used - 24));
+        BinaryPrimitives.WriteUInt32LittleEndian(block.AsSpan(32), 4096 - 24);
+        var names = NtfsIndex.ReadBlock(block, folder: 40, folderSequence: 3);
+        Assert.Equal(["alpha.txt", "beta.txt"], names.Where(n => !n.InSlack).Select(n => n.Name.Name));
+        var left = Assert.Single(names, n => n.InSlack);
+        Assert.Equal(("deleted secret.docx", 102L, 1234L), (left.Name.Name, left.Record, left.Name.Size));
+        Assert.Equal(Created, left.Name.Created);
+
+        // Across the whole index: a copy of a name still in use elsewhere is not left behind; each other name shows once.
+        var copy = left with { Name = left.Name with { Name = "alpha.txt" } };
+        var twice = left with { Record = 99 };
+        Assert.Equal(["deleted secret.docx"], NtfsIndex.LeftBehind([.. names, copy, twice]).Select(n => n.Name.Name));
+    }
+
     [Fact]
     public void Journal_records_of_both_versions_read_with_their_reasons_in_words()
     {

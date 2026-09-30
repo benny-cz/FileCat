@@ -23,6 +23,9 @@ public static class RecordText
     /// <summary>A UTC time with all seven decimals.</summary>
     public static string Time(DateTime utc) => utc.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture) + " UTC";
 
+    /// <summary>A FILETIME to the second, UTC implied (for tables whose header says so): "2026-09-30 10:00:01".</summary>
+    public static string TimeSeconds(long fileTime) => ToUtc(fileTime) is { } t ? t.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) : "—";
+
     /// <summary>The time as a DateTime, or null when it is not set or not a valid time.</summary>
     public static DateTime? ToUtc(long fileTime) =>
         fileTime > 0 && fileTime <= DateTime.MaxValue.ToFileTimeUtc() ? DateTime.FromFileTimeUtc(fileTime) : null;
