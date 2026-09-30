@@ -29,8 +29,21 @@ details drawer listed jobs, and its right half stayed empty until one was picked
 - **Picture:** `i30-operation-details.png` `91b2ba110136cb98937d2da1c78cfce10569339fd3bbd2456280ca4b6901b7c0` (a
   verified, speed-limited copy 10 s in, details open).
 
+## E-I30-V2 — the taskbar on a real desktop (lent Windows 11 VM, Insider 26300)
+
+A small harness window (`taskbarcheck`, WinForms, referencing FileCat.Platform.Windows at `67f70f9`) called FileCat's
+`TaskbarProgress.Set` with each state for six seconds on the logged-on desktop, unelevated, while the host captured the
+VM's screen every 2–3 s (`vmrun captureScreen`). The harness log (`taskbar-log.txt`
+`f98e31c5892c62344fdbefc0a4de304a1453693b3fd28dc92480c1368830940c`) and the captures agree: Normal 0.4 drew a blue bar
+at 40% under the window's taskbar button (`shot-07-15s.png`
+`7a6e6b48f0fe197d7ae212eaa9c4bbe4d4a222b20a54d4203576909b0ad883c7`), Paused 0.6 an amber bar at 60% (`shot-10-22s.png`
+`e0e13df263fb9837602763d3c8f5b2e75a5b36b7cbad642808c0f29afc15bce2`), Error a full red bar (`shot-12-27s.png`
+`bf095708e95f3567b2803ec1b0fb24813bd875b60fa894377251e3c4b1ac0f02`), Indeterminate the moving marquee, None only the
+running-window underline; no exception. The eight button strips side by side: `taskbar-strip.png`
+`46760b707ec56ee864974d56fad2bf78f2e21a3ba15c276026ae4841a7da2497`.
+
 ## Still to do
 
-- The taskbar progress on a real desktop (the headless tests have no window handle): checked in the lent Windows VM
-  (see below when recorded).
+- The whole app driving the taskbar during a real copy (the harness exercised FileCat's call, not the app's wiring,
+  which the view-model test covers).
 - A person's judgement of the new strip and details (V17 usability sessions).

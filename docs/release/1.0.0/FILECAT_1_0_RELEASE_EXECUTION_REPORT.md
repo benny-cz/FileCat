@@ -133,7 +133,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. See the taskbar progress on the Windows VM's desktop (I30); collect the fuzz campaign's results (E-I28-C1).
+1. Collect the fuzz campaign's results (E-I28-C1). (The taskbar progress was seen on the VM's desktop, E-I30-V2.)
 2. Review the FAT and exFAT decoders the way I28 reviewed NTFS.
 3. The queued Low issues: I25, I27, I31.
 3. V08 remote harness against the Ubuntu VM's servers from the Windows VM and the host: host-key trust and change, TLS

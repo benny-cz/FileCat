@@ -39,7 +39,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
 | I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
 | I29 | A shell picture asked for while the helper already worked on it was asked again (CI red on ARM64) | Low (duplicate work; nondeterministic required test) | Must fix | **Remediated `7175a41`; verified; CI green** |
-| I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **Remediated `67f70f9`**; taskbar check on a real desktop pending |
+| I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **Remediated `67f70f9`; verified** (taskbar states seen on a real Windows 11 desktop) — closure pending V17 |
 | I31 | Viewer windows are only partly themed (no theme effects, e.g. Psychedelic) | Low (cosmetic consistency) | Owner-reported; assessed | **Queued** |
 | I32 | A folder's counted size vanished when the listing refreshed right after | Low (UX); made a required test fail 9 in 10 on a busy host | Must fix | **Remediated `6e9ee75`; verified** |
 
@@ -315,7 +315,8 @@ level the plan already states; exploit-level detail is not recorded here.
   current step; the details open on the running operation with where from and to, phase, time left and running time,
   items, data copied and verified, speeds, and a speed graph along the operation; Windows taskbar progress (yellow
   while paused or waiting, red after a failure).
-- **Remaining:** the taskbar on a real desktop; people's judgement in V17 sessions.
+- **Verification (E-I30-V2):** each taskbar state drawn as intended on a real Windows 11 taskbar.
+- **Remaining:** people's judgement in V17 sessions.
 
 ### I31 — Viewer windows are only partly themed
 
