@@ -66,7 +66,7 @@ public sealed class CompareWindow : Window
     /// </summary>
     private Task<(AlignedBinaryResult Result, List<AlignedRange> Differences)>? _aligning;
     private CancellationTokenSource? _aligningStop;
-    /// <summary>Every aligning and search for differences started, stopped ones too: the contents are released only after they stopped reading.</summary>
+    /// <summary>Every comparison, aligning and search for differences started, stopped ones too: the contents are released only after they stopped reading.</summary>
     private Task _runs = Task.CompletedTask;
     private TextSide? _leftText, _rightText;
     private string? _textProblem;
@@ -546,8 +546,9 @@ public sealed class CompareWindow : Window
         }
         try
         {
-            // Every byte decides equality; text decoding and alignment are separate, labelled views.
-            var loaded = await Task.Run(() =>
+            // Every byte decides equality; text decoding and alignment are separate, labelled views. The reading counts
+            // among the runs the contents wait for, so closing releases them once it stopped, whatever this thread does.
+            var reading = Task.Run(() =>
             {
                 var revisions = (Revision(left), Revision(right));
                 long total = Math.Max(left.Length, right.Length);
@@ -573,6 +574,8 @@ public sealed class CompareWindow : Window
                 }
                 return (bytes, pages, l, r, problem, revisions);
             }, ct);
+            _runs = Task.WhenAll(_runs, reading);
+            var loaded = await reading;
             if (_closed || ct.IsCancellationRequested) return;
             (_bytes, _pages, _leftText, _rightText, _textProblem, _revisions) = loaded;
             _aligning = null;
@@ -614,7 +617,9 @@ public sealed class CompareWindow : Window
 
     /// <summary>
     /// Contents are disposed once nothing reads them any more: a comparison, aligning or search stops at its next
-    /// megabyte, and the byte view's page reads are let finish (and later ones refused).
+    /// megabyte, and the byte view's page reads are let finish (and later ones refused). Only the readers count, not
+    /// what this window's thread still has to do with their results: until the contents are disposed, Windows refuses
+    /// to replace the files (release issue I22: a Synchronize right after closing a comparison failed).
     /// </summary>
     private void ReleaseWhenIdle(IContentSource left, IContentSource right, ViewSource leftView, ViewSource rightView)
     {
@@ -623,7 +628,7 @@ public sealed class CompareWindow : Window
             left.Dispose();
             right.Dispose();
         }
-        var readers = Task.WhenAll(_loading, _runs, leftView.CloseAsync(), rightView.CloseAsync());
+        var readers = Task.WhenAll(_runs, leftView.CloseAsync(), rightView.CloseAsync());
         if (readers.IsCompleted) Release();
         else readers.ContinueWith(_ => Release(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
     }

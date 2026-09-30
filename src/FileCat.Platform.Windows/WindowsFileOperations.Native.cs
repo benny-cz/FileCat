@@ -203,8 +203,93 @@ public partial class WindowsFileOperations
         // name is atomic on the volume and its durability comes with the journal group commit (a flush per small file
         // would dominate copies).
         uint flags = (replaceExisting ? MOVEFILE_REPLACE_EXISTING : 0) | (replaceExisting || writeThrough ? MOVEFILE_WRITE_THROUGH : 0);
-        if (!MoveFileEx(Long(source), Long(destination), flags)) throw ToException(Marshal.GetLastPInvokeError(), source);
+        if (MoveFileEx(Long(source), Long(destination), flags)) return;
+        int error = Marshal.GetLastPInvokeError();
+        // Release issue I22: Windows refuses to replace a file another handle holds open, even one that shares deletion
+        // as FileCat's own viewer and comparison do (plan §9.5). A POSIX-semantics rename replaces it as Linux and macOS
+        // do, and the open handle goes on reading the old content. Where that is refused too, a sharing violation says
+        // the file is in use rather than "access denied"; any other refusal keeps the first error.
+        if (error == ERROR_ACCESS_DENIED && replaceExisting && ReplaceOpenFile(source, destination) is { } posix)
+        {
+            if (posix == 0) return;
+            if (posix == ERROR_SHARING_VIOLATION) error = posix;
+        }
+        throw ToException(error, source);
     }
+
+    private const int ERROR_ACCESS_DENIED = 5, ERROR_SHARING_VIOLATION = 32;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FILE_RENAME_INFO
+    {
+        public uint Flags;
+        public nint RootDirectory;
+        public uint FileNameLength;
+        public char FileName;
+    }
+
+    /// <summary>
+    /// Replaces the file <paramref name="destination"/> with the file <paramref name="source"/> by a POSIX-semantics
+    /// rename (NTFS on current Windows): 0 when done, the Win32 error when refused, null where it does not apply (either
+    /// item a folder, or a file system or Windows without such renames), so the caller keeps its first error.
+    /// </summary>
+    private static unsafe int? ReplaceOpenFile(string source, string destination)
+    {
+        const uint Delete = 0x00010000, Synchronize = 0x00100000, ShareAll = 0x7, OpenExisting = 3;
+        const uint OpenReparsePoint = 0x00200000, WriteThrough = 0x80000000;
+        const uint ReplaceIfExists = 0x1, PosixSemantics = 0x2;
+        const int FileRenameInfoEx = 22;
+        try
+        {
+            if ((File.GetAttributes(Long(destination)) & FileAttributes.Directory) != 0) return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+        // Without FILE_FLAG_BACKUP_SEMANTICS a folder does not open, so only a file is renamed this way; a link is
+        // renamed itself, as MoveFileEx renames it, and the rename is written through like MOVEFILE_WRITE_THROUGH.
+        using var handle = CreateFileForRename(Verbatim(source), Delete | Synchronize, ShareAll, 0, OpenExisting, OpenReparsePoint | WriteThrough, 0);
+        if (handle.IsInvalid)
+        {
+            int open = Marshal.GetLastPInvokeError();
+            return open == ERROR_SHARING_VIOLATION ? open : null;
+        }
+        string name = Verbatim(destination);
+        int offset = (int)Marshal.OffsetOf<FILE_RENAME_INFO>(nameof(FILE_RENAME_INFO.FileName));
+        int size = offset + (name.Length + 1) * sizeof(char);
+        var buffer = (byte*)NativeMemory.AllocZeroed((nuint)size);
+        try
+        {
+            var info = (FILE_RENAME_INFO*)buffer;
+            info->Flags = ReplaceIfExists | PosixSemantics;
+            info->FileNameLength = (uint)(name.Length * sizeof(char));
+            name.AsSpan().CopyTo(new Span<char>(buffer + offset, name.Length));
+            if (SetFileInformationByHandle(handle, FileRenameInfoEx, buffer, (uint)size)) return 0;
+            int error = Marshal.GetLastPInvokeError();
+            // Invalid parameter, not supported, invalid function: the file system has no POSIX-semantics renames.
+            return error is 87 or 50 or 1 ? null : error;
+        }
+        finally
+        {
+            NativeMemory.Free(buffer);
+        }
+    }
+
+    /// <summary>A path in the \\?\ form, which the rename information takes as it is.</summary>
+    private static string Verbatim(string path)
+    {
+        if (path.StartsWith(@"\\?\", StringComparison.Ordinal)) return path;
+        string full = Path.GetFullPath(path);
+        return PathUtil.IsUncPath(full) ? @"\\?\UNC\" + full[2..] : @"\\?\" + full;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial SafeFileHandle CreateFileForRename(string name, uint access, uint share, nint sa, uint disposition, uint flags, nint template);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, void* buffer, uint size);
 
     public override void DeleteFile(string path)
     {

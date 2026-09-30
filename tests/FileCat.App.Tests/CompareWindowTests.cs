@@ -243,6 +243,52 @@ public sealed class CompareWindowTests
         Assert.False(left.DisposedWhileRead || right.DisposedWhileRead);
     }
 
+    [AvaloniaFact]
+    public void Closing_releases_the_files_while_the_windows_thread_is_busy()
+    {
+        // Release issue I22: a comparison closed while it loaded held both files until the window's thread next ran, so
+        // replacing one of them right after (Synchronize's replace step, a copy) failed on Windows with "Access denied".
+        string dir = Directory.CreateTempSubdirectory("fc-compare-release-").FullName;
+        try
+        {
+            string left = Path.Combine(dir, "changed.txt"), right = Path.Combine(dir, "old.txt"), staged = Path.Combine(dir, "staged.tmp");
+            File.WriteAllText(left, "newer");
+            File.WriteAllText(right, "old");
+            File.WriteAllText(staged, "newer");
+            var leftSource = new DisposeWatch(new FileContentSource(left));
+            var rightSource = new DisposeWatch(new FileContentSource(right));
+            var window = CompareWindow.Open(left, leftSource, right, rightSource);
+            window.Close();
+            // This test runs on the window's thread and keeps it busy: nothing the comparison left for it can run.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (!(leftSource.Disposed && rightSource.Disposed) && clock.Elapsed < TimeSpan.FromSeconds(10)) Thread.Sleep(20);
+            Assert.True(leftSource.Disposed && rightSource.Disposed, $"Still open {clock.Elapsed.TotalSeconds:0.#} s after the window closed.");
+            File.Move(staged, right, overwrite: true);
+            Assert.Equal("newer", File.ReadAllText(right));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>A content that says when it was disposed.</summary>
+    private sealed class DisposeWatch(IContentSource inner) : IContentSource
+    {
+        public volatile bool Disposed;
+        public string DisplayName => inner.DisplayName;
+        public long Length => inner.Length;
+        public bool CanSeek => inner.CanSeek;
+        public string? LocalPath => inner.LocalPath;
+        public int Read(long offset, Span<byte> buffer) => inner.Read(offset, buffer);
+        public ContentRevision? GetRevision() => inner.GetRevision();
+        public void Dispose()
+        {
+            inner.Dispose();
+            Disposed = true;
+        }
+    }
+
     /// <summary>Content that can hold a read, and says whether it was disposed while a read was under way.</summary>
     private sealed class WatchedSource(byte[] bytes) : IContentSource
     {
