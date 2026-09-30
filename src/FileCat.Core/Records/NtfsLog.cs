@@ -74,6 +74,34 @@ public static class NtfsLog
         UpdateResidentValue = 7, SetNewAttributeSizes = 11, AddIndexEntryRoot = 12, DeleteIndexEntryRoot = 13, AddIndexEntryAllocation = 14,
         DeleteIndexEntryAllocation = 15, UpdateFileNameRoot = 19, UpdateFileNameAllocation = 20;
 
+    /// <summary>The sequence number of the record an InitializeFileRecordSegment made (its new record's header), or null.</summary>
+    public static ushort? MadeSequence(byte[] redo) =>
+        redo.Length >= 0x12 && redo.AsSpan(0, 4).SequenceEqual("FILE"u8) ? BinaryPrimitives.ReadUInt16LittleEndian(redo.AsSpan(0x10)) : null;
+
+    /// <summary>
+    /// Where an item's own history starts among the operations the log holds on its MFT record. Records are reused, so
+    /// the operations of the items a record held before are on it too: the item's history starts where the record was
+    /// made with the item's own <paramref name="sequence"/> number. Without that creation in the log, the operations are
+    /// the item's only when the log shows no reuse of the record and reaches the record's own latest change
+    /// (<paramref name="reachesLatest"/>; the record comes from the file system's cache, the log from the disk, which NTFS
+    /// writes a moment later): otherwise they may be an earlier item's, and none are taken for this one's (release issue
+    /// I20). Returns the first LSN of the item's history (0: all of them), or null when none are the item's.
+    /// </summary>
+    public static ulong? OwnHistoryStart(IEnumerable<NtfsLogRecord> onRecord, ushort sequence, bool reachesLatest)
+    {
+        ulong made = 0;
+        NtfsLogRecord? lastReuse = null;
+        foreach (var r in onRecord)
+        {
+            if (r.RedoOperation == InitializeFileRecordSegment && MadeSequence(r.Redo) == sequence) made = Math.Max(made, r.Lsn);
+            if (r.RedoOperation is InitializeFileRecordSegment or DeallocateFileRecordSegment && (lastReuse is null || r.Lsn > lastReuse.Lsn)) lastReuse = r;
+        }
+        if (made > 0) return made;
+        // The newest reuse is a creation whose new record cannot be read: it is taken as this item's.
+        if (lastReuse is { RedoOperation: InitializeFileRecordSegment } newest && MadeSequence(newest.Redo) is null) return newest.Lsn;
+        return lastReuse is null && reachesLatest ? 0 : null;
+    }
+
     public static string OperationName(ushort operation) => operation < Operations.Length ? Operations[operation].Name : $"operation {operation}";
 
     public static string OperationWords(ushort operation) => operation < Operations.Length ? Operations[operation].Words : $"operation {operation}";

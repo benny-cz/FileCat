@@ -96,6 +96,10 @@ public sealed unsafe partial class WindowsFileRecords
         private const int MaxLogBytes = 512 << 20;
         private const int MaxLogRows = 120;
 
+        /// <summary>Reads again, this far apart, while the log on disk has not reached the record's latest change.</summary>
+        private const int LogCatchUpReads = 3;
+        private static readonly TimeSpan LogCatchUpWait = TimeSpan.FromSeconds(2);
+
         private NtfsLogRestart? _logRestart;
         private int _logCount;
         private ulong _logFirst, _logLast;
@@ -104,6 +108,8 @@ public sealed unsafe partial class WindowsFileRecords
         /// <summary>The items the record held before this one (records are reused), as far back as the log reaches.</summary>
         private readonly List<string> _logEarlier = [];
         private ulong _logMadeAt;
+        /// <summary>Why none of the operations on the item's record are shown as its own (release issue I20), or null.</summary>
+        private string? _logUnattributed;
         private string? _logProblem;
         private long _logBytes;
         private SecureCopy? _secure;
@@ -149,16 +155,27 @@ public sealed unsafe partial class WindowsFileRecords
             }
             long size = pieces.Max(a => a.Size);
             _logBytes = size;
-            var log = ReadRuns(volume, RunsOf(logFile, NtfsAttributeTypes.Data, ""), size, (int)Math.Min(size, MaxLogBytes));
-            token.ThrowIfCancellationRequested();
-            var restart = NtfsLog.ReadRestart(log);
-            if (restart is null)
+            // The item's record comes from the file system's cache; $LogFile is read from the disk, where NTFS writes it a
+            // moment later. Until the log on disk reaches the record's own latest change, its newest operations (the
+            // record's reuse for this item among them) are missing, so the log is read again for a few seconds.
+            NtfsLogRestart? restart;
+            List<NtfsLogRecord> records;
+            for (int attempt = 0; ; attempt++)
             {
-                _logProblem = "$LogFile's restart area could not be read.";
-                return;
+                var log = ReadRuns(volume, RunsOf(logFile, NtfsAttributeTypes.Data, ""), size, (int)Math.Min(size, MaxLogBytes));
+                token.ThrowIfCancellationRequested();
+                restart = NtfsLog.ReadRestart(log);
+                if (restart is null)
+                {
+                    _logProblem = "$LogFile's restart area could not be read.";
+                    return;
+                }
+                records = NtfsLog.ReadRecords(log, restart, token);
+                if (records.Count > 0 && records[^1].Lsn >= _record!.Lsn || attempt >= LogCatchUpReads) break;
+                token.WaitHandle.WaitOne(LogCatchUpWait);
+                token.ThrowIfCancellationRequested();
             }
             _logRestart = restart;
-            var records = NtfsLog.ReadRecords(log, restart, token);
             _logCount = records.Count;
             if (records.Count == 0) return;
             _logFirst = records[0].Lsn;
@@ -198,13 +215,21 @@ public sealed unsafe partial class WindowsFileRecords
                 if (IndexChange(record, mine, _record.Sequence, folderName) is { } what) _logMine.Add((record, what));
             }
 
-            // A record is reused: what came before the last time it was made belongs to the items it held before.
-            _logMadeAt = own.Where(r => r.RedoOperation == NtfsLog.InitializeFileRecordSegment).Select(r => r.Lsn).DefaultIfEmpty(0UL).Max();
+            // A record is reused: what came before it was made for this item belongs to the items it held before, and
+            // without its making in the log, the operations are this item's only where no reuse can hide (release issue I20).
+            bool reachesLatest = _logLast >= _record.Lsn;
+            ulong? start = NtfsLog.OwnHistoryStart(own, _record.Sequence, reachesLatest);
+            _logMadeAt = start ?? 0;
+            if (start is null && own.Count > 0)
+                _logUnattributed = reachesLatest
+                    ? "The log shows this item's record freed or made for other items, but not made for this one, so the operations on the record are not taken for this item's."
+                    : $"The log on disk ends at LSN {_logLast:N0}, before the record's latest change (LSN {_record.Lsn:N0}): NTFS has not written its newest operations there yet, so the operations on the record are not taken for this item's (they may be an earlier item's). Read the record again (F5) in a moment.";
+            ulong first = start ?? ulong.MaxValue;
             string? earlier = null;
             ulong earlierMade = 0;
             foreach (var record in own)
             {
-                if (record.Lsn >= _logMadeAt)
+                if (record.Lsn >= first)
                 {
                     _logMine.Add((record, OwnChange(record)));
                     continue;
@@ -387,14 +412,18 @@ public sealed unsafe partial class WindowsFileRecords
                 ("Restart from", $"LSN {restart.ClientRestartLsn:N0} (the last checkpoint: what a restart would replay from)"),
                 ("This item", _logMine.Count > 0
                     ? $"{_logMine.Count:N0} of them touched its record or its names" + (_logMadeAt > 0 ? $", since the record was made for it at LSN {_logMadeAt:N0}" : "")
-                    // Its record says where its last change is logged: older than the log reaches, the log has moved on.
-                    : _record.Lsn > 0 && _record.Lsn < _logFirst
-                        ? $"none of them: its last change (LSN {_record.Lsn:N0}, from its MFT record) is older than anything the log still holds"
-                        : "none of them touched it"),
+                        + (_logUnattributed is not null ? " (only changes to its names: see below)" : "")
+                    : _logUnattributed is not null
+                        ? "none shown (see below)"
+                        // Its record says where its last change is logged: older than the log reaches, the log has moved on.
+                        : _record.Lsn > 0 && _record.Lsn < _logFirst
+                            ? $"none of them: its last change (LSN {_record.Lsn:N0}, from its MFT record) is older than anything the log still holds"
+                            : "none of them touched it"),
             };
             if (_logEarlier.Count > 0)
                 fields.Add(("Before it", string.Join("; ", _logEarlier.TakeLast(4)) + (_logEarlier.Count > 4 ? $"; and {_logEarlier.Count - 4:N0} more" : "") + " (the record's earlier items)"));
             lines.AddRange(Wrap("NTFS writes every change to its metadata here before making it, with the bytes before and after; the log is circular, so on a busy drive it reaches back minutes to hours. An operation names where it changed a record by offset: the attribute there is named as the record is laid out now."));
+            if (_logUnattributed is not null) lines.AddRange(Wrap(_logUnattributed));
             InspectionTable? table = null;
             if (_logMine.Count > 0)
             {

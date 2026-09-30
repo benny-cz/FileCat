@@ -193,4 +193,70 @@ public sealed class NtfsLogTests
         BinaryPrimitives.WriteUInt16LittleEndian(last[12..], 2);
         Assert.Equal(new SecureEntry(0x9081F32F, 18556, 0xD92DC0, 244), Assert.Single(NtfsSecure.ReadSiiRoot(root)));
     }
+
+    /// <summary>An operation on one MFT record; a creation carries the new record's header with its sequence number.</summary>
+    private static NtfsLogRecord OnRecord(ulong lsn, ushort operation, ushort? madeSequence = null)
+    {
+        var redo = Array.Empty<byte>();
+        if (madeSequence is { } sequence)
+        {
+            redo = new byte[0x38];
+            "FILE"u8.CopyTo(redo);
+            BinaryPrimitives.WriteUInt16LittleEndian(redo.AsSpan(0x10), sequence);
+        }
+        return new NtfsLogRecord(lsn, 0, 0, 1, operation, 0, 1, 0, 0, 0, 0, [], redo, []);
+    }
+
+    [Fact]
+    public void An_items_history_starts_where_its_record_was_made_with_its_own_sequence_number()
+    {
+        // Sequence 5 held the record, was deleted, and the record was made again for this item (sequence 6).
+        NtfsLogRecord[] onRecord =
+        [
+            OnRecord(100, NtfsLog.InitializeFileRecordSegment, 5), OnRecord(110, NtfsLog.UpdateResidentValue),
+            OnRecord(120, NtfsLog.DeallocateFileRecordSegment), OnRecord(130, NtfsLog.InitializeFileRecordSegment, 6),
+            OnRecord(140, NtfsLog.UpdateResidentValue),
+        ];
+        Assert.Equal(130UL, NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: true));
+        Assert.Equal(130UL, NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: false)); // its making is there: what follows is its own
+        Assert.Equal((ushort)6, NtfsLog.MadeSequence(onRecord[3].Redo));
+    }
+
+    [Fact]
+    public void An_earlier_items_operations_are_never_taken_for_the_items_own()
+    {
+        // Release issue I20: the log on disk still ends with the record's earlier item (sequence 5), made, its time set
+        // back, and deleted; this item's own making (sequence 6) is not on disk yet. None of it is this item's.
+        NtfsLogRecord[] onRecord =
+        [
+            OnRecord(100, NtfsLog.InitializeFileRecordSegment, 5), OnRecord(110, NtfsLog.UpdateResidentValue),
+            OnRecord(120, NtfsLog.DeallocateFileRecordSegment),
+        ];
+        Assert.Null(NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: false));
+        Assert.Null(NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: true));
+        // The same when only the earlier item's making and changes are there, not its deletion.
+        Assert.Null(NtfsLog.OwnHistoryStart(onRecord[..2], 6, reachesLatest: true));
+    }
+
+    [Fact]
+    public void Without_any_reuse_in_the_log_the_operations_are_the_items_only_when_the_log_reaches_its_latest_change()
+    {
+        NtfsLogRecord[] onRecord = [OnRecord(100, NtfsLog.UpdateResidentValue), OnRecord(110, NtfsLog.UpdateResidentValue)];
+        Assert.Equal(0UL, NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: true));
+        // Changes newer than the log on disk may include a reuse since: nothing is attributed.
+        Assert.Null(NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: false));
+    }
+
+    [Fact]
+    public void The_newest_making_whose_record_cannot_be_read_is_taken_as_the_items()
+    {
+        NtfsLogRecord[] onRecord =
+        [
+            OnRecord(100, NtfsLog.InitializeFileRecordSegment, 5), OnRecord(120, NtfsLog.DeallocateFileRecordSegment),
+            OnRecord(130, NtfsLog.InitializeFileRecordSegment), // its image did not survive
+            OnRecord(140, NtfsLog.UpdateResidentValue),
+        ];
+        Assert.Equal(130UL, NtfsLog.OwnHistoryStart(onRecord, 6, reachesLatest: true));
+        Assert.Null(NtfsLog.MadeSequence([]));
+    }
 }
