@@ -59,7 +59,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
         var file = Path.Combine(folder, "doc.txt");
         File.WriteAllText(file, "x");
         var shellType = Type.GetTypeFromProgID("WScript.Shell");
-        if (shellType is null) return; // Windows Script Host disabled by policy
+        if (shellType is null) Assert.Skip("Windows Script Host is disabled by policy here.");
         dynamic shell = Activator.CreateInstance(shellType)!;
         foreach (var (name, target) in new[] { ("folder.lnk", folder), ("file.lnk", file) })
         {
@@ -198,7 +198,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
         if (!OperatingSystem.IsWindows()) return;
         var f = Path.Combine(_root, "download.exe");
         File.WriteAllText(f, "x");
-        if (!_ops.GetVolumeInfo(f).SupportsNamedStreams) return;
+        if (!_ops.GetVolumeInfo(f).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
         var modified = new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(f, modified);
         Assert.True(_ops.WriteOriginMark(f, "[ZoneTransfer]\r\nZoneId=3\r\n"));
@@ -221,7 +221,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
             using var writer = new StreamWriter(entry.Open());
             writer.Write("hello");
         }
-        if (!_ops.GetVolumeInfo(zip).SupportsNamedStreams) return;
+        if (!_ops.GetVolumeInfo(zip).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
         File.WriteAllText(zip + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
         var providers = new ProviderRegistry();
         providers.Register(new WindowsFileSystemProvider());
@@ -254,7 +254,7 @@ public sealed class WindowsFileOperationsTests : IDisposable
     [Fact]
     public void Recycle_reports_outcome_and_restore_uses_the_bin_item()
     {
-        if (!OperatingSystem.IsWindows() || !WindowsFileOperations.RecycleBinExists(_root)) return;
+        if (!OperatingSystem.IsWindows() || !WindowsFileOperations.RecycleBinExists(_root)) Assert.Skip("The test folder's volume has no Recycle Bin.");
         var f = Path.Combine(_root, $"filecat-recycle-test-{Guid.NewGuid():N}.txt");
         File.WriteAllText(f, "recycle me");
         var result = Assert.Single(_ops.Recycle([f], null, CancellationToken.None));

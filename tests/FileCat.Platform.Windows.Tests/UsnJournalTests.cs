@@ -15,7 +15,7 @@ public sealed class UsnJournalTests
     [Fact]
     public async Task The_journal_lists_an_item_made_and_renamed_with_its_folder_and_finds_it_where_it_is()
     {
-        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) return;
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Reading the change journal needs Windows and administrator rights.");
         string dir = Path.Combine(Path.GetTempPath(), "filecat-journal-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try

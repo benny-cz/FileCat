@@ -50,7 +50,7 @@ public sealed partial class UnixFileRecordTests
     [Fact]
     public void A_file_reads_with_its_inode_times_permissions_and_layout()
     {
-        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("The Linux and macOS file-system record.");
         string dir = NewFolder();
         try
         {
@@ -86,7 +86,7 @@ public sealed partial class UnixFileRecordTests
     [Fact]
     public void World_writable_items_are_flagged_and_a_sticky_folder_is_only_noted()
     {
-        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("The Linux and macOS file-system record.");
         string dir = NewFolder();
         try
         {
@@ -115,7 +115,7 @@ public sealed partial class UnixFileRecordTests
     [Fact]
     public void A_POSIX_ACL_reads_as_a_table_of_who_may_do_what()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux()) Assert.Skip("POSIX ACLs are read on Linux.");
         string dir = NewFolder();
         try
         {
@@ -152,7 +152,7 @@ public sealed partial class UnixFileRecordTests
     [Fact]
     public void A_macOS_file_shows_its_BSD_flags_and_added_time()
     {
-        if (!OperatingSystem.IsMacOS()) return;
+        if (!OperatingSystem.IsMacOS()) Assert.Skip("BSD flags and the added time are macOS's.");
         string dir = NewFolder();
         try
         {
@@ -171,7 +171,7 @@ public sealed partial class UnixFileRecordTests
     [Fact]
     public void The_record_lists_the_items_attributes_with_what_they_say()
     {
-        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("The Linux and macOS file-system record.");
         string dir = NewFolder();
         try
         {

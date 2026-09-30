@@ -297,7 +297,7 @@ public sealed class ListingModelTests : IDisposable
         var h = _dir.File("hidden.txt");
         File.SetAttributes(h, FileAttributes.Hidden);
         var m = await LoadAsync(_dir.Path);
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The hidden attribute is Windows'.");
         Assert.Contains("hidden.txt", await VisibleNames(m));
         await _ui.InvokeAsync(() => m.ShowHidden = false);
         await _ui.WaitUntilAsync(() => m.VisibleCount == 2);

@@ -137,7 +137,7 @@ public class ContentAndToolTests
     [Fact]
     public void Tool_launcher_refuses_batch_files_with_metacharacters()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Batch files and cmd.exe's metacharacters are Windows'.");
         using var dir = new TempDir();
         var bat = dir.File("tool.cmd", "@echo %*");
         var evil = dir.File("a&calc.txt");
@@ -154,7 +154,7 @@ public class ContentAndToolTests
     [Fact]
     public void Tool_launcher_uses_absolute_paths_list_files_and_splits_long_selections()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows' command-line length limit and list files.");
         using var dir = new TempDir();
         var exe = Path.Combine(Environment.SystemDirectory, "notepad.exe");
         var files = Enumerable.Range(0, 800).Select(i => Path.Combine(dir.Path, $"a-rather-long-file-name-number-{i:0000}.txt")).ToList();

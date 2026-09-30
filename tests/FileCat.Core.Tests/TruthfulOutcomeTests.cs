@@ -123,7 +123,7 @@ public sealed class TruthfulOutcomeTests : IDisposable
     [Fact]
     public async Task A_really_locked_file_is_reported_as_in_use()
     {
-        if (!OperatingSystem.IsWindows()) return; // sharing modes are advisory elsewhere
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Only Windows keeps an open file from being shared; sharing modes are advisory elsewhere.");
         var src = _dir.Dir("src");
         var dst = _dir.Dir("dst");
         var path = Path.Combine(src, "open.txt");
@@ -169,7 +169,7 @@ public sealed class TruthfulOutcomeTests : IDisposable
     [Fact]
     public async Task Streams_a_destination_cannot_store_are_named_as_lost()
     {
-        if (!OperatingSystem.IsWindows()) return; // named streams are an NTFS concept
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Named streams are an NTFS concept.");
         var src = _dir.Dir("src");
         var dst = _dir.Dir("dst");
         var file = Path.Combine(src, "photo.jpg");
@@ -188,7 +188,7 @@ public sealed class TruthfulOutcomeTests : IDisposable
     [InlineData(DecisionAction.Skip, false, true)]
     public async Task A_move_that_would_lose_metadata_asks_before_the_original_is_deleted(DecisionAction answer, bool copied, bool sourceKept)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The metadata a move would lose here is NTFS's streams.");
         var src = _dir.Dir("src");
         var dst = _dir.Dir("dst");
         var file = Path.Combine(src, "download.zip");

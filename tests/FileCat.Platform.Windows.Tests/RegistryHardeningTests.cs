@@ -57,7 +57,7 @@ public sealed partial class RegistryHardeningTests
             using (var target = fixture.CreateSubKey("target")) target!.SetValue("keep", 1, RegistryValueKind.DWord);
             using (fixture.CreateSubKey("zone")) { }
             string sid = WindowsIdentity.GetCurrent().User!.Value;
-            if (!TryCreateLink(fixture, @"zone\link", $@"\REGISTRY\USER\{sid}\{root}\target")) return; // links blocked here
+            if (!TryCreateLink(fixture, @"zone\link", $@"\REGISTRY\USER\{sid}\{root}\target")) Assert.Skip("Registry links cannot be made here.");
             var parent = new Location(Schemes.Registry, @"HKCU\" + root, session: "default");
             var zone = parent.WithPath(parent.Path + @"\zone");
             var scope = RegistryTree.Scan(zone, TestContext.Current.CancellationToken);

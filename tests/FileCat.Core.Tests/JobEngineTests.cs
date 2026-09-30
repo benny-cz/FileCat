@@ -428,7 +428,7 @@ public sealed class JobEngineTests : IDisposable
     public async Task Unrecyclable_items_are_left_alone_or_deleted_by_consent_with_positions()
     {
         // The portable layer has no Recycle Bin on Windows, so every item is classified as unrecyclable.
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The Recycle Bin's classification of items is Windows'.");
         var files = Enumerable.Range(0, 3).Select(i => Path.Combine(_src, $"u{i}.txt")).ToList();
         foreach (var f in files) File.WriteAllText(f, "u");
         var kept = await WaitAsync(Submit(JobKind.Recycle, files));

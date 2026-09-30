@@ -64,7 +64,7 @@ public sealed partial class WindowsFileRecordsTests
         {
             string file = Path.Combine(dir, "download.txt");
             File.WriteAllText(file, "x");
-            if (!OnNtfs(file)) return; // streams need NTFS or ReFS
+            if (!OnNtfs(file)) Assert.Skip("Streams need NTFS or ReFS.");
             File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.org/download.txt\r\n");
             // Without administrator rights too: where the file came from is one look away.
             var section = Section(Read(file, privileged: false), "Streams and attributes (1)");
@@ -84,7 +84,7 @@ public sealed partial class WindowsFileRecordsTests
         {
             string file = Path.Combine(dir, "plain.txt");
             File.WriteAllText(file, "x");
-            if (!OnNtfs(file)) return;
+            if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
             var report = Read(file, privileged: false);
             Assert.Equal("Needs administrator rights", report.Sections[1].Title);
             Assert.DoesNotContain(report.Sections, s => s.Title == "MFT record" || s.Title.StartsWith("Names", StringComparison.Ordinal));
@@ -97,13 +97,13 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void As_administrator_the_MFT_record_shows_a_creation_time_set_afterwards()
     {
-        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) return;
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
         string dir = NewFolder();
         try
         {
             string file = Path.Combine(dir, "stomped.bin");
             File.WriteAllText(file, "small enough to stay in its record");
-            if (!OnNtfs(file)) return;
+            if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
             File.SetCreationTimeUtc(file, new DateTime(2019, 5, 1, 12, 0, 0, DateTimeKind.Utc));
             // Flushed, so NTFS has written the change's log records to $LogFile on disk before it is read.
             using (var flush = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) flush.Flush(flushToDisk: true);
@@ -144,11 +144,11 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void As_administrator_a_folder_shows_the_names_its_index_kept_after_deletes()
     {
-        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) return;
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
         string dir = NewFolder();
         try
         {
-            if (!OnNtfs(dir)) return;
+            if (!OnNtfs(dir)) Assert.Skip("The test folder is not on NTFS.");
             string folder = Directory.CreateDirectory(Path.Combine(dir, "many")).FullName;
             for (int i = 0; i < 300; i++) File.WriteAllText(Path.Combine(folder, $"entry-{i:000}-with-a-longer-name.txt"), "x");
             for (int i = 250; i < 300; i++) File.Delete(Path.Combine(folder, $"entry-{i:000}-with-a-longer-name.txt"));
@@ -205,7 +205,7 @@ public sealed partial class WindowsFileRecordsTests
         {
             string file = Path.Combine(dir, "tracked.txt");
             File.WriteAllText(file, "x");
-            if (!OnNtfs(file)) return;
+            if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
             using (var handle = CreateFile(file, 0xC000_0000 /* read, write */, 7, 0, 3, 0, 0))
             {
                 var buffer = new byte[64];
@@ -271,11 +271,11 @@ public sealed partial class WindowsFileRecordsTests
     [Fact]
     public void As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports()
     {
-        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) return;
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
         string dir = NewFolder();
         try
         {
-            if (!OnNtfs(dir)) return;
+            if (!OnNtfs(dir)) Assert.Skip("The test folder is not on NTFS.");
             // The folder's DACL set the pre-Windows 2000 way: inheritable entries, not marked auto-inherited (as some
             // profile folders are, a runner's Temp among them). Its files get the entries without inheritance marks.
             string user = System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value;

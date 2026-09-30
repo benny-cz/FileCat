@@ -112,7 +112,7 @@ public class PathAndStateTests
     [Fact]
     public void Windows_name_rules()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows' name rules.");
         Assert.NotNull(PathUtil.ValidateNewName("CON"));
         Assert.NotNull(PathUtil.ValidateNewName("con.txt"));
         Assert.NotNull(PathUtil.ValidateNewName("a:b"));
