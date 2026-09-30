@@ -55,6 +55,7 @@ Name: "{autodesktop}\FileCat"; Filename: "{app}\FileCat.exe"; Tasks: desktopicon
 [Run]
 Filename: "{app}\FileCat.exe"; Description: "Start FileCat"; Flags: nowait postinstall skipifsilent
 
-[UninstallDelete]
-; User settings, history, and journals live in the user profile and are intentionally kept.
-Type: filesandordirs; Name: "{app}"
+; No [UninstallDelete]: the uninstaller removes exactly the files this installer placed, then the folder once it is
+; empty. The folder may be one the user chose that already held other files, and those must survive (release issue
+; I15). FileCat writes nothing into its installation folder; settings, history, and journals live in the user profile
+; and are intentionally kept.
