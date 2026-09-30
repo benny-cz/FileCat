@@ -136,4 +136,33 @@ public sealed class ShellHostTests : IDisposable
         Assert.Same(icon, cached);
         Assert.Equal(1, previews.Client.Starts);
     }
+
+    [Fact]
+    public async Task A_request_made_while_the_same_one_is_with_the_helper_shares_its_answer()
+    {
+        // Release issue I29: the same picture asked for while the helper already works on it (the worker had taken the
+        // first request) was asked of the helper a second time, answered separately, and cached over the first answer.
+        var ct = TestContext.Current.CancellationToken;
+        using var inFlight = new ManualResetEventSlim();
+        using var proceed = new ManualResetEventSlim();
+        using var previews = new ShellPreviews(new ShellHostClient(Helper(), testFaults: true), () => false)
+        {
+            BeforeHelperRequest = _ =>
+            {
+                inFlight.Set();
+                proceed.Wait(TimeSpan.FromSeconds(10));
+            },
+        };
+        var program = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+        var first = previews.GetAsync(ShellImageKind.Icon, program, 1, FileAttributes.Normal, 32, ct);
+        Assert.True(inFlight.Wait(TimeSpan.FromSeconds(10), ct));
+        var second = previews.GetAsync(ShellImageKind.Icon, program, 1, FileAttributes.Normal, 32, ct);
+        proceed.Set();
+        var icon = await first;
+        Assert.NotNull(icon);
+        Assert.Same(icon, await second);
+        Assert.True(previews.TryGetCached(ShellImageKind.Icon, program, 1, 32, out var cached));
+        Assert.Same(icon, cached);
+        Assert.Equal(1, previews.HelperRequests);
+    }
 }

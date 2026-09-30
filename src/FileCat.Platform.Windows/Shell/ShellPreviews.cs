@@ -90,6 +90,8 @@ public sealed class ShellPreviews : IDisposable
     private readonly Func<bool> _allowNetworkAndRemovable;
     private readonly object _lock = new();
     private readonly List<Request> _pending = [];
+    /// <summary>The request the helper works on now: the same picture asked for meanwhile waits for its answer.</summary>
+    private Request? _running;
     private readonly Dictionary<string, ShellImage?> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> _cacheOrder = new();
     private readonly Thread _worker;
@@ -105,6 +107,14 @@ public sealed class ShellPreviews : IDisposable
     }
 
     public ShellHostClient Client => _client;
+
+    /// <summary>Tests: runs on the worker after it took a request and before it asks the helper.</summary>
+    internal Action<string>? BeforeHelperRequest { get; init; }
+
+    private int _helperRequests;
+
+    /// <summary>How many requests reached the helper (tests).</summary>
+    internal int HelperRequests => Volatile.Read(ref _helperRequests);
 
     /// <summary>Set when the helper failed repeatedly or could not start.</summary>
     public string? DisabledReason => _client.DisabledReason;
@@ -135,6 +145,13 @@ public sealed class ShellPreviews : IDisposable
         lock (_lock)
         {
             if (_cache.TryGetValue(key, out var cached)) return Task.FromResult(cached);
+            // Release issue I29: a request the helper already works on is joined, not asked of the helper again.
+            if (_running is { } running && running.Key == key)
+            {
+                running.Waiters.Add((tcs, ct));
+                if (ct.CanBeCanceled) ct.Register(() => tcs.TrySetResult(null));
+                return tcs.Task;
+            }
             var request = _pending.FirstOrDefault(r => r.Key == key);
             if (request is null)
             {
@@ -162,15 +179,20 @@ public sealed class ShellPreviews : IDisposable
             while (!_disposed && Next() is { } request)
             {
                 ShellImage? image = null;
+                BeforeHelperRequest?.Invoke(request.Key);
+                Interlocked.Increment(ref _helperRequests);
                 try { image = _client.Get(request.Kind, request.Path, request.Size, request.Timeout); }
                 catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException) { }
+                List<(TaskCompletionSource<ShellImage?> Tcs, CancellationToken Ct)> waiters;
                 lock (_lock)
                 {
                     _cache[request.Key] = image;
                     _cacheOrder.Enqueue(request.Key);
                     while (_cacheOrder.Count > CacheLimit) _cache.Remove(_cacheOrder.Dequeue());
+                    _running = null;
+                    waiters = [.. request.Waiters];
                 }
-                foreach (var (tcs, _) in request.Waiters) tcs.TrySetResult(image);
+                foreach (var (tcs, _) in waiters) tcs.TrySetResult(image);
             }
         }
     }
@@ -184,7 +206,7 @@ public sealed class ShellPreviews : IDisposable
             {
                 var r = _pending[i];
                 _pending.RemoveAt(i);
-                if (r.Waiters.Any(w => !w.Ct.IsCancellationRequested)) return r;
+                if (r.Waiters.Any(w => !w.Ct.IsCancellationRequested)) return _running = r;
                 foreach (var (tcs, _) in r.Waiters) tcs.TrySetResult(null);
             }
             return null;
