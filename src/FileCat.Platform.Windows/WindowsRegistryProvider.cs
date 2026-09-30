@@ -167,6 +167,17 @@ public sealed class WindowsRegistryProvider : ResourceProvider
         return true;
     }
 
+    /// <summary>A hive's predefined key handle (HKEY_LOCAL_MACHINE and the others), sign-extended as Windows defines them.</summary>
+    private static nint PredefinedHandle(RegistryHive hive) => hive switch
+    {
+        RegistryHive.ClassesRoot => unchecked((int)0x80000000),
+        RegistryHive.CurrentUser => unchecked((int)0x80000001),
+        RegistryHive.LocalMachine => unchecked((int)0x80000002),
+        RegistryHive.Users => unchecked((int)0x80000003),
+        RegistryHive.CurrentConfig => unchecked((int)0x80000005),
+        _ => throw new ArgumentOutOfRangeException(nameof(hive)),
+    };
+
     public static RegistryKey Open(Location location, bool writable)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
@@ -184,7 +195,10 @@ public sealed class WindowsRegistryProvider : ResourceProvider
             null or "default" => RegistryView.Default,
             _ => throw new ArgumentException("Unsupported Registry view.", nameof(location)),
         };
-        var key = RegistryKey.OpenBaseKey(hive, view);
+        // The root's predefined handle, not RegistryKey.OpenBaseKey: with an explicit view, .NET reopens a base key's
+        // handle for writing before any subkey open, which a user without administrator rights is denied under HKLM,
+        // HKU, and HKCC; the view is passed with each subkey open instead (release issue I21).
+        var key = RegistryKey.FromHandle(new SafeRegistryHandle(PredefinedHandle(hive), ownsHandle: false), view);
         if (split < 0) return key;
         try
         {
