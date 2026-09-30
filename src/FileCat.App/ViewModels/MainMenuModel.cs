@@ -21,7 +21,7 @@ public static class MainMenuModel
             new Submenu("_Registry", [CommandIds.RegistryExport, CommandIds.RegistryImport, CommandIds.RegistrySaveData, CommandIds.RegistryLoadData,
                 CommandIds.RegistryWritable, CommandIds.RegistryView]), "-",
             CommandIds.Undo, CommandIds.Properties, CommandIds.HiddenData, CommandIds.FileRecord, CommandIds.Reveal, CommandIds.OpenWithSystem, "-", CommandIds.Exit]),
-        ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
+        ("_Mark", [CommandIds.MarkToggleDown, CommandIds.MarkToggle, CommandIds.CountFolderSizes, CommandIds.MarkSelectMask, CommandIds.MarkUnselectMask,
             CommandIds.MarkInvert, CommandIds.MarkInvertAll, CommandIds.MarkAll, CommandIds.MarkNone, "-", CommandIds.MarkSameExt,
             CommandIds.UnmarkSameExt, CommandIds.MarkSameName, CommandIds.UnmarkSameName, "-", CommandIds.MarkRestore, CommandIds.UnmarkHidden, "-",
             CommandIds.CopyNames, CommandIds.CopyPaths, CommandIds.CopyUncPaths]),

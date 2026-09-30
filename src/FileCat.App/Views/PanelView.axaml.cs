@@ -700,6 +700,13 @@ public partial class PanelView : UserControl
         List.Focus();
     }
 
+    /// <summary>Count in the status line: this panel's marked folders are counted, and the keyboard stays in its list.</summary>
+    private void OnCountFolderSizes(object? sender, RoutedEventArgs e)
+    {
+        if (Panel?.ActiveTab is { } tab && TopLevel.GetTopLevel(this)?.DataContext is MainViewModel vm) vm.CountFolderSizes(tab);
+        List.Focus();
+    }
+
     /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
     public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null)
     {

@@ -63,6 +63,7 @@ public static class CommandIds
 
     public const string MarkToggleDown = "mark.toggleDown";
     public const string MarkToggle = "mark.toggle";
+    public const string CountFolderSizes = "mark.countFolderSizes";
     public const string MarkSelectMask = "mark.select";
     public const string MarkUnselectMask = "mark.unselect";
     public const string MarkInvert = "mark.invert";
@@ -285,6 +286,7 @@ public sealed class CommandRegistry
 
         Add(CommandIds.MarkToggleDown, "Mark and move down", M, null, CommandContext.Panel, "Insert");
         Add(CommandIds.MarkToggle, "Mark and move down, sizing folders", M, null, CommandContext.Panel, "Space");
+        Add(CommandIds.CountFolderSizes, "Count folder sizes", M, null, CommandContext.Panel);
         Add(CommandIds.MarkSelectMask, "Select by mask…", M, null, CommandContext.Panel, "Num+");
         Add(CommandIds.MarkUnselectMask, "Unselect by mask…", M, null, CommandContext.Panel, "Num-");
         Add(CommandIds.MarkInvert, "Invert selection (files)", M, null, CommandContext.Panel, "Num*");
@@ -537,6 +539,8 @@ public sealed class CommandRegistry
         K(CommandIds.Undo, "revert", "take back");
         K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin");
         K(CommandIds.MarkToggle, "folder size", "folder sizes", "calculate size");
+        K(CommandIds.CountFolderSizes, "folder size", "folder sizes", "calculate size", "occupied space", "disk usage", "how big");
+        r.Describe(CommandIds.CountFolderSizes, "Counts the sizes of the marked folders (or of the folder under the cursor) in the background; the status line adds them up. Esc stops it.");
         K(CommandIds.SortSize, "largest files", "biggest files");
         K(CommandIds.UserMenu, "custom commands", "tools");
         K(CommandIds.SaveWorkspace, "session", "save layout");

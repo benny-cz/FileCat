@@ -59,6 +59,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _displayPath = string.Empty;
     [ObservableProperty] private string _statusLeft = string.Empty;
     [ObservableProperty] private string _statusRight = string.Empty;
+    /// <summary>
+    /// With items marked, what they are and their size ("Marked 1 of 2 folders, 2 of 3 files · 2,39 MB"), shown first
+    /// in the mark color; <see cref="StatusLeft"/> then holds the rest of the line. Empty with nothing marked.
+    /// </summary>
+    [ObservableProperty] private string _statusMarked = string.Empty;
+    /// <summary>Marked folders whose size is not counted, none being counted: the status line offers to count them.</summary>
+    [ObservableProperty] private bool _canCountMarked;
+
+    /// <summary>Folders being counted in this tab now (Space, or Count in the status line); the main view model keeps it.</summary>
+    public int SizingFolders { get; set; }
     [ObservableProperty] private bool _isLocked;
     [ObservableProperty] private bool _returnToRoot;
     [ObservableProperty] private string? _quickSearch;
@@ -580,8 +590,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (Listing.LastRefreshError is DirectoryNotFoundException && Location is { IsFileSystem: true } gone) LeaveVanishedFolder(gone);
             }
         }
-        if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset)) != 0) UpdateStatus();
-        else if ((change & ListingChange.Focus) != 0 && Listing.MarkedCount == 0) UpdateStatus();
+        // The focused item is described with items marked too (the marked ones are summed on the left).
+        if ((change & (ListingChange.Rows | ListingChange.Marks | ListingChange.State | ListingChange.Reset | ListingChange.Focus)) != 0) UpdateStatus();
     }
 
     public void UpdateTitle()
@@ -614,48 +624,85 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }, TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// How this location names what it lists: folders and files, keys and values, or things of one kind (drives,
+    /// shares, changes), counted together.
+    /// </summary>
+    private (string DirOne, string DirMany, string FileOne, string FileMany, bool Together) Nouns() => Location?.Scheme switch
+    {
+        Schemes.Registry => ("key", "keys", "value", "values", false),
+        Schemes.Computer => ("item", "items", "", "", true),
+        Schemes.Network when Location.Path.Length == 0 => ("computer or server", "computers and servers", "", "", true),
+        Schemes.Network => ("share", "shares", "", "", true),
+        Schemes.Journal => ("change", "changes", "", "", true),
+        Schemes.HiddenData => OperatingSystem.IsWindows()
+            ? ("stream or attribute", "streams and attributes", "", "", true)
+            : ("attribute", "attributes", "", "", true),
+        Schemes.ResultSet when Core.Search.ResultSetProvider.IsWorkingSetList(Location) => ("working set", "working sets", "", "", true),
+        _ => ("folder", "folders", "file", "files", false),
+    };
+
     public void UpdateStatus()
     {
         var l = Listing;
         var totals = l.Store.Totals;
+        bool fileSystem = Location is { IsFileSystem: true };
         // Counted in the location's own words: keys and values in the Registry, drives in This PC.
-        var left = Location?.Scheme switch
-        {
-            Schemes.Registry => $"{Formatters.Plural(totals.Directories, "key", "keys")}, {Formatters.Plural(totals.Files, "value", "values")}",
-            Schemes.Computer => Formatters.Plural(totals.Directories + totals.Files, "item", "items"),
-            Schemes.Network when Location.Path.Length == 0 => Formatters.Plural(totals.Directories + totals.Files, "computer or server", "computers and servers"),
-            Schemes.Network => Formatters.Plural(totals.Directories + totals.Files, "share", "shares"),
-            Schemes.Journal => Formatters.Plural(totals.Directories + totals.Files, "change", "changes"),
-            Schemes.HiddenData => OperatingSystem.IsWindows()
-                ? Formatters.Plural(totals.Files, "stream or attribute", "streams and attributes")
-                : Formatters.Plural(totals.Files, "attribute", "attributes"),
-            Schemes.ResultSet when Core.Search.ResultSetProvider.IsWorkingSetList(Location) => Formatters.Plural(totals.Directories + totals.Files, "working set", "working sets"),
-            _ => $"{Formatters.Plural(totals.Directories, "folder", "folders")}, {Formatters.Plural(totals.Files, "file", "files")}",
-        };
-        if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
-        // A location that could not be read has nothing to count ("0 folders, 0 files" would say it is empty).
-        if (l.State == ListingState.Failed) left = totals.Directories + totals.Files == 0 ? "Not available" : left + " · listing incomplete";
-        if (l.State == ListingState.Loading) left += " · " + (l.LoadingProgress ?? "loading…");
-        else if (l.IsRefreshing) left += " · " + (l.LoadingProgress ?? "refreshing…");
-        if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
+        var (dirOne, dirMany, fileOne, fileMany, together) = Nouns();
+
+        // What follows the counts, in both states.
+        var rest = new List<string>();
+        if (l.State == ListingState.Loading) rest.Add(l.LoadingProgress ?? "loading…");
+        else if (l.IsRefreshing) rest.Add(l.LoadingProgress ?? "refreshing…");
+        if (l.Filter is not null) rest.Add($"filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}");
         // Checksums before free space: a failed one matters more, and the end of a long line is what gets cut.
-        if (_verificationSummary is { } verified && Location is { IsFileSystem: true }) left += " · " + verified;
+        if (_verificationSummary is { } verified && fileSystem) rest.Add(verified);
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
-        if (_freeBytes >= 0 && Location is { IsFileSystem: true }) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
-        StatusLeft = left;
+        if (_freeBytes >= 0 && fileSystem) rest.Add($"{Formatters.SizeWithUnit(_freeBytes)} free");
 
         var stats = l.GetMarkStats();
         if (stats.Count == 0)
         {
-            StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
+            var left = together
+                ? Formatters.Plural(totals.Directories + totals.Files, dirOne, dirMany)
+                : $"{Formatters.Plural(totals.Directories, dirOne, dirMany)}, {Formatters.Plural(totals.Files, fileOne, fileMany)}";
+            if (totals.KnownFileBytes > 0) left += $" · {Formatters.SizeWithUnit(totals.KnownFileBytes)}";
+            // A location that could not be read has nothing to count ("0 folders, 0 files" would say it is empty).
+            if (l.State == ListingState.Failed) left = totals.Directories + totals.Files == 0 ? "Not available" : left + " · listing incomplete";
+            StatusMarked = string.Empty;
+            StatusLeft = string.Join(" · ", rest.Prepend(left));
+            CanCountMarked = false;
         }
         else
         {
-            var s = $"Marked {Formatters.Plural(stats.Count, "item", "items")} · {Formatters.SizeWithUnit(stats.Bytes)}{(stats.SizesIncomplete ? "+" : "")}";
-            if (stats.HiddenByFilter > 0) s += $" · {stats.HiddenByFilter} hidden by filter";
-            if (l.State == ListingState.Loading) s += " · listing incomplete";
-            StatusRight = s;
+            // "Marked 1 of 2 folders, 2 of 3 files": what is marked, out of what is here.
+            var what = new List<string>();
+            if (together) what.Add($"{stats.Count:N0} of {Formatters.Plural(totals.Directories + totals.Files, dirOne, dirMany)}");
+            else
+            {
+                if (stats.Directories > 0) what.Add($"{stats.Directories:N0} of {Formatters.Plural(totals.Directories, dirOne, dirMany)}");
+                if (stats.Files > 0) what.Add($"{stats.Files:N0} of {Formatters.Plural(totals.Files, fileOne, fileMany)}");
+            }
+            var marked = "Marked " + string.Join(", ", what);
+            // A marked folder's size counts once counted (Space counts as it marks); until then it is said, not guessed.
+            int unsized = !together && dirOne == "folder" ? stats.UnsizedDirectories : 0;
+            string size = Formatters.SizeWithUnit(stats.Bytes);
+            if (unsized == 0)
+            {
+                if (stats.Bytes > 0 || stats.Files > 0) marked += " · " + size;
+            }
+            else if (SizingFolders > 0)
+                marked += " · " + (stats.Bytes > 0 ? $"{size} so far, " : "") + $"counting {Formatters.Plural(unsized, "folder", "folders")}…";
+            else if (stats.Bytes > 0 || stats.Files > 0)
+                marked += $" · {size}, not counting {Formatters.Plural(unsized, "folder", "folders")}";
+            else
+                marked += unsized == 1 ? " · size not counted" : " · sizes not counted";
+            if (stats.HiddenByFilter > 0) marked += $" · {stats.HiddenByFilter:N0} of them hidden by the filter";
+            StatusMarked = marked;
+            StatusLeft = rest.Count > 0 ? " · " + string.Join(" · ", rest) : string.Empty;
+            CanCountMarked = unsized > 0 && SizingFolders == 0 && fileSystem;
         }
+        StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
     }
 
     private static string DescribeFocused(in EntryData e)

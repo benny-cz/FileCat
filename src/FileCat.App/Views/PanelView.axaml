@@ -72,9 +72,23 @@
            either part, cut short, shows all of it on hover. -->
       <Border x:Name="StatusBar" DockPanel.Dock="Bottom" Classes="status">
         <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="{Binding ActiveTab.StatusLeft}" Classes="small" TextTrimming="CharacterEllipsis"
-                     ToolTip.Tip="{Binding ActiveTab.StatusLeft}"
-                     ToolTip.ServiceEnabled="{Binding ActiveTab.StatusLeft, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <!-- With items marked, what they are and their size comes first, in the mark color, and Count counts the marked
+               folders' sizes where they are not counted; the rest of the line (free space, filter, checksums) follows. -->
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Left" Text="{Binding ActiveTab.StatusMarked}" Classes="small" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FcTextMarked}" TextTrimming="CharacterEllipsis"
+                       IsVisible="{Binding ActiveTab.StatusMarked, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       ToolTip.Tip="{Binding ActiveTab.StatusMarked}" />
+            <Button x:Name="CountSizesButton" DockPanel.Dock="Left" Classes="statuslink" Click="OnCountFolderSizes"
+                    IsVisible="{Binding ActiveTab.CanCountMarked}"
+                    ToolTip.Tip="Counts the sizes of the marked folders in the background (Esc stops it)"
+                    AutomationProperties.Name="Count the marked folders' sizes">
+              <TextBlock Classes="small" Text="Count" TextDecorations="Underline" />
+            </Button>
+            <TextBlock Text="{Binding ActiveTab.StatusLeft}" Classes="small" TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{Binding ActiveTab.StatusLeft}"
+                       ToolTip.ServiceEnabled="{Binding ActiveTab.StatusLeft, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </DockPanel>
           <TextBlock x:Name="StatusRightText" Grid.Column="1" Text="{Binding ActiveTab.StatusRight}" Classes="small" Margin="12,0,0,0"
                      MaxWidth="420" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ActiveTab.StatusRight}"
                      ToolTip.ServiceEnabled="{Binding ActiveTab.StatusRight, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

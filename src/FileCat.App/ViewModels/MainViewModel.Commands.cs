@@ -352,6 +352,9 @@ public sealed partial class MainViewModel
             case CommandIds.MarkToggle:
                 ToggleMarkAndSize();
                 break;
+            case CommandIds.CountFolderSizes:
+                if (tab is not null) CountFolderSizes(tab);
+                break;
             case CommandIds.MarkSelectMask:
                 await MarkByMaskAsync(true);
                 break;
@@ -668,15 +671,51 @@ public sealed partial class MainViewModel
             return;
         }
         if (!e.IsContainer || !Services.Settings.SizeFolderOnSpace || e.Has(EntryFlags.Link)) return;
-        var item = listing.GetItemRef(listing.GetStoreIndex(fi));
-        if (item.FileSystemPath is not { } path) return;
-        var vol = tab.Location!;
+        int storeIndex = listing.GetStoreIndex(fi);
+        if (listing.GetItemRef(storeIndex).FileSystemPath is not { } path) return;
         if (!Services.Settings.SizeFolderOnSlowLocations && (e.Has(EntryFlags.Offline) || IsSlowLocation(path)))
         {
-            Notify("Marked without sizing: folder sizing is off for network, removable, and cloud locations (Settings → Behavior).");
+            Notify("Marked without sizing: folder sizing is off for network, removable, and cloud locations (Settings → Behavior). Count in the status line counts them anyway.");
             return;
         }
+        SizeFolder(tab, listing, e, storeIndex);
+    }
+
+    /// <summary>
+    /// Counts the sizes of the marked folders not counted yet, or, with none marked, of the folder under the cursor:
+    /// what Count in the status line does. Asked for, it counts on network, removable, and cloud locations too (Space
+    /// does only if the settings say so); links are never followed.
+    /// </summary>
+    public void CountFolderSizes(TabViewModel tab)
+    {
+        var listing = tab.Listing;
+        if (tab.Location is not { IsFileSystem: true })
+        {
+            Notify("Folder sizes are counted on drives and shares.");
+            return;
+        }
+        var folders = listing.MarkedCount > 0 ? listing.MarkedUnsizedFolders() : [];
+        if (listing.MarkedCount == 0 && listing.TryGetFocused(out var focused) && focused.Kind == EntryKind.Directory && !focused.Has(EntryFlags.Link))
+            folders.Add(listing.FocusedStoreIndex);
+        if (folders.Count == 0)
+        {
+            Notify(listing.MarkedCount > 0 ? "The marked folders' sizes are counted already." : "Mark folders, or put the cursor on one, to count their sizes.");
+            return;
+        }
+        foreach (int si in folders) SizeFolder(tab, listing, listing.Store[si], si);
+    }
+
+    /// <summary>
+    /// Counts a folder's size in the background at low priority (Esc stops it). Its row shows the size as it grows, and
+    /// the tab's status line says it is counting.
+    /// </summary>
+    private void SizeFolder(TabViewModel tab, ListingModel listing, EntryData e, int storeIndex)
+    {
+        if (listing.GetItemRef(storeIndex).FileSystemPath is not { } path || tab.Location is not { } vol) return;
+        var key = tab.GetHashCode() + "|" + e.Name;
         var token = BeginSizing(key);
+        tab.SizingFolders++;
+        tab.UpdateStatus();
         var name = e.Name;
         var device = Services.Providers.For(vol).GetDeviceKey(vol);
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, ct =>
@@ -692,16 +731,20 @@ public sealed partial class MainViewModel
             Services.Ui.Post(() =>
             {
                 EndSizing(key, token);
-                if (listing.Location != vol) return;
-                if (t.IsCompletedSuccessfully)
+                tab.SizingFolders = Math.Max(0, tab.SizingFolders - 1);
+                if (listing.Location == vol)
                 {
-                    listing.SetComputedSize(name, t.Result.Bytes, true);
-                    if (t.Result.Inaccessible > 0) Notify($"\"{name}\": {t.Result.Inaccessible} folder(s) could not be read; the size is a lower bound.");
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        listing.SetComputedSize(name, t.Result.Bytes, true);
+                        if (t.Result.Inaccessible > 0) Notify($"\"{name}\": {t.Result.Inaccessible} folder(s) could not be read; the size is a lower bound.");
+                    }
+                    else if (t.IsCanceled && listing.FindStoreIndex(name) is var si && si >= 0 && !listing.IsMarked(si))
+                    {
+                        listing.SetComputedSize(name, -1, false);
+                    }
                 }
-                else if (t.IsCanceled && listing.FindStoreIndex(name) is var si && si >= 0 && !listing.IsMarked(si))
-                {
-                    listing.SetComputedSize(name, -1, false);
-                }
+                tab.UpdateStatus();
             });
         }, TaskScheduler.Default);
     }

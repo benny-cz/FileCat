@@ -25,7 +25,10 @@ public enum ListingChange
     State = 16,
 }
 
-public readonly record struct MarkStats(int Count, int Files, int Directories, long Bytes, int HiddenByFilter, bool SizesIncomplete);
+/// <summary>The marked items: how many, of which kind, and their size.</summary>
+/// <param name="Bytes">The marked files' sizes and the sizes counted for marked folders.</param>
+/// <param name="UnsizedDirectories">Marked folders whose size is not counted (yet): <see cref="Bytes"/> leaves them out.</param>
+public readonly record struct MarkStats(int Count, int Files, int Directories, long Bytes, int HiddenByFilter, bool SizesIncomplete, int UnsizedDirectories = 0);
 
 /// <summary>
 /// One tab's listing: streaming enumeration into an <see cref="EntryStore"/>, background sorting and
@@ -861,9 +864,8 @@ public sealed class ListingModel : IDisposable
     public MarkStats GetMarkStats()
     {
         if (_statsCache is { } cached) return cached;
-        int files = 0, dirs = 0, hidden = 0;
+        int files = 0, dirs = 0, hidden = 0, unsized = 0;
         long bytes = 0;
-        bool incomplete = false;
         using var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count);
         foreach (int si in _marks.Enumerate())
         {
@@ -872,8 +874,9 @@ public sealed class ListingModel : IDisposable
             if (e.IsContainer)
             {
                 dirs++;
+                // Only a counted size: a folder entry's own (4096 bytes from some servers) is not its contents'.
                 if (e.Has(EntryFlags.SizeComputed) && e.Size >= 0) bytes += e.Size;
-                else incomplete = true;
+                else unsized++;
             }
             else
             {
@@ -882,9 +885,23 @@ public sealed class ListingModel : IDisposable
             }
             if (GetVisibleIndex(si) < 0) hidden++;
         }
-        var stats = new MarkStats(files + dirs, files, dirs, bytes, hidden, incomplete);
+        var stats = new MarkStats(files + dirs, files, dirs, bytes, hidden, unsized > 0, unsized);
         _statsCache = stats;
         return stats;
+    }
+
+    /// <summary>Store indices of the marked folders whose size is not counted, links apart (never followed).</summary>
+    public List<int> MarkedUnsizedFolders()
+    {
+        var found = new List<int>();
+        using var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count);
+        foreach (int si in _marks.Enumerate())
+        {
+            if (si >= _appliedCount) continue;
+            var e = scan[si];
+            if (e.Kind == EntryKind.Directory && !e.Has(EntryFlags.Link) && !(e.Has(EntryFlags.SizeComputed) && e.Size >= 0)) found.Add(si);
+        }
+        return found;
     }
 
     /// <summary>
