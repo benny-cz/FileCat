@@ -28,6 +28,9 @@ if (args.Length < 3 || args[1] is not ("record" or "window" or "command") || arg
 string output = Directory.CreateDirectory(args[0]).FullName;
 AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 FileCat.Core.Platform.PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
+// Windows a command opens (viewer, Find, comparison) are pictured too.
+var opened = new List<Window>();
+Window.WindowOpenedEvent.AddClassHandler<Window>((w, _) => opened.Add(w));
 return args[1] switch
 {
     "record" => Record(args),
@@ -99,6 +102,14 @@ int MainWindowShot(string[] a, string? command = null)
                     Pump(() => false, 500);
                 }
                 Save(window, $"{parts[0].Replace('.', '-')}{(parts.Length > 1 ? "-" + parts[1] : "")}-{theme}.png");
+                int n = 0;
+                foreach (var other in opened.Where(w => !ReferenceEquals(w, window) && w.IsVisible).ToList())
+                {
+                    Pump(() => false, 1000);
+                    Save(other, $"{parts[0].Replace('.', '-')}-window{++n}-{theme}.png");
+                    other.Close();
+                }
+                opened.Clear();
             }
             else Save(window, $"window-{theme}.png");
             window.Close();

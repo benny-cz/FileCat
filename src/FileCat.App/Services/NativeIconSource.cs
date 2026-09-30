@@ -144,8 +144,14 @@ public sealed class NativeIconSource : INativeIconSource
     /// <summary>Explorer's shortcut arrow at the current size; null until loaded.</summary>
     public IImage? LinkOverlay => Shared("stock:" + WindowsIcons.StockLink);
 
+    /// <summary>
+    /// A type's shared icon: its extension's, or for a name without one Explorer's "no associated program" page, and for
+    /// a type whose icon is each file's own (a program before its icon is read) the generic one for such files.
+    /// </summary>
     private static string TypeKey(string ext) =>
-        ext.Length == 0 ? "type:<file>" : PerFileTypes.Contains(ext) ? "type:<generic>" : "type:." + ext;
+        ext.Length == 0 ? "type:<file>"
+        : PerFileTypes.Contains(ext) ? (ext.Equals("exe", StringComparison.OrdinalIgnoreCase) || ext.Equals("scr", StringComparison.OrdinalIgnoreCase) ? "type:<app>" : "type:<generic>")
+        : "type:." + ext;
 
     private string DriveKey(in EntryData entry)
     {
@@ -337,14 +343,16 @@ public sealed class NativeIconSource : INativeIconSource
             _ when key.StartsWith("stock:", StringComparison.Ordinal) => WindowsIcons.StockLocation(int.Parse(key.AsSpan(6), System.Globalization.CultureInfo.InvariantCulture)),
             _ when key.StartsWith("res:", StringComparison.Ordinal) => IconLocation.Parse(key[4..]),
             "type:<dir>" => WindowsIcons.TypeLocation("folder", true),
-            "type:<file>" or "type:<generic>" => WindowsIcons.TypeLocation("file.bin", false),
+            // Not another type's icon: ".bin" is VLC's or a disc tool's on many computers.
+            "type:<file>" or "type:<generic>" => WindowsIcons.StockLocation(WindowsIcons.StockDocumentNoAssociation),
+            "type:<app>" => WindowsIcons.StockLocation(WindowsIcons.StockApplication),
             _ => WindowsIcons.TypeLocation("file" + key[5..], false),
         };
         if (location is { } l && WindowsIcons.TryExtract(l, size, out int w, out int h, out var bgra)) return ToBitmap(w, h, bgra, size);
         if (key == "sysdrive") return Load("stock:" + WindowsIcons.StockFixedDrive, size);
         if (!key.StartsWith("type:", StringComparison.Ordinal)) return null;
         // Types drawn by an icon handler have no fixed location: the Shell's small icon (16 pixels) stands in.
-        string name = key switch { "type:<dir>" => "folder", "type:<file>" or "type:<generic>" => "file.bin", _ => "file" + key[5..] };
+        string name = key switch { "type:<dir>" => "folder", "type:<file>" or "type:<generic>" => "file", "type:<app>" => "file.exe", _ => "file" + key[5..] };
         return _shell.TryGetTypeIcon(name, key == "type:<dir>", size, out w, out h, out bgra) && w > 0 ? ToBitmap(w, h, bgra, size) : null;
     }
 

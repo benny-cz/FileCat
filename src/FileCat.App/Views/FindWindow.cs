@@ -88,7 +88,7 @@ public sealed class FindWindow : Window, IViewActions
     private readonly Button _advancedReset = new() { Content = "Reset" };
     private AdvancedSearchCriteria _advanced = new();
     private readonly TextBlock _status = new() { Classes = { "small", "muted" }, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock _error = new() { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _error = new() { Classes = { "error" }, IsVisible = false, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(10, 4, 10, 0) };
     private readonly TextBlock _message = new() { Classes = { "small" }, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     private readonly Panel _lookInHost = new();
     private readonly PathCompletion _completion;
@@ -271,7 +271,7 @@ public sealed class FindWindow : Window, IViewActions
         _advancedButton.Click += (_, _) => _ = EditAdvancedAsync();
         _advancedReset.Click += (_, _) => SetAdvanced(new AdvancedSearchCriteria());
         SetAdvanced(_advanced);
-        var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+        var actions = new DockPanel { Margin = new Thickness(10, 6, 10, 0) }; // in line with the form above and the results below
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _find, _stop, _skip } };
         ToolTip.SetTip(_find, "Enter · Ctrl+I keeps only items found again · Ctrl+S removes them · Ctrl+W adds the new finds");
         ToolTip.SetTip(_stop, "Esc");

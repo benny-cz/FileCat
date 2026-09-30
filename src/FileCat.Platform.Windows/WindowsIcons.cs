@@ -36,7 +36,7 @@ public readonly record struct IconLocation(string File, int Index)
 public static unsafe partial class WindowsIcons
 {
     // SHSTOCKICONID values (shellapi.h).
-    public const int StockFolder = 3, StockRemovableDrive = 7, StockFixedDrive = 8, StockNetworkDrive = 9, StockNetworkDriveOffline = 10,
+    public const int StockDocumentNoAssociation = 0, StockApplication = 2, StockFolder = 3, StockRemovableDrive = 7, StockFixedDrive = 8, StockNetworkDrive = 9, StockNetworkDriveOffline = 10,
         StockOpticalDrive = 11, StockRamDrive = 12, StockServer = 15, StockLink = 29, StockServerShare = 51, StockStack = 55, StockUnknownDrive = 58, StockDesktopPc = 94, StockPhone = 99, StockNetwork = 17;
 
     /// <summary>Extracts one icon at <paramref name="size"/> pixels as straight (not premultiplied) BGRA.</summary>
