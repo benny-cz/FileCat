@@ -90,7 +90,7 @@ public sealed class SecretStoreTests
             {
                 store.Write(key, "first pässwörd ✓", "FileCat test item");
             }
-            catch (IOException ex) when (ex.HResult is MacKeychainStore.ErrSecInteractionNotAllowed or MacKeychainStore.ErrSecNoDefaultKeychain)
+            catch (IOException ex) when (ex.HResult is MacKeychainStore.ErrSecInteractionNotAllowed or MacKeychainStore.ErrSecNoDefaultKeychain or MacKeychainStore.ErrSecAuthFailed)
             {
                 Assert.Skip("The keychain is locked or missing here: " + ex.Message);
             }

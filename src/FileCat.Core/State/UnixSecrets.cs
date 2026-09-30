@@ -86,6 +86,8 @@ internal sealed unsafe partial class MacKeychainStore : SerialSecretStore
     private const string Service = "FileCat";
     internal const int ErrSecItemNotFound = -25300, ErrSecDuplicateItem = -25299;
     internal const int ErrSecInteractionNotAllowed = -25308, ErrSecNoDefaultKeychain = -25307;
+    /// <summary>A keychain that could not be unlocked; macOS 26 reports a locked keychain so when prompts are off (an SSH session).</summary>
+    internal const int ErrSecAuthFailed = -25293;
 
     private static readonly Lazy<Symbols> Cf = new(() => new Symbols());
 

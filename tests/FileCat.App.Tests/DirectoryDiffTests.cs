@@ -128,8 +128,10 @@ public sealed class DirectoryDiffTests
             for (int i = 0; i < 500 && !(File.Exists(Path.Combine(r, "sub", "new.txt")) && Read(Path.Combine(r, "changed.txt")) == "newer"); i++)
                 await Task.Delay(20, ct);
             for (int i = 0; i < 250 && services.Jobs.HasActiveWork; i++) await Task.Delay(20, ct);
-            Assert.Equal("new", File.ReadAllText(Path.Combine(r, "sub", "new.txt")));
-            Assert.Equal("newer", File.ReadAllText(Path.Combine(r, "changed.txt")));
+            // Release issue I22: this failed once in an unelevated Windows 11 VM ("old" after the run); say what the jobs did.
+            string Jobs() => string.Join("; ", services.Jobs.Jobs.Select(j => $"{j.Title}: {j.State} [{string.Join(", ", j.Issues.Select(x => $"{x.Outcome} {Path.GetFileName(x.Path)}: {x.Message}"))}]"));
+            Assert.True(File.ReadAllText(Path.Combine(r, "sub", "new.txt")) == "new", Jobs());
+            Assert.True(File.ReadAllText(Path.Combine(r, "changed.txt")) == "newer", $"changed.txt reads \"{File.ReadAllText(Path.Combine(r, "changed.txt"))}\"; {Jobs()}");
             Assert.True(File.Exists(Path.Combine(r, "extra.txt")));
             for (int i = 0; i < 250 && services.Jobs.HasActiveWork; i++) await Task.Delay(20, ct);
         }
