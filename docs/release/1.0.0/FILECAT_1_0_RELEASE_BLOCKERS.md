@@ -32,12 +32,12 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | A MacBookPro is reachable on the LAN (OpenSSH, public-key only); waiting for the campaign key to be authorized; architecture and macOS version unverified |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
-| ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | Lent VM is Ubuntu 22.04, not fresh, no network (preliminary only) |
-| ENV-05 | Disposable Windows VM matrix: standard user, administrator, Administrator Protection, UAC prompts, HKLM/WOW64 roots | Lent Windows 11 Insider 26300 VM, administrator only, UAC without prompts (partial) |
-| ENV-06 | Controlled SFTP, FTP, FTPS and SMB servers (at least two implementations each where applicable) | Not set up |
+| ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | Lent VM is Ubuntu 22.04, not fresh; host-private NAT networking added by the campaign (preliminary only) |
+| ENV-05 | Disposable Windows VM matrix: standard user, administrator, Administrator Protection, UAC prompts, HKLM/WOW64 roots | Lent Windows 11 Insider 26300 VM: administrator runs elevated and unelevated (interactive session); UAC without prompts; no standard-user account yet (a restricted token stands in on the host) (partial) |
+| ENV-06 | Controlled SFTP, FTP, FTPS and SMB servers (at least two implementations each where applicable) | One implementation each on the Ubuntu VM: OpenSSH, vsftpd (explicit and implicit FTPS), Samba (E-ENV-05). Second implementations not set up |
 | ENV-07 | Identity-bound disposable media and devices: USB stick G: (owner's rule: serial 2F2000129618), Android and iOS devices in `FileCat-test` folders | Available per the owner's standing rules; interlocks to audit before use (§8.2) |
 | ENV-08 | The reference performance machine (4 cores, 16 GiB, NVMe, 1080p) exclusive during V16 | Not available; the host is a 12-core 64 GiB developer machine shared with other work |
 

@@ -10,10 +10,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `45efc09` (plan baseline `4f6b062` plus three remediation commits).
+- **Source:** `main` at `5c54181` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
-  false forensic finding). All three are remediated and verified by targeted and affected regressions; closure awaits
+  false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
+  without administrator rights). All are remediated and verified by targeted and affected regressions; closure awaits
   re-audit and final-candidate evidence.
+- **Being worked:** I22 (Medium: replacing an open file on Windows; a comparison's late release), I23 (Low: discovery
+  naming). **Queued:** I24 (Low, owner-reported: no seconds in the Modified column).
 
 ## Execution baseline
 
@@ -32,14 +35,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 |---|---|---|
 | 1 Refresh baseline | **Done** | E-ENV-04; no delta from the plan's baseline at start |
 | 2 Owners, resources, provider/licence preflight | **Open (people)** | DEC-01, DEC-07, EXT-01, EXT-02; resource status in the blockers file |
-| 3 Collect CI/validation evidence and skip inventory | **Partial** | E-A01 (explicit skips on TRX lanes). Still to do: portable-lane and ARM64 skip lists from logs; the early-return audit (tests that return before asserting and report Passed) |
+| 3 Collect CI/validation evidence and skip inventory | **Partial** | E-A01 (explicit skips on TRX lanes); early-return audit done (E-S01, `be6ca25`: 28 tests now skip with reasons). Still to do: portable-lane and ARM64 skip lists from logs |
 | 4 Reconcile manifest and registers against source | Not started | Plan §§3–5 registers stand as the starting point |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P03 and P15 audited (I19, I15); the other DPI and B rows remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P03 and P15 audited (I19, I15); B04 consent display audited (I17); the other DPI and B rows remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
-| 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); Windows Sandbox unusable (E-ENV-01) |
-| 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally, preliminary) |
-| 10 High-risk preliminary cases and remediation | **In progress** | V03-PARTIAL (I19) and V19-UNINSTALL (I15) done preliminarily; I20 from CI |
+| 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
+| 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
+| 10 High-risk preliminary cases and remediation | **In progress** | V03-PARTIAL (I19), V19-UNINSTALL (I15), V06-CONSENT display (I17) done preliminarily; I20, I21, I22, I23 from test runs; preliminary V19 package checks on Ubuntu 22.04 and macOS (E-V19-P1) |
 | 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | Not started / blocked | Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
 | 14 Pipeline, docs, release controls, preview | Not started | DEC-07, DEC-09 |
 | 15–26 Freezes, candidate, FQ, REP, GO, publication | Not reachable | Depend on everything above |
@@ -62,6 +65,26 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    the x64 payload (E-I15-V1 side observation).
 7. Started the owner's MacBookPro access (public-key SSH; key authorization pending) and a manual CI run
    (36759624490) to produce Linux and macOS packages for preliminary V19 checks on the lent Ubuntu VM and the Mac.
+8. Early-return audit (step 3): 28 tests passed without testing when their platform or environment was missing; they
+   now skip with their reasons (`be6ca25`, E-S01).
+9. Ran the suites unelevated on the Windows 11 VM, on the Ubuntu 22.04 VM and on the owner's M1 Mac (E-X01). The
+   unelevated run found I21 (Registry explicit views failed without administrator rights); reproduced under a restricted
+   token on the host, fixed (`47c27b9`), rerun clean in the VM. The Mac run exposed a test that failed instead of
+   skipping when the keychain cannot be unlocked over SSH (`64ed037`).
+10. Audited B04's consent display: I17 (steps after the 60th hidden; HKU hives mislabeled), reproduced, fixed
+    (`33b7de2`). A runtime check of the installed helper in the VM, driven by UI Automation, found two defects in that
+    fix (the page text replaced the plan's title; pages too tall for the screen); fixed in `5c54181` and checked again:
+    all 130 steps of a test plan shown, Cancel ran nothing (E-I17).
+11. Preliminary package checks (E-V19-P1): the Linux `.deb`, tarball and AppImage installed, ran and uninstalled cleanly
+    on Ubuntu 22.04; the ad-hoc-signed macOS app is rejected by Gatekeeper and bundles universal libraries.
+12. Set up SFTP, FTP/explicit and implicit FTPS, and SMB servers on the Ubuntu VM for V08 (E-ENV-05).
+13. The Synchronize test failed intermittently (VM once, CI ARM64 once). Traced to I22: a closed comparison held its
+    files until the UI thread ran, and Windows refuses to replace an open file even when it is shared for deletion;
+    FileCat then reported "Access denied … Controlled Folder Access". Reproduced deterministically, including a copy onto
+    a file open in FileCat's own viewer. Fix in progress.
+14. A discovery test failed once on the Ubuntu VM under host contention: I23 (a device's name lookup was canceled with
+    the search window). Fix in progress.
+15. The owner reported I24 (no seconds in the Modified column); queued.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -70,13 +93,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - `5b061cc` (installer script): every earlier installer build; V19 lifecycle evidence must use the final setup.
 - `45efc09` (D-56 `$LogFile` reader): V14 `$LogFile` evidence; the reader now waits up to about six seconds when the
   on-disk log lags, which affects the record window's time to open in that case.
+- `33b7de2`, `5c54181` (administrator helper): any evidence of the consent window and V06-CONSENT; the helper binary
+  changed, so broker evidence must be taken on the candidate.
+- `47c27b9` (Registry provider): V13 Registry browsing evidence for explicit views.
 
 ## Next actions (unblocked)
 
-1. Finish step 3: skip and early-return inventory for all lanes.
-2. Preliminary V19 on the lent Ubuntu 22.04 VM and the Mac with the CI-built packages (tar, deb, AppImage in normal
-   FUSE mode; app ZIP and Gatekeeper behavior), noting that neither environment is a final target.
-3. Continue the V23/DPI source review in risk order: DPI P01/P02/P04/P08/P14/P16, then B04 (broker, I17), B10 (I16),
-   B08 (recovery topology, I09).
-4. I04: check the `.deb` dependency set against Ubuntu 26.04 (`libicu78`) in a container or VM.
-5. Keep the three records current after each change.
+1. Finish I22 (POSIX-semantics replace fallback on Windows, "in use" classification, the Synchronize test waiting for
+   the comparison to let go) and I23 (name lookups outlive the search window); regress on the host, the VMs and CI.
+2. I24 (seconds in the Modified column).
+3. V08 remote harness against the Ubuntu VM's servers from the Windows VM and the host: host-key trust and change, TLS
+   validation, interruption and resume, latency, a server-side oracle.
+4. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
+   I09 topology), as the owner permitted.
+5. Continue the V23/DPI source review in risk order: DPI P01/P02/P04/P08/P14/P16, the rest of B04 (I17), B10 (I16),
+   B08 (I09).
+6. Finish step 3's skip lists for the portable and ARM64 lanes; I04 on Ubuntu 26.04.
+7. Keep the records current after each change.

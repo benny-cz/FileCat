@@ -21,7 +21,7 @@ configuration (networking off, nothing mapped). The feature `Containers-Disposab
 | VM (`.vmx`) | Guest | Access | Snapshot |
 |---|---|---|---|
 | `V:\Virtual Machines\Jamf\Windows 10 x64` (encrypted VM) | Windows 11 Pro **Insider Preview** 10.0.26300.8068 (25H2), x64, 92 GB free; .NET runtimes incl. 10.0.6; WebView2 154.0.4258.37; UAC on, admins elevate without prompting; SAC off; Defender on | `vmrun` guest operations as local administrator (commands run at High integrity) | `filecat-before` (2026-09-30), to be reverted after the campaign's use |
-| `V:\Virtual Machines\Barebit\Ubuntu 64-bit` | Ubuntu **22.04.5 LTS** (jammy), kernel 6.8.0-138, GNOME (gdm) with the user logged in, 162 GB free; `libicu70`, `libwebkit2gtk-4.0-37`, `libsecret-1-0`, `fuse3` (no `libfuse2`); sshd active; **no network interface up** | `vmrun` guest operations as a sudo user | `filecat-before` (2026-09-30), to be reverted |
+| `V:\Virtual Machines\Barebit\Ubuntu 64-bit` | Ubuntu **22.04.5 LTS** (jammy), kernel 6.8.0-138, GNOME (gdm) with the user logged in, 162 GB free; `libicu70`, `libwebkit2gtk-4.0-37`, `libsecret-1-0`, `fuse3` (no `libfuse2`); sshd active; no network interface up when lent (the campaign connected its adapter to VMware NAT, host-private: `192.168.58.129/24`) | `vmrun` guest operations as a sudo user | `filecat-before` (2026-09-30), to be reverted |
 
 Neither guest is a GA release of the plan's target versions (GA Windows 11; Ubuntu 24.04 and 26.04), and neither is
 "fresh". Evidence from them is preliminary.
@@ -39,3 +39,24 @@ workflow hard-codes the `Inno Setup 6` path.
 HEAD `4f6b062` equal to `origin/main` at the start; no tags, releases, issues or pull requests; private vulnerability
 reporting `{"enabled": false}`; repository public; secret scanning and push protection enabled, Dependabot security
 updates disabled.
+
+## E-ENV-05 — later additions (2026-09-30)
+
+- **Windows VM, unelevated runs:** `vmrun runProgramInGuest -interactive` starts a program in the logged-on session as
+  the signed-in administrator **without elevation** (the test logs record `elevated False`); plain guest operations run
+  elevated. Elevated work in the session (the I17 consent harness) uses a one-shot scheduled task with highest rights.
+- **The owner's Mac (ENV-01):** MacBook Pro, Apple M1 (8 cores), macOS 26.6.2 (build 25G83), Gatekeeper assessments
+  enabled; reached over SSH on the LAN with a key the owner designated for this campaign. It is the owner's personal
+  machine, not a clean install. Campaign files stay under `~/fc-campaign`; a user-local .NET 10.0.12 runtime was put in
+  `~/.dotnet` (dotnet-install) and pyftpdlib/pyOpenSSL in the user's Python site packages for the FTP test server. The
+  login keychain cannot be unlocked over SSH without a prompt (OSStatus -25293).
+- **Test servers on the Ubuntu VM (ENV-06, partial):** OpenSSH (SFTP subsystem) on 22; vsftpd with FTP and explicit
+  FTPS on 21 and a second vsftpd instance with implicit FTPS on 990; Samba share `fcshare` on 445. Throwaway account
+  `fctest`, password authentication; one self-signed TLS certificate for both FTPS services (SAN `192.168.58.129`,
+  SHA-256 fingerprint `46:1E:A1:91:61:F7:67:EF:61:A8:EF:6F:86:DC:A2:9C:B6:F9:F5:E8:63:90:57:3D:F3:2B:F6:84:76:E6:C3:E9`).
+  Reachable only on the host-private NAT network; the VM's firewall is inactive. A first vsftpd configuration with
+  `ssl_tlsv1_1`/`ssl_tlsv1_2` keys did not start (not investigated further); TLS is enabled with `ssl_tlsv1=YES` and
+  SSLv2/SSLv3 off, and the TLS versions actually negotiated are still to be recorded when the remote harness runs. One implementation per protocol so far;
+  the plan asks for two where applicable.
+- **Parallel use:** the owner asked that the VMs and the Mac be kept busy in parallel; runs on different machines may
+  overlap and share the host's CPUs (relevant to timing-sensitive results, see E-I23).
