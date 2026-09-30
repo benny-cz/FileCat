@@ -34,6 +34,8 @@ public static class NetworkDiscovery
     /// <summary>
     /// Probes for <paramref name="wait"/> and reports each host once as it answers (a WS-Discovery answer after its
     /// name is read, within moments). The probes go to <paramref name="targets"/> when given (tests), else multicast.
+    /// A name asked for within the wait may arrive after it: the lookup ends at the metadata client's own timeout, not
+    /// with the wait (release issue I23: a device that answered late was listed by its address).
     /// </summary>
     public static async Task DiscoverAsync(Action<NetworkHost> found, TimeSpan wait, CancellationToken ct,
         IPEndPoint? wsdTarget = null, IPEndPoint? mdnsTarget = null, IReadOnlyList<IPAddress>? interfaces = null)
@@ -64,7 +66,7 @@ public static class NetworkDiscovery
         var work = new List<Task>();
         foreach (var address in local)
         {
-            work.Add(ProbeWsdAsync(address, wsdTarget ?? WsDiscovery, Report, stop.Token));
+            work.Add(ProbeWsdAsync(address, wsdTarget ?? WsDiscovery, Report, stop.Token, ct));
             work.Add(ProbeMdnsAsync(address, mdnsTarget ?? MulticastDns, Report, stop.Token));
         }
         await Task.WhenAll(work).ConfigureAwait(false);
@@ -98,7 +100,9 @@ public static class NetworkDiscovery
 
     // ---- WS-Discovery ----------------------------------------------------------------------------------------
 
-    private static async Task ProbeWsdAsync(IPAddress local, IPEndPoint target, Action<NetworkHost> report, CancellationToken ct)
+    /// <param name="ct">Ends the probe (the wait).</param>
+    /// <param name="naming">Ends the name lookups started meanwhile (the caller's cancellation only).</param>
+    private static async Task ProbeWsdAsync(IPAddress local, IPEndPoint target, Action<NetworkHost> report, CancellationToken ct, CancellationToken naming)
     {
         using var socket = Open(local);
         if (socket is null) return;
@@ -120,7 +124,7 @@ public static class NetworkDiscovery
                     if (!answered.Add(match.Endpoint)) continue;
                     // The name is asked only of the device that answered, never of an address it named elsewhere.
                     string? metadata = match.Addresses.FirstOrDefault(a => IsAt(a, from.Address));
-                    names.Add(NameAsync(match.Endpoint, metadata, from.Address, report, ct));
+                    names.Add(NameAsync(match.Endpoint, metadata, from.Address, report, naming));
                 }
             }
         }

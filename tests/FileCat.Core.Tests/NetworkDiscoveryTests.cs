@@ -168,6 +168,54 @@ public sealed class NetworkDiscoveryTests
     }
 
     [Fact]
+    public async Task A_name_that_arrives_after_the_search_window_is_still_used()
+    {
+        // Release issue I23: the device answers the probe at once, but its metadata (its name) comes only after the
+        // one-second search has ended, as from a slow device or a busy machine. It is listed by its name, not its address.
+        var ct = TestContext.Current.CancellationToken;
+        var window = TimeSpan.FromSeconds(1);
+        using var http = new TcpListener(IPAddress.Loopback, 0);
+        http.Start();
+        int httpPort = ((IPEndPoint)http.LocalEndpoint).Port;
+        var serving = Task.Run(async () =>
+        {
+            using var client = await http.AcceptTcpClientAsync(ct);
+            using var stream = client.GetStream();
+            var buffer = new byte[16384];
+            int read = 0;
+            while (!Encoding.UTF8.GetString(buffer, 0, read).Contains("</soap:Envelope>", StringComparison.Ordinal))
+            {
+                int n = await stream.ReadAsync(buffer.AsMemory(read), ct);
+                if (n == 0) return;
+                read += n;
+            }
+            await Task.Delay(window + TimeSpan.FromMilliseconds(700), ct);
+            byte[] body = Encoding.UTF8.GetBytes(Metadata);
+            await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/soap+xml\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"), ct);
+            await stream.WriteAsync(body, ct);
+        }, ct);
+        using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        using var silentMdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var answering = Task.Run(async () =>
+        {
+            var probe = await wsd.ReceiveAsync(ct);
+            await wsd.SendAsync(Encoding.UTF8.GetBytes(ProbeMatches($"http://127.0.0.1:{httpPort}/1f7b8c3a/")), probe.RemoteEndPoint, ct);
+        }, ct);
+
+        var found = new List<NetworkHost>();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, window, ct,
+            (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)silentMdns.Client.LocalEndPoint!, [IPAddress.Loopback]);
+        var host = Assert.Single(found);
+        Assert.Equal("TESTBOX", host.Name);
+        Assert.Equal("Workgroup: WORKGROUP", host.Detail);
+        // The lookup is bounded by the metadata client's own timeout (3 s), not endless.
+        Assert.True(clock.Elapsed < window + TimeSpan.FromSeconds(4), $"Took {clock.Elapsed}.");
+        await serving;
+        http.Stop();
+    }
+
+    [Fact]
     public async Task A_device_that_names_another_address_is_not_followed_there()
     {
         var ct = TestContext.Current.CancellationToken;
