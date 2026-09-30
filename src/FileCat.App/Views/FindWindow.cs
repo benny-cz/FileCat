@@ -77,6 +77,7 @@ public sealed class FindWindow : Window, IViewActions
     private readonly CheckBox _matchCase = new() { Content = "Match case" };
     private readonly CheckBox _wholeWords = new() { Content = "Whole words" };
     private readonly CheckBox _regex = new() { Content = "Regular expression" };
+    private readonly CheckBox _unicode = new() { Content = "Unicode" };
     private readonly CheckBox _hex = new() { Content = "Hex" };
     private readonly CheckBox _archives = new() { Content = "Inside archives" };
     private readonly Button _find = new() { Content = "Find", Classes = { "primary" } };
@@ -257,10 +258,15 @@ public sealed class FindWindow : Window, IViewActions
         }
         _lookInHost.Children.Add(_lookIn);
         Row(_within is null ? "Look in:" : "Search within:", _lookInHost, lookInButtons);
+        // Each field's options under it, as in Salamander: where to look, then how to read the text.
+        var where = new WrapPanel { ItemSpacing = 12, LineSpacing = 4 };
+        foreach (var box in new[] { _subfolders, _hidden, _archives }) where.Children.Add(box);
+        Row(string.Empty, where);
         Row("Containing:", _text, HistoryButton(_text, () => _services.History.SearchTexts, "Earlier texts"));
         var options = new WrapPanel { ItemSpacing = 12, LineSpacing = 4 };
-        foreach (var box in new[] { _subfolders, _hidden, _archives, _matchCase, _wholeWords, _regex, _hex }) options.Children.Add(box);
+        foreach (var box in new[] { _matchCase, _wholeWords, _regex, _unicode, _hex }) options.Children.Add(box);
         ToolTip.SetTip(_archives, "Also finds names inside ZIP, 7z, RAR, TAR, and the other archives FileCat opens (not their contents, and not archives inside archives)");
+        ToolTip.SetTip(_unicode, "Also finds the text where a file keeps it as UTF-16 (either byte order) or UTF-8: in programs, fonts, the Registry's files, and other binary files, not only in text files");
         ToolTip.SetTip(_hex, "The text is bytes: hex pairs (4D 5A) and text in quotes (\"MZ\")");
         ToolTip.SetTip(_wholeWords, "No letter, digit, or underscore right before or after the text");
         if (_within is not null) _subfolders.IsEnabled = false;
@@ -341,6 +347,7 @@ public sealed class FindWindow : Window, IViewActions
         _matchCase.IsEnabled = !hex;
         _wholeWords.IsEnabled = !hex;
         _regex.IsEnabled = !hex;
+        _unicode.IsEnabled = !hex;
         _text.PlaceholderText = hex ? "Bytes: hex pairs (4D 5A 90) and text in quotes (\"MZ\")" : "Text inside files (optional)";
     }
 
@@ -485,6 +492,7 @@ public sealed class FindWindow : Window, IViewActions
         WholeWords = _wholeWords.IsChecked == true,
         Regex = _regex.IsChecked == true,
         Hex = _hex.IsChecked == true,
+        Unicode = _unicode.IsChecked == true,
         Advanced = _advanced.Clone(),
     };
 
@@ -526,6 +534,7 @@ public sealed class FindWindow : Window, IViewActions
         _wholeWords.IsChecked = c.WholeWords;
         _regex.IsChecked = c.Regex;
         _hex.IsChecked = c.Hex;
+        _unicode.IsChecked = c.Unicode;
         SetAdvanced(c.Advanced.Clone());
     }
 
@@ -1107,11 +1116,14 @@ public sealed class FindWindow : Window, IViewActions
 
     internal void SetInsideArchives(bool on) => _archives.IsChecked = on;
 
-    internal void SetContent(string text, bool hex)
+    internal void SetContent(string text, bool hex, bool unicode = false)
     {
         _text.Text = text;
         _hex.IsChecked = hex;
+        _unicode.IsChecked = unicode;
     }
+
+    internal bool UnicodeAvailable => _unicode.IsEnabled;
 
     internal string Status => _status.Text ?? string.Empty;
 

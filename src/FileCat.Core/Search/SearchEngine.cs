@@ -18,6 +18,11 @@ public sealed class SearchQuery
     public bool WholeWords { get; init; }
     /// <summary>Bytes to find in files instead of text (hex mode, <see cref="HexPattern"/>).</summary>
     public byte[]? Bytes { get; init; }
+    /// <summary>
+    /// The text is also found where a file keeps it as UTF-16 (either byte order, at any offset) or UTF-8: in programs,
+    /// fonts, the Registry's files, and other binary files, not only in text files in their own encoding.
+    /// </summary>
+    public bool Unicode { get; init; }
     public bool Recursive { get; init; } = true;
     public int MaxDepth { get; init; } = int.MaxValue;
     public bool IncludeHidden { get; init; } = true;
@@ -65,7 +70,11 @@ public sealed class SearchQuery
         var parts = new List<string>();
         if (Names is { IsMatchAll: false }) parts.Add($"names \"{Names.Text}\"");
         if (Bytes is { Length: > 0 } bytes) parts.Add($"bytes {HexPattern.Format(bytes)}");
-        else if (!string.IsNullOrEmpty(Text)) parts.Add((Regex ? "regex " : "text ") + $"\"{Text}\"" + (WholeWords ? " (whole words)" : ""));
+        else if (!string.IsNullOrEmpty(Text))
+        {
+            string notes = string.Join(", ", new[] { WholeWords ? "whole words" : null, Unicode ? "UTF-16 and UTF-8 too" : null }.OfType<string>());
+            parts.Add((Regex ? "regex " : "text ") + $"\"{Text}\"" + (notes.Length > 0 ? $" ({notes})" : ""));
+        }
         if (MinSize is not null || MaxSize is not null) parts.Add("size filter");
         if (ModifiedAfterUtc is not null || ModifiedBeforeUtc is not null) parts.Add("date filter");
         if (CreatedAfterUtc is not null || CreatedBeforeUtc is not null) parts.Add("creation date filter");
@@ -470,35 +479,85 @@ public sealed class SearchSession
         var bytes = _bytes ??= new byte[ChunkBytes];
         int hn = fs.Read(bytes, 0, (int)Math.Min(4096, fs.Length));
         var guess = TextDecoding.Detect(bytes.AsSpan(0, hn));
-        var encoding = guess.Encoding;
-        fs.Position = guess.PreambleLength;
+        var views = ViewsFor(guess);
         var text = _query.Text!;
         int overlapChars = _regex is null ? text.Length + 4 : 1024;
-        int need = overlapChars + encoding.GetMaxCharCount(ChunkBytes);
-        if (_chars is null || _chars.Length < need) _chars = new char[need];
-        var chars = _chars;
-        var decoder = encoding.GetDecoder();
-        int carried = 0, n;
-        bool first = true, matchAtEnd = false;
+        fs.Position = 0;
+        long at = 0;
+        int n;
         while ((n = fs.Read(bytes, 0, bytes.Length)) > 0)
         {
             ct.ThrowIfCancellationRequested();
-            int c = decoder.GetChars(bytes, 0, n, chars, carried);
-            var window = chars.AsSpan(0, carried + c);
-            if (_regex is not null)
+            foreach (var view in views)
             {
-                if (RegexMatches(window, first, out matchAtEnd)) return true;
+                // A view starts where its text starts: after a byte-order mark, or one byte in for UTF-16 at odd offsets.
+                int from = (int)Math.Clamp(view.Start - at, 0, n);
+                if (from == n) continue;
+                int c = view.Decoder.GetChars(bytes, from, n - from, view.Chars, view.Carried);
+                var window = view.Chars.AsSpan(0, view.Carried + c);
+                if (_regex is not null)
+                {
+                    if (RegexMatches(window, view.First, out view.MatchAtEnd)) return true;
+                }
+                else if (view.Ordinal ? window.IndexOf(text, _query.MatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) >= 0 : Contains(window, text))
+                {
+                    return true;
+                }
+                // The end of this window starts the next one, so text split across two reads is found.
+                view.Carried = Math.Min(overlapChars, window.Length);
+                window[^view.Carried..].CopyTo(view.Chars);
+                view.First = false;
             }
-            else if (Contains(window, text))
-            {
-                return true;
-            }
-            // The end of this window starts the next one, so text split across two reads is found.
-            carried = Math.Min(overlapChars, window.Length);
-            window[^carried..].CopyTo(chars);
-            first = false;
+            at += n;
         }
-        return matchAtEnd;
+        return views.Any(v => v.MatchAtEnd);
+    }
+
+    /// <summary>
+    /// How a file's bytes are read as text: in the encoding its start suggests, and with <see cref="SearchQuery.Unicode"/>
+    /// also as UTF-16 in either byte order from even and from odd offsets (strings in programs and other binary files:
+    /// .NET's user strings start at odd ones), and as UTF-8 where the file is not read so already (text other than
+    /// ASCII inside a binary file). Binary files and those views compare ordinally: a linguistic comparison skips
+    /// ignorable characters, NUL among them, so "H", zero, "i" in bytes that are no text at all counted as "Hi".
+    /// </summary>
+    private List<TextView> ViewsFor(EncodingGuess guess)
+    {
+        var views = new List<TextView>(6);
+        int overlap = _regex is null ? _query.Text!.Length + 4 : 1024;
+        TextView View(int slot, Encoding encoding, int start, bool ordinal)
+        {
+            int need = overlap + encoding.GetMaxCharCount(ChunkBytes);
+            var chars = _viewChars[slot] is { } kept && kept.Length >= need ? kept : _viewChars[slot] = new char[need];
+            return new TextView(encoding.GetDecoder(), chars, start, ordinal);
+        }
+        views.Add(View(0, guess.Encoding, guess.PreambleLength, ordinal: guess.LooksBinary));
+        if (!_query.Unicode) return views;
+        bool mainUtf16 = guess.Encoding is UnicodeEncoding;
+        bool mainBigEndian = mainUtf16 && guess.Encoding.CodePage == 1201;
+        foreach (var (bigEndian, start, slot) in new[] { (false, 0, 1), (false, 1, 2), (true, 0, 3), (true, 1, 4) })
+        {
+            // The file's own UTF-16 at even offsets is the first view already.
+            if (mainUtf16 && mainBigEndian == bigEndian && start == 0) continue;
+            views.Add(View(slot, new UnicodeEncoding(bigEndian, byteOrderMark: false, throwOnInvalidBytes: false), start, ordinal: true));
+        }
+        // ASCII text reads the same in UTF-8 as in the file's own reading; a regular expression may match other text.
+        if (guess.Encoding is not UTF8Encoding && (_query.Regex || !Ascii.IsValid(_query.Text!)))
+            views.Add(View(5, new UTF8Encoding(false, throwOnInvalidBytes: false), 0, ordinal: true));
+        return views;
+    }
+
+    /// <summary>A file's bytes read as text one way (<see cref="ViewsFor"/>), with the end of its last window kept.</summary>
+    private sealed class TextView(Decoder decoder, char[] chars, int start, bool ordinal)
+    {
+        public Decoder Decoder { get; } = decoder;
+        public char[] Chars { get; } = chars;
+        /// <summary>The file offset its text starts at.</summary>
+        public int Start { get; } = start;
+        /// <summary>Compared ordinally, not linguistically (see <see cref="ViewsFor"/>).</summary>
+        public bool Ordinal { get; } = ordinal;
+        public int Carried;
+        public bool First = true;
+        public bool MatchAtEnd;
     }
 
     /// <summary>
@@ -528,7 +587,8 @@ public sealed class SearchSession
     }
 
     private byte[]? _bytes;
-    private char[]? _chars;
+    /// <summary>The views' character buffers, kept for the next file (see <see cref="ViewsFor"/>).</summary>
+    private readonly char[]?[] _viewChars = new char[6][];
 
     /// <summary>
     /// The query's text in decoded text. Ignoring case compares linguistically (the current culture), which is about ten

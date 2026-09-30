@@ -343,7 +343,7 @@ internal static class FindDialogs
     {
         var parts = new List<string> { (string.IsNullOrWhiteSpace(c.Names) ? "*" : c.Names) + (c.LookIn.Length > 0 ? " in " + c.LookIn : string.Empty) };
         if (c.InsideArchives) parts.Add("inside archives too");
-        if (c.Text.Length > 0) parts.Add((c.Hex ? "bytes " : "containing ") + (c.Hex ? c.Text : $"\"{c.Text}\""));
+        if (c.Text.Length > 0) parts.Add(c.Hex ? "bytes " + c.Text : $"containing \"{c.Text}\"" + (c.Unicode ? " (UTF-16 and UTF-8 too)" : string.Empty));
         if (!c.Advanced.IsEmpty) parts.Add(c.Advanced.Summary());
         return string.Join(" · ", parts);
     }

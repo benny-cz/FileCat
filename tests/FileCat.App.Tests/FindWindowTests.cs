@@ -369,4 +369,36 @@ public sealed class FindWindowTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    [AvaloniaFact]
+    public async Task Unicode_finds_text_a_program_keeps_in_UTF16_and_Hex_turns_it_off()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            // A program's resources: its text in UTF-16, with zeros around.
+            var program = new byte[4096];
+            System.Text.Encoding.Unicode.GetBytes("Setup Wizard").CopyTo(program, 1024);
+            File.WriteAllBytes(Path.Combine(root, "files", "setup.exe"), program);
+            var find = await OpenFindAsync(vm, ct);
+            find.SetContent("setup wizard", hex: false);
+            await SearchAsync(find, "*", ct);
+            Assert.Empty(find.Found);
+            find.SetContent("setup wizard", hex: false, unicode: true);
+            await SearchAsync(find, "*", ct);
+            Assert.Equal(["setup.exe"], find.Found);
+            // Hex takes the text as bytes: Unicode has nothing to add and is off.
+            find.SetContent("\"alpha\"", hex: true, unicode: true);
+            await WaitFor(() => !find.UnicodeAvailable, ct);
+            Assert.False(find.UnicodeAvailable);
+            await SearchAsync(find, "*", ct);
+            Assert.Equal(["a.txt"], find.Found);
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

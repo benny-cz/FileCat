@@ -169,6 +169,8 @@ public sealed class SearchCriteria
     public bool Regex { get; set; }
     /// <summary>The text is bytes (<see cref="HexPattern"/>).</summary>
     public bool Hex { get; set; }
+    /// <summary>The text is also found as UTF-16 and UTF-8 in any file (<see cref="SearchQuery.Unicode"/>).</summary>
+    public bool Unicode { get; set; }
     public AdvancedSearchCriteria Advanced { get; set; } = new();
 
     public SearchCriteria Clone()
@@ -226,6 +228,7 @@ public sealed class SearchCriteria
             MatchCase = MatchCase,
             WholeWords = WholeWords && !Hex,
             Regex = Regex && !Hex,
+            Unicode = Unicode && !Hex,
             Recursive = Subfolders,
             IncludeHidden = IncludeHidden,
             MinSize = Advanced.SizeAtLeast is { } least ? AdvancedSearchCriteria.Bytes(least, Advanced.SizeAtLeastUnit) : null,
