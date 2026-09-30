@@ -7,7 +7,7 @@ Work happens directly on `main`, and every chunk is committed and pushed. Keep t
 
 ```
 dotnet build FileCat.slnx
-dotnet test FileCat.slnx                              # Core 432, Windows integration 81 (9 need a phone, 6 a USB stick), App headless 130 (1 needs a USB stick), Remote 43 tests
+dotnet test FileCat.slnx                              # Core 517, Windows integration 98 (9 need a phone, 6 a USB stick), App headless 150 (1 needs a USB stick), Remote 43 tests
 eng/package-linux.sh VERSION linux-x64                # Linux .tar.gz, .deb, AppImage (on Linux); eng/package-macos.sh VERSION on macOS
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
 dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
@@ -67,7 +67,7 @@ dotnet run --project src/FileCat.App                  # [paths] --left P --right
 - **Commits:** check `dotnet test` exit codes before committing; grep output alone hides failures.
 - **Real-server SFTP tests** start a user-mode sshd (Linux/macOS CI). Locally in WSL: extract openssh-server and libwrap0 debs, then run with `FILECAT_SSHD` and `LD_LIBRARY_PATH` set.
 - **Stopping stuck test hosts:** only processes under `E:\FileCat` (other sessions run tests on this machine). A dialog with blank lines hangs headless layout: `dotnet-stack report -p <pid>` shows it.
-- **Pictures of windows without the desktop:** `tests/FileCat.Screenshots` draws FileCat's windows offscreen with Skia and its own styles and themes (`FileCat.Screenshots <out> record <path> [pages] [theme ...]`); it works on a locked screen. The App tests' headless drawing renders nothing.
+- **Pictures of windows without the desktop:** `tests/FileCat.Screenshots` draws FileCat's windows offscreen with Skia and its own styles and themes; it works on a locked screen. `<out> record <path> [pages] [theme ...]`, `<out> window <left> [right] [theme ...]`, and `<out> command <left>[|right] <command id>[@tab] [theme ...]` (the dialog, and any window the command opens); a location is a path, `journal:C:\`, or what the path box reads ("This PC", a Registry key). `FILECAT_SHOT_CLIPBOARD` seeds the clipboard, `FILECAT_SHOT_STARTUP=1` also saves the first frame. The light theme is `Classic`. The App tests' headless drawing renders nothing.
 - **Junctions in tests:** .NET's recursive `Directory.Delete` fails on junctions here (its `DeleteVolumeMountPoint` call returns "parameter is incorrect"); delete junctions non-recursively first. Product deletes never use the recursive API.
 - **Benchmarks:** `FILECAT_COPY_BENCH=100000 FILECAT_COPY_BENCH_ROUNDS=2 dotnet test tests/FileCat.Platform.Windows.Tests --filter SmallFileCopyBenchmark --logger "console;verbosity=detailed"`.
   Rounds alternate the order. Other test runs or antivirus scans on the machine distort single runs by several times.
