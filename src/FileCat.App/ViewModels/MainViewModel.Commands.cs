@@ -498,7 +498,7 @@ public sealed partial class MainViewModel
                 await ShowViewerWindowsAsync();
                 break;
             case CommandIds.About:
-                await Dialogs.AlertAsync("About FileCat", $"FileCat {typeof(MainViewModel).Assembly.GetName().Version}\nMIT-licensed file manager and system-resource navigator.\nAuthor: Marek Střihavka (marek.strihavka@gmail.com)\nPlatform: {Services.Platform.Name}\nProfile: {Services.Paths.ProfileName}{(Services.Paths.IsPortable ? " (portable)" : "")}\nData: {Services.Paths.SettingsDirectory}");
+                await Views.AboutDialog.ShowAsync(this);
                 break;
             case CommandIds.Exit:
                 View.TopLevel?.GetType().GetMethod("Close", Type.EmptyTypes)?.Invoke(View.TopLevel, null);
