@@ -18,7 +18,8 @@ public sealed class ReportWindowTests
         var ct = TestContext.Current.CancellationToken;
         int reads = 0;
         var first = new TaskCompletionSource();
-        var window = new ReportWindow("File-system record", @"C:\data\file.bin", async token =>
+        string subject = Path.Combine(Path.GetTempPath(), "data", "file.bin");
+        var window = new ReportWindow("File-system record", subject, async token =>
         {
             int read = Interlocked.Increment(ref reads);
             if (read == 1) await first.Task.WaitAsync(token);
@@ -31,7 +32,7 @@ public sealed class ReportWindowTests
         {
             // It opens at once and says it is reading; the report fills in when ready.
             Assert.Equal("Reading…", window.Text);
-            Assert.StartsWith(@"Reading C:\data\file.bin", window.StatusText, StringComparison.Ordinal);
+            Assert.StartsWith($"Reading {subject}", window.StatusText, StringComparison.Ordinal);
             Assert.Equal("file.bin · File-system record — FileCat", window.Title);
             first.SetResult();
             await window.Reading!;

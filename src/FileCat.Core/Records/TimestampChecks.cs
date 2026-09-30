@@ -11,6 +11,33 @@ public sealed record RecordFinding(bool Strong, string Text);
 /// </summary>
 public static class TimestampChecks
 {
+    /// <summary>
+    /// Linux and macOS: programs can set the access and modification times (on macOS the birth time too) but never the
+    /// status change time, which moves to the present whenever anything about the item changes. So a modification time
+    /// after it was set into that future, and a birth after the last change means the clock went back or the disk was
+    /// edited. Times that came with a copy (cp -p, rsync, tar) are earlier than the birth, which is normal and said so.
+    /// </summary>
+    public static List<RecordFinding> CheckUnix(DateTime? birth, DateTime? modified, DateTime? changed, DateTime? accessed,
+        bool modifiedWhole, bool changedWhole, DateTime nowUtc)
+    {
+        var findings = new List<RecordFinding>();
+        var second = TimeSpan.FromSeconds(1);
+        if (modified is { } m && changed is { } c && m > c + second)
+            findings.Add(new(true, $"Its modification time ({RecordText.Time(m)}) is later than its status change time ({RecordText.Time(c)}), " +
+                "which programs cannot set and which moves to the present when they set the others: the modification time was set to a later moment than the one it was set at, or the clock went back."));
+        if (birth is { } b && changed is { } c2 && b > c2 + second)
+            findings.Add(new(true, $"It was born ({RecordText.Time(b)}) after its last status change ({RecordText.Time(c2)}): the clock went back, or its times were edited on the disk."));
+        if (birth is { } born && modified is { } m2 && m2 < born - second)
+            findings.Add(new(false, $"Its modification time is earlier than its birth: its times came with it from elsewhere (cp -p, rsync -t, tar, an archive) or were set with touch."));
+        // FAT keeps no status change time (it reads as the whole-second modification time), so FAT files stay quiet here.
+        if (modifiedWhole && !changedWhole)
+            findings.Add(new(false, "Its modification time is a whole second while its status change time is not: it was set (touch -d, tar and zip archives, FAT drives) rather than written."));
+        foreach (var (what, time) in new[] { ("birth", birth), ("modification", modified), ("status change", changed), ("access", accessed) })
+            if (time is { } t && t > nowUtc.AddDays(1))
+                findings.Add(new(false, $"Its {what} time is in the future ({RecordText.Time(t)}): the clock was wrong when it was set, or a program set it."));
+        return findings;
+    }
+
     public static List<RecordFinding> Check(long created, long modified, long changed, long accessed, IReadOnlyList<NtfsFileName> names,
         IReadOnlyList<UsnRecord> history, DateTime? volumeCreatedUtc, DateTime nowUtc)
     {

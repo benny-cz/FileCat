@@ -42,7 +42,8 @@ public class PortablePlatform : IPlatform
     public State.ISecretStore Secrets { get; protected init; } = State.SecretStores.ForThisOs();
     public HiddenData.IHiddenData HiddenData { get; protected init; } =
         OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new HiddenData.UnixHiddenData() : new HiddenData.NoHiddenData();
-    public Records.IFileRecords FileRecords { get; protected init; } = new Records.NoFileRecords();
+    public Records.IFileRecords FileRecords { get; protected init; } =
+        OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? new Records.UnixFileRecords() : new Records.NoFileRecords();
     public LocalFileSystemProvider? FileSystemProvider { get; private set; }
 
     public virtual void RegisterProviders(ProviderRegistry registry)

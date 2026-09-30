@@ -159,7 +159,8 @@ public sealed partial class WindowsFileRecordsTests
             }
             var section = Section(Read(file, privileged: false), "Object ID ($OBJECT_ID)");
             Assert.Matches(@"^\{[0-9a-f-]{36}\}", Field(section, "Object ID"));
-            Assert.Contains(section.Fields, f => f.Name == "Birth volume");
+            // Birth IDs are said when the volume gave them (a volume without an object ID of its own leaves them empty).
+            Assert.All(section.Fields.Where(f => f.Name.StartsWith("Birth", StringComparison.Ordinal)), f => Assert.Matches(@"^\{[0-9a-f-]{36}\}", f.Value));
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
