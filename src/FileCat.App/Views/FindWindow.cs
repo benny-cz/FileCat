@@ -200,6 +200,7 @@ public sealed class FindWindow : Window, IViewActions
         _list.ContextMenuRequested += (_, point) => ShowListMenu(point);
         _list.DragRequested += async (_, press) => await DragAsync(press);
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        Controls.AltChords.Attach(this);
         Opened += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             _names.Focus();
@@ -1038,7 +1039,8 @@ public sealed class FindWindow : Window, IViewActions
         if (KeyMapper.ToChord(e.Key, mods) is not { } chord) return;
         var id = _services.Keymap.Resolve(chord, CommandContext.Panel);
         if (id is null || !ListCommands.Contains(id)) return;
-        e.Handled = true;
+        // With Alt held (Alt+Enter), after Avalonia's access-key handler saw it (or releasing Alt opens the menu bar).
+        Controls.AltChords.Handle(this, e);
         Run(id);
     }
 

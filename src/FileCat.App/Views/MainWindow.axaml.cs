@@ -94,6 +94,7 @@ public partial class MainWindow : Window, IViewActions
         }
 
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        AltChords.Attach(this);
         // Moving a panel by dragging its number: the handle keeps the pointer, and its events reach the window.
         AddHandler(PointerMovedEvent, OnPanelDragMoved, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnPanelDragReleased, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -463,7 +464,8 @@ public partial class MainWindow : Window, IViewActions
         if (id is null && OperatingSystem.IsMacOS() && KeyMapper.MacCommandAlias(chord) is { } alias)
             id = alias == KeyMapper.MacQuit ? CommandIds.Exit : _vm.Services.Keymap.Resolve(alias, CommandContext.Panel);
         if (id is null) return;
-        e.Handled = true;
+        // With Alt held, after Avalonia's access-key handler saw it (or releasing Alt opens the menu bar).
+        AltChords.Handle(this, e);
         _suppressTextInput = true;
         _vm.ClearNotification();
         _vm.Execute(id);

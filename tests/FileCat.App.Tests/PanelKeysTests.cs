@@ -278,4 +278,53 @@ public sealed class PanelKeysTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+    [AvaloniaFact]
+    public async Task Alt_F1_then_a_drive_letter_opens_that_drive_as_the_keyboard_sends_them()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Drive letters are Windows'.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var panels = vm.Workspace.Panels;
+            panels[0].ActiveTab!.Navigate(new Location(Schemes.Computer, string.Empty));
+            vm.Workspace.Activate(panels[0]);
+            vm.View.FocusActivePanel();
+            await Task.Delay(100, ct);
+            var dialogs = (Views.OverlayDialogService)vm.Dialogs;
+            // As the keyboard sends them: Alt down, F1 with Alt, the menu opens while Alt is held, F1 and Alt up.
+            window.KeyPress(Key.LeftAlt, RawInputModifiers.Alt, PhysicalKey.AltLeft, null);
+            window.KeyPress(Key.F1, RawInputModifiers.Alt, PhysicalKey.F1, null);
+            for (int i = 0; i < 250 && !dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            await Task.Delay(100, ct);
+            window.KeyRelease(Key.F1, RawInputModifiers.Alt, PhysicalKey.F1, null);
+            window.KeyRelease(Key.LeftAlt, RawInputModifiers.None, PhysicalKey.AltLeft, null);
+            await Task.Delay(100, ct);
+            string focused = window.FocusManager?.GetFocusedElement()?.GetType().Name ?? "(nothing)";
+            // Then the drive's letter, key and text: the text follows only when nothing handled the key (as Windows does).
+            char drive = char.ToUpperInvariant(Path.GetPathRoot(root)![0]);
+            bool keyHandled = false;
+            void Watch(object? _, KeyEventArgs e) => keyHandled |= e.Handled;
+            window.AddHandler(InputElement.KeyDownEvent, Watch, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+            window.KeyPress(Enum.Parse<Key>(drive.ToString()), RawInputModifiers.None, Enum.Parse<PhysicalKey>(drive.ToString()), drive.ToString().ToLowerInvariant());
+            if (!keyHandled) window.KeyTextInput(drive.ToString().ToLowerInvariant());
+            window.KeyRelease(Enum.Parse<Key>(drive.ToString()), RawInputModifiers.None, Enum.Parse<PhysicalKey>(drive.ToString()), null);
+            for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);
+            Assert.False(dialogs.IsOpen, $"The letter did not open its drive; the focus was on {focused}, the key {(keyHandled ? "was" : "was not")} handled.");
+            Assert.StartsWith(drive + ":", panels[0].ActiveTab!.Location!.Path, StringComparison.OrdinalIgnoreCase);
+
+            // Alt pressed and released alone still opens the menu bar, as in any Windows program.
+            vm.View.FocusActivePanel();
+            await Task.Delay(100, ct);
+            window.KeyPress(Key.LeftAlt, RawInputModifiers.Alt, PhysicalKey.AltLeft, null);
+            window.KeyRelease(Key.LeftAlt, RawInputModifiers.None, PhysicalKey.AltLeft, null);
+            await Task.Delay(100, ct);
+            Assert.IsType<Avalonia.Controls.MenuItem>(window.FocusManager?.GetFocusedElement());
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }
