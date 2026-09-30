@@ -162,7 +162,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
-      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build
+      # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
+      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --blame-hang-timeout 4m --blame-hang-dump-type mini
       # P9: the UI runs headless on Linux and macOS too.
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
