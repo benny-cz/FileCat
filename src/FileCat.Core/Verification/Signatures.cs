@@ -141,7 +141,10 @@ public static class OpenPgp
     private static string? _tool;
     private static bool _looked;
 
-    /// <summary>gpg as the user runs it: on the PATH, or where Gpg4win and GnuPG install it on Windows.</summary>
+    /// <summary>
+    /// gpg as the user runs it: on the PATH (as "gpg2" too, as some distributions name it), or where GnuPG and Gpg4win,
+    /// Homebrew, and GPG Suite install it (a program started from the Finder gets a PATH without them).
+    /// </summary>
     public static string? Tool
     {
         get
@@ -149,13 +152,15 @@ public static class OpenPgp
             if (_looked) return _tool;
             _looked = true;
             string exe = OperatingSystem.IsWindows() ? "gpg.exe" : "gpg";
-            var candidates = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Select(d => Path.Combine(d, exe)).ToList();
+            var path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+            var candidates = path.Select(d => Path.Combine(d, exe)).ToList();
+            if (!OperatingSystem.IsWindows()) candidates.AddRange(path.Select(d => Path.Combine(d, "gpg2")));
             if (OperatingSystem.IsWindows())
             {
                 foreach (string? root in new[] { Environment.GetEnvironmentVariable("ProgramFiles(x86)"), Environment.GetEnvironmentVariable("ProgramFiles") })
                     if (!string.IsNullOrEmpty(root)) candidates.Add(Path.Combine(root, "GnuPG", "bin", exe));
             }
-            else candidates.AddRange(["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg", "/usr/bin/gpg"]);
+            else candidates.AddRange(["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg", "/usr/local/MacGPG2/bin/gpg", "/usr/bin/gpg", "/usr/bin/gpg2"]);
             // Git for Windows' own gpg keeps a keyring of its own, not the user's: left out.
             _tool = candidates.FirstOrDefault(c => !c.Contains(Path.Combine("Git", "usr"), StringComparison.OrdinalIgnoreCase) && File.Exists(c));
             return _tool;
