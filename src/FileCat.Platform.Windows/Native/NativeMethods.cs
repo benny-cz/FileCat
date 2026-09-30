@@ -32,6 +32,11 @@ internal static unsafe partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool DestroyIcon(nint hIcon);
 
+    /// <summary>A token's information of one class (TokenElevationType is 18).</summary>
+    [LibraryImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetTokenInformation(nint token, int informationClass, void* information, int length, out int returned);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct ICONINFO
     {

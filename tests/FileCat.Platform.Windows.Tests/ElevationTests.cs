@@ -24,6 +24,23 @@ public sealed class ElevationTests
 
     private static SecureFileOps Ops() => new(() => { });
 
+    [Fact]
+    public void The_window_titles_account_and_rights_come_from_the_process_token()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var account = new WindowsShellServices().Account;
+        using var identity = WindowsIdentity.GetCurrent();
+        // A local account by its name alone; a domain account (or NT AUTHORITY's) with its domain.
+        string local = Environment.MachineName + "\\";
+        string expected = identity.Name.StartsWith(local, StringComparison.OrdinalIgnoreCase) ? identity.Name[local.Length..] : identity.Name;
+        Assert.Equal(expected, account.Name);
+        // Told apart the other way: an administrator not elevated carries the Administrators group deny-only.
+        bool filtered = identity.Claims.Any(c => c.Type == System.Security.Claims.ClaimTypes.DenyOnlySid && c.Value == "S-1-5-32-544");
+        var rights = Environment.IsPrivilegedProcess ? Core.Platform.AccountRights.Elevated
+            : filtered ? Core.Platform.AccountRights.AdministratorNotElevated : Core.Platform.AccountRights.Standard;
+        Assert.Equal(rights, account.Rights);
+    }
+
     /// <summary>.NET's recursive delete trips over junctions (DeleteVolumeMountPoint); remove them as links first.</summary>
     private static void DeleteTree(string root)
     {

@@ -42,6 +42,9 @@ public interface IShellServices
     /// <summary>True when FileCat runs with administrator rights (worth a warning: plan §13).</summary>
     bool IsElevated { get; }
 
+    /// <summary>The account FileCat runs as and its rights (the window title says them).</summary>
+    ProcessAccount Account { get; }
+
     /// <summary>UNC form of a path on a mapped network drive; other paths are returned unchanged.</summary>
     string ToUncPath(string path);
 
@@ -167,6 +170,8 @@ public class PortableShellServices : IShellServices
     public virtual void SetShutdownBlock(nint owner, string? reason) { }
 
     public virtual bool IsElevated => !OperatingSystem.IsWindows() && Environment.UserName == "root";
+
+    public virtual ProcessAccount Account => ProcessAccount.FromEnvironment();
 
     public virtual string ToUncPath(string path) => path;
 

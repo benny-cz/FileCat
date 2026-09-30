@@ -52,7 +52,8 @@ public partial class MainWindow : Window, IViewActions
         vm.Workspace.Panels.CollectionChanged += (_, _) => RebuildPanels();
         vm.Workspace.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(WorkspaceViewModel.ActivePanel)) UpdateTitle();
+            // Another panel, or another tab in it: the title follows (and the tab's own title as it moves on).
+            if (e.PropertyName is nameof(WorkspaceViewModel.ActivePanel) or nameof(WorkspaceViewModel.ActiveTab)) UpdateTitle();
         };
         if (vm.Services.Icons.Native is { } native) native.IconsLoaded += () =>
         {
@@ -247,10 +248,29 @@ public partial class MainWindow : Window, IViewActions
 
     private void OnNotificationPressed(object? sender, PointerPressedEventArgs e) => _vm.ClearNotification();
 
+    private Core.Platform.ProcessAccount? _account;
+    private TabViewModel? _titleTab;
+
+    /// <summary>
+    /// The active tab's place, FileCat, and the account it runs as with its rights (elevated on Windows it starts with
+    /// "Administrator: "). It follows the tab as it goes elsewhere: before, only another panel's activation changed it.
+    /// </summary>
     private void UpdateTitle()
     {
-        var tab = _vm.ActiveTab;
-        Title = tab is null ? "FileCat" : $"{tab.Title} — FileCat";
+        var tab = _vm.Workspace.ActiveTab;
+        if (!ReferenceEquals(tab, _titleTab))
+        {
+            if (_titleTab is not null) _titleTab.PropertyChanged -= OnTitleTabChanged;
+            _titleTab = tab;
+            if (tab is not null) tab.PropertyChanged += OnTitleTabChanged;
+        }
+        _account ??= _vm.Services.Shell.Account;
+        Title = _account.WindowTitle(tab?.Title);
+    }
+
+    private void OnTitleTabChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TabViewModel.Title)) UpdateTitle();
     }
 
     // ---- Panels layout ----------------------------------------------------------------------------------

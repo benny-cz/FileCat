@@ -219,6 +219,27 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         }
     }
 
+    private ProcessAccount? _account;
+
+    /// <summary>
+    /// The process token's account and rights: elevated (UAC's full token, the built-in Administrator, SYSTEM), an
+    /// administrator's filtered token (UAC's "limited" elevation type: not elevated), or a standard user. A local
+    /// account is named alone; a domain account, or NT AUTHORITY's, with its domain.
+    /// </summary>
+    public override ProcessAccount Account => _account ??= ReadAccount();
+
+    private static ProcessAccount ReadAccount()
+    {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        string name = identity.Name;
+        int slash = name.IndexOf('\\');
+        if (slash > 0 && string.Equals(name[..slash], Environment.MachineName, StringComparison.OrdinalIgnoreCase)) name = name[(slash + 1)..];
+        int type = 0;
+        bool limited = GetTokenInformation(identity.Token, 18 /* TokenElevationType */, &type, sizeof(int), out _) && type == 3 /* TokenElevationTypeLimited */;
+        var rights = Environment.IsPrivilegedProcess ? AccountRights.Elevated : limited ? AccountRights.AdministratorNotElevated : AccountRights.Standard;
+        return new ProcessAccount(name, rights);
+    }
+
     public override string ToUncPath(string path)
     {
         if (path.Length >= 2 && path[1] == ':' && WindowsNetwork.GetRemoteName(path[..2]) is { } unc)

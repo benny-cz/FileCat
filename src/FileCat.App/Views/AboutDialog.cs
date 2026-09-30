@@ -72,10 +72,11 @@ internal static class AboutDialog
         // The platform names the system as people know it ("Windows 11 (build 26220, x64)").
         string system = services.Platform.Name;
         if (RuntimeInformation.ProcessArchitecture != RuntimeInformation.OSArchitecture) system += $" · FileCat runs as {RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant()}";
-        if (services.Shell.IsElevated) system += " · running as administrator";
         var facts = new List<(string, string)>
         {
             ("System", system),
+            // Who FileCat runs as, and with which rights ("marek (administrator, not elevated)"), as its title says.
+            ("Account", services.Shell.Account.Describe()),
             ("Runtime", $"{RuntimeInformation.FrameworkDescription} · Avalonia {typeof(Application).Assembly.GetName().Version?.ToString(3)}"),
             ("Theme", ThemeManager.Current.DisplayName),
             ("Profile", paths.ProfileName + (paths.IsPortable ? " (portable)" : "")),

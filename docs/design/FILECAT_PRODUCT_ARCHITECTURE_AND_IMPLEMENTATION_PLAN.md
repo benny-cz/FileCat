@@ -697,7 +697,7 @@ These failures come from the environment rather than from FileCat's logic. Each 
 | Hung SMB, removable-media, or cloud-recall calls | I/O scheduler | Per-device threads, abandonment, "not responding" state (§6.3) |
 | Read errors on damaged or optical media during ordinary copies | Copy strategy | Per-file retry, skip, or abort; no zero-filled substitution; partial destinations are deleted or kept and labeled, as the user chooses |
 | Viewer or editor handles blocking other programs | Read engine | Viewers open files with read, write, and delete sharing; the hex editor's deny-write baseline is explicit and visible |
-| The user starts FileCat elevated | Application shell | Warn; Windows blocks drag-and-drop from unelevated applications, and state goes to the elevated account's profile |
+| The user starts FileCat elevated | Application shell | Warn; Windows blocks drag-and-drop from unelevated applications, and state goes to the elevated account's profile. The window title names the account and its rights at all times: "Administrator: Downloads — FileCat — marek (elevated)", "… — marek (administrator, not elevated)", "… — marek (standard user)"; on Linux and macOS the user ("root", with sudo's user) |
 | Case-only rename | Local adapter | Treated as a rename, not a conflict |
 
 ## 10. Metadata, columns, and analysis scheduling
