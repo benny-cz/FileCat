@@ -31,6 +31,8 @@ public partial class PanelView : UserControl
             MoveRequested?.Invoke(e, NumberBadge);
             e.Handled = true;
         };
+        // A tab's button takes its press (it clicks on release), so the strip asks to see handled presses too.
+        TabStrip.AddHandler(PointerPressedEvent, OnTabPointerPressed, RoutingStrategies.Bubble, handledEventsToo: true);
         TabHeader.PointerPressed += (_, e) =>
         {
             if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is null) MoveRequested?.Invoke(e, TabHeader);
@@ -317,10 +319,24 @@ public partial class PanelView : UserControl
     /// <summary>Keeps the quick-view pane attached to the source panel's current tab.</summary>
     private void HookQuickView()
     {
-        if (_hookedPanel is not null) _hookedPanel.PropertyChanged -= OnPanelPropertyChanged;
+        if (_hookedPanel is not null)
+        {
+            _hookedPanel.PropertyChanged -= OnPanelPropertyChanged;
+            _hookedPanel.Tabs.CollectionChanged -= OnTabsChanged;
+        }
         _hookedPanel = Panel;
-        if (_hookedPanel is not null) _hookedPanel.PropertyChanged += OnPanelPropertyChanged;
+        if (_hookedPanel is not null)
+        {
+            _hookedPanel.PropertyChanged += OnPanelPropertyChanged;
+            // A tab moved along the strip (dragged, or Ctrl+Shift+PageUp) stays in sight when the tabs do not all fit.
+            _hookedPanel.Tabs.CollectionChanged += OnTabsChanged;
+        }
         AttachQuickView();
+    }
+
+    private void OnTabsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Move) ShowActiveTab();
     }
 
     private void OnPanelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -515,6 +531,9 @@ public partial class PanelView : UserControl
 
     /// <summary>A press on the panel's number or tab strip that may start moving the panel (and the element pressed).</summary>
     public event Action<PointerPressedEventArgs, Control>? MoveRequested;
+
+    /// <summary>A left press on a tab that may start dragging it (the tab, and its button).</summary>
+    public event Action<PointerPressedEventArgs, TabViewModel, Control>? TabDragRequested;
     public event Action<string>? PathSubmitted;
     public event Action? LocationMenuRequested;
     public event Action<int>? MiddleClick;
@@ -571,6 +590,42 @@ public partial class PanelView : UserControl
         }
     }
 
+    /// <summary>A left press on a tab may start dragging it along the strip, or to another panel's (the window decides).</summary>
+    private void OnTabPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if ((e.Source as Visual)?.FindAncestorOfType<Button>(includeSelf: true) is { Tag: TabViewModel tab } button
+            && e.GetCurrentPoint(button).Properties.IsLeftButtonPressed)
+            TabDragRequested?.Invoke(e, tab, button);
+    }
+
+    /// <summary>
+    /// Where a tab dropped at <paramref name="point"/> (in <paramref name="relativeTo"/>'s coordinates) goes among this
+    /// panel's tabs (as the index it ends up at), and the gap between tabs to mark there; null off the tab strip.
+    /// </summary>
+    internal (int Index, Rect Gap)? TabDropAt(Point point, Visual relativeTo, TabViewModel dragged)
+    {
+        if (Panel is not { } panel || !TabHeader.IsEffectivelyVisible || TabScroller.TranslatePoint(default, relativeTo) is not { } origin) return null;
+        // Forgiving above and below the strip: a drag rarely stays within its few pixels of height.
+        var strip = new Rect(origin, TabScroller.Bounds.Size).Inflate(new Thickness(0, 10));
+        if (!strip.Contains(point)) return null;
+        int index = 0;
+        double gap = origin.X;
+        foreach (var tab in panel.Tabs)
+        {
+            if (ReferenceEquals(tab, dragged)) continue;
+            if (TabStrip.ContainerFromItem(tab) is not Control c || c.TranslatePoint(default, relativeTo) is not { } at) continue;
+            if (point.X < at.X + c.Bounds.Width / 2)
+            {
+                gap = at.X;
+                break;
+            }
+            index++;
+            gap = at.X + c.Bounds.Width;
+        }
+        gap = Math.Clamp(gap, origin.X + 1, origin.X + TabScroller.Bounds.Width - 1);
+        return (index, new Rect(gap - 1.5, origin.Y + 2, 3, Math.Max(8, TabScroller.Bounds.Height - 4)));
+    }
+
     private void OnTabPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (sender is not Button { Tag: TabViewModel tab } button || Panel is not { } p) return;
@@ -591,9 +646,10 @@ public partial class PanelView : UserControl
     {
         var ws = panel.Workspace;
         var items = new List<Control>();
-        void Add(string header, string icon, Action action, bool enabled = true)
+        void Add(string header, string icon, Action action, bool enabled = true, string? gesture = null)
         {
             var mi = new MenuItem { Header = header, Icon = MenuIconFactory.Create(icon), IsEnabled = enabled };
+            if (gesture is not null) mi.InputGesture = KeyGesture.Parse(gesture);
             mi.Click += (_, _) =>
             {
                 action();
@@ -631,19 +687,18 @@ public partial class PanelView : UserControl
         });
         items.Add(new Separator());
         var target = ws.GetTarget(panel);
+        // The last tab moved away leaves a fresh one at the same place behind (a panel keeps a tab).
         Add(target is null ? "Move tab to target panel (no target)" : $"Move tab to panel {target.Number}", "tab.moveTarget", () =>
         {
-            if (target is null || panel.Tabs.Count <= 1) return;
-            target.AttachTab(panel.DetachTab(tab));
-            ws.Activate(target);
-        }, target is not null && panel.Tabs.Count > 1);
+            if (target is not null) ws.MoveTabToPanel(tab, target);
+        }, target is not null);
         Add(target is null ? "Copy tab to target panel (no target)" : $"Copy tab to panel {target.Number}", "tab.copyTarget", () =>
         {
             if (target is not null && tab.Location is { } l) target.OpenTab(l);
         }, target is not null);
         int index = panel.Tabs.IndexOf(tab);
-        Add("Move tab left", "tab.left", () => panel.Tabs.Move(index, index - 1), index > 0);
-        Add("Move tab right", "tab.right", () => panel.Tabs.Move(index, index + 1), index < panel.Tabs.Count - 1);
+        Add("Move tab left", "tab.left", () => panel.MoveTab(tab, index - 1), index > 0, "Ctrl+Shift+PageUp");
+        Add("Move tab right", "tab.right", () => panel.MoveTab(tab, index + 1), index < panel.Tabs.Count - 1, "Ctrl+Shift+PageDown");
         return new ContextMenu { ItemsSource = items };
     }
 

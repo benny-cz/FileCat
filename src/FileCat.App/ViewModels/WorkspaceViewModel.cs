@@ -115,6 +115,25 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         if (!ReferenceEquals(ActivePanel, panel)) ActivePanel = panel;
     }
 
+    /// <summary>
+    /// Moves a tab to another panel, at <paramref name="index"/> among its tabs (the end without one), where it becomes
+    /// the active tab of the active panel. A panel keeps a tab: the last one moved away leaves a fresh tab at the same
+    /// place behind, as closing it would.
+    /// </summary>
+    public void MoveTabToPanel(TabViewModel tab, PanelViewModel to, int? index = null)
+    {
+        var from = tab.Panel;
+        if (ReferenceEquals(from, to))
+        {
+            from.MoveTab(tab, index ?? from.Tabs.Count - 1);
+            Activate(from);
+            return;
+        }
+        if (from.Tabs.Count == 1 && tab.Location is { } here) from.OpenTab(here, activate: false);
+        to.AttachTab(from.DetachTab(tab), index);
+        Activate(to);
+    }
+
     /// <summary>The designated target of <paramref name="source"/>, or null when it must be chosen explicitly.</summary>
     public PanelViewModel? GetTarget(PanelViewModel source)
     {

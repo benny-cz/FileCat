@@ -175,6 +175,11 @@
     <Setter Property="Background" Value="{DynamicResource FcStatusBackground}" />
     <Setter Property="Padding" Value="6,2" />
   </Style>
+  <!-- Where a dragged tab goes: a bar in the accent between two tabs. -->
+  <Style Selector="Border.tabDropMarker">
+    <Setter Property="Background" Value="{DynamicResource FcActiveAccent}" />
+    <Setter Property="CornerRadius" Value="1.5" />
+  </Style>
   <!-- A link in a status line (Count): text in the theme's link color, no button chrome, the pointer a hand. -->
   <Style Selector="Button.statuslink">
     <Setter Property="Background" Value="Transparent" />

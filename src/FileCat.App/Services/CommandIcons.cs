@@ -179,6 +179,9 @@ public static class CommandIcons
         [CommandIds.ReopenTab] = [new(Tab, "TextMuted"), new("M6.5,7.5 L5,9 L6.5,10.5 M5,9 L9.5,9 C10.6,9 11,9.8 11,10.5", "ActiveAccent")],
         [CommandIds.NextTab] = [new(Tab, "TextMuted"), new("M5.5,10.25 L10.5,10.25 M8.5,8.25 L10.5,10.25 L8.5,12.25", "ActiveAccent")],
         [CommandIds.PreviousTab] = [new(Tab, "TextMuted"), new("M10.5,10.25 L5.5,10.25 M7.5,8.25 L5.5,10.25 L7.5,12.25", "ActiveAccent")],
+        // Moving: the tab itself in the accent, the arrow beside it the way it goes.
+        [CommandIds.MoveTabLeft] = [new("M5.5,6.5 L14.5,6.5 L14.5,14 L5.5,14 Z M6.5,6.5 L7.6,3 L11.9,3 L13,6.5", "ActiveAccent"), new("M4,10.25 L0.8,10.25 M2.3,8.75 L0.8,10.25 L2.3,11.75", "TextMuted")],
+        [CommandIds.MoveTabRight] = [new("M1.5,6.5 L10.5,6.5 L10.5,14 L1.5,14 Z M2.5,6.5 L3.6,3 L7.9,3 L9,6.5", "ActiveAccent"), new("M12,10.25 L15.2,10.25 M13.7,8.75 L15.2,10.25 L13.7,11.75", "TextMuted")],
         [CommandIds.DuplicateTab] = [new("M3.5,8.5 L3.5,15 L12.5,15", "TextMuted"), new("M5.5,6.5 L15,6.5 L15,12.5 L5.5,12.5 Z M6.5,6.5 L7.6,3.5 L11.4,3.5 L12.5,6.5")],
         [CommandIds.CopyTabToTarget] = [new(Tab, "TextMuted"), new("M5,10.25 L11,10.25 M9,8.25 L11,10.25 L9,12.25", "TargetAccent")],
         [CommandIds.LockTab] = [new("M4.5,7.5 L11.5,7.5 L11.5,14 L4.5,14 Z"), new("M6,7.5 L6,5 C6,3.9 6.9,3 8,3 C9.1,3 10,3.9 10,5 L10,7.5", "ActiveAccent")],

@@ -296,6 +296,10 @@ public sealed partial class MainViewModel
             case CommandIds.NextTab:
                 panel?.CycleTab(1);
                 break;
+            case CommandIds.MoveTabLeft:
+            case CommandIds.MoveTabRight:
+                if (panel?.ActiveTab is { } moving) panel.MoveTab(moving, panel.Tabs.IndexOf(moving) + (id == CommandIds.MoveTabLeft ? -1 : 1));
+                break;
             case CommandIds.PreviousTab:
                 panel?.CycleTab(-1);
                 break;

@@ -241,6 +241,7 @@ Tab operations follow Total Commander:
 - open the focused folder in a new tab;
 - a searchable tab list menu and recently closed tabs;
 - duplicate a tab, or copy it to the target panel;
+- reorder tabs by dragging one along the strip (a bar marks where it goes; Esc leaves it) or with Ctrl+Shift+PageUp/PageDown, as browsers do; drop a tab on another panel's strip to move it there (the last tab moved away leaves a fresh one at the same place);
 - locked tabs.
 
 A locked tab keeps its location: navigating from it opens a new tab. In the "return to root" variant, the tab returns to its saved location when revisited, which suits project roots. Large tab sets use overflow/search and resource-aware suspension, not a tab for every active background connection.

@@ -102,6 +102,8 @@ public partial class MainWindow : Window, IViewActions
         {
             if (_panelDrag is { } drag && ReferenceEquals(e.Pointer, drag.Pointer)) EndPanelDrag();
         }, RoutingStrategies.Bubble, handledEventsToo: true);
+        // Dragging a tab along a tab strip, or to another panel's.
+        AttachTabDrag();
         AddHandler(KeyUpEvent, OnPreviewKeyUp, RoutingStrategies.Tunnel);
         AddHandler(TextInputEvent, OnPreviewTextInput, RoutingStrategies.Tunnel);
         CommandLine.AddHandler(KeyDownEvent, OnCommandLineKeyDown, RoutingStrategies.Tunnel);
@@ -297,6 +299,7 @@ public partial class MainWindow : Window, IViewActions
         };
         v.MiddleClick += row => OpenRowInNewTab(p, row);
         v.MoveRequested += (press, handle) => BeginPanelDrag(p, press, handle);
+        v.TabDragRequested += (press, tab, handle) => BeginTabDrag(p, tab, press, handle);
         AttachDragDrop(v, p);
         _panelViews[p] = v;
         return v;
@@ -422,10 +425,11 @@ public partial class MainWindow : Window, IViewActions
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         _suppressTextInput = false;
-        if (_panelDrag is not null && e.Key == Key.Escape)
+        if ((_panelDrag is not null || _tabDrag is not null) && e.Key == Key.Escape)
         {
-            // Esc cancels moving a panel.
+            // Esc cancels moving a panel, or a tab.
             EndPanelDrag();
+            EndTabDrag();
             e.Handled = true;
             return;
         }

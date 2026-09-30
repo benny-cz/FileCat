@@ -96,6 +96,16 @@ public sealed partial class PanelViewModel : ObservableObject
         return tab;
     }
 
+    /// <summary>Moves a tab to another place among this panel's tabs (clamped to them); it becomes the active tab.</summary>
+    public void MoveTab(TabViewModel tab, int to)
+    {
+        int from = Tabs.IndexOf(tab);
+        if (from < 0) return;
+        to = Math.Clamp(to, 0, Tabs.Count - 1);
+        if (to != from) Tabs.Move(from, to);
+        ActiveTab = tab;
+    }
+
     public void CycleTab(int delta)
     {
         if (Tabs.Count < 2 || ActiveTab is null) return;

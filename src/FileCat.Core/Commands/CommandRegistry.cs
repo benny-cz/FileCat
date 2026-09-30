@@ -126,6 +126,8 @@ public static class CommandIds
     public const string CloseTab = "tab.close";
     public const string NextTab = "tab.next";
     public const string PreviousTab = "tab.prev";
+    public const string MoveTabLeft = "tab.moveLeft";
+    public const string MoveTabRight = "tab.moveRight";
     public const string ReopenTab = "tab.reopen";
     public const string TabList = "tab.list";
     public const string DuplicateTab = "tab.duplicate";
@@ -350,6 +352,9 @@ public sealed class CommandRegistry
         Add(CommandIds.CloseTab, "Close tab", T, null, CommandContext.Panel, "Ctrl+W");
         Add(CommandIds.NextTab, "Next tab", T, null, CommandContext.Panel, "Ctrl+Tab");
         Add(CommandIds.PreviousTab, "Previous tab", T, null, CommandContext.Panel, "Ctrl+Shift+Tab");
+        // As browsers, VS Code, and Windows Terminal move theirs; dragging a tab moves it too.
+        Add(CommandIds.MoveTabLeft, "Move tab left", T, null, CommandContext.Panel, "Ctrl+Shift+PageUp");
+        Add(CommandIds.MoveTabRight, "Move tab right", T, null, CommandContext.Panel, "Ctrl+Shift+PageDown");
         Add(CommandIds.ReopenTab, "Reopen closed tab", T, null, CommandContext.Panel, "Ctrl+Shift+T");
         Add(CommandIds.TabList, "Tab list…", T, null, CommandContext.Panel, "Ctrl+Shift+L");
         Add(CommandIds.DuplicateTab, "Duplicate tab", T);
@@ -539,6 +544,10 @@ public sealed class CommandRegistry
         K(CommandIds.Undo, "revert", "take back");
         K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin");
         K(CommandIds.MarkToggle, "folder size", "folder sizes", "calculate size");
+        K(CommandIds.MoveTabLeft, "reorder tabs", "tab order", "drag tab");
+        K(CommandIds.MoveTabRight, "reorder tabs", "tab order", "drag tab");
+        r.Describe(CommandIds.MoveTabLeft, "Moves the active tab one place left. Dragging a tab along the strip moves it too, or onto another panel's tabs.");
+        r.Describe(CommandIds.MoveTabRight, "Moves the active tab one place right. Dragging a tab along the strip moves it too, or onto another panel's tabs.");
         K(CommandIds.CountFolderSizes, "folder size", "folder sizes", "calculate size", "occupied space", "disk usage", "how big");
         r.Describe(CommandIds.CountFolderSizes, "Counts the sizes of the marked folders (or of the folder under the cursor) in the background; the status line adds them up. Esc stops it.");
         K(CommandIds.SortSize, "largest files", "biggest files");

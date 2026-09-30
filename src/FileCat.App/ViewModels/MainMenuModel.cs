@@ -36,7 +36,7 @@ public static class MainMenuModel
             CommandIds.QuickView, "-", CommandIds.AddPanel, CommandIds.AddPanelBelow, CommandIds.ClosePanel, CommandIds.FocusPanelPicker,
             CommandIds.ChooseTarget, CommandIds.MaximizePanel,
             new Submenu("_Arrange", [CommandIds.PanelMoveLeft, CommandIds.PanelMoveRight, CommandIds.PanelMoveUp, CommandIds.PanelMoveDown, "-",
-                CommandIds.PanelSwapPlaces, CommandIds.RotatePanels, CommandIds.EqualizePanels]), "-", CommandIds.NewTab, CommandIds.CloseTab, CommandIds.NextTab, CommandIds.PreviousTab, CommandIds.ReopenTab,
+                CommandIds.PanelSwapPlaces, CommandIds.RotatePanels, CommandIds.EqualizePanels]), "-", CommandIds.NewTab, CommandIds.CloseTab, CommandIds.NextTab, CommandIds.PreviousTab, CommandIds.MoveTabLeft, CommandIds.MoveTabRight, CommandIds.ReopenTab,
             CommandIds.TabList, CommandIds.DuplicateTab, CommandIds.CopyTabToTarget, CommandIds.LockTab, CommandIds.OpenInNewTab,
             CommandIds.OpenInNewTargetTab]),
         ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",

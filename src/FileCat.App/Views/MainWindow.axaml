@@ -44,6 +44,8 @@
       <Border x:Name="DockPreview" Classes="dockPreview">
         <TextBlock x:Name="DockPreviewText" Classes="dockPreview" />
       </Border>
+      <!-- Where a tab being dragged would go: the gap between two tabs. -->
+      <Border x:Name="TabDropMarker" Classes="tabDropMarker" IsVisible="False" />
     </Canvas>
 
     <Border x:Name="MaximizedStrip" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
