@@ -485,7 +485,7 @@ public static class OperationDialogs
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
         var save = new Button { Content = "Save as manifest…", IsEnabled = false };
         // The value a download page gives, pasted: compared with what the file has (the algorithm follows from its length).
-        var expected = new TextBox { Watermark = "Paste a checksum to compare with, such as the one on the download page" };
+        var expected = new TextBox { PlaceholderText = "Paste a checksum to compare with, such as the one on the download page" };
         Avalonia.Automation.AutomationProperties.SetName(expected, "Compare with");
         var verdict = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6 };

@@ -18,7 +18,8 @@ using Location = FileCat.Core.Resources.Location;
 //   FileCat.Screenshots <out> record <path> [pages] [theme ...]      the file-system record of <path>, page by page
 //   FileCat.Screenshots <out> window <left> [right] [theme ...]      the main window with these locations in its panels
 //   FileCat.Screenshots <out> command <left>[|right] <id>[@tab] [theme ...]  the main window after a command (its dialog
-//                                                                    open), on the dialog's tab of that number (from 0) if given
+//                                                                    open), on the dialog's tab of that number (from 0) if given;
+//                                                                    menu:<name> (menu:View) pictures that menu open instead
 // A location is a folder or file path, journal:<drive root> for a drive's change journal, or what the path box reads
 // ("This PC", "HKEY_CURRENT_USER\Software").
 if (args.Length < 3 || args[1] is not ("record" or "window" or "command") || args[1] == "command" && args.Length < 4)
@@ -111,6 +112,13 @@ int MainWindowShot(string[] a, string? command = null)
                 // A dialog that reads the clipboard (Calculate checksums) finds this there.
                 if (Environment.GetEnvironmentVariable("FILECAT_SHOT_CLIPBOARD") is { Length: > 0 } copied && window.Clipboard is { } clipboard)
                     Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, copied).GetAwaiter().GetResult();
+                if (parts[0].StartsWith("menu:", StringComparison.Ordinal))
+                {
+                    ShowMenu(window, parts[0]["menu:".Length..], theme);
+                    window.Close();
+                    foreach (var open in panels.SelectMany(p => p.Tabs).ToList()) open.Dispose();
+                    continue;
+                }
                 vm.Execute(parts[0]);
                 Pump(() => false, 1500);
                 if (parts.Length > 1 && int.TryParse(parts[1], out int tab))
@@ -158,7 +166,25 @@ static void Open(TabViewModel tab, string where)
 
 static bool IsTheme(string name) => ThemePalette.Find(name) is not null;
 
-void Save(Window window, string name)
+// A main-menu menu open: the window, and the menu's own popup (drawn apart from the window, as on the desktop).
+void ShowMenu(Window window, string name, string theme)
+{
+    var top = window.GetVisualDescendants().OfType<MenuItem>().FirstOrDefault(m => (m.Header as string)?.Replace("_", "") == name);
+    if (top is null)
+    {
+        Console.WriteLine($"no menu {name}");
+        return;
+    }
+    top.Open();
+    Pump(() => false, 800);
+    Save(window, $"menu-{name}-{theme}.png");
+    // The popup's content lives in the popup's own top level.
+    if (top.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Popup>().FirstOrDefault()?.Child is { } content && TopLevel.GetTopLevel(content) is { } popup)
+        Save(popup, $"menu-{name}-popup-{theme}.png");
+    top.Close();
+}
+
+void Save(TopLevel window, string name)
 {
     Pump(() => false, 200);
     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
