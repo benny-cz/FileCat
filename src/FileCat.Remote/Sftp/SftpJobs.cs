@@ -473,44 +473,56 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         int step = Journal.Intent(Moving ? "upload-move" : "upload", sourceDisplay, dst, null, durable: Moving || replace);
         string? temp = null;
         long written = 0;
-        bool ok = Remote(dst, "copy the file to the server", () =>
+        bool ok;
+        try
         {
-            // After a break, the upload continues where the server's copy ends, once that copy is checked; else anew.
-            long start = temp is not null && written > 0 && unchanged is not null && unchanged() ? ResumePoint(temp, openSource, incoming.Size) : 0;
-            if (start == 0)
+            ok = Remote(dst, "copy the file to the server", () =>
             {
-                DiscardTemp(destFolder, temp);
-                temp = TempName(destFolder);
-            }
-            else
-            {
-                Issue(IssueSeverity.Info, dst, $"The upload was interrupted and continued at {start:N0} bytes, after the part already on the server was checked.", StepOutcome.Committed);
-            }
-            Job.AddBytes(start - written);
-            written = start;
-            using (var input = openSource())
-            using (var output = start == 0 ? Channel.CreateNew(temp!) : Channel.OpenWriteAt(temp!, start))
-            {
-                if (start > 0) input.Seek(start, SeekOrigin.Begin);
-                var buffer = _buffer ??= new byte[BufferSize];
-                var clock = Stopwatch.StartNew();
-                int n;
-                while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+                // After a break, the upload continues where the server's copy ends, once that copy is checked; else anew.
+                long start = temp is not null && written > 0 && unchanged is not null && unchanged() ? ResumePoint(temp, openSource, incoming.Size) : 0;
+                if (start == 0)
                 {
-                    Job.Checkpoint();
-                    output.Write(buffer, 0, n);
-                    written += n;
-                    Job.AddBytes(n);
-                    Job.Throttle(written, clock);
+                    DiscardTemp(destFolder, temp);
+                    temp = TempName(destFolder);
                 }
-            }
-            if (incoming.ModifiedUtc > DateTime.MinValue) Channel.SetModified(temp!, incoming.ModifiedUtc);
-            var stat = Channel.Stat(temp!);
-            if (stat is not { } s || s.Size != written)
-                throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
-            Publish(destFolder, name, temp!, replace);
-            temp = null;
-        });
+                else
+                {
+                    Issue(IssueSeverity.Info, dst, $"The upload was interrupted and continued at {start:N0} bytes, after the part already on the server was checked.", StepOutcome.Committed);
+                }
+                Job.AddBytes(start - written);
+                written = start;
+                using (var input = openSource())
+                using (var output = start == 0 ? Channel.CreateNew(temp!) : Channel.OpenWriteAt(temp!, start))
+                {
+                    if (start > 0) input.Seek(start, SeekOrigin.Begin);
+                    var buffer = _buffer ??= new byte[BufferSize];
+                    var clock = Stopwatch.StartNew();
+                    int n;
+                    while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        Job.Checkpoint();
+                        output.Write(buffer, 0, n);
+                        written += n;
+                        Job.AddBytes(n);
+                        Job.Throttle(written, clock);
+                    }
+                }
+                if (incoming.ModifiedUtc > DateTime.MinValue) Channel.SetModified(temp!, incoming.ModifiedUtc);
+                var stat = Channel.Stat(temp!);
+                if (stat is not { } s || s.Size != written)
+                    throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
+                Publish(destFolder, name, temp!, replace);
+                temp = null;
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled part way: the partial copy goes as well (release issue I33: it stayed on the server under its
+            // hidden temporary name); nothing was published under the file's name.
+            DiscardTemp(destFolder, temp);
+            Journal.Done(step, StepOutcome.CanceledBeforeChange);
+            throw;
+        }
         if (!ok)
         {
             DiscardTemp(destFolder, temp);
@@ -597,7 +609,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         if (temp is null) return;
         try
         {
-            FreshEntry(folder, RemotePath.Name(temp))?.Delete();
+            // Listed without the job's cancellation: a cancelled job still removes what it wrote (release issue I33).
+            string name = RemotePath.Name(temp);
+            Channel.List(folder, CancellationToken.None).FirstOrDefault(e => e.Name == name && !e.IsDirectory)?.Delete();
             Changed(folder);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
