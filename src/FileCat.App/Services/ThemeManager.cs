@@ -333,6 +333,8 @@ public static class ThemeManager
             d["RadioButtonOuterEllipseCheckedFill" + state] = selection;
             d["RadioButtonCheckGlyphFill" + state] = onSelection;
         }
+        d["TextControlBorderBrushFocused"] = selection;
+        d["SystemControlRevealFocusVisualBrush"] = selection;
         d["FcThemeName"] = p.Name;
         d["FcFontFamily"] = p.FontFamily is { } font ? new FontFamily(font) : FontFamily.Default;
         return d;
