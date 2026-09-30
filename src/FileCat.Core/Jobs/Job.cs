@@ -23,6 +23,7 @@ public sealed class Job
     private long _verifyTotal, _verifyDone, _settled;
     // The file being worked on: what it was planned to cost, and the counts when it began (a job works on one at a time).
     private long _itemPlanned = -1, _itemStartBytes, _itemStartVerify;
+    private long _itemPlannedBytes;
     private volatile JobState _state = JobState.Planning;
     private volatile string? _currentItem;
     private PendingDecision? _decision;
@@ -84,6 +85,23 @@ public sealed class Job
     /// </summary>
     public long WorkBytesTotal => BytesTotal + VerifyBytesTotal;
     public long WorkBytesDone => BytesDone + VerifyBytesDone + SettledBytes;
+
+    /// <summary>
+    /// The file being worked on (release issue I30): its size, and its work done of its work planned — copying and, with
+    /// verification, reading both files back — or null between files.
+    /// </summary>
+    public (long Size, long WorkDone, long WorkTotal)? CurrentFileProgress
+    {
+        get
+        {
+            lock (_lock)
+            {
+                if (_itemPlanned < 0) return null;
+                long done = BytesDone - _itemStartBytes + VerifyBytesDone - _itemStartVerify;
+                return (_itemPlannedBytes, Math.Clamp(done, 0, _itemPlanned), _itemPlanned);
+            }
+        }
+    }
     public PendingDecision? Decision => Volatile.Read(ref _decision);
     public CancellationToken Token => _cts.Token;
     public bool IsCancellationRequested => _cts.IsCancellationRequested;
@@ -298,6 +316,7 @@ public sealed class Job
         lock (_lock)
         {
             _itemPlanned = Math.Max(0, plannedBytes) + Math.Max(0, plannedVerify);
+            _itemPlannedBytes = Math.Max(0, plannedBytes);
             _itemStartBytes = BytesDone;
             _itemStartVerify = VerifyBytesDone;
         }

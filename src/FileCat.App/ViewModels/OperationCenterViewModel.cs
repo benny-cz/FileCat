@@ -5,6 +5,7 @@ using FileCat.App.Services;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using TaskbarProgressState = FileCat.Platform.Windows.TaskbarProgressState;
 
 namespace FileCat.App.ViewModels;
 
@@ -64,6 +65,31 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _hasIssues;
     [ObservableProperty] private bool _needsDecision;
     [ObservableProperty] private string _severity = "info";
+
+    // What a running operation shows beyond one line (release issue I30): how far in words, what it does now, the file in
+    // hand, how long it has run, and its pace over the last minute and a half.
+    [ObservableProperty] private string _percentText = string.Empty;
+    [ObservableProperty] private string _phaseText = string.Empty;
+    [ObservableProperty] private string _currentFileText = string.Empty;
+    [ObservableProperty] private double _currentFilePercent;
+    [ObservableProperty] private bool _showsFileProgress;
+    [ObservableProperty] private string _timeLeftText = string.Empty;
+    [ObservableProperty] private string _elapsedText = string.Empty;
+    /// <summary>"Time left: about 25 s · running for 10 s" while it runs, "Took 15 s" once done.</summary>
+    [ObservableProperty] private string _timingText = string.Empty;
+    [ObservableProperty] private bool _hasSpeedHistory;
+    [ObservableProperty] private string _itemsText = string.Empty;
+    [ObservableProperty] private string _dataText = string.Empty;
+    [ObservableProperty] private string _speedText = string.Empty;
+    /// <summary>The pace along the job: X is how far it was (0 to 1), Y the bytes per second then.</summary>
+    [ObservableProperty] private Avalonia.Point[] _speedHistory = [];
+
+    private readonly List<Avalonia.Point> _speeds = [];
+    private TimeSpan? _lastSpeedSample;
+    private long _lastSpeedBytes;
+
+    /// <summary>A large file gets a bar of its own; a small one is done before a bar would help.</summary>
+    private const long OwnBarFrom = 16L << 20;
 
     public void Refresh()
     {
@@ -126,6 +152,98 @@ public sealed partial class JobViewModel : ObservableObject
         }
         DetailText = string.Join(" · ", parts);
         CurrentItem = j.CurrentItem is { } c ? Path.GetFileName(c.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : c : string.Empty;
+        Describe(j, estimate, bd, bt, id, it);
+    }
+
+    /// <summary>The richer view of a running operation (release issue I30).</summary>
+    private void Describe(Job j, ProgressEstimate estimate, long bd, long bt, long id, long it)
+    {
+        bool running = j.State == JobState.Running && !j.IsPaused;
+        bool verifying = j.CurrentItem?.EndsWith("(verifying)", StringComparison.Ordinal) == true;
+        PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%" : IsFinished ? "100%" : string.Empty;
+        PhaseText = j.State switch
+        {
+            JobState.Queued => j.WaitReason ?? "Waiting for its turn",
+            JobState.Paused or JobState.Pausing => "Paused",
+            JobState.AwaitingDecision => "Waiting for your decision",
+            JobState.Running when j.IsPaused => "Pausing",
+            JobState.Running when verifying => "Verifying",
+            JobState.Running when estimate.Note == ProgressNote.Finishing => "Finishing",
+            JobState.Running when !j.TotalsFinal && bd == 0 && id == 0 => "Counting what to do",
+            JobState.Running => j.Kind switch
+            {
+                JobKind.Copy => "Copying",
+                JobKind.Move => "Moving",
+                JobKind.Recycle => "Moving to the Recycle Bin",
+                JobKind.Delete => "Deleting",
+                JobKind.Extract => "Extracting",
+                JobKind.Checksum => "Calculating checksums",
+                JobKind.ArchiveUpdate => "Packing",
+                JobKind.ArchiveTest => "Testing",
+                _ => "Working",
+            },
+            _ => j.State.Describe(),
+        };
+        // The file in hand; a large one shows how far its current step is: its copying, then its reading back.
+        var file = j.CurrentFileProgress;
+        string name = verifying ? CurrentItem[..^" (verifying)".Length] : CurrentItem;
+        ShowsFileProgress = running && file is { Size: >= OwnBarFrom, WorkTotal: > 0 };
+        CurrentFileText = !IsActive || name.Length == 0 ? string.Empty : name;
+        CurrentFilePercent = 0;
+        if (ShowsFileProgress && file is { } big)
+        {
+            long copied = Math.Min(big.WorkDone, big.Size), read = Math.Max(0, big.WorkDone - big.Size);
+            long toRead = big.WorkTotal - big.Size;
+            CurrentFilePercent = verifying && toRead > 0 ? Math.Min(99.9, 100.0 * read / toRead) : Math.Min(99.9, 100.0 * copied / Math.Max(1, big.Size));
+            CurrentFileText = verifying
+                ? $"{name} · verifying, {Math.Floor(CurrentFilePercent):0}%"
+                : $"{name} · {Formatters.SizeWithUnit(copied)} of {Formatters.SizeWithUnit(big.Size)}";
+        }
+        TimeLeftText = !IsActive ? string.Empty : estimate switch
+        {
+            { Likely: { } likely, Pessimistic: { } pessimistic } => Formatters.TimeSpanRange(likely, pessimistic),
+            { Note: ProgressNote.Measuring } => "estimating…",
+            { Note: ProgressNote.Counting } => "known once everything is counted",
+            { Note: ProgressNote.Stalled } => "no progress for a while",
+            { Note: ProgressNote.Finishing } => "finishing…",
+            _ => running ? string.Empty : "—",
+        };
+        ElapsedText = j.StartedUtc is { } started ? Duration((j.FinishedUtc ?? DateTime.UtcNow) - started) : string.Empty;
+        TimingText = IsFinished ? (ElapsedText.Length > 0 ? "Took " + ElapsedText : string.Empty)
+            : string.Join(" · ", new[] { TimeLeftText.Length > 0 ? "Time left: " + TimeLeftText : "", ElapsedText.Length > 0 ? "running for " + ElapsedText : "" }.Where(t => t.Length > 0));
+        ItemsText = it > 0 || id > 0
+            ? $"{id:N0} of {it:N0}{(j.TotalsFinal ? "" : "+")} items" + (j.ItemsSkipped > 0 ? $" · {j.ItemsSkipped:N0} skipped" : "") + (j.ItemsFailed > 0 ? $" · {j.ItemsFailed:N0} failed" : "")
+            : string.Empty;
+        DataText = bt > 0 || bd > 0
+            ? $"{Formatters.SizeWithUnit(bd)} of {Formatters.SizeWithUnit(bt)}{(j.TotalsFinal ? "" : "+")}" +
+              (j.VerifyBytesTotal > 0 ? $" · verified {Formatters.SizeWithUnit(j.VerifyBytesDone / 2)} of {Formatters.SizeWithUnit(j.VerifyBytesTotal / 2)}" : "")
+            : string.Empty;
+        // The pace, once a second: now, and on average since the start.
+        var now = System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart);
+        if (!running) _lastSpeedSample = null;
+        else if (_lastSpeedSample is not { } last)
+        {
+            _lastSpeedSample = now;
+            _lastSpeedBytes = j.WorkBytesDone;
+        }
+        else if (now - last >= TimeSpan.FromSeconds(1))
+        {
+            long work = j.WorkBytesDone;
+            _speeds.Add(new Avalonia.Point(Percent / 100, Math.Max(0, (work - _lastSpeedBytes) / (now - last).TotalSeconds)));
+            // The whole job stays drawn: past 600 points, every other one goes.
+            if (_speeds.Count > 600) for (int i = _speeds.Count - 2; i > 0; i -= 2) _speeds.RemoveAt(i);
+            SpeedHistory = [.. _speeds];
+            HasSpeedHistory = true;
+            _lastSpeedSample = now;
+            _lastSpeedBytes = work;
+        }
+        double average = j.StartedUtc is { } from && (DateTime.UtcNow - from).TotalSeconds is var seconds and > 1 ? j.WorkBytesDone / seconds : 0;
+        SpeedText = !IsActive ? string.Empty
+            : _speeds.Count > 0 ? $"{Formatters.Size((long)_speeds[^1].Y)}/s now · {Formatters.Size((long)average)}/s on average"
+            : average > 0 ? $"{Formatters.Size((long)average)}/s on average" : string.Empty;
+
+        static string Duration(TimeSpan t) =>
+            t.TotalHours >= 1 ? $"{(int)t.TotalHours} h {t.Minutes} min" : t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes} min {t.Seconds} s" : $"{Math.Max(0, t.Seconds)} s";
     }
 }
 
@@ -176,10 +294,19 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     [ObservableProperty] private int _activeCount;
     /// <summary>Whether "Clear finished" would remove anything.</summary>
     [ObservableProperty] private bool _hasFinished;
+    /// <summary>What the window's taskbar button shows (Windows).</summary>
+    [ObservableProperty] private TaskbarProgressState _taskbarState;
+    [ObservableProperty] private double _taskbarFraction;
 
     public IReadOnlyList<JobIssue> SelectedIssues => Selected?.Job.Issues ?? [];
 
     partial void OnSelectedChanged(JobViewModel? value) => OnPropertyChanged(nameof(SelectedIssues));
+
+    /// <summary>Opened, the details show the operation that matters now rather than an empty half (release issue I30).</summary>
+    partial void OnIsOpenChanged(bool value)
+    {
+        if (value && Selected is null) Selected = Primary ?? Jobs.FirstOrDefault();
+    }
 
     private void Add(JobViewModel vm)
     {
@@ -220,6 +347,17 @@ public sealed partial class OperationCenterViewModel : ObservableObject
                   ?? Jobs.FirstOrDefault(j => j.IsFinished && j.Job.FinishedUtc > DateTime.UtcNow.AddSeconds(-20));
         HasVisibleWork = Primary is not null || Interrupted.Count > 0;
         HasFinished = active.Count < Jobs.Count;
+        // The taskbar button (Windows): the running operation's bar; yellow while it is paused or waits for an answer,
+        // red for a moment after one failed (release issue I30).
+        var shown = active.FirstOrDefault(j => j.NeedsDecision) ?? active.FirstOrDefault(j => j.IsActive);
+        (TaskbarState, TaskbarFraction) = shown switch
+        {
+            { NeedsDecision: true } or { CanResume: true } => (TaskbarProgressState.Paused, shown.Percent / 100),
+            { IsIndeterminate: true } => (TaskbarProgressState.Indeterminate, 0),
+            not null => (TaskbarProgressState.Normal, shown.Percent / 100),
+            null when Primary is { IsFinished: true, Severity: "error" } => (TaskbarProgressState.Error, 1),
+            _ => (TaskbarProgressState.None, 0),
+        };
         Summary = active.Count switch
         {
             0 => Interrupted.Count > 0 ? Formatters.Plural(Interrupted.Count, "interrupted operation needs", "interrupted operations need") + " attention" : string.Empty,

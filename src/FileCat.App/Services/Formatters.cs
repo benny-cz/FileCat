@@ -74,16 +74,19 @@ public static class Formatters
     /// The time left as people say it (release issue I26): "about 40 s left", or "2–4 min left" while the likely and the
     /// pessimistic times differ. Longer times are rounded more coarsely, so the text does not flicker second by second.
     /// </summary>
-    public static string TimeLeft(TimeSpan likely, TimeSpan pessimistic)
+    public static string TimeLeft(TimeSpan likely, TimeSpan pessimistic) => TimeSpanRange(likely, pessimistic) + " left";
+
+    /// <summary>The same without "left", for a label that says it already ("Time left: 2–4 min").</summary>
+    public static string TimeSpanRange(TimeSpan likely, TimeSpan pessimistic)
     {
         double low = Round(likely.TotalSeconds), high = Round(Math.Max(likely.TotalSeconds, pessimistic.TotalSeconds));
-        if (high < 10) return "a few seconds left";
-        if (high <= low * 1.15 || high - low <= 10) return $"about {Duration(low)} left";
-        if (low < 10) return $"up to {Duration(high)} left";
+        if (high < 10) return "a few seconds";
+        if (high <= low * 1.15 || high - low <= 10) return $"about {Duration(low)}";
+        if (low < 10) return $"up to {Duration(high)}";
         // One unit for both ends where they share it: "20–40 s", "2–4 min".
-        if (high < 60) return $"{low:0}–{high:0} s left";
-        if (low >= 120 && high < 3600 && low % 60 == 0 && high % 60 == 0) return $"{low / 60:0}–{high / 60:0} min left";
-        return $"{Duration(low)} – {Duration(high)} left";
+        if (high < 60) return $"{low:0}–{high:0} s";
+        if (low >= 120 && high < 3600 && low % 60 == 0 && high % 60 == 0) return $"{low / 60:0}–{high / 60:0} min";
+        return $"{Duration(low)} – {Duration(high)}";
 
         static double Round(double seconds)
         {

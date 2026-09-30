@@ -2,23 +2,35 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:FileCat.App.ViewModels"
              xmlns:jobs="using:FileCat.Core.Jobs"
+             xmlns:controls="using:FileCat.App.Controls"
              x:Class="FileCat.App.Views.OperationsView"
              x:DataType="vm:OperationCenterViewModel">
   <StackPanel>
     <!-- Compact strip: the most relevant operation -->
     <Border Classes="status" IsVisible="{Binding HasVisibleWork}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto" DataContext="{Binding Primary}" x:DataType="vm:JobViewModel">
-        <StackPanel Spacing="2" Margin="0,2">
+        <!-- What it does and how far, in words and as a bar with its percentage; then the file in hand, a large one with a
+             bar of its own (release issue I30). -->
+        <StackPanel Spacing="3" Margin="0,3">
           <TextBlock TextTrimming="CharacterEllipsis" Classes="small" ToolTip.Tip="{Binding Route}">
             <Run Text="{Binding Title}" FontWeight="SemiBold" />
             <Run Text=" — " />
-            <Run Text="{Binding StateText}" />
+            <Run Text="{Binding PhaseText}" />
             <Run Text=" · " />
             <Run Text="{Binding DetailText}" />
           </TextBlock>
-          <ProgressBar Height="4" MinHeight="4" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}"
-                       IsVisible="{Binding IsActive}" />
-          <TextBlock Text="{Binding CurrentItem}" Classes="small muted" TextTrimming="CharacterEllipsis" IsVisible="{Binding IsActive}" />
+          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsActive}">
+            <ProgressBar Height="6" MinHeight="6" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}"
+                         VerticalAlignment="Center" AutomationProperties.Name="Progress of the operation" />
+            <TextBlock Grid.Column="1" Text="{Binding PercentText}" Classes="small" FontWeight="SemiBold" MinWidth="38" TextAlignment="Right"
+                       VerticalAlignment="Center" Margin="8,0,0,0" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsActive}">
+            <TextBlock Text="{Binding CurrentFileText}" Classes="small muted" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <ProgressBar Grid.Column="1" Width="160" Height="3" MinHeight="3" Minimum="0" Maximum="100" Value="{Binding CurrentFilePercent}"
+                         IsVisible="{Binding ShowsFileProgress}" VerticalAlignment="Center" Margin="8,0,46,0"
+                         AutomationProperties.Name="Progress of the current file" />
+          </Grid>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,0,0">
           <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
@@ -101,6 +113,29 @@
             <Button Content="Limit speed…" Click="OnLimit" IsVisible="{Binding !IsFinished}" />
             <Button Content="Remove" IsVisible="{Binding IsFinished}" Click="OnRemove" />
           </StackPanel>
+          <!-- The chosen operation at a glance (release issue I30): where from and to, what it does now and how far, how long
+               it has run and has left, what it did, and its pace. -->
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="10,0,10,6">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Route}" Classes="small" TextWrapping="Wrap"
+                         IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock Classes="small" TextTrimming="CharacterEllipsis">
+                <Run Text="{Binding PhaseText}" FontWeight="SemiBold" />
+                <Run Text="  " />
+                <Run Text="{Binding PercentText}" FontWeight="SemiBold" />
+              </TextBlock>
+              <TextBlock Text="{Binding CurrentFileText}" Classes="small muted" TextTrimming="CharacterEllipsis"
+                         IsVisible="{Binding CurrentFileText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock Text="{Binding TimingText}" Classes="small" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding ItemsText}" Classes="small" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding DataText}" Classes="small" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding SpeedText}" Classes="small" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="2" Margin="12,2,0,0" IsVisible="{Binding HasSpeedHistory}">
+              <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: how far the operation is. Up: its speed then." />
+              <TextBlock Text="Speed along the operation" Classes="small muted" HorizontalAlignment="Right" />
+            </StackPanel>
+          </Grid>
           <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}" Classes="choices">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="jobs:JobIssue">

@@ -148,7 +148,15 @@ public partial class MainWindow : Window, IViewActions
         Opened += (_, _) =>
         {
             if (OperatingSystem.IsWindows() && TryGetPlatformHandle()?.Handle is { } hwnd)
+            {
                 Platform.Windows.WindowsPlatform.SetOwnerWindow(hwnd);
+                // The running operation on the taskbar button, for a minimized window too (release issue I30).
+                _vm.Operations.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName is nameof(OperationCenterViewModel.TaskbarState) or nameof(OperationCenterViewModel.TaskbarFraction))
+                        Platform.Windows.TaskbarProgress.Set(hwnd, _vm.Operations.TaskbarState, _vm.Operations.TaskbarFraction);
+                };
+            }
             // The first frame is the light part (menus, toolbar, key bar, the startup mark) in the theme's colors; the
             // panels, the heavy part, are built right after it, so a slow start never shows a blank window.
             Dispatcher.UIThread.Post(() =>
