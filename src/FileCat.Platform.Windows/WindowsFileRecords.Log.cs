@@ -311,8 +311,12 @@ public sealed unsafe partial class WindowsFileRecords
                 ("Log", $"{RecordText.Bytes(_logBytes)}, Log File Service {restart.MajorVersion}.{restart.MinorVersion}, pages of {RecordText.Short(restart.LogPageSize)}{(restart.Clean ? ", shut down cleanly" : "")}"),
                 ("Holds", _logCount == 0 ? "no operations it can read" : $"{_logCount:N0} operations, LSN {_logFirst:N0} to {_logLast:N0}"),
                 ("Restart from", $"LSN {restart.ClientRestartLsn:N0} (the last checkpoint: what a restart would replay from)"),
-                ("This item", _logMine.Count == 0 ? "none of them touched it"
-                    : $"{_logMine.Count:N0} of them touched its record or its names" + (_logMadeAt > 0 ? $", since the record was made for it at LSN {_logMadeAt:N0}" : "")),
+                ("This item", _logMine.Count > 0
+                    ? $"{_logMine.Count:N0} of them touched its record or its names" + (_logMadeAt > 0 ? $", since the record was made for it at LSN {_logMadeAt:N0}" : "")
+                    // Its record says where its last change is logged: older than the log reaches, the log has moved on.
+                    : _record.Lsn > 0 && _record.Lsn < _logFirst
+                        ? $"none of them: its last change (LSN {_record.Lsn:N0}, from its MFT record) is older than anything the log still holds"
+                        : "none of them touched it"),
             };
             if (_logEarlier.Count > 0)
                 fields.Add(("Before it", string.Join("; ", _logEarlier.TakeLast(4)) + (_logEarlier.Count > 4 ? $"; and {_logEarlier.Count - 4:N0} more" : "") + " (the record's earlier items)"));
