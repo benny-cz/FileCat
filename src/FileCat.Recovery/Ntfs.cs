@@ -190,6 +190,13 @@ internal sealed class NtfsScanner
         {
             if (remaining <= 0) break;
             if (runVcn > vcn) Add(extents, 0, Math.Min(remaining, (runVcn - vcn) * _clusterSize), ExtentState.Unreadable, ref remaining);
+            if (lcn < 0)
+            {
+                // A sparse piece reads as zeros as a whole; a damaged one can claim more clusters than any volume has.
+                Add(extents, 0, Math.Min(remaining, length * _clusterSize), ExtentState.Zero, ref remaining);
+                vcn = runVcn + length;
+                continue;
+            }
             for (long c = 0; c < length && remaining > 0; c++)
             {
                 long bytes = Math.Min(remaining, _clusterSize);
@@ -409,15 +416,22 @@ internal sealed class NtfsScanner
         return new Parsed(number, sequence, (flags & 1) != 0, (flags & 2) != 0, name, parent, parentSequence, modified, created, data, named);
     }
 
+    /// <summary>
+    /// The pieces, sizes and last cluster one instance of a data attribute records. A damaged header can hold a negative
+    /// or enormous cluster number or size: they are kept within what cluster arithmetic can hold, so that no reader of
+    /// them overflows (release issue I28: a negative $Bitmap size ended the whole volume's scan).
+    /// </summary>
     private void AddRuns(byte[] attr, List<(long Vcn, long Lcn, long Length)> pieces, ref long size, ref long initialized, ref long lastVcn)
     {
         if (attr.Length < 64) return;
+        long maxVcn = long.MaxValue / 2 / _clusterSize;
         long startVcn = BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(16));
-        lastVcn = Math.Max(lastVcn, BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(24)));
+        if (startVcn < 0 || startVcn > maxVcn) return;
+        lastVcn = Math.Max(lastVcn, Math.Clamp(BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(24)), -1, maxVcn));
         if (startVcn == 0)
         {
-            size = BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(48));
-            initialized = BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(56));
+            size = Math.Clamp(BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(48)), 0, maxVcn * _clusterSize);
+            initialized = Math.Clamp(BinaryPrimitives.ReadInt64LittleEndian(attr.AsSpan(56)), 0, size);
         }
         int at = BinaryPrimitives.ReadUInt16LittleEndian(attr.AsSpan(32));
         long vcn = startVcn, lcn = 0;
@@ -426,7 +440,7 @@ internal sealed class NtfsScanner
             int lengthBytes = attr[at] & 0x0F, offsetBytes = attr[at] >> 4;
             if (lengthBytes is 0 or > 8 || offsetBytes > 8 || at + 1 + lengthBytes + offsetBytes > attr.Length) break;
             long length = (long)ReadUnsigned(attr.AsSpan(at + 1, lengthBytes));
-            if (length <= 0) break;
+            if (length <= 0 || length > maxVcn - vcn) break;
             if (offsetBytes == 0)
             {
                 pieces.Add((vcn, -1, length)); // sparse: no clusters, reads as zeros
@@ -485,13 +499,13 @@ internal sealed class NtfsScanner
 
     private byte[] ReadStream(Data stream, long limit)
     {
-        long size = Math.Min(stream.Size, limit);
+        long size = Math.Clamp(stream.Size, 0, limit);
         var data = new byte[size];
         foreach (var (vcn, lcn, length) in stream.Runs)
         {
+            if (vcn < 0 || lcn < 0 || vcn > (size - 1) / _clusterSize) continue;
             long start = vcn * _clusterSize;
-            if (start >= size || lcn < 0) continue;
-            int bytes = (int)Math.Min(length * _clusterSize, size - start);
+            int bytes = (int)Math.Min(Math.Min(length, (size - start + _clusterSize - 1) / _clusterSize) * _clusterSize, size - start);
             int done = 0;
             while (done < bytes)
             {
