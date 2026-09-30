@@ -1,4 +1,5 @@
 using Avalonia.Headless.XUnit;
+using FileCat.App.Services;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -17,7 +18,7 @@ public sealed class DriveListTests
             lock (Roots) return [.. Roots];
         }
 
-        protected override DriveTag QueryDrive(string root) => new(root, "Test", "Fixed", "NTFS", 1, 2, true);
+        protected override DriveTag QueryDrive(string root) => new(root, "Test", "Fixed", "NTFS", 1L << 30, 4L << 30, true);
     }
 
     [AvaloniaFact]
@@ -48,6 +49,9 @@ public sealed class DriveListTests
             services.Drives.Check();
             for (int i = 0; i < 250 && !Lists(Name(stick)); i++) await Task.Delay(20, ct);
             Assert.True(Lists(Name(card)));
+            // The status line says what the focused drive is and how full.
+            thisPc.Listing.SetFocus(thisPc.Listing.GetVisibleIndex(thisPc.Listing.FindStoreIndex(Name(card))));
+            Assert.Equal($"{Name(card)} Test · NTFS · {Formatters.SizeWithUnit(1L << 30)} free of {Formatters.SizeWithUnit(4L << 30)}, 75% used", thisPc.StatusRight);
 
             // A drive goes while a tab shows a folder on it: that tab shows This PC, and says why.
             onStick.Navigate(Location.FileSystem(inside));

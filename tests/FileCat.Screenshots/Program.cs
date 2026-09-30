@@ -19,7 +19,8 @@ using Location = FileCat.Core.Resources.Location;
 //   FileCat.Screenshots <out> window <left> [right] [theme ...]      the main window with these locations in its panels
 //   FileCat.Screenshots <out> command <left>[|right] <id>[@tab] [theme ...]  the main window after a command (its dialog
 //                                                                    open), on the dialog's tab of that number (from 0) if given
-// A location is a folder or file path, or journal:<drive root> for a drive's change journal.
+// A location is a folder or file path, journal:<drive root> for a drive's change journal, or what the path box reads
+// ("This PC", "HKEY_CURRENT_USER\Software").
 if (args.Length < 3 || args[1] is not ("record" or "window" or "command") || args[1] == "command" && args.Length < 4)
 {
     Console.WriteLine("usage: FileCat.Screenshots <out> record <path> [pages] [theme ...] | window <left> [right] [theme ...] | command <left> <id>[@tab] [theme ...]");
@@ -133,6 +134,9 @@ static void Open(TabViewModel tab, string where)
     }
     string full = Path.GetFullPath(where);
     if (File.Exists(full)) tab.Navigate(Location.FileSystem(Path.GetDirectoryName(full)!), Path.GetFileName(full));
+    else if (Directory.Exists(full)) tab.Navigate(Location.FileSystem(full));
+    // Anything else FileCat's path box reads: "This PC", "HKEY_CURRENT_USER\Software", "Network", …
+    else if (tab.Services.Providers.TryParse(where, null, out var parsed) && parsed is not null) tab.Navigate(parsed);
     else tab.Navigate(Location.FileSystem(full));
 }
 

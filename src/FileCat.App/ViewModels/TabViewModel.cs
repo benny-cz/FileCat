@@ -660,6 +660,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     private static string DescribeFocused(in EntryData e)
     {
+        // A drive: what it is and how full ("C: SYSTEM · NTFS · 189 GB free of 952 GB, 80% used").
+        if (e.Tag is Core.FileSystem.DriveTag drive)
+        {
+            var parts = new List<string> { string.IsNullOrEmpty(drive.Label) ? e.Name : $"{e.Name} {drive.Label}" };
+            if (!drive.Ready) parts.Add("not ready");
+            if (!string.IsNullOrEmpty(drive.Format)) parts.Add(drive.Format);
+            if (drive.Ready && drive.TotalBytes > 0)
+                parts.Add($"{Formatters.SizeWithUnit(drive.FreeBytes)} free of {Formatters.SizeWithUnit(drive.TotalBytes)}, {100.0 * (drive.TotalBytes - drive.FreeBytes) / drive.TotalBytes:0}% used");
+            if (!string.IsNullOrEmpty(drive.RemoteName)) parts.Add(drive.RemoteName);
+            return string.Join(" · ", parts);
+        }
         if (e.IsContainer) return e.Name;
         return $"{e.Name} · {Formatters.ExactSize(e.Size)}";
     }
