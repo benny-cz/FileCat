@@ -725,11 +725,15 @@ public sealed partial class MainViewModel
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, ct =>
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, token);
+            // The folder's time as the counting begins: the size stays through refreshes while the folder keeps it (I32).
+            long? modified = null;
+            try { modified = Directory.GetLastWriteTimeUtc(path).Ticks; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
             // Sizes land only while the panel still shows that folder's parent: another folder may hold one of the same name.
-            return DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
+            return (Size: DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
             {
                 if (listing.Location == vol) listing.SetComputedSize(name, p.Bytes, false);
-            }), linked.Token);
+            }), linked.Token), Modified: modified);
         }, token).ContinueWith(t =>
         {
             Services.Ui.Post(() =>
@@ -740,8 +744,8 @@ public sealed partial class MainViewModel
                 {
                     if (t.IsCompletedSuccessfully)
                     {
-                        listing.SetComputedSize(name, t.Result.Bytes, true);
-                        if (t.Result.Inaccessible > 0) Notify($"\"{name}\": {t.Result.Inaccessible} folder(s) could not be read; the size is a lower bound.");
+                        listing.SetComputedSize(name, t.Result.Size.Bytes, true, t.Result.Modified);
+                        if (t.Result.Size.Inaccessible > 0) Notify($"\"{name}\": {t.Result.Size.Inaccessible} folder(s) could not be read; the size is a lower bound.");
                     }
                     else if (t.IsCanceled && listing.FindStoreIndex(name) is var si && si >= 0 && !listing.IsMarked(si))
                     {

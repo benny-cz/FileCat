@@ -943,20 +943,25 @@ public sealed class ListingModel : IDisposable
     // ---- Entry updates -----------------------------------------------------------------------------------
 
     /// <summary>Records an explicitly computed directory size (Space) and re-sorts when sorting by size.</summary>
-    public void SetComputedSize(string name, long bytes, bool complete)
+    /// <param name="folderModified">
+    /// The folder's modification time when the counting began, read from the file system: a refresh keeps the size while
+    /// the folder still has that time. Without it the time the listing shows is used, which can be one taken while the
+    /// folder was still being written (release issue I32: the size then vanished at the next refresh although current).
+    /// </param>
+    public void SetComputedSize(string name, long bytes, bool complete, long? folderModified = null)
     {
         int si = FindStoreIndex(name);
         if (si < 0)
         {
             // Measured while the folder is being listed again and before its row came back: the size waits for it.
-            if (_awaitingEntries && complete && bytes >= 0) (_pendingSizes ??= new(StringComparer.Ordinal))[name] = (bytes, MeasuredDuringRefresh);
+            if (_awaitingEntries && complete && bytes >= 0) (_pendingSizes ??= new(StringComparer.Ordinal))[name] = (bytes, folderModified ?? MeasuredDuringRefresh);
             return;
         }
         var e = _store[si];
         e.Size = bytes;
         e.Flags = complete ? e.Flags | EntryFlags.SizeComputed : e.Flags & ~EntryFlags.SizeComputed;
         _store.Update(si, e);
-        if (complete && e.Kind == EntryKind.Directory && bytes >= 0) _computedSizes[e.Name] = (bytes, e.Modified);
+        if (complete && e.Kind == EntryKind.Directory && bytes >= 0) _computedSizes[e.Name] = (bytes, folderModified ?? e.Modified);
         else _computedSizes.Remove(e.Name);
         _statsCache = null;
         if (_sort.Field == SortField.Size && complete) PushSpec();

@@ -240,6 +240,32 @@ public sealed class ListingModelTests : IDisposable
     }
 
     [Fact]
+    public async Task A_folder_size_stays_while_the_folder_keeps_the_time_it_had_when_counted()
+    {
+        // Release issue I32: the listing read the folder while it was still being written, so the time it shows is older
+        // than the folder's own; a size counted afterwards is current and must survive the refresh that brings the time.
+        string sub = Directory.CreateDirectory(Path.Combine(_dir.Path, "sub")).FullName;
+        var listed = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+        Directory.SetLastWriteTimeUtc(sub, listed);
+        var m = await LoadAsync(_dir.Path);
+        var onDisk = listed.AddMilliseconds(1);
+        Directory.SetLastWriteTimeUtc(sub, onDisk);
+        long Size() => m.GetVisible(Enumerable.Range(0, m.VisibleCount).First(i => m.GetVisible(i).Name == "sub")).Size;
+
+        await _ui.InvokeAsync(() => m.SetComputedSize("sub", 5000, true, onDisk.Ticks));
+        await _ui.InvokeAsync(() => m.Refresh());
+        await _ui.WaitUntilAsync(() => !m.IsRefreshing && m.State == ListingState.Complete);
+        Assert.Equal(5000, await _ui.InvokeAsync(Size));
+
+        // The folder changes after it was counted: its size is no longer known.
+        Directory.SetLastWriteTimeUtc(sub, onDisk.AddSeconds(5));
+        await _ui.InvokeAsync(() => m.Refresh());
+        await _ui.WaitUntilAsync(() => !m.IsRefreshing && m.State == ListingState.Complete);
+        Assert.Equal(-1, await _ui.InvokeAsync(Size));
+        await _ui.InvokeAsync(m.Dispose);
+    }
+
+    [Fact]
     public async Task Refresh_transfers_marks_by_identity_and_never_substitutes()
     {
         _dir.File("a.txt");
