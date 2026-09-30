@@ -62,7 +62,11 @@ public static class SettingsDialog
         var awake = new CheckBox { Content = "Keep the computer awake while operations run", IsChecked = s.KeepAwakeDuringJobs };
         // Named as the copy dialog names them (stored as Native and ReadBack).
         var verify = new ComboBox { ItemsSource = new[] { "Size and metadata (fast)", "Read back and compare content" }, SelectedIndex = s.DefaultVerify == "ReadBack" ? 1 : 0, MinWidth = 220 };
+        // D-57: how large a file beside a checksum or signature may be to be checked when shown.
+        var verifyUpTo = new NumericUpDown { Minimum = 0, Maximum = 1 << 20, Increment = 64, FormatString = "0 MiB", Value = s.VerifyAutomaticallyUpToMiB, Width = 160, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify),
+            ("Verify automatically up to", verifyUpTo),
+            ("", Note("Files next to a checksum file or signature (SHA256SUMS, name.sha256, .minisig, .asc…) are checked when shown up to this size; larger ones, and files on the network, on request: File → Verify checksums and signatures. 0 checks only on request.")),
             ("Saved filters", savedFilters),
             ("", Note("One per line: name = mask. Use them as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
 
@@ -196,6 +200,9 @@ public static class SettingsDialog
             s.SingleInstance = single.IsChecked == true;
             s.KeepAwakeDuringJobs = awake.IsChecked == true;
             s.DefaultVerify = verify.SelectedIndex == 1 ? "ReadBack" : "Native";
+            int upTo = (int)(verifyUpTo.Value ?? 256);
+            bool thresholdChanged = upTo != s.VerifyAutomaticallyUpToMiB;
+            s.VerifyAutomaticallyUpToMiB = upTo;
             s.SavedFilters = parsedFilters;
             s.Editor = string.IsNullOrWhiteSpace(editorExe.Text) ? null : new ToolDefinition
             {
@@ -213,6 +220,8 @@ public static class SettingsDialog
             s.ShellPicturesOnNetworkAndRemovable = shellSlow.IsChecked == true;
             columnsEditor.Apply();
             vm.ApplySettings();
+            // Rows beside checksums show "not checked" or a result according to the new size.
+            if (thresholdChanged) vm.Services.Metadata.Invalidate();
             return;
         }
     }

@@ -479,12 +479,13 @@ public static class OperationDialogs
         ChecksumKind[] kinds = [ChecksumKind.Sha256, ChecksumKind.Sha512, ChecksumKind.Sha384, ChecksumKind.Sha1, ChecksumKind.Md5, ChecksumKind.Crc32];
         var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
         Avalonia.Automation.AutomationProperties.SetName(algorithm, "Checksum algorithm");
-        var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap, MinWidth = 640 };
+        // One line for one file (and room for a scroll bar under a long SHA-512 line); more for more.
+        var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = files.Count == 1 ? 56 : 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap, MinWidth = 640 };
         Avalonia.Automation.AutomationProperties.SetName(output, "Checksums");
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
         var save = new Button { Content = "Save as manifest…", IsEnabled = false };
         // The value a download page gives, pasted: compared with what the file has (the algorithm follows from its length).
-        var expected = new TextBox { Watermark = "Paste a checksum to compare with, such as the one on the download page", FontFamily = output.FontFamily };
+        var expected = new TextBox { Watermark = "Paste a checksum to compare with, such as the one on the download page" };
         Avalonia.Automation.AutomationProperties.SetName(expected, "Compare with");
         var verdict = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6 };

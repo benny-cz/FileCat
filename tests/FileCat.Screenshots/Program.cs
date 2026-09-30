@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
@@ -16,16 +17,23 @@ using Location = FileCat.Core.Resources.Location;
 // Pictures of FileCat's windows, drawn offscreen with its own styles (UI reviews; nothing shows on the desktop).
 //   FileCat.Screenshots <out> record <path> [pages] [theme ...]      the file-system record of <path>, page by page
 //   FileCat.Screenshots <out> window <left> [right] [theme ...]      the main window with these locations in its panels
+//   FileCat.Screenshots <out> command <left> <id>[@tab] [theme ...]  the main window after a command (its dialog open),
+//                                                                    on the dialog's tab of that number (from 0) if given
 // A location is a folder or file path, or journal:<drive root> for a drive's change journal.
-if (args.Length < 3 || args[1] is not ("record" or "window"))
+if (args.Length < 3 || args[1] is not ("record" or "window" or "command") || args[1] == "command" && args.Length < 4)
 {
-    Console.WriteLine("usage: FileCat.Screenshots <out> record <path> [pages] [theme ...] | window <left> [right] [theme ...]");
+    Console.WriteLine("usage: FileCat.Screenshots <out> record <path> [pages] [theme ...] | window <left> [right] [theme ...] | command <left> <id>[@tab] [theme ...]");
     return 2;
 }
 string output = Directory.CreateDirectory(args[0]).FullName;
 AppBuilder.Configure<ShotApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).SetupWithoutStarting();
 FileCat.Core.Platform.PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
-return args[1] == "record" ? Record(args) : MainWindowShot(args);
+return args[1] switch
+{
+    "record" => Record(args),
+    "command" => MainWindowShot([args[0], args[1], args[2], .. args[4..]], args[3]),
+    _ => MainWindowShot(args),
+};
 
 int Record(string[] a)
 {
@@ -50,7 +58,7 @@ int Record(string[] a)
     return 0;
 }
 
-int MainWindowShot(string[] a)
+int MainWindowShot(string[] a, string? command = null)
 {
     string left = a[2];
     string? right = a.Length > 3 && !IsTheme(a[3]) ? a[3] : null;
@@ -76,7 +84,22 @@ int MainWindowShot(string[] a)
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             window.CaptureRenderedFrame();
             Pump(() => false, 1500);
-            Save(window, $"window-{theme}.png");
+            if (command is not null)
+            {
+                string[] parts = command.Split('@');
+                // A dialog that reads the clipboard (Calculate checksums) finds this there.
+                if (Environment.GetEnvironmentVariable("FILECAT_SHOT_CLIPBOARD") is { Length: > 0 } copied && window.Clipboard is { } clipboard)
+                    Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, copied).GetAwaiter().GetResult();
+                vm.Execute(parts[0]);
+                Pump(() => false, 1500);
+                if (parts.Length > 1 && int.TryParse(parts[1], out int tab))
+                {
+                    foreach (var tabs in window.GetVisualDescendants().OfType<TabControl>()) tabs.SelectedIndex = tab;
+                    Pump(() => false, 500);
+                }
+                Save(window, $"{parts[0].Replace('.', '-')}{(parts.Length > 1 ? "-" + parts[1] : "")}-{theme}.png");
+            }
+            else Save(window, $"window-{theme}.png");
             window.Close();
             foreach (var tab in panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();
         }

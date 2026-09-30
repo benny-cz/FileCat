@@ -112,7 +112,7 @@ public sealed class AppServices : IDisposable
         // Checksums and signatures beside files (D-57): results kept in the cache folder; minisign keys in the key folder.
         var verification = new Core.Verification.VerificationService(
             new Core.Verification.VerificationCache(Path.Combine(paths.CacheDirectory, "verification.jsonl")),
-            () => (long)Math.Max(1, Settings.VerifyAutomaticallyUpToMiB) << 20,
+            () => (long)Math.Max(0, Settings.VerifyAutomaticallyUpToMiB) << 20,
             () => [KeyDirectory]);
         // A changed checksum file or signature makes the shown results stale: they are asked for again.
         verification.SidecarsChanged += _ => Metadata.Invalidate();
