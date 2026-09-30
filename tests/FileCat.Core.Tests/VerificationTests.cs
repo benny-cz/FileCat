@@ -278,6 +278,29 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void A_checksum_file_that_is_a_cloud_placeholder_is_not_read()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Placeholder attributes are Windows'.");
+            return;
+        }
+        // Reading a placeholder downloads it: its claims wait until it is on this computer.
+        string path = Write("x.bin", "x");
+        string sums = Write("x.bin.sha256", Sha256("x") + "\n");
+        File.SetAttributes(sums, FileAttributes.Offline);
+        try
+        {
+            Assert.Null(Service().Automatic(path, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            File.SetAttributes(sums, FileAttributes.Normal);
+        }
+        Assert.Equal(VerificationState.Matches, Service().Automatic(path, TestContext.Current.CancellationToken)!.State);
+    }
+
+    [Fact]
     public void A_changed_sidecar_is_noticed_when_the_folder_changes()
     {
         string path = Write("x.bin", "x");

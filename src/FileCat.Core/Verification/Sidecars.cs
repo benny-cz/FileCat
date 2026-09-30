@@ -78,6 +78,8 @@ public sealed class FolderSidecars
         foreach (var (name, info) in files)
         {
             if (!SidecarNames.IsSidecar(name)) continue;
+            // A cloud placeholder is not read (reading it would download it): its claims wait until it is on this computer.
+            if ((info.Attributes & FileAttributes.Offline) != 0 || ((uint)info.Attributes & 0x440000u) != 0) continue;
             ct.ThrowIfCancellationRequested();
             sources[name] = (info.Length, info.LastWriteTimeUtc.Ticks);
             if (SidecarNames.IsSignatureFile(name)) result.AddSignature(name, info, files);
