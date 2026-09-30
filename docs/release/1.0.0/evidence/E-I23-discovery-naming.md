@@ -30,6 +30,12 @@ slow therefore loses its name; on a busy machine the test's own local answers ar
   VM paused at times). A deterministic reproduction needs a device whose metadata answer comes after the window: it is
   part of the remediation's tests.
 
-## Remediation and verification
+## E-I23-V1 — fix `d40e510` and verification
 
-In progress; recorded here when committed.
+- **Change:** name lookups started within the search window run on the caller's cancellation, ended by the metadata
+  client's own timeouts (2 s to connect, 3 s in all), no longer by the window.
+- **Test:** `NetworkDiscoveryTests.A_name_that_arrives_after_the_search_window_is_still_used` — the device answers the
+  probe at once but its metadata only after the one-second window. On the unchanged code in a clean worktree it
+  **fails** with exactly the U2 failure ("Expected: TESTBOX, Actual: 127.0.0.1"); on the fix it passes.
+- **Regression:** Ubuntu VM, `d40e510` (E-X01 U4): Core 539, Remote 43, App 160 — 0 failed; the discovery tests 20 times
+  — 0 failed. CI run 36773433835: all four lanes green.

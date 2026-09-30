@@ -51,9 +51,27 @@ with the whole suite running in parallel.
   replace the existing item: Access is denied. If the destination is a protected folder, Windows Controlled Folder
   Access may be blocking FileCat. (access)" and the file kept its old content.
 
-## Remediation and verification
+## E-I22-V1 — fix `63d5fc4` and verification
 
-In progress; recorded here when committed.
+- **Changes:** `CompareWindow` counts its load's reading among the runs the contents wait for and disposes them when the
+  readers stop, without waiting for the UI thread. `WindowsFileOperations.Move`, when `MoveFileEx(REPLACE_EXISTING)` is
+  refused with access denied, retries once as a POSIX-semantics rename of the file (`SetFileInformationByHandle`,
+  `FileRenameInfoEx`, replace-if-exists; the source opened for deletion only, as itself if a link, write-through); a
+  sharing violation from that attempt is reported as a sharing violation ("in use", with the job's quiet retries), any
+  other refusal keeps the first error; folders, read-only files and file systems without such renames keep the classic
+  behavior.
+- **Tests:** `CompareWindowTests.Closing_releases_the_files_while_the_windows_thread_is_busy`;
+  `OpenTargetReplaceTests.A_file_open_in_a_viewer_is_replaced_and_the_viewer_keeps_what_it_read` (replaced, no question,
+  the open handle still reads "old", no staged file left) and
+  `…A_file_held_without_sharing_deletion_is_reported_in_use_and_kept` (one question, class `sharing`, "in use", the file
+  unchanged, no staged file left). On the unchanged code in a clean worktree at `5c54181` both Windows tests **fail**
+  (the first asks "Access is denied … Controlled Folder Access", the second reports class `access`); on the fix they pass.
+- **Regression:** host, elevated, all four suites (run `run-i22a`): Core 543, Remote 43, Platform.Windows 110, App 160 —
+  0 failed. Lent Windows 11 VM, unelevated, `d40e510` (E-X01 W6): Core 544, Platform.Windows 110, Remote 43, App 160 —
+  0 failed, and the whole App suite 15 more times — 0 failed. CI run 36773433835 (`d40e510`, which contains `63d5fc4`):
+  all four lanes green.
+- **Note on the flaky test itself:** the baseline did not fail in 195 isolated runs or 15 whole-suite runs at `5c54181`
+  (E-X01 W2, W3, W5), so repeated runs cannot show the race gone; the deterministic tests above carry the verification.
 
 ## Limitations
 

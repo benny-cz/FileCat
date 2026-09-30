@@ -10,13 +10,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `5c54181` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `98fb594` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
-  without administrator rights). All are remediated and verified by targeted and affected regressions; closure awaits
-  re-audit and final-candidate evidence.
-- **Being worked:** I22 (Medium: replacing an open file on Windows; a comparison's late release), I23 (Low: discovery
-  naming). **Queued:** I24 (Low, owner-reported: no seconds in the Modified column).
+  without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
+  (Medium, a damaged NTFS field made recovery give up on the whole volume). All are remediated and verified by
+  targeted and affected regressions; closure awaits re-audit and final-candidate evidence.
+- **Queued:** I24 (seconds in the Modified column), I25 (Markdown shown rendered), I26 (progress at 100% while still
+  working; unconfirmed), I27 (Linux icons under Adwaita 41) — all Low. **Running:** a fuzz campaign of the recovery
+  scanner over millions of rounds on the host, both VMs and the Mac (E-I28-C1).
 
 ## Execution baseline
 
@@ -85,6 +87,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 14. A discovery test failed once on the Ubuntu VM under host contention: I23 (a device's name lookup was canceled with
     the search window). Fix in progress.
 15. The owner reported I24 (no seconds in the Modified column); queued.
+16. Fixed I22 (`63d5fc4`: POSIX-semantics replace fallback, "in use" instead of "access denied", comparisons release
+    files at once) and I23 (`d40e510`: name lookups outlive the search window). Both reproduced deterministically first;
+    host, unelevated VM, Ubuntu VM and CI regressions green.
+17. Ran the tests CI can only run in synthetic sessions inside the Ubuntu VM's real GNOME session (E-X01 U3): the page
+    engine works with WebKitGTK 4.0 (the `.deb`'s alternative); Samba browsing through GVFS works; under the session's
+    Adwaita 41 theme FileCat finds no file-type icons (I27, queued).
+18. A 100,000-round fuzz run on the Mac found I28 (NTFS: a negative `$Bitmap` size made recovery give up on the whole
+    volume). Reproduced (round 8842), located, fixed with its neighbors (`98fb594`), and the failing round saved as a
+    permanent test. A fuzz campaign over millions of rounds of the fixed build is running on four machines.
+19. The owner reported I25 (Markdown shown as plain text) and I26 (100% shown while still working; unconfirmed);
+    queued.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -96,12 +109,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - `33b7de2`, `5c54181` (administrator helper): any evidence of the consent window and V06-CONSENT; the helper binary
   changed, so broker evidence must be taken on the candidate.
 - `47c27b9` (Registry provider): V13 Registry browsing evidence for explicit views.
+- `63d5fc4` (Windows file operations, comparison window): V03 replace and move-over-existing evidence on Windows.
+- `98fb594` (NTFS recovery decoder): V11 NTFS recovery evidence.
 
 ## Next actions (unblocked)
 
-1. Finish I22 (POSIX-semantics replace fallback on Windows, "in use" classification, the Synchronize test waiting for
-   the comparison to let go) and I23 (name lookups outlive the search window); regress on the host, the VMs and CI.
-2. I24 (seconds in the Modified column).
+1. Collect the fuzz campaign's results (E-I28-C1); review the FAT and exFAT decoders the same way.
+2. The queued Low issues: I24 (seconds in the Modified column), I26 (verify 100% and ETA), I25, I27.
 3. V08 remote harness against the Ubuntu VM's servers from the Windows VM and the host: host-key trust and change, TLS
    validation, interruption and resume, latency, a server-side oracle.
 4. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;

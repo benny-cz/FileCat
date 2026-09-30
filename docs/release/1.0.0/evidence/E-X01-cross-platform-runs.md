@@ -14,6 +14,9 @@ reason (since `be6ca25`, E-S01). None of these machines is a final target (E-ENV
 | `47c27b9` | `tests-47c27b9-portable.zip` | `d6d3ab3c67f321c184c8193c43b1f76faa8f4731d2e4729b7bf8b5ddb10d04ca` | App, Core, Remote |
 | `5c54181` | `tests-5c54181-portable.zip` | `89cb7ff3f1c7ff5f2b592fa26915b32d77ae44453f2962a166c7f882dde991a5` | App, Core, Remote |
 | `5c54181` | `tests-5c54181-win.zip` | `c8d08d802c8264d77e7027f0251b6e4e2d62b91f6602458c73033716b3d25643` | App, Core, Platform.Windows, Remote |
+| `d40e510` | `tests-d40e510-portable.zip` | `b8e07c3f4680d2330711ca188f1bb2976bb1b9fd9833e83339e2839895a26e6d` | App, Core, Remote |
+| `d40e510` | `tests-d40e510-win.zip` | `2e390aeb2080086dfa4de88f9a4f72ec2f79cebcd1fe3e4c0264a35b34658312` | App, Core, Platform.Windows, Remote |
+| `98fb594` | `fuzz-98fb594.zip` | `f3d3417809bdda147f9cc8ceee5117ed6d751110ea3c20ae27afaffcc0a43ce2` | Core (for the fuzz campaign, E-I28) |
 
 ## Runs (total / passed / failed / skipped)
 
@@ -26,6 +29,13 @@ reason (since `be6ca25`, E-S01). None of these machines is a final target (E-ENV
 | U2 | same, after Samba, vsftpd and OpenSSH servers were set up on it | `5c54181` | 538/506/**1**/31 | — | 43/42/0/1 | 159/150/0/9 | I23 (discovery naming under load) |
 | M1 | MacBook Pro M1 (8 cores), macOS 26.6.2 (25G83), over SSH, .NET 10.0.12 user-local | `47c27b9` | 538/505/**1**/32 | — | 43/42/0/1 | 159/150/0/9 | Keychain test failed with -25293 over SSH (test defect; fixed `64ed037`) |
 | M2 | same | `5c54181` | 538/505/0/33 | — | 43/42/0/1 | 159/150/0/9 | The keychain case now skips with its reason |
+| M3 | same | `5c54181` | `RecoveryFuzzTests` 5,000 rounds per image: 7/7 passed (108 s); 100,000 rounds: the NTFS row failed | — | — | — | I28 |
+| W4 | Windows 11 VM, unelevated | `5c54181` | 543/505/0/38 | 108/89/0/19 | 43/34/0/9 | 159/155/0/4 | — |
+| W5 | same | `5c54181` | — | — | — | Whole App suite 15 ×: 0 failures | I22 baseline under the original conditions |
+| W6 | same | `d40e510` | 544/506/0/38 | 110/91/0/19 | 43/34/0/9 | 160/156/0/4, then 15 × more: 0 failures | I22 and I23 fixes |
+| U3 | Ubuntu VM, inside the logged-in GNOME (Wayland) session | `5c54181` | Icons: skipped (Adwaita has no text icon); Samba + GVFS: 5/5 passed; secret store: not run (login keyring locked) | — | — | WebKitGTK page engine with **libwebkit2gtk-4.0** 2.50.4 (the 4.0 fallback): 1/1 passed | I27; the 4.0 fallback works |
+| U4 | Ubuntu VM | `d40e510` | 539/508/0/31 | — | 43/42/0/1 | 160/151/0/9 | Discovery tests 20 ×: 0 failures |
+| U5 | Ubuntu VM, 16 busy threads on 8 vCPUs | `5c54181` | Discovery naming test 20 ×: 0 failures | — | — | — | In-guest load does not reproduce I23 |
 
 TRX SHA-256: W1 Core `e2d0b4584e75ebccda6b6b98f290fcf0f2bf6f1e03c27bde28186257b5e977fc`, Platform.Windows
 `0cdc46ae346266779c89544c0cd318b6045523cb38b44b0f83de1ab4eec967f6`, Remote
@@ -46,7 +56,26 @@ TRX SHA-256: W1 Core `e2d0b4584e75ebccda6b6b98f290fcf0f2bf6f1e03c27bde28186257b5
 `95e1f1b092d964195738f4e09abc4ecef29b94addc233451b444a750e9b75012`; M2 Core
 `0f171c4ad7d2f251fb6fd3791de834f6308b7dd2cec5850bbc906494c566744c`, Remote
 `974e4f7d49f0cac4e42240eeb0fdef882b95138ccfa1976784529e3da400dbe1`, App
-`99b54317f4caf1367136da13cf8a649665c8983f7c69b469692c91040f2a7556`.
+`99b54317f4caf1367136da13cf8a649665c8983f7c69b469692c91040f2a7556`; W4 Core
+`28dc11ce7c17e639822e7829addd7f5d22ff40b7d51e22b1cef5152a8f98dec1`, Platform.Windows
+`d681572218b69095d2fb57edbbf993c50b86d59ac81f3b9726283b487420cb2e`, Remote
+`84ed83aaf97f0a17e2edb6fcab481f476c3cc2bdc77882cd1929121e6b05a051`, App
+`fa2a02beec788d5313f4235f92d0d9be768d64fc9723a9c98d91642029165fa8`; W5 log
+`76f1def7ff2e7c613cab50a406011486c078c8a979e3ca5d3c3646515a612991`; W6 Core
+`a23c4419cd690f6276a8155c4464a2b0a0ca497d2e2551f7912e5132aa411178`, Platform.Windows
+`868f3e37740388a0bcde70cb814773afe32519647fff5ed72e8e285d5092cc14`, Remote
+`b9d330567044ff632258278dedb1c9971a9f30cd15ebc1bf1867278e1cb67682`, App
+`bf2be757b1e372a98c5783850ad74ee9e8c34c9c9ffb0f2b57ab35aac310e5d4`, log
+`b3aba29059d4ff45ebce41866a98c00ede34694c5b972191f01f466d3d294633`; U3 log
+`42e771b572f3d85e5facbeec6083f5212b5cfd9908b513078779d6a852cd9c2d`, WebKit
+`4dde071adb0deef798749d4d566ed4a6fecedd07504227ec01b05e4edd073f0f`, icons
+`6d6d0a27e5b98b0f4307bff47e617f21acaa19419610e9f1b8b20793ecfb78da`, Samba
+`572878bf0a185d5d19614ac5fd8f4fc74cf1abc0cf9b96bae44d566e0a8dee69`; U4 Core
+`7d29799febbc23ef9652a6d084875b35d3d8790e64b02300fce6031d9a2a5e30`, Remote
+`71bf413fe39eec9437da62675f0c5751debf7f90cd9e9152aa51b49d6b3cb08b`, App
+`84c54f207a7578f35b465bcd2c1ece6f6ef2a29a894b1bf9df986d9884205a5c`, log
+`faeb0bf344d752888197ed0d386a0ca34e03a553c4b6362146bd4f5726281a83`; U5 log
+`99597afb2e17bb085ea1108aac3bce695dc684642330020e8a98c346fd1e3eae`.
 
 ## CI runs of the campaign's commits (GitHub-hosted, elevated Windows lanes)
 
@@ -57,6 +86,8 @@ TRX SHA-256: W1 Core `e2d0b4584e75ebccda6b6b98f290fcf0f2bf6f1e03c27bde28186257b5
 | 36763921747 | `47c27b9` (includes `33b7de2`) | All four lanes green |
 | 36765116273 | `64ed037` | All four lanes green |
 | 36767308673 | `5c54181` | All four lanes green |
+| 36772537802 | `1857882` (records) | All four lanes green |
+| 36773433835 | `d40e510` (includes `63d5fc4`) | All four lanes green |
 
 ## What the runs add beyond CI
 

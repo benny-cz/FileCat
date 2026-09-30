@@ -31,9 +31,13 @@ level the plan already states; exploit-level detail is not recorded here.
 | I19 | Interrupted-copy cleanup deleted complete or user-changed files | **High** (data loss) | Blocker (non-waivable class) | **Remediated `f87ad32`; verified** — closure pending re-audit |
 | I20 | `$LogFile` attributed an earlier item's operations to the current file | Medium (false forensic finding) | Must fix (confirmed D-56 surface; destabilized the required CI lane) | **Remediated `45efc09`; verified** — closure pending re-audit |
 | I21 | The Registry's 32-bit and 64-bit views of HKLM, HKU and HKCC failed without administrator rights | Medium (confirmed feature broken in the default, unelevated mode) | Must fix | **Remediated `47c27b9`; verified** — closure pending re-audit |
-| I22 | Replacing a file that is open failed on Windows with a misleading "Access denied"; a closed comparison kept its files open | Medium | Must fix (confirmed copy/sync surface; destabilized two required lanes) | **Reproduced; remediation in progress** |
-| I23 | Network discovery listed a device by its address when its name arrived late | Low (name missing; device listed) | Must fix (confirmed feature; nondeterministic required test) | **Mechanism established; remediation in progress** |
+| I22 | Replacing a file that is open failed on Windows with a misleading "Access denied"; a closed comparison kept its files open | Medium | Must fix (confirmed copy/sync surface; destabilized two required lanes) | **Remediated `63d5fc4`; verified** — closure pending re-audit |
+| I23 | Network discovery listed a device by its address when its name arrived late | Low (name missing; device listed) | Must fix (confirmed feature; nondeterministic required test) | **Remediated `d40e510`; verified** — closure pending re-audit |
 | I24 | The panels' Modified column shows no seconds by default | Low (UI) | Fix before release if time allows; owner-reported | **Queued** |
+| I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | Owner-reported improvement | **Queued** |
+| I26 | Progress can show 100% while an operation is evidently still working; ETA to be checked | Low; **unconfirmed** | Owner-reported; verify first | **Queued** |
+| I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
+| I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery | Medium (recovery completeness; potential hang) | Must fix (§17.3 robustness) | **Remediated `98fb594`; verified; fuzz campaign running** |
 
 ## Records of issues worked in this campaign
 
@@ -188,12 +192,19 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Severity / disposition:** Medium. No data is lost (the staged copy is discarded; the target keeps its content), but
   a replace fails in a common situation (the file is open in FileCat's viewer, a comparison, or another program that
   shares deletion), the message points to the wrong cause, and two required lanes became nondeterministic. Must fix.
-- **Remediation (in progress):** the comparison disposes its files when its readers stop, without waiting for the UI
-  thread (done in the working tree; the new test passes); on Windows, a replace refused with access denied is retried as
-  a POSIX-semantics rename (`FileRenameInfoEx`), which succeeds when every open handle shares deletion — the open handle
-  keeps reading the old content, as on Linux — and a sharing violation from that attempt is reported as "in use" (with
-  the quiet retries) instead of "access denied"; file systems without POSIX renames keep the classic behavior.
-- **Evidence invalidated by the fix (expected):** V03 replace cases on Windows; E-X01 App/Platform.Windows results.
+- **Remediation (`63d5fc4`):** the comparison disposes its files when its readers stop, without waiting for the UI
+  thread; on Windows, a replace refused with access denied is retried as a POSIX-semantics rename (`FileRenameInfoEx`),
+  which succeeds when every open handle shares deletion — the open handle keeps reading the old content, as on Linux —
+  and a sharing violation from that attempt is reported as "in use" (with the quiet retries) instead of "access
+  denied"; folders, read-only files and file systems without POSIX renames keep the classic behavior.
+- **Tests added:** `CompareWindowTests.Closing_releases_the_files_while_the_windows_thread_is_busy`, two
+  `OpenTargetReplaceTests` (Windows).
+- **Revalidation (E-I22-V1):** the new tests fail on `5c54181` and pass on the fix; all suites green on the host, in the
+  unelevated VM (plus 15 whole App-suite runs) and on CI 36773433835.
+- **Evidence invalidated:** V03 replace cases on Windows; E-X01 App and Platform.Windows results before `63d5fc4`.
+- **Remaining before closure:** re-audit (the replace path is safety-relevant: review the fallback's conditions and its
+  write-through semantics); V03 replace cases on the candidate, including SMB and FAT destinations where the fallback
+  must not apply.
 
 ### I23 — Network discovery listed a device by its address when its name arrived late
 
@@ -203,9 +214,12 @@ level the plan already states; exploit-level detail is not recorded here.
   window, so a device answering late in the window, or answering the Get slowly, lost its name.
 - **Severity / disposition:** Low for users (the device is still listed and usable by address); must fix because the
   feature is confirmed and a required test depends on timing.
-- **Remediation (planned):** the lookups started within the window get their own bounded time (the HTTP client's 3 s
-  timeout) instead of the window's end; a test with a device that answers its Get after the window reproduces it
-  deterministically.
+- **Remediation (`d40e510`):** the lookups started within the window end at the metadata client's own timeouts (3 s),
+  not with the window.
+- **Test added:** `NetworkDiscoveryTests.A_name_that_arrives_after_the_search_window_is_still_used` (deterministic; fails
+  on the unchanged code with the U2 message).
+- **Revalidation (E-I23-V1):** Ubuntu VM suites and 20 discovery runs green; CI 36773433835 green.
+- **Remaining before closure:** re-audit; V08/network discovery against real devices on the candidate.
 
 ### I24 — The panels' Modified column shows no seconds by default
 
@@ -217,6 +231,54 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Expected:** the Modified column shows seconds by default.
 - **Severity / disposition:** Low (presentation); queued behind the Medium issues. Before changing it, check the column
   widths, the culture's long time pattern, and tests that compare formatted dates.
+
+### I25 — Markdown files open as plain text
+
+- **Reported:** by the owner, 2026-09-30 (interactive use).
+- **Observed in source:** no Markdown handling exists; the viewer renders HTML (`.htm`, `.html`, `.xhtml`, …) through
+  the page engine (`HtmlPage`) and shows every other text file, `.md` included, as plain text.
+- **Expected:** Markdown shown rendered (a better viewer, for example through the page engine), with the plain text
+  still available.
+- **Severity / disposition:** Low (improvement); queued. Rendering must keep the page engine's containment (scripts off,
+  no network) — a Markdown renderer must not become a way to load remote content.
+
+### I26 — Progress at 100% while an operation still works (unconfirmed)
+
+- **Reported:** by the owner, 2026-09-30, as something to check: an operation showed 100% while something was evidently
+  still happening; the ETA calculation should be checked too.
+- **State:** not reproduced yet. Candidates to examine: byte progress that reaches the total before the per-item steps
+  after the bytes (publishing staged copies, setting times and attributes, flushing, verifying, deleting a moved
+  source) finish; totals that exclude later work; ETA from a rate that ignores those steps.
+- **Severity / disposition:** Low until confirmed; queued (PI-07: progress must not claim completion early).
+
+### I27 — Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons
+
+- **Discovered:** E-X01 run U3 (the Ubuntu 22.04 VM's own GNOME session, icon theme Adwaita):
+  `FreedesktopIconsTests` skipped with "The icon theme Adwaita has no text icon here".
+- **Observed:** adwaita-icon-theme 41.0 ships only `text-x-generic-symbolic.svg` for text files (`ubu-adwaita.txt`);
+  FileCat's lookup (theme, its parents, hicolor) asks for the full-color names only, finds nothing, and shows its
+  built-in icons. GTK falls back to the `-symbolic` variant in that case.
+- **Severity / disposition:** Low (cosmetic); queued. A fix would add the `-symbolic` names as the last fallback and draw
+  them in the text color.
+
+### I28 — A damaged NTFS size or data run made the whole volume unreadable to recovery
+
+- **Discovered:** a 100,000-round `RecoveryFuzzTests` run on the owner's M1 Mac (E-X01 M3, E-I28-D1).
+- **Mechanism (E-I28-R1):** NTFS round 8842 damages the `$Bitmap` record so that its data size reads as negative;
+  `NtfsScanner.ReadStream` allocated an array of that length (`OverflowException`), and the scanner's safety net
+  reported the whole volume "damaged beyond what FileCat reads", offering nothing on it. Review of the same decoder
+  found negative or enormous cluster numbers, unbounded sparse runs, and a per-cluster walk over sparse runs that a
+  damaged run could turn into a hang.
+- **Requirement:** plan §17.3 (untrusted disk structures: a damage report or a smaller listing, never an unexpected
+  exception, a hang or an unbounded allocation); recovery completeness (I09 context).
+- **Severity / disposition:** Medium — no crash (the safety net held) and no write, but a damaged volume whose files
+  FileCat could otherwise offer became entirely unrecoverable in FileCat, and a hang was possible. Must fix.
+- **Remediation (`98fb594`):** bounds on every decoded cluster number, size and run; the stream reader clamps to the
+  stream; sparse runs become one extent. The fuzz test names the failing image and round, can run a chosen image and
+  range, and replays saved failing rounds on every run.
+- **Revalidation (E-I28-V1):** the saved round fails on the unchanged code and passes on the fix; Core suite green. A
+  fuzz campaign over millions of further rounds on four machines is running (E-I28-C1).
+- **Remaining before closure:** the campaign's results; re-audit; the same review for the FAT and exFAT decoders.
 
 ## New detail on open issues
 
@@ -237,4 +299,5 @@ level the plan already states; exploit-level detail is not recorded here.
 ## Initial register entries not yet worked
 
 I01–I14, I16 and I18 keep the plan's §7 text as their current record, and I17 keeps it for the parts not worked above.
+I24–I27 are queued owner reports and findings of lower severity.
 None has been closed. Their evidence, reproduction and remediation fields will be filled when worked.
