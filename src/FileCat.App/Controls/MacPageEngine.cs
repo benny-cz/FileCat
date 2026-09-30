@@ -36,7 +36,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
     private bool _pageWaits;
     private string? _title;
     private int _blocked;
-    private bool _disposed;
+    private bool _disposed, _observingTitle;
     /// <summary>URL scheme tasks being answered, each with a token: a stopped task is never answered.</summary>
     private readonly Dictionary<nint, object> _tasks = [];
 
@@ -103,6 +103,9 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         ByObject[_delegate] = this;
         ObjC.Send(_view, "setNavigationDelegate:", _delegate);
         ObjC.Send(_view, "setUIDelegate:", _delegate);
+        // WebKit sets the title from its web content process, at times after the navigation has finished.
+        ObjC.AddObserver(_view, _delegate, "title");
+        _observingTitle = true;
 
         if (s_rules != 0) AddRules();
         else
@@ -166,6 +169,9 @@ internal sealed unsafe class MacPageEngine : IPageEngine
         _tasks.Clear();
         if (_view != 0)
         {
+            // The view may outlive this engine (its window holds it): it must not call a released observer.
+            if (_observingTitle) ObjC.Send(_view, "removeObserver:forKeyPath:", _delegate, ObjC.String("title"));
+            _observingTitle = false;
             ObjC.Send(_view, "setNavigationDelegate:", 0);
             ObjC.Send(_view, "setUIDelegate:", 0);
             ObjC.Send(_view, "stopLoading");
@@ -298,6 +304,21 @@ internal sealed unsafe class MacPageEngine : IPageEngine
             engine._title = ObjC.ToString(ObjC.Send(webView, "title"));
             engine.Changed?.Invoke();
             engine.Loaded?.Invoke(true, null);
+        }
+        catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
+    }
+
+    /// <summary>The view's title changed (key-value observing): a title that came after the navigation finished.</summary>
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void Observed(nint self, nint selector, nint keyPath, nint observed, nint change, nint context)
+    {
+        try
+        {
+            if (Of(self) is not { } engine || ObjC.ToString(keyPath) != "title") return;
+            string? title = ObjC.ToString(ObjC.Send(observed, "title"));
+            if (title == engine._title) return;
+            engine._title = title;
+            engine.Changed?.Invoke();
         }
         catch (Exception ex) { Core.Diagnostics.AppLog.Warn("Web page engine: " + ex.Message); }
     }
@@ -456,6 +477,7 @@ internal sealed unsafe class MacPageEngine : IPageEngine
                 Add(DelegateClass, "webView:didFailNavigation:withError:", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint, void>)&Failed, "v@:@@@");
                 Add(DelegateClass, "webView:didFailProvisionalNavigation:withError:", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint, void>)&Failed, "v@:@@@");
                 Add(DelegateClass, "webView:createWebViewWithConfiguration:forNavigationAction:windowFeatures:", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint, nint, nint>)&CreateWebView, "@@:@@@@");
+                Add(DelegateClass, "observeValueForKeyPath:ofObject:change:context:", (nint)(delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint, nint, void>)&Observed, "v@:@@@^v");
                 class_addProtocol(DelegateClass, objc_getProtocol("WKNavigationDelegate"));
                 class_addProtocol(DelegateClass, objc_getProtocol("WKUIDelegate"));
                 objc_registerClassPair(DelegateClass);
@@ -500,6 +522,11 @@ internal sealed unsafe class MacPageEngine : IPageEngine
 
         public static nuint SendReturnsNUInt(nint receiver, string selector) =>
             ((delegate* unmanaged[Cdecl]<nint, nint, nuint>)s_msgSend)(receiver, sel_registerName(selector));
+
+        /// <summary>Key-value observing of <paramref name="keyPath"/> (new values; no context).</summary>
+        public static void AddObserver(nint observed, nint observer, string keyPath) =>
+            ((delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nuint, nint, void>)s_msgSend)(observed,
+                sel_registerName("addObserver:forKeyPath:options:context:"), observer, String(keyPath), 1 /* NSKeyValueObservingOptionNew */, 0);
 
         public static bool Responds(nint receiver, string selector) =>
             ((delegate* unmanaged[Cdecl]<nint, nint, nint, byte>)s_msgSend)(receiver, sel_registerName("respondsToSelector:"), sel_registerName(selector)) != 0;

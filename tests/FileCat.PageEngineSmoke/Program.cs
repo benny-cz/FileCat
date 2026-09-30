@@ -43,8 +43,9 @@ try
     engine.Show(new HtmlPage(new FileContentSource(Path.Combine(site, "index.html")), "index.html"));
     var clock = Stopwatch.StartNew();
     while (loaded is null && clock.Elapsed < TimeSpan.FromSeconds(60)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(100));
+    // The refused request and the title can both come after the navigation finished (the title is observed).
     var settle = Stopwatch.StartNew();
-    while (engine.BlockedCount < 1 && settle.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(100));
+    while ((engine.BlockedCount < 1 || string.IsNullOrEmpty(engine.Title)) && settle.Elapsed < TimeSpan.FromSeconds(10)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(100));
     Console.WriteLine($"loaded: {loaded} ({reason}); title: {engine.Title}; refused: {engine.BlockedCount}");
     bool passed = loaded == true && engine.Title == "FileCat test page" && engine.BlockedCount >= 1;
     engine.Dispose();
