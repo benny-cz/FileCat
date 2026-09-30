@@ -341,7 +341,8 @@ public sealed class ListingModel : IDisposable
         }
         if (State == ListingState.Loading && _pendingRefresh is null)
         {
-            Load(Location, TryGetFocused(out var f) ? f.Name : null);
+            // Loading again keeps the name still awaited (going up focuses the folder just left), or the row the user moved to.
+            Load(Location, _pendingFocusName ?? (_focusAnchored && TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? f.Name : null));
             return;
         }
         var store = CreateStore(Location);
@@ -357,7 +358,12 @@ public sealed class ListingModel : IDisposable
         _refreshing = null;
         if (!_refreshAgain) return;
         _refreshAgain = false;
-        _ui.Post(Refresh);
+        // Only for the listing it was asked for: a navigation meanwhile loads its own location afresh.
+        var current = _pipeline;
+        _ui.Post(() =>
+        {
+            if (ReferenceEquals(current, _pipeline)) Refresh();
+        });
     }
 
     public void CancelLoading()

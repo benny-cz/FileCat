@@ -379,6 +379,23 @@ public sealed class ListingModelTests : IDisposable
         await _ui.InvokeAsync(model.Dispose);
     }
 
+    [Fact]
+    public async Task A_refresh_during_the_first_load_keeps_the_name_that_is_to_be_focused()
+    {
+        // Going up focuses the folder just left; a change noticed while the parent loads must not move the cursor to the top.
+        var provider = new ChangingProvider { Names = ["a.txt", "b.txt", "c.txt"] };
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        provider.Hold();
+        await _ui.InvokeAsync(() => model.Load(new Location("changing", "root"), "b.txt"));
+        Assert.True(provider.Read.Wait(TimeSpan.FromSeconds(10)));
+        await _ui.InvokeAsync(model.Refresh);
+        provider.Let();
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete && model.VisibleCount == 3);
+        Assert.Equal("b.txt", await _ui.InvokeAsync(() => model.TryGetFocused(out var e) ? e.Name : null));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
     /// <summary>Lists its current names; when held, waits after reading them until let go.</summary>
     private sealed class ChangingProvider : ResourceProvider
     {
