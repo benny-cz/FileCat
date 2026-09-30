@@ -71,15 +71,15 @@ internal static partial class Program
             return 2;
         }
 
-        var lines = plan.Steps.Take(60).Select((s, i) => $"{i + 1}. {ElevationPlanCodec.Describe(s)}").ToList();
-        if (plan.Steps.Count > lines.Count) lines.Add($"… and {plan.Steps.Count - lines.Count:N0} more steps of the same plan.");
+        var pages = ElevationConsent.Pages(plan);
         string content = $"Requested by {ElevationPlanCodec.DisplayName(plan.UserSid)} from FileCat at {plan.CreatedUtc.ToLocalTime():t}. " +
-                         $"This approval covers only these {plan.Steps.Count:N0} steps; the helper exits when they finish.";
+                         $"This approval covers only these {ElevationConsent.Kinds(plan)}; the helper exits when they finish." +
+                         (pages.Count > 1 ? $" The steps are shown {ElevationConsent.PageSize} at a time: Later steps and Earlier steps show every one of them." : "");
         bool reading = plan.Steps is [{ Verb: ElevatedVerb.ReadDevice }];
         string footer = reading ? "FileCat reads what it finds itself; this helper only hands it the drive's bytes, and has no way to write."
             : "Completed steps are kept if a later step fails. Links are never followed." +
               (plan.Steps.Any(s => s.Verb == ElevatedVerb.DeleteTree) ? " Deleted items do not go to the Recycle Bin." : "");
-        if (!ConsentDialog.Ask(plan.Title, content, string.Join("\n", lines), footer))
+        if (!ConsentDialog.Ask(plan.Title, content, pages, footer))
         {
             Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = ElevationMessages.Declined });
             return 1;

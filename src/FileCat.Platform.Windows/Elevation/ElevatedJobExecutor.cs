@@ -58,7 +58,7 @@ internal sealed class ElevatedJobExecutor(Job job, JobJournal journal) : IJobExe
         int done = 0;
         foreach (var r in result.Steps)
         {
-            string what = r.Index < plan.Steps.Count ? ElevationPlanCodec.Describe(plan.Steps[r.Index]) : $"Step {r.Index + 1}";
+            string what = r.Index < plan.Steps.Count ? ElevationPlanCodec.Describe(plan.Steps[r.Index], plan.UserSid) : $"Step {r.Index + 1}";
             switch (r.Outcome)
             {
                 case ElevatedOutcome.Committed:

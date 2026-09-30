@@ -168,13 +168,17 @@ public static class ElevationPlanCodec
     }
 
     /// <summary>One line per step, with drive-letter paths resolved by the calling process (the broker, when it displays).</summary>
-    public static string Describe(ElevatedStep s)
+    /// <summary>
+    /// One step in words, as the consent window and reports show it. <paramref name="requesterSid"/> is the plan's
+    /// requesting user: a Registry hive under HKU is called theirs only when it is (release issue I17).
+    /// </summary>
+    public static string Describe(ElevatedStep s, string? requesterSid)
     {
         string P(string? volumePath) => volumePath is null ? "?" : ElevationPaths.ToDisplayPath(volumePath);
         string A(FileAttributes a) => a == 0 ? "nothing" : a.ToString().ToLowerInvariant();
         return s.Verb switch
         {
-            ElevatedVerb.Registry => RegistryText(s.Registry!),
+            ElevatedVerb.Registry => RegistryText(s.Registry!, requesterSid),
             ElevatedVerb.DeleteTree => $"Delete permanently: {P(s.Path)} (a folder with everything in it; links are removed as links and never followed)",
             ElevatedVerb.CopyTree => $"Copy {P(s.Path)} into {P(s.Destination)} as \"{s.Name}\"" +
                                      (s.ReplaceExisting ? ", replacing existing files" : ", keeping existing files"),
@@ -196,14 +200,34 @@ public static class ElevationPlanCodec
         return shown.StartsWith(@"\\?\", StringComparison.Ordinal) ? "volume " + path : $"drive {shown.TrimEnd('\\')} ({path})";
     }
 
-    private static string RegistryText(ElevatedRegistryChange r)
+    private static string RegistryText(ElevatedRegistryChange r, string? requesterSid)
     {
         var change = ToChange(r);
         string text = RegistryChangeRunner.Describe(change);
         if (change.Desired is { } desired)
             text += $" = {RegistryValueCodec.TypeName(desired.Type)} {RegistryRaw.Preview(new RegistryValueData(desired.Type, desired.Data, desired.Data.Length))}";
-        if (r.KeyPath.StartsWith(@"HKU\S-", StringComparison.Ordinal)) text += " (in the requesting user's own Registry)";
+        var hives = new[] { r.KeyPath, r.TargetKeyPath }.OfType<string>().Select(HiveOf).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase);
+        var owners = hives.Select(h => HiveOwner(h, requesterSid)).ToList();
+        if (owners.Count > 0) text += " (" + string.Join("; ", owners) + ")";
         return text;
+    }
+
+    /// <summary>The hive under HKU a key path names ("S-1-5-21-…", "S-1-5-21-…_Classes", ".DEFAULT"), or null.</summary>
+    private static string? HiveOf(string keyPath)
+    {
+        var parts = keyPath.Split('\\');
+        return parts.Length >= 2 && parts[0].Equals("HKU", StringComparison.OrdinalIgnoreCase) ? parts[1] : null;
+    }
+
+    /// <summary>Whose Registry an HKU hive is, in words: the requesting user's only when its SID is theirs.</summary>
+    private static string HiveOwner(string hive, string? requesterSid)
+    {
+        const string classes = "_Classes";
+        string sid = hive.EndsWith(classes, StringComparison.OrdinalIgnoreCase) ? hive[..^classes.Length] : hive;
+        if (requesterSid is not null && sid.Equals(requesterSid, StringComparison.OrdinalIgnoreCase)) return "in the requesting user's own Registry";
+        string who = hive.Equals(".DEFAULT", StringComparison.OrdinalIgnoreCase) ? "the default profile (HKU\\.DEFAULT)"
+            : sid.StartsWith("S-", StringComparison.OrdinalIgnoreCase) ? $"{DisplayName(sid)} ({sid})" : $"HKU\\{hive}";
+        return requesterSid is null ? $"in the Registry of {who}" : $"in the Registry of {who}, not the requesting user's";
     }
 
     public static string DisplayName(string sid)

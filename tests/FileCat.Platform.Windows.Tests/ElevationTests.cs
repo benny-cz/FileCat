@@ -292,8 +292,8 @@ public sealed class ElevationTests
             using var key = Registry.CurrentUser.OpenSubKey(keyPath);
             Assert.Equal(7, key!.GetValue("set"));
             Assert.False(Directory.Exists(Path.Combine(root, "never")));
-            Assert.Contains("Delete permanently", ElevationPlanCodec.Describe(plan.Steps[0]));
-            Assert.Contains("requesting user's own Registry", ElevationPlanCodec.Describe(plan.Steps[1]));
+            Assert.Contains("Delete permanently", ElevationPlanCodec.Describe(plan.Steps[0], plan.UserSid));
+            Assert.Contains("requesting user's own Registry", ElevationPlanCodec.Describe(plan.Steps[1], plan.UserSid));
         }
         finally
         {

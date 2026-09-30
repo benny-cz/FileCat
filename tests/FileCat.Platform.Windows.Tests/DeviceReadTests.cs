@@ -243,7 +243,7 @@ public sealed class DeviceReadTests : IDisposable
         var good = Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = volume, Name = session });
         Assert.Empty(ElevationPlanCodec.Validate(ElevationPlanCodec.Parse(ElevationPlanCodec.Serialize(good)), DateTime.UtcNow));
         Assert.Empty(ElevationPlanCodec.Validate(Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = @"\\.\PhysicalDrive1", Name = session }), DateTime.UtcNow));
-        Assert.Contains("Nothing on it", ElevationPlanCodec.Describe(good.Steps[0]).Replace("nothing on it", "Nothing on it"), StringComparison.Ordinal);
+        Assert.Contains("Nothing on it", ElevationPlanCodec.Describe(good.Steps[0], good.UserSid).Replace("nothing on it", "Nothing on it"), StringComparison.Ordinal);
 
         void Refused(ElevationPlan plan) => Assert.NotEmpty(ElevationPlanCodec.Validate(plan, DateTime.UtcNow));
         Refused(Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = volume + @"\Windows", Name = session }));
