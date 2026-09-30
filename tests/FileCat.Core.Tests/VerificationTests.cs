@@ -199,15 +199,36 @@ public sealed class VerificationTests : IDisposable
             Assert.Skip("No gpg here.");
             return;
         }
-        string home = Directory.CreateDirectory(Path.Combine(_dir, "gnupg")).FullName;
-        string file = Write("release.tar", "release contents");
-        Run(gpg, home, "--batch", "--pinentry-mode", "loopback", "--passphrase", "", "--quick-gen-key", "FileCat Test <test@example.org>", "ed25519", "sign", "never");
-        Run(gpg, home, "--batch", "--pinentry-mode", "loopback", "--passphrase", "", "--detach-sign", "--output", file + ".sig", file);
-        var good = OpenPgp.Verify(file + ".sig", file, TestContext.Current.CancellationToken, home);
-        Assert.Equal(VerificationState.SignatureGood, good.State);
-        Assert.Contains("FileCat Test", good.Text, StringComparison.Ordinal);
-        File.AppendAllText(file, "tampered");
-        Assert.Equal(VerificationState.SignatureBad, OpenPgp.Verify(file + ".sig", file, TestContext.Current.CancellationToken, home).State);
+        // gpg-agent's socket lives in the home on macOS, whose socket paths hold 104 bytes: a home under $TMPDIR is too long.
+        string home = OperatingSystem.IsWindows()
+            ? Directory.CreateDirectory(Path.Combine(_dir, "gnupg")).FullName
+            : Directory.CreateDirectory("/tmp/fcg-" + Guid.NewGuid().ToString("N")[..8], UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute).FullName;
+        try
+        {
+            string file = Write("release.tar", "release contents");
+            Run(gpg, home, "--batch", "--pinentry-mode", "loopback", "--passphrase", "", "--quick-gen-key", "FileCat Test <test@example.org>", "ed25519", "sign", "never");
+            Run(gpg, home, "--batch", "--pinentry-mode", "loopback", "--passphrase", "", "--detach-sign", "--output", file + ".sig", file);
+            var good = OpenPgp.Verify(file + ".sig", file, TestContext.Current.CancellationToken, home);
+            Assert.Equal(VerificationState.SignatureGood, good.State);
+            Assert.Contains("FileCat Test", good.Text, StringComparison.Ordinal);
+            File.AppendAllText(file, "tampered");
+            Assert.Equal(VerificationState.SignatureBad, OpenPgp.Verify(file + ".sig", file, TestContext.Current.CancellationToken, home).State);
+        }
+        finally
+        {
+            // The agent gpg started for this home goes with it.
+            string gpgconf = Path.Combine(Path.GetDirectoryName(gpg)!, OperatingSystem.IsWindows() ? "gpgconf.exe" : "gpgconf");
+            if (File.Exists(gpgconf))
+            {
+                try
+                {
+                    using var stop = Process.Start(new ProcessStartInfo(gpgconf, ["--homedir", home, "--kill", "all"]) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true });
+                    stop?.WaitForExit(10_000);
+                }
+                catch (System.ComponentModel.Win32Exception) { }
+            }
+            if (!OperatingSystem.IsWindows()) try { Directory.Delete(home, recursive: true); } catch (IOException) { }
+        }
     }
 
     /// <summary>The gpg FileCat itself would use (Git for Windows' own, which wants its own paths, is not one).</summary>
