@@ -34,8 +34,12 @@ public sealed class VerificationCache(string? file)
     private bool _loaded;
     private int _lines;
 
+    /// <summary>
+    /// A result's key: the file, the sidecars it depends on, and what vouches for its signers (key files, gpg's keyring).
+    /// The leading version drops results worked out by an earlier model (keys beside a file once counted as trusted).
+    /// </summary>
     public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources) =>
-        $"{path}|{size}|{modified}|{string.Join(";", sources.OrderBy(s => s.Name, StringComparer.Ordinal).Select(s => $"{s.Name}:{s.Size}:{s.Modified}"))}";
+        $"2|{path}|{size}|{modified}|{string.Join(";", sources.OrderBy(s => s.Name, StringComparer.Ordinal).Select(s => $"{s.Name}:{s.Size}:{s.Modified}"))}";
 
     private static string HashKeyOf(string path, long size, long modified) => $"#{path}|{size}|{modified}";
 
@@ -211,7 +215,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         if (Stamp(path) is not { } stamp) return null;
         var checksums = sidecars.Checksums(name);
         var signatures = sidecars.Signatures(name);
-        string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name));
+        string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name)));
         if (cache.Get(key) is { } cached) return cached;
         var known = cache.HashesOf(path, stamp.Size, stamp.Modified);
         // Signatures over the file read all of it; checksums only when their hashes are not known yet.
@@ -235,9 +239,12 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             foreach (var (kind, value) in read) all[kind] = value;
             return all;
         }
+        // Keys the user keeps in FileCat's keys folder are trusted; a key beside the file is not (it came from the same place).
         IReadOnlyList<Minisign.PublicKey>? keys = null;
+        var trustedFolders = keyFolders();
         SignatureResult Check(SignatureClaim claim, CancellationToken token) => claim.Kind == SignatureKind.Minisign
-            ? Minisign.Verify(claim.Signed, claim.Signature, keys ??= Minisign.KeysIn([folder, .. keyFolders()]), token, progress)
+            ? Minisign.Verify(claim.Signed, claim.Signature, keys ??= [.. Minisign.KeysIn(trustedFolders, trusted: true), .. Minisign.KeysIn([folder])], token, progress,
+                trustedFolders.FirstOrDefault())
             : OpenPgp.Verify(claim.Signature, claim.Signed, token);
         var result = Verifier.Check(checksums, signatures, Hash, Check, sidecars.Signatures, ct);
         if (result.State != VerificationState.Unreadable) cache.Put(key, result);
@@ -262,7 +269,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             if (!known.Sidecars.Covers(name)) continue;
             string path = Path.Combine(folder, name);
             if (Stamp(path) is not { } stamp) continue;
-            var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(known.Sidecars, name)));
+            var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(known.Sidecars, name).Concat(TrustOf(known.Sidecars, name))));
             if (result is null) notChecked++;
             else if (result.IsGood) good++;
             else if (result.IsBad) bad++;
@@ -280,6 +287,26 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             .Concat(checksums.SelectMany(c => sidecars.Signatures(Path.GetFileName(c.Source))).Select(s => Path.GetFileName(s.Signature)))
             .Distinct(StringComparer.Ordinal)
             .Select(n => sidecars.Sources.TryGetValue(n, out var s) ? (n, s.Size, s.Modified) : (n, -1L, 0L));
+    }
+
+    /// <summary>
+    /// What vouches for a file's signers, as it is now: the minisign key files (trusted and beside the file) when a
+    /// minisign signature is involved, gpg's keyring and trust database when an OpenPGP one is. A change checks it again.
+    /// </summary>
+    private IEnumerable<(string Name, long Size, long Modified)> TrustOf(FolderSidecars sidecars, string name)
+    {
+        var signatures = sidecars.Signatures(name)
+            .Concat(sidecars.Checksums(name).SelectMany(c => sidecars.Signatures(Path.GetFileName(c.Source))))
+            .Select(s => s.Kind).ToHashSet();
+        var files = new List<FileInfo>();
+        if (signatures.Contains(SignatureKind.Minisign))
+            foreach (string folder in keyFolders().Append(sidecars.Folder))
+            {
+                try { files.AddRange(new DirectoryInfo(folder).EnumerateFiles("*.pub")); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+        if (signatures.Contains(SignatureKind.OpenPgp)) files.AddRange(OpenPgp.KeyringFiles());
+        return files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks));
     }
 
     private static string Size(long bytes) => bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.#} GiB" : $"{bytes / (double)(1 << 20):0.#} MiB";

@@ -155,7 +155,7 @@ public static class Verifier
         _ => 5,
     };
 
-    private static string Short(SignatureResult r) => r.State switch
+    private static string Short(SignatureResult r) => r.Short ?? r.State switch
     {
         VerificationState.SignatureBad => "✗ bad signature",
         VerificationState.SignatureUnknownKey => "? signed by an unknown key",
@@ -163,5 +163,8 @@ public static class Verifier
     };
 }
 
-/// <summary>What checking one signature found; <see cref="Signer"/> names who signed when the key is known.</summary>
-public sealed record SignatureResult(VerificationState State, string Text, string? Signer = null);
+/// <summary>
+/// What checking one signature found; <see cref="Signer"/> names who signed when the key is trusted, and
+/// <see cref="Short"/>, when given, is the row's words for it (otherwise they follow from the state).
+/// </summary>
+public sealed record SignatureResult(VerificationState State, string Text, string? Signer = null, string? Short = null);

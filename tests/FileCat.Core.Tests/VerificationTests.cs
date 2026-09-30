@@ -156,11 +156,19 @@ public sealed class VerificationTests : IDisposable
         Assert.Equal("✓ signed by release", good.Text);
         Assert.Contains(good.Details, d => d.Contains("trusted comment: timestamp:1700000000", StringComparison.Ordinal));
 
-        // The legacy form (the whole file signed), with the key beside the file instead.
+        // The legacy form (the whole file signed).
         File.WriteAllBytes(Path.Combine(_dir, "old.zip"), content);
         Write("old.zip.minisig", key.Sign(content, "legacy", prehashed: false));
+        Assert.Equal(VerificationState.SignatureGood, Check("old.zip", Service(keys: [keys])).State);
+
+        // A key beside the file came from the same place as the file: its good signature is unsure, never a tick,
+        // unless the same key is among the trusted ones.
         File.WriteAllText(Path.Combine(_dir, "release.pub"), key.PublicFile);
-        Assert.Equal(VerificationState.SignatureGood, Check("old.zip").State);
+        var beside = Check("old.zip");
+        Assert.Equal((VerificationState.SignatureUnknownKey, "? signed by a key found beside it"), (beside.State, beside.Text));
+        Assert.Contains(beside.Details, d => d.Contains("not among your trusted keys", StringComparison.Ordinal));
+        Assert.Equal(VerificationState.SignatureGood, Check("old.zip", Service(keys: [keys])).State);
+        File.Delete(Path.Combine(_dir, "release.pub"));
 
         // A changed file, a changed trusted comment, and a key that is not here.
         File.WriteAllBytes(Path.Combine(_dir, "app.zip"), [.. content, (byte)'!']);
@@ -175,6 +183,14 @@ public sealed class VerificationTests : IDisposable
         var unknown = Check("app.zip", Service(keys: [keys]));
         Assert.Equal(VerificationState.SignatureUnknownKey, unknown.State);
         Assert.Contains(unknown.Details, d => d.Contains($"minisign key {BinaryPrimitives.ReadUInt64LittleEndian(stranger.Id):X16}", StringComparison.Ordinal));
+
+        // Trusting the key later (copying it into the keys folder) is noticed: the kept result is worked out again.
+        string cacheFile = Path.Combine(_dir, "cache", "trust.jsonl");
+        string trusted = Directory.CreateDirectory(Path.Combine(_dir, "trusted")).FullName;
+        File.WriteAllText(Path.Combine(_dir, "release.pub"), key.PublicFile);
+        Assert.Equal(VerificationState.SignatureUnknownKey, Check("old.zip", Service(cacheFile: cacheFile, keys: [trusted])).State);
+        File.WriteAllText(Path.Combine(trusted, "release.pub"), key.PublicFile);
+        Assert.Equal(VerificationState.SignatureGood, Check("old.zip", Service(cacheFile: cacheFile, keys: [trusted])).State);
     }
 
     [Fact]

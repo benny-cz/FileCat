@@ -9,7 +9,9 @@ namespace FileCat.Core.Verification;
 /// <summary>
 /// minisign signatures (D-57), checked natively: Ed25519 over the file ("Ed", the legacy form) or over its BLAKE2b-512
 /// hash ("ED", the default since minisign 0.8), and the global signature over the signature and its trusted comment.
-/// The public key is found by its key ID among the <c>.pub</c> files beside the file and in FileCat's key folders.
+/// The public key is found by its key ID among the <c>.pub</c> files in FileCat's keys folder (trusted: the user put
+/// them there) and beside the file (not trusted: a key from the same place as the file shows only that whoever
+/// published the file signed it, so a good signature by it is "unsure", never a tick).
 /// </summary>
 public static class Minisign
 {
@@ -19,6 +21,9 @@ public static class Minisign
     public sealed record PublicKey(byte[] KeyId, byte[] Key, string Source)
     {
         public string Id => BinaryPrimitives.ReadUInt64LittleEndian(KeyId).ToString("X16");
+
+        /// <summary>From a folder of keys the user trusts (FileCat's keys folder), not from beside the file.</summary>
+        public bool Trusted { get; init; }
     }
 
     public sealed record Signature(bool Prehashed, byte[] KeyId, byte[] Value, string TrustedComment, byte[] Global)
@@ -50,7 +55,7 @@ public static class Minisign
     }
 
     /// <summary>The minisign keys among the <c>.pub</c> files of these folders (other kinds of .pub, such as SSH keys, are left out).</summary>
-    public static List<PublicKey> KeysIn(IEnumerable<string> folders)
+    public static List<PublicKey> KeysIn(IEnumerable<string> folders, bool trusted = false)
     {
         var keys = new List<PublicKey>();
         foreach (string folder in folders.Where(Directory.Exists))
@@ -62,7 +67,7 @@ public static class Minisign
             {
                 try
                 {
-                    if (new FileInfo(file).Length <= 4096 && ParsePublicKey(File.ReadAllText(file), file) is { } key) keys.Add(key);
+                    if (new FileInfo(file).Length <= 4096 && ParsePublicKey(File.ReadAllText(file), file) is { } key) keys.Add(key with { Trusted = trusted });
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
@@ -70,16 +75,20 @@ public static class Minisign
         return keys;
     }
 
-    public static SignatureResult Verify(string file, string signaturePath, IReadOnlyList<PublicKey> keys, CancellationToken ct, Action<long>? progress = null)
+    /// <param name="trustedFolder">Where trusted keys go (FileCat's keys folder), named in the advice a result gives.</param>
+    public static SignatureResult Verify(string file, string signaturePath, IReadOnlyList<PublicKey> keys, CancellationToken ct, Action<long>? progress = null,
+        string? trustedFolder = null)
     {
+        string keysFolder = trustedFolder ?? "FileCat's keys folder";
         Signature? signature;
         try { signature = new FileInfo(signaturePath).Length <= 4096 ? ParseSignature(File.ReadAllText(signaturePath)) : null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new SignatureResult(VerificationState.SignatureUnchecked, "it could not be read: " + ex.Message); }
         if (signature is null) return new SignatureResult(VerificationState.SignatureBad, "it is not a minisign signature");
-        var key = keys.FirstOrDefault(k => k.KeyId.AsSpan().SequenceEqual(signature.KeyId));
+        // A key the user trusts wins over the same key found beside the file.
+        var key = keys.Where(k => k.KeyId.AsSpan().SequenceEqual(signature.KeyId)).OrderByDescending(k => k.Trusted).FirstOrDefault();
         if (key is null)
             return new SignatureResult(VerificationState.SignatureUnknownKey,
-                $"made with minisign key {signature.Id}, whose public key is not here: put its .pub beside the file or in FileCat's key folder");
+                $"made with minisign key {signature.Id}, which is not among your trusted keys: once you have the publisher's .pub from a place you trust (their website, say), copy it into {keysFolder}");
         byte[] message;
         try
         {
@@ -103,8 +112,14 @@ public static class Minisign
         if (!Ed25519.Verify(signature.Global, 0, key.Key, 0, signed, 0, signed.Length))
             return new SignatureResult(VerificationState.SignatureBad, "the file matches, but its trusted comment was changed after signing");
         string signer = Path.GetFileNameWithoutExtension(key.Source);
+        if (!key.Trusted)
+            return new SignatureResult(VerificationState.SignatureUnknownKey,
+                $"good minisign signature, but by key {key.Id} from {Path.GetFileName(key.Source)} beside the file, which is not among your trusted keys: " +
+                $"a key from the same place as the file shows only that whoever published it signed it. Once you know the key is the publisher's " +
+                $"(from their website, say), copy it into {keysFolder}; trusted comment: {signature.TrustedComment}",
+                Short: "? signed by a key found beside it");
         return new SignatureResult(VerificationState.SignatureGood,
-            $"good minisign signature, key {key.Id} from {Path.GetFileName(key.Source)}; trusted comment: {signature.TrustedComment}", signer);
+            $"good minisign signature, key {key.Id} from {Path.GetFileName(key.Source)} (a trusted key); trusted comment: {signature.TrustedComment}", signer);
     }
 
     /// <summary>BLAKE2b-512 of a file, read in 1 MiB blocks.</summary>
@@ -164,6 +179,19 @@ public static class OpenPgp
             // Git for Windows' own gpg keeps a keyring of its own, not the user's: left out.
             _tool = candidates.FirstOrDefault(c => !c.Contains(Path.Combine("Git", "usr"), StringComparison.OrdinalIgnoreCase) && File.Exists(c));
             return _tool;
+        }
+    }
+
+    /// <summary>The user's keyring and trust database (GNUPGHOME, or gpg's default home), which a result depends on.</summary>
+    public static IEnumerable<FileInfo> KeyringFiles()
+    {
+        string home = Environment.GetEnvironmentVariable("GNUPGHOME") is { Length: > 0 } set ? set
+            : OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "gnupg")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gnupg");
+        foreach (string name in new[] { "pubring.kbx", "pubring.gpg", "trustdb.gpg" })
+        {
+            var file = new FileInfo(Path.Combine(home, name));
+            if (file.Exists) yield return file;
         }
     }
 
@@ -242,7 +270,7 @@ public static class OpenPgp
                           (expired is not null ? "; the key has expired since" : "") + (trust is not null ? $"; the key is {trust}" : "");
             bool trusted = trust is "ultimately trusted" or "fully trusted";
             return new SignatureResult(trusted || trust is null ? VerificationState.SignatureGood : VerificationState.SignatureUnknownKey, text,
-                trusted || trust is null ? who : null);
+                trusted || trust is null ? who : null, trusted || trust is null ? null : "? signed by a key you have not certified");
         }
         if (missing is not null) return new SignatureResult(VerificationState.SignatureUnknownKey, $"made with OpenPGP key {missing}, which is not in your keyring");
         return new SignatureResult(VerificationState.SignatureUnchecked, "gpg gave no answer about it");

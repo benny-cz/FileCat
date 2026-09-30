@@ -109,7 +109,10 @@ public sealed class AppServices : IDisposable
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
         EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
-        // Checksums and signatures beside files (D-57): results kept in the cache folder; minisign keys in the key folder.
+        // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
+        // folder (made now, so the advice that names it points to a folder that is there).
+        try { Directory.CreateDirectory(KeyDirectory); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         var verification = new Core.Verification.VerificationService(
             new Core.Verification.VerificationCache(Path.Combine(paths.CacheDirectory, "verification.jsonl")),
             () => (long)Math.Max(0, Settings.VerifyAutomaticallyUpToMiB) << 20,
