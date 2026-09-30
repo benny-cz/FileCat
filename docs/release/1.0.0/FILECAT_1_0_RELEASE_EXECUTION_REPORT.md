@@ -10,15 +10,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `98fb594` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `d40fda0` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
   (Medium, a damaged NTFS field made recovery give up on the whole volume). All are remediated and verified by
-  targeted and affected regressions; closure awaits re-audit and final-candidate evidence.
-- **Queued:** I24 (seconds in the Modified column), I25 (Markdown shown rendered), I26 (progress at 100% while still
-  working; unconfirmed), I27 (Linux icons under Adwaita 41) — all Low. **Running:** a fuzz campaign of the recovery
-  scanner over millions of rounds on the host, both VMs and the Mac (E-I28-C1).
+  targeted and affected regressions; closure awaits re-audit and final-candidate evidence. Also fixed since: I24
+  (seconds in the Modified column), I26 (progress and time left, confirmed Medium), I28's second finding, I29 (a CI-red
+  race in shell previews).
+- **In progress:** I30 (how running operations show). **Queued:** I25 (Markdown shown rendered), I27 (Linux icons
+  under Adwaita 41). **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the
+  Mac (E-I28-C1).
 
 ## Execution baseline
 
@@ -98,6 +100,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     permanent test. A fuzz campaign over millions of rounds of the fixed build is running on four machines.
 19. The owner reported I25 (Markdown shown as plain text) and I26 (100% shown while still working; unconfirmed);
     queued.
+20. Fixed I24 (`2197074`): seconds in the Modified column by default, checked in a screenshot.
+21. CI went red on ARM64 in a shell-preview test (I29): a request race, reproduced deterministically, fixed (`7175a41`),
+    CI green again.
+22. The fuzz campaign found a second NTFS defect (round 56958: the scan threw on a damaged root record); fixed
+    (`bb977d0`); NTFS rounds 0–99,999 pass; the VMs' NTFS runs restarted on the fixed build.
+23. I26 confirmed (a verified copy showed 100% for 63% of its time) and fixed (`d40fda0`) with a new progress model and
+    an honest, steady time-left estimator, as the owner asked (likely and pessimistic values, no jumps); pictured with a
+    new screenshot mode.
+24. The owner asked for the best possible way to show running operations (I30, middle priority); in progress.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -114,8 +125,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaign's results (E-I28-C1); review the FAT and exFAT decoders the same way.
-2. The queued Low issues: I24 (seconds in the Modified column), I26 (verify 100% and ETA), I25, I27.
+1. I30: how running operations show (percentage, phase, current file's progress, details at once, speed history,
+   taskbar progress).
+2. Collect the fuzz campaign's results (E-I28-C1); review the FAT and exFAT decoders the same way.
+3. The queued Low issues: I25, I27.
 3. V08 remote harness against the Ubuntu VM's servers from the Windows VM and the host: host-key trust and change, TLS
    validation, interruption and resume, latency, a server-side oracle.
 4. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;

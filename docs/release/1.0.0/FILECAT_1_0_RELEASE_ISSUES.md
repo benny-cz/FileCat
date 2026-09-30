@@ -33,11 +33,13 @@ level the plan already states; exploit-level detail is not recorded here.
 | I21 | The Registry's 32-bit and 64-bit views of HKLM, HKU and HKCC failed without administrator rights | Medium (confirmed feature broken in the default, unelevated mode) | Must fix | **Remediated `47c27b9`; verified** — closure pending re-audit |
 | I22 | Replacing a file that is open failed on Windows with a misleading "Access denied"; a closed comparison kept its files open | Medium | Must fix (confirmed copy/sync surface; destabilized two required lanes) | **Remediated `63d5fc4`; verified** — closure pending re-audit |
 | I23 | Network discovery listed a device by its address when its name arrived late | Low (name missing; device listed) | Must fix (confirmed feature; nondeterministic required test) | **Remediated `d40e510`; verified** — closure pending re-audit |
-| I24 | The panels' Modified column shows no seconds by default | Low (UI) | Fix before release if time allows; owner-reported | **Queued** |
+| I24 | The panels' Modified column shows no seconds by default | Low (UI) | Fix before release if time allows; owner-reported | **Remediated `2197074`** (seconds by default; screenshot checked) |
 | I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | Owner-reported improvement | **Queued** |
-| I26 | Progress can show 100% while an operation is evidently still working; ETA to be checked | Low; **unconfirmed** | Owner-reported; verify first | **Queued** |
+| I26 | Progress at 100% while an operation still works, and a time left that was not honest | Medium (confirmed: 100% for 63% of a verified copy) | Must fix; owner-reported | **Remediated `d40fda0`; verified** — closure pending re-audit |
 | I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
-| I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery | Medium (recovery completeness; potential hang) | Must fix (§17.3 robustness) | **Remediated `98fb594`; verified; fuzz campaign running** |
+| I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
+| I29 | A shell picture asked for while the helper already worked on it was asked again (CI red on ARM64) | Low (duplicate work; nondeterministic required test) | Must fix | **Remediated `7175a41`; verified; CI green** |
+| I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **In progress** (builds on I26) |
 
 ## Records of issues worked in this campaign
 
@@ -242,14 +244,20 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Severity / disposition:** Low (improvement); queued. Rendering must keep the page engine's containment (scripts off,
   no network) — a Markdown renderer must not become a way to load remote content.
 
-### I26 — Progress at 100% while an operation still works (unconfirmed)
+### I26 — Progress at 100% while an operation still works, and a time left that was not honest
 
-- **Reported:** by the owner, 2026-09-30, as something to check: an operation showed 100% while something was evidently
-  still happening; the ETA calculation should be checked too.
-- **State:** not reproduced yet. Candidates to examine: byte progress that reaches the total before the per-item steps
-  after the bytes (publishing staged copies, setting times and attributes, flushing, verifying, deleting a moved
-  source) finish; totals that exclude later work; ETA from a rate that ignores those steps.
-- **Severity / disposition:** Low until confirmed; queued (PI-07: progress must not claim completion early).
+- **Reported:** by the owner, 2026-09-30: an operation showed 100% while something was evidently still happening; the
+  time left must be realistic, steady, and honest about its uncertainty (a lowest and a highest estimate).
+- **Reproduction (E-I26-R1):** a 512 MB copy with read-back verification showed 100% for 1.7 s of its 2.7 s (63%) and no
+  time left during that part: only copied bytes counted.
+- **Remediation (`d40fda0`, E-I26-V1):** all work counts (copying, reading back, what skipped or failed files settle); a
+  new estimator models time per megabyte plus time per file, gives a likely and a pessimistic time left (shown as a range
+  while they differ), claims nothing while measuring, counting, stalled or paused, never shows 100% before the end, and
+  smooths what is shown so it counts down steadily.
+- **Tests added:** `ProgressEstimatorTests` (8), `JobProgressViewTests`, time-left formatting cases.
+- **Revalidation:** all four host suites green; screenshot of a verified copy under way.
+- **Remaining before closure:** re-audit; watching the estimate on long real jobs on the candidate (USB, network, phones);
+  stream jobs (archives, remote) do not count verification work yet.
 
 ### I27 — Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons
 
@@ -278,7 +286,33 @@ level the plan already states; exploit-level detail is not recorded here.
   range, and replays saved failing rounds on every run.
 - **Revalidation (E-I28-V1):** the saved round fails on the unchanged code and passes on the fix; Core suite green. A
   fuzz campaign over millions of further rounds on four machines is running (E-I28-C1).
+- **Second finding (`bb977d0`):** the campaign then found NTFS round 56958 on the fixed build: damage that cleared the
+  root record's in-use or folder flag listed the root folder as a nameless file, and numbering the listing threw out of
+  the whole scan (other volumes included). The root record is never listed as an item, and preparing a volume's listing
+  runs inside the per-volume safety net. Rounds 0–99,999 of NTFS pass on `bb977d0`; both rounds are saved as tests.
 - **Remaining before closure:** the campaign's results; re-audit; the same review for the FAT and exFAT decoders.
+
+### I29 — A shell picture asked for while the helper already worked on it was asked again
+
+- **Discovered:** CI run 36778104838 (Windows ARM64) failed a shell-preview test on an unrelated commit (E-I29-D1).
+- **Mechanism (E-I29-M1):** the preview worker took a request off the queue before asking the helper, so an identical
+  request made meanwhile asked the helper again and its answer replaced the first in the cache.
+- **Severity / disposition:** Low (duplicate work, no wrong picture) but a required lane went red; must fix.
+- **Remediation (`7175a41`):** the request in progress stays joinable until its answer is cached; a deterministic test
+  holds the first request at the helper while the second is made (it failed with CI's message before the fix).
+- **Revalidation:** Platform.Windows suite green; CI 36779059604 green on all lanes.
+
+### I30 — Running operations should show what happens in the best possible way
+
+- **Requested:** by the owner, 2026-09-30 (middle priority): when users move their data they need to know what is
+  happening, visualized in the best possible way.
+- **Observed (E-I26 pictures):** the Operations strip is one line of text over a 4-pixel bar with the current file's name;
+  there is no percentage, no progress of the current (large) file, no phase (copying, verifying, finishing), no speed
+  history; the details drawer lists jobs, but its right half stays empty until a job is picked.
+- **Plan:** a percentage and the phase on the strip; the current file's own progress for large files; the details show
+  the running job at once: where from and to, elapsed time, the honest time left, speeds, counts of done, skipped and
+  failed items, and a speed history; Windows taskbar progress for a minimized window; each change pictured with the
+  screenshot tool and covered by view-model tests.
 
 ## New detail on open issues
 

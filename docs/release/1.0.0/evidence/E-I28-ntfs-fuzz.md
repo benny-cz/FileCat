@@ -46,7 +46,19 @@ Rounds are split between machines so none repeats another's work; results are ad
 
 | Machine | Build | Rounds per image | Result |
 |---|---|---|---|
-| Owner's M1 Mac | `5c54181` | 0–99,999 (all images) | NTFS failed (this issue); the other rows: pending |
-| Host | `98fb594` | NTFS 0–99,999 | pending |
-| Ubuntu 22.04 VM | `98fb594` | 100,000–1,099,999 | pending |
-| Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | pending |
+| Owner's M1 Mac | `5c54181` | 0–99,999 (all images) | NTFS failed (round 8842, this issue); the other six images passed (1,920 s; `fuzz-100000.txt` `c9bfe2289f0ed0134d8e56a16c7a34ab87713620df6056e4be133ee2d2b0badf`) |
+| Host | `98fb594` | NTFS 0–99,999 | **failed at round 56958**: the scan threw `ArgumentNullException` (second finding, E-I28-V2; `fuzz-ntfs-98fb594.txt` `779846a58993d5da10643e82e2d675e7411c55dfc3a6eb1732edbeed451171cd`) |
+| Host | `bb977d0` | NTFS 0–99,999 | passed (1,283 s; `fuzz-ntfs-host-fixed2.txt` `c6570e4c2b6618b92ff873fca01b7c37385cf7fd61d6b3894a87d34703ebb413`) |
+| Ubuntu 22.04 VM | `98fb594` | 100,000–1,099,999 | NTFS stopped on the second finding (317 s; `ubu-fuzz-ntfs.txt` `9c829e934c1238e6f28a8d891fe719c6f41a30585969942c258276d33fe87dce`); the other six images running |
+| Ubuntu 22.04 VM | `bb977d0` | NTFS 100,000–1,099,999 | running |
+| Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | the other six images running; NTFS restarted on `bb977d0` |
+| Owner's M1 Mac | `bb977d0` | 2,100,000–3,099,999 (all images) | running |
+
+## E-I28-V2 — second finding and fix `bb977d0`
+
+On `98fb594`, NTFS round 56958 made `RecoveryScanner.Scan` throw `ArgumentNullException` from `Number` (the listing's
+numbering), outside the per-volume safety net: damage had cleared the root record's in-use or folder flag, and the root
+record — which the record loop keeps even without a name — was listed as a file with no name. Fix: the root record is
+never listed as an item of its own listing, and the listing's preparation (numbering, lost-file marks) runs inside the
+per-volume safety net, so a slip there leaves a warning on that volume instead of ending the scan. The fuzz test now names
+the round when the scan throws, and replays round 56958 as well; NTFS rounds 0–99,999 pass on `bb977d0`.

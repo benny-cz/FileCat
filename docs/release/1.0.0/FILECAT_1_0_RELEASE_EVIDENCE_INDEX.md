@@ -29,7 +29,9 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I23-D1/M1/R1 | Discovery lost a device's name when it came late | `5c54181` | Ubuntu VM | Mechanism established from source; not reproduced by in-guest load | Preliminary automated | [E-I23](evidence/E-I23-discovery-naming.md) | I23 |
 | E-I23-V1 | The I23 fix | `d40e510` | Host worktree; Ubuntu VM; CI 36773433835 | Deterministic test fails before (the U2 message), passes after; suites and 20 discovery runs green | Preliminary automated | [E-I23](evidence/E-I23-discovery-naming.md) | I23 |
 | E-I28-D1/R1/V1 | Fuzzing found a damaged NTFS size that made the whole volume unreadable | `5c54181` → `98fb594` | M1 Mac; host | Round 8842 fails before, passes after; Core suite green | Preliminary automated | [E-I28](evidence/E-I28-ntfs-fuzz.md) | I28 |
-| E-I28-C1 | Fuzz campaign on the fixed build, millions of rounds over four machines | `98fb594` | Host, Ubuntu VM, Windows VM, Mac | In progress | Preliminary automated | [E-I28](evidence/E-I28-ntfs-fuzz.md) | I28 |
+| E-I28-C1 | Fuzz campaign on the fixed build, millions of rounds over four machines | `98fb594`, `bb977d0` | Host, Ubuntu VM, Windows VM, Mac | Second NTFS finding (fixed `bb977d0`); running | Preliminary automated | [E-I28](evidence/E-I28-ntfs-fuzz.md) | I28 |
+| E-I26-R1/V1 | Progress at 100% during verification; the new progress model and time left | `2197074` → `d40fda0` | Host; screenshot tool | 100% for 63% of a verified copy before; after: all suites green, honest range | Preliminary automated | [E-I26](evidence/E-I26-progress.md) | I26 |
+| E-I29 | Shell preview request race (CI red on ARM64) | `2197074` → `7175a41` | CI ARM64; host | Reproduced deterministically; fixed; CI green | Preliminary automated | [E-I29](evidence/E-I29-shell-preview-race.md) | I29 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
 ## Commits made by the campaign
@@ -49,3 +51,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `63d5fc4` | Windows replace falls back to a POSIX-semantics rename and reports "in use"; comparisons release files at once | I22 | E-I22-R1, E-I22-V1 |
 | `d40e510` | Discovery name lookups outlive the search window | I23 | E-I23-V1 |
 | `98fb594` | NTFS decoder bounds sizes and runs; sparse runs as one extent; fuzz test names rounds, replays saved ones | I28 | E-I28-R1, E-I28-V1 |
+| `9af4db4` | Release records: I22, I23, I28 fixed; I25–I27 queued | — | — |
+| `2197074` | Panels show seconds in the Modified column by default | I24 | screenshot |
+| `7175a41` | Shell previews: a request in progress stays joinable | I29 | E-I29 |
+| `bb977d0` | NTFS root record never listed as an item; listing preparation inside the safety net | I28 | E-I28 |
+| `d40fda0` | Progress counts all work; honest, steady time left; screenshot mode for operations | I26 | E-I26 |

@@ -88,6 +88,10 @@ TRX SHA-256: W1 Core `e2d0b4584e75ebccda6b6b98f290fcf0f2bf6f1e03c27bde28186257b5
 | 36767308673 | `5c54181` | All four lanes green |
 | 36772537802 | `1857882` (records) | All four lanes green |
 | 36773433835 | `d40e510` (includes `63d5fc4`) | All four lanes green |
+| 36776539841 | `98fb594` | All four lanes green |
+| 36777155113 | `9af4db4` (records) | All four lanes green |
+| 36778104838 | `2197074` | Windows ARM64 **failed**: shell-preview request race (I29); other lanes green |
+| 36779059604 | `7175a41` | All four lanes green |
 
 ## What the runs add beyond CI
 
