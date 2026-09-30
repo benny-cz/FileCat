@@ -63,6 +63,7 @@ public sealed partial class MainViewModel
             case CommandIds.EditNew: await EditNewAsync(); return true;
             case CommandIds.Edit: await EditFocusedAsync(); return true;
             case CommandIds.View: ViewFocused(hex: false); return true;
+            case CommandIds.ChangeJournal: OpenChangeJournal(); return true;
             case CommandIds.ViewAlternate: ViewFocused(hex: true); return true;
             case CommandIds.Undo: await UndoLastAsync(); return true;
             case CommandIds.Operations: Operations.IsOpen = !Operations.IsOpen; return true;
@@ -847,6 +848,12 @@ public sealed partial class MainViewModel
         var tab = ActiveTab;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        // A row about something else (a change-journal entry): its report.
+        if (f.Tag is IReportedEntry reported)
+        {
+            new Views.ReportWindow("Change journal entry", reported.ReportTitle, _ => Task.FromResult(reported.Report())).Show();
+            return;
+        }
         if (item.Parent.Scheme == Schemes.Registry && item.Kind == EntryKind.RegistryKey)
         {
             _ = ViewRegistryKeyAsync(item);

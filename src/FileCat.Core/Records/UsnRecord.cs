@@ -112,6 +112,25 @@ public sealed record UsnRecord(int Version, UInt128 FileId, UInt128 ParentId, lo
         return parts.Count == 0 ? "none" : string.Join(", ", parts);
     }
 
+    private static readonly (uint Flag, string Text)[] ShortNames =
+    [
+        (0x0000_0100, "created"), (0x0000_0001, "overwritten"), (0x0000_0002, "extended"), (0x0000_0004, "truncated"),
+        (0x0000_0010, "stream overwritten"), (0x0000_0020, "stream extended"), (0x0000_0040, "stream truncated"),
+        (0x0000_1000, "renamed from"), (0x0000_2000, "renamed to"), (0x0000_8000, "times or attributes"), (0x0000_0400, "EAs"),
+        (0x0000_0800, "security"), (0x0000_4000, "indexing"), (0x0001_0000, "hard link"), (0x0002_0000, "compression"),
+        (0x0004_0000, "encryption"), (0x0008_0000, "object ID"), (0x0010_0000, "reparse point"), (0x0020_0000, "streams"),
+        (0x0040_0000, "transacted"), (0x0080_0000, "integrity"), (0x0100_0000, "storage class"), (0x0000_0200, "deleted"), (0x8000_0000, "closed"),
+    ];
+
+    /// <summary>The reasons in few words for a list column ("created, extended, closed"); <see cref="ReasonsText"/> says them in full.</summary>
+    public static string ReasonsShort(uint reasons)
+    {
+        var parts = ShortNames.Where(n => (reasons & n.Flag) != 0).Select(n => n.Text).ToList();
+        uint known = ShortNames.Aggregate(0u, (all, n) => all | n.Flag);
+        if ((reasons & ~known) != 0) parts.Add($"0x{reasons & ~known:X8}");
+        return parts.Count == 0 ? "none" : string.Join(", ", parts);
+    }
+
     /// <summary>Who made the change, when a program said (source information).</summary>
     public static string? SourceText(uint source)
     {

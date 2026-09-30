@@ -23,6 +23,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private readonly List<Location> _forward = [];
     private int _columnProfile;
     private long _freeBytes = -1;
+    /// <summary>The tab's own order while it shows a change journal (which reads newest first).</summary>
+    private SortSpec? _sortOutsideJournal;
     private string? _freeBytesDevice;
     private bool _disposed;
 
@@ -298,6 +300,17 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         EndQuickSearch();
         ComparisonLabel = null;
         Banner = LocationBanner(location);
+        // A change journal reads newest first, times mixed with folders; the tab's own order returns when it leaves.
+        if (location.Scheme == Schemes.Journal && Location?.Scheme != Schemes.Journal)
+        {
+            _sortOutsideJournal = Listing.Sort;
+            Listing.Sort = Listing.Sort with { Field = SortField.Modified, Descending = true, MixDirectories = true };
+        }
+        else if (location.Scheme != Schemes.Journal && _sortOutsideJournal is { } kept)
+        {
+            Listing.Sort = kept;
+            _sortOutsideJournal = null;
+        }
         Listing.Load(location, focusName);
         if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
@@ -427,6 +440,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         focused = default;
         if (!Listing.TryGetFocused(out var e) || Location is null) return false;
         focused = e;
+        // A row about an item elsewhere (a journal entry): its folder, with it under the cursor, while it exists.
+        if (e.Tag is ILocatableEntry locatable && e.Kind != EntryKind.Parent)
+        {
+            if (locatable.Locate() is not { } at) return false;
+            Navigate(Location.FileSystem(at.Folder), at.Name);
+            return true;
+        }
         if (e.Kind == EntryKind.Parent)
         {
             GoUp();
@@ -597,6 +617,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Schemes.Computer => Formatters.Plural(totals.Directories + totals.Files, "item", "items"),
             Schemes.Network when Location.Path.Length == 0 => Formatters.Plural(totals.Directories + totals.Files, "computer or server", "computers and servers"),
             Schemes.Network => Formatters.Plural(totals.Directories + totals.Files, "share", "shares"),
+            Schemes.Journal => Formatters.Plural(totals.Directories + totals.Files, "entry", "entries"),
             Schemes.HiddenData => OperatingSystem.IsWindows()
                 ? Formatters.Plural(totals.Files, "stream or attribute", "streams and attributes")
                 : Formatters.Plural(totals.Files, "attribute", "attributes"),

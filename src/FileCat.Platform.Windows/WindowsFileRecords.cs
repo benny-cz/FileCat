@@ -23,8 +23,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     private const uint ShareAll = 7, OpenExisting = 3, BackupSemantics = 0x0200_0000, OpenReparsePoint = 0x0020_0000;
     private const uint FsctlReadFileUsnData = 0x0009_00EB, FsctlGetObjectId = 0x0009_009C, FsctlGetReparsePoint = 0x0009_00A8,
         FsctlGetRetrievalPointers = 0x0009_0073, FsctlQueryAllocatedRanges = 0x0009_40CF, FsctlGetNtfsVolumeData = 0x0009_0064,
-        FsctlGetNtfsFileRecord = 0x0009_0068, FsctlQueryUsnJournal = 0x0009_00F4, FsctlReadUsnJournal = 0x0009_00BB;
-    private const int ErrorHandleEof = 38, ErrorInvalidParameter = 87, ErrorMoreData = 234, ErrorJournalNotActive = 1179, ErrorJournalEntryDeleted = 1181;
+        FsctlGetNtfsFileRecord = 0x0009_0068;
+    private const int ErrorHandleEof = 38, ErrorInvalidParameter = 87, ErrorMoreData = 234;
     private const int MaxExtents = 100_000, ExtentsShown = 200, HistoryKept = 2000, HistoryShown = 400;
 
     public bool IsSupported => true;
@@ -133,7 +133,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         private void ReadPrivileged(string root)
         {
             SafeFileHandle volume;
-            try { volume = OpenVolume(root); }
+            try { volume = UsnJournalReader.OpenVolume(root); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 _warnings.Add(ex.Message);
@@ -214,52 +214,26 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
 
         private void ReadJournal(SafeFileHandle volume)
         {
-            var info = new byte[80];
-            int error = Ioctl(volume, FsctlQueryUsnJournal, [], info, out int got);
-            if (error == ErrorJournalNotActive)
+            _journal = UsnJournalReader.Query(volume, out int error);
+            if (error == UsnJournalReader.ErrorJournalNotActive)
             {
                 _journalProblem = "The change journal is off on this volume: nothing records its changes.";
                 return;
             }
             if (error != 0) throw new IOException(new Win32Exception(error).Message);
-            _journal = UsnJournalInfo.Parse(info.AsSpan(0, got));
             if (_journal is null || _id is not { } id) return;
-            string name = Path.GetFileName(path.TrimEnd('\\'));
+            string name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
             UInt128? parent = _latest?.ParentId;
             var mine = new Queue<UsnRecord>();
             var others = new Queue<UsnRecord>();
-            var input = new byte[48];
-            var output = new byte[1 << 20];
-            long start = Math.Max(_journal.FirstUsn, _journal.NextUsn - JournalReadLimit);
-            bool restarted = false;
-            while (start < _journal.NextUsn)
+            UsnJournalReader.Read(volume, _journal, Math.Max(_journal.FirstUsn, _journal.NextUsn - JournalReadLimit), ct, records =>
             {
-                ct.ThrowIfCancellationRequested();
-                BinaryPrimitives.WriteInt64LittleEndian(input, start);
-                BinaryPrimitives.WriteUInt32LittleEndian(input.AsSpan(8), 0xFFFF_FFFF); // every reason
-                BinaryPrimitives.WriteUInt64LittleEndian(input.AsSpan(32), _journal.JournalId);
-                BinaryPrimitives.WriteUInt16LittleEndian(input.AsSpan(40), 2);
-                BinaryPrimitives.WriteUInt16LittleEndian(input.AsSpan(42), 3);
-                error = Ioctl(volume, FsctlReadUsnJournal, input, output, out got);
-                if (error == ErrorJournalEntryDeleted && !restarted)
-                {
-                    // The oldest entries were overwritten while this was being read: start again at the new oldest.
-                    restarted = true;
-                    if (Ioctl(volume, FsctlQueryUsnJournal, [], info, out got) != 0 || UsnJournalInfo.Parse(info.AsSpan(0, got)) is not { } again) break;
-                    start = again.FirstUsn;
-                    continue;
-                }
-                if (error != 0) throw new IOException(new Win32Exception(error).Message);
-                if (got <= 8) break;
-                long next = BinaryPrimitives.ReadInt64LittleEndian(output);
-                foreach (var r in UsnRecord.ParseAll(output.AsSpan(0, got), 8))
+                foreach (var r in records)
                 {
                     if (r.FileId == id) Keep(mine, r);
                     else if (parent is { } p && r.ParentId == p && string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)) Keep(others, r);
                 }
-                if (next <= start) break;
-                start = next;
-            }
+            });
             _history = [.. mine];
             _sameName = [.. others];
 
@@ -829,7 +803,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     }
 
     /// <summary>The root of the volume holding the path ("C:\", "C:\Mount\Data\", "\\server\share\").</summary>
-    private static string VolumeRoot(string path)
+    internal static string VolumeRoot(string path)
     {
         var buffer = new char[1024];
         fixed (char* b = buffer)
@@ -841,20 +815,6 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 return root;
             }
         return Path.GetPathRoot(path) ?? path;
-    }
-
-    private static SafeFileHandle OpenVolume(string root)
-    {
-        var buffer = new char[64];
-        string device;
-        fixed (char* b = buffer)
-            device = GetVolumeNameForVolumeMountPoint(root, b, (uint)buffer.Length) ? new string(b).TrimEnd('\0').TrimEnd('\\') : @"\\.\" + root.TrimEnd('\\');
-        var handle = CreateFile(device, GenericRead, 3, 0, OpenExisting, 0, 0);
-        if (!handle.IsInvalid) return handle;
-        int error = Marshal.GetLastPInvokeError();
-        handle.Dispose();
-        if (error == 5) throw new UnauthorizedAccessException($"The volume {root} cannot be read directly: access is denied.");
-        throw new IOException($"The volume {root} cannot be read directly: {new Win32Exception(error).Message}");
     }
 
     private static (string Label, uint Serial, string FileSystem) VolumeInformation(SafeFileHandle handle)
@@ -935,10 +895,6 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     [LibraryImport("kernel32.dll", EntryPoint = "GetVolumePathNameW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetVolumePathName(string path, char* root, uint size);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeNameForVolumeMountPointW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetVolumeNameForVolumeMountPoint(string mountPoint, char* name, uint size);
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)]
     private static partial uint GetFinalPathNameByHandle(SafeFileHandle handle, char* path, uint size, uint flags);

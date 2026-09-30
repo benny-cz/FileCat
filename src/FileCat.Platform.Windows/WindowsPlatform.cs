@@ -56,6 +56,8 @@ public sealed class WindowsPlatform : PortablePlatform
         registry.Register(new WindowsComputerProvider());
         registry.Register(new NetworkShareProvider());
         registry.Register(new WindowsRegistryProvider());
+        // A volume's change journal as a list (D-56).
+        registry.Register(new UsnJournalProvider());
         // Phones and cameras over MTP (P8), with uploads, deletes, renames, and folders as jobs.
         registry.Register(new Mtp.MtpProvider());
         Mtp.MtpJobs.Register();

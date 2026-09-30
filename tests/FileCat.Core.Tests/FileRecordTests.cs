@@ -188,6 +188,7 @@ public sealed class FileRecordTests
         Assert.Equal((42L, (ushort)7), (UsnRecord.RecordOf(records[0].FileId), UsnRecord.SequenceOf(records[0].FileId)));
         Assert.Equal("a.txt", records[0].Name);
         Assert.Equal("created, data extended, closed", UsnRecord.ReasonsText(records[0].Reasons));
+        Assert.Equal("created, extended, closed", UsnRecord.ReasonsShort(records[0].Reasons));
         Assert.Equal((UInt128)1 << 100, records[1].FileId);
         Assert.Equal("times or attributes set", UsnRecord.ReasonsText(records[1].Reasons));
         Assert.Equal("replication (DFS Replication)", UsnRecord.SourceText(4));

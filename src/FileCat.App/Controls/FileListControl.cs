@@ -803,7 +803,7 @@ public sealed class FileListControl : Control
             long key = ((long)storeIndex << 16) | ((long)i << 8) | (uint)style;
             if (!_textCache.TryGetValue(key, out var ft) || Math.Abs(ft.MaxWidth - avail) > 0.5)
             {
-                var s = CellString(e, c.Field);
+                var s = CellString(e, c);
                 ft?.Dispose();
                 _textCache.Remove(key);
                 if (s.Length == 0) continue;
@@ -867,12 +867,12 @@ public sealed class FileListControl : Control
         return glyphs?.TryLayout(s, brush, maxWidth) ?? Controls.CellText.Formatted(s, brush, typeface, FontSize > 0 ? FontSize : 13, maxWidth);
     }
 
-    private string CellString(in EntryData e, ColumnField field) => field switch
+    private string CellString(in EntryData e, ColumnSpec column) => column.Field switch
     {
         ColumnField.Name => DisplayName(e),
         ColumnField.Extension => e.IsContainer ? string.Empty : NameParts.GetExtension(e.Name),
         ColumnField.Size => Formatters.SizeCell(e),
-        ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e.Modified),
+        ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : column.Seconds ? Formatters.DateWithSeconds(e.Modified) : Formatters.Date(e.Modified),
         ColumnField.Created => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e.Created),
         ColumnField.Attributes => Formatters.Attributes(e),
         ColumnField.Folder => Tab?.GetFolderText(e) ?? string.Empty,

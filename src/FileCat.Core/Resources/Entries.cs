@@ -20,6 +20,20 @@ public interface IDisplayDetails
     string DetailsText { get; }
 }
 
+/// <summary>A row about an item that lives elsewhere (a change-journal entry): Enter goes to the item, when it still exists.</summary>
+public interface ILocatableEntry
+{
+    /// <summary>The item's folder and name now, or null when it no longer exists.</summary>
+    (string Folder, string Name)? Locate();
+}
+
+/// <summary>A row whose F3 shows a report about it (a change-journal entry's whole record) rather than content.</summary>
+public interface IReportedEntry
+{
+    string ReportTitle { get; }
+    string Report();
+}
+
 [Flags]
 public enum EntryFlags : ushort
 {

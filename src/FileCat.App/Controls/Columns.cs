@@ -26,6 +26,9 @@ public sealed record ColumnSpec(ColumnField Field, string Header, double Width, 
 {
     public string? MetadataId { get; init; }
 
+    /// <summary>A date column that shows seconds (a change journal's times).</summary>
+    public bool Seconds { get; init; }
+
     public SortField? SortField => Field switch
     {
         ColumnField.Name => Core.Listing.SortField.Name,
@@ -171,6 +174,15 @@ public static class ColumnProfiles
         new(ColumnField.Details, "What it says", 340, Star: true),
     ];
 
+    /// <summary>A volume's change journal (D-56): each entry's name, time to the second, what happened, and its folder.</summary>
+    public static ColumnSpec[] Journal { get; } =
+    [
+        new(ColumnField.Name, "Name", 300, Star: true),
+        new(ColumnField.Modified, "Time", 150) { Seconds = true },
+        new(ColumnField.Kind, "What happened", 190),
+        new(ColumnField.Details, "Folder", 260, Star: true),
+    ];
+
     public static ColumnSpec[] Registry { get; } =
     [
         new(ColumnField.Name, "Name", 200, Star: true),
@@ -208,7 +220,7 @@ public sealed class ColumnProfileSet
     public string NameOf(int profile) => _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Name;
 
     /// <summary>True when the scheme has a dedicated layout that profiles do not change.</summary>
-    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery or Schemes.HiddenData;
+    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery or Schemes.HiddenData or Schemes.Journal;
 
     public ColumnSpec[] Get(int profile, string scheme)
     {
@@ -216,6 +228,7 @@ public sealed class ColumnProfileSet
         if (scheme == Schemes.Registry) return ColumnProfiles.Registry;
         if (scheme == Schemes.Recovery) return ColumnProfiles.Recovery;
         if (scheme == Schemes.HiddenData) return ColumnProfiles.HiddenData;
+        if (scheme == Schemes.Journal) return ColumnProfiles.Journal;
         return _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Columns;
     }
 

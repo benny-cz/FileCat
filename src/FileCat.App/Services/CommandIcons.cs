@@ -82,6 +82,8 @@ public static class CommandIcons
         [CommandIds.Undo] = [new("M5,3.5 L2,6.5 L5,9.5 M2,6.5 L10,6.5 C12.5,6.5 14,8.2 14,10.2 C14,12.3 12.5,13.8 10,13.8 L6.5,13.8")],
         [CommandIds.Properties] = [new(Circle), new("M8,7 L8,11.5 M8,4.8 L8,4.9", "ActiveAccent")],
         [CommandIds.HiddenData] = [new("M3.5,1.5 L9,1.5 L12.5,5 L12.5,14.5 L3.5,14.5 Z"), new("M6,8 L10,8 M6,10.5 L10,10.5", "TextMuted"), new("M13,11 L15,11 M13,13 L15,13", "ActiveAccent")],
+        [CommandIds.ChangeJournal] = [new("M1.5,3 L8,3 M1.5,6.5 L6.5,6.5 M1.5,10 L5.5,10 M1.5,13.5 L6.5,13.5", "TextMuted"),
+            new("M14.5,10 A3.5,3.5 0 1 1 7.5,10 A3.5,3.5 0 1 1 14.5,10 M11,8 L11,10 L12.5,11", "ActiveAccent")],
         [CommandIds.FileRecord] = [new("M2.5,1.5 L11,1.5 L11,7 M8,14.5 L2.5,14.5 L2.5,1.5"), new("M4.5,4.5 L9,4.5 M4.5,7 L8,7 M4.5,9.5 L6.5,9.5", "TextMuted"),
             new("M13.7,10.5 A2.2,2.2 0 1 1 9.3,10.5 A2.2,2.2 0 1 1 13.7,10.5 M13.1,12.1 L15,14", "ActiveAccent")],
         [CommandIds.Exit] = [new("M9.5,2.5 L3,2.5 L3,13.5 L9.5,13.5", "TextMuted"), new("M6.5,8 L14.5,8 M11.5,5 L14.5,8 L11.5,11")],

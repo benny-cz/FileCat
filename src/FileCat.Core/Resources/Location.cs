@@ -25,6 +25,8 @@ public static class Schemes
     public const string Mtp = "mtp";
     /// <summary>A file's alternate data streams and extended attributes (D-55); the file is the container.</summary>
     public const string HiddenData = "hidden";
+    /// <summary>A volume's change journal (D-56): its entries as rows; the path is the volume's root.</summary>
+    public const string Journal = "usn";
 }
 
 /// <summary>
