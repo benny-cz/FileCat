@@ -4,7 +4,10 @@ using FileCat.Core.Operations;
 
 namespace FileCat.Core.Verification;
 
-/// <summary>A file's verification state, worst first: a mismatch or a bad signature outranks everything else.</summary>
+/// <summary>
+/// A file's verification state, worst first: a mismatch or a bad signature outranks everything else, and among good
+/// results a trusted signature (authentic: its publisher made it) outranks a plain match (intact: it arrived whole).
+/// </summary>
 public enum VerificationState
 {
     Differs,
@@ -13,8 +16,8 @@ public enum VerificationState
     SignatureUnknownKey,
     SignatureUnchecked,
     NotChecked,
-    Matches,
     SignatureGood,
+    Matches,
     /// <summary>A checksum file's or signature's own row, which nothing else covers: what it covers.</summary>
     Sidecar,
 }

@@ -75,6 +75,9 @@ int MainWindowShot(string[] a, string? command = null)
         try
         {
             ThemeManager.Apply(theme);
+            // Keys to trust for signatures beside files (D-57), as if the user had put them in the profile's keys folder.
+            foreach (string pub in (Environment.GetEnvironmentVariable("FILECAT_SHOT_KEYS") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                File.Copy(pub, Path.Combine(services.KeyDirectory, Path.GetFileName(pub)), overwrite: true);
             services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures);
             var vm = new MainViewModel(services);
             var window = new MainWindow(vm, null) { Width = 1400, Height = 900 };

@@ -325,9 +325,10 @@ public static class VectorIcons
 
     /// <summary>
     /// A file's check against the checksums and signatures beside it (D-57), ringed like Git's mark but at the upper right
-    /// (Git's takes the lower right, a link's arrow the lower left): a tick when it matches or a known key signed it, a
-    /// cross when it differs or a signature is bad, a question mark when a signature could not vouch for it, an
-    /// exclamation mark when it could not be read, three dots when it is not checked yet. Sidecars' own rows get none.
+    /// (Git's takes the lower right, a link's arrow the lower left): a shield with a tick when a trusted key signed it
+    /// (authentic), a tick when it matches its checksums (intact), a cross when it differs or a signature is bad, a
+    /// question mark when a signature could not vouch for it, an exclamation mark when it could not be read, three dots
+    /// when it is not checked yet. Sidecars' own rows get none.
     /// </summary>
     internal static IImage? VerificationOverlay(Core.Verification.VerificationState state)
     {
@@ -348,8 +349,18 @@ public static class VectorIcons
         var ink = luminance > 0.55 ? Color.FromRgb(0x1C, 0x1C, 0x1C) : Colors.White;
         var g = new DrawingGroup();
         g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
-        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 0, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
-        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 1.0, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
+        if (state == Core.Verification.VerificationState.SignatureGood)
+        {
+            // Authentic: a shield, ringed in the window's color like the discs.
+            var shield = Geometry.Parse("M10.8,0.9 L14.6,2.3 L14.6,5.0 C14.6,7.5 13.0,9.1 10.8,9.9 C8.6,9.1 7.0,7.5 7.0,5.0 L7.0,2.3 Z");
+            g.Children.Add(new GeometryDrawing { Geometry = shield, Pen = new Pen(new SolidColorBrush(Color.Parse(palette.Window)), 2.0, lineJoin: PenLineJoin.Round) });
+            g.Children.Add(new GeometryDrawing { Geometry = shield, Brush = new SolidColorBrush(fill) });
+        }
+        else
+        {
+            g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 0, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
+            g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 1.0, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
+        }
         g.Children.Add(new GeometryDrawing
         {
             Geometry = Geometry.Parse(mark),

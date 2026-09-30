@@ -194,6 +194,25 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void A_manifest_signed_by_a_trusted_key_makes_the_files_it_lists_authentic()
+    {
+        // Intact (the checksum matches) and authentic (a trusted key signed the list): the stronger mark wins.
+        var key = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        File.WriteAllText(Path.Combine(keys, "publisher.pub"), key.PublicFile);
+        Write("image.iso", "disc image");
+        string sums = Write("SHA256SUMS", Sha256("disc image") + "  image.iso\n");
+        Write("SHA256SUMS.minisig", key.Sign(File.ReadAllBytes(sums), "release list"));
+        var signed = Check("image.iso", Service(keys: [keys]));
+        Assert.Equal((VerificationState.SignatureGood, "✓ SHA-256 · manifest signed by publisher"), (signed.State, signed.Text));
+
+        // Without the key among the trusted ones, the list vouches for nothing more than a checksum beside the file.
+        var unsure = Check("image.iso", Service());
+        Assert.Equal(VerificationState.SignatureUnknownKey, unsure.State);
+        Assert.Equal("✓ SHA-256 · manifest ? signed by an unknown key", unsure.Text);
+    }
+
+    [Fact]
     public void GnuPG_status_lines_read_as_good_bad_untrusted_or_unknown()
     {
         var good = OpenPgp.Interpret("[GNUPG:] NEWSIG\n[GNUPG:] GOODSIG 0123456789ABCDEF Release Team <release@example.org>\n[GNUPG:] VALIDSIG 1111222233334444555566667777888899990000 2024-01-01\n[GNUPG:] TRUST_FULLY 0 pgp\n");

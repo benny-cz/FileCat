@@ -36,10 +36,11 @@ public sealed class VerificationCache(string? file)
 
     /// <summary>
     /// A result's key: the file, the sidecars it depends on, and what vouches for its signers (key files, gpg's keyring).
-    /// The leading version drops results worked out by an earlier model (keys beside a file once counted as trusted).
+    /// The leading version drops results worked out by an earlier model (keys beside a file once counted as trusted; the
+    /// states were once ordered otherwise).
     /// </summary>
     public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources) =>
-        $"2|{path}|{size}|{modified}|{string.Join(";", sources.OrderBy(s => s.Name, StringComparer.Ordinal).Select(s => $"{s.Name}:{s.Size}:{s.Modified}"))}";
+        $"3|{path}|{size}|{modified}|{string.Join(";", sources.OrderBy(s => s.Name, StringComparer.Ordinal).Select(s => $"{s.Name}:{s.Size}:{s.Modified}"))}";
 
     private static string HashKeyOf(string path, long size, long modified) => $"#{path}|{size}|{modified}";
 
