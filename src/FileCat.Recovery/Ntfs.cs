@@ -89,7 +89,9 @@ internal sealed class NtfsScanner
             var parsed = Parse(n, raw, followLists: true);
             if (parsed is null || parsed.Name is null && n != RootRecord) continue;
             if (parsed.IsDirectory) directories[n] = parsed;
-            if (!parsed.InUse || _whole && !parsed.IsDirectory) listed.Add(parsed);
+            // The root folder is the listing itself, never an item in it, whatever damage made its flags say (release
+            // issue I28: a root record marked unused or not a folder was listed as a file without a name).
+            if (n != RootRecord && (!parsed.InUse || _whole && !parsed.IsDirectory)) listed.Add(parsed);
         }
 
         var nodes = new Dictionary<long, RecoveryItem> { [RootRecord] = _result.Root };

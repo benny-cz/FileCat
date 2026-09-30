@@ -51,6 +51,7 @@ public sealed class RecoveryFuzzTests
     /// <summary>Rounds that once failed in long runs, kept so every run repeats them (release issue I28).</summary>
     [Theory]
     [InlineData("ntfs", 8842)] // a $Bitmap size read as negative: the whole volume was reported unreadable
+    [InlineData("ntfs", 56958)] // the root record listed as a nameless file: the whole scan threw
     public void Rounds_that_once_failed_stay_fixed(string image, int round) => new Fuzz(image).Round(round);
 
     /// <summary>One image and the damage each round does to it.</summary>
@@ -97,7 +98,15 @@ public sealed class RecoveryFuzzTests
             }
             using var source = new MemorySource(data);
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            var volumes = RecoveryScanner.Scan(source, TestContext.Current.CancellationToken);
+            IReadOnlyList<RecoveryVolume> volumes;
+            try
+            {
+                volumes = RecoveryScanner.Scan(source, TestContext.Current.CancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new Xunit.Sdk.XunitException($"{_image}, round {round}: the scan threw {ex}");
+            }
             Assert.NotEmpty(volumes);
             // Parser slips: an exception the parsers did not expect, which the scan could only report as "internal".
             var slips = volumes.SelectMany(v => v.Warnings).Where(w => w.Contains("(internal:", StringComparison.Ordinal)).ToList();

@@ -279,10 +279,18 @@ public static class RecoveryScanner
             volume.Found = slot.Found;
             volume.Origin = slot.Origin;
             volume.DamagedStart = slot.Boot is not null;
-            Number(volume.Root, prune: !slot.WholeFileSystem);
-            if (volume.Orphans is { } orphans) Number(orphans, prune: !slot.WholeFileSystem);
-            if (slot.WholeFileSystem) DeletedBefore(volume.Root);
-            if (slot.Lost) MarkOverlaps(volume, inUse);
+            try
+            {
+                Number(volume.Root, prune: !slot.WholeFileSystem);
+                if (volume.Orphans is { } orphans) Number(orphans, prune: !slot.WholeFileSystem);
+                if (slot.WholeFileSystem) DeletedBefore(volume.Root);
+                if (slot.Lost) MarkOverlaps(volume, inUse);
+            }
+            catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException or OverflowException or InvalidCastException or NullReferenceException)
+            {
+                // Preparing one volume's listing must not end the scan of the others (a finding for tests, like above).
+                volume.Warnings.Add($"Part of this volume's listing could not be prepared (internal: {ex.GetType().Name}).");
+            }
             volumes.Add(volume);
         }
         if (volumes.Count == 0)
