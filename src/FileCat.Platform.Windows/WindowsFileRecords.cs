@@ -38,7 +38,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     public InspectionReport Read(string path, CancellationToken ct) =>
         new Reader(Path.GetFullPath(path), !AssumeNotPrivileged && Environment.IsPrivilegedProcess, ct).Run();
 
-    private sealed class Reader(string path, bool privileged, CancellationToken ct)
+    private sealed partial class Reader(string path, bool privileged, CancellationToken ct)
     {
         private readonly List<InspectionSection> _sections = [];
         private readonly List<string> _warnings = [];
@@ -95,12 +95,14 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (_record is { Names.Count: > 0 } record) _sections.Add(NamesSection(record));
             _sections.Add(ChecksSection());
             if (!_remote && (_ntfs || _refs)) _sections.Add(JournalSection());
+            if (LogSection() is { } log) _sections.Add(log);
             if (ObjectIdSection() is { } objectId) _sections.Add(objectId);
             if (ReparseSection() is { } reparse) _sections.Add(reparse);
             _sections.Add(LayoutSection());
             if (fat && !_remote && privileged) _sections.Add(FatSection(root));
             if (Core.HiddenData.HiddenDataSection.Of(new WindowsHiddenData(), path) is { } hidden) _sections.Add(hidden);
             if (SecuritySection() is { } security) _sections.Add(security);
+            if (SecureSection() is { } secure) _sections.Add(secure);
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
             if (_record is not null) _sections.Add(RecordSection(_record));
@@ -139,7 +141,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         private void ReadPrivileged(string root)
         {
             SafeFileHandle volume;
-            try { volume = UsnJournalReader.OpenVolume(root); }
+            // Unbuffered: $LogFile, $I30, and $SDS clusters as they are on the disk now (see ReadAligned).
+            try { volume = UsnJournalReader.OpenVolume(root, unbuffered: true); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 _warnings.Add(ex.Message);
@@ -169,16 +172,14 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 }
                 try { ReadJournal(volume); }
                 catch (IOException ex) { _journalProblem = "The change journal could not be read: " + ex.Message; }
+                if (_ntfs) ReadLogAndSecure(volume, ct);
             }
         }
 
         /// <summary>The record and its extension records, with an attribute list kept outside the record read from its clusters.</summary>
         private NtfsRecord? MftRecord(SafeFileHandle volume, long number)
         {
-            var volumeData = new byte[128];
-            int recordSize = Ioctl(volume, FsctlGetNtfsVolumeData, [], volumeData, out int got) == 0 && got >= 48
-                ? (int)BinaryPrimitives.ReadUInt32LittleEndian(volumeData.AsSpan(44)) : 1024;
-            if (recordSize is < 256 or > 65536) recordSize = 1024;
+            int recordSize = RecordSize(volume);
             var raw = RecordBytes(volume, number, recordSize);
             if (raw is null) return null;
             var record = NtfsRecord.Parse(raw, number, live: true);
@@ -219,7 +220,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 int count = (int)Math.Min(run.Length * _clusterSize, data.Length - start);
                 // Volume reads must be whole sectors: read whole clusters, then keep what belongs to the value.
                 var clusters = new byte[(count + _clusterSize - 1) / _clusterSize * _clusterSize];
-                int read = RandomAccess.Read(volume, clusters, run.Lcn * _clusterSize);
+                int read = ReadAligned(volume, clusters, run.Lcn * _clusterSize);
                 clusters.AsSpan(0, Math.Min(count, read)).CopyTo(data.AsSpan((int)start));
             }
             return data;
@@ -376,6 +377,8 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
         {
             var names = _record?.Names ?? [];
             var findings = TimestampChecks.Check(_created, _modified, _ntfs || _refs ? _changed : 0, _accessed, names, _history, _formatted, DateTime.UtcNow);
+            // What $LogFile's before and after images show (times set back), with the rest.
+            findings = [.. findings, .. _logFindings];
             var lines = new List<string>();
             foreach (var finding in findings) lines.AddRange(Wrap(finding.Text, finding.Strong ? "⚠ " : "• "));
             if (findings.Count == 0) lines.Add("Nothing unusual in what can be compared here.");
@@ -555,14 +558,15 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                 return new InspectionSection("Directory entry", []) { Lines = ["The root folder has no directory entry: the boot sector says where it is."] };
             try
             {
-                using var volume = UsnJournalReader.OpenVolume(root);
+                // Unbuffered, so the entry is what the disk holds (not a page of the volume cached before the folder changed).
+                using var volume = UsnJournalReader.OpenVolume(root, unbuffered: true);
                 // Volume reads must be whole sectors: 4 KiB covers every sector size.
                 byte[] Read(long offset, int count)
                 {
                     const int Align = 4096;
                     long start = offset / Align * Align, end = (offset + count + Align - 1) / Align * Align;
                     var buffer = new byte[end - start];
-                    int got = RandomAccess.Read(volume, buffer, start);
+                    int got = ReadAligned(volume, buffer, start);
                     int skip = (int)(offset - start);
                     return buffer.AsSpan(skip, Math.Max(0, Math.Min(count, got - skip))).ToArray();
                 }
@@ -904,6 +908,32 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
     }
 
     /// <summary>The root of the volume holding the path ("C:\", "C:\Mount\Data\", "\\server\share\").</summary>
+    /// <summary>
+    /// Reads whole clusters through an unbuffered volume handle, which needs its memory sector-aligned too: through an
+    /// aligned native buffer, 4 MiB at a time.
+    /// </summary>
+    private static int ReadAligned(SafeFileHandle volume, Span<byte> destination, long offset)
+    {
+        const int Chunk = 4 << 20;
+        int done = 0;
+        void* buffer = NativeMemory.AlignedAlloc((nuint)Math.Min(destination.Length, Chunk), 4096);
+        try
+        {
+            while (done < destination.Length)
+            {
+                int length = Math.Min(Chunk, destination.Length - done);
+                var span = new Span<byte>(buffer, length);
+                int read = RandomAccess.Read(volume, span, offset + done);
+                if (read <= 0) break;
+                span[..read].CopyTo(destination[done..]);
+                done += read;
+                if (read < length) break;
+            }
+            return done;
+        }
+        finally { NativeMemory.AlignedFree(buffer); }
+    }
+
     internal static string VolumeRoot(string path)
     {
         var buffer = new char[1024];

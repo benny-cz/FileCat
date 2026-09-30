@@ -47,6 +47,8 @@ public sealed record NtfsAttribute(uint Type, string Name, ushort Id, bool Resid
     public bool IsSparse => (Flags & 0x8000) != 0;
     /// <summary>The record it is kept in (an extension record for very fragmented or much-linked files).</summary>
     public long InRecord { get; init; }
+    /// <summary>Where its header starts in that record (what $LogFile's records name when they change it).</summary>
+    public int OffsetInRecord { get; init; }
     /// <summary>The value's size (resident), or the attribute's data size (non-resident; 0 in a later piece of a split attribute).</summary>
     public long Size { get; init; }
     public long Allocated { get; init; }
@@ -288,7 +290,7 @@ public sealed class NtfsRecord
             }
             try
             {
-                ReadAttribute(record.AsSpan(at, length), type, inRecord);
+                ReadAttribute(record.AsSpan(at, length), type, inRecord, at);
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -299,7 +301,7 @@ public sealed class NtfsRecord
         Problems.Add("Its attributes do not end with the end marker.");
     }
 
-    private void ReadAttribute(ReadOnlySpan<byte> attr, uint type, long inRecord)
+    private void ReadAttribute(ReadOnlySpan<byte> attr, uint type, long inRecord, int offset)
     {
         bool resident = attr[8] == 0;
         int nameLength = attr[9];
@@ -327,6 +329,7 @@ public sealed class NtfsRecord
             attribute = new NtfsAttribute(type, name, id, true, flags)
             {
                 InRecord = inRecord,
+                OffsetInRecord = offset,
                 Size = value.Length,
                 Allocated = attr.Length - valueOffset,
                 Initialized = value.Length,
@@ -350,6 +353,7 @@ public sealed class NtfsRecord
             attribute = new NtfsAttribute(type, name, id, false, flags)
             {
                 InRecord = inRecord,
+                OffsetInRecord = offset,
                 StartVcn = startVcn,
                 LastVcn = lastVcn,
                 CompressionUnit = unit,

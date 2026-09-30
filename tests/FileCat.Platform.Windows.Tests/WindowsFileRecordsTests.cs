@@ -105,9 +105,22 @@ public sealed partial class WindowsFileRecordsTests
             File.WriteAllText(file, "small enough to stay in its record");
             if (!OnNtfs(file)) return;
             File.SetCreationTimeUtc(file, new DateTime(2019, 5, 1, 12, 0, 0, DateTimeKind.Utc));
+            // Flushed, so NTFS has written the change's log records to $LogFile on disk before it is read.
+            using (var flush = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) flush.Flush(flushToDisk: true);
             var report = Read(file);
-            Assert.Contains(report.Warnings, w => w.StartsWith("Timestamp checks: 1 sign", StringComparison.Ordinal));
-            Assert.Contains(Section(report, "Timestamp checks").Lines, l => l.StartsWith("⚠ Its creation time (2019-05-01 12:00:00.0000000 UTC)", StringComparison.Ordinal));
+            // Two signs: $FILE_NAME's creation time, and $LogFile's before and after images of the change.
+            Assert.Contains(report.Warnings, w => w.StartsWith("Timestamp checks: 2 signs", StringComparison.Ordinal));
+            // The lines as one text (wrapped lines continue indented).
+            var checks = System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
+            Assert.Contains("⚠ Its creation time (2019-05-01 12:00:00.0000000 UTC)", checks, StringComparison.Ordinal);
+            Assert.Matches(@"⚠ \$LogFile \(LSN [\d\s\u00A0\u202F,.']+\) shows its created time set back from \d{4}-\d\d-\d\d \d\d:\d\d:\d\d to 2019-05-01 12:00:00", checks);
+            var log = Section(report, "NTFS log ($LogFile)");
+            Assert.Contains(log.Table!.Rows, r => r[1] == "InitializeFileRecordSegment" && r[2].Contains("as “stomped.bin”", StringComparison.Ordinal));
+            Assert.Contains(log.Table.Rows, r => r[2].StartsWith("its name “stomped.bin” added to the index of", StringComparison.Ordinal));
+            Assert.Contains(log.Table.Rows, r => r[2].Contains("Created 2019-05-01 12:00:00 (was", StringComparison.Ordinal));
+            var secure = Section(report, "Security descriptor in $Secure");
+            Assert.EndsWith("matches the descriptor", Field(secure, "Hash"), StringComparison.Ordinal);
+            Assert.Equal("the same owner, group, and DACL", Field(secure, "As Windows reports"));
             var names = Section(report, "Names ($FILE_NAME)");
             Assert.Contains(names.Children, c => c.Title.StartsWith("“stomped.bin”", StringComparison.Ordinal));
             var record = Section(report, "MFT record");

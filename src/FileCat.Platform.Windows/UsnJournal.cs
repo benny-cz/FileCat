@@ -22,13 +22,18 @@ internal static unsafe partial class UsnJournalReader
     public const int ErrorJournalNotActive = 1179, ErrorJournalEntryDeleted = 1181;
 
     /// <summary>The volume that holds <paramref name="root"/> ("C:\", "C:\Mount\Data\"), opened to read.</summary>
-    public static SafeFileHandle OpenVolume(string root)
+    /// <param name="unbuffered">
+    /// Reads bypass the cache (FILE_FLAG_NO_BUFFERING): what is on the disk, not a page of the volume cached before
+    /// NTFS wrote it anew through the file it belongs to ($LogFile, $MFT). Reads must then be sector-aligned in memory,
+    /// offset, and length.
+    /// </param>
+    public static SafeFileHandle OpenVolume(string root, bool unbuffered = false)
     {
         var buffer = new char[64];
         string device;
         fixed (char* b = buffer)
             device = GetVolumeNameForVolumeMountPoint(root, b, (uint)buffer.Length) ? new string(b).TrimEnd('\0').TrimEnd('\\') : @"\\.\" + root.TrimEnd('\\');
-        var handle = CreateFile(device, GenericRead, 3, 0, 3, 0, 0);
+        var handle = CreateFile(device, GenericRead, 3, 0, 3, unbuffered ? 0x2000_0000u : 0, 0);
         if (!handle.IsInvalid) return handle;
         int error = Marshal.GetLastPInvokeError();
         handle.Dispose();
