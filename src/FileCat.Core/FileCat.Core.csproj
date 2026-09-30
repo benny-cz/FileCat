@@ -10,4 +10,8 @@
     <InternalsVisibleTo Include="FileCat.Remote" />
     <InternalsVisibleTo Include="FileCat.Remote.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- minisign signatures (D-57): Ed25519 and BLAKE2b, managed code. -->
+    <PackageReference Include="BouncyCastle.Cryptography" />
+  </ItemGroup>
 </Project>

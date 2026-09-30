@@ -17,7 +17,7 @@ SignPath Foundation code signing). Regenerate the inventory with `eng/publish.ps
 | CommunityToolkit.Mvvm | 8.4.0 | MIT | MVVM source generators |
 | Microsoft.Web.WebView2 (Core API and loader) | 1.0.3179.45 | BSD-3-Clause | The viewer's web page view on Windows (D-51). The browser runtime itself is part of Windows 11 and is not shipped |
 | SSH.NET | 2026.0.0 | MIT | SFTP and SSH (ADR-17) |
-| BouncyCastle.Cryptography | 2.7.0 | MIT | Cryptography used by SSH.NET |
+| BouncyCastle.Cryptography | 2.7.0 | MIT | Cryptography used by SSH.NET, and Ed25519 and BLAKE2b for minisign signatures beside files |
 | Microsoft.Extensions.Logging.Abstractions | 8.0.3 | MIT | Logging interfaces used by SSH.NET |
 | FluentFTP | 55.0.0 | MIT | FTP and FTPS (ADR-17 addendum, P8) |
 | SharpCompress | 0.50.4 | MIT | Read-only 7z, RAR, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock |

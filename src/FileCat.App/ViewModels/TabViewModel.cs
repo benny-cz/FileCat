@@ -39,6 +39,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         };
         Listing.Changed += OnListingChanged;
         services.Columns.Changed += OnProfilesChanged;
+        services.Metadata.ValuesChanged += OnMetadataValuesChanged;
+    }
+
+    /// <summary>New values (a pool thread): the folder's checksum sum may have moved.</summary>
+    private void OnMetadataValuesChanged()
+    {
+        if (_hasSidecars) Services.Ui.Post(() => { if (!_disposed) RefreshVerificationSummary(); });
     }
 
     public AppServices Services { get; }
@@ -569,6 +576,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             {
                 RequestFreeSpace();
                 OnLoadCompleted();
+                NoteSidecars();
                 if (Listing.LastRefreshError is DirectoryNotFoundException && Location is { IsFileSystem: true } gone) LeaveVanishedFolder(gone);
             }
         }
@@ -632,12 +640,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
         if (_freeBytes >= 0 && Location is { IsFileSystem: true }) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
+        if (_verificationSummary is { } verified && Location is { IsFileSystem: true }) left += " · " + verified;
         StatusLeft = left;
 
         var stats = l.GetMarkStats();
         if (stats.Count == 0)
         {
-            StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) : string.Empty;
+            StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
         }
         else
         {
@@ -680,6 +689,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         pending = false;
         var field = Services.Metadata.Field(fieldId);
         if (field is null || Location is null) return string.Empty;
+        // A folder without checksum files or signatures has nothing to verify (search results are asked file by file).
+        if (fieldId == Core.Metadata.BuiltInFields.Verified.Id && Location.IsFileSystem && !_hasSidecars) return string.Empty;
         var item = Services.Providers.For(Location).GetItemRef(Location, e);
         if (item.FileSystemPath is not { } path) return string.Empty;
         var store = Listing.Store;
@@ -823,6 +834,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         StopWatching();
         Listing.Changed -= OnListingChanged;
         Services.Columns.Changed -= OnProfilesChanged;
+        Services.Metadata.ValuesChanged -= OnMetadataValuesChanged;
         Listing.Dispose();
     }
 

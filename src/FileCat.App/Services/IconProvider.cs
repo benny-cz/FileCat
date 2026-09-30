@@ -52,6 +52,7 @@ public sealed class IconProvider
 
     private readonly ConcurrentDictionary<(IconKind, string), IImage> _vector = new();
     private readonly ConcurrentDictionary<(GitStatusKind, string), IImage> _gitOverlays = new();
+    private readonly ConcurrentDictionary<(Core.Verification.VerificationState, string), IImage?> _verificationOverlays = new();
 
     /// <summary>Optional native provider (Windows extension icons); returns null to fall back to vectors.</summary>
     public INativeIconSource? Native { get; set; }
@@ -114,6 +115,7 @@ public sealed class IconProvider
     {
         _vector.Clear();
         _gitOverlays.Clear();
+        _verificationOverlays.Clear();
         _vectorOverlay = null;
         _tinted = new();
     }
@@ -172,6 +174,10 @@ public sealed class IconProvider
     /// <summary>A Git state mark at the lower right of the ordinary icon, large and ringed so it reads over any icon.</summary>
     internal IImage? GitOverlay(GitStatusKind status) => status == GitStatusKind.None ? null
         : _gitOverlays.GetOrAdd((status, ThemeManager.Current.Name), key => VectorIcons.GitOverlay(key.Item1));
+
+    /// <summary>A file's check against the checksums and signatures beside it (D-57), at the upper right of its icon.</summary>
+    internal IImage? VerificationOverlay(Core.Verification.VerificationState state) =>
+        _verificationOverlays.GetOrAdd((state, ThemeManager.Current.Name), key => VectorIcons.VerificationOverlay(key.Item1));
 
     /// <summary>Prefer the installed Windows overlay when available; Git badges remain a portable fallback.</summary>
     internal IImage? ShellOverlayIcon(in EntryData entry, Location? folder, GitStatusKind status)
@@ -309,6 +315,41 @@ public static class VectorIcons
         g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
         g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 5.6, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
         g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 6.6, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
+        g.Children.Add(new GeometryDrawing
+        {
+            Geometry = Geometry.Parse(mark),
+            Pen = new Pen(new SolidColorBrush(ink), 1.5, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
+        });
+        return new DrawingImage(g);
+    }
+
+    /// <summary>
+    /// A file's check against the checksums and signatures beside it (D-57), ringed like Git's mark but at the upper right
+    /// (Git's takes the lower right, a link's arrow the lower left): a tick when it matches or a known key signed it, a
+    /// cross when it differs or a signature is bad, a question mark when a signature could not vouch for it, an
+    /// exclamation mark when it could not be read, three dots when it is not checked yet. Sidecars' own rows get none.
+    /// </summary>
+    internal static IImage? VerificationOverlay(Core.Verification.VerificationState state)
+    {
+        var palette = ThemeManager.Current;
+        (string? color, string mark) = state switch
+        {
+            Core.Verification.VerificationState.Matches or Core.Verification.VerificationState.SignatureGood => (palette.Success, "M8.9,5.3 L10.3,6.8 L12.8,3.8"),
+            Core.Verification.VerificationState.Differs or Core.Verification.VerificationState.SignatureBad => (palette.Error, "M9.3,3.7 L12.3,6.7 M12.3,3.7 L9.3,6.7"),
+            Core.Verification.VerificationState.SignatureUnknownKey or Core.Verification.VerificationState.SignatureUnchecked =>
+                (palette.Warning, "M9.5,4.0 C9.5,2.5 12.1,2.5 12.1,4.0 C12.1,4.8 10.8,5.0 10.8,5.9 M10.8,7.4 L10.8,7.5"),
+            Core.Verification.VerificationState.Unreadable => (palette.Warning, "M10.8,2.9 L10.8,5.6 M10.8,7.4 L10.8,7.5"),
+            Core.Verification.VerificationState.NotChecked => (palette.Progress, "M8.5,5.2 L8.6,5.2 M10.8,5.2 L10.9,5.2 M13.0,5.2 L13.1,5.2"),
+            _ => (null, ""),
+        };
+        if (color is null) return null;
+        var fill = Color.Parse(color);
+        double luminance = (0.2126 * fill.R + 0.7152 * fill.G + 0.0722 * fill.B) / 255;
+        var ink = luminance > 0.55 ? Color.FromRgb(0x1C, 0x1C, 0x1C) : Colors.White;
+        var g = new DrawingGroup();
+        g.Children.Add(new GeometryDrawing { Geometry = new RectangleGeometry(new Avalonia.Rect(0, 0, 16, 16)), Brush = Brushes.Transparent });
+        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(5.6, 0, 10.4, 10.4)), Brush = new SolidColorBrush(Color.Parse(palette.Window)) });
+        g.Children.Add(new GeometryDrawing { Geometry = new EllipseGeometry(new Avalonia.Rect(6.6, 1.0, 8.4, 8.4)), Brush = new SolidColorBrush(fill) });
         g.Children.Add(new GeometryDrawing
         {
             Geometry = Geometry.Parse(mark),

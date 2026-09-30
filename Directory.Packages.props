@@ -10,6 +10,8 @@
     <!-- The HTML page view on Windows (D-51): Microsoft Edge WebView2, BSD-3-Clause; the runtime ships with Windows 11. -->
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3179.45" />
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+    <!-- Ed25519 and BLAKE2b for minisign signatures beside files (D-57): SSH.NET already ships it; MIT. -->
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageVersion Include="FluentFTP" Version="55.0.0" />
     <!-- Read-only archive formats (ADR-07, P8): managed code under FileCat's limits. -->
     <PackageVersion Include="SharpCompress" Version="0.50.4" />

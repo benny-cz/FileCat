@@ -20,7 +20,7 @@ public static class ContextMenuFactory
     private static readonly string[] MoreItems =
     [
         CommandIds.Duplicate, CommandIds.DeletePermanent, "-",
-        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum,
+        CommandIds.CopyNames, CommandIds.OpenInNewTab, CommandIds.OpenTerminal, CommandIds.Checksum, CommandIds.VerifyChecksums,
     ];
 
     public static ContextMenu Build(MainViewModel vm)
@@ -35,6 +35,15 @@ public static class ContextMenuFactory
             int at = items.FindIndex(c => c is MenuItem { Header: string h } && h == properties);
             if (at < 0) items.AddRange([new Separator(), recover]);
             else items.InsertRange(at, [recover, new Separator()]);
+        }
+        // Beside checksum files or signatures (D-57): checking a file against them is one step away, above Properties.
+        if (vm.ActiveTab is { HasSidecars: true } tab && tab.Listing.TryGetFocused(out var focused) && focused.Kind == Core.Resources.EntryKind.File
+            && BuildItems(vm, [CommandIds.VerifyChecksums]) is [MenuItem verify])
+        {
+            string? properties = vm.Services.Commands.Get(CommandIds.Properties)?.Title;
+            int at = items.FindIndex(c => c is MenuItem { Header: string h } && h == properties);
+            if (at < 0) items.AddRange([new Separator(), verify]);
+            else items.Insert(at, verify);
         }
         return new ContextMenu { ItemsSource = items };
     }

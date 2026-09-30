@@ -8,7 +8,7 @@ namespace FileCat.Core.Operations;
 
 public enum ChecksumKind { Crc32, Md5, Sha1, Sha256, Sha384, Sha512 }
 
-public static class Checksums
+public static partial class Checksums
 {
     public static string Name(ChecksumKind kind) => kind switch
     {
@@ -43,6 +43,43 @@ public static class Checksums
 
     /// <summary>CRC-32, MD5, and SHA-1 detect accidental damage but are not proof against deliberate changes (plan §9.4).</summary>
     public static bool IsCompatibilityOnly(ChecksumKind kind) => kind is ChecksumKind.Crc32 or ChecksumKind.Md5 or ChecksumKind.Sha1;
+
+    /// <summary>
+    /// A checksum as a download page or a tool shows it, pasted: bare, "sha256:…", "SHA256 (name) = …", "… name", or in
+    /// spaced pairs (certutil). The algorithm follows from the length (8 CRC-32, 32 MD5, 40 SHA-1, 64 SHA-256, 96 SHA-384,
+    /// 128 SHA-512). Null when the text holds no such value or two of the same length, or names an algorithm FileCat does
+    /// not compute (SHA-3, BLAKE), whose values have the same lengths.
+    /// </summary>
+    public static (ChecksumKind Kind, string Hex)? ParseExpected(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Length > 1024) return null;
+        if (text.Contains("sha3", StringComparison.OrdinalIgnoreCase) || text.Contains("sha-3", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("blake", StringComparison.OrdinalIgnoreCase) || text.Contains("keccak", StringComparison.OrdinalIgnoreCase)) return null;
+        // The longest value wins: a file name after it may hold a shorter hex run ("… deadbeef.bin").
+        var runs = HexRun().Matches(text).Select(m => m.Value).Where(v => KindOfLength(v.Length) is not null).OrderByDescending(v => v.Length).ToList();
+        string? hex = runs.Count == 1 || runs.Count > 1 && runs[0].Length > runs[1].Length ? runs[0] : null;
+        if (runs.Count == 0)
+        {
+            // certutil and some pages split the value into pairs: "e3 b0 c4 42 …".
+            string joined = string.Concat(text.Where(c => !char.IsWhiteSpace(c)));
+            if (joined.All(char.IsAsciiHexDigit) && KindOfLength(joined.Length) is not null) hex = joined;
+        }
+        return hex is not null && KindOfLength(hex.Length) is { } kind ? (kind, hex.ToLowerInvariant()) : null;
+    }
+
+    private static ChecksumKind? KindOfLength(int digits) => digits switch
+    {
+        8 => ChecksumKind.Crc32,
+        32 => ChecksumKind.Md5,
+        40 => ChecksumKind.Sha1,
+        64 => ChecksumKind.Sha256,
+        96 => ChecksumKind.Sha384,
+        128 => ChecksumKind.Sha512,
+        _ => null,
+    };
+
+    [GeneratedRegex(@"(?<![0-9A-Fa-f])[0-9A-Fa-f]{8,128}(?![0-9A-Fa-f])")]
+    private static partial Regex HexRun();
 
     /// <summary>Hashes a file with sequential reads; <paramref name="progress"/> receives the bytes read by each step.</summary>
     public static string Compute(string path, ChecksumKind kind, CancellationToken ct, Action<long>? progress = null)
@@ -345,7 +382,10 @@ internal sealed class VerifyChecksumsExecutor(Job job, IFileSystemOperations fs,
                 Job.SetCurrent(e.Path);
                 try
                 {
+                    var before = Verification.VerificationService.Stamp(e.Path!);
                     string actual = Checksums.Compute(e.Path!, e.Kind, Job.Token, Job.AddBytes);
+                    // The value read stays for the checks beside files (D-57): a large file then need not be read again.
+                    if (before is { } stamp) Verification.VerificationService.Current?.Remember(e.Path!, stamp, new Dictionary<ChecksumKind, string> { [e.Kind] = actual });
                     if (string.Equals(actual, e.Expected, StringComparison.OrdinalIgnoreCase))
                     {
                         verified++;

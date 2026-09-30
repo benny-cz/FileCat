@@ -109,6 +109,14 @@ public sealed class AppServices : IDisposable
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
         EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
+        // Checksums and signatures beside files (D-57): results kept in the cache folder; minisign keys in the key folder.
+        var verification = new Core.Verification.VerificationService(
+            new Core.Verification.VerificationCache(Path.Combine(paths.CacheDirectory, "verification.jsonl")),
+            () => (long)Math.Max(1, Settings.VerifyAutomaticallyUpToMiB) << 20,
+            () => [KeyDirectory]);
+        // A changed checksum file or signature makes the shown results stale: they are asked for again.
+        verification.SidecarsChanged += _ => Metadata.Invalidate();
+        Core.Verification.VerificationService.Current = verification;
         Columns = new Controls.ColumnProfileSet(Settings.ColumnProfiles);
         // Widths chosen by dragging and edited profiles persist immediately.
         Columns.Changed += () =>
@@ -176,6 +184,9 @@ public sealed class AppServices : IDisposable
 
     public AppPaths Paths { get; }
     public AppSettings Settings { get; }
+
+    /// <summary>Public keys FileCat trusts for signatures beside files (minisign's .pub files), in the profile.</summary>
+    public string KeyDirectory => Path.Combine(Paths.SettingsDirectory, "keys");
     public StateLoadStatus SettingsStatus { get; }
     public HistoryState History { get; }
     public StateLoadStatus HistoryStatus { get; }

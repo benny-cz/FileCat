@@ -55,6 +55,8 @@ public static class JobExecutors
                 return new Tools.ApplyCommandExecutor(job, fs, journal);
             case JobKind.VerifyChecksums when fsSources:
                 return new Operations.VerifyChecksumsExecutor(job, fs, journal);
+            case JobKind.VerifyBeside when fsSources:
+                return new Verification.VerifyBesideExecutor(job, fs, journal);
             case JobKind.CreateLink when r.Link is not null:
                 return new Operations.LinkExecutor(job, fs, journal);
             case JobKind.Rename when fsSources && r.NewNames is not null:

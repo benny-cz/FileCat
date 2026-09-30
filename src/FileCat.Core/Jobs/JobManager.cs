@@ -353,6 +353,10 @@ public sealed class JobManager
                 title = r.Description ?? $"Test {What()}";
                 AddSourceScopes(reads);
                 break;
+            case JobKind.VerifyBeside:
+                title = r.Description ?? $"Verify {What()}";
+                AddSourceScopes(reads);
+                break;
             case JobKind.Elevated:
                 // Sources and destination are the original (display) locations, so overlap checks see the same
                 // paths as ordinary jobs; the plan itself carries the volume-GUID paths the broker runs.

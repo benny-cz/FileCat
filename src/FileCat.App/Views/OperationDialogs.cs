@@ -476,22 +476,60 @@ public static class OperationDialogs
 
     public static async Task ShowChecksumsAsync(MainViewModel vm, IReadOnlyList<string> files)
     {
-        ChecksumKind[] kinds = [ChecksumKind.Sha256, ChecksumKind.Sha512, ChecksumKind.Sha1, ChecksumKind.Md5, ChecksumKind.Crc32];
-        var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
+        ChecksumKind[] kinds = [ChecksumKind.Sha256, ChecksumKind.Sha512, ChecksumKind.Sha384, ChecksumKind.Sha1, ChecksumKind.Md5, ChecksumKind.Crc32];
+        var algorithm = new ComboBox { ItemsSource = new[] { "SHA-256", "SHA-512", "SHA-384", "SHA-1 (compatibility)", "MD5 (compatibility)", "CRC-32 (compatibility)" }, SelectedIndex = 0 };
         Avalonia.Automation.AutomationProperties.SetName(algorithm, "Checksum algorithm");
         var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Cascadia Mono,Consolas,Menlo,monospace"), MinHeight = 160, MaxHeight = 360, TextWrapping = TextWrapping.NoWrap, MinWidth = 640 };
         Avalonia.Automation.AutomationProperties.SetName(output, "Checksums");
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, IsVisible = false };
         var save = new Button { Content = "Save as manifest…", IsEnabled = false };
+        // The value a download page gives, pasted: compared with what the file has (the algorithm follows from its length).
+        var expected = new TextBox { Watermark = "Paste a checksum to compare with, such as the one on the download page", FontFamily = output.FontFamily };
+        Avalonia.Automation.AutomationProperties.SetName(expected, "Compare with");
+        var verdict = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
         var body = new StackPanel { Spacing = 6 };
         body.Children.Add(Muted("Checksums verify integrity; MD5, SHA-1, and CRC-32 are compatibility checks, not proof of origin."));
         body.Children.Add(algorithm);
         body.Children.Add(progress);
         body.Children.Add(output);
+        body.Children.Add(expected);
+        body.Children.Add(verdict);
         body.Children.Add(save);
         var results = new List<(string Path, string Hash)>();
         var computedKind = ChecksumKind.Sha256;
+        bool computing = false;
         CancellationTokenSource? cts = null;
+        void Compare()
+        {
+            string text = expected.Text ?? "";
+            verdict.IsVisible = text.Trim().Length > 0;
+            if (!verdict.IsVisible) return;
+            verdict.Classes.Set("success", false);
+            verdict.Classes.Set("error", false);
+            if (Checksums.ParseExpected(text) is not { } wanted)
+            {
+                verdict.Text = "Not a checksum FileCat computes: it takes 8 (CRC-32), 32 (MD5), 40 (SHA-1), 64 (SHA-256), 96 (SHA-384), or 128 (SHA-512) hexadecimal digits. SHA-3 and BLAKE values have the same lengths but are other algorithms.";
+                return;
+            }
+            string name = Checksums.Name(wanted.Kind);
+            if (computing || computedKind != wanted.Kind || results.Count < files.Count)
+            {
+                verdict.Text = $"A {name} value: compared when the file's {name} is ready…";
+                return;
+            }
+            var same = results.Where(r => string.Equals(r.Hash, wanted.Hex, StringComparison.OrdinalIgnoreCase)).ToList();
+            string weak = Checksums.IsCompatibilityOnly(wanted.Kind) ? $" ({name} shows the file is intact, not that it is authentic: it can be forged.)" : "";
+            if (same.Count > 0)
+            {
+                verdict.Classes.Set("success", true);
+                verdict.Text = (files.Count == 1 ? $"✓ Matches: the file's {name} is the one pasted." : $"✓ Matches {string.Join(", ", same.Select(s => Path.GetFileName(s.Path)))}.") + weak;
+            }
+            else
+            {
+                verdict.Classes.Set("error", true);
+                verdict.Text = files.Count == 1 ? $"✗ Does not match: the file's {name} is another value." : $"✗ Matches none of the {files.Count:N0} files.";
+            }
+        }
         async Task Compute()
         {
             cts?.Cancel();
@@ -501,6 +539,8 @@ public static class OperationDialogs
             results.Clear();
             progress.IsVisible = true;
             output.Text = string.Empty;
+            computing = true;
+            Compare();
             var kind = kinds[Math.Max(0, algorithm.SelectedIndex)];
             long total = files.Sum(f => new FileInfo(f).Length), done = 0;
             var lines = new List<string>();
@@ -508,11 +548,18 @@ public static class OperationDialogs
             {
                 foreach (var f in files)
                 {
-                    var hash = await Task.Run(() => Checksums.Compute(f, kind, token, n =>
+                    var hash = await Task.Run(() =>
                     {
-                        long now = Interlocked.Add(ref done, n);
-                        Dispatcher.UIThread.Post(() => progress.Value = total > 0 ? 100.0 * now / total : 0);
-                    }), token);
+                        var before = Core.Verification.VerificationService.Stamp(f);
+                        string value = Checksums.Compute(f, kind, token, n =>
+                        {
+                            long now = Interlocked.Add(ref done, n);
+                            Dispatcher.UIThread.Post(() => progress.Value = total > 0 ? 100.0 * now / total : 0);
+                        });
+                        // Kept for the checks beside files (D-57): a checksum file added later need not read it again.
+                        if (before is { } stamp) Core.Verification.VerificationService.Current?.Remember(f, stamp, new Dictionary<ChecksumKind, string> { [kind] = value });
+                        return value;
+                    }, token);
                     if (token.IsCancellationRequested) return;
                     results.Add((f, hash));
                     lines.Add($"{hash}  {Path.GetFileName(f)}");
@@ -526,11 +573,36 @@ public static class OperationDialogs
             {
                 output.Text += Environment.NewLine + "Error: " + ErrorText.Describe(ex);
             }
-            progress.IsVisible = false;
+            finally
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    computing = false;
+                    progress.IsVisible = false;
+                    Compare();
+                }
+            }
         }
         save.Click += async (_, _) => await SaveManifestAsync(vm, computedKind, results.ToList());
         algorithm.SelectionChanged += async (_, _) => await Compute();
-        _ = Compute();
+        expected.TextChanged += (_, _) =>
+        {
+            // A pasted value of another length picks its algorithm (and computes it); the same one compares at once.
+            if (Checksums.ParseExpected(expected.Text) is { } wanted && Array.IndexOf(kinds, wanted.Kind) is var index and >= 0 && index != algorithm.SelectedIndex)
+                algorithm.SelectedIndex = index;
+            else Compare();
+        };
+        // A checksum on the clipboard is most likely the one to compare with: it is filled in (and picks the algorithm).
+        if (vm.View.TopLevel?.Clipboard is { } clipboard)
+        {
+            try
+            {
+                string? copied = await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(clipboard);
+                if (copied is { Length: < 400 } && Checksums.ParseExpected(copied) is not null) expected.Text = copied.Trim();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException) { }
+        }
+        if (cts is null) _ = Compute(); // unless a pasted value of another length started it
         var r = await vm.Dialogs.ShowCustomAsync($"Checksums of {Formatters.Plural(files.Count, "file", "files")}", body,
             [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
         cts?.Cancel();

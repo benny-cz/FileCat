@@ -590,7 +590,7 @@ public sealed partial class MainViewModel
         // The job captured its sources; nothing reads them after this point.
         ItemSources.Release(job.Request.Sources);
         if (_editAfter.Remove(job, out var edit) && File.Exists(edit)) LaunchEditor(edit);
-        if (job.Kind == JobKind.VerifyChecksums) _ = OnVerifyFinishedAsync(job);
+        if (job.Kind is JobKind.VerifyChecksums or JobKind.VerifyBeside) _ = OnVerifyFinishedAsync(job);
         else switch (job.State)
         {
             case JobState.Completed:

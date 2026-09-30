@@ -784,6 +784,10 @@ public sealed class FileListControl : Control
                     if (shellOverlay is null && (e.Has(EntryFlags.Link) || IconProvider.IsShortcut(e))) dc.DrawImage(icons!.LinkOverlay, iconRect);
                     if (shellOverlay is null && e.Kind is EntryKind.File or EntryKind.Directory && icons?.GitOverlay(git) is { } gitOverlay)
                         dc.DrawImage(gitOverlay, iconRect);
+                    // What checking it against the checksums and signatures beside it found (D-57): only in folders that have them.
+                    if (e.Kind == EntryKind.File && Tab is { HasSidecars: true } checking && checking.Verification(e, storeIndex) is { } verified
+                        && icons?.VerificationOverlay(verified.State) is { } verifiedOverlay)
+                        dc.DrawImage(verifiedOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
                 avail = colX + colW - textX - Padding;
@@ -1083,6 +1087,7 @@ public sealed class FileListControl : Control
             return;
         }
         Cursor = ColumnEdgeAt(pos) >= 0 ? new Cursor(StandardCursorType.SizeWestEast) : Cursor.Default;
+        UpdateTip(pos);
         if (_dragStart is { } start && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             if (Math.Abs(pos.X - start.X) > 6 || Math.Abs(pos.Y - start.Y) > 6)
@@ -1091,6 +1096,33 @@ public sealed class FileListControl : Control
                 if (_pressedRow >= 0 && _pressArgs is { } press) DragRequested?.Invoke(this, press);
             }
         }
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        UpdateTip(null);
+    }
+
+    private string? _tip;
+
+    /// <summary>
+    /// Over a file's icon or its Verified cell: what checking it against the checksums and signatures beside it found,
+    /// claim by claim (D-57). Nothing elsewhere, so the list does not throw tips at a passing pointer.
+    /// </summary>
+    private void UpdateTip(Point? pos)
+    {
+        string? tip = null;
+        if (pos is { } p && _listing is { } listing && Tab is { HasSidecars: true } tab && RowAt(p) is var row and >= 0 && ColumnAt(p) is var col and >= 0)
+        {
+            bool overIcon = col == 0 && p.X >= _columnX[0] + MarkGutter && p.X < _columnX[0] + MarkGutter + IconSize + 2;
+            bool overCell = _columns[col] is { Field: ColumnField.Metadata, MetadataId: "verified" };
+            var entry = listing.GetVisible(row);
+            if ((overIcon || overCell) && entry.Kind == EntryKind.File) tip = tab.VerificationTip(entry, listing.GetStoreIndex(row));
+        }
+        if (tip == _tip) return;
+        _tip = tip;
+        ToolTip.SetTip(this, tip);
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)

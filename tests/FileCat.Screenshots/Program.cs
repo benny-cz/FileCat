@@ -72,7 +72,10 @@ int MainWindowShot(string[] a)
             window.Show();
             vm.Workspace.Activate(panels[0]);
             Pump(() => panels.All(p => p.ActiveTab?.Listing.State is ListingState.Complete or ListingState.Failed));
-            Pump(() => false, 800);
+            // Drawn rows ask for their metadata (versions, checksums beside files); the values come from the background.
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            window.CaptureRenderedFrame();
+            Pump(() => false, 1500);
             Save(window, $"window-{theme}.png");
             window.Close();
             foreach (var tab in panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();

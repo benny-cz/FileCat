@@ -269,7 +269,7 @@ public sealed class CommandRegistry
         Add(CommandIds.ContextMenu, "Context menu", F, null, CommandContext.Panel, "Shift+F10", "Apps");
         Add(CommandIds.Reveal, OperatingSystem.IsWindows() ? "Reveal in Explorer" : "Reveal in file manager", F, "Reveal", CommandContext.Panel, "Shift+F3");
         Add(CommandIds.Checksum, "Calculate checksums…", F);
-        Add(CommandIds.VerifyChecksums, "Verify checksum manifest…", F);
+        Add(CommandIds.VerifyChecksums, "Verify checksums and signatures", F);
         Add(CommandIds.Pack, "Pack into ZIP…", F, "Pack", CommandContext.Panel, "Alt+F5");
         Add(CommandIds.Unpack, "Unpack…", F, "Unpack", CommandContext.Panel, "Alt+F6", "Alt+F9");
         Add(CommandIds.TestArchive, "Test archive integrity", F);
@@ -474,7 +474,7 @@ public sealed class CommandRegistry
         K(CommandIds.CompareDirectories, "diff", "differences", "synchronize", "sync", "compare folders");
         K(CommandIds.CompareFiles, "diff", "differences", "compare two files", "same name", "text compare", "binary compare");
         K(CommandIds.Checksum, "hash", "sha256", "sha1", "md5", "crc");
-        K(CommandIds.VerifyChecksums, "verify", "hash", "sfv", "md5sum", "sha256sums");
+        K(CommandIds.VerifyChecksums, "verify", "hash", "sfv", "md5sum", "sha256sums", "manifest", "signature", "gpg", "pgp", "minisign", "asc", "sig");
         K(CommandIds.Pack, "zip", "compress", "create archive");
         K(CommandIds.Unpack, "extract", "unzip", "decompress", "unpack archive");
         K(CommandIds.TestArchive, "verify archive", "integrity", "check archive");

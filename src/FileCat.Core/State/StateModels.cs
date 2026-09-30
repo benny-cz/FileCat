@@ -107,6 +107,8 @@ public sealed class AppSettings : IVersionedState
     public bool SingleInstance { get; set; } = true;
     public string ViewerEncoding { get; set; } = "Auto";
     public bool ViewerWrap { get; set; } = true;
+    /// <summary>Files up to this size are checked against the checksums and signatures beside them when shown (D-57); larger ones on request.</summary>
+    public int VerifyAutomaticallyUpToMiB { get; set; } = 256;
     /// <summary>Thumbnails in quick view and programs' own icons from Windows Shell handlers, run in the restricted helper (TV-16).</summary>
     public bool ShellPictures { get; set; } = true;
     /// <summary>Shell pictures also on network and removable drives, whose handlers may reach the network (opt-in).</summary>

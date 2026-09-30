@@ -32,6 +32,8 @@ public enum JobKind
     VerifyChecksums,
     /// <summary>Run a previewed command once per item (FAR's Apply command).</summary>
     ApplyCommand,
+    /// <summary>Check the sources against the checksum files and signatures beside them (D-57); read-only.</summary>
+    VerifyBeside,
 }
 
 public enum RegistryAction { SetValue, DeleteValue, CreateKey, RenameKey, DeleteKey, CopyValue, RenameValue, CopyKey }

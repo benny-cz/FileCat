@@ -120,4 +120,31 @@ public sealed class ChecksumManifestTests : IDisposable
         var empty = await VerifyAsync(_dir.File("empty.md5", ""));
         Assert.Equal("nothing verified: the manifest lists no files", empty.Summary);
     }
+
+    [Theory]
+    [InlineData("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", ChecksumKind.Sha256)]
+    [InlineData("  sha256:E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855\n", ChecksumKind.Sha256)]
+    [InlineData("SHA256 (ubuntu.iso) = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", ChecksumKind.Sha256)]
+    [InlineData("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 *deadbeef.bin", ChecksumKind.Sha256)]
+    [InlineData("e3 b0 c4 42 98 fc 1c 14 9a fb f4 c8 99 6f b9 24 27 ae 41 e4 64 9b 93 4c a4 95 99 1b 78 52 b8 55", ChecksumKind.Sha256)]
+    [InlineData("MD5: d41d8cd98f00b204e9800998ecf8427e", ChecksumKind.Md5)]
+    [InlineData("da39a3ee5e6b4b0d3255bfef95601890afd80709", ChecksumKind.Sha1)]
+    [InlineData("CRC32 00000000", ChecksumKind.Crc32)]
+    public void A_pasted_checksum_is_read_in_the_forms_pages_and_tools_show(string text, ChecksumKind kind)
+    {
+        var parsed = Checksums.ParseExpected(text);
+        Assert.NotNull(parsed);
+        Assert.Equal(kind, parsed.Value.Kind);
+        Assert.Equal(parsed.Value.Hex.ToLowerInvariant(), parsed.Value.Hex);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not a checksum")]
+    [InlineData("SHA3-256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")] // same length, another algorithm
+    [InlineData("b2sum e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 BLAKE2b")]
+    [InlineData("d41d8cd98f00b204e9800998ecf8427e d41d8cd98f00b204e9800998ecf8427f")] // two of a kind: which one?
+    [InlineData("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85")] // 63 digits
+    public void Text_that_is_not_one_checksum_FileCat_computes_is_not_taken_for_one(string text) =>
+        Assert.Null(Checksums.ParseExpected(text));
 }

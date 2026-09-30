@@ -193,12 +193,13 @@ public sealed class MetadataService
         });
     }
 
-    /// <summary>Forgets every value (after a refresh or a change FileCat made, such as new permissions).</summary>
+    /// <summary>Forgets every value (after a refresh or a change FileCat made, such as new permissions); shown rows ask again.</summary>
     public void Invalidate()
     {
         _cache.Clear();
         _producedAt.Clear();
         _order.Clear();
+        Notify();
     }
 }
 
@@ -283,9 +284,19 @@ public static class BuiltInFields
         v => v is int n && n > 0 ? n.ToString(System.Globalization.CultureInfo.CurrentCulture) : string.Empty,
         RightAlign: true, SortKey: v => v as int?, Folders: true);
 
+    /// <summary>
+    /// Whether the file matches the checksums and signatures beside it (D-57): empty when nothing covers it, "not checked"
+    /// for large files and files on the network (checked on request), and a checksum file's own row says what it covers.
+    /// </summary>
+    public static readonly MetadataField Verified = new("verified", "Verified", MetadataCost.Cheap,
+        _ => true,
+        (p, ct) => Verification.VerificationService.Current?.Automatic(p, ct),
+        v => v is Verification.VerificationResult r ? r.Text : string.Empty,
+        SortKey: v => v is Verification.VerificationResult r ? (int)r.State : null);
+
     /// <summary>The fields this OS can fill: file versions on Windows; permissions and ownership on Linux and macOS.</summary>
     public static IReadOnlyList<MetadataField> All { get; } =
-        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden];
+        OperatingSystem.IsWindows() ? [Version, Dimensions, LinkTarget, Zone, Hidden, Verified] : [Permissions, Owner, Group, Dimensions, LinkTarget, Zone, Hidden, Verified];
 }
 
 /// <summary>Reads image dimensions from bounded headers (never decodes pixels).</summary>
