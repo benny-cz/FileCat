@@ -62,7 +62,7 @@ public sealed class JournalPlaceTests
             Assert.Equal(["Name", "Time", "What happened", "Folder"], ColumnProfiles.Journal.Select(c => c.Header));
             Assert.True(ColumnProfiles.Journal[1].Seconds);
             Assert.Equal("renamed from", tab.GetKindText(tab.Listing.GetVisible(tab.Listing.HasParentRow ? 1 : 0)));
-            Assert.Equal("3 entries", tab.StatusLeft.Split(" · ")[0]);
+            Assert.Equal("3 changes", tab.StatusLeft.Split(" · ")[0]);
 
             // Enter on an item that is gone does nothing; on one that exists, its folder opens with it under the cursor.
             tab.Listing.SetFocus(names.IndexOf("gone.tmp") + (tab.Listing.HasParentRow ? 1 : 0));

@@ -625,7 +625,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             Schemes.Computer => Formatters.Plural(totals.Directories + totals.Files, "item", "items"),
             Schemes.Network when Location.Path.Length == 0 => Formatters.Plural(totals.Directories + totals.Files, "computer or server", "computers and servers"),
             Schemes.Network => Formatters.Plural(totals.Directories + totals.Files, "share", "shares"),
-            Schemes.Journal => Formatters.Plural(totals.Directories + totals.Files, "entry", "entries"),
+            Schemes.Journal => Formatters.Plural(totals.Directories + totals.Files, "change", "changes"),
             Schemes.HiddenData => OperatingSystem.IsWindows()
                 ? Formatters.Plural(totals.Files, "stream or attribute", "streams and attributes")
                 : Formatters.Plural(totals.Files, "attribute", "attributes"),

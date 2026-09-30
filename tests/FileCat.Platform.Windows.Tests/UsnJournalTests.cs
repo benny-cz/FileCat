@@ -44,12 +44,14 @@ public sealed class UsnJournalTests
                 return;
             }
             var mine = sink.Entries.Where(e => e.Name == name || e.Name == Path.GetFileName(renamed)).ToList();
-            var created = Assert.Single(mine, e => e.Name == name && ((JournalEntryTag)e.Tag!).KindText.StartsWith("created", StringComparison.Ordinal) && ((JournalEntryTag)e.Tag!).KindText.EndsWith("closed", StringComparison.Ordinal));
+            var created = Assert.Single(mine, e => e.Name == name && ((JournalEntryTag)e.Tag!).KindText.StartsWith("created", StringComparison.Ordinal) && !((JournalEntryTag)e.Tag!).Open);
             var tag = (JournalEntryTag)created.Tag!;
             Assert.Equal(dir, tag.DetailsText, ignoreCase: true);
             Assert.True(created.Modified > DateTime.UtcNow.AddMinutes(-10).Ticks);
-            Assert.Contains(mine, e => ((JournalEntryTag)e.Tag!).KindText.Contains("renamed from", StringComparison.Ordinal));
-            Assert.Contains(mine, e => e.Name == Path.GetFileName(renamed) && ((JournalEntryTag)e.Tag!).KindText.Contains("renamed to", StringComparison.Ordinal));
+            // One row per change: the rename is one line under the new name, saying the old one.
+            Assert.Equal(2, mine.Count);
+            var rename = Assert.Single(mine, e => e.Name == Path.GetFileName(renamed));
+            Assert.Equal($"renamed from {name}", ((JournalEntryTag)rename.Tag!).KindText);
             // Enter goes to the item where it is now: its new name.
             var at = tag.Locate();
             Assert.NotNull(at);
@@ -57,6 +59,8 @@ public sealed class UsnJournalTests
             // F3: the whole entry.
             string report = tag.Report();
             Assert.Contains("What happened", report, StringComparison.Ordinal);
+            Assert.Contains($"Records ({tag.StepCount})", report, StringComparison.Ordinal); // each record of the change
+            Assert.Matches(@"Renamed from\s+" + System.Text.RegularExpressions.Regex.Escape(name), ((JournalEntryTag)rename.Tag!).Report());
             Assert.Contains("The item is now " + renamed, report, StringComparison.OrdinalIgnoreCase);
             // Deleted, it is gone.
             File.Delete(renamed);

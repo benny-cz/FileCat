@@ -92,6 +92,10 @@ int MainWindowShot(string[] a, string? command = null)
             if (command is not null)
             {
                 string[] parts = command.Split('@');
+                // A command on ".." pictures little: the first item instead.
+                var active = panels[0].ActiveTab!;
+                if (active.Listing.TryGetFocused(out var focusedRow) && focusedRow.Kind == EntryKind.Parent && active.Listing.VisibleCount > 1)
+                    active.Listing.SetFocus(1);
                 // A dialog that reads the clipboard (Calculate checksums) finds this there.
                 if (Environment.GetEnvironmentVariable("FILECAT_SHOT_CLIPBOARD") is { Length: > 0 } copied && window.Clipboard is { } clipboard)
                     Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, copied).GetAwaiter().GetResult();

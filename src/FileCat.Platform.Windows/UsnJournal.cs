@@ -193,23 +193,66 @@ internal static unsafe partial class UsnJournalReader
     private static partial uint GetFinalPathNameByHandle(SafeFileHandle handle, char* path, uint size, uint flags);
 }
 
-/// <summary>One change-journal entry as a row: what happened (Kind), in which folder (Details); Enter goes to the item, F3 shows the whole entry.</summary>
+/// <summary>
+/// One change as a row: the journal's records for an item from one opening to its close (NTFS writes one per step and a
+/// last one, at close, with all of them), shown as that last record: what happened (Kind), in which folder (Details).
+/// A rename says the old name (a move the old place); a change whose item is still open says so. Enter goes to the
+/// item, F3 shows the change with each of its records.
+/// </summary>
 public sealed class JournalEntryTag : IDisplayDetails, ILocatableEntry, IReportedEntry
 {
+    /// <summary>Records kept per change for its report: the first and the latest (a log kept open writes thousands).</summary>
+    public const int MaxSteps = 64;
+    private const uint Renames = 0x0000_1000 | 0x0000_2000;
     private readonly SafeFileHandle _hint;
     private readonly bool _refs;
 
-    internal JournalEntryTag(UsnRecord record, string folder, SafeFileHandle hint, bool refs)
+    internal JournalEntryTag(IReadOnlyList<UsnRecord> steps, int stepCount, bool open, string folder, string? renamedFrom, SafeFileHandle hint, bool refs)
     {
-        Record = record;
+        Steps = steps;
+        StepCount = stepCount;
+        Open = open;
+        Record = steps[^1];
         DetailsText = folder;
+        RenamedFrom = renamedFrom;
         _hint = hint;
         _refs = refs;
     }
 
+    /// <summary>The change's last record (at close, or the latest while the item is still open).</summary>
     public UsnRecord Record { get; }
 
-    public string KindText => UsnRecord.ReasonsShort(Record.Reasons);
+    /// <summary>The change's records, oldest first (up to <see cref="MaxSteps"/> of <see cref="StepCount"/>).</summary>
+    public IReadOnlyList<UsnRecord> Steps { get; }
+
+    public int StepCount { get; }
+
+    /// <summary>No close record yet: the item was still open when the journal was read.</summary>
+    public bool Open { get; }
+
+    /// <summary>For a rename, the old name ("old.txt"); for a move to another folder, the old path.</summary>
+    public string? RenamedFrom { get; }
+
+    /// <summary>Everything the change's records say happened.</summary>
+    public uint Reasons => Steps.Aggregate(0u, (all, s) => all | s.Reasons);
+
+    private bool Moved => RenamedFrom?.Contains('\\') == true;
+
+    public string KindText
+    {
+        get
+        {
+            // Every row but a still-open one ends in a close: the list leaves "closed" to F3.
+            string text = UsnRecord.ReasonsShort(Reasons & ~Renames & ~UsnRecord.Close);
+            if ((Reasons & Renames) != 0)
+            {
+                string rename = RenamedFrom is { } old ? (Moved ? "moved from " : "renamed from ") + old : "renamed";
+                text = text == "none" ? rename : rename + ", " + text;
+            }
+            if (text == "none") text = Open ? "opened" : "opened and closed";
+            return Open ? text + " (still open)" : text;
+        }
+    }
 
     /// <summary>The folder the entry names, as its path is now (or as the journal last saw it, when it is gone).</summary>
     public string DetailsText { get; }
@@ -233,8 +276,9 @@ public sealed class JournalEntryTag : IDisplayDetails, ILocatableEntry, IReporte
         sb.AppendLine();
         void Line(string name, string value) => sb.Append("  ").Append(name.PadRight(14)).Append("  ").AppendLine(value);
         Line("Name", Record.Name);
-        Line("Time", RecordText.Time(Record.Time));
-        Line("What happened", $"{UsnRecord.ReasonsText(Record.Reasons)} (0x{Record.Reasons:X8})");
+        if (RenamedFrom is { } old) Line(Moved ? "Moved from" : "Renamed from", old);
+        Line("Time", RecordText.Time(Record.Time) + (Open ? " (the item was still open)" : ""));
+        Line("What happened", $"{UsnRecord.ReasonsText(Reasons)} (0x{Reasons:X8})");
         if (UsnRecord.SourceText(Record.SourceInfo) is { } source) Line("Made by", source);
         Line("USN", Record.Usn.ToString("N0", CultureInfo.CurrentCulture));
         Line("Attributes", RecordText.Attributes(Record.Attributes));
@@ -247,6 +291,19 @@ public sealed class JournalEntryTag : IDisplayDetails, ILocatableEntry, IReporte
         sb.AppendLine(now is { } at
             ? $"  The item is now {System.IO.Path.Join(at.Folder, at.Name)} (Enter in the list goes there)."
             : "  The item no longer exists under this ID: it was deleted, or its record was reused.");
+        // Each record of the change, as the journal wrote them.
+        sb.AppendLine();
+        sb.AppendLine(Steps.Count < StepCount
+            ? $"Records ({StepCount:N0}; the first and the latest {Steps.Count - 1:N0} shown)"
+            : $"Records ({StepCount:N0})");
+        sb.AppendLine("  " + "USN".PadLeft(19) + "  " + "Time".PadRight(31) + "  What happened · name");
+        for (int i = 0; i < Steps.Count; i++)
+        {
+            var s = Steps[i];
+            if (i == 1 && Steps.Count < StepCount) sb.AppendLine("  " + "…".PadLeft(19));
+            sb.Append("  ").Append(s.Usn.ToString("N0", CultureInfo.CurrentCulture).PadLeft(19)).Append("  ")
+              .Append(RecordText.Time(s.Time).PadRight(31)).Append("  ").Append(UsnRecord.ReasonsShort(s.Reasons)).Append(" · ").AppendLine(s.Name);
+        }
         return sb.ToString();
     }
 
@@ -313,21 +370,54 @@ public sealed class UsnJournalProvider : ResourceProvider
                 : $"The change journal of {root} cannot be read: {new System.ComponentModel.Win32Exception(error).Message}");
         bool refs = new DriveInfo(root).DriveFormat == "ReFS";
         var folders = FoldersByRoot.AddOrUpdate(root, _ => UsnJournalReader.Folders.Open(root, refs), (_, existing) => existing);
+        // One row per change: an item's records gather until its close record.
+        var open = new Dictionary<UInt128, Change>();
+        EntryData Row(Change change, bool stillOpen)
+        {
+            var last = change.Recent.Last();
+            var steps = change.Count > change.Recent.Count ? [change.First!, .. change.Recent] : change.Recent.ToList();
+            string? renamedFrom = null;
+            if (change.OldName is { } old && (old.ParentId != last.ParentId || !string.Equals(old.Name, last.Name, StringComparison.Ordinal)))
+                renamedFrom = old.ParentId != last.ParentId ? System.IO.Path.Join(folders.Path(old.ParentId), old.Name) : old.Name;
+            return new EntryData(last.Name, (last.Attributes & 0x10) != 0 ? EntryKind.Directory : EntryKind.File, -1, RecordText.ToUtc(last.Time)?.Ticks ?? 0)
+            {
+                Attributes = last.Attributes,
+                Tag = new JournalEntryTag(steps, change.Count, stillOpen, folders.Path(last.ParentId), renamedFrom, folders.Hint, refs),
+            };
+        }
         UsnJournalReader.Read(volume, journal, journal.FirstUsn, ct, records =>
         {
-            var batch = new EntryData[records.Count];
-            for (int i = 0; i < records.Count; i++)
+            var batch = new List<EntryData>(records.Count / 2 + 1);
+            foreach (var r in records)
             {
-                var r = records[i];
                 folders.Learn(r);
-                batch[i] = new EntryData(r.Name, (r.Attributes & 0x10) != 0 ? EntryKind.Directory : EntryKind.File, -1,
-                    RecordText.ToUtc(r.Time)?.Ticks ?? 0)
-                {
-                    Attributes = r.Attributes,
-                    Tag = new JournalEntryTag(r, folders.Path(r.ParentId), folders.Hint, refs),
-                };
+                if (!open.TryGetValue(r.FileId, out var change)) open[r.FileId] = change = new Change();
+                change.Add(r);
+                if ((r.Reasons & UsnRecord.Close) == 0) continue;
+                open.Remove(r.FileId);
+                batch.Add(Row(change, stillOpen: false));
             }
-            sink.AddBatch(batch);
+            sink.AddBatch(batch.ToArray());
         });
+        // Changes whose items are still open: as far as they went.
+        sink.AddBatch(open.Values.Select(c => Row(c, stillOpen: true)).ToArray());
     }, ct);
+
+    /// <summary>An item's records since its last close: the first, the latest ones, and the one naming it before a rename.</summary>
+    private sealed class Change
+    {
+        public UsnRecord? First;
+        public readonly Queue<UsnRecord> Recent = new();
+        public int Count;
+        public UsnRecord? OldName;
+
+        public void Add(UsnRecord record)
+        {
+            Count++;
+            First ??= record;
+            if ((record.Reasons & 0x0000_1000) != 0) OldName ??= record;
+            Recent.Enqueue(record);
+            if (Recent.Count > JournalEntryTag.MaxSteps - 1) Recent.Dequeue();
+        }
+    }
 }
