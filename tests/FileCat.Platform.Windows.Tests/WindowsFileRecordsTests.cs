@@ -56,6 +56,26 @@ public sealed partial class WindowsFileRecordsTests
     }
 
     [Fact]
+    public void The_record_lists_the_files_streams_with_what_they_say()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "download.txt");
+            File.WriteAllText(file, "x");
+            if (!OnNtfs(file)) return; // streams need NTFS or ReFS
+            File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.org/download.txt\r\n");
+            // Without administrator rights too: where the file came from is one look away.
+            var section = Section(Read(file, privileged: false), "Streams and attributes (1)");
+            var row = Assert.Single(section.Table!.Rows);
+            Assert.Equal(("Zone.Identifier", "Stream"), (row[0], row[1]));
+            Assert.Contains("https://example.org/download.txt", row[3], StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
     public void Without_administrator_rights_the_report_says_first_what_it_leaves_out()
     {
         if (!OperatingSystem.IsWindows()) return;

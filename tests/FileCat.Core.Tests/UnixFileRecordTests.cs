@@ -168,8 +168,34 @@ public sealed partial class UnixFileRecordTests
         finally { Directory.Delete(dir, recursive: true); }
     }
 
+    [Fact]
+    public void The_record_lists_the_items_attributes_with_what_they_say()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        string dir = NewFolder();
+        try
+        {
+            string file = Path.Combine(dir, "notes.txt");
+            File.WriteAllText(file, "x");
+            string name = OperatingSystem.IsMacOS() ? "com.example.note" : "user.note";
+            byte[] value = "a hidden note"u8.ToArray();
+            int set = OperatingSystem.IsMacOS() ? MacSetAttribute(file, name, value, value.Length, 0, 1) : SetAttribute(file, name, value, value.Length, 0);
+            if (set != 0)
+            {
+                Assert.Skip("This file system keeps no extended attributes here.");
+                return;
+            }
+            var section = Section(Read(file), "Streams and attributes");
+            Assert.Contains(section.Table!.Rows, r => r[0] == name && r[3] == "a hidden note");
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
     [LibraryImport("libc", EntryPoint = "lsetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int SetAttribute(string path, string name, byte[] value, nint size, int flags);
+
+    [LibraryImport("libc", EntryPoint = "setxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int MacSetAttribute(string path, string name, byte[] value, nint size, uint position, int options);
 
     [LibraryImport("libc", EntryPoint = "chflags", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int Chflags(string path, uint flags);

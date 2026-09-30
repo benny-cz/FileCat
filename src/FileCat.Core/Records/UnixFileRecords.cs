@@ -45,6 +45,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
         {
             string format = OperatingSystem.IsLinux() ? Linux() : Mac();
             ct.ThrowIfCancellationRequested();
+            if (HiddenData.HiddenDataSection.Of(new HiddenData.UnixHiddenData(), path) is { } hidden) _sections.Add(hidden);
             _sections.Add(Permissions());
             return new InspectionReport(format, _sections, _warnings);
         }

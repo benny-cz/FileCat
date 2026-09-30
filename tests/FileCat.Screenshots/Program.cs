@@ -46,7 +46,10 @@ int Record(string[] a)
     int pages = a.Length > 3 && int.TryParse(a[3], out int n) ? n : 3;
     string[] themes = a.Length > 4 ? a[4..] : ["ClassicDark"];
     using var platform = FileCat.Core.Platform.PlatformFactory.Create();
-    var records = platform.FileRecords;
+    // FILECAT_SHOT_UNPRIVILEGED=1: the record as FileCat shows it without administrator rights (most people's view).
+    var records = OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("FILECAT_SHOT_UNPRIVILEGED") == "1"
+        ? new FileCat.Platform.Windows.WindowsFileRecords { AssumeNotPrivileged = true }
+        : platform.FileRecords;
     foreach (string theme in themes)
     {
         ThemeManager.Apply(theme);

@@ -99,6 +99,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (ReparseSection() is { } reparse) _sections.Add(reparse);
             _sections.Add(LayoutSection());
             if (fat && !_remote && privileged) _sections.Add(FatSection(root));
+            if (Core.HiddenData.HiddenDataSection.Of(new WindowsHiddenData(), path) is { } hidden) _sections.Add(hidden);
             if (SecuritySection() is { } security) _sections.Add(security);
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
