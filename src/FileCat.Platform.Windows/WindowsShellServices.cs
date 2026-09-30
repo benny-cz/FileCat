@@ -139,15 +139,34 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         return new string(info.szTypeName);
     }
 
+    /// <summary>
+    /// "auto" as it stands on this computer: Windows Terminal when installed (it opens the user's default profile,
+    /// PowerShell unless they chose otherwise), else PowerShell 7, else Windows PowerShell.
+    /// </summary>
+    public static string ResolveShell(string shell) => shell != "auto" ? shell
+        : FindOnPath("wt.exe") is not null ? "wt"
+        : FindOnPath("pwsh.exe") is not null ? "pwsh"
+        : "powershell";
+
     public override void OpenTerminal(string directory, string shell)
     {
-        ProcessStartInfo psi = shell switch
+        ProcessStartInfo psi;
+        switch (ResolveShell(shell))
         {
-            "powershell" => new ProcessStartInfo("powershell.exe") { Arguments = "-NoExit -NoLogo" },
-            "pwsh" => new ProcessStartInfo(FindOnPath("pwsh.exe") ?? "pwsh.exe") { Arguments = "-NoExit -NoLogo" },
-            "wt" => new ProcessStartInfo(FindOnPath("wt.exe") ?? "wt.exe") { Arguments = $"-d \"{directory.TrimEnd('\\')}\\\"" },
-            _ => new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe")),
-        };
+            case "powershell":
+                psi = new ProcessStartInfo("powershell.exe") { ArgumentList = { "-NoExit", "-NoLogo" } };
+                break;
+            case "pwsh":
+                psi = new ProcessStartInfo(FindOnPath("pwsh.exe") ?? "pwsh.exe") { ArgumentList = { "-NoExit", "-NoLogo" } };
+                break;
+            case "wt":
+                // As separate arguments: a quoted folder ending in a backslash ("C:\dir\") would escape its own quote.
+                psi = new ProcessStartInfo(FindOnPath("wt.exe") ?? "wt.exe") { ArgumentList = { "-d", directory } };
+                break;
+            default:
+                psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
+                break;
+        }
         psi.WorkingDirectory = directory;
         psi.UseShellExecute = false;
         psi.CreateNoWindow = false;
@@ -157,7 +176,8 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     public override void RunInTerminal(string directory, string command, string shell)
     {
         ProcessStartInfo psi;
-        switch (shell)
+        // A typed command line is cmd's language: "auto" keeps it so (inside Windows Terminal when it is there).
+        switch (shell == "auto" ? FindOnPath("wt.exe") is not null ? "wt" : "cmd" : shell)
         {
             case "powershell":
             case "pwsh":

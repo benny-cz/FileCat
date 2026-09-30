@@ -22,6 +22,7 @@ public sealed class AppServices : IDisposable
         Settings = JsonFileStore.Load(paths.SettingsFile, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema,
             () => new AppSettings(), out var settingsStatus);
         SettingsStatus = settingsStatus;
+        Settings.Terminal.Upgrade();
         History = JsonFileStore.Load(paths.HistoryFile, StateJsonContext.Default.HistoryState, HistoryState.CurrentSchema,
             () => new HistoryState(), out var historyStatus);
         HistoryStatus = historyStatus;

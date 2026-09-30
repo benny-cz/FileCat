@@ -32,9 +32,23 @@ public sealed class SavedFilter
 
 public sealed class TerminalSettings
 {
-    /// <summary>"cmd", "powershell", "pwsh", "wt" (Windows Terminal), or "posix".</summary>
-    public string Shell { get; set; } = OperatingSystem.IsWindows() ? "cmd" : "posix";
+    /// <summary>
+    /// "auto" (Windows: Windows Terminal, else PowerShell 7, else Windows PowerShell), "cmd", "powershell", "pwsh", "wt"
+    /// (Windows Terminal), or "posix".
+    /// </summary>
+    public string Shell { get; set; } = OperatingSystem.IsWindows() ? "auto" : "posix";
     public string? CustomExecutable { get; set; }
+
+    /// <summary>1 once "cmd", the default before "auto", has been moved to "auto" (a later choice of cmd stays).</summary>
+    public int Defaults { get; set; }
+
+    /// <summary>Settings saved before "auto" existed hold the old default: it becomes "auto" once.</summary>
+    public void Upgrade()
+    {
+        if (Defaults >= 1) return;
+        if (Shell == "cmd" && OperatingSystem.IsWindows()) Shell = "auto";
+        Defaults = 1;
+    }
 }
 
 public sealed class ColumnProfile

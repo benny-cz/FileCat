@@ -50,8 +50,28 @@ public class CommandTests
         Assert.Equal(CommandIds.MakeDirectory, k.Resolve(KeyChord.Parse("F7"), CommandContext.Panel));
         Assert.Equal(CommandIds.Delete, k.Resolve(KeyChord.Parse("F8"), CommandContext.Panel));
         Assert.Equal(CommandIds.CloseTab, k.Resolve(KeyChord.Parse("Ctrl+W"), CommandContext.Panel));
-        Assert.Equal(CommandIds.MarkRestore, k.Resolve(KeyChord.Parse("Num/"), CommandContext.Panel));
+        // Num/ opens a terminal in the panel's folder, as in Salamander; restoring the selection moved to Ctrl+Num/.
+        Assert.Equal(CommandIds.OpenTerminal, k.Resolve(KeyChord.Parse("Num/"), CommandContext.Panel));
+        Assert.Equal(CommandIds.OpenTerminal, k.Resolve(KeyChord.Parse("Ctrl+`"), CommandContext.Panel));
+        Assert.Equal(CommandIds.MarkRestore, k.Resolve(KeyChord.Parse("Ctrl+Num/"), CommandContext.Panel));
         Assert.Equal(CommandIds.Palette, k.Resolve(KeyChord.Parse("Ctrl+Shift+P"), CommandContext.Panel));
+    }
+
+    [Fact]
+    public void The_old_default_shell_becomes_automatic_once_and_a_later_choice_stays()
+    {
+        // Settings saved before "auto" existed: cmd was the default, not a choice.
+        var old = System.Text.Json.JsonSerializer.Deserialize("{\"Shell\":\"cmd\"}", State.StateJsonContext.Default.TerminalSettings)!;
+        old.Upgrade();
+        Assert.Equal(OperatingSystem.IsWindows() ? "auto" : "cmd", old.Shell);
+        Assert.Equal(1, old.Defaults);
+        // Chosen afterwards (the marker is saved with it): kept.
+        var chosen = System.Text.Json.JsonSerializer.Deserialize("{\"Shell\":\"cmd\",\"Defaults\":1}", State.StateJsonContext.Default.TerminalSettings)!;
+        chosen.Upgrade();
+        Assert.Equal("cmd", chosen.Shell);
+        var fresh = new State.TerminalSettings();
+        fresh.Upgrade();
+        Assert.Equal(OperatingSystem.IsWindows() ? "auto" : "posix", fresh.Shell);
     }
 
     [Fact]

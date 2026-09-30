@@ -295,7 +295,7 @@ public sealed class CommandRegistry
         Add(CommandIds.UnmarkSameExt, "Unselect same extension", M, null, CommandContext.Panel, "Shift+Num-");
         Add(CommandIds.MarkSameName, "Select same name", M, null, CommandContext.Panel, "Alt+Num+");
         Add(CommandIds.UnmarkSameName, "Unselect same name", M, null, CommandContext.Panel, "Alt+Num-");
-        Add(CommandIds.MarkRestore, "Restore previous selection", M, null, CommandContext.Panel, "Num/");
+        Add(CommandIds.MarkRestore, "Restore previous selection", M, null, CommandContext.Panel, "Ctrl+Num/");
         Add(CommandIds.UnmarkHidden, "Unmark items hidden by the filter", M);
 
         Add(CommandIds.Parent, "Go to parent", N, null, CommandContext.Panel, "Ctrl+PgUp", "Backspace");
@@ -385,7 +385,8 @@ public sealed class CommandRegistry
         Add(CommandIds.CommandHistory, "Command history…", C, null, CommandContext.Panel, "Alt+F8");
         Add(CommandIds.InsertName, "Insert focused name into command line", C, null, CommandContext.Panel, "Ctrl+Enter");
         Add(CommandIds.InsertPath, "Insert focused path into command line", C, null, CommandContext.Panel, "Ctrl+Shift+Enter");
-        Add(CommandIds.OpenTerminal, "Open terminal here", C, null, CommandContext.Panel, "Ctrl+`");
+        // Num/ as in Altap Salamander.
+        Add(CommandIds.OpenTerminal, "Open terminal here", C, null, CommandContext.Panel, "Num/", "Ctrl+`");
         Add(CommandIds.CopyToClipboard, "Copy items to clipboard", C, null, CommandContext.Panel, "Ctrl+C");
         Add(CommandIds.CutToClipboard, "Cut items to clipboard", C, null, CommandContext.Panel, "Ctrl+X");
         Add(CommandIds.PasteFromClipboard, "Paste items or go to pasted path", C, null, CommandContext.Panel, "Ctrl+V");

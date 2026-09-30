@@ -73,7 +73,8 @@ public static class SettingsDialog
         // ---- Tools
         var editorExe = new TextBox { Text = s.Editor?.Executable ?? string.Empty, PlaceholderText = "auto: " + Core.Tools.ToolLauncher.DetectEditor().Executable, MinWidth = 460 };
         var editorArgs = new TextBox { Text = s.Editor is null ? "{files}" : string.Join(" ", s.Editor.Arguments), MinWidth = 460 };
-        var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
+        // "auto": Windows Terminal when installed, else PowerShell 7, else Windows PowerShell.
+        var shell = new ComboBox { ItemsSource = OperatingSystem.IsWindows() ? new[] { "auto", "cmd", "powershell", "pwsh", "wt" } : new[] { "posix" }, SelectedItem = s.Terminal.Shell, MinWidth = 220 };
         var userCommands = new TextBox
         {
             AcceptsReturn = true,
