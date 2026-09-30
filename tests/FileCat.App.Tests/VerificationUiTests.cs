@@ -72,7 +72,7 @@ public sealed class VerificationUiTests
             // The status line: the focused file's result, and the folder's sum.
             listing.SetFocus(Row("a.txt").Row);
             await Until(() => tab.StatusRight.EndsWith(" · ✓ SHA-256", StringComparison.Ordinal), "the focused file's result is in the status line");
-            await Until(() => tab.StatusLeft.Contains("checksums: 1 verified, 1 failed, 1 not checked", StringComparison.Ordinal),
+            await Until(() => tab.StatusLeft.Contains("checksums: 1 failed, 1 verified, 1 not checked", StringComparison.Ordinal),
                 $"the folder's sum is in the status line ({tab.StatusLeft}; the service says {VerificationService.Current!.Summary(folder, ["a.txt", "b.txt", "big.bin", "SHA256SUMS"])})");
 
             // On request: the large file is read, its result kept, and its row shows it.
@@ -82,7 +82,7 @@ public sealed class VerificationUiTests
             var job = services.Jobs.Jobs[0];
             Assert.Equal((JobKind.VerifyBeside, JobState.Completed, "1 verified, all good"), (job.Kind, job.State, job.Summary));
             await Until(() => Result("big.bin")?.State == VerificationState.Matches, "the large file's row shows its result");
-            await Until(() => tab.StatusLeft.Contains("checksums: 2 verified, 1 failed", StringComparison.Ordinal), $"the sum follows ({tab.StatusLeft})");
+            await Until(() => tab.StatusLeft.Contains("checksums: 1 failed, 2 verified", StringComparison.Ordinal), $"the sum follows ({tab.StatusLeft})");
         }
         finally
         {

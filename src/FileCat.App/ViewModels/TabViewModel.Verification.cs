@@ -89,10 +89,11 @@ public sealed partial class TabViewModel
             try
             {
                 var (good, bad, unknown, notChecked) = service.Summary(folder, names);
+                // Worst first.
                 var parts = new List<string>();
-                if (good > 0) parts.Add($"{good} verified");
                 if (bad > 0) parts.Add($"{bad} failed");
                 if (unknown > 0) parts.Add($"{unknown} unsure");
+                if (good > 0) parts.Add($"{good} verified");
                 if (notChecked > 0) parts.Add($"{notChecked} not checked");
                 text = parts.Count > 0 ? "checksums: " + string.Join(", ", parts) : null;
             }

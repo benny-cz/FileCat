@@ -68,11 +68,16 @@
       </Grid>
 
       <!-- Status -->
-      <Border DockPanel.Dock="Bottom" Classes="status">
+      <!-- The focused item's part takes at most 45% of the bar (set as it resizes), so the folder's counts stay readable;
+           either part, cut short, shows all of it on hover. -->
+      <Border x:Name="StatusBar" DockPanel.Dock="Bottom" Classes="status">
         <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="{Binding ActiveTab.StatusLeft}" Classes="small" TextTrimming="CharacterEllipsis" />
-          <TextBlock Grid.Column="1" Text="{Binding ActiveTab.StatusRight}" Classes="small" Margin="12,0,0,0"
-                     MaxWidth="420" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding ActiveTab.StatusLeft}" Classes="small" TextTrimming="CharacterEllipsis"
+                     ToolTip.Tip="{Binding ActiveTab.StatusLeft}"
+                     ToolTip.ServiceEnabled="{Binding ActiveTab.StatusLeft, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock x:Name="StatusRightText" Grid.Column="1" Text="{Binding ActiveTab.StatusRight}" Classes="small" Margin="12,0,0,0"
+                     MaxWidth="420" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ActiveTab.StatusRight}"
+                     ToolTip.ServiceEnabled="{Binding ActiveTab.StatusRight, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           <!-- Typing in the list searches it (plan §4.3). The search shows here, over the status, so it never hides the
                item it found at the bottom of the list. -->
           <Border Grid.ColumnSpan="2" Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.QuickSearchNoMatch}"

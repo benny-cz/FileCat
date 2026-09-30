@@ -19,6 +19,7 @@ public partial class PanelView : UserControl
     public PanelView()
     {
         InitializeComponent();
+        StatusBar.SizeChanged += (_, e) => StatusRightText.MaxWidth = Math.Max(120, e.NewSize.Width * 0.45);
         List.ActivateRequested += (_, _) => Activated?.Invoke();
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);

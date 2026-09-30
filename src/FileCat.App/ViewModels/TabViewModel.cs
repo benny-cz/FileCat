@@ -638,9 +638,10 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (l.State == ListingState.Loading) left += " · " + (l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) left += " · " + (l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) left += $" · filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}";
+        // Checksums before free space: a failed one matters more, and the end of a long line is what gets cut.
+        if (_verificationSummary is { } verified && Location is { IsFileSystem: true }) left += " · " + verified;
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
         if (_freeBytes >= 0 && Location is { IsFileSystem: true }) left += $" · {Formatters.SizeWithUnit(_freeBytes)} free";
-        if (_verificationSummary is { } verified && Location is { IsFileSystem: true }) left += " · " + verified;
         StatusLeft = left;
 
         var stats = l.GetMarkStats();
