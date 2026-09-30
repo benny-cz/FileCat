@@ -238,7 +238,7 @@ public static class ErrorText
 
     public static string Describe(Exception ex) => Classify(ex) switch
     {
-        "sharing" => "The item is in use by another program (for example an antivirus scan or an open editor).",
+        "sharing" => "The item is in use by another program or window (for example an open viewer or editor, or an antivirus scan).",
         "diskfull" => "There is not enough free space on the destination.",
         "quota" => "Your disk quota on the destination is used up.",
         "access" => "Access is denied. If the destination is a protected folder, Windows Controlled Folder Access may be blocking FileCat.",
@@ -936,8 +936,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var others = streams.Where(s => !IsZone(s)).ToList();
         if (others.Count == 1) parts.Add($"an alternate data stream ({others[0]})");
         else if (others.Count > 1) parts.Add($"{others.Count} alternate data streams ({string.Join(", ", others.Take(3))}{(others.Count > 3 ? ", …" : "")})");
-        return $"{vol.FileSystem ?? "The destination"} cannot store {string.Join(" or ", parts)}";
+        string holder = Holder(vol);
+        return $"{char.ToUpperInvariant(holder[0])}{holder[1..]} cannot store {string.Join(" or ", parts)}";
     }
+
+    /// <summary>
+    /// What holds the destination, for messages: its file system, or "the network share" — a server names whatever file
+    /// system it likes (Samba says NTFS by default), and that is not what cannot store the metadata (release issue I34).
+    /// </summary>
+    private static string Holder(VolumeInfo vol) => vol.IsRemote ? "the network share" : vol.FileSystem ?? "the destination";
 
     private Result DeleteMovedSource(string src, string target, FileSystemItemInfo before)
     {
@@ -1149,14 +1156,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (lost.Count > 0)
             {
                 var names = string.Join(", ", lost.Take(3)) + (lost.Count > 3 ? $" and {lost.Count - 3} more" : string.Empty);
-                Issue(IssueSeverity.Warning, src, $"Not kept: {(lost.Count == 1 ? "an alternate data stream" : $"{lost.Count} alternate data streams")} ({names}); {vol.FileSystem ?? "the destination"} cannot store them.", StepOutcome.Committed);
+                Issue(IssueSeverity.Warning, src, $"Not kept: {(lost.Count == 1 ? "an alternate data stream" : $"{lost.Count} alternate data streams")} ({names}); {Holder(vol)} cannot store them.", StepOutcome.Committed);
             }
         }
         var mark = Fs.ReadOriginMark(src);
         if (mark is null) return;
         if (!vol.SupportsNamedStreams && OperatingSystem.IsWindows())
         {
-            Issue(IssueSeverity.Warning, src, $"Security metadata lost: the file's download origin (Mark of the Web) cannot be stored on {vol.FileSystem ?? "the destination"}. Windows will not warn when it is opened.", StepOutcome.Committed);
+            Issue(IssueSeverity.Warning, src, $"Security metadata lost: the file's download origin (Mark of the Web) cannot be stored on {Holder(vol)}. Windows may no longer warn when it is opened.", StepOutcome.Committed);
             return;
         }
         if (Fs.ReadOriginMark(staged) is null && !Fs.WriteOriginMark(staged, mark))

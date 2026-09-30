@@ -149,12 +149,15 @@ public sealed class TruthfulOutcomeTests : IDisposable
         Assert.Contains("no longer exists", job.Issues.Single(i => i.Severity == IssueSeverity.Error).Message);
     }
 
-    /// <summary>A destination volume without named streams (FAT/exFAT), and a source file with two streams.</summary>
-    private sealed class NoStreamsDestination(string destination) : PortableFileOperations
+    /// <summary>
+    /// A destination volume without named streams (FAT/exFAT, or a network share, which names a file system of its
+    /// choosing: Samba says NTFS), and a source file with two streams.
+    /// </summary>
+    private sealed class NoStreamsDestination(string destination, bool share = false) : PortableFileOperations
     {
         public override VolumeInfo GetVolumeInfo(string path) =>
             path.StartsWith(destination, StringComparison.OrdinalIgnoreCase)
-                ? base.GetVolumeInfo(path) with { SupportsNamedStreams = false, FileSystem = "exFAT" }
+                ? base.GetVolumeInfo(path) with { SupportsNamedStreams = false, FileSystem = share ? "NTFS" : "exFAT", IsRemote = share }
                 : base.GetVolumeInfo(path);
 
         public override IReadOnlyList<string> GetAlternateStreams(string path) => ["Zone.Identifier", "thumbnail", "author"];
@@ -201,6 +204,25 @@ public sealed class TruthfulOutcomeTests : IDisposable
         Assert.Equal(copied, File.Exists(Path.Combine(dst, "download.zip")));
         Assert.Equal(sourceKept, File.Exists(file));
         Assert.True(job.State.IsFinished());
+    }
+
+    [Fact]
+    public async Task A_share_is_named_as_what_cannot_store_the_metadata_not_the_file_system_it_claims()
+    {
+        // Release issue I34: the lab's Samba share reported NTFS, and FileCat said "NTFS cannot store" the mark.
+        if (!OperatingSystem.IsWindows()) Assert.Skip("The metadata a move would lose here is NTFS's streams.");
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        var file = Path.Combine(src, "download.zip");
+        File.WriteAllText(file, "zip");
+        var (move, asked) = await RunAsync(JobKind.Move, new NoStreamsDestination(dst, share: true), [file], dst, DecisionAction.KeepSource);
+        var question = Assert.IsType<ConfirmRequest>(Assert.Single(asked));
+        Assert.Contains("The network share cannot store its download origin (Mark of the Web)", question.Message);
+        Assert.DoesNotContain("NTFS", question.Message);
+        var warnings = move.Issues.Where(i => i.Severity == IssueSeverity.Warning).Select(i => i.Message).ToList();
+        Assert.Contains(warnings, m => m.Contains("cannot be stored on the network share", StringComparison.Ordinal));
+        Assert.Contains(warnings, m => m.Contains("(thumbnail, author); the network share cannot store them", StringComparison.Ordinal));
+        Assert.DoesNotContain(warnings, m => m.Contains("NTFS", StringComparison.Ordinal));
     }
 
     /// <summary>An EFS-encrypted source: the native engine refuses a non-encrypting destination until allowed.</summary>

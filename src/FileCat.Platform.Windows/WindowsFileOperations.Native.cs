@@ -207,17 +207,44 @@ public partial class WindowsFileOperations
         int error = Marshal.GetLastPInvokeError();
         // Release issue I22: Windows refuses to replace a file another handle holds open, even one that shares deletion
         // as FileCat's own viewer and comparison do (plan §9.5). A POSIX-semantics rename replaces it as Linux and macOS
-        // do, and the open handle goes on reading the old content. Where that is refused too, a sharing violation says
-        // the file is in use rather than "access denied"; any other refusal keeps the first error.
-        if (error == ERROR_ACCESS_DENIED && replaceExisting && ReplaceOpenFile(source, destination) is { } posix)
+        // do, and the open handle goes on reading the old content. Where that is refused too, or where there is no such
+        // rename (SMB shares, FAT: release issue I34), a file that is merely open is reported in use rather than as
+        // "access denied"; any other refusal keeps the first error.
+        if (error == ERROR_ACCESS_DENIED && replaceExisting)
         {
+            int? posix = ReplaceOpenFile(source, destination);
             if (posix == 0) return;
-            if (posix == ERROR_SHARING_VIOLATION) error = posix;
+            if (posix == ERROR_SHARING_VIOLATION || (posix is null or ERROR_ACCESS_DENIED) && DestinationInUse(source, destination)) error = ERROR_SHARING_VIOLATION;
         }
         throw ToException(error, source);
     }
 
     private const int ERROR_ACCESS_DENIED = 5, ERROR_SHARING_VIOLATION = 32;
+
+    /// <summary>
+    /// Whether a replace refused with access denied was refused because the destination is open, not for a permission:
+    /// both files open for deletion (so neither one's permissions forbid the rename), yet the rename over the destination
+    /// was refused — another handle holds it (Windows and Samba refuse to rename over an open file), or one that does not
+    /// share deletion keeps it from opening at all. A folder or a read-only file keeps its "access denied".
+    /// </summary>
+    private static bool DestinationInUse(string source, string destination)
+    {
+        const uint Delete = 0x00010000, Synchronize = 0x00100000, ShareAll = 0x7, OpenExisting = 3, OpenReparsePoint = 0x00200000;
+        try
+        {
+            if ((File.GetAttributes(Long(destination)) & (FileAttributes.Directory | FileAttributes.ReadOnly)) != 0) return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+        using (var mine = CreateFileForRename(Verbatim(source), Delete | Synchronize, ShareAll, 0, OpenExisting, OpenReparsePoint, 0))
+        {
+            if (mine.IsInvalid) return false;
+        }
+        using var theirs = CreateFileForRename(Verbatim(destination), Delete | Synchronize, ShareAll, 0, OpenExisting, OpenReparsePoint, 0);
+        return !theirs.IsInvalid || Marshal.GetLastPInvokeError() == ERROR_SHARING_VIOLATION;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct FILE_RENAME_INFO
