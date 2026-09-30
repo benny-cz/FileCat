@@ -102,6 +102,36 @@ int MainWindowShot(string[] a, string? command = null)
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             window.CaptureRenderedFrame();
             Pump(() => false, 1500);
+            // FILECAT_SHOT_OPERATION=<folder or file>: a copy of it under way, verified and at a limited speed
+            // (FILECAT_SHOT_RATE bytes per second), pictured after FILECAT_SHOT_OPERATION_SECONDS with the Operations strip
+            // and again with its details open (UI reviews of how a running operation shows, release issue I30).
+            if (Environment.GetEnvironmentVariable("FILECAT_SHOT_OPERATION") is { Length: > 0 } copyFrom)
+            {
+                string copyTo = Directory.CreateDirectory(Path.Combine(state, "copy-target")).FullName;
+                long rate = long.TryParse(Environment.GetEnvironmentVariable("FILECAT_SHOT_RATE"), out long r) ? r : 60_000_000;
+                int seconds = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_SHOT_OPERATION_SECONDS"), out int s) ? s : 6;
+                var job = services.Jobs.Submit(new FileCat.Core.Jobs.JobRequest
+                {
+                    Kind = FileCat.Core.Jobs.JobKind.Copy,
+                    Sources = [ItemRef.ForFileSystemPath(copyFrom, Directory.Exists(copyFrom) ? EntryKind.Directory : EntryKind.File)],
+                    Destination = Location.FileSystem(copyTo),
+                    Options = new FileCat.Core.Jobs.TransferOptions { Verify = FileCat.Core.Jobs.VerifyMode.ReadBack, RateLimit = rate },
+                });
+                // The Operations view refreshes every quarter second in the app; offscreen its timer runs only with frames.
+                var waiting = System.Diagnostics.Stopwatch.StartNew();
+                while (waiting.Elapsed < TimeSpan.FromSeconds(seconds))
+                {
+                    Pump(() => false, 250);
+                    foreach (var running in vm.Operations.Jobs) running.Refresh();
+                }
+                Save(window, $"operation-{theme}.png");
+                vm.Operations.IsOpen = true;
+                Pump(() => false, 800);
+                Save(window, $"operation-details-{theme}.png");
+                job.Cancel();
+                Pump(() => !services.Jobs.HasActiveWork, 5000);
+                vm.Operations.IsOpen = false;
+            }
             if (command is not null)
             {
                 string[] parts = command.Split('@');

@@ -70,6 +70,36 @@ public static class Formatters
         return local.ToString(format, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// The time left as people say it (release issue I26): "about 40 s left", or "2–4 min left" while the likely and the
+    /// pessimistic times differ. Longer times are rounded more coarsely, so the text does not flicker second by second.
+    /// </summary>
+    public static string TimeLeft(TimeSpan likely, TimeSpan pessimistic)
+    {
+        double low = Round(likely.TotalSeconds), high = Round(Math.Max(likely.TotalSeconds, pessimistic.TotalSeconds));
+        if (high < 10) return "a few seconds left";
+        if (high <= low * 1.15 || high - low <= 10) return $"about {Duration(low)} left";
+        if (low < 10) return $"up to {Duration(high)} left";
+        // One unit for both ends where they share it: "20–40 s", "2–4 min".
+        if (high < 60) return $"{low:0}–{high:0} s left";
+        if (low >= 120 && high < 3600 && low % 60 == 0 && high % 60 == 0) return $"{low / 60:0}–{high / 60:0} min left";
+        return $"{Duration(low)} – {Duration(high)} left";
+
+        static double Round(double seconds)
+        {
+            double step = seconds < 60 ? 5 : seconds < 120 ? 10 : seconds < 600 ? 30 : seconds < 3600 ? 60 : seconds < 36_000 ? 300 : 1800;
+            return Math.Round(seconds / step) * step;
+        }
+
+        static string Duration(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(seconds);
+            if (seconds < 60) return $"{seconds:0} s";
+            if (seconds < 3600) return t.Seconds == 0 ? $"{(int)t.TotalMinutes} min" : $"{(int)t.TotalMinutes} min {t.Seconds} s";
+            return t.Minutes == 0 ? $"{(int)t.TotalHours} h" : $"{(int)t.TotalHours} h {t.Minutes} min";
+        }
+    }
+
     public static string Attributes(in EntryData e)
     {
         if (e.Kind is EntryKind.Parent or EntryKind.Drive or EntryKind.Server or EntryKind.Share) return string.Empty;

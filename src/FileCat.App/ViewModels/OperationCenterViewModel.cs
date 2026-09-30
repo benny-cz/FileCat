@@ -19,6 +19,10 @@ public sealed partial class JobViewModel : ObservableObject
 
     public Job Job { get; }
 
+    /// <summary>The progress shown and the time left (release issue I26), on this view's own clock.</summary>
+    private readonly ProgressEstimator _progress = new();
+    private readonly long _clockStart = System.Diagnostics.Stopwatch.GetTimestamp();
+
     /// <summary>Where the items come from and where they go (plan §9: source and destination stay clear).</summary>
     public string Route { get; }
 
@@ -78,7 +82,10 @@ public sealed partial class JobViewModel : ObservableObject
 
         long bt = j.BytesTotal, bd = j.BytesDone, it = j.ItemsTotal, id = j.ItemsDone + j.ItemsSkipped + j.ItemsFailed;
         IsIndeterminate = IsActive && !j.TotalsFinal && bt == 0 && it == 0;
-        Percent = bt > 0 ? Math.Clamp(100.0 * bd / bt, 0, 100) : it > 0 ? Math.Clamp(100.0 * id / it, 0, 100) : IsFinished ? 100 : 0;
+        // All the work counts (copying, reading back to verify, what settled); 100% only once the job has ended.
+        var estimate = _progress.Update(new ProgressSample(System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart),
+            j.WorkBytesDone, j.WorkBytesTotal, id, it, j.TotalsFinal, j.State == JobState.Running && !j.IsPaused));
+        Percent = IsFinished ? 100 : 100 * estimate.Fraction;
         string state = j.State switch
         {
             JobState.Queued when j.WaitReason is not null => j.WaitReason,
@@ -94,11 +101,19 @@ public sealed partial class JobViewModel : ObservableObject
         {
             var speed = j.BytesPerSecond;
             if (speed > 1024) parts.Add(Formatters.Size((long)speed) + "/s");
-            // Only a final total supports an estimate; growing totals never fabricate an ETA (plan §9.1).
-            if (j.TotalsFinal && speed > 1024 && bt > bd)
+            // Only a final total supports an estimate; growing totals never fabricate an ETA (plan §9.1). The time left is
+            // a range while it is uncertain, one value once the likely and the pessimistic times agree (I26).
+            if (j.State == JobState.Running && !j.IsPaused)
             {
-                var eta = TimeSpan.FromSeconds((bt - bd) / speed);
-                parts.Add(eta.TotalHours >= 1 ? $"{(int)eta.TotalHours}h {eta.Minutes}m left" : eta.TotalMinutes >= 1 ? $"{(int)eta.TotalMinutes}m {eta.Seconds}s left" : $"{eta.Seconds}s left");
+                string? left = estimate switch
+                {
+                    { Likely: { } likely, Pessimistic: { } pessimistic } => Formatters.TimeLeft(likely, pessimistic),
+                    { Note: ProgressNote.Measuring } => "estimating the time left…",
+                    { Note: ProgressNote.Stalled } => "no progress for a while",
+                    { Note: ProgressNote.Finishing } => "finishing…",
+                    _ => null,
+                };
+                if (left is not null) parts.Add(left);
             }
             if (j.RateLimit > 0) parts.Add($"limited to {Formatters.Size(j.RateLimit)}/s");
         }

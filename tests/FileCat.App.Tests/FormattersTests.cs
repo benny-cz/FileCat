@@ -6,6 +6,20 @@ namespace FileCat.App.Tests;
 
 public sealed class FormattersTests
 {
+    /// <summary>Release issue I26: the time left reads naturally, as one value once certain, as a range while not.</summary>
+    [Theory]
+    [InlineData(4, 6, "a few seconds left")]
+    [InlineData(38, 41, "about 40 s left")]
+    [InlineData(20, 42, "20–40 s left")]
+    [InlineData(5, 90, "up to 1 min 30 s left")]
+    [InlineData(47, 130, "45 s – 2 min left")]
+    [InlineData(125, 250, "2–4 min left")]
+    [InlineData(610, 640, "about 10 min left")]
+    [InlineData(4000, 9000, "1 h 5 min – 2 h 30 min left")]
+    [InlineData(7190, 7210, "about 2 h left")]
+    public void The_time_left_reads_as_people_say_it(double likely, double pessimistic, string expected) =>
+        Assert.Equal(expected, Formatters.TimeLeft(TimeSpan.FromSeconds(likely), TimeSpan.FromSeconds(pessimistic)));
+
     /// <summary>Release issue I24: by default the date columns show seconds; a chosen format is shown as it is.</summary>
     [Theory]
     [InlineData("Culture", @"^\d{1,2}/\d{1,2}/\d{4},?\s\d{1,2}:\d{2}:\d{2}\s(AM|PM)$")]

@@ -318,6 +318,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (!info.IsDirectory || info.IsLink)
             {
                 Job.AddTotals(1, Math.Max(0, info.Size));
+                Job.AddVerifyTotal(VerifyWork(info.IsLink ? 0 : info.Size));
                 continue;
             }
             var stack = new Stack<string>();
@@ -332,7 +333,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                         bool link = (fi.Attributes & FileAttributes.ReparsePoint) != 0;
                         if (fi is DirectoryInfo && !link) stack.Push(fi.FullName);
                         else if (Options.Filter is null || Options.Filter.IsMatch(fi.Name))
-                            Job.AddTotals(1, fi is FileInfo f && !link ? f.Length : 0);
+                        {
+                            long size = fi is FileInfo f && !link ? f.Length : 0;
+                            Job.AddTotals(1, size);
+                            Job.AddVerifyTotal(VerifyWork(size));
+                        }
                     }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -665,6 +670,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     {
         Job.Checkpoint();
         Job.SetCurrent(src);
+        long planned = info.IsLink ? 0 : Math.Max(0, info.Size); // as discovery counted it
+        Job.BeginItem(planned, VerifyWork(planned));
         if (firstAttempt && TryFastDirectCopy(src, dst, info) is { } fast) return fast;
         var target = dst;
         bool replace = false;
@@ -1159,10 +1166,20 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private bool ContentEqual(string a, string b)
     {
         Job.SetCurrent(a + " (verifying)");
-        var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, Job.Token);
-        var hb = PortableFileOperations.HashFile(b, HashAlgorithmName.SHA256, Job.Token);
+        long counted = 0;
+        void Read(long done)
+        {
+            Job.AddVerified(done - counted);
+            counted = done;
+        }
+        var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, Job.Token, Read);
+        counted = 0;
+        var hb = PortableFileOperations.HashFile(b, HashAlgorithmName.SHA256, Job.Token, Read);
         return ha.AsSpan().SequenceEqual(hb);
     }
+
+    /// <summary>What verifying a file of <paramref name="size"/> bytes reads: the source and the copy, or nothing.</summary>
+    private long VerifyWork(long size) => Options.Verify == VerifyMode.ReadBack ? 2 * Math.Max(0, size) : 0;
 
     private void TrySetTimes(string path, FileSystemItemInfo info)
     {

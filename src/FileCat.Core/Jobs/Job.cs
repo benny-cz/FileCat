@@ -20,6 +20,9 @@ public sealed class Job
     private readonly CancellationTokenSource _cts = new();
     private readonly Dictionary<string, Decision> _applyToAll = new(StringComparer.Ordinal);
     private long _bytesTotal, _bytesDone, _itemsTotal, _itemsDone, _itemsFailed, _itemsSkipped;
+    private long _verifyTotal, _verifyDone, _settled;
+    // The file being worked on: what it was planned to cost, and the counts when it began (a job works on one at a time).
+    private long _itemPlanned = -1, _itemStartBytes, _itemStartVerify;
     private volatile JobState _state = JobState.Planning;
     private volatile string? _currentItem;
     private PendingDecision? _decision;
@@ -67,6 +70,20 @@ public sealed class Job
     public long ItemsSkipped => Interlocked.Read(ref _itemsSkipped);
     /// <summary>Discovery finished; before that totals may still grow and no ETA is claimed.</summary>
     public bool TotalsFinal { get; internal set; }
+
+    /// <summary>Bytes read back to verify copies: both the source and the copy, for every file (zero without verification).</summary>
+    public long VerifyBytesTotal => Interlocked.Read(ref _verifyTotal);
+    public long VerifyBytesDone => Interlocked.Read(ref _verifyDone);
+
+    /// <summary>Planned work that ended without being done: the rest of a file skipped, failed, or smaller than planned.</summary>
+    public long SettledBytes => Interlocked.Read(ref _settled);
+
+    /// <summary>
+    /// Everything the job reads and writes, in bytes: copying, reading back to verify, and what settled (release issue
+    /// I26: progress counted only the copying, so a verified copy showed 100% while it was still reading its copies).
+    /// </summary>
+    public long WorkBytesTotal => BytesTotal + VerifyBytesTotal;
+    public long WorkBytesDone => BytesDone + VerifyBytesDone + SettledBytes;
     public PendingDecision? Decision => Volatile.Read(ref _decision);
     public CancellationToken Token => _cts.Token;
     public bool IsCancellationRequested => _cts.IsCancellationRequested;
@@ -271,11 +288,50 @@ public sealed class Job
 
     internal void AddBytes(long bytes) => Interlocked.Add(ref _bytesDone, bytes);
 
-    internal void ItemDone() => Interlocked.Increment(ref _itemsDone);
+    internal void AddVerifyTotal(long bytes) => Interlocked.Add(ref _verifyTotal, bytes);
 
-    internal void ItemSkipped() => Interlocked.Increment(ref _itemsSkipped);
+    internal void AddVerified(long bytes) => Interlocked.Add(ref _verifyDone, bytes);
 
-    internal void ItemFailed() => Interlocked.Increment(ref _itemsFailed);
+    /// <summary>A file begins: its bytes and verification as planned, so its outcome can settle what was not done.</summary>
+    internal void BeginItem(long plannedBytes, long plannedVerify)
+    {
+        lock (_lock)
+        {
+            _itemPlanned = Math.Max(0, plannedBytes) + Math.Max(0, plannedVerify);
+            _itemStartBytes = BytesDone;
+            _itemStartVerify = VerifyBytesDone;
+        }
+    }
+
+    /// <summary>Whatever the outcome, the planned work of the file that began is done or settled now.</summary>
+    private void EndItem()
+    {
+        lock (_lock)
+        {
+            if (_itemPlanned < 0) return;
+            long counted = BytesDone - _itemStartBytes + VerifyBytesDone - _itemStartVerify;
+            if (_itemPlanned > counted) Interlocked.Add(ref _settled, _itemPlanned - counted);
+            _itemPlanned = -1;
+        }
+    }
+
+    internal void ItemDone()
+    {
+        EndItem();
+        Interlocked.Increment(ref _itemsDone);
+    }
+
+    internal void ItemSkipped()
+    {
+        EndItem();
+        Interlocked.Increment(ref _itemsSkipped);
+    }
+
+    internal void ItemFailed()
+    {
+        EndItem();
+        Interlocked.Increment(ref _itemsFailed);
+    }
 
     internal void SetCurrent(string? item) => _currentItem = item;
 
