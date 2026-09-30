@@ -60,7 +60,8 @@ public sealed class ElevationConsentTests
             .Select(l => int.Parse(l[..l.IndexOf('.')], System.Globalization.CultureInfo.InvariantCulture)).ToList();
         Assert.Equal(Enumerable.Range(1, ElevationPlanCodec.MaxSteps), numbers);
         Assert.All(pages, p => Assert.True(p.Split('\n').Count(l => char.IsDigit(l[0])) <= ElevationConsent.PageSize));
-        Assert.StartsWith($"Steps 9,961–10,000 of 10,000:", pages[^1].Replace(' ', ',').Replace(' ', ','), StringComparison.Ordinal);
+        int lastStart = (ElevationPlanCodec.MaxSteps - 1) / ElevationConsent.PageSize * ElevationConsent.PageSize + 1;
+        Assert.StartsWith($"Steps {lastStart:N0}–{ElevationPlanCodec.MaxSteps:N0} of {ElevationPlanCodec.MaxSteps:N0}:", pages[^1], StringComparison.Ordinal);
     }
 
     [Fact]

@@ -11,7 +11,8 @@ internal static unsafe partial class ConsentDialog
     private const int RunButton = 100, EarlierButton = 101, LaterButton = 102, IdCancel = 2, IdOk = 1;
     private const uint AllowCancellation = 0x0008, ExpandedByDefault = 0x0080, SizeToContent = 0x01000000;
     private const uint TdnCreated = 0, TdnButtonClicked = 2, TdmSetElementText = 0x0400 + 108, TdmEnableButton = 0x0400 + 111;
-    private const nint TdeExpandedInformation = 3;
+    // TASKDIALOG_ELEMENTS: TDE_CONTENT 0, TDE_EXPANDED_INFORMATION 1, TDE_FOOTER 2, TDE_MAIN_INSTRUCTION 3.
+    private const nint TdeExpandedInformation = 1;
 
     // The pages of steps the open consent window moves through (one window at a time in this process).
     private static nint[] _pages = [];

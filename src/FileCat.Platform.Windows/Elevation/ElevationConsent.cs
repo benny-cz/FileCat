@@ -11,7 +11,11 @@ namespace FileCat.Platform.Windows.Elevation;
 /// </summary>
 public static class ElevationConsent
 {
-    public const int PageSize = 60;
+    /// <summary>
+    /// Steps per page: the task dialog does not scroll, so a page must leave its buttons on a 1080-pixel screen at 150%
+    /// scaling (60 lines pushed them below the screen's edge in a runtime check).
+    /// </summary>
+    public const int PageSize = 20;
 
     /// <summary>Every step, numbered, in pages of <see cref="PageSize"/>; a plan of more than one page says which steps each shows.</summary>
     public static IReadOnlyList<string> Pages(ElevationPlan plan)
