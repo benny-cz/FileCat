@@ -22,6 +22,8 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+# Release execution records and evidence (release plan §12.5) are tracked, unlike build outputs named "release".
+!/docs/release/
 
 # .NET Core
 project.lock.json
