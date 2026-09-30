@@ -403,26 +403,46 @@ public sealed class ViewerWindow : Window
         foreach (var part in _textOnly) part.IsVisible = part == _search || part == _matchCase;
         _info.Focus();
         UpdateStatus();
+        // Shown again while the structure is still being read (a program opens on Info by itself): wait for the same reading.
+        if (_infoLoading is { } reading)
+        {
+            await reading;
+            return;
+        }
         if (!_infoLoaded)
         {
             _infoLoaded = true;
-            ShowInfoText("Reading the file's structure…");
-            try
+            var done = new TaskCompletionSource();
+            _infoLoading = done.Task;
+            try { await LoadInfoAsync(); }
+            finally
             {
-                var report = await Task.Run(() => FileCat.Core.Inspect.Inspectors.Inspect(_source, _closing.Token), _closing.Token);
-                ShowInfoText(report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {_source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}");
+                _infoLoading = null;
+                done.SetResult();
             }
-            catch (Exception) when (_closing.IsCancellationRequested)
-            {
-                return; // the window closed while the structure was being read
-            }
-            catch (Exception ex)
-            {
-                // Inspectors report damage as warnings; anything else is shown here rather than ending the application.
-                ShowInfoText("The file's structure could not be read: " + ex.Message);
-            }
-            UpdateStatus();
         }
+    }
+
+    private Task? _infoLoading;
+
+    private async Task LoadInfoAsync()
+    {
+        ShowInfoText("Reading the file's structure…");
+        try
+        {
+            var report = await Task.Run(() => FileCat.Core.Inspect.Inspectors.Inspect(_source, _closing.Token), _closing.Token);
+            ShowInfoText(report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {_source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}");
+        }
+        catch (Exception) when (_closing.IsCancellationRequested)
+        {
+            return; // the window closed while the structure was being read
+        }
+        catch (Exception ex)
+        {
+            // Inspectors report damage as warnings; anything else is shown here rather than ending the application.
+            ShowInfoText("The file's structure could not be read: " + ex.Message);
+        }
+        UpdateStatus();
     }
 
     private void ShowInfoText(string text)
