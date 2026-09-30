@@ -32,6 +32,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I28-C1 | Fuzz campaign on the fixed build, millions of rounds over four machines | `98fb594`, `bb977d0` | Host, Ubuntu VM, Windows VM, Mac | Second NTFS finding (fixed `bb977d0`); running | Preliminary automated | [E-I28](evidence/E-I28-ntfs-fuzz.md) | I28 |
 | E-I26-R1/V1 | Progress at 100% during verification; the new progress model and time left | `2197074` → `d40fda0` | Host; screenshot tool | 100% for 63% of a verified copy before; after: all suites green, honest range | Preliminary automated | [E-I26](evidence/E-I26-progress.md) | I26 |
 | E-I29 | Shell preview request race (CI red on ARM64) | `2197074` → `7175a41` | CI ARM64; host | Reproduced deterministically; fixed; CI green | Preliminary automated | [E-I29](evidence/E-I29-shell-preview-race.md) | I29 |
+| E-I30 | How a running operation shows: strip, details, speed graph, taskbar | `d40fda0` → `67f70f9` | Host; screenshot tool | New display pictured and covered by view-model tests; all suites green | Preliminary automated | [E-I30](evidence/E-I30-operations-ui.md) | I30 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
 ## Commits made by the campaign
@@ -56,3 +57,6 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `7175a41` | Shell previews: a request in progress stays joinable | I29 | E-I29 |
 | `bb977d0` | NTFS root record never listed as an item; listing preparation inside the safety net | I28 | E-I28 |
 | `d40fda0` | Progress counts all work; honest, steady time left; screenshot mode for operations | I26 | E-I26 |
+| `b4bbd0b` | Release records: I24, I26, I29, I28's second finding; I30 opened | — | — |
+| `6e9ee75` | A counted folder size is tied to the folder's own time when counting began | I32 | issue record |
+| `67f70f9` | Operations strip and details: phase, percentage, current file, speeds, graph; Windows taskbar progress | I30 | E-I30 |

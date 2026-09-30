@@ -39,7 +39,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
 | I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
 | I29 | A shell picture asked for while the helper already worked on it was asked again (CI red on ARM64) | Low (duplicate work; nondeterministic required test) | Must fix | **Remediated `7175a41`; verified; CI green** |
-| I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **In progress** (builds on I26) |
+| I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **Remediated `67f70f9`**; taskbar check on a real desktop pending |
+| I31 | Viewer windows are only partly themed (no theme effects, e.g. Psychedelic) | Low (cosmetic consistency) | Owner-reported; assessed | **Queued** |
+| I32 | A folder's counted size vanished when the listing refreshed right after | Low (UX); made a required test fail 9 in 10 on a busy host | Must fix | **Remediated `6e9ee75`; verified** |
 
 ## Records of issues worked in this campaign
 
@@ -309,10 +311,37 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Observed (E-I26 pictures):** the Operations strip is one line of text over a 4-pixel bar with the current file's name;
   there is no percentage, no progress of the current (large) file, no phase (copying, verifying, finishing), no speed
   history; the details drawer lists jobs, but its right half stays empty until a job is picked.
-- **Plan:** a percentage and the phase on the strip; the current file's own progress for large files; the details show
-  the running job at once: where from and to, elapsed time, the honest time left, speeds, counts of done, skipped and
-  failed items, and a speed history; Windows taskbar progress for a minimized window; each change pictured with the
-  screenshot tool and covered by view-model tests.
+- **Remediation (`67f70f9`, E-I30):** the phase and a percentage on the strip; a large file's own line and bar for its
+  current step; the details open on the running operation with where from and to, phase, time left and running time,
+  items, data copied and verified, speeds, and a speed graph along the operation; Windows taskbar progress (yellow
+  while paused or waiting, red after a failure).
+- **Remaining:** the taskbar on a real desktop; people's judgement in V17 sessions.
+
+### I31 — Viewer windows are only partly themed
+
+- **Reported:** by the owner, 2026-09-30 (low priority; "check whether worth to fix").
+- **Observed:** the theme effects (`ThemeBackdrop`, `ThemeGlitchOverlay`) are placed only in the main window and the
+  About dialog; viewer, comparison, find and synchronize windows take the theme's colors but not its effects
+  (`i31-viewer-psychedelic.png` `1e53fb9d020de999cde4f16f96e087637983919fd4604a249a55a4157c522de8`: the viewer in
+  Psychedelic is flat dark with pink accents, the main window glows).
+- **Assessment:** worth doing as polish, not for release safety: a shared helper that puts the backdrop behind a
+  window's tool and status strips (the main window's "glass bands"), keeping text, bytes and pictures on an opaque
+  surface for legibility. Moderate effort (four to six windows). Queued.
+
+### I32 — A folder's counted size vanished when the listing refreshed right after
+
+- **Discovered:** `PanelKeysTests.Space_marks_and_moves_on_so_holding_it_marks_and_sizes_everything` began to fail on
+  the busy host (9 of 10 runs, also on commits before the campaign's latest work), after passing earlier.
+- **Mechanism (diagnosed with a recording of the listing's changes):** the listing read the new folder while its
+  contents were still being written, so it showed a modification time 0.5 ms older than the folder's final one; the
+  size counted afterwards (correctly, 5000 bytes) was kept only while the folder had the time the listing showed; the
+  change notification then refreshed the listing with the final time, and the current size was dropped.
+- **Severity / disposition:** Low for users (the size can be counted again) but it made a required test fail on a busy
+  machine; must fix.
+- **Remediation (`6e9ee75`):** the size is tied to the folder's time read from the file system when the counting began:
+  it stays while the folder keeps that time and goes when the folder changes afterwards.
+- **Tests:** `ListingModelTests.A_folder_size_stays_while_the_folder_keeps_the_time_it_had_when_counted`; the Space test
+  passes 10 of 10.
 
 ## New detail on open issues
 
