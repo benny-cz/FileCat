@@ -58,11 +58,16 @@ public sealed partial class TabViewModel
     private string FocusedVerification(in EntryData e, int storeIndex) =>
         _hasSidecars && Verification(e, storeIndex) is { Text.Length: > 0 } r ? " · " + r.Text : string.Empty;
 
-    /// <summary>The words for a row's tooltip: what its check found and why.</summary>
-    public string? VerificationTip(in EntryData e, int storeIndex) =>
-        Verification(e, storeIndex) is { } r && (r.Text.Length > 0 || r.Details.Count > 0)
-            ? string.Join("\n", r.Details.Count > 0 ? r.Details.Prepend(r.Text) : [r.Text])
-            : null;
+    /// <summary>The words for a row's tooltip: what its check found and why, and when (a kept result is not read again).</summary>
+    public string? VerificationTip(in EntryData e, int storeIndex)
+    {
+        if (Verification(e, storeIndex) is not { } r || r.Text.Length == 0 && r.Details.Count == 0) return null;
+        var lines = new List<string> { r.Text };
+        lines.AddRange(r.Details);
+        if (r.CheckedUtc is { } at)
+            lines.Add($"Checked {at.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture)}; File → Verify checksums and signatures reads it again.");
+        return string.Join("\n", lines);
+    }
 
     /// <summary>
     /// The folder's results so far for the status line, worked out off the UI thread from the kept results (UI thread). A

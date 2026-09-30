@@ -13,6 +13,7 @@ namespace FileCat.Core.Verification;
 public sealed record VerificationCacheEntry(string Key, VerificationState State, string Text, string[] Details)
 {
     public Dictionary<string, string>? Hashes { get; init; }
+    public DateTime? CheckedUtc { get; init; }
 }
 
 [JsonSerializable(typeof(VerificationCacheEntry))]
@@ -49,12 +50,12 @@ public sealed class VerificationCache(string? file)
         lock (_lock)
         {
             Load();
-            return _entries.TryGetValue(key, out var e) && e.Hashes is null ? new VerificationResult(e.State, e.Text, e.Details) : null;
+            return _entries.TryGetValue(key, out var e) && e.Hashes is null ? new VerificationResult(e.State, e.Text, e.Details) { CheckedUtc = e.CheckedUtc } : null;
         }
     }
 
     public void Put(string key, VerificationResult result) =>
-        Append(new VerificationCacheEntry(key, result.State, result.Text, [.. result.Details]));
+        Append(new VerificationCacheEntry(key, result.State, result.Text, [.. result.Details]) { CheckedUtc = result.CheckedUtc });
 
     /// <summary>The hashes known for the file as it is now (its size and modification time), by algorithm.</summary>
     public IReadOnlyDictionary<ChecksumKind, string> HashesOf(string path, long size, long modified)
@@ -202,7 +203,11 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// </summary>
     public VerificationResult? Automatic(string path, CancellationToken ct) => Verify(path, automatic: true, ct, null);
 
-    /// <summary>The check asked for (a command): no size limit, and the result is kept.</summary>
+    /// <summary>
+    /// The check asked for (a command): no size limit, and nothing kept is trusted: the file is read and its signatures
+    /// checked now (a file can be changed and its time set back, which a kept result keyed by that time would not see);
+    /// the new result and hashes are kept.
+    /// </summary>
     public VerificationResult? OnRequest(string path, CancellationToken ct, Action<long>? progress = null) => Verify(path, automatic: false, ct, progress);
 
     private VerificationResult? Verify(string path, bool automatic, CancellationToken ct, Action<long>? progress)
@@ -217,8 +222,8 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         var checksums = sidecars.Checksums(name);
         var signatures = sidecars.Signatures(name);
         string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name)));
-        if (cache.Get(key) is { } cached) return cached;
-        var known = cache.HashesOf(path, stamp.Size, stamp.Modified);
+        if (automatic && cache.Get(key) is { } cached) return cached;
+        var known = automatic ? cache.HashesOf(path, stamp.Size, stamp.Modified) : new Dictionary<ChecksumKind, string>();
         // Signatures over the file read all of it; checksums only when their hashes are not known yet.
         bool reads = signatures.Count > 0 || checksums.Any(c => !known.ContainsKey(c.Kind));
         if (automatic && reads)
@@ -248,7 +253,10 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
                 trustedFolders.FirstOrDefault())
             : OpenPgp.Verify(claim.Signature, claim.Signed, token);
         var result = Verifier.Check(checksums, signatures, Hash, Check, sidecars.Signatures, ct);
-        if (result.State != VerificationState.Unreadable) cache.Put(key, result);
+        if (result.State == VerificationState.Unreadable) return result;
+        // Shown from now on without reading the file again: the row says when it was checked.
+        result = result with { CheckedUtc = DateTime.UtcNow };
+        cache.Put(key, result);
         return result;
     }
 

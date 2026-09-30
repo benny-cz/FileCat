@@ -68,6 +68,7 @@ public sealed class VerificationUiTests
             string tip = tab.VerificationTip(Row("b.txt").Entry, Row("b.txt").Store)!;
             Assert.Contains("SHA256SUMS, line 2 says", tip, StringComparison.Ordinal);
             Assert.Contains(Text("beta"), tip, StringComparison.Ordinal);
+            Assert.Contains("; File → Verify checksums and signatures reads it again.", tip, StringComparison.Ordinal); // when it was checked
 
             // The status line: the focused file's result, and the folder's sum.
             listing.SetFocus(Row("a.txt").Row);

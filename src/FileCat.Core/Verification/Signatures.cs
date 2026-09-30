@@ -213,7 +213,8 @@ public static class OpenPgp
             CreateNoWindow = true,
         };
         if (home is not null) start.ArgumentList.Add("--homedir=" + home);
-        foreach (string arg in new[] { "--batch", "--no-tty", "--status-fd", "1", "--verify", signature, signed }) start.ArgumentList.Add(arg);
+        // Never a key server behind the user's back (gpg.conf may ask for it), and the files after "--", never read as options.
+        foreach (string arg in new[] { "--batch", "--no-tty", "--no-auto-key-retrieve", "--status-fd", "1", "--verify", "--", signature, signed }) start.ArgumentList.Add(arg);
         string status;
         try
         {

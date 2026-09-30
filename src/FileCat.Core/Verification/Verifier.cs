@@ -28,6 +28,9 @@ public enum VerificationState
 /// </summary>
 public sealed record VerificationResult(VerificationState State, string Text, IReadOnlyList<string> Details)
 {
+    /// <summary>When the file was read for this result (kept results are shown without reading it again).</summary>
+    public DateTime? CheckedUtc { get; init; }
+
     public bool IsGood => State is VerificationState.Matches or VerificationState.SignatureGood;
     public bool IsBad => State is VerificationState.Differs or VerificationState.SignatureBad;
 }

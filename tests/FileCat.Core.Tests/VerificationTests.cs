@@ -336,6 +336,22 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void A_check_asked_for_reads_the_file_even_when_a_kept_result_says_it_matched()
+    {
+        // A file changed with its size and time set back looks unchanged to a kept result; an explicit check reads it.
+        string path = Write("setup.exe", "genuine!");
+        Write("setup.exe.sha256", Sha256("genuine!") + "\n");
+        var service = Service();
+        Assert.Equal(VerificationState.Matches, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
+        var time = File.GetLastWriteTimeUtc(path);
+        File.WriteAllText(path, "tampered");
+        File.SetLastWriteTimeUtc(path, time);
+        Assert.Equal(VerificationState.Matches, service.Automatic(path, TestContext.Current.CancellationToken)!.State); // the row: kept
+        Assert.Equal(VerificationState.Differs, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
+        Assert.Equal(VerificationState.Differs, service.Automatic(path, TestContext.Current.CancellationToken)!.State); // and kept anew
+    }
+
+    [Fact]
     public void A_changed_sidecar_is_noticed_when_the_folder_changes()
     {
         string path = Write("x.bin", "x");
@@ -426,13 +442,8 @@ public sealed class VerificationTests : IDisposable
             Assert.True(steps > 1, "progress moved only once");
             TestContext.Current.TestOutputHelper?.WriteLine($"1 GiB checked in {watch.Elapsed.TotalSeconds:0.00} s ({1024 / watch.Elapsed.TotalSeconds:0} MiB/s)");
 
-            // Kept: shown at once in this run and the next, and a new run of the job reads nothing.
+            // Kept: shown at once in this run and the next.
             Assert.Equal(VerificationState.Matches, Service(threshold: 1, cacheFile: Path.Combine(_dir, "cache", "verification.jsonl")).Automatic(path, TestContext.Current.CancellationToken)!.State);
-            var again = jobs.Submit(Request());
-            while (!again.State.IsFinished()) await Task.Delay(5, TestContext.Current.CancellationToken);
-            Assert.Equal(JobState.Completed, again.State);
-            var took = again.FinishedUtc!.Value - again.StartedUtc!.Value;
-            Assert.True(took < TimeSpan.FromSeconds(1), $"a kept result took {took} to show");
         }
         finally
         {
