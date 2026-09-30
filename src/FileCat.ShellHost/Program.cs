@@ -20,6 +20,7 @@ internal static partial class Program
         Mitigations.Apply();
         using var input = new BinaryReader(Console.OpenStandardInput());
         using var output = new BinaryWriter(Console.OpenStandardOutput());
+        ShellHostProtocol.WriteStatus(output, ShellHostProtocol.Status.Text, ShellHostProtocol.ReadyMessage);
         while (ShellHostProtocol.TryReadRequest(input, out byte kind, out int size, out string path))
         {
             if (testFaults && kind >= ShellHostProtocol.HangRequest)

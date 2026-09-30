@@ -38,6 +38,8 @@ public sealed record ShellImage(int Width, int Height, byte[] Bgra);
 public static class ShellHostProtocol
 {
     public const string ServeArgument = "--serve";
+    /// <summary>The helper's first answer, unasked, once it can take requests (a start is not counted against a request's time).</summary>
+    public const string ReadyMessage = "ready";
     public const string TestFaultsArgument = "--test-faults";
     public const int MaxPixels = 1024;
     private const int MaxPathChars = 32_767;

@@ -12,6 +12,8 @@ public sealed class ShellHostClient : IDisposable
     public const string ExecutableName = "FileCat.ShellHost.exe";
     private const int FailuresBeforeDisabling = 3;
     private static readonly TimeSpan FailureWindow = TimeSpan.FromMinutes(2);
+    /// <summary>How long a new helper may take to say it is ready (a new process, the runtime, COM, on a busy computer).</summary>
+    private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(20);
 
     private readonly string _executable;
     private readonly bool _lowIntegrity, _testFaults;
@@ -111,7 +113,15 @@ public sealed class ShellHostClient : IDisposable
             _reader = new BinaryReader(_process.Output);
             Starts++;
             if (!_process.LowIntegrity && _lowIntegrity) AppLog.Warn("The Shell helper runs at medium integrity: Windows refused a low-integrity start.");
-            return true;
+            // A request's timeout measures its Shell handler: the start is waited for first, with room for a slow computer.
+            var reader = _reader;
+            var hello = Task.Run(() => ShellHostProtocol.ReadResponse(reader));
+            bool ready;
+            try { ready = hello.Wait(StartupTimeout) && hello.Result is { Status: ShellHostProtocol.Status.Text, Message: ShellHostProtocol.ReadyMessage }; }
+            catch (AggregateException) { ready = false; }
+            if (ready) return true;
+            Failure($"The Shell helper did not say it was ready within {StartupTimeout.TotalSeconds:0} seconds; it was ended.");
+            return false;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException)
         {
@@ -121,9 +131,15 @@ public sealed class ShellHostClient : IDisposable
         }
     }
 
+    /// <summary>A request that hung or crashed the helper: that item is not asked for again.</summary>
     private void Failed(string key, string message)
     {
         _poisoned.Add(key);
+        Failure(message);
+    }
+
+    private void Failure(string message)
+    {
         AppLog.Warn(message);
         Reset();
         var now = DateTime.UtcNow;
