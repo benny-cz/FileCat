@@ -25,8 +25,24 @@ protocol, one server machine (the lent Ubuntu 22.04 VM, E-ENV-05), a development
 | An upload the server refuses (the root folder) is reported as a permission error and leaves nothing | Passed (SFTP, explicit FTPS) |
 | A cancelled upload (256 MB, cancelled at a fifth) leaves nothing under the file's name or any other | **Failed before `3ec60cc`**: the partial copy stayed under its hidden temporary name (54 MB) over SFTP and explicit FTPS — I33; passes since |
 
+## An upload cut off by the server (at `5183cd3`: 13 of 13; TRX `v08-lab3.trx` `21e4d37c12e74155f13c17421b53fb4cc12c492d6a2b0147240a945645c5d7d4`, console `v08-lab3.txt` `4726ea8a05457189a7246badea6592b09e2f5c1db623795b24a0c37dfaf563f0`)
+
+A 128 MB upload at 16 MB/s; at 30 % a command (`FILECAT_REMOTE_LAB_DROP`) kills the test account's session processes on
+the server; the test answers every question with Retry, requires the job to say it continued (not started again), and
+checks the server's copy through a fresh connection.
+
+| Protocol | What FileCat asked | Where it continued | Result |
+|---|---|---|---|
+| SFTP | "Could not copy the file to the server: The connection to the server was lost: An established connection was aborted by the server. Retry connects again." | 65,510,739 bytes (the last 64 KiB on the server checked against the source first) | Byte for byte; only the file itself in the folder |
+| Explicit FTPS | "… The connection to the server was lost: Cannot determine the frame size or a corrupted frame was received. Retry connects again." | 84,082,688 bytes | Byte for byte; only the file itself |
+
+Before `5183cd3` the FTPS question ended "The read operation failed, see inner exception." (.NET's TLS stream); the
+message now gives the first inner failure that says what happened. An earlier run of the same case with the whole Remote
+suite (TRX `v08-lab2.trx` `0c754ac5d8b8c15156c077d1e918c5738d952188fb2f1f014585993b613a43c9`: 57, 0 failed, 5 skipped)
+continued at 62,924,358 (SFTP) and 87,932,928 bytes (FTPS).
+
 ## Limitations and next cases
 
 - One implementation per protocol; a second FTP server (for example Pure-FTPd or ProFTPD) and a second SSH server remain.
-- Not yet run: a connection dropped mid-transfer (the resume path), high latency (netem), SMB shares through the
-  operating system's client, very large folders, links on the server.
+- Not yet run: high latency (netem), very large folders, links on the server, the Windows VM as a client. SMB through
+  the operating system's client: E-V08-S1.

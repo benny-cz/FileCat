@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `3ec60cc` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `6585024` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -123,6 +123,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 30. The owner decided the Markdown viewer is required for 1.0.0 (DEC-11); approach: a built-in renderer.
 31. V08 started against real servers (E-V08-L1): trust, pinning, consent and byte-exact round trips over SFTP and both
     FTPS modes pass; a cancelled upload left its partial copy on the server (I33), fixed (`3ec60cc`).
+32. V08 interruption (E-V08-L1): the server cut uploads off part way over SFTP and explicit FTPS; FileCat asked,
+    reconnected on Retry, continued after checking the part on the server, and the files arrived byte for byte. The
+    FTPS question read "see inner exception"; lost connections are now described by what happened (`5183cd3`).
+33. V08 SMB (E-V08-S1) through Windows' client against Samba: round trip checked by the server's digests, times kept
+    exactly, no Recycle Bin on a share, rename on the server, cancel, a dropped session (recovered by Retry once, by
+    Windows' own reconnection once). A replace onto a file open in the viewer still said "Controlled Folder Access",
+    and a share was called NTFS in the metadata question (I34), fixed (`6585024`).
+34. Fuzz campaign status (E-I28-C1, in progress): Mac 1 M rounds each of fat12, exFAT and NTFS at `bb977d0` passed;
+    Windows VM 1 M rounds of fat12 at `98fb594` passed; the other runs continue.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -139,16 +148,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. V08: a connection dropped mid-transfer (resume), SMB through the operating system, latency; collect the fuzz
-   campaign's results (E-I28-C1).
+1. V08: latency (netem) over SFTP, FTPS and SMB; the Windows VM as a client; second server implementations; collect the
+   fuzz campaign's results (E-I28-C1).
 2. I25 Markdown viewer (required for 1.0.0, low priority).
-3. Review the FAT and exFAT decoders the way I28 reviewed NTFS (after the campaign's results).
+3. Review the FAT and exFAT decoders the way I28 reviewed NTFS (after the campaign's results); I22/I34 replace on a
+   FAT destination.
 4. The queued Low issues: I27, I31.
-3. V08 remote harness against the Ubuntu VM's servers from the Windows VM and the host: host-key trust and change, TLS
-   validation, interruption and resume, latency, a server-side oracle.
-4. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
+5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
    I09 topology), as the owner permitted.
-5. Continue the V23/DPI source review in risk order: DPI P01/P02/P04/P08/P14/P16, the rest of B04 (I17), B10 (I16),
+6. Continue the V23/DPI source review in risk order: DPI P01/P02/P04/P08/P14/P16, the rest of B04 (I17), B10 (I16),
    B08 (I09).
-6. Finish step 3's skip lists for the portable and ARM64 lanes; I04 on Ubuntu 26.04.
-7. Keep the records current after each change.
+7. Finish step 3's skip lists for the portable and ARM64 lanes; I04 on Ubuntu 26.04.
+8. Keep the records current after each change.

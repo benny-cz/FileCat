@@ -43,6 +43,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I31 | Viewer windows are only partly themed (no theme effects, e.g. Psychedelic) | Low (cosmetic consistency) | Owner-reported; assessed | **Queued** |
 | I32 | A folder's counted size vanished when the listing refreshed right after | Low (UX); made a required test fail 9 in 10 on a busy host | Must fix | **Remediated `6e9ee75`; verified** |
 | I33 | A cancelled upload left its partial copy on the server | Medium (junk under a hidden name on the user's server; V08 interruption requirement) | Must fix | **Remediated `3ec60cc`; verified against real servers** |
+| I34 | On a network share, replacing an open file still failed with the Controlled Folder Access message, and a share was named by the file system it claims | Low–Medium (misleading causes; I22's symptom on SMB) | Must fix (PI-07) | **Remediated `6585024`; verified against Samba** |
 
 ## Records of issues worked in this campaign
 
@@ -209,7 +210,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Evidence invalidated:** V03 replace cases on Windows; E-X01 App and Platform.Windows results before `63d5fc4`.
 - **Remaining before closure:** re-audit (the replace path is safety-relevant: review the fallback's conditions and its
   write-through semantics); V03 replace cases on the candidate, including SMB and FAT destinations where the fallback
-  must not apply.
+  must not apply. SMB (Samba) done in E-V08-S1: the fallback does not apply there, and the message was still wrong —
+  I34; FAT remains.
 
 ### I23 — Network discovery listed a device by its address when its name arrived late
 
@@ -361,6 +363,33 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remediation (`3ec60cc`):** a cancelled upload discards its temporary copy, and the cleanup lists the folder without
   the job's cancellation (still deleting exactly the listed file, never a link's target).
 - **Revalidation:** the lab tests pass over SFTP and FTPS (11 of 11); the Remote suite passes (54, 16 skipped).
+
+### I34 — On a network share, replacing an open file still said "Controlled Folder Access", and a share was named by the file system it claims
+
+- **Discovered:** the new SMB lab tests (E-V08-S1, run 1 at `5183cd3`) against a Samba share:
+  1. a copy with Replace onto a file open in FileCat's viewer on the share was refused and reported as "Access is
+     denied. If the destination is a protected folder, Windows Controlled Folder Access may be blocking FileCat." —
+     I22's symptom, on a share;
+  2. moving a downloaded file there asked "NTFS cannot store its download origin (Mark of the Web)", and the copy's
+     warning said the same: Samba reports its file system as NTFS by default.
+- **Mechanism:** (1) I22's remedy is a POSIX-semantics rename, which SMB does not offer, and Samba, like Windows,
+  refuses to rename over an open file; the refusal kept its "access denied" class and text. (2) The messages named the
+  destination by the file-system name the volume reports.
+- **Severity / disposition:** Low–Medium. No data at risk (the old file stays, the staged copy is removed; the move
+  still asks), but both messages name a wrong cause (PI-07), the first in a common situation. Must fix.
+- **Remediation (`6585024`):** when a replace is refused with access denied and no POSIX rename resolves it, FileCat
+  opens both files for deletion: if both open (neither one's permissions forbid the rename) or the destination is held
+  without shared deletion, the destination is open, and the refusal is reported as in use — with the quiet retries and
+  Retry; folders and read-only files keep "access denied". The in-use text now names viewers ("… in use by another
+  program or window (for example an open viewer or editor, or an antivirus scan)"). A network destination is named "the
+  network share" in the metadata question and warnings, which now say Windows "may no longer" warn (a share's own zone
+  may still warn).
+- **Tests:** `TruthfulOutcomeTests.A_share_is_named_as_what_cannot_store_the_metadata_not_the_file_system_it_claims`;
+  `SmbLabTests` (live, gated).
+- **Revalidation:** SMB lab 7 of 7 at `6585024` (E-V08-S1 run 2); Core 556 (37 skipped) and Platform.Windows 118
+  (22 skipped) pass on the host.
+- **Limitation:** on a share, the replace still cannot happen while the file is open (the server refuses); closing it
+  and choosing Retry replaces it. FAT destinations (no POSIX rename either) take the same path but were not run yet.
 
 ## New detail on open issues
 

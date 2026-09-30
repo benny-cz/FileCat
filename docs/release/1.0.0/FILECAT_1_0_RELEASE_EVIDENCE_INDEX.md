@@ -33,7 +33,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I26-R1/V1 | Progress at 100% during verification; the new progress model and time left | `2197074` → `d40fda0` | Host; screenshot tool | 100% for 63% of a verified copy before; after: all suites green, honest range | Preliminary automated | [E-I26](evidence/E-I26-progress.md) | I26 |
 | E-I29 | Shell preview request race (CI red on ARM64) | `2197074` → `7175a41` | CI ARM64; host | Reproduced deterministically; fixed; CI green | Preliminary automated | [E-I29](evidence/E-I29-shell-preview-race.md) | I29 |
 | E-I30 | How a running operation shows: strip, details, speed graph, taskbar | `d40fda0` → `67f70f9` | Host; screenshot tool; Windows VM desktop | New display pictured and covered by view-model tests; taskbar states seen on a real desktop | Preliminary automated/runtime | [E-I30](evidence/E-I30-operations-ui.md) | I30 |
-| E-V08-L1 | FileCat's remote client against real SFTP and FTPS servers | `3ec60cc` | Host → Ubuntu VM (OpenSSH, vsftpd) | 11 of 11 after I33's fix: trust, pinning, consent, byte-exact round trips, refusal, cancel | Preliminary automated | [E-V08-L1](evidence/E-V08-L1-remote-lab.md) | I33 |
+| E-V08-L1 | FileCat's remote client against real SFTP and FTPS servers | `3ec60cc`, `5183cd3` | Host → Ubuntu VM (OpenSSH, vsftpd) | 13 of 13: trust, pinning, consent, byte-exact round trips, refusal, cancel (I33 fixed), an upload cut off by the server resumes after its check | Preliminary automated | [E-V08-L1](evidence/E-V08-L1-remote-lab.md) | I33 |
+| E-V08-S1 | FileCat's file operations on a real SMB share | `5183cd3` → `6585024` | Host (Windows' SMB client) → Ubuntu VM (Samba) | 7 of 7 after I34's fix: round trip checked by the server's digests, no Recycle Bin, server-side rename, metadata question, open file, cancel, dropped session | Preliminary automated | [E-V08-S1](evidence/E-V08-S1-smb-lab.md) | I34 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
 ## Commits made by the campaign
@@ -63,3 +64,5 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `67f70f9` | Operations strip and details: phase, percentage, current file, speeds, graph; Windows taskbar progress | I30 | E-I30 |
 | `069732d` | Test: the shell-picture sharing test warms the helper first (ARM64 timeout) | I29 | E-I29 |
 | `3ec60cc` | A cancelled upload discards its partial copy; live-server tests | I33 | E-V08-L1 |
+| `5183cd3` | A lost connection is described by what happened (not "see inner exception"); live tests of an upload cut off part way | V08 | E-V08-L1 |
+| `6585024` | A replace refused because the file is open is reported in use; a share is named as what cannot keep metadata; SMB lab tests | I34 | E-V08-S1 |
