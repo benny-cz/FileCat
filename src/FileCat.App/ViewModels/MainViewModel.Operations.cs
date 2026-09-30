@@ -671,14 +671,12 @@ public sealed partial class MainViewModel
             Notify("The destination of this operation is not recorded; select the items and the destination again.");
             return false;
         }
-        var (sources, partial) = await Task.Run(() =>
+        var (sources, staged, review) = await Task.Run(() =>
         {
             var paths = JournalRecovery.LoadSources(job);
             var existing = paths?.Select(p => Directory.Exists(p) ? ItemRef.ForFileSystemPath(p, EntryKind.Directory)
                 : File.Exists(p) ? ItemRef.ForFileSystemPath(p, EntryKind.File) : null).OfType<ItemRef>().ToList();
-            var leftovers = JournalRecovery.FindStagedLeftovers(job).Concat(JournalRecovery.FindIncompleteCopies(job))
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            return (existing, leftovers);
+            return (existing, JournalRecovery.FindStagedLeftovers(job), JournalRecovery.ReviewCopies(job));
         });
         if (sources is null)
         {
@@ -691,11 +689,15 @@ public sealed partial class MainViewModel
             return false;
         }
         var done = kind == JobKind.Move ? "moved" : "copied";
+        // Every file deleted first is named: staged files the interruption never published, and copies it cut short (each
+        // provably the first part of a source that is still there). Files that differ otherwise stay and are skipped.
+        var partial = staged.Concat(review.Incomplete.Select(i => i.Path)).ToList();
         var message = $"{job.Title}: {sources.Count:N0} of {job.SourceCount:N0} source items still exist. Items that already arrived in {Services.Providers.Display(destination)} are skipped, so only the rest is {done}."
-            + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted." : string.Empty);
+            + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted:\n" + InterruptedJobText.Bullets(partial) : string.Empty)
+            + InterruptedJobText.CopyNotes(review);
         if (!await Dialogs.ConfirmAsync("Run again", message, kind == JobKind.Move ? "Move the rest" : "Copy the rest")) return false;
         int deleted = 0;
-        foreach (var f in partial)
+        foreach (var f in staged)
         {
             try
             {
@@ -704,7 +706,12 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
+        IReadOnlyList<string> kept = [];
+        if (review.Incomplete.Count > 0) deleted += await Task.Run(() => JournalRecovery.DeleteIncompleteCopies(review.Incomplete, out kept));
         JournalRecovery.Close(job, $"Continued by a new operation; {deleted} partial file(s) deleted.");
+        // A partial file that changed after the review was kept: its name exists, so the new job skips it; say so.
+        if (kept.Count > 0)
+            await Dialogs.AlertAsync("Run again", $"{Formatters.Plural(kept.Count, "file was", "files were")} kept because it changed after the review, so the new operation skips it:\n" + InterruptedJobText.Bullets(kept));
         Services.Jobs.Submit(new JobRequest
         {
             Kind = kind,

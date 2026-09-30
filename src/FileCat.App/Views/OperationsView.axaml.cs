@@ -74,24 +74,25 @@ public partial class OperationsView : UserControl
     private async void OnCleanupInterrupted(object? sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not InterruptedJobViewModel item || Main is not { } main || Center is not { } c) return;
-        var (leftovers, incomplete, renames) = await Task.Run(() => (JournalRecovery.FindStagedLeftovers(item.Job),
-            JournalRecovery.FindIncompleteCopies(item.Job), JournalRecovery.FindRenameLeftovers(item.Job)));
+        var (leftovers, review, renames) = await Task.Run(() => (JournalRecovery.FindStagedLeftovers(item.Job),
+            JournalRecovery.ReviewCopies(item.Job), JournalRecovery.FindRenameLeftovers(item.Job)));
         var intents = item.Job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp)
             .Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}").ToList();
-        var message = leftovers.Count == 0 && incomplete.Count == 0 && renames.Count == 0
+        var message = leftovers.Count == 0 && review.Incomplete.Count == 0 && renames.Count == 0
             ? "No partial files of this operation remain."
             : string.Empty;
         if (renames.Count > 0)
             message += $"{Formatters.Plural(renames.Count, "item still has", "items still have")} a temporary name from the interrupted rename. Finishing gives each its new name (or its original name when the new one is taken):\n"
                 + string.Join("\n", renames.Take(10).Select(r => $"• {Path.GetFileName(r.Path)} → {Path.GetFileName(r.Target)}"));
         if (leftovers.Count > 0)
-            message += (message.Length > 0 ? "\n\n" : string.Empty) + $"{leftovers.Count} partial file(s) were never published and can be deleted safely:\n" + string.Join("\n", leftovers.Take(10).Select(l => "• " + l));
-        if (incomplete.Count > 0)
-            message += (message.Length > 0 ? "\n\n" : string.Empty) + $"{incomplete.Count} copied file(s) differ from their source and are probably incomplete (created by this operation; check any you changed yourself since):\n"
-                + string.Join("\n", incomplete.Take(10).Select(l => "• " + l));
-        leftovers = [.. leftovers, .. incomplete];
+            message += (message.Length > 0 ? "\n\n" : string.Empty) + $"{leftovers.Count} partial file(s) were never published and can be deleted safely:\n" + InterruptedJobText.Bullets(leftovers);
+        if (review.Incomplete.Count > 0)
+            message += (message.Length > 0 ? "\n\n" : string.Empty) + $"{Formatters.Plural(review.Incomplete.Count, "copy was", "copies were")} cut short by the interruption (each holds only the first part of its source, which is still there):\n"
+                + InterruptedJobText.Bullets(review.Incomplete.Select(i => i.Path).ToList());
+        message += InterruptedJobText.CopyNotes(review);
         if (intents.Count > 0) message += "\n\nSteps that were in progress (inspect these items yourself; nothing is replayed automatically):\n" + string.Join("\n", intents.Take(10));
-        string action = (renames.Count > 0, leftovers.Count > 0) switch
+        bool deletes = leftovers.Count > 0 || review.Incomplete.Count > 0;
+        string action = (renames.Count > 0, deletes) switch
         {
             (true, true) => "Finish renaming and delete partial files",
             (true, false) => "Finish renaming",
@@ -109,12 +110,16 @@ public partial class OperationsView : UserControl
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
+        IReadOnlyList<string> keptCopies = [];
+        if (review.Incomplete.Count > 0) deleted += await Task.Run(() => JournalRecovery.DeleteIncompleteCopies(review.Incomplete, out keptCopies));
         int renamed = 0;
         IReadOnlyList<string> notRenamed = [];
         if (renames.Count > 0) notRenamed = await Task.Run(() => JournalRecovery.FinishRenames(renames, out renamed));
         JournalRecovery.Close(item.Job, $"Reviewed; {deleted} partial file(s) deleted, {renamed} rename(s) finished.");
         c.Interrupted.Remove(item);
         c.UpdateSummary();
+        if (keptCopies.Count > 0)
+            await main.Dialogs.AlertAsync("Interrupted operation", $"{Formatters.Plural(keptCopies.Count, "file was", "files were")} kept because it changed after the review:\n" + InterruptedJobText.Bullets(keptCopies));
         if (notRenamed.Count > 0)
             await main.Dialogs.AlertAsync("Interrupted rename", string.Join("\n", notRenamed.Take(20).Select(l => "• " + l)));
         main.Notify(renames.Count > 0

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
@@ -229,6 +230,9 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
     /// <summary>Folders that received direct copies (source folder, destination folder), bounded.</summary>
     public IReadOnlyList<FillDirectory> FillDirectories { get; init; } = [];
 
+    /// <summary>The journal named more such folders than <see cref="FillDirectories"/> holds: some were not checked.</summary>
+    public bool FillDirectoriesCut { get; init; }
+
     /// <summary>The manifest listing every source, when the job had more than the header lists.</summary>
     public string? ManifestPath { get; init; }
 
@@ -237,6 +241,19 @@ public sealed record InterruptedJob(string JournalPath, string Kind, string Titl
 }
 
 public sealed record FillDirectory(string Source, string Destination);
+
+/// <summary>
+/// A file an interrupted direct copy provably left incomplete: shorter than <paramref name="Source"/> and holding exactly
+/// its first bytes. Size and times are those seen at the review; deletion checks them again.
+/// </summary>
+public sealed record IncompleteCopy(string Path, string Source, long Length, DateTime ModifiedUtc, DateTime CreatedUtc);
+
+/// <param name="Incomplete">Copies cut short by the interruption: they may be deleted.</param>
+/// <param name="Differing">Files the job may have created that differ from their source in any other way (changed since,
+/// or copied from a source that changed): never deleted by recovery, only named.</param>
+/// <param name="LimitReached">Not every file was checked or listed: more were found than the limit, or the journal named
+/// more folders than recovery reads.</param>
+public sealed record CopyReview(IReadOnlyList<IncompleteCopy> Incomplete, IReadOnlyList<string> Differing, bool LimitReached);
 
 /// <summary>An intent recorded without an outcome: reality must be inspected before anything is replayed.</summary>
 public sealed record PendingIntent(int Step, string Operation, string Path, string? Target, string? Staged)
@@ -272,6 +289,7 @@ public static class JournalRecovery
             var open = new Dictionary<int, PendingIntent>();
             var directories = new HashSet<string>(StringComparer.Ordinal);
             var fills = new List<FillDirectory>();
+            bool fillsCut = false;
             try
             {
                 foreach (var record in JobJournal.ReadRecords(f.FullName))
@@ -292,7 +310,9 @@ public static class JournalRecovery
                             if (record.Get("path") is { Length: > 0 } path) directories.Add(path);
                             break;
                         case "fill":
-                            if (fills.Count < 10_000 && record.Get("src") is { Length: > 0 } fs && record.Get("dst") is { Length: > 0 } fd) fills.Add(new FillDirectory(fs, fd));
+                            if (record.Get("src") is not { Length: > 0 } fs || record.Get("dst") is not { Length: > 0 } fd) break;
+                            if (fills.Count < 10_000) fills.Add(new FillDirectory(fs, fd));
+                            else fillsCut = true;
                             break;
                     }
                 }
@@ -320,6 +340,7 @@ public static class JournalRecovery
                 begin.Get("dest"), open.Values.OrderBy(i => i.Step).ToList(), directories.ToList(), completed, sourceCount)
             {
                 FillDirectories = fills,
+                FillDirectoriesCut = fillsCut,
                 ManifestPath = File.Exists(manifest) ? manifest : null,
             });
         }
@@ -386,36 +407,141 @@ public static class JournalRecovery
         return report;
     }
 
+    /// <summary>The paths of <see cref="ReviewCopies"/>'s incomplete copies: the files recovery may delete.</summary>
+    public static IReadOnlyList<string> FindIncompleteCopies(InterruptedJob job, int limit = 1000) =>
+        ReviewCopies(job, limit).Incomplete.Select(c => c.Path).ToList();
+
     /// <summary>
-    /// Files a direct copy created but may not have finished: created after the job started and different in size or
-    /// modification time from their source (the copy engine sets the time last). Bounded; deletes nothing itself.
-    /// A file changed by the user after the crash can appear here too, which is why the review asks first.
+    /// Sorts the files the interrupted job's direct copies may have left (created after the job started, named like a
+    /// file in a source folder the job copied from into that folder). A copy cut short by the interruption is shorter
+    /// than its source and holds exactly the source's first bytes (direct copies are never pre-sized, and the copy
+    /// engine sets the time last): only such a file is <see cref="CopyReview.Incomplete"/>, and deleting it loses nothing
+    /// the source does not hold. A file that differs in any other way (changed since, by the user or anything else, or
+    /// copied from a source that changed since) is <see cref="CopyReview.Differing"/>: it is reported and never deleted.
+    /// Bounded; reads at most the first megabyte of a file and its source; deletes nothing itself (release issue I19).
     /// </summary>
-    public static IReadOnlyList<string> FindIncompleteCopies(InterruptedJob job, int limit = 1000)
+    public static CopyReview ReviewCopies(InterruptedJob job, int limit = 1000)
     {
-        var list = new List<string>();
+        var incomplete = new List<IncompleteCopy>();
+        var differing = new List<string>();
+        bool limitReached = job.FillDirectoriesCut;
         var since = job.CreatedUtc.AddSeconds(-2);
-        foreach (var fill in job.FillDirectories)
+        foreach (var group in job.FillDirectories.GroupBy(f => f.Destination, PathUtil.SafetyComparer))
+        {
+            var sourceFolders = group.Select(f => f.Source).Distinct(PathUtil.SafetyComparer).ToList();
+            IEnumerable<FileInfo> files;
+            try
+            {
+                if (!Directory.Exists(group.Key)) continue;
+                files = new DirectoryInfo(group.Key).EnumerateFiles();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+            try
+            {
+                foreach (var dst in files)
+                {
+                    if (dst.CreationTimeUtc < since || dst.LinkTarget is not null || (dst.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                        dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal) || dst.Name.StartsWith(LegacyStagedPrefix, StringComparison.Ordinal)) continue;
+                    var sources = sourceFolders.Select(folder => new FileInfo(Path.Combine(folder, dst.Name)))
+                        .Where(s => s.Exists && s.LinkTarget is null).ToList();
+                    if (sources.Count == 0) continue;
+                    // Complete: the same size and time as a source it could have come from.
+                    if (sources.Any(s => s.Length == dst.Length && Math.Abs((s.LastWriteTimeUtc - dst.LastWriteTimeUtc).TotalSeconds) <= 2)) continue;
+                    var (content, source) = Classify(dst, sources);
+                    if (content == CopyContent.Complete) continue;
+                    if (content == CopyContent.Differing)
+                    {
+                        if (differing.Count >= limit) { limitReached = true; continue; }
+                        differing.Add(dst.FullName);
+                    }
+                    else
+                    {
+                        if (incomplete.Count >= limit) { limitReached = true; continue; }
+                        incomplete.Add(new IncompleteCopy(dst.FullName, source!, dst.Length, dst.LastWriteTimeUtc, dst.CreationTimeUtc));
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        return new CopyReview(incomplete, differing, limitReached);
+
+        static (CopyContent Content, string? Source) Classify(FileInfo dst, IReadOnlyList<FileInfo> sources)
+        {
+            // Direct copies are smaller than the limit, and so is anything cut short from one.
+            if (dst.Length >= TransferExecutor.DirectCopyLimit) return (CopyContent.Differing, null);
+            foreach (var s in sources)
+            {
+                if (s.Length < dst.Length || !StartsWithSameBytes(dst.FullName, dst.Length, s.FullName)) continue;
+                // The same bytes as its source with only the time not set yet is a complete copy.
+                return s.Length == dst.Length ? (CopyContent.Complete, null) : (CopyContent.Incomplete, s.FullName);
+            }
+            return (CopyContent.Differing, null);
+        }
+    }
+
+    private enum CopyContent { Complete, Incomplete, Differing }
+
+    /// <summary>
+    /// Deletes the incomplete copies the user confirmed, each only after checking again that it is unchanged since the
+    /// review (size, times) and still holds exactly its source's first bytes; anything else is kept and named in
+    /// <paramref name="kept"/>. Links are never deleted here. Returns how many files were deleted.
+    /// </summary>
+    public static int DeleteIncompleteCopies(IReadOnlyList<IncompleteCopy> copies, out IReadOnlyList<string> kept)
+    {
+        int deleted = 0;
+        var keptList = new List<string>();
+        foreach (var c in copies)
         {
             try
             {
-                if (!Directory.Exists(fill.Destination)) continue;
-                foreach (var dst in new DirectoryInfo(fill.Destination).EnumerateFiles())
+                var now = new FileInfo(c.Path);
+                var source = new FileInfo(c.Source);
+                if (!now.Exists || now.LinkTarget is not null || (now.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                    now.Length != c.Length || now.LastWriteTimeUtc != c.ModifiedUtc || now.CreationTimeUtc != c.CreatedUtc ||
+                    !source.Exists || source.LinkTarget is not null || source.Length <= c.Length ||
+                    !StartsWithSameBytes(c.Path, c.Length, source.FullName))
                 {
-                    if (dst.CreationTimeUtc < since || dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal) ||
-                        dst.Name.StartsWith(LegacyStagedPrefix, StringComparison.Ordinal)) continue;
-                    var src = new FileInfo(Path.Combine(fill.Source, dst.Name));
-                    if (!src.Exists) continue;
-                    bool sameTime = Math.Abs((src.LastWriteTimeUtc - dst.LastWriteTimeUtc).TotalSeconds) <= 2;
-                    if (src.Length == dst.Length && sameTime) continue;
-                    list.Add(dst.FullName);
-                    if (list.Count >= limit) return list;
+                    if (now.Exists) keptList.Add(c.Path);
+                    continue;
                 }
+                File.Delete(c.Path);
+                deleted++;
             }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                keptList.Add(c.Path);
+            }
         }
-        return list;
+        kept = keptList;
+        return deleted;
+    }
+
+    /// <summary>
+    /// True when <paramref name="path"/> is <paramref name="length"/> bytes long and those bytes are exactly the first
+    /// bytes of <paramref name="source"/>. Files are opened for reading only, never locking out other programs.
+    /// </summary>
+    private static bool StartsWithSameBytes(string path, long length, string source)
+    {
+        if (length > TransferExecutor.DirectCopyLimit) return false;
+        try
+        {
+            using var a = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+            using var b = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+            if (a.Length != length || b.Length < length) return false;
+            var x = new byte[64 * 1024];
+            var y = new byte[64 * 1024];
+            long left = length;
+            while (left > 0)
+            {
+                int want = (int)Math.Min(x.Length, left);
+                a.ReadExactly(x, 0, want);
+                b.ReadExactly(y, 0, want);
+                if (!x.AsSpan(0, want).SequenceEqual(y.AsSpan(0, want))) return false;
+                left -= want;
+            }
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
     /// <summary>Every source path of the job (header or manifest), or null when they are not all known.</summary>

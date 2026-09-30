@@ -647,7 +647,19 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// rename per small file doubled copy time). Larger files and every replacement are staged and then published.
     /// </summary>
     internal const long DirectCopyLimit = 1024 * 1024;
-    private readonly HashSet<string> _fillDirs = new(PathUtil.SafetyComparer);
+
+    /// <summary>
+    /// Source and destination folder pairs already journaled as direct-copy targets. A destination fed from several
+    /// source folders (a result set, a working set) gets a record per source folder, so recovery compares each file
+    /// with the folder it came from and never with an unrelated namesake (release issue I19).
+    /// </summary>
+    private readonly HashSet<string> _fillPairs = new(PathUtil.SafetyComparer);
+
+    private void RecordFill(string src, string destinationDirectory)
+    {
+        var sourceDirectory = Path.GetDirectoryName(src)!;
+        if (_fillPairs.Add(sourceDirectory + "\0" + destinationDirectory)) Journal.Fill(sourceDirectory, destinationDirectory);
+    }
 
     private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true)
     {
@@ -716,7 +728,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         string writeTo;
         if (direct)
         {
-            if (_fillDirs.Add(dir)) Journal.Fill(Path.GetDirectoryName(src)!, dir);
+            RecordFill(src, dir);
             writeTo = target;
         }
         else
@@ -866,8 +878,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (Move || info.IsLink || info.Size is < 0 or >= DirectCopyLimit || Options.Verify != VerifyMode.Native) return null;
         if (!string.Equals(Path.GetFileName(dst), Path.GetFileName(src), StringComparison.Ordinal)) return null; // recovery pairs by name
         if (!Fs.CopyPreservesMetadata || !Volume(dst).SupportsNamedStreams) return null;
-        var dir = Path.GetDirectoryName(dst)!;
-        if (_fillDirs.Add(dir)) Journal.Fill(Path.GetDirectoryName(src)!, dir);
+        RecordFill(src, Path.GetDirectoryName(dst)!);
         long reported = 0;
         var clock = Stopwatch.StartNew();
         try
