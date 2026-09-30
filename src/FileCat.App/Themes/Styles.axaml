@@ -226,6 +226,19 @@
   <Style Selector="Border.dialogBody">
     <Setter Property="Padding" Value="18,10" />
   </Style>
+  <!-- An expander (the copy dialog's Options): a quiet row in the dialog's own colors, not a dark bar that looks like a box to type in. -->
+  <!-- (The template's borders take these through template bindings, which a style on the borders themselves cannot outrank.) -->
+  <Style Selector="Expander">
+    <Setter Property="Background" Value="{DynamicResource FcCard}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+  </Style>
+  <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Background" Value="{DynamicResource FcCard}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+  </Style>
+  <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
+    <Setter Property="Background" Value="{DynamicResource FcHeader}" />
+  </Style>
   <Style Selector="Border.dialogFooter">
     <Setter Property="Background" Value="{DynamicResource FcStatusBackground}" />
     <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />

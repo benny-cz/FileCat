@@ -17,8 +17,8 @@ using Location = FileCat.Core.Resources.Location;
 // Pictures of FileCat's windows, drawn offscreen with its own styles (UI reviews; nothing shows on the desktop).
 //   FileCat.Screenshots <out> record <path> [pages] [theme ...]      the file-system record of <path>, page by page
 //   FileCat.Screenshots <out> window <left> [right] [theme ...]      the main window with these locations in its panels
-//   FileCat.Screenshots <out> command <left> <id>[@tab] [theme ...]  the main window after a command (its dialog open),
-//                                                                    on the dialog's tab of that number (from 0) if given
+//   FileCat.Screenshots <out> command <left>[|right] <id>[@tab] [theme ...]  the main window after a command (its dialog
+//                                                                    open), on the dialog's tab of that number (from 0) if given
 // A location is a folder or file path, or journal:<drive root> for a drive's change journal.
 if (args.Length < 3 || args[1] is not ("record" or "window" or "command") || args[1] == "command" && args.Length < 4)
 {
@@ -31,7 +31,8 @@ FileCat.Core.Platform.PlatformFactory.WindowsFactory = () => new FileCat.Platfor
 return args[1] switch
 {
     "record" => Record(args),
-    "command" => MainWindowShot([args[0], args[1], args[2], .. args[4..]], args[3]),
+    // "left|right" puts a second location in the right panel (a copy's destination, say).
+    "command" => MainWindowShot([args[0], args[1], .. args[2].Split('|'), .. args[4..]], args[3]),
     _ => MainWindowShot(args),
 };
 

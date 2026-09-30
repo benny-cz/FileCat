@@ -273,6 +273,12 @@ public sealed partial class MainViewModel
     {
         var entries = Services.History.Files.Where(h => h.Location is not null && h.Name is not null)
             .OrderByDescending(h => h.Pinned).ThenByDescending(h => h.LastUsedUtc).ToList();
+        if (entries.Count == 0)
+        {
+            // An empty list would say nothing about what it will hold.
+            Notify("No files yet: the files you open (Enter), view (F3), or edit (F4) are listed here, the latest first.");
+            return;
+        }
         var items = entries.Select(h => new ChoiceItem(h.Name!, Services.Providers.Display(h.Location!)) { Pinned = h.Pinned }).ToList();
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("File history", items)
         {

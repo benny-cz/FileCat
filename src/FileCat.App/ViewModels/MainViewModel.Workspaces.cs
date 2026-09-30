@@ -148,6 +148,8 @@ public sealed partial class MainViewModel
         "permissions" => "Who may read, write, and run each item",
         "owner" => "The user each item belongs to",
         "group" => "The group each item belongs to",
+        "hidden" => OperatingSystem.IsWindows() ? "Alternate data streams each file carries, counted" : "Extended attributes each item carries, counted",
+        "verified" => "Whether files match the checksums and signatures beside them (large ones wait for File → Verify)",
         _ => "A column's value for every item",
     };
 
