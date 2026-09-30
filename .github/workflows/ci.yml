@@ -146,7 +146,12 @@ jobs:
           truncate -s 64M "$RUNNER_TEMP/fc-exfat.img" && mkfs.exfat -n FCEXFAT "$RUNNER_TEMP/fc-exfat.img" > /dev/null
           sudo mkdir -p /mnt/fc-vfat /mnt/fc-exfat
           sudo mount -o loop "$RUNNER_TEMP/fc-vfat.img" /mnt/fc-vfat
-          sudo mount -o loop "$RUNNER_TEMP/fc-exfat.img" /mnt/fc-exfat
+          # The runner's kernel may lack exFAT: then exfat-fuse mounts it (type "fuseblk", which the reader recognizes by its boot sector).
+          if ! sudo mount -o loop "$RUNNER_TEMP/fc-exfat.img" /mnt/fc-exfat 2>/dev/null; then
+            sudo apt-get install -y -qq --no-install-recommends exfat-fuse
+            sudo mount.exfat-fuse "$(sudo losetup -f --show "$RUNNER_TEMP/fc-exfat.img")" /mnt/fc-exfat
+          fi
+          grep -E ' /mnt/fc-(v|ex)fat ' /proc/self/mountinfo
           sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT" HOME=/root DOTNET_CLI_HOME=/root FILECAT_TEST_FAT_MOUNTS=/mnt/fc-vfat,/mnt/fc-exfat \
             dotnet test tests/FileCat.Core.Tests -c Release --no-build --results-directory "$RUNNER_TEMP/root-results" --filter "FullyQualifiedName~UnixFatRecordTests"
           sudo umount /mnt/fc-vfat /mnt/fc-exfat

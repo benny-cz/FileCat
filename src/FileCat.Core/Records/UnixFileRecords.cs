@@ -95,22 +95,37 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             _sections.Add(TimesSection(times, "Linux keeps four times to the nanosecond. Programs can set the access and modification times; the status change time moves to the present whenever anything about the item changes, and nothing can set it. Birth is when the inode was made (not every file system keeps it)."));
             _sections.Add(ChecksSection(times));
             _sections.Add(LayoutSection(size, blocks * 512, (int)*(uint*)(b + 4), inodeFlags?.Extents));
-            if (mount is { Type: "vfat" or "msdos" or "exfat" } fat && FatSection(fat) is { } entry) _sections.Add(entry);
+            if (mount is { } fat && FatKind(fat.Type) is { } typed && FatSection(fat, sniff: !typed) is { } entry) _sections.Add(entry);
             if (mount is { } volume) _sections.Add(VolumeSection(volume));
             return $"File-system record · {mount?.Type ?? "Linux"}";
         }
 
         private sealed record MountInfo(string MountPoint, string Type, string Source, string Options, string DeviceNumber);
 
-        /// <summary>The item's raw directory entry on a FAT or exFAT volume, read from its device (root only).</summary>
-        private InspectionSection? FatSection(MountInfo mount)
+        /// <summary>
+        /// True for FAT and exFAT mount types (the kernel's, or a FUSE subtype such as "fuseblk.exfat"); false for FUSE
+        /// block mounts that do not say (exfat-fuse, ntfs-3g), whose boot sector tells; null for everything else.
+        /// </summary>
+        private static bool? FatKind(string type) => type switch
+        {
+            "vfat" or "msdos" or "exfat" => true,
+            "fuseblk" or "fuse" => false,
+            _ when type.StartsWith("fuse", StringComparison.Ordinal) && type.EndsWith(".exfat", StringComparison.Ordinal) => true,
+            _ => null,
+        };
+
+        /// <summary>
+        /// The item's raw directory entry on a FAT or exFAT volume, read from its device (root only). With
+        /// <paramref name="sniff"/>, the volume is first asked whether it is FAT at all (nothing is said when it is not).
+        /// </summary>
+        private InspectionSection? FatSection(MountInfo mount, bool sniff)
         {
             string relative = Path.GetRelativePath(mount.MountPoint, path);
             if (relative == ".") return null;
             if (GetEuid() != 0)
-                return new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap($"Its raw directory entry (the 8.3 name and case bits, every time as FAT keeps it, its first cluster) is read from {mount.Source}, which needs root.") };
+                return sniff ? null : new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap($"Its raw directory entry (the 8.3 name and case bits, every time as FAT keeps it, its first cluster) is read from {mount.Source}, which needs root.") };
             int fd = Open(mount.Source, 0x80000 /* O_RDONLY | O_CLOEXEC */);
-            if (fd < 0) return new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap($"{mount.Source} could not be opened: {Marshal.GetPInvokeErrorMessage(Marshal.GetLastPInvokeError())}") };
+            if (fd < 0) return sniff ? null : new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap($"{mount.Source} could not be opened: {Marshal.GetPInvokeErrorMessage(Marshal.GetLastPInvokeError())}") };
             try
             {
                 byte[] Read(long offset, int count)
@@ -120,6 +135,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                     fixed (byte* b = buffer) got = PRead(fd, b, (nuint)count, offset);
                     return got <= 0 ? [] : buffer.AsSpan(0, (int)got).ToArray();
                 }
+                if (sniff && !FatEntries.IsFatBootSector(Read(0, 512))) return null;
                 return FatEntries.Describe(Read, relative, out string? problem) ?? new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap(problem ?? "It was not found.") };
             }
             finally { Close(fd); }

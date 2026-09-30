@@ -38,6 +38,20 @@ public static class FatEntries
         }
     }
 
+    /// <summary>
+    /// Whether a boot sector is exFAT's or a FAT BIOS parameter block (NTFS has no FATs, so it is not): for mounts whose
+    /// type does not say, such as FUSE's "fuseblk".
+    /// </summary>
+    public static bool IsFatBootSector(ReadOnlySpan<byte> boot)
+    {
+        if (boot.Length < 512 || boot[510] != 0x55 || boot[511] != 0xAA) return false;
+        if (boot.Slice(3, 8).SequenceEqual("EXFAT   "u8)) return true;
+        int bytesPerSector = BinaryPrimitives.ReadUInt16LittleEndian(boot[11..]);
+        int sectorsPerCluster = boot[13];
+        return bytesPerSector is 512 or 1024 or 2048 or 4096 && sectorsPerCluster > 0 && (sectorsPerCluster & (sectorsPerCluster - 1)) == 0
+            && boot[16] > 0 && BinaryPrimitives.ReadUInt16LittleEndian(boot[14..]) > 0;
+    }
+
     /// <summary>An 8.3 entry's name as Windows shows it (tests).</summary>
     internal static string ShortNameOf(ReadOnlySpan<byte> entry) => Fat.ShortName(entry);
 

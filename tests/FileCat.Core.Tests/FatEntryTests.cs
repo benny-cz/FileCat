@@ -42,6 +42,19 @@ public sealed class FatEntryTests
         Assert.Contains("“report.txt” was not found in “docs”", problem, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("fat12", true)]
+    [InlineData("fat16", true)]
+    [InlineData("fat32", true)]
+    [InlineData("exfat", true)]
+    [InlineData("ntfs", false)]
+    public void A_boot_sector_says_whether_a_volume_is_FAT(string fixture, bool fat)
+    {
+        // For FUSE mounts ("fuseblk"), whose type does not say: exfat-fuse and ntfs-3g look the same from mountinfo.
+        Assert.Equal(fat, FatEntries.IsFatBootSector(Reader(fixture)(0, 512)));
+        Assert.False(FatEntries.IsFatBootSector(new byte[512]));
+    }
+
     [Fact]
     public void An_exFAT_entry_set_reads_with_its_checksum_zones_and_stream()
     {
