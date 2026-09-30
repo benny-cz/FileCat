@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `67f70f9` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `3ec60cc` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -117,6 +117,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 26. The owner reported I31 (viewer windows only partly themed); assessed and queued as polish.
 27. Observation: one run of `ListingModelTests.Untouched_cursor_stays_on_the_first_row_while_entries_stream_in` timed
     out in a full-suite run while both VMs saturated the host; 30 isolated runs passed. Watched, not changed.
+28. The taskbar progress (I30) was seen on the Windows VM's desktop: blue, amber, red and marquee states as intended.
+29. CI's ARM64 lane timed out the new I29 test's first picture (a cold helper on a busy runner); the test now warms the
+    helper and checks the sharing itself (`069732d`).
+30. The owner decided the Markdown viewer is required for 1.0.0 (DEC-11); approach: a built-in renderer.
+31. V08 started against real servers (E-V08-L1): trust, pinning, consent and byte-exact round trips over SFTP and both
+    FTPS modes pass; a cancelled upload left its partial copy on the server (I33), fixed (`3ec60cc`).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -133,9 +139,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaign's results (E-I28-C1). (The taskbar progress was seen on the VM's desktop, E-I30-V2.)
-2. Review the FAT and exFAT decoders the way I28 reviewed NTFS.
-3. The queued Low issues: I25, I27, I31.
+1. V08: a connection dropped mid-transfer (resume), SMB through the operating system, latency; collect the fuzz
+   campaign's results (E-I28-C1).
+2. I25 Markdown viewer (required for 1.0.0, low priority).
+3. Review the FAT and exFAT decoders the way I28 reviewed NTFS (after the campaign's results).
+4. The queued Low issues: I27, I31.
 3. V08 remote harness against the Ubuntu VM's servers from the Windows VM and the host: host-key trust and change, TLS
    validation, interruption and resume, latency, a server-side oracle.
 4. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;

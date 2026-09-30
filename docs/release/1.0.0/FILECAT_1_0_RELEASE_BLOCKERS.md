@@ -19,6 +19,7 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 | DEC-08 | GitHub private vulnerability reporting (I01): enable it as SECURITY.md already promises, and name who answers within 7 / 14 days | The advertised private route does not exist | §7 I01, V22 |
 | DEC-09 | Release branch and protection model (I18): a `release/1.0` branch with required checks, protected `v1.0.0-rc.*`/`v1.0.0` tags, immutable releases, a human-gated publisher | Freezes are not enforceable today; agents push to `main` directly | §12.1 |
 | DEC-10 | A release-owner-controlled, read-only store for raw evidence and packages | REP sealing needs retained raw evidence | §12.5 |
+| DEC-11 | ~~Markdown rendering for 1.0 (I25): whether, and whether through a new dependency~~ **Decided 2026-10-01:** required for 1.0.0, low priority; built-in renderer (no new dependency) | — | I25 |
 
 ## B. External parties and credentials
 
@@ -37,7 +38,7 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | Lent VM is Ubuntu 22.04, not fresh; host-private NAT networking added by the campaign (preliminary only) |
 | ENV-05 | Disposable Windows VM matrix: standard user, administrator, Administrator Protection, UAC prompts, HKLM/WOW64 roots | Lent Windows 11 Insider 26300 VM: administrator runs elevated and unelevated (interactive session); UAC without prompts; no standard-user account yet (a restricted token stands in on the host) (partial) |
-| ENV-06 | Controlled SFTP, FTP, FTPS and SMB servers (at least two implementations each where applicable) | One implementation each on the Ubuntu VM: OpenSSH, vsftpd (explicit and implicit FTPS), Samba (E-ENV-05). Second implementations not set up |
+| ENV-06 | Controlled SFTP, FTP, FTPS and SMB servers (at least two implementations each where applicable) | One implementation each on the Ubuntu VM: OpenSSH, vsftpd (explicit and implicit FTPS), Samba (E-ENV-05); FileCat's client exercised against them (E-V08-L1). Second implementations not set up |
 | ENV-07 | Identity-bound disposable media and devices: USB stick G: (owner's rule: serial 2F2000129618), Android and iOS devices in `FileCat-test` folders | Available per the owner's standing rules; interlocks to audit before use (§8.2) |
 | ENV-08 | The reference performance machine (4 cores, 16 GiB, NVMe, 1080p) exclusive during V16 | Not available; the host is a 12-core 64 GiB developer machine shared with other work |
 

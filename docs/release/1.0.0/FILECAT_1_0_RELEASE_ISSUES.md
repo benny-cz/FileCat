@@ -34,7 +34,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I22 | Replacing a file that is open failed on Windows with a misleading "Access denied"; a closed comparison kept its files open | Medium | Must fix (confirmed copy/sync surface; destabilized two required lanes) | **Remediated `63d5fc4`; verified** — closure pending re-audit |
 | I23 | Network discovery listed a device by its address when its name arrived late | Low (name missing; device listed) | Must fix (confirmed feature; nondeterministic required test) | **Remediated `d40e510`; verified** — closure pending re-audit |
 | I24 | The panels' Modified column shows no seconds by default | Low (UI) | Fix before release if time allows; owner-reported | **Remediated `2197074`** (seconds by default; screenshot checked) |
-| I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | Owner-reported improvement | **Queued** |
+| I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | **Required for 1.0.0** (owner, 2026-10-01), low priority | **Queued**; built-in renderer, no new dependency |
 | I26 | Progress at 100% while an operation still works, and a time left that was not honest | Medium (confirmed: 100% for 63% of a verified copy) | Must fix; owner-reported | **Remediated `d40fda0`; verified** — closure pending re-audit |
 | I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
 | I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
@@ -42,6 +42,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **Remediated `67f70f9`; verified** (taskbar states seen on a real Windows 11 desktop) — closure pending V17 |
 | I31 | Viewer windows are only partly themed (no theme effects, e.g. Psychedelic) | Low (cosmetic consistency) | Owner-reported; assessed | **Queued** |
 | I32 | A folder's counted size vanished when the listing refreshed right after | Low (UX); made a required test fail 9 in 10 on a busy host | Must fix | **Remediated `6e9ee75`; verified** |
+| I33 | A cancelled upload left its partial copy on the server | Medium (junk under a hidden name on the user's server; V08 interruption requirement) | Must fix | **Remediated `3ec60cc`; verified against real servers** |
 
 ## Records of issues worked in this campaign
 
@@ -243,8 +244,11 @@ level the plan already states; exploit-level detail is not recorded here.
   the page engine (`HtmlPage`) and shows every other text file, `.md` included, as plain text.
 - **Expected:** Markdown shown rendered (a better viewer, for example through the page engine), with the plain text
   still available.
-- **Severity / disposition:** Low (improvement); queued. Rendering must keep the page engine's containment (scripts off,
-  no network) — a Markdown renderer must not become a way to load remote content.
+- **Decision (owner, 2026-10-01):** needed for 1.0.0, low priority. Approach: a built-in renderer (headings, emphasis,
+  code, lists, quotes, links shown but not followed, tables, task lists) that escapes all HTML, shown through the page
+  engine with scripts off and no network; no new dependency, so the 1.0 dependency set stays as audited.
+- **Severity / disposition:** Low; required for 1.0.0. Rendering must keep the page engine's containment — a Markdown
+  file must not become a way to load remote content or run scripts.
 
 ### I26 — Progress at 100% while an operation still works, and a time left that was not honest
 
@@ -343,6 +347,20 @@ level the plan already states; exploit-level detail is not recorded here.
   it stays while the folder keeps that time and goes when the folder changes afterwards.
 - **Tests:** `ListingModelTests.A_folder_size_stays_while_the_folder_keeps_the_time_it_had_when_counted`; the Space test
   passes 10 of 10.
+
+### I33 — A cancelled upload left its partial copy on the server
+
+- **Discovered:** the new live-server tests (E-V08-L1): a 256 MB upload cancelled at a fifth left 54 MB under the
+  upload's hidden temporary name (`.fc-…`) on the server, over SFTP and over FTP with TLS; nothing under the file's own
+  name (the staging worked).
+- **Mechanism:** the upload's cleanup ran only when the transfer failed; cancellation passed by it. Once routed there,
+  the cleanup still failed silently: it found the temporary file through a folder listing that used the job's token,
+  already cancelled.
+- **Severity / disposition:** Medium — no data of the user's is lost, but junk the user cannot see stays on their server
+  (quota, clutter), and V08 requires interruption to leave no partial state.
+- **Remediation (`3ec60cc`):** a cancelled upload discards its temporary copy, and the cleanup lists the folder without
+  the job's cancellation (still deleting exactly the listed file, never a link's target).
+- **Revalidation:** the lab tests pass over SFTP and FTPS (11 of 11); the Remote suite passes (54, 16 skipped).
 
 ## New detail on open issues
 
