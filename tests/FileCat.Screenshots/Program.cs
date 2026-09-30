@@ -83,6 +83,12 @@ int MainWindowShot(string[] a, string? command = null)
             Open(panels[0].ActiveTab!, left);
             if (right is not null && panels.Count > 1) Open(panels[1].ActiveTab!, right);
             window.Show();
+            // The first frame, as a slow start shows it (before the panels are built).
+            if (Environment.GetEnvironmentVariable("FILECAT_SHOT_STARTUP") == "1")
+            {
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                window.CaptureRenderedFrame()?.Save(Path.Combine(output, $"startup-{theme}.png"));
+            }
             vm.Workspace.Activate(panels[0]);
             Pump(() => panels.All(p => p.ActiveTab?.Listing.State is ListingState.Complete or ListingState.Failed));
             // Drawn rows ask for their metadata (versions, checksums beside files); the values come from the background.

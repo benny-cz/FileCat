@@ -30,8 +30,12 @@ public partial class MainWindow
 
     private PanelDrag? _panelDrag;
 
+    /// <summary>Until the window has drawn its first frame, panels wait (see the constructor's Opened handler).</summary>
+    private bool _panelsDeferred = true;
+
     private void RebuildPanels()
     {
+        if (_panelsDeferred) return;
         var ws = _vm.Workspace;
         foreach (var dead in _panelViews.Keys.Where(k => !ws.Panels.Contains(k)).ToList()) _panelViews.Remove(dead);
         // Views are reused: each leaves the grid that held it before the new ones are built. The keyboard stays in the

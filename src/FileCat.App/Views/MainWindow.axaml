@@ -27,7 +27,14 @@
       </Border>
     </StackPanel>
 
-    <Grid x:Name="WorkspaceHost" Grid.Row="1" Margin="4,2,4,2" />
+    <Grid x:Name="WorkspaceHost" Grid.Row="1" Margin="4,2,4,2">
+      <!-- Until the panels are built, right after the first frame: the window is FileCat's at once, in its theme, never a
+           blank one while a slow start goes on. The panels replace it. -->
+      <StackPanel x:Name="StartupMark" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+        <Image Source="/Assets/filecat.png" Width="72" Height="72" Opacity="0.85" />
+        <TextBlock Text="Starting FileCat…" Classes="muted" HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
 
     <!-- Over the panels: the psychedelic theme's rare glitches. -->
     <controls:ThemeGlitchOverlay Grid.Row="1" />

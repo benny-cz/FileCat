@@ -145,8 +145,14 @@ public partial class MainWindow : Window, IViewActions
         {
             if (OperatingSystem.IsWindows() && TryGetPlatformHandle()?.Handle is { } hwnd)
                 Platform.Windows.WindowsPlatform.SetOwnerWindow(hwnd);
-            RebuildPanels();
-            Dispatcher.UIThread.Post(FocusActivePanel, DispatcherPriority.Loaded);
+            // The first frame is the light part (menus, toolbar, key bar, the startup mark) in the theme's colors; the
+            // panels, the heavy part, are built right after it, so a slow start never shows a blank window.
+            Dispatcher.UIThread.Post(() =>
+            {
+                _panelsDeferred = false;
+                RebuildPanels();
+                Dispatcher.UIThread.Post(FocusActivePanel, DispatcherPriority.Loaded);
+            }, DispatcherPriority.Background);
             _ = LoadInterruptedAsync();
         };
     }

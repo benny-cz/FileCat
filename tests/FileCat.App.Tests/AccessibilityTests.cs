@@ -51,6 +51,8 @@ public sealed class AccessibilityTests
         vm.Initialize(null);
         foreach (var panel in vm.Workspace.Panels) panel.ActiveTab?.Navigate(Location.FileSystem(folder));
         window.Show();
+        // The panels are built right after the window's first frame (a slow start shows FileCat, not a blank window).
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         return (services, vm, window, root);
     }
 
