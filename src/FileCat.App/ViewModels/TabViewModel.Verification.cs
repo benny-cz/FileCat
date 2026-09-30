@@ -51,7 +51,22 @@ public sealed partial class TabViewModel
         string path = Path.Join(location.Path, e.Name);
         string device = Services.Providers.For(location).GetDeviceKey(location);
         var value = Services.Metadata.Get("verified", path, e, device, IsSlowLocation, () => ReferenceEquals(store, Listing.Store) && VisibleStoreIndices.Contains(storeIndex));
-        return value.State == Core.Metadata.MetadataState.Available ? value.Value as VerificationResult : null;
+        var result = value.State == Core.Metadata.MetadataState.Available ? value.Value as VerificationResult : null;
+        if (result is { Settling: true }) AskAgainWhenStill(path);
+        return result;
+    }
+
+    private readonly HashSet<string> _settling = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A file changed a moment ago (it may be being written): its row asks again once it has been still.</summary>
+    private void AskAgainWhenStill(string path)
+    {
+        if (VerificationService.Current is not { } service || !_settling.Add(path)) return;
+        _ = Task.Delay(service.Settle + TimeSpan.FromMilliseconds(250)).ContinueWith(_ => Services.Ui.Post(() =>
+        {
+            _settling.Remove(path);
+            if (!_disposed) Services.Metadata.Forget("verified", path);
+        }), TaskScheduler.Default);
     }
 
     /// <summary>The focused file's result for the status line (" · ✓ SHA-256 · signed by …"), once known.</summary>

@@ -31,8 +31,9 @@ public sealed class VerificationTests : IDisposable
     private VerificationResult Check(string name, VerificationService? service = null) =>
         (service ?? Service()).OnRequest(Path.Combine(_dir, name), TestContext.Current.CancellationToken)!;
 
+    /// <summary>Files these tests write are read at once (the product waits until a file has been still: see the settling test).</summary>
     private VerificationService Service(long threshold = 256L << 20, string? cacheFile = null, IReadOnlyList<string>? keys = null) =>
-        new(new VerificationCache(cacheFile), () => threshold, () => keys ?? []);
+        new(new VerificationCache(cacheFile), () => threshold, () => keys ?? []) { Settle = TimeSpan.Zero };
 
     [Fact]
     public void Checksum_files_in_every_form_are_found_for_the_files_they_name()
@@ -349,6 +350,20 @@ public sealed class VerificationTests : IDisposable
         Assert.Equal(VerificationState.Matches, service.Automatic(path, TestContext.Current.CancellationToken)!.State); // the row: kept
         Assert.Equal(VerificationState.Differs, service.OnRequest(path, TestContext.Current.CancellationToken)!.State);
         Assert.Equal(VerificationState.Differs, service.Automatic(path, TestContext.Current.CancellationToken)!.State); // and kept anew
+    }
+
+    [Fact]
+    public void A_file_being_written_is_not_read_until_it_has_been_still()
+    {
+        // A copy or a download to the final name, read half-done, would "differ": it waits instead, and says so.
+        string path = Write("download.iso", "partial");
+        Write("download.iso.sha256", Sha256("complete") + "\n");
+        var service = new VerificationService(new VerificationCache(null), () => 256L << 20, () => []) { Settle = TimeSpan.FromMinutes(1) };
+        var waiting = service.Automatic(path, TestContext.Current.CancellationToken)!;
+        Assert.Equal((VerificationState.NotChecked, "being written", true), (waiting.State, waiting.Text, waiting.Settling));
+        // Still for long enough: read.
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-2));
+        Assert.Equal(VerificationState.Differs, service.Automatic(path, TestContext.Current.CancellationToken)!.State);
     }
 
     [Fact]

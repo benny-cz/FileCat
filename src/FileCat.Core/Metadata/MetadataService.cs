@@ -193,6 +193,19 @@ public sealed class MetadataService
         });
     }
 
+    /// <summary>Forgets one field's values for one item (asked again when its row is drawn).</summary>
+    public void Forget(string fieldId, string path)
+    {
+        string prefix = fieldId + "|", suffix = "|" + path;
+        foreach (string key in _cache.Keys)
+            if (key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                _cache.TryRemove(key, out _);
+                _producedAt.TryRemove(key, out _);
+            }
+        Notify();
+    }
+
     /// <summary>Forgets every value (after a refresh or a change FileCat made, such as new permissions); shown rows ask again.</summary>
     public void Invalidate()
     {

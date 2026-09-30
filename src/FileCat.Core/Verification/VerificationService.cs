@@ -149,6 +149,8 @@ public sealed class VerificationCache(string? file)
 public sealed class VerificationService(VerificationCache cache, Func<long> threshold, Func<IReadOnlyList<string>> keyFolders)
 {
     private static readonly TimeSpan Fresh = TimeSpan.FromSeconds(5);
+    /// <summary>How long a file must have been still before it is read on its own (see <see cref="VerificationResult.Settling"/>).</summary>
+    public TimeSpan Settle { get; init; } = TimeSpan.FromSeconds(3);
     private readonly ConcurrentDictionary<string, (FolderSidecars Sidecars, long Stamp, DateTime ReadAt)> _folders = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The instance the app configured (its cache file, the size threshold setting, its key folders).</summary>
@@ -234,6 +236,10 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             if (PathUtil.IsOnNetwork(path))
                 return new VerificationResult(VerificationState.NotChecked, "not checked: on the network",
                     ["Files on the network are checked on request: File → Verify checksums and signatures."]);
+            // A file being written (a copy, a download to its final name) would be read half-done and "differ".
+            if (DateTime.UtcNow - new DateTime(stamp.Modified, DateTimeKind.Utc) < Settle)
+                return new VerificationResult(VerificationState.NotChecked, "being written",
+                    ["It changed a moment ago: it is checked once it has been still for a few seconds."]) { Settling = true };
         }
         IReadOnlyDictionary<ChecksumKind, string> Hash(IReadOnlyCollection<ChecksumKind> kinds)
         {
