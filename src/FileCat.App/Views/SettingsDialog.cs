@@ -37,7 +37,11 @@ public static class SettingsDialog
         var toolbar = new CheckBox { Content = "Show the toolbar", IsChecked = s.ShowToolbar };
         var driveButtons = new CheckBox { Content = "Show place buttons above the panels (drives, folders, bookmarks, servers)", IsChecked = s.ShowDriveButtons };
         var cmdLine = new CheckBox { Content = "Show the command line", IsChecked = s.ShowCommandLine };
-        var dateFormat = new ComboBox { ItemsSource = new[] { "Culture", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" }, SelectedItem = s.DateFormat, MinWidth = 220 };
+        // With seconds first; the shorter forms stay for those who chose them, and a format typed into the settings file
+        // is offered as it is, so saving never replaces it.
+        var dateFormats = new List<string> { "Culture", "yyyy-MM-dd HH:mm:ss", "dd.MM.yyyy HH:mm:ss", "MM/dd/yyyy h:mm:ss tt", "yyyy-MM-dd HH:mm", "dd.MM.yyyy HH:mm", "MM/dd/yyyy h:mm tt" };
+        if (!dateFormats.Contains(s.DateFormat)) dateFormats.Add(s.DateFormat);
+        var dateFormat = new ComboBox { ItemsSource = dateFormats, SelectedItem = s.DateFormat, MinWidth = 220 };
         tabs.Items.Add(new TabItem { Header = "Appearance", Content = Form(("Theme", theme), ("", themeDescription), ("", animations), ("List font size", fontSize), ("Date format", dateFormat), ("", keyBar), ("", toolbar), ("", driveButtons), ("", cmdLine),
             ("", Note("View → Theme… previews every theme. System high contrast takes priority, and the system's reduced-motion setting stops animations."))) });
 

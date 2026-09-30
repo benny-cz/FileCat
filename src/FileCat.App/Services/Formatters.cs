@@ -10,7 +10,7 @@ public static class Formatters
 {
     private static string _dateFormat = "Culture";
 
-    /// <summary>"Culture" (the system's short date and time) or a .NET date format.</summary>
+    /// <summary>"Culture" (the system's short date and long time, with seconds) or a .NET date format.</summary>
     public static string DateFormat
     {
         get => _dateFormat;
@@ -48,9 +48,12 @@ public static class Formatters
 
     public static string Date(long utcTicks) => utcTicks <= 0 ? string.Empty : Date(new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime());
 
-    /// <summary>A local time as the date columns show it.</summary>
+    /// <summary>
+    /// A local time as the date columns show it: by default the culture's short date and long time, with seconds
+    /// (release issue I24: minutes alone hide which of two files is newer); otherwise the chosen format as it is.
+    /// </summary>
     public static string Date(DateTime local) =>
-        DateFormat == "Culture" ? local.ToString("g", CultureInfo.CurrentCulture) : local.ToString(DateFormat, CultureInfo.InvariantCulture);
+        DateFormat == "Culture" ? local.ToString("G", CultureInfo.CurrentCulture) : local.ToString(DateFormat, CultureInfo.InvariantCulture);
 
     /// <summary>
     /// A time as the date columns show it, with seconds (conflicts compare times a minute apart): the culture's long

@@ -6,6 +6,27 @@ namespace FileCat.App.Tests;
 
 public sealed class FormattersTests
 {
+    /// <summary>Release issue I24: by default the date columns show seconds; a chosen format is shown as it is.</summary>
+    [Theory]
+    [InlineData("Culture", @"^\d{1,2}/\d{1,2}/\d{4},?\s\d{1,2}:\d{2}:\d{2}\s(AM|PM)$")]
+    [InlineData("yyyy-MM-dd HH:mm", @"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")]
+    public void The_date_columns_show_seconds_unless_a_format_without_them_was_chosen(string format, string pattern)
+    {
+        string saved = Formatters.DateFormat;
+        var culture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            Formatters.DateFormat = format;
+            Assert.Matches(new Regex(pattern), Formatters.Date(new DateTime(2026, 9, 29, 3, 29, 34, DateTimeKind.Utc).Ticks));
+        }
+        finally
+        {
+            Formatters.DateFormat = saved;
+            CultureInfo.CurrentCulture = culture;
+        }
+    }
+
     /// <summary>Times with seconds (conflict dialogs) keep the chosen format: seconds once, after the minutes.</summary>
     [Theory]
     [InlineData("yyyy-MM-dd HH:mm", @"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")]
