@@ -95,11 +95,35 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             _sections.Add(TimesSection(times, "Linux keeps four times to the nanosecond. Programs can set the access and modification times; the status change time moves to the present whenever anything about the item changes, and nothing can set it. Birth is when the inode was made (not every file system keeps it)."));
             _sections.Add(ChecksSection(times));
             _sections.Add(LayoutSection(size, blocks * 512, (int)*(uint*)(b + 4), inodeFlags?.Extents));
+            if (mount is { Type: "vfat" or "msdos" or "exfat" } fat && FatSection(fat) is { } entry) _sections.Add(entry);
             if (mount is { } volume) _sections.Add(VolumeSection(volume));
             return $"File-system record · {mount?.Type ?? "Linux"}";
         }
 
         private sealed record MountInfo(string MountPoint, string Type, string Source, string Options, string DeviceNumber);
+
+        /// <summary>The item's raw directory entry on a FAT or exFAT volume, read from its device (root only).</summary>
+        private InspectionSection? FatSection(MountInfo mount)
+        {
+            string relative = Path.GetRelativePath(mount.MountPoint, path);
+            if (relative == ".") return null;
+            if (GetEuid() != 0)
+                return new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap($"Its raw directory entry (the 8.3 name and case bits, every time as FAT keeps it, its first cluster) is read from {mount.Source}, which needs root.") };
+            int fd = Open(mount.Source, 0x80000 /* O_RDONLY | O_CLOEXEC */);
+            if (fd < 0) return new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap($"{mount.Source} could not be opened: {Marshal.GetPInvokeErrorMessage(Marshal.GetLastPInvokeError())}") };
+            try
+            {
+                byte[] Read(long offset, int count)
+                {
+                    var buffer = new byte[count];
+                    long got;
+                    fixed (byte* b = buffer) got = PRead(fd, b, (nuint)count, offset);
+                    return got <= 0 ? [] : buffer.AsSpan(0, (int)got).ToArray();
+                }
+                return FatEntries.Describe(Read, relative, out string? problem) ?? new InspectionSection("Directory entry", []) { Lines = RecordText.Wrap(problem ?? "It was not found.") };
+            }
+            finally { Close(fd); }
+        }
 
         /// <summary>The mount with this ID in /proc/self/mountinfo: ID, parent, major:minor, root, mount point, options, …, "-", type, source, super options.</summary>
         private static MountInfo? Mount(ulong id)
@@ -719,6 +743,12 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
 
     [LibraryImport("libc", EntryPoint = "close")]
     private static partial int Close(int fd);
+
+    [LibraryImport("libc", EntryPoint = "pread", SetLastError = true)]
+    private static partial nint PRead(int fd, byte* buffer, nuint count, long offset);
+
+    [LibraryImport("libc", EntryPoint = "geteuid")]
+    private static partial uint GetEuid();
 
     [LibraryImport("libc", EntryPoint = "ioctl", SetLastError = true)]
     private static partial int Ioctl(int fd, ulong request, void* argument);

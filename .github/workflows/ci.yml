@@ -34,6 +34,17 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       - run: dotnet test FileCat.slnx -c Release --no-build --logger "trx;LogFileName=results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      # D-56: an item's raw FAT32 directory entry (Windows' own case bits included), read from a virtual disk made here.
+      - shell: pwsh
+        run: |
+          $letter = [char[]](75..90) | Where-Object { -not (Test-Path "$($_):\") } | Select-Object -Last 1
+          $vhd = Join-Path $env:RUNNER_TEMP "fc-fat.vhdx"
+          $script = Join-Path $env:RUNNER_TEMP "fc-fat.txt"
+          "create vdisk file=`"$vhd`" maximum=64 type=expandable", "select vdisk file=`"$vhd`"", "attach vdisk", "convert mbr",
+            "create partition primary", "format fs=fat32 quick label=FCFAT", "assign letter=$letter" | Set-Content $script
+          diskpart /s $script
+          $env:FILECAT_TEST_FAT_DRIVE = "$($letter):\"
+          dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --filter "FullyQualifiedName~FatDriveRecordTests"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -126,6 +137,19 @@ jobs:
           sudo systemctl restart smbd
           export XDG_RUNTIME_DIR="$(mktemp -d)" && chmod 700 "$XDG_RUNTIME_DIR"
           FILECAT_TEST_SAMBA=1 FILECAT_TEST_GVFS=1 dbus-run-session -- dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~UnixNetworkTests"
+      # D-56: an item's raw FAT32 and exFAT directory entries, read as root from loop-mounted volumes (root's own home and
+      # results folder, so later steps keep theirs).
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends dosfstools exfatprogs
+          truncate -s 64M "$RUNNER_TEMP/fc-vfat.img" && mkfs.vfat -F 32 -n FCFAT "$RUNNER_TEMP/fc-vfat.img" > /dev/null
+          truncate -s 64M "$RUNNER_TEMP/fc-exfat.img" && mkfs.exfat -n FCEXFAT "$RUNNER_TEMP/fc-exfat.img" > /dev/null
+          sudo mkdir -p /mnt/fc-vfat /mnt/fc-exfat
+          sudo mount -o loop "$RUNNER_TEMP/fc-vfat.img" /mnt/fc-vfat
+          sudo mount -o loop "$RUNNER_TEMP/fc-exfat.img" /mnt/fc-exfat
+          sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT" HOME=/root DOTNET_CLI_HOME=/root FILECAT_TEST_FAT_MOUNTS=/mnt/fc-vfat,/mnt/fc-exfat \
+            dotnet test tests/FileCat.Core.Tests -c Release --no-build --results-directory "$RUNNER_TEMP/root-results" --filter "FullyQualifiedName~UnixFatRecordTests"
+          sudo umount /mnt/fc-vfat /mnt/fc-exfat
       # Real-server SFTP tests start a user-mode sshd (macOS ships one).
       - if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends openssh-server

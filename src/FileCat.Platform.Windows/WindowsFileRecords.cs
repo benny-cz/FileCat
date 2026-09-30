@@ -82,11 +82,13 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
 
             _sections.Add(ItemSection(root, label, serial));
             // Said before the parts it would add, so a partial report is known to be one without scrolling.
-            if ((_ntfs || _refs) && !_remote && !privileged)
+            bool fat = _fileSystem is "FAT" or "FAT32" or "FAT12" or "FAT16" or "exFAT";
+            if ((_ntfs || _refs || fat) && !_remote && !privileged)
                 _sections.Add(new InspectionSection("Needs administrator rights", [])
                 {
                     Lines = Wrap(_ntfs
                         ? "Run FileCat as administrator to add the MFT record — the $FILE_NAME times that the strongest timestamp checks compare, every attribute, and the record's slack — and this item's history in the change journal."
+                        : fat ? "Run FileCat as administrator to add its raw directory entry: the 8.3 name and case bits, every time as FAT keeps it, and its first cluster and chain."
                         : "Run FileCat as administrator to add this item's history in the change journal."),
                 });
             _sections.Add(TimesSection());
@@ -96,6 +98,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             if (ObjectIdSection() is { } objectId) _sections.Add(objectId);
             if (ReparseSection() is { } reparse) _sections.Add(reparse);
             _sections.Add(LayoutSection());
+            if (fat && !_remote && privileged) _sections.Add(FatSection(root));
             if (SecuritySection() is { } security) _sections.Add(security);
             if (remote is not null) _sections.Add(remote);
             if (_index is { } index) _sections.Add(IndexSection(index));
@@ -541,6 +544,33 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
             }
             if (_isFolder && table is not null) lines.AddRange(Wrap("A folder's clusters hold its index of names ($I30)."));
             return new InspectionSection("Layout on disk", fields) { Table = table, Lines = lines };
+        }
+
+        /// <summary>The item's raw directory entry on a FAT or exFAT volume, read from the volume (as administrator).</summary>
+        private InspectionSection FatSection(string root)
+        {
+            string relative = path.Length > root.Length ? path[root.Length..] : "";
+            if (relative.Length == 0)
+                return new InspectionSection("Directory entry", []) { Lines = ["The root folder has no directory entry: the boot sector says where it is."] };
+            try
+            {
+                using var volume = UsnJournalReader.OpenVolume(root);
+                // Volume reads must be whole sectors: 4 KiB covers every sector size.
+                byte[] Read(long offset, int count)
+                {
+                    const int Align = 4096;
+                    long start = offset / Align * Align, end = (offset + count + Align - 1) / Align * Align;
+                    var buffer = new byte[end - start];
+                    int got = RandomAccess.Read(volume, buffer, start);
+                    int skip = (int)(offset - start);
+                    return buffer.AsSpan(skip, Math.Max(0, Math.Min(count, got - skip))).ToArray();
+                }
+                return FatEntries.Describe(Read, relative, out string? problem) ?? new InspectionSection("Directory entry", []) { Lines = Wrap(problem ?? "It was not found.") };
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return new InspectionSection("Directory entry", []) { Lines = Wrap("The volume could not be read: " + ex.Message) };
+            }
         }
 
         private static int CountFragments(List<NtfsRun> extents)
