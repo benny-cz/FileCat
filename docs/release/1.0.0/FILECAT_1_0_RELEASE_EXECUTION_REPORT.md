@@ -52,7 +52,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
 | 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B06, B08 (I09) and B10 (I16) reviewed; P14 corrected to I09; P07's loader audit (V06), P13 and B01–B03, B05, B07, B09, B11 remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B05 (I56, I57), B06, B08 (I09) and B10 (I16) reviewed; P14 corrected to I09; P07's loader audit (V06), P13 and B01–B03, B07, B09, B11 remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
@@ -235,6 +235,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     (`27256f6`). Live checks on the Ubuntu VM found that an image written into still counted only as its backing
     file's disk (`7418c04`); macOS's `diskutil` answers are kept briefly so the checks take milliseconds
     (`0a52b7b`). All checks pass on Ubuntu, macOS and in the Windows VM (a VHDX on its system disk, `\\localhost\C$`).
+70. B05 reviewed: **I56** (FTP data connections followed a routable address a PASV reply named; `ee476f0`, the remote
+    lab still passes against OpenSSH, vsftpd and ProFTPD) and **I57** (discovery followed redirects from a device's
+    metadata address; `a5c25d1`). Both reproduced by tests that failed before the fix.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -263,7 +266,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 2. V09's write trace for I09: a FileCat session against a disposable source (the Windows VM's own disk with FileCat's
    files elsewhere through `--data`; a loop device on Ubuntu), every write of FileCat and its helpers traced and the
    source hashed before and after.
-3. Continue the V23 source review in risk order: B05, B01–B03, B11; I16's independent file, network and process
+3. Continue the V23 source review in risk order: B01–B03, B11; I16's independent file, network and process
    evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 5. Keep the records current after each change.
