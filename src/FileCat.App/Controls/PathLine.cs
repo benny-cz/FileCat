@@ -110,8 +110,7 @@ public sealed class PathLine : Control
     /// </summary>
     private void Arrange(double width)
     {
-        _shown = _text;
-        _map = [.. Enumerable.Range(0, _text.Length)];
+        (_shown, _map) = Escaped(_text, [.. Enumerable.Range(0, _text.Length)]);
         if (Layout(_shown).WidthIncludingTrailingWhitespace > width && _segments.Count >= 3)
         {
             int root = _segments[0].End;
@@ -119,8 +118,7 @@ public sealed class PathLine : Control
             {
                 int from = _segments[k].End;
                 // "C:\…\marek\Documents": the root, an ellipsis, and the path from a part on.
-                _shown = _text[..root] + "…" + _text[from..];
-                _map = [.. Enumerable.Range(0, root), -1, .. Enumerable.Range(from, _text.Length - from)];
+                (_shown, _map) = Escaped(_text[..root] + "…" + _text[from..], [.. Enumerable.Range(0, root), -1, .. Enumerable.Range(from, _text.Length - from)]);
                 if (Layout(_shown).WidthIncludingTrailingWhitespace <= width) break;
             }
         }
@@ -138,6 +136,24 @@ public sealed class PathLine : Control
         if (_text.Length == 0) return;
         if (_layout is null) Arrange(Bounds.Width);
         _layout!.Draw(context, new Point(0, (Bounds.Height - _layout.Height) / 2));
+    }
+
+    /// <summary>
+    /// The text with control and bidirectional characters escaped, as the file list shows names (§18.3), so a folder's
+    /// name cannot turn the path around or hide part of it; each escape stands for its one character of the path.
+    /// </summary>
+    private static (string Shown, int[] Map) Escaped(string shown, int[] map)
+    {
+        if (Services.Formatters.SafeName(shown) is var safe && safe.Length == shown.Length) return (shown, map);
+        var text = new System.Text.StringBuilder(safe.Length);
+        var escapedMap = new List<int>(safe.Length);
+        for (int i = 0; i < shown.Length; i++)
+        {
+            string piece = Services.Formatters.SafeName(shown[i].ToString());
+            text.Append(piece);
+            for (int k = 0; k < piece.Length; k++) escapedMap.Add(map[i]);
+        }
+        return (text.ToString(), escapedMap.ToArray());
     }
 
     /// <summary>A part's name in the shown text (without its separators), as shown characters [start, end).</summary>
@@ -168,6 +184,16 @@ public sealed class PathLine : Control
         for (int i = 0; i < _segments.Count; i++)
             if (original < _segments[i].End) return i;
         return -1;
+    }
+
+    /// <summary>The text as drawn (tests read it).</summary>
+    internal string ShownText
+    {
+        get
+        {
+            if (_layout is null) Arrange(Bounds.Width);
+            return _shown;
+        }
     }
 
     /// <summary>Where a part's name is shown (tests click it there).</summary>

@@ -248,4 +248,43 @@ public sealed class PathLineTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    /// <summary>
+    /// A folder's name is drawn escaped, as the file list shows names (§18.3, V23 B14): a right-to-left override in it
+    /// cannot turn the path around. Its part still goes to the folder itself, whose real name the path keeps.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_folders_name_is_drawn_escaped_and_its_part_still_goes_there()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string name = "docs" + (char)0x202E + "fdp.exe";
+            string folder = Directory.CreateDirectory(Path.Combine(root, "files", name)).FullName;
+            string inner = Directory.CreateDirectory(Path.Combine(folder, "inner")).FullName;
+            var panel = vm.Workspace.Panels[0];
+            var tab = panel.ActiveTab!;
+            tab.Navigate(Location.FileSystem(inner));
+            for (int i = 0; i < 250 && tab.Location?.Path != inner; i++) await Task.Delay(20, ct);
+            var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
+            var links = view.PathLinksControl;
+            for (int i = 0; i < 100 && links.Text != tab.DisplayPath; i++) await Task.Delay(20, ct);
+
+            Assert.Contains("docs" + (char)92 + "u202Efdp.exe", links.ShownText);
+            // Ordinal: a culture's comparison ignores format characters such as this one, and would always find it.
+            Assert.False(links.ShownText.Contains((char)0x202E));
+            int part = links.Segments.Count - 2;
+            Assert.Equal(name, links.NameOf(part));
+            var at = links.TranslatePoint(links.PointOf(part)!.Value, window)!.Value;
+            window.MouseDown(at, MouseButton.Left);
+            window.MouseUp(at, MouseButton.Left);
+            for (int i = 0; i < 250 && tab.Location?.Path != folder; i++) await Task.Delay(20, ct);
+            Assert.Equal(folder, tab.Location!.Path);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

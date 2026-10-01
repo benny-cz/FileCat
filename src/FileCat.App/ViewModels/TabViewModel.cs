@@ -117,7 +117,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public string TabHeader => (IsLocked ? "🔒 " : string.Empty) + Title;
+    /// <summary>The tab's name as the tab strip shows it: control and bidirectional characters escaped, as the file list shows names (§18.3).</summary>
+    public string TabHeader => (IsLocked ? "🔒 " : string.Empty) + Formatters.SafeName(Title);
+
+    /// <summary>The path as shown beside the command line, escaped like <see cref="TabHeader"/>; <see cref="DisplayPath"/> stays the real one.</summary>
+    public string ShownPath => Formatters.SafeName(DisplayPath);
+
+    partial void OnDisplayPathChanged(string value) => OnPropertyChanged(nameof(ShownPath));
 
     partial void OnTitleChanged(string value) => OnPropertyChanged(nameof(TabHeader));
 

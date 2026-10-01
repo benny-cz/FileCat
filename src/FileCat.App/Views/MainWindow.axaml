@@ -57,7 +57,7 @@
 
     <Border Grid.Row="3" Classes="status" IsVisible="{Binding ShowCommandLine}">
       <Grid ColumnDefinitions="Auto,*">
-        <TextBlock Text="{Binding Workspace.ActiveTab.DisplayPath, StringFormat='{}{0}>'}" VerticalAlignment="Center" Classes="muted"
+        <TextBlock Text="{Binding Workspace.ActiveTab.ShownPath, StringFormat='{}{0}>'}" VerticalAlignment="Center" Classes="muted"
                    MaxWidth="520" TextTrimming="{x:Static TextTrimming.LeadingCharacterEllipsis}" />
         <TextBox x:Name="CommandLine" Grid.Column="1" Classes="path" Text="{Binding CommandLineText}"
                  PlaceholderText="Command line (Ctrl+E) · Ctrl+Enter inserts the focused name"

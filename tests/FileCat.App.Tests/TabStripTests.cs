@@ -35,4 +35,30 @@ public sealed class TabStripTests
             AccessibilityTests.Close(services, window, root);
         }
     }
+
+    /// <summary>
+    /// A folder's name shows escaped wherever FileCat shows it, as in the file list (§18.3, V23 B14): its tab, and the
+    /// path beside the command line; the path itself, which the edit box and every operation use, stays as it is.
+    /// </summary>
+    [AvaloniaFact]
+    public async Task A_folders_name_cannot_turn_its_tab_or_path_around()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string name = "docs" + (char)0x202E + "fdp.exe";
+            string folder = Directory.CreateDirectory(Path.Combine(root, name)).FullName;
+            var tab = vm.Workspace.Panels[0].ActiveTab!;
+            tab.Navigate(Core.Resources.Location.FileSystem(folder));
+            for (int i = 0; i < 100 && tab.DisplayPath != folder; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+            string escaped = "docs" + (char)92 + "u202Efdp.exe";
+            Assert.Equal(escaped, tab.TabHeader);
+            Assert.EndsWith(escaped, tab.ShownPath, StringComparison.Ordinal);
+            Assert.Equal(folder, tab.DisplayPath);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
 }

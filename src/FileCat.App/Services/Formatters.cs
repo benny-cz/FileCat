@@ -184,23 +184,28 @@ public static class Formatters
         return Size(e.Size);
     }
 
-    /// <summary>Escapes control and bidirectional characters so a name cannot visually spoof another (§18.3).</summary>
+    /// <summary>
+    /// Escapes control and bidirectional characters, and the Unicode line and paragraph separators (where a text engine
+    /// may break a one-line name, hiding its end), so a name cannot visually spoof another (§18.3).
+    /// </summary>
     public static string SafeName(string name)
     {
         bool needs = false;
         foreach (var c in name)
         {
-            if (char.IsControl(c) || IsBidiControl(c)) { needs = true; break; }
+            if (Escapes(c)) { needs = true; break; }
         }
         if (!needs) return name;
         var sb = new StringBuilder(name.Length + 8);
         foreach (var c in name)
         {
-            if (char.IsControl(c) || IsBidiControl(c)) sb.Append($"\\u{(int)c:X4}");
+            if (Escapes(c)) sb.Append($"\\u{(int)c:X4}");
             else sb.Append(c);
         }
         return sb.ToString();
     }
+
+    private static bool Escapes(char c) => char.IsControl(c) || IsBidiControl(c) || c is (char)0x2028 or (char)0x2029;
 
     private static bool IsBidiControl(char c) =>
         c is >= '‪' and <= '‮' or >= '⁦' and <= '⁩' or '‎' or '‏' or '؜';

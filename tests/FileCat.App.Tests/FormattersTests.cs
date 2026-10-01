@@ -6,6 +6,20 @@ namespace FileCat.App.Tests;
 
 public sealed class FormattersTests
 {
+    /// <summary>
+    /// §18.3 and V23 B14: a name cannot turn itself around (a right-to-left override would show "photo" RLO "gpj.exe" as
+    /// "photoexe.jpg") or break its one line (the Unicode line and paragraph separators, which may hide a name's end).
+    /// </summary>
+    [Fact]
+    public void A_name_cannot_turn_itself_around_or_hide_its_end()
+    {
+        static string Escaped(int code) => (char)92 + "u" + code.ToString("X4");
+        Assert.Equal("photo" + Escaped(0x202E) + "gpj.exe", Formatters.SafeName("photo" + (char)0x202E + "gpj.exe"));
+        Assert.Equal("photo.jpg" + Escaped(0x2028) + ".exe", Formatters.SafeName("photo.jpg" + (char)0x2028 + ".exe"));
+        Assert.Equal("a" + Escaped(0x2029) + "b" + Escaped(0x0A) + "c", Formatters.SafeName("a" + (char)0x2029 + "b" + (char)0x0A + "c"));
+        Assert.Equal("Ünïcode 名前 مرحبا.txt", Formatters.SafeName("Ünïcode 名前 مرحبا.txt"));
+    }
+
     /// <summary>Release issue I26: the time left reads naturally, as one value once certain, as a range while not.</summary>
     [Theory]
     [InlineData(4, 6, "a few seconds left")]
