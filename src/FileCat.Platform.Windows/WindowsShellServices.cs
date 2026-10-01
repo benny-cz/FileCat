@@ -148,20 +148,27 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         : FindOnPath("pwsh.exe") is not null ? "pwsh"
         : "powershell";
 
+    /// <summary>Windows PowerShell where Windows keeps it: started by bare name it would be looked for in the current directory first (I16).</summary>
+    internal static string WindowsPowerShell => Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+
+    /// <summary>A program found by full path, or the error starting a missing one would give (never a bare name, I16).</summary>
+    private static string Installed(string exe, string what) =>
+        FindOnPath(exe) ?? throw new System.ComponentModel.Win32Exception(2, $"{what} ({exe}) was not found on this computer.");
+
     public override void OpenTerminal(string directory, string shell)
     {
         ProcessStartInfo psi;
         switch (ResolveShell(shell))
         {
             case "powershell":
-                psi = new ProcessStartInfo("powershell.exe") { ArgumentList = { "-NoExit", "-NoLogo" } };
+                psi = new ProcessStartInfo(WindowsPowerShell) { ArgumentList = { "-NoExit", "-NoLogo" } };
                 break;
             case "pwsh":
-                psi = new ProcessStartInfo(FindOnPath("pwsh.exe") ?? "pwsh.exe") { ArgumentList = { "-NoExit", "-NoLogo" } };
+                psi = new ProcessStartInfo(Installed("pwsh.exe", "PowerShell 7")) { ArgumentList = { "-NoExit", "-NoLogo" } };
                 break;
             case "wt":
                 // As separate arguments: a quoted folder ending in a backslash ("C:\dir\") would escape its own quote.
-                psi = new ProcessStartInfo(FindOnPath("wt.exe") ?? "wt.exe") { ArgumentList = { "-d", directory } };
+                psi = new ProcessStartInfo(Installed("wt.exe", "Windows Terminal")) { ArgumentList = { "-d", directory } };
                 break;
             default:
                 psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
@@ -182,12 +189,12 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
             case "powershell":
             case "pwsh":
                 // -EncodedCommand avoids every layer of command-line quoting for the user's text.
-                var exe = shell == "pwsh" ? FindOnPath("pwsh.exe") ?? "pwsh.exe" : "powershell.exe";
+                var exe = shell == "pwsh" ? Installed("pwsh.exe", "PowerShell 7") : WindowsPowerShell;
                 var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
                 psi = new ProcessStartInfo(exe) { Arguments = "-NoExit -NoLogo -EncodedCommand " + encoded };
                 break;
             case "wt":
-                psi = new ProcessStartInfo(FindOnPath("wt.exe") ?? "wt.exe") { Arguments = $"-d \"{directory.TrimEnd('\\')}\\\\\" cmd.exe /K {command}" };
+                psi = new ProcessStartInfo(Installed("wt.exe", "Windows Terminal")) { Arguments = $"-d \"{directory.TrimEnd('\\')}\\\\\" cmd.exe /K {command}" };
                 break;
             default:
                 // Explicit shell mode: the user's command line goes to cmd.exe verbatim.
@@ -253,14 +260,17 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
 
     public override string? SignIn(string server, nint owner) => WindowsNetwork.ConnectInteractive(server, owner);
 
-    internal static string? FindOnPath(string exe)
+    /// <summary>A program by full path from PATH's absolute entries (a relative one would follow the current directory, I16).</summary>
+    internal static string? FindOnPath(string exe, string? pathVariable = null)
     {
-        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        foreach (var dir in path.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        var path = pathVariable ?? Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        foreach (var entry in path.Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
+            string dir = entry.Trim().Trim('"');
+            if (!Path.IsPathFullyQualified(dir)) continue;
             try
             {
-                var candidate = Path.Combine(dir.Trim(), exe);
+                var candidate = Path.Combine(dir, exe);
                 if (File.Exists(candidate)) return candidate;
             }
             catch (ArgumentException) { }

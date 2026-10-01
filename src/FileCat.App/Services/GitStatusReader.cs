@@ -159,8 +159,8 @@ internal static class GitStatusReader
             for (var dir = new DirectoryInfo(folder); dir is not null; dir = dir.Parent)
             {
                 string dotGit = Path.Join(dir.FullName, ".git");
-                if (Directory.Exists(dotGit)) return ConfigFiles(dotGit).All(IsHarmless) ? dir.FullName : null;
-                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && ConfigFiles(linked).All(IsHarmless) ? dir.FullName : null;
+                if (Directory.Exists(dotGit)) return ConfigFiles(dotGit) is { } own && own.All(IsHarmless) ? dir.FullName : null;
+                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && ConfigFiles(linked) is { } shared && shared.All(IsHarmless) ? dir.FullName : null;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
@@ -175,23 +175,34 @@ internal static class GitStatusReader
         if (!text.StartsWith("gitdir:", StringComparison.Ordinal)) return null;
         string path = text["gitdir:".Length..].Trim();
         string full = Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(workTree, path));
-        return Directory.Exists(full) ? full : null;
+        return IsLocalPath(full) && Directory.Exists(full) ? full : null;
     }
 
-    /// <summary>The repository's own configuration files, and those of the repository a linked work tree shares.</summary>
-    private static IEnumerable<string> ConfigFiles(string gitDir)
+    /// <summary>
+    /// The repository's own configuration files, and those of the repository a linked work tree shares; null when that
+    /// one is not on this computer (such a repository gets no badges).
+    /// </summary>
+    private static List<string>? ConfigFiles(string gitDir)
     {
-        yield return Path.Join(gitDir, "config");
-        yield return Path.Join(gitDir, "config.worktree");
+        var files = new List<string> { Path.Join(gitDir, "config"), Path.Join(gitDir, "config.worktree") };
         string commonDir = Path.Join(gitDir, "commondir");
         if (File.Exists(commonDir) && new FileInfo(commonDir).Length <= 4096)
         {
             string common = File.ReadAllText(commonDir).Trim();
             string full = Path.GetFullPath(Path.IsPathRooted(common) ? common : Path.Join(gitDir, common));
-            yield return Path.Join(full, "config");
-            yield return Path.Join(full, "config.worktree");
+            if (!IsLocalPath(full)) return null;
+            files.Add(Path.Join(full, "config"));
+            files.Add(Path.Join(full, "config.worktree"));
         }
+        return files;
     }
+
+    /// <summary>
+    /// A path a repository's own files name (".git" file, "commondir") is looked at only when it is on this computer:
+    /// a downloaded folder can name any path there, and on Windows merely testing a network path connects to it. Decided
+    /// from the path itself, before any file-system call on it.
+    /// </summary>
+    internal static bool IsLocalPath(string fullPath) => !OperatingSystem.IsWindows() || WindowsIcons.IsLocal(fullPath);
 
     /// <summary>
     /// No [filter …] and no [include]/[includeIf …] section (names are case-insensitive; "[filter.x]" is the old

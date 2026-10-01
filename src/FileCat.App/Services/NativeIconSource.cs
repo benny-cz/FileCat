@@ -273,11 +273,21 @@ public sealed class NativeIconSource : INativeIconSource
     private async Task<IImage?> Resource(IconLocation location)
     {
         if (_pictures() is not { } pictures) return null;
-        long modified;
-        try { modified = File.GetLastWriteTimeUtc(location.File).Ticks; }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
+        if (ResourceTime(location, pictures.IconResourceRefusal) is not { } modified) return null;
         var image = await pictures.GetAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, PixelSize, CancellationToken.None).ConfigureAwait(false);
         return image is null ? null : ShellBitmaps.ToBitmap(image);
+    }
+
+    /// <summary>
+    /// The icon file's time (part of the helper's cache key), or null when the helper's policy refuses that file. The
+    /// policy decides first (release plan I16): a path a user's file names is not touched at all when it is not on this
+    /// computer, as reading even its time would connect to the server it names.
+    /// </summary>
+    internal static long? ResourceTime(IconLocation location, Func<IconLocation, string?> refusal)
+    {
+        if (refusal(location) is not null) return null;
+        try { return File.GetLastWriteTimeUtc(location.File).Ticks; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
     }
 
     /// <summary>A program's own icon from the helper once extracted; null meanwhile, when refused, or when it has none.</summary>

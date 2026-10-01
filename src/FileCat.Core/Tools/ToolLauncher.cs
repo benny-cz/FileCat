@@ -53,10 +53,17 @@ public static class ToolLauncher
             : new ToolDefinition { Name = "xdg-open", Executable = "/usr/bin/xdg-open", Arguments = ["{file}"] };
     }
 
-    public static string? FindOnPath(string name)
+    /// <summary>
+    /// A program by full path from the absolute entries of PATH (<paramref name="path"/> in tests). A relative entry
+    /// ("." and the like) would follow FileCat's current directory, where a program could have been planted (release
+    /// plan I16): such entries are not searched.
+    /// </summary>
+    public static string? FindOnPath(string name, string? path = null)
     {
-        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        foreach (var entry in (path ?? Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
+            string dir = entry.Trim('"');
+            if (!Path.IsPathFullyQualified(dir)) continue;
             foreach (var ext in OperatingSystem.IsWindows() ? new[] { ".exe" } : [""])
             {
                 try

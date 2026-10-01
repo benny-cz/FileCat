@@ -227,6 +227,27 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void Gpg_is_found_by_full_path_never_through_a_relative_PATH_entry()
+    {
+        // Release plan I16: a relative PATH entry is resolved against the current directory, so it is not searched. The
+        // folder lies under the current directory to make a relative entry that names it.
+        string exe = OperatingSystem.IsWindows() ? "gpg.exe" : "gpg";
+        string folder = Path.Combine(Environment.CurrentDirectory, "filecat-gpg-" + Guid.NewGuid().ToString("N")[..8]);
+        string bin = Directory.CreateDirectory(Path.Combine(folder, "bin")).FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(bin, exe), "");
+            string relative = Path.GetRelativePath(Environment.CurrentDirectory, bin);
+            Assert.False(Path.IsPathFullyQualified(relative));
+            Assert.Null(OpenPgp.FindTool(relative, []));
+            Assert.Null(OpenPgp.FindTool(Path.Combine(".", relative), ["installed-relative" + Path.DirectorySeparatorChar + exe]));
+            string sep = Path.PathSeparator.ToString();
+            Assert.Equal(Path.Combine(bin, exe), OpenPgp.FindTool(relative + sep + "\"" + bin + "\"", []));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
     public void A_real_OpenPGP_signature_is_checked_with_the_systems_gpg()
     {
         string? gpg = FindGpg();

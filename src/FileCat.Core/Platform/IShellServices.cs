@@ -109,10 +109,10 @@ public class PortableShellServices : IShellServices
     {
         foreach (var (exe, open, run) in LinuxTerminals(directory, script ?? string.Empty))
         {
-            var psi = new ProcessStartInfo(exe) { WorkingDirectory = directory, UseShellExecute = false };
-            foreach (var a in script is null ? open : run) psi.ArgumentList.Add(a);
             try
             {
+                var psi = new ProcessStartInfo(Resolve(exe)) { WorkingDirectory = directory, UseShellExecute = false };
+                foreach (var a in script is null ? open : run) psi.ArgumentList.Add(a);
                 Process.Start(psi)?.Dispose();
                 return true;
             }
@@ -157,9 +157,11 @@ public class PortableShellServices : IShellServices
                 return;
             }
             if (_awake is { HasExited: false }) return;
+            // By full path: a bare name would be looked for in the current directory first (release plan I16).
+            if (Network.SmbTools.Find(OperatingSystem.IsMacOS() ? "caffeinate" : "systemd-inhibit") is not { } tool) return;
             var psi = OperatingSystem.IsMacOS()
-                ? new ProcessStartInfo("caffeinate", ["-i", "-w", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)])
-                : new ProcessStartInfo("systemd-inhibit", ["--what=idle:sleep", "--who=FileCat", "--why=File operations are running", "--mode=block", "sleep", "infinity"]);
+                ? new ProcessStartInfo(tool, ["-i", "-w", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)])
+                : new ProcessStartInfo(tool, ["--what=idle:sleep", "--who=FileCat", "--why=File operations are running", "--mode=block", "sleep", "infinity"]);
             psi.UseShellExecute = false;
             psi.RedirectStandardOutput = psi.RedirectStandardError = true;
             try { _awake = Process.Start(psi); }
@@ -183,8 +185,16 @@ public class PortableShellServices : IShellServices
 
     protected static void Start(string exe, params string[] args)
     {
-        var psi = new ProcessStartInfo(exe) { UseShellExecute = false };
+        var psi = new ProcessStartInfo(Resolve(exe)) { UseShellExecute = false };
         foreach (var a in args) psi.ArgumentList.Add(a);
         Process.Start(psi)?.Dispose();
     }
+
+    /// <summary>
+    /// A program by full path, from PATH's absolute entries and the usual folders: started by bare name, it would be
+    /// looked for in the current directory first (release plan I16). A missing one gives the error starting it would.
+    /// </summary>
+    internal static string Resolve(string exe) =>
+        Path.IsPathFullyQualified(exe) ? exe
+        : Network.SmbTools.Find(exe) ?? throw new System.ComponentModel.Win32Exception(2, $"The program \"{exe}\" was not found.");
 }

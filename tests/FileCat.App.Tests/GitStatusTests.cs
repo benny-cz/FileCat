@@ -58,6 +58,23 @@ public sealed class GitStatusTests
             Assert.Null(GitStatusReader.SafeRepository(linked));
             File.WriteAllText(config, benign);
             Assert.Equal(linked, GitStatusReader.SafeRepository(linked));
+
+            if (OperatingSystem.IsWindows())
+            {
+                // Release plan I16: a ".git" file or "commondir" naming a network path is not looked at, not even to see
+                // whether it exists (that alone connects to the server). 203.0.113.9 is a documentation address: an
+                // attempt would take seconds to fail; refusing takes none.
+                Assert.False(GitStatusReader.IsLocalPath(@"\\203.0.113.9\share\repo.git"));
+                Assert.False(GitStatusReader.IsLocalPath(@"\\?\UNC\203.0.113.9\share\repo.git"));
+                Assert.True(GitStatusReader.IsLocalPath(Path.Combine(root, "repo", ".git")));
+                File.WriteAllText(Path.Combine(linked, ".git"), @"gitdir: \\203.0.113.9\share\repo.git" + "\n");
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                Assert.Null(GitStatusReader.SafeRepository(linked));
+                File.WriteAllText(Path.Combine(linked, ".git"), "gitdir: ../repo/.git\n");
+                File.WriteAllText(Path.Combine(work, ".git", "commondir"), @"\\203.0.113.9\share\common" + "\n");
+                Assert.Null(GitStatusReader.SafeRepository(linked));
+                Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"Took {clock.Elapsed}: a network path was tried.");
+            }
         }
         finally
         {

@@ -94,8 +94,8 @@ public static class ApplyCommandPlanner
             if (spec.ShellMode)
             {
                 string line = Substitute(spec.CommandLine, values, v => ShellQuoting.Quote(v, shell));
-                var (exe, args) = ShellInvocation(shell, line);
-                string? problem = programProblem ?? (targetDirectory is null && spec.CommandLine.Contains("{target}", StringComparison.Ordinal) ? "There is no target panel folder for {target}." : null);
+                var (exe, args, shellProblem) = ShellInvocation(shell, line);
+                string? problem = programProblem ?? shellProblem ?? (targetDirectory is null && spec.CommandLine.Contains("{target}", StringComparison.Ordinal) ? "There is no target panel folder for {target}." : null);
                 rows.Add(new ApplyInvocation(item, exe, args, dir, line, problem ?? LengthProblem(exe, args)));
                 continue;
             }
@@ -141,12 +141,24 @@ public static class ApplyCommandPlanner
         OperatingSystem.IsWindows() && ToolLauncher.CommandLineLength(exe, args) > ToolLauncher.WindowsCommandLineLimit
             ? "The command line would exceed Windows' limit of 32,767 characters." : null;
 
-    private static (string Exe, IReadOnlyList<string> Args) ShellInvocation(string shell, string line) => shell.ToLowerInvariant() switch
+    /// <summary>
+    /// The shell by full path (a bare name would be looked for in the current directory first, release plan I16): PowerShell
+    /// from PATH's absolute entries, else Windows PowerShell where Windows keeps it; a problem when there is none.
+    /// </summary>
+    private static (string Exe, IReadOnlyList<string> Args, string? Problem) ShellInvocation(string shell, string line)
     {
-        "powershell" or "pwsh" => (ToolLauncher.FindOnPath(shell == "pwsh" ? "pwsh" : "powershell") ?? "powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", line]),
-        "cmd" or "cmd.exe" => (Path.Combine(Environment.SystemDirectory, "cmd.exe"), ["/d", "/s", "/c", line]),
-        _ => ("/bin/sh", ["-c", line]),
-    };
+        switch (shell.ToLowerInvariant())
+        {
+            case "powershell" or "pwsh":
+                string? exe = ToolLauncher.FindOnPath(shell == "pwsh" ? "pwsh" : "powershell")
+                    ?? (OperatingSystem.IsWindows() ? Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe") : null);
+                return (exe ?? shell, ["-NoProfile", "-NonInteractive", "-Command", line], exe is null ? "PowerShell was not found on this computer." : null);
+            case "cmd" or "cmd.exe":
+                return (Path.Combine(Environment.SystemDirectory, "cmd.exe"), ["/d", "/s", "/c", line], null);
+            default:
+                return ("/bin/sh", ["-c", line], null);
+        }
+    }
 
     private static string Substitute(string text, IReadOnlyDictionary<string, string> values, Func<string, string> quote)
     {

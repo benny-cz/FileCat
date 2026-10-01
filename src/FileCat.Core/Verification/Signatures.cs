@@ -166,20 +166,33 @@ public static class OpenPgp
         {
             if (_looked) return _tool;
             _looked = true;
-            string exe = OperatingSystem.IsWindows() ? "gpg.exe" : "gpg";
-            var path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
-            var candidates = path.Select(d => Path.Combine(d, exe)).ToList();
-            if (!OperatingSystem.IsWindows()) candidates.AddRange(path.Select(d => Path.Combine(d, "gpg2")));
+            var installed = new List<string>();
             if (OperatingSystem.IsWindows())
             {
                 foreach (string? root in new[] { Environment.GetEnvironmentVariable("ProgramFiles(x86)"), Environment.GetEnvironmentVariable("ProgramFiles") })
-                    if (!string.IsNullOrEmpty(root)) candidates.Add(Path.Combine(root, "GnuPG", "bin", exe));
+                    if (!string.IsNullOrEmpty(root)) installed.Add(Path.Combine(root, "GnuPG", "bin", "gpg.exe"));
             }
-            else candidates.AddRange(["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg", "/usr/local/MacGPG2/bin/gpg", "/usr/bin/gpg", "/usr/bin/gpg2"]);
-            // Git for Windows' own gpg keeps a keyring of its own, not the user's: left out.
-            _tool = candidates.FirstOrDefault(c => !c.Contains(Path.Combine("Git", "usr"), StringComparison.OrdinalIgnoreCase) && File.Exists(c));
+            else installed.AddRange(["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg", "/usr/local/MacGPG2/bin/gpg", "/usr/bin/gpg", "/usr/bin/gpg2"]);
+            _tool = FindTool(Environment.GetEnvironmentVariable("PATH"), installed);
             return _tool;
         }
+    }
+
+    /// <summary>
+    /// gpg by full path: from the absolute entries of <paramref name="path"/> (PATH), then where it is installed. A
+    /// relative entry ("." and the like) would follow FileCat's current directory, where a gpg could have been planted
+    /// (release plan I16); as with Git, such entries are not searched.
+    /// </summary>
+    internal static string? FindTool(string? path, IEnumerable<string> installed)
+    {
+        string exe = OperatingSystem.IsWindows() ? "gpg.exe" : "gpg";
+        var dirs = (path ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(d => d.Trim('"')).Where(Path.IsPathFullyQualified).ToList();
+        var candidates = dirs.Select(d => Path.Combine(d, exe)).ToList();
+        if (!OperatingSystem.IsWindows()) candidates.AddRange(dirs.Select(d => Path.Combine(d, "gpg2")));
+        candidates.AddRange(installed.Where(Path.IsPathFullyQualified));
+        // Git for Windows' own gpg keeps a keyring of its own, not the user's: left out.
+        return candidates.FirstOrDefault(c => !c.Contains(Path.Combine("Git", "usr"), StringComparison.OrdinalIgnoreCase) && File.Exists(c));
     }
 
     /// <summary>The user's keyring and trust database (GNUPGHOME, or gpg's default home), which a result depends on.</summary>

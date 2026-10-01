@@ -108,6 +108,9 @@ public sealed class ShellPreviews : IDisposable
 
     public ShellHostClient Client => _client;
 
+    /// <summary>Why an icon a user's file names may not be read under this session's settings, or null when it may.</summary>
+    public string? IconResourceRefusal(IconLocation location) => ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable());
+
     /// <summary>Tests: runs on the worker after it took a request and before it asks the helper.</summary>
     internal Action<string>? BeforeHelperRequest { get; init; }
 

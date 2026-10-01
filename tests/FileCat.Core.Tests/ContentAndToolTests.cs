@@ -152,6 +152,27 @@ public class ContentAndToolTests
     }
 
     [Fact]
+    public void Programs_are_found_by_full_path_never_through_a_relative_PATH_entry()
+    {
+        // Release plan I16: a relative PATH entry ("." and the like) is resolved against the current directory, where a
+        // program could have been planted; tools, shells, terminals and openers are looked for in absolute entries only.
+        string name = "fc-planted-" + Guid.NewGuid().ToString("N")[..8];
+        string file = OperatingSystem.IsWindows() ? name + ".exe" : name;
+        string folder = Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory, name)).FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(folder, file), "");
+            string relative = Path.GetRelativePath(Environment.CurrentDirectory, folder);
+            Assert.False(Path.IsPathFullyQualified(relative));
+            Assert.Null(ToolLauncher.FindOnPath(name, relative));
+            Assert.Equal(Path.Combine(folder, file), ToolLauncher.FindOnPath(name, relative + Path.PathSeparator + "\"" + folder + "\""));
+            Assert.Throws<System.ComponentModel.Win32Exception>(() => FileCat.Core.Platform.PortableShellServices.Resolve(name));
+            if (!OperatingSystem.IsWindows()) Assert.True(Path.IsPathFullyQualified(FileCat.Core.Platform.PortableShellServices.Resolve("sh")));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
     public void Tool_launcher_uses_absolute_paths_list_files_and_splits_long_selections()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows' command-line length limit and list files.");
