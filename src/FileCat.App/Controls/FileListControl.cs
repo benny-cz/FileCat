@@ -683,6 +683,8 @@ public sealed class FileListControl : Control
         if (started != 0) RenderTimed?.Invoke(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated);
     }
 
+    private bool _inCloudRoot;
+
     private void RenderCore(DrawingContext dc)
     {
         // Icons are made for the pixels this display gives a 16-point icon (crisp at 125%, 150%, 200%).
@@ -698,6 +700,9 @@ public sealed class FileListControl : Control
         var listing = _listing;
         if (listing is null) return;
         EnsureCacheStore();
+        // In a cloud provider's folder (OneDrive, Dropbox, …) a file with no cloud attribute is on this computer.
+        _inCloudRoot = Tab is { Location: { IsFileSystem: true } here } shown
+            && Core.FileSystem.CloudFiles.RootOf(here.Path, shown.Services.Shell.CloudSyncRoots) is not null;
         int count = listing.VisibleCount;
         using (dc.PushClip(new Rect(0, _headerHeight, contentWidth, Math.Max(0, bounds.Height - _headerHeight))))
         {
@@ -788,6 +793,10 @@ public sealed class FileListControl : Control
                     if (e.Kind == EntryKind.File && Tab is { HasSidecars: true } checking && checking.Verification(e, storeIndex) is { } verified
                         && icons?.VerificationOverlay(verified.State) is { } verifiedOverlay)
                         dc.DrawImage(verifiedOverlay, iconRect);
+                    // A cloud provider's file: only in the cloud, on this computer, or kept here always (from its attributes).
+                    if (e.Kind is EntryKind.File or EntryKind.Directory
+                        && icons?.CloudOverlay(Core.FileSystem.CloudFiles.StateOf((FileAttributes)e.Attributes, _inCloudRoot)) is { } cloudOverlay)
+                        dc.DrawImage(cloudOverlay, iconRect);
                 }
                 textX = iconX + IconSize + 4;
                 avail = colX + colW - textX - Padding;

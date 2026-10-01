@@ -155,6 +155,36 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     private static string Installed(string exe, string what) =>
         FindOnPath(exe) ?? throw new System.ComponentModel.Win32Exception(2, $"{what} ({exe}) was not found on this computer.");
 
+    private IReadOnlyList<Core.FileSystem.CloudSyncRoot>? _cloudSyncRoots;
+
+    /// <summary>
+    /// The Cloud Files sync roots registered for this user (HKLM\…\Explorer\SyncRootManager\{id}\UserSyncRoots\{SID}),
+    /// with the name their provider shows: OneDrive, Dropbox, iCloud Drive and the rest, read from the registry alone.
+    /// </summary>
+    public override IReadOnlyList<Core.FileSystem.CloudSyncRoot> CloudSyncRoots => _cloudSyncRoots ??= ReadCloudSyncRoots();
+
+    private static List<Core.FileSystem.CloudSyncRoot> ReadCloudSyncRoots()
+    {
+        var roots = new List<Core.FileSystem.CloudSyncRoot>();
+        try
+        {
+            string? sid = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value;
+            using var manager = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\SyncRootManager");
+            if (sid is null || manager is null) return roots;
+            foreach (string id in manager.GetSubKeyNames())
+            {
+                using var root = manager.OpenSubKey(id);
+                using var users = root?.OpenSubKey("UserSyncRoots");
+                if (users?.GetValue(sid) is not string path || !Path.IsPathFullyQualified(path)) continue;
+                // "OneDrive - Personal"; else the provider's id up to its first '!' ("Dropbox!S-1-…!dbid:…").
+                string name = root!.GetValue("DisplayNameResource") as string is { Length: > 0 } shown && !shown.StartsWith('@') ? shown : id.Split('!')[0];
+                roots.Add(new(name, path.TrimEnd('\\')));
+            }
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { }
+        return roots;
+    }
+
     public override void OpenTerminal(string directory, string shell)
     {
         ProcessStartInfo psi;

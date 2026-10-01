@@ -56,6 +56,12 @@ public interface IShellServices
 
     /// <summary>Prompts for credentials for a server through the OS networking UI; returns an error or null.</summary>
     string? SignIn(string server, nint owner);
+
+    /// <summary>
+    /// Where cloud storage providers (OneDrive, Dropbox, iCloud Drive, …) keep their files on this computer, as the OS
+    /// registers them; none where it registers none. Read once and kept: cheap to ask while drawing.
+    /// </summary>
+    IReadOnlyList<FileSystem.CloudSyncRoot> CloudSyncRoots { get; }
 }
 
 /// <summary>Portable fallback using xdg-open / open.</summary>
@@ -176,6 +182,8 @@ public class PortableShellServices : IShellServices
     public virtual ProcessAccount Account => ProcessAccount.FromEnvironment();
 
     public virtual string ToUncPath(string path) => path;
+
+    public virtual IReadOnlyList<FileSystem.CloudSyncRoot> CloudSyncRoots => [];
 
     public virtual string? ConnectNetworkDrive(nint owner) => "Mount network shares with your desktop's tools; they then appear under Computer.";
 
