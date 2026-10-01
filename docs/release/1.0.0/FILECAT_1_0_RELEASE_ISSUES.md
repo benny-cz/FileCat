@@ -21,7 +21,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I09 | Recovery whole-source safety | Potential Critical | Safety gate | Open |
 | I10 | Documentation drift | Medium | Blocker where safety/support claims mislead | Open |
 | I11 | Missing mandatory external evidence | Qualification blocker | Blocker | Open — resources |
-| I12 | Historical regressions need durable coverage | Medium | Non-blocker once covered | Open |
+| I12 | Historical regressions need durable coverage | Medium | Non-blocker once covered | **Covered** (`62bd88f`'s tests; `85d512d`) — closure pending re-audit |
 | I13 | Latest features lack interaction evidence | Potential Medium–High | Gates open | Open |
 | I14 | RAR decoder provenance / OSI-only eligibility | High | Blocker (license/signing) | Open |
 | I15 | Uninstaller removed the whole installation folder | **Critical** (data loss) | Blocker | **Remediated `5b061cc`; verified in a VM** — closure pending re-audit and the final setup |
@@ -746,6 +746,19 @@ level the plan already states; exploit-level detail is not recorded here.
   `ContentAndToolTests.Programs_are_found_by_full_path_never_through_a_relative_PATH_entry`, `ProgramLookupTests`.
 - **Still open:** the gate's independent file, network and process evidence (V23/V24) on the candidate.
 
+### I12 — The two historical failures have lasting coverage
+
+- **`$Secure`** (plan §6.3): the comparison that failed on CI's Temp folder (a DACL stored without inheritance marks, which
+  Windows reports marked and reordered) is held by `62bd88f`'s tests: `Security_descriptors_are_compared_part_by_part_not_as_text`
+  (the stored and reported descriptors as structures, the unmarked case among them, and real differences named) and
+  `As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports` (a live folder set that way,
+  compared with Windows' own report, GetSecurityInfo, as the independent oracle; it runs on CI's elevated Windows lanes).
+- **macOS page title** (CI run 36711390817): the page engine smoke now runs twelve lifecycles, each engine showing two
+  pages in one view, each title as observed, then disposed with the loop run on, counting events raised afterwards
+  (`85d512d`): 12 of 12, 0 events after disposal on the owner's Mac (`i12-page-smoke-mac.txt`
+  `da193a7a5fffe5a7d1703c874000c6239299223e4afbcd18991f78bc68c021f2`); CI's macOS lane runs it. The original failure
+  was intermittent and cannot be forced, so the phase shows the lifecycle holds, not that it would have caught it.
+
 ## New detail on open issues
 
 - **I03 / I18:** the Windows installer's compiler is whatever Inno Setup the hosted runner image provides: the A01
@@ -764,7 +777,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 ## Initial register entries not yet worked
 
-I01–I14 and I18 keep the plan's §7 text as their current record, I16 beyond what is recorded above, and I17 for the
-parts not worked above.
+I01–I11, I13, I14 and I18 keep the plan's §7 text as their current record, I16 beyond what is recorded above, and I17
+for the parts not worked above.
 I24–I27 are queued owner reports and findings of lower severity.
 None has been closed. Their evidence, reproduction and remediation fields will be filled when worked.
