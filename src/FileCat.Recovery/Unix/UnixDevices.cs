@@ -581,6 +581,19 @@ public static class UnixDisks
                 return MacMountSource(mount.Name) is { } source && ServerOf(source) is { } server && !ThisComputerLookup(server) ? [] : null;
             target = mount.Name;
         }
+        // diskutil takes a moment each time, and FileCat's own folders mostly share one volume: asked once in a while.
+        string key = (written ? "w|" : "r|") + target;
+        if (MacAnswers.TryGetValue(key, out var known) && DateTime.UtcNow - known.At < TimeSpan.FromSeconds(20)) return known.Disks;
+        var disks = MacWholeDisks(target, written, depth);
+        MacAnswers[key] = (DateTime.UtcNow, disks);
+        return disks;
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, IReadOnlyList<string>? Disks)> MacAnswers = new();
+
+    /// <summary>macOS: the whole disks under a device or a mounted volume (<paramref name="target"/>), from diskutil.</summary>
+    private static IReadOnlyList<string>? MacWholeDisks(string target, bool written, int depth)
+    {
         if (Plist(Run("/usr/sbin/diskutil", "info", "-plist", target)) is not Dictionary<string, object?> info) return null;
         List<string> wholes;
         if (info.GetValueOrDefault("APFSPhysicalStores") is List<object?> stores)

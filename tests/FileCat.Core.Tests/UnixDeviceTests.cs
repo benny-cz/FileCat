@@ -250,6 +250,10 @@ public sealed class UnixDeviceTests : IDisposable
         output?.WriteLine($"{folder} is on: {string.Join(", ", UnixDisks.DisksOf(folder) ?? ["unknown"])}");
         bool? shares = UnixDisks.SharesDisk(device, folder);
         output?.WriteLine($"shares: {shares?.ToString() ?? "unknown"}");
+        // What the scan's confirmation waits for: every folder FileCat writes in, checked against the device.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var own = FileCat.Core.State.AppPaths.Usual().WriteFolders.Select(f => UnixDisks.SharesDisk(device, f.Folder)).ToList();
+        output?.WriteLine($"FileCat's {own.Count} folders checked in {clock.ElapsedMilliseconds} ms: {own.Count(s => s == true)} on that disk, {own.Count(s => s is null)} unknown");
         Assert.Equal(expect, shares switch { true => "true", false => "false", null => "unknown" });
     }
 
