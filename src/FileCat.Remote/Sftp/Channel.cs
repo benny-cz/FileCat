@@ -66,6 +66,12 @@ public interface ISftpChannel : IDisposable
     }
 
     /// <summary>
+    /// Whether writing at an offset (<see cref="OpenWriteAt"/>) sends one request at a time, so continuing an upload is
+    /// slower than <see cref="UploadNew"/> on a slow link (SFTP through SSH.NET).
+    /// </summary>
+    bool AppendsOneRequestAtATime => false;
+
+    /// <summary>
     /// Continues writing a file this job created, from <paramref name="offset"/> (an interrupted upload). Throws
     /// <see cref="NotSupportedException"/> where the server cannot, and the upload then starts again.
     /// </summary>

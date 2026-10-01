@@ -310,8 +310,11 @@ public sealed class RemoteLabTests : IDisposable
             while (!job.State.IsFinished() && DateTime.UtcNow < deadline) await Task.Delay(50, ct);
             string story = $"{job.State}; asked: {string.Join(" | ", asked)}; issues: {string.Join(" | ", job.Issues.Select(i => i.Message))}";
             Assert.True(job.State == JobState.Completed, story);
-            // It continued after the part on the server was checked, rather than starting again.
-            Assert.Contains(job.Issues, i => i.Message.Contains("continued at", StringComparison.Ordinal));
+            // It continued after the part on the server was checked, rather than starting again; over SFTP, where
+            // continuing writes one request at a time, a slow link can make starting again the quicker way (I39), which
+            // the job then says.
+            Assert.Contains(job.Issues, i => i.Message.Contains("continued at", StringComparison.Ordinal)
+                || protocol == "sftp" && i.Message.Contains("went again from the start", StringComparison.Ordinal));
             // Intact on the server, read back through a fresh connection; nothing else left beside it.
             using var check = stack.Connections.Lease(profile.Id, ct);
             var entries = check.Channel.List(remoteRoot, ct);

@@ -141,6 +141,20 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(["big.bin"], Names("/up"));
     }
 
+    [Theory]
+    // Release issue I39: at 100 ms a continued SFTP upload writes 0.3 MB/s, a new one 5.7 MB/s (measured in the lab).
+    [InlineData(48_000_000L, 128_000_000L, 5.7, 100, true, true)] // a third on the server, a slow link: starting again wins
+    [InlineData(126_000_000L, 128_000_000L, 5.7, 100, true, false)] // nearly all there already: continuing wins
+    [InlineData(48_000_000L, 128_000_000L, 60.0, 1, true, false)] // a LAN: continuing at 32 MB/s wins
+    [InlineData(48_000_000L, 128_000_000L, 5.7, 100, false, false)] // FTP appends at full speed: always continue
+    public void An_interrupted_upload_starts_again_only_where_that_is_quicker(long start, long size, double freshMBps, int roundTripMs, bool oneAtATime, bool anew)
+    {
+        long freshBytes = (long)(freshMBps * 1_000_000 * 10);
+        Assert.Equal(anew, SftpUploadExecutor.QuickerAnew(start, size, freshBytes, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(roundTripMs), oneAtATime));
+        // Without a measured pace (under a second), never.
+        Assert.False(SftpUploadExecutor.QuickerAnew(start, size, freshBytes, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(roundTripMs), oneAtATime));
+    }
+
     private string BigFile(int length, int seed, out byte[] data)
     {
         data = new byte[length];

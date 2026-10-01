@@ -473,6 +473,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         string? temp = null;
         long written = 0;
         bool differs = false;
+        long freshBytes = 0;
+        var freshTime = TimeSpan.Zero;
+        var freshClock = new Stopwatch();
         bool ok;
         try
         {
@@ -480,6 +483,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             {
                 // After a break, the upload continues where the server's copy ends, once that copy is checked; else anew.
                 long start = temp is not null && written > 0 && unchanged is not null && unchanged() ? ResumePoint(temp, openSource, incoming.Size) : 0;
+                if (start > 0 && QuickerAnew(start, incoming.Size, freshBytes, freshTime, _roundTrip, Channel.AppendsOneRequestAtATime))
+                {
+                    start = 0;
+                    Issue(IssueSeverity.Info, dst, "The upload was interrupted and went again from the start: over this connection that is quicker than continuing where the server's copy ends.", StepOutcome.Committed);
+                }
                 if (start == 0)
                 {
                     DiscardTemp(destFolder, temp);
@@ -497,9 +505,17 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     // Each stretch read is counted and paced to the speed limit (from this attempt's start), and a pause or
                     // a cancel takes effect at the next read.
                     var clock = Stopwatch.StartNew();
+                    if (start == 0)
+                    {
+                        freshBytes = 0;
+                        freshTime = TimeSpan.Zero;
+                        freshClock.Restart();
+                    }
                     var paced = new PacedRead(input, n =>
                     {
                         written += n;
+                        // A new upload's pace, as of its last read (not counting a question that followed a break).
+                        if (start == 0) (freshBytes, freshTime) = (written, freshClock.Elapsed);
                         Job.AddBytes(n);
                         Job.Throttle(written - start, clock);
                         Job.Checkpoint();
@@ -625,7 +641,10 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     {
         try
         {
-            if (Channel.Stat(temp) is not { IsDirectory: false } stat || stat.Size <= 0 || stat.Size > sourceLength) return 0;
+            var asked = Stopwatch.StartNew();
+            var found = Channel.Stat(temp);
+            _roundTrip = asked.Elapsed;
+            if (found is not { IsDirectory: false } stat || stat.Size <= 0 || stat.Size > sourceLength) return 0;
             int n = (int)Math.Min(ResumeCheckBytes, stat.Size);
             var theirs = new byte[n];
             var ours = new byte[n];
@@ -646,6 +665,24 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             return 0;
         }
+    }
+
+    /// <summary>The last stat's round trip (ResumePoint's), as a measure of the connection's latency.</summary>
+    private TimeSpan _roundTrip;
+
+    /// <summary>
+    /// Whether starting an interrupted upload again is quicker than continuing it, where continuing writes one request at a
+    /// time (SFTP; I39): a new upload went at <paramref name="freshBytes"/> per <paramref name="freshTime"/>, a continued
+    /// one writes a request (32 KiB with SSH.NET) per round trip. Starting again sends everything once more, so it is
+    /// chosen only when at least twice as quick: at 100 ms (0.3 MB/s against 5.7) unless almost all is on the server
+    /// already; over a LAN, where the two are close, the upload continues.
+    /// </summary>
+    internal static bool QuickerAnew(long start, long size, long freshBytes, TimeSpan freshTime, TimeSpan roundTrip, bool appendsOneAtATime)
+    {
+        if (!appendsOneAtATime || size <= 0 || freshBytes <= 0 || freshTime < TimeSpan.FromSeconds(1) || roundTrip <= TimeSpan.Zero) return false;
+        double freshRate = freshBytes / freshTime.TotalSeconds;
+        double appendRate = 32 * 1024 / roundTrip.TotalSeconds;
+        return 2 * (size / freshRate) < (size - start) / appendRate;
     }
 
     /// <summary>Removes a temporary file this job wrote (best effort; a leftover is named in the job's issues).</summary>
