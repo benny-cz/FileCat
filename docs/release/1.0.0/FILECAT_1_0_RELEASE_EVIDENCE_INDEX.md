@@ -181,6 +181,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | — (test only) | V24: a started tool receives exactly the names it was given (recording program) | I16 (held) | E-V24-G1-T2 |
 | — (test only) | V24: damaged WS-Discovery, device metadata and mDNS answers, a million rounds each | B05 (held) | E-V24-D1 |
 | `3f647bd` | Shell pictures: a request that got no answer is not remembered as the file having none | I70 | E-V24-D1 |
+| `855674a` | Icons: one that was never answered for is not remembered as having none either | I70 | E-V24-D1 |
+| `c7a02e9` | Quick view: a picture nobody answered for is asked once more | I70 | E-V24-D1 |
 | — (test only) | V24: what runs while a folder naming a program three times over is shown | I16 (held) | E-V24-D1-B1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

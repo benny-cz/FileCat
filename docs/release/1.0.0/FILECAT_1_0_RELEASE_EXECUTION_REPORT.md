@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `3f647bd` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `c7a02e9` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -325,7 +325,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     — WS-Discovery probe matches, a device's metadata, and mDNS answers. A million rounds each on the host: no
     exception, no round over 19 KB, 205 s for all three. The campaign's own CI failure led to **I70** (Medium): a
     Shell picture request that got no answer was remembered as the file having none, so after the helper died those
-    files showed no picture for the rest of the session (fixed `3f647bd`, with a negative control).
+    files showed no picture for the rest of the session (fixed `3f647bd`, with a negative control). The same memo on
+    the icon side kept every icon asked for during a recovery scan (pictures paused, I09) plain for the session
+    (`855674a`); and a picture on screen is now asked once more when no helper answered (`c7a02e9`), which is what
+    the ARM64 lane's failure needed.
 88. V24, I16's process half (E-V24-D1-B1): a folder in which a repository's Git filter, an Internet shortcut and a
     customized folder all name the same program was listed and every icon asked for, under a trace of started
     processes. While the folder was shown, eight processes ran — two `git` runs (the ordinary repository's; the one

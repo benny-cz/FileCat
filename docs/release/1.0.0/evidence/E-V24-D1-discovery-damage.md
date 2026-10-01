@@ -58,10 +58,13 @@ while FileCat recovers deleted files it pauses Shell pictures (I09, so that the 
 read), and **every icon asked for during a scan was being remembered as "none" for the rest of the session**. Those
 are now asked again once the scan is over, which the same test checks (`Paused` gives `Failed`, not an answer).
 
-**Residual:** the fix stops a transient failure from being *remembered*; it does not make a single showing retry. Quick
-view asks once for the item on screen, so if that very first attempt is the one that fails, the picture still does not
-appear until the file is looked at again. That is also why the ARM64 test can still fail this way, and it is the
-remaining part of the case: whether a view should ask a second time when no helper answered.
+**The single showing.** Not remembering a failure did not yet make one showing succeed: quick view asks once for the
+item on screen. The ARM64 failure's own diagnostics say which case it was — the test's direct request right afterwards
+returned a thumbnail, so the item had not been poisoned by a hang or a crash; the first helper had simply not started
+in time. `ShellPreviews.GetForDisplayAsync` (`c7a02e9`) asks once more when no helper answered, which starts a fresh
+one. A refusal or a real "none" stays final, two unanswered tries end that showing, and while pictures are paused
+nothing is asked at all. `ShellHostTests.What_is_on_screen_is_asked_for_once_more_when_no_helper_answered` covers the
+four cases, and fails with the retry taken out; both quick view picture tests pass on the host.
 
 The ARM64 lane's other red run that day (36871560455) was unrelated: `actions/setup-dotnet` crashed while installing
 the SDK.

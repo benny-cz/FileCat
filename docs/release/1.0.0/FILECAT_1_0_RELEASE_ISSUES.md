@@ -1041,8 +1041,13 @@ level the plan already states; exploit-level detail is not recorded here.
   asking, and a file that fails every time is given up on after three. Checked against the unfixed code as well, where
   it fails on the first assertion. The paused case is checked in the same test.
 - **Severity:** Medium: a visible feature degrades for the rest of a session after a fault it was designed to survive.
-- **Residual:** a failure is no longer remembered, but a view still asks only once for what it shows; if that first
-  attempt is the one that fails, the picture appears only when the file is looked at again.
+- **And the single showing (`c7a02e9`):** quick view asks once for the item on screen, so when that very first attempt
+  got no answer the picture still did not appear until the file was looked at again — which is exactly what failed the
+  ARM64 lane: its own diagnostics show the item was never poisoned (a direct request right after succeeded), so the
+  first helper had simply not started. `ShellPreviews.GetForDisplayAsync` asks once more when no helper answered,
+  which starts a fresh one; a refusal or a real "none" stays final, and nothing at all is asked while paused.
+  `ShellHostTests.What_is_on_screen_is_asked_for_once_more_when_no_helper_answered` covers the four cases and fails
+  with the retry taken out.
 
 ### I69 — A repository's own configuration sent Git to a server while the folder was merely shown
 
