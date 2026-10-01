@@ -466,9 +466,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 115. V16 begun (E-V16-H1): the harness inventory §9 asks for (what each benchmark measures, asserts or only prints)
     and preliminary runs on this machine, the historical regression profile, not the reference: comparison, search and
     archives within every asserted budget. Gaps before acceptance: ready-for-input and OS-input-to-present latency are
-    not what the window's benchmark measures; no harness for large copies or the shared content cache. Huge hex got
-    one (`6df923b`): a 4 TiB sparse file and 2 GiB of data through the viewer and the editor, first page at most 1 ms
-    warm and seek p95 at most 1.33 ms here (budgets 250 and 100 ms).
+    not what the window's benchmark measures; no harness for the shared content cache. Huge hex got one (`6df923b`):
+    a 4 TiB sparse file and 2 GiB of data through the viewer and the editor, first page at most 1 ms warm and seek p95
+    at most 1.33 ms here (budgets 250 and 100 ms). Large copies got one (`5abf5b2`): against CopyFile2 with the job's
+    own profile (a first run against a buffered CopyFile2 measured the write cache and is not a comparison), the
+    median of five pairs was −0.3% to 19.6% over three runs on the 990 PRO; the job's own work outside the copy engine
+    is 12–18 ms per 4 GiB job, and the spread is the disk's. ReFS cloning and SMB server-side copy are not covered.
 
 ## Evidence invalidated by the campaign's own changes
 
