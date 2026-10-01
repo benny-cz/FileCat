@@ -953,6 +953,7 @@ public sealed class CompareWindow : Window
             if (endings > 0) summary.Append($"; line endings differ on {endings:N0} other lines");
             summary.Append('.');
             if (result.Approximate) summary.Append(" Some regions were too large to align line by line; they are shown unaligned, not paired.");
+            if (result.Heuristic) summary.Append(" Large stretches were matched on lines that occur once on each side, which can show more differences than the fewest possible.");
         }
         return (rows, diff, descriptions, summary.ToString());
     }

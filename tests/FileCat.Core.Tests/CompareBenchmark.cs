@@ -55,7 +55,7 @@ public sealed class CompareBenchmark : IDisposable
     }
 
     private static string Describe(TextDiffResult r) =>
-        $"{r.Differences:N0} differences in {r.Blocks.Count:N0} blocks{(r.Approximate ? ", approximate" : "")}" +
+        $"{r.Differences:N0} differences in {r.Blocks.Count:N0} blocks{(r.Approximate ? ", approximate" : "")}{(r.Heuristic ? ", heuristic" : "")}" +
         (r.Blocks.Any(b => b.Kind == DiffKind.Unaligned) ? $", {r.Blocks.Where(b => b.Kind == DiffKind.Unaligned).Sum(b => b.LeftCount + b.RightCount):N0} lines left unaligned" : "");
 
     private TextDiffResult Text(string name, string left, string right) => Measure(name, () =>
@@ -81,11 +81,13 @@ public sealed class CompareBenchmark : IDisposable
         string shiftedText = "inserted\n" + source[..source.LastIndexOf('\n', source.Length - 2)] + "\n";
         var shifted = Text("Shifted by one line, 1,000,000 lines", source, shiftedText);
         Assert.Equal(2, shifted.Differences);
+        Assert.False(shifted.Heuristic); // split on unique lines, and provably the best: not labelled
 
         var edited = (string[])lines.Clone();
         for (int e = 0; e < 1000; e++) edited[rng.Next(Million)] = "edited " + e;
         var similar = Text("1,000 scattered edits, 1,000,000 lines", source, string.Join('\n', edited));
         Assert.InRange(similar.Differences, 900, 1000);
+        Assert.False(similar.Heuristic);
         Assert.DoesNotContain(similar.Blocks, b => b.Kind == DiffKind.Unaligned);
 
         // Unrelated: no line in common. Never reported equal; whatever is not aligned is labelled so.

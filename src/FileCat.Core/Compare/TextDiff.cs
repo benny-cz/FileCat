@@ -19,10 +19,17 @@ public enum DiffKind
 public sealed record DiffBlock(DiffKind Kind, int LeftStart, int LeftCount, int RightStart, int RightCount);
 
 /// <param name="Approximate">Some regions are <see cref="DiffKind.Unaligned"/> (plan §16.2: labelled, never presented as exact).</param>
-/// <param name="Differences">Number of non-equal blocks.</param>
+/// <param name="Differences">Number of non-equal blocks: the differences the comparison lists and steps through.</param>
 public sealed record TextDiffResult(IReadOnlyList<DiffBlock> Blocks, bool Approximate, int Differences)
 {
     public bool Identical => Differences == 0;
+
+    /// <summary>
+    /// A region too large to align exactly was split on the lines that occur once on each side (patience) and the result
+    /// is not provably the best: it can show more differences than the fewest possible (plan V13: labelled, never
+    /// presented as exact).
+    /// </summary>
+    public bool Heuristic { get; init; }
 }
 
 public sealed record TextDiffOptions(bool IgnoreWhitespace = false, bool IgnoreCase = false)
@@ -97,21 +104,46 @@ public sealed class TextSide
 }
 
 /// <summary>
-/// Line comparison (plan §16.2, TV-08): common prefix and suffix, patience-style anchors on lines unique to both sides,
-/// and a linear-space Myers alignment between anchors under a work budget. A region over budget is reported as
+/// Line comparison (plan §16.2, TV-08): common prefix and suffix; a region of up to <see cref="ExactUpTo"/> lines aligned
+/// exactly, with the fewest differences, by a linear-space Myers alignment under a work budget; a larger region (or one
+/// over the budget) first split on patience-style anchors, lines unique to both sides, and then labelled
+/// <see cref="TextDiffResult.Heuristic"/> unless provably the best. A region still over budget is reported as
 /// <see cref="DiffKind.Unaligned"/> rather than guessed. Line endings are compared separately (see
 /// <see cref="TerminatorDiffers"/>), so a file converted from CRLF to LF shows as such, not as every line changed.
 /// </summary>
 public static class TextDiff
 {
+    /// <summary>
+    /// Regions of up to this many lines (both sides together) are aligned exactly when the work budget allows; larger
+    /// ones are first split on the lines that occur once on each side, which keeps a million-line comparison fast.
+    /// </summary>
+    public const int ExactUpTo = 20_000;
+
     public static TextDiffResult Compare(IReadOnlyList<string> left, IReadOnlyList<string> right, TextDiffOptions? options = null, CancellationToken ct = default)
     {
         options ??= new TextDiffOptions();
         var ids = new Dictionary<string, int>(StringComparer.Ordinal);
         int[] a = Ids(left, ids, options, ct), b = Ids(right, ids, options, ct);
         var ops = new List<Step>();
-        Align(a, 0, a.Length, b, 0, b.Length, ops, options.RegionBudget, ct);
-        return ToBlocks(ops);
+        bool heuristic = false;
+        Align(a, 0, a.Length, b, 0, b.Length, ops, options.RegionBudget, ref heuristic, ct);
+        var result = ToBlocks(ops);
+        // Split on unique lines, the alignment is still the best possible when it pairs as many lines as the two sides
+        // could share at all: each distinct line at most as often as the side with fewer of it has it.
+        if (heuristic && !result.Approximate && result.Blocks.Where(x => x.Kind == DiffKind.Equal).Sum(x => (long)x.LeftCount) == MostShared(a, b, ids.Count)) heuristic = false;
+        return result with { Heuristic = heuristic };
+    }
+
+    /// <summary>How many lines two sides could pair at most: for each distinct line, the fewer of its occurrences.</summary>
+    private static long MostShared(int[] a, int[] b, int distinct)
+    {
+        var countA = new int[distinct];
+        var countB = new int[distinct];
+        foreach (int id in a) countA[id]++;
+        foreach (int id in b) countB[id]++;
+        long shared = 0;
+        for (int id = 0; id < distinct; id++) shared += Math.Min(countA[id], countB[id]);
+        return shared;
     }
 
     /// <summary>Whether two equal lines end differently (CRLF against LF): shown, never normalized away.</summary>
@@ -158,7 +190,7 @@ public static class TextDiff
         else ops.Add(new Step(op, left, right));
     }
 
-    private static void Align(int[] a, int aLo, int aHi, int[] b, int bLo, int bHi, List<Step> ops, long budget, CancellationToken ct)
+    private static void Align(int[] a, int aLo, int aHi, int[] b, int bLo, int bHi, List<Step> ops, long budget, ref bool heuristic, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         int prefix = 0;
@@ -172,30 +204,39 @@ public static class TextDiff
         bHi -= suffix;
         if (aLo == aHi) Emit(ops, Op.Insert, 0, bHi - bLo);
         else if (bLo == bHi) Emit(ops, Op.Delete, aHi - aLo, 0);
-        else if (Anchors(a, aLo, aHi, b, bLo, bHi, ct) is { Count: > 0 } anchors)
-        {
-            // Patience: align between the lines that occur exactly once on each side.
-            int pa = aLo, pb = bLo;
-            foreach (var (ia, ib) in anchors)
-            {
-                Align(a, pa, ia, b, pb, ib, ops, budget, ct);
-                Emit(ops, Op.Equal, 1, 1);
-                pa = ia + 1;
-                pb = ib + 1;
-            }
-            Align(a, pa, aHi, b, pb, bHi, ops, budget, ct);
-        }
         else
         {
-            var local = new List<Step>();
-            long work = 0;
-            if (Myers(a, aLo, aHi, b, bLo, bHi, local, budget, ref work, ct))
+            // Exactly where the region is small enough (V13's corpus: anchoring first on one line that happened to occur
+            // once on each side, 42 lines apart, called 84 lines different where an 11-line edit was).
+            bool small = aHi - aLo + bHi - bLo <= ExactUpTo;
+            if (small && Exact(a, aLo, aHi, b, bLo, bHi, ops, budget, ct)) { }
+            else if (Anchors(a, aLo, aHi, b, bLo, bHi, ct) is { Count: > 0 } anchors)
             {
-                foreach (var step in local) Emit(ops, step.Op, step.Left, step.Right);
+                // Patience: align between the lines that occur exactly once on each side.
+                heuristic = true;
+                int pa = aLo, pb = bLo;
+                foreach (var (ia, ib) in anchors)
+                {
+                    Align(a, pa, ia, b, pb, ib, ops, budget, ref heuristic, ct);
+                    Emit(ops, Op.Equal, 1, 1);
+                    pa = ia + 1;
+                    pb = ib + 1;
+                }
+                Align(a, pa, aHi, b, pb, bHi, ops, budget, ref heuristic, ct);
             }
-            else ops.Add(new Step(Op.Unaligned, aHi - aLo, bHi - bLo));
+            else if (small || !Exact(a, aLo, aHi, b, bLo, bHi, ops, budget, ct)) ops.Add(new Step(Op.Unaligned, aHi - aLo, bHi - bLo));
         }
         Emit(ops, Op.Equal, suffix, suffix);
+    }
+
+    /// <summary>The fewest-differences alignment of a region (Myers), emitted; false, with nothing emitted, over the budget.</summary>
+    private static bool Exact(int[] a, int aLo, int aHi, int[] b, int bLo, int bHi, List<Step> ops, long budget, CancellationToken ct)
+    {
+        var local = new List<Step>();
+        long work = 0;
+        if (!Myers(a, aLo, aHi, b, bLo, bHi, local, budget, ref work, ct)) return false;
+        foreach (var step in local) Emit(ops, step.Op, step.Left, step.Right);
+        return true;
     }
 
     /// <summary>Lines unique on both sides, in the longest increasing order of their positions.</summary>
@@ -370,10 +411,23 @@ public static class TextDiff
             }
             i--;
             int paired = Math.Min(del, ins);
-            if (paired > 0) blocks.Add(new DiffBlock(DiffKind.Changed, la, paired, lb, paired));
-            if (del > paired) blocks.Add(new DiffBlock(DiffKind.LeftOnly, la + paired, del - paired, lb + paired, 0));
-            if (ins > paired) blocks.Add(new DiffBlock(DiffKind.RightOnly, la + del, 0, lb + paired, ins - paired));
-            differences++;
+            // Each block is a difference of its own, as the comparison lists them and steps through them: changed lines
+            // followed by lines only on one side are two (V13's corpus: the summary said 1 where the list had 2).
+            if (paired > 0)
+            {
+                blocks.Add(new DiffBlock(DiffKind.Changed, la, paired, lb, paired));
+                differences++;
+            }
+            if (del > paired)
+            {
+                blocks.Add(new DiffBlock(DiffKind.LeftOnly, la + paired, del - paired, lb + paired, 0));
+                differences++;
+            }
+            if (ins > paired)
+            {
+                blocks.Add(new DiffBlock(DiffKind.RightOnly, la + del, 0, lb + paired, ins - paired));
+                differences++;
+            }
             la += del;
             lb += ins;
         }
