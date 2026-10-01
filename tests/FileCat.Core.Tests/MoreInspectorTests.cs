@@ -280,7 +280,7 @@ public sealed class MoreInspectorTests
         return new Writer().U16(3).U16(8).U32((uint)(8 + b.Length)).Bytes(b).ToArray();
     }
 
-    private static byte[] Zip(params (string Name, byte[] Data)[] entries)
+    internal static byte[] Zip(params (string Name, byte[] Data)[] entries)
     {
         var ms = new MemoryStream();
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))

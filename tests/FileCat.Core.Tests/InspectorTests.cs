@@ -68,7 +68,7 @@ public sealed class InspectorTests
         return c;
     }
 
-    private static byte[] Png()
+    internal static byte[] Png()
     {
         var ihdr = new byte[13];
         BinaryPrimitives.WriteInt32BigEndian(ihdr, 640);
@@ -85,7 +85,7 @@ public sealed class InspectorTests
             .Concat(Chunk("pHYs", phys)).Concat(Chunk("tEXt", "Title\0Sunset"u8.ToArray())).Concat(Chunk("IEND", [])).ToArray();
     }
 
-    private static byte[] Jpeg()
+    internal static byte[] Jpeg()
     {
         // EXIF (little-endian TIFF): orientation 6, camera maker "Acme".
         var tiff = new List<byte>();
@@ -102,7 +102,7 @@ public sealed class InspectorTests
             .Concat(new byte[] { 0xFF, 0xC2, 0, (byte)(sof.Length + 2) }).Concat(sof).Concat(new byte[] { 0xFF, 0xD9 }).ToArray();
     }
 
-    private static byte[] Gif()
+    internal static byte[] Gif()
     {
         var frame = new byte[] { 0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0 };
         var loop = new byte[] { 0x21, 0xFF, 11 }.Concat("NETSCAPE2.0"u8.ToArray()).Concat(new byte[] { 3, 1, 0, 0, 0 }).ToArray();
