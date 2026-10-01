@@ -64,6 +64,16 @@ public sealed class ArchiveFuzzTests : IDisposable
         }
     }
 
+    /// <summary>Rounds that once failed in long runs, kept so every run repeats them.</summary>
+    [Theory]
+    [InlineData("tar", 97053)] // release issue I58: a PAX header's damaged size made .NET's TarReader take 512 MiB for a 31 KiB archive
+    [InlineData("Rar.rar", 248010)] // a PPMd block asking for the most model memory RAR 4 allows (see the budget)
+    public void Rounds_that_once_failed_stay_fixed(string format, int round)
+    {
+        var fuzz = new Fuzz(format, Original(format), _dir.Dir("fuzz"));
+        fuzz.Round(round);
+    }
+
     /// <summary>
     /// The time the archives made here carry: always the same, so a round's damage falls on the same bytes in every run
     /// (with the time of the run in them, a failing round did not fail again on its own).
@@ -130,8 +140,13 @@ public sealed class ArchiveFuzzTests : IDisposable
         private readonly string _path;
         private readonly string _baseline;
 
-        /// <summary>What one round may allocate (FILECAT_ARCHIVE_FUZZ_ALLOC_MB, by default 512 MiB): the archives are small.</summary>
-        private static long Budget => long.TryParse(Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_FUZZ_ALLOC_MB"), out var mb) ? mb << 20 : 512L << 20;
+        /// <summary>
+        /// What one round may allocate (FILECAT_ARCHIVE_FUZZ_ALLOC_MB, by default 512 MiB): the archives are small. RAR 4 is
+        /// let have more: a PPMd block names the memory its model needs, up to 256 MiB, which unrar allocates as well, and
+        /// SharpCompress takes it from the shared array pool, which hands out 512 MiB for it (round 248010 took 517 MiB).
+        /// </summary>
+        private long Budget => long.TryParse(Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_FUZZ_ALLOC_MB"), out var mb) ? mb << 20
+            : _format == "Rar.rar" ? 640L << 20 : 512L << 20;
 
         public long MostAllocated { get; private set; }
         public int MostAllocatedRound { get; private set; }

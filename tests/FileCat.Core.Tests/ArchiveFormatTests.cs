@@ -256,6 +256,115 @@ public sealed class ArchiveFormatTests : IDisposable
         Assert.Equal(outerTar + Path.DirectorySeparatorChar + "packed.zip", zip.GetDisplayPath(zipRoot));
     }
 
+    /// <summary>Where each header of a TAR starts (the data of each follows it, padded to 512 bytes).</summary>
+    private static IEnumerable<int> TarHeaders(byte[] tar)
+    {
+        for (int at = 0; at + 512 <= tar.Length && tar.AsSpan(at, 512).ContainsAnyExcept((byte)0);)
+        {
+            yield return at;
+            long size = Convert.ToInt64(System.Text.Encoding.ASCII.GetString(tar, at + 124, 12).Trim('\0', ' '), 8);
+            at += 512 + (int)((size + 511) / 512 * 512);
+        }
+    }
+
+    /// <summary>Writes a header's size field and makes its checksum right again, as a crafted archive would.</summary>
+    private static void SetTarSize(byte[] tar, int header, long size)
+    {
+        System.Text.Encoding.ASCII.GetBytes(Convert.ToString(size, 8).PadLeft(11, '0') + "\0").CopyTo(tar, header + 124);
+        "        "u8.CopyTo(tar.AsSpan(header + 148));
+        int sum = 0;
+        foreach (byte b in tar.AsSpan(header, 512)) sum += b;
+        System.Text.Encoding.ASCII.GetBytes(Convert.ToString(sum, 8).PadLeft(6, '0') + "\0 ").CopyTo(tar, header + 148);
+    }
+
+    private static TarEntry TarFile(TarEntryFormat format, string name, byte[] data, Dictionary<string, string>? attributes = null)
+    {
+        TarEntry entry = format == TarEntryFormat.Pax
+            ? attributes is null ? new PaxTarEntry(TarEntryType.RegularFile, name) : new PaxTarEntry(TarEntryType.RegularFile, name, attributes)
+            : new GnuTarEntry(TarEntryType.RegularFile, name);
+        entry.DataStream = new MemoryStream(data);
+        return entry;
+    }
+
+    private string SaveTar(byte[] tar, bool gzip, string name)
+    {
+        var path = Path.Combine(_dir.Path, name + (gzip ? ".tar.gz" : ".tar"));
+        using var file = File.Create(path);
+        if (!gzip) file.Write(tar);
+        else
+            using (var gz = new GZipStream(file, CompressionLevel.Fastest)) gz.Write(tar);
+        return path;
+    }
+
+    /// <summary>
+    /// The third member's metadata header (a PAX extended header, a GNU long name) claims 300,000,000 bytes, with a right
+    /// checksum: .NET's TarReader rented 512 MiB for such a header before finding the data missing (release issue I58,
+    /// archive damage round 97053). The listing ends there and says why, having taken little memory; the headers before it
+    /// (a global PAX header, members with data, a folder) are followed to find that one, compressed or not.
+    /// </summary>
+    [Theory]
+    [InlineData(TarEntryFormat.Pax, false)]
+    [InlineData(TarEntryFormat.Pax, true)]
+    [InlineData(TarEntryFormat.Gnu, false)]
+    [InlineData(TarEntryFormat.Gnu, true)]
+    public void A_TAR_member_claiming_more_metadata_than_FileCat_reads_ends_the_list_without_taking_the_memory(TarEntryFormat format, bool gzip)
+    {
+        using var tar = new MemoryStream();
+        using (var writer = new TarWriter(tar, format, leaveOpen: true))
+        {
+            if (format == TarEntryFormat.Pax) writer.WriteEntry(new PaxGlobalExtendedAttributesTarEntry(new Dictionary<string, string> { ["comment"] = "made by a test" }));
+            for (int i = 0; i < 5; i++)
+            {
+                // Names over 100 characters: GNU puts each in a long-name member of its own, PAX in the extended header.
+                writer.WriteEntry(TarFile(format, $"folder/{new string((char)('a' + i), 120)}.txt", new byte[700 + 300 * i]));
+                if (i == 0) writer.WriteEntry(format == TarEntryFormat.Pax ? new PaxTarEntry(TarEntryType.Directory, "empty/") : new GnuTarEntry(TarEntryType.Directory, "empty/"));
+            }
+        }
+        var bytes = tar.ToArray();
+        int third = TarHeaders(bytes).First(h => bytes[h + 156] is (byte)'x' or (byte)'L' && System.Text.Encoding.ASCII.GetString(bytes, h + 512, 1024).Contains(new string('c', 120)));
+        SetTarSize(bytes, third, 300_000_000);
+        var path = SaveTar(bytes, gzip, "claims");
+
+        var (_, archives, _) = Providers();
+        var issues = new List<string>();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var listed = List(archives, archives.GetContainerLocation(path)!.WithPath("folder"), issues);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(2, listed.Count);
+        Assert.Contains(issues, i => i.Contains("bytes of metadata, more than FileCat reads") && i.Contains("damaged"));
+        Assert.True(allocated < 32L << 20, $"{allocated >> 20} MiB allocated listing a {bytes.Length >> 10} KiB archive.");
+    }
+
+    /// <summary>Large metadata that is really there is read: a 2 MiB PAX attribute, a GNU name of 5,000 characters.</summary>
+    [Theory]
+    [InlineData(TarEntryFormat.Pax, false)]
+    [InlineData(TarEntryFormat.Pax, true)]
+    [InlineData(TarEntryFormat.Gnu, false)]
+    [InlineData(TarEntryFormat.Gnu, true)]
+    public void A_TAR_with_large_metadata_that_is_there_lists_and_reads_whole(TarEntryFormat format, bool gzip)
+    {
+        string big = format == TarEntryFormat.Pax ? "big.txt" : string.Join('/', Enumerable.Range(0, 40).Select(i => $"{i:D3}" + new string('n', 120))) + "/big.txt";
+        using var tar = new MemoryStream();
+        using (var writer = new TarWriter(tar, format, leaveOpen: true))
+        {
+            writer.WriteEntry(TarFile(format, "first.txt", new byte[1000]));
+            writer.WriteEntry(TarFile(format, big, Enumerable.Range(0, 3000).Select(i => (byte)i).ToArray(),
+                format == TarEntryFormat.Pax ? new Dictionary<string, string> { ["SCHILY.xattr.user.big"] = new string('x', 2 << 20) } : null));
+            writer.WriteEntry(TarFile(format, "last.txt", "last"u8.ToArray()));
+        }
+        var bytes = tar.ToArray();
+        Assert.Contains(TarHeaders(bytes), h => bytes[h + 156] is (byte)'x' or (byte)'L');
+        var path = SaveTar(bytes, gzip, "large");
+
+        var (_, archives, _) = Providers();
+        var issues = new List<string>();
+        var root = archives.GetContainerLocation(path)!;
+        string[] expected = format == TarEntryFormat.Pax ? ["big.txt", "first.txt", "last.txt"] : ["000" + new string('n', 120), "first.txt", "last.txt"];
+        Assert.Equal(expected, List(archives, root, issues).Select(e => e.Name).Order(StringComparer.Ordinal));
+        Assert.Empty(issues);
+        Assert.Equal("last", System.Text.Encoding.ASCII.GetString(Read(archives, root, "last.txt")));
+    }
+
     [Fact]
     public void Damaged_archives_of_every_format_report_damage_never_other_errors()
     {
