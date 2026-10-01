@@ -49,7 +49,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
 | 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B10 reviewed (I16); P07's loader audit (V06), P13 and the other B rows remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B06 and B10 reviewed (I16; `34c4b9d`); P07's loader audit (V06), P13 and the other B rows remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
@@ -247,7 +247,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 1. Collect the fuzz campaign's results (E-I28-C1): the host's re-run of the lost ranges, the Mac's 8.1–9.1 M, Ubuntu's
    queue.
-2. Continue the V23 source review in risk order: B08 (I09), B06, B05, B01–B03, B11; I16's independent file, network and
+2. Continue the V23 source review in risk order: B08 (I09), B05, B01–B03, B11; I16's independent file, network and
    process evidence.
 3. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 4. Keep the records current after each change.
