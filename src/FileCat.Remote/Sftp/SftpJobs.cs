@@ -514,6 +514,18 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     start = 0;
                     Issue(IssueSeverity.Info, dst, "The upload was interrupted and went again from the start: over this connection that is quicker than continuing where the server's copy ends.", StepOutcome.Committed);
                 }
+                // Where the server's copy is continued, it is opened first: a server that cannot continue (an FTP server
+                // refusing APPE, I47) makes the upload start again instead.
+                Stream? appendTo = null;
+                if (start > 0)
+                {
+                    try { appendTo = Channel.OpenWriteAt(temp!, start); }
+                    catch (NotSupportedException ex)
+                    {
+                        start = 0;
+                        Issue(IssueSeverity.Info, dst, $"The upload was interrupted and went again from the start: {ex.Message}.", StepOutcome.Committed);
+                    }
+                }
                 if (start == 0)
                 {
                     DiscardTemp(destFolder, temp);
@@ -525,6 +537,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 Job.AddBytes(start - written);
                 written = start;
+                using (appendTo)
                 using (var input = openSource())
                 {
                     if (start > 0) input.Seek(start, SeekOrigin.Begin);
@@ -548,11 +561,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     });
                     // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
                     if (start == 0) Channel.UploadNew(paced, temp!);
-                    else
-                    {
-                        using var output = Channel.OpenWriteAt(temp!, start);
-                        paced.CopyTo(output, BufferSize);
-                    }
+                    else paced.CopyTo(appendTo!, BufferSize);
                 }
                 bool keepTime = Options.PreserveTimestamps && incoming.ModifiedUtc > DateTime.MinValue;
                 if (keepTime) Channel.SetModified(temp!, incoming.ModifiedUtc);

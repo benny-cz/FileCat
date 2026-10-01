@@ -14,6 +14,12 @@ public interface IRemoteEntry
     long Size { get; }
     DateTime ModifiedUtc { get; }
 
+    /// <summary>
+    /// How precisely the listing states <see cref="ModifiedUtc"/>: zero when exact; a minute or a day for an FTP server's
+    /// LIST ("Oct 01 05:09", "Mar 04  2021"), where the time is the start of that minute or day (release issue I45).
+    /// </summary>
+    TimeSpan ModifiedPrecision => TimeSpan.Zero;
+
     /// <summary>Removes exactly this entry: a file, a link (never its target), or an empty folder.</summary>
     void Delete();
 

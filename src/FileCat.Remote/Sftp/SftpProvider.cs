@@ -151,6 +151,7 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
                 long size = e.Size;
                 var modified = e.ModifiedUtc;
                 var flags = e.Name.StartsWith('.') ? EntryFlags.Hidden : EntryFlags.None;
+                var precision = EntryTimes.FlagFor(e.ModifiedPrecision);
                 if (e.IsLink)
                 {
                     // Show what the link points to; the link itself is what delete and rename act on.
@@ -160,10 +161,11 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
                         kind = target.IsDirectory ? EntryKind.Directory : EntryKind.File;
                         size = target.Size;
                         modified = target.ModifiedUtc;
+                        precision = EntryFlags.None; // a stat states the time to the second
                     }
                     else flags |= EntryFlags.Unavailable;
                 }
-                batch.Add(new EntryData(e.Name, kind, kind == EntryKind.Directory ? -1 : size, modified.Ticks) { Flags = flags });
+                batch.Add(new EntryData(e.Name, kind, kind == EntryKind.Directory ? -1 : size, modified.Ticks) { Flags = flags | precision });
             }
             sink.AddBatch(batch.ToArray());
         }

@@ -93,6 +93,25 @@ public sealed class FtpJobTests : IDisposable
     }
 
     [Theory]
+    // Release issue I45: how precisely each listing line states its time.
+    [InlineData("type=file;size=1001;modify=20261001050906;perm=adfrw; f1.bin", 0)]
+    [InlineData("-rw-r--r--    1 1001     1001         1001 Oct 01 05:09 f1.bin", 60)]
+    [InlineData("-rw-r--r--    1 1001     1001         1001 Mar 04  2021 note 00.bin", 86400)]
+    [InlineData("lrwxrwxrwx    1 ftp      ftp            10 Jan 15  2019 link -> target.txt", 86400)]
+    [InlineData("10-01-26  05:09AM                 1001 f1.bin", 60)]
+    [InlineData(null, 0)]
+    public void A_listing_line_states_its_time_to_the_second_minute_or_day(string? line, int seconds) =>
+        Assert.Equal(TimeSpan.FromSeconds(seconds), FtpChannel.TimePrecision(line));
+
+    [Fact]
+    public void A_servers_reply_is_quoted_in_its_own_words()
+    {
+        // FluentFTP's message repeats the code first; FileCat names the code once, after the server's words.
+        var ex = new FluentFTP.Exceptions.FtpCommandException("451", "x.bin: Append/Restart not permitted, try again");
+        Assert.Equal("x.bin: Append/Restart not permitted, try again", FtpChannel.ReplyText(ex));
+    }
+
+    [Theory]
     [InlineData("ftp://files.example/pub", RemoteProtocols.Ftp, 21, "anonymous", "/pub")]
     [InlineData("ftpes://me@files.example", RemoteProtocols.FtpExplicitTls, 21, "me", "~")]
     [InlineData("ftps://me@files.example:2990/data", RemoteProtocols.FtpImplicitTls, 2990, "me", "/data")]

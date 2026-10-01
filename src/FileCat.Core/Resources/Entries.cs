@@ -57,6 +57,42 @@ public enum EntryFlags : ushort
     Protected = 1 << 11,
     /// <summary>Directory size in <see cref="EntryData.Size"/> was computed explicitly.</summary>
     SizeComputed = 1 << 12,
+    /// <summary>
+    /// <see cref="EntryData.Modified"/> is known only to the minute: a listing that states no more (FTP's LIST, for files
+    /// of the last half year). The value is the minute's start; the item changed within it (release issue I45).
+    /// </summary>
+    TimeToMinute = 1 << 13,
+    /// <summary>The same to the day (FTP's LIST for older files: "Mar 04  2021"); the value is the day's start in UTC.</summary>
+    TimeToDay = 1 << 14,
+}
+
+/// <summary>
+/// Modified times as listings state them: exact, or only to the minute or the day (<see cref="EntryFlags.TimeToMinute"/>,
+/// <see cref="EntryFlags.TimeToDay"/>). Such a time stands for every moment of its minute or day, and is compared so.
+/// </summary>
+public static class EntryTimes
+{
+    /// <summary>How long the stated time stands for: zero when exact.</summary>
+    public static TimeSpan PrecisionOf(EntryFlags flags) =>
+        (flags & EntryFlags.TimeToDay) != 0 ? TimeSpan.FromDays(1) : (flags & EntryFlags.TimeToMinute) != 0 ? TimeSpan.FromMinutes(1) : TimeSpan.Zero;
+
+    /// <summary>The flag for a listing that states times to <paramref name="precision"/>; none for exact times.</summary>
+    public static EntryFlags FlagFor(TimeSpan precision) =>
+        precision >= TimeSpan.FromDays(1) ? EntryFlags.TimeToDay : precision >= TimeSpan.FromMinutes(1) ? EntryFlags.TimeToMinute : EntryFlags.None;
+
+    /// <summary>
+    /// Which of two items changed later, at <paramref name="tolerance"/> (a file system's own precision): +1 the first,
+    /// -1 the second, 0 when their times may be the same (each a moment within its minute or day), and null when either
+    /// time is unknown.
+    /// </summary>
+    public static int? Compare(in EntryData a, in EntryData b, TimeSpan tolerance)
+    {
+        if (a.Modified <= 0 || b.Modified <= 0) return null;
+        long aEnd = a.Modified + PrecisionOf(a.Flags).Ticks, bEnd = b.Modified + PrecisionOf(b.Flags).Ticks;
+        if (a.Modified > bEnd + tolerance.Ticks) return 1;
+        if (b.Modified > aEnd + tolerance.Ticks) return -1;
+        return 0;
+    }
 }
 
 /// <summary>

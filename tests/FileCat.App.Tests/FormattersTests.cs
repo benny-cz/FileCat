@@ -65,4 +65,35 @@ public sealed class FormattersTests
             CultureInfo.CurrentCulture = culture;
         }
     }
+
+    /// <summary>
+    /// Release issue I45: a time a listing states only to the minute, or the day, is shown so — never with seconds or a
+    /// time of day nobody stated — and a day is the server's, not moved into another date by this computer's zone.
+    /// </summary>
+    [Theory]
+    [InlineData("Culture", "minute", @"^\d{1,2}/\d{1,2}/\d{4},?\s\d{1,2}:\d{2}\s(AM|PM)$")]
+    [InlineData("Culture", "day", @"^3/4/2021$")]
+    [InlineData("dd.MM.yyyy HH:mm:ss", "minute", @"^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$")]
+    [InlineData("dd.MM.yyyy HH:mm:ss", "day", @"^04\.03\.2021$")]
+    [InlineData("yyyy-MM-dd HH:mm", "day", @"^2021-03-04$")]
+    [InlineData("MM/dd/yyyy h:mm tt", "minute", @"^\d{2}/\d{2}/\d{4} \d{1,2}:\d{2} (AM|PM)$")]
+    [InlineData("dd.MM.yyyy HH:mm:ss", "exact", @"^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}$")]
+    public void A_coarse_listing_time_is_shown_only_as_far_as_it_is_known(string format, string precision, string pattern)
+    {
+        string saved = Formatters.DateFormat;
+        var culture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            Formatters.DateFormat = format;
+            var flags = precision switch { "minute" => Core.Resources.EntryFlags.TimeToMinute, "day" => Core.Resources.EntryFlags.TimeToDay, _ => Core.Resources.EntryFlags.None };
+            var entry = new Core.Resources.EntryData("f", Core.Resources.EntryKind.File, 1, new DateTime(2021, 3, 4, 0, 0, 0, DateTimeKind.Utc).Ticks) { Flags = flags };
+            Assert.Matches(new Regex(pattern), Formatters.Date(entry, seconds: true));
+        }
+        finally
+        {
+            Formatters.DateFormat = saved;
+            CultureInfo.CurrentCulture = culture;
+        }
+    }
 }

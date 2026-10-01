@@ -77,7 +77,7 @@ public static class DirectoryCompare
             }
             bool differs = false;
             if ((criteria & CompareCriteria.Size) != 0 && l.Size != r.Size) differs = true;
-            if (!differs && (criteria & CompareCriteria.Time) != 0 && Math.Abs(l.Modified - r.Modified) > tolerance.Ticks) differs = true;
+            if (!differs && (criteria & CompareCriteria.Time) != 0 && EntryTimes.Compare(l, r, tolerance) is not (0 or null)) differs = true;
             if (!differs && (criteria & CompareCriteria.Content) != 0 && contentEqual is not null)
             {
                 if (l.Size != r.Size) differs = true;

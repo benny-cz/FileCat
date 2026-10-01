@@ -142,6 +142,36 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_dropped_upload_starts_again_where_the_server_will_not_continue_it()
+    {
+        // Release issue I47: ProFTPD refused APPE after a break, and every Retry was refused the same way.
+        var data = new byte[3 * 1024 * 1024 + 5];
+        new Random(4).NextBytes(data);
+        string big = Path.Combine(_local, "big.bin");
+        File.WriteAllBytes(big, data);
+        _server.Dir("/up");
+        _server.ContinuesUploads = false;
+        _server.DropAfterBytes = 2 * 1024 * 1024 + 17;
+        var job = _jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)], Destination = Remote("/up") });
+        int asked = 0;
+        while (!job.State.IsFinished())
+        {
+            if (job.Decision is { Task.IsCompleted: false } d)
+            {
+                asked++;
+                _server.Down = false;
+                d.Resolve(new Decision(DecisionAction.Retry));
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(1, asked); // the break only: the refusal to continue is not a question
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(data, _server.Lookup("/up/big.bin", true)!.Data);
+        Assert.Contains(job.Issues, i => i.Message.Contains("went again from the start: the server does not continue uploads", StringComparison.Ordinal));
+        Assert.Equal(["big.bin"], Names("/up")); // the partial copy went
+    }
+
+    [Fact]
     public async Task Uploads_keep_modified_times_and_say_so_where_the_server_does_not()
     {
         // Release issue I43: vsftpd has no MFMT, so FileCat sent no time, and every upload silently showed its arrival.

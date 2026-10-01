@@ -120,9 +120,9 @@ public static class TreeCompare
         TreeDiffEntry CompareFiles(string path, Location l, EntryData le, Location r, EntryData re)
         {
             bool sizeDiffers = (criteria & (CompareCriteria.Size | CompareCriteria.Content)) != 0 && le.Size >= 0 && re.Size >= 0 && le.Size != re.Size;
-            long dt = le.Modified - re.Modified;
-            bool timeKnown = le.Modified > 0 && re.Modified > 0;
-            bool timeDiffers = (criteria & CompareCriteria.Time) != 0 && timeKnown && Math.Abs(dt) > tolerance.Ticks;
+            // A time a listing states only to the minute or the day stands for all of it (an FTP server's LIST, I45).
+            int newer = (criteria & CompareCriteria.Time) != 0 ? EntryTimes.Compare(le, re, tolerance) ?? 0 : 0;
+            bool timeDiffers = newer != 0;
             string? detail = null;
             bool contentDiffers = false;
             if (!sizeDiffers && (criteria & CompareCriteria.Content) != 0)
@@ -143,7 +143,7 @@ public static class TreeCompare
             if (!sizeDiffers && !timeDiffers && !contentDiffers) return new TreeDiffEntry(path, TreeDiffKind.Same, le, re);
             if (sizeDiffers) detail = $"Sizes {le.Size:N0} and {re.Size:N0} bytes";
             else if (contentDiffers) detail = "Same size, different content";
-            if (timeDiffers) return new TreeDiffEntry(path, dt > 0 ? TreeDiffKind.LeftNewer : TreeDiffKind.RightNewer, le, re, detail);
+            if (timeDiffers) return new TreeDiffEntry(path, newer > 0 ? TreeDiffKind.LeftNewer : TreeDiffKind.RightNewer, le, re, detail);
             return new TreeDiffEntry(path, TreeDiffKind.Different, le, re, detail);
         }
 

@@ -88,6 +88,7 @@ public sealed class RemoteLabTests : IDisposable
         public required JobManager Jobs { get; init; }
         public required RemoteProfile Profile { get; init; }
         public required LabOps Files { get; init; }
+        public required ProviderRegistry Providers { get; init; }
 
         public void Dispose() => Connections.Dispose();
     }
@@ -104,7 +105,7 @@ public sealed class RemoteLabTests : IDisposable
         providers.Register(new SftpProvider(connections, () => [profile], p => p));
         SftpJobs.Register();
         var files = new LabOps();
-        return new Stack { Connections = connections, Profile = profile, Files = files, Jobs = new JobManager(files, providers, Path.Combine(state, "journal")) };
+        return new Stack { Connections = connections, Profile = profile, Files = files, Providers = providers, Jobs = new JobManager(files, providers, Path.Combine(state, "journal")) };
     }
 
     /// <summary>
@@ -310,11 +311,11 @@ public sealed class RemoteLabTests : IDisposable
             while (!job.State.IsFinished() && DateTime.UtcNow < deadline) await Task.Delay(50, ct);
             string story = $"{job.State}; asked: {string.Join(" | ", asked)}; issues: {string.Join(" | ", job.Issues.Select(i => i.Message))}";
             Assert.True(job.State == JobState.Completed, story);
-            // It continued after the part on the server was checked, rather than starting again; over SFTP, where
-            // continuing writes one request at a time, a slow link can make starting again the quicker way (I39), which
-            // the job then says.
+            // It continued after the part on the server was checked, or started again and said why: over SFTP a slow link
+            // can make that the quicker way (I39), and some FTP servers do not continue files at all (ProFTPD without
+            // AllowStoreRestart, I47).
             Assert.Contains(job.Issues, i => i.Message.Contains("continued at", StringComparison.Ordinal)
-                || protocol == "sftp" && i.Message.Contains("went again from the start", StringComparison.Ordinal));
+                || i.Message.Contains("went again from the start: ", StringComparison.Ordinal));
             // Intact on the server, read back through a fresh connection; nothing else left beside it.
             using var check = stack.Connections.Lease(profile.Id, ct);
             var entries = check.Channel.List(remoteRoot, ct);
@@ -670,6 +671,12 @@ public sealed class RemoteLabTests : IDisposable
                 Walk(RemotePath.Combine(remoteRoot, "Lab tree"), "");
                 Assert.Equal(expected.OrderBy(p => p.Key), seen.OrderBy(p => p.Key));
                 Assert.All(times, t => Assert.True(Near(seenTimes[t.Key], t.Value), $"{t.Key}: {seenTimes[t.Key]:o} on the server, {t.Value:o} sent"));
+                // Comparing the tree with its copy by size and time finds them the same, also where the server's listing
+                // gives the time only to the day (vsftpd's LIST for files over half a year old; I45).
+                var compared = Core.Compare.TreeCompare.Compare(stack.Providers, Location.FileSystem(local), SftpProvider.At(profile, remoteRoot + "/Lab tree"),
+                    Core.Compare.CompareCriteria.Size | Core.Compare.CompareCriteria.Time, TimeSpan.FromSeconds(2), false, ct);
+                Assert.True(compared.Complete);
+                Assert.All(compared.Entries, e => Assert.True(e.Kind == Core.Compare.TreeDiffKind.Same, $"{e.RelativePath}: {e.Kind} {e.Detail}"));
                 Assert.Contains(lease.Channel.List(RemotePath.Combine(remoteRoot, "Lab tree/Žluťoučký kůň"), ct), e => e.Name == "empty" && e.IsDirectory);
             }
 

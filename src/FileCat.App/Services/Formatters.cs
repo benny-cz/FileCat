@@ -56,6 +56,42 @@ public static class Formatters
         DateFormat == "Culture" ? local.ToString("G", CultureInfo.CurrentCulture) : local.ToString(DateFormat, CultureInfo.InvariantCulture);
 
     /// <summary>
+    /// An item's modified time as far as its listing states it (release issue I45): an FTP server's LIST gives only the
+    /// minute, or for older files the day, and showing seconds (or a time of day) would show what nobody stated. A day is
+    /// the server's (UTC), so it is not moved into this computer's time zone, which could change the date.
+    /// </summary>
+    public static string Date(in EntryData e, bool seconds = false)
+    {
+        if (e.Modified <= 0) return string.Empty;
+        if ((e.Flags & EntryFlags.TimeToDay) != 0)
+        {
+            var day = new DateTime(e.Modified, DateTimeKind.Utc);
+            return DateFormat == "Culture" ? day.ToString("d", CultureInfo.CurrentCulture) : day.ToString(DatePart(DateFormat), CultureInfo.InvariantCulture);
+        }
+        if ((e.Flags & EntryFlags.TimeToMinute) != 0)
+        {
+            var local = new DateTime(e.Modified, DateTimeKind.Utc).ToLocalTime();
+            return DateFormat == "Culture" ? local.ToString("g", CultureInfo.CurrentCulture) : local.ToString(WithoutSeconds(DateFormat), CultureInfo.InvariantCulture);
+        }
+        return seconds ? DateWithSeconds(e.Modified) : Date(e.Modified);
+    }
+
+    /// <summary>A .NET date format up to its time (hours, minutes, seconds, AM/PM): "dd.MM.yyyy HH:mm:ss" → "dd.MM.yyyy".</summary>
+    internal static string DatePart(string format)
+    {
+        int time = format.IndexOfAny(['H', 'h', 'm', 's', 't', 'f', 'F']);
+        string date = (time < 0 ? format : format[..time]).TrimEnd(' ', ',', 'T', '-', '/', '.', ':');
+        return date.Length > 0 ? date : "d";
+    }
+
+    /// <summary>A .NET date format without seconds and their fractions: "dd.MM.yyyy HH:mm:ss" → "dd.MM.yyyy HH:mm".</summary>
+    internal static string WithoutSeconds(string format)
+    {
+        string f = System.Text.RegularExpressions.Regex.Replace(format, @"[:.]?s{1,2}([.,][fF]+)?", "");
+        return f.Length > 0 ? f : "g";
+    }
+
+    /// <summary>
     /// A time as the date columns show it, with seconds (conflicts compare times a minute apart): the culture's long
     /// time ("9/29/2026 5:29:34 AM"), or the chosen format with seconds after its minutes.
     /// </summary>

@@ -120,7 +120,7 @@ public sealed class QuickViewPane : Border
             ShowMessage("Quick view shows file contents. Ctrl+Q closes it; the panel's location stays the copy destination.");
             return;
         }
-        _info.Text = $"{Formatters.ExactSize(e.Size)} · {Formatters.Date(e.Modified)}";
+        _info.Text = $"{Formatters.ExactSize(e.Size)} · {Formatters.Date(e)}";
         if (e.Has(EntryFlags.Offline))
         {
             ShowMessage("This is a cloud placeholder; quick view does not download it. Press F3 to open it explicitly.");

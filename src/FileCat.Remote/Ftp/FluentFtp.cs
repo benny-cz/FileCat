@@ -170,7 +170,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         }
         catch (FtpCommandException ex)
         {
-            throw new IOException($"The server refused: {ex.Message} ({ex.CompletionCode})", ex);
+            throw new IOException($"The server refused: {ReplyText(ex)} ({ex.CompletionCode})", ex);
         }
         catch (Exception ex) when (ex is SocketException or TimeoutException || ex is IOException && !_client.IsConnected)
         {
@@ -181,6 +181,12 @@ internal sealed partial class FtpChannel : ISftpChannel
             throw new IOException(RemoteErrorText.Reason(ex), ex);
         }
     }
+
+    /// <summary>The server's own words: FluentFTP's message repeats the code first ("Code: 451 Message: …").</summary>
+    internal static string ReplyText(FtpCommandException ex) => ReplyPrefix().Replace(ex.Message, "");
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^Code:\s*\d+\s*Message:\s*")]
+    private static partial System.Text.RegularExpressions.Regex ReplyPrefix();
 
     internal void Run(Action action) => Run(() =>
     {
@@ -198,7 +204,7 @@ internal sealed partial class FtpChannel : ISftpChannel
             string name = ExactName(item.Name, item.Input, item.Type == FtpObjectType.Link ? item.LinkTarget : null);
             if (name is "." or ".." or "") continue;
             list.Add(new FtpEntry(this, _client, name, RemotePath.Combine(path, name), item.Type == FtpObjectType.Directory,
-                item.Type == FtpObjectType.Link, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified)));
+                item.Type == FtpObjectType.Link, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified), TimePrecision(item.Input)));
         }
         return (IReadOnlyList<IRemoteEntry>)list;
     });
@@ -229,6 +235,23 @@ internal sealed partial class FtpChannel : ISftpChannel
     }
 
     private static DateTime Utc(DateTime t) => t == DateTime.MinValue ? DateTime.MinValue : t.Kind == DateTimeKind.Utc ? t : DateTime.SpecifyKind(t, DateTimeKind.Utc);
+
+    /// <summary>
+    /// How precisely a listing line states its time (release issue I45): MLSD's "modify=" fact to the second; a Unix-style
+    /// LIST line (vsftpd's) to the minute for the last half year ("Oct 01 05:09") and to the day for older files
+    /// ("Mar 04  2021"); other LIST formats (DOS-style "10-01-26  05:09AM") to the minute.
+    /// </summary>
+    internal static TimeSpan TimePrecision(string? line)
+    {
+        if (string.IsNullOrEmpty(line) || line.Contains("modify=", StringComparison.OrdinalIgnoreCase)) return TimeSpan.Zero;
+        if (UnixListingPrefix().Match(line) is { Success: true } prefix)
+        {
+            // The prefix ends with the time ("05:09") or the year ("2021"), then the one space before the name.
+            string fields = prefix.Value.TrimEnd();
+            return fields[(fields.LastIndexOf(' ') + 1)..].Contains(':') ? TimeSpan.FromMinutes(1) : TimeSpan.FromDays(1);
+        }
+        return TimeSpan.FromMinutes(1);
+    }
 
     public RemoteStat? Stat(string path) => Run(() =>
     {
@@ -288,14 +311,52 @@ internal sealed partial class FtpChannel : ISftpChannel
         return new FtpWriteStream(this, _client, stream);
     }
 
-    /// <summary>FTP continues only at the end of a file (APPE), which the caller has checked is where the break was.</summary>
+    /// <summary>
+    /// FTP continues only at the end of a file (APPE), which the caller has checked is where the break was. A server that
+    /// refuses to append — ProFTPD does unless AllowStoreRestart is on ("451 Append/Restart not permitted, try again") —
+    /// cannot continue: the upload starts again (release issue I47), rather than asking the same question forever.
+    /// </summary>
     public Stream OpenWriteAt(string path, long offset)
     {
         Safe(path);
         var stat = Stat(path) ?? throw new FileNotFoundException("The file is not on the server.", path);
         if (stat.Size != offset) throw new NotSupportedException("FTP continues a file only at its end.");
-        var stream = Run(() => _client.OpenAppend(path, FtpDataType.Binary, false));
+        var stream = Run(() =>
+        {
+            try { return _client.OpenAppend(path, FtpDataType.Binary, false); }
+            catch (FtpCommandException ex) when (ex.CompletionCode is not "421")
+            {
+                throw new NotSupportedException($"the server does not continue uploads ({ex.CompletionCode} {ReplyText(ex)})", ex);
+            }
+        });
         return new FtpWriteStream(this, _client, stream);
+    }
+
+    /// <summary>How long the server's verdict is waited for after a transfer's data connection broke.</summary>
+    internal static readonly TimeSpan BreakReplyWait = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The server's final reply after a transfer whose data connection broke, waited for briefly: a server that ended
+    /// the transfer itself says why (a full disk, a quota), while a session that ended never answers — waiting for it
+    /// took the whole 60 s read timeout when the lab's ProFTPD session was killed (I47). Null when no reply came; the
+    /// connection is then ended at once (without QUIT), which also releases the wait, and the job's Retry reconnects.
+    /// </summary>
+    internal FtpReply? ReplyAfterBreak()
+    {
+        var waiting = Task.Run(() =>
+        {
+            try { return (FtpReply?)_client.GetReply(); }
+            catch (Exception ex) when (ex is IOException or FtpException or SocketException or ObjectDisposedException or TimeoutException or InvalidOperationException) { return null; }
+        });
+        if (waiting.Wait(BreakReplyWait)) return waiting.Result;
+        try
+        {
+            _client.Config.DisconnectWithQuit = false;
+            _client.Disconnect();
+        }
+        catch (Exception ex) when (ex is IOException or FtpException or SocketException or ObjectDisposedException or TimeoutException or InvalidOperationException) { }
+        waiting.Wait(BreakReplyWait);
+        return null;
     }
 
     public void CreateDirectory(string path)
@@ -348,7 +409,7 @@ internal sealed partial class FtpChannel : ISftpChannel
     public void Dispose() => _client.Dispose();
 
     /// <summary>A listed entry: changes act on exactly this name (a link is deleted or renamed itself).</summary>
-    private sealed class FtpEntry(FtpChannel channel, FtpClient client, string name, string fullPath, bool isDirectory, bool isLink, long size, DateTime modifiedUtc) : IRemoteEntry
+    private sealed class FtpEntry(FtpChannel channel, FtpClient client, string name, string fullPath, bool isDirectory, bool isLink, long size, DateTime modifiedUtc, TimeSpan precision) : IRemoteEntry
     {
         public string Name => name;
         public string FullPath => fullPath;
@@ -356,6 +417,7 @@ internal sealed partial class FtpChannel : ISftpChannel
         public bool IsLink => isLink;
         public long Size => size;
         public DateTime ModifiedUtc => modifiedUtc;
+        public TimeSpan ModifiedPrecision => precision;
         public void Delete() => channel.Delete(fullPath, isDirectory && !isLink);
         public void MoveTo(string newPath) => channel.Move(fullPath, newPath);
         public override string ToString() => $"{fullPath} ({(client.IsConnected ? "connected" : "closed")})";
@@ -408,7 +470,13 @@ internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string
             _data = channel.Run(() => client.OpenRead(path, FtpDataType.Binary, at, false));
             _dataPosition = _position;
         }
-        int n = channel.Run(() => _data!.Read(buffer, offset, count));
+        int n;
+        try { n = channel.Run(() => _data!.Read(buffer, offset, count)); }
+        catch
+        {
+            _broken = true;
+            throw;
+        }
         _position += n;
         _dataPosition = _position;
         return n;
@@ -421,18 +489,25 @@ internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string
         _ => length + offset,
     };
 
-    /// <summary>Ends the current transfer and reads the server's final reply, so the control connection stays in step.</summary>
+    /// <summary>
+    /// Ends the current transfer and reads the server's final reply, so the control connection stays in step; after the
+    /// transfer broke, the connection is ended instead (the reply may never come; I47).
+    /// </summary>
     private void CloseData()
     {
         if (_data is null) return;
         try
         {
             _data.Dispose();
-            client.GetReply();
+            if (_broken) channel.ReplyAfterBreak();
+            else client.GetReply();
         }
         catch (Exception ex) when (ex is IOException or FtpException or TimeoutException) { }
         _data = null;
+        _broken = false;
     }
+
+    private bool _broken;
 
     protected override void Dispose(bool disposing)
     {
@@ -456,24 +531,51 @@ internal sealed class FtpWriteStream(FtpChannel channel, FtpClient client, Strea
     public override long Length => throw new NotSupportedException();
     public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
 
-    public override void Write(byte[] buffer, int offset, int count) => channel.Run(() => data.Write(buffer, offset, count));
+    /// <summary>A write's failure: the data connection broke, and the server's verdict may never come (I47).</summary>
+    private Exception? _broken;
+
+    public override void Write(byte[] buffer, int offset, int count) => Guarded(() => data.Write(buffer, offset, count));
 
     public override void Write(ReadOnlySpan<byte> buffer)
     {
         var copy = buffer.ToArray();
-        channel.Run(() => data.Write(copy));
+        Guarded(() => data.Write(copy));
     }
 
-    public override void Flush() => channel.Run(data.Flush);
+    public override void Flush() => Guarded(data.Flush);
+
+    private void Guarded(Action action)
+    {
+        try { channel.Run(action); }
+        catch (Exception ex)
+        {
+            _broken = ex;
+            throw;
+        }
+    }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing && !_closed)
         {
             _closed = true;
-            data.Dispose();
-            var reply = channel.Run(() => client.GetReply());
-            if (!reply.Success) throw new IOException($"The server did not accept the file: {reply.Message} ({reply.Code})");
+            if (_broken is { } failure)
+            {
+                try { data.Dispose(); }
+                catch (Exception ex) when (ex is IOException or FtpException or ObjectDisposedException) { }
+                // The server's own reason where it gives one; else the session is gone and the connection was ended.
+                var reply = channel.ReplyAfterBreak();
+                if (reply is { Success: false } refused)
+                    throw new IOException($"The server did not accept the file: {refused.Message} ({refused.Code})", failure);
+                if (reply is null)
+                    throw new RemoteDisconnectedException("The connection to the server was lost: " + RemoteErrorText.Reason(failure), failure);
+            }
+            else
+            {
+                data.Dispose();
+                var reply = channel.Run(() => client.GetReply());
+                if (!reply.Success) throw new IOException($"The server did not accept the file: {reply.Message} ({reply.Code})");
+            }
         }
         base.Dispose(disposing);
     }

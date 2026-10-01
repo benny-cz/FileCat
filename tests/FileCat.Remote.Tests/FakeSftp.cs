@@ -47,6 +47,9 @@ internal sealed class FakeSftpServer
     /// <summary>False: a server not known to rename links themselves (ProFTPD's SFTP renames the target, I46).</summary>
     public bool RenamesLinksThemselves { get; set; } = true;
 
+    /// <summary>False: a server that refuses to continue a file (ProFTPD's FTP without AllowStoreRestart, I47).</summary>
+    public bool ContinuesUploads { get; set; } = true;
+
     public FakeSftpServer() => Dir(Home);
 
     public static byte[] KeyBlob(string type, byte seed)
@@ -221,6 +224,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         lock (server.Lock)
         {
             var node = server.Lookup(path, followFinal: false) ?? throw new FileNotFoundException("No such file: " + path);
+            if (!server.ContinuesUploads) throw new NotSupportedException("the server does not continue uploads (451 Append/Restart not permitted, try again)");
             server.WritesAt.Add(offset);
             var stream = new CommitStream(this, node);
             stream.Write(node.Data.AsSpan(0, (int)Math.Min(offset, node.Data.Length)));

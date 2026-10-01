@@ -876,7 +876,7 @@ public sealed class FileListControl : Control
         ColumnField.Name => DisplayName(e),
         ColumnField.Extension => e.IsContainer ? string.Empty : NameParts.GetExtension(e.Name),
         ColumnField.Size => Formatters.SizeCell(e),
-        ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : column.Seconds ? Formatters.DateWithSeconds(e.Modified) : Formatters.Date(e.Modified),
+        ColumnField.Modified => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e, column.Seconds),
         ColumnField.Created => e.Kind == EntryKind.Parent ? string.Empty : Formatters.Date(e.Created),
         ColumnField.Attributes => Formatters.Attributes(e),
         ColumnField.Folder => Tab?.GetFolderText(e) ?? string.Empty,
@@ -1167,7 +1167,7 @@ public sealed class FileListControl : Control
         int i = _listing.FocusedIndex + 1;
         var kind = e.Kind == EntryKind.Parent ? "parent folder" : e.IsContainer ? "folder" : "file";
         var details = e.IsContainer ? string.Empty : ", " + Formatters.SizeWithUnit(e.Size);
-        if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e.Modified);
+        if (e.Modified > 0 && e.Kind != EntryKind.Parent) details += ", modified " + Formatters.Date(e);
         var marked = _listing.IsMarked(_listing.FocusedStoreIndex) ? ", marked" : string.Empty;
         var git = _gitStatuses?.ForName(e.Name) switch
         {
