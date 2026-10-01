@@ -39,13 +39,16 @@ for the session only ("the secret store is this session's only"): that is the po
 in memory and never writes them (`SessionSecretStore`), not what the app on Windows uses. The test now registers the
 platform the way the app does and asserts that the store is the persistent one on Windows.
 
-## Observation (no defect claimed)
+## Found in passing, and changed (`f9adb51`)
 
-A password answered with "save" is written to the store **before** the server has accepted it
-(`SftpConnections`, `GetSecret`), and the profile is marked as having a saved password. So a mistyped password that the
-user then gives up on stays saved, and the next connection tries it first — one failed login per reconnect until it
-is corrected. Nothing leaks by this, but on a server that locks an account after a few failures it could add to them.
-Saving only after the server accepts the password would avoid it; recorded here for a decision, not changed.
+A password answered with "save" was written to the store **before** the server had accepted it (`SftpConnections`,
+`GetSecret`), and the profile marked as having a saved password. So a mistyped password the user then gave up on
+stayed saved, and the next connection tried it first — one failed login per reconnect until it was corrected. Nothing
+leaked by this, but on a server that locks an account after a few failures each of those would count. It is now kept
+once the server has accepted it, and not before. `SftpProviderTests.A_secret_is_saved_only_once_the_server_has_accepted_it`
+— three wrong answers leave nothing stored and the profile unchanged, and of a wrong one followed by the right one only
+the right one is kept. Against the code before the change it fails, the store holding the last wrong password
+("still wrong"). Remote suite afterwards: 116 total, 0 failed.
 
 ## Still open in V11
 
