@@ -57,6 +57,30 @@ public sealed class RecoveryFuzzTests
     [InlineData("ntfs", 100927)] // I37: a damaged $Bitmap size was read whole, 512 MiB
     public void Rounds_that_once_failed_stay_fixed(string image, int round) => new Fuzz(image).Round(round);
 
+    [Theory]
+    [InlineData("fat32", 32)] // total sectors: the declared clusters (release issue I37)
+    [InlineData("exfat", 92)] // cluster count: the table, the allocation bitmap and folders (found reviewing exFAT after I37)
+    public void A_size_a_boot_sector_declares_beyond_its_volume_is_held_to_the_volume(string image, int field)
+    {
+        var data = File.ReadAllBytes(RecoveryFixtures.Image(image));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(field), image == "exfat" ? 0x0FFFFFFFu : 0xFFFFFF00u);
+        if (image == "exfat")
+        {
+            // And the allocation bitmap's entry claiming the most the decoder reads (256 MiB), consistent with that count.
+            int sector = 1 << data[108];
+            long rootAt = (long)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(88)) * sector +
+                          (System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(96)) - 2L) * (sector << data[109]);
+            int entry = Enumerable.Range(0, 64).Select(i => (int)rootAt + i * 32).First(at => data[at] == 0x81);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(data.AsSpan(entry + 24), 256UL << 20);
+        }
+        using var source = new MemorySource(data);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var volumes = RecoveryScanner.Scan(source, TestContext.Current.CancellationToken);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.NotEmpty(volumes);
+        Assert.True(allocated < 64L << 20, $"{image}: {allocated >> 20} MiB allocated for a {data.Length >> 20} MiB image.");
+    }
+
     /// <summary>One image and the damage each round does to it.</summary>
     private sealed class Fuzz
     {

@@ -182,6 +182,9 @@ internal sealed class FatScanner
             byte attributes = e[11];
             if ((attributes & 0x3F) == 0x0F)
             {
+                // A long name takes at most 20 entries (255 characters); a damaged listing of nothing but such entries
+                // keeps only the last 20, not millions.
+                if (longName.Count == 20) longName.RemoveAt(0);
                 longName.Add(e.ToArray());
                 continue;
             }

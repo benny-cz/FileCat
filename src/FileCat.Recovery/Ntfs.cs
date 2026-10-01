@@ -15,6 +15,7 @@ internal sealed class NtfsScanner
 {
     private const long MaxRecords = 16_000_000;
     private const long MaxBitmapBytes = 512L * 1024 * 1024;
+    private const long MaxCompressionUnitBytes = 64 * 1024;
     private const int MaxAttributeListEntries = 4096;
     private const long RootRecord = 5;
 
@@ -234,7 +235,9 @@ internal sealed class NtfsScanner
         }
         long unitBytes = stream.UnitClusters * _clusterSize;
         long count = (stream.Size + unitBytes - 1) / unitBytes;
-        if (count > 10_000_000 || unitBytes > int.MaxValue / 2)
+        // NTFS compresses in units of 16 clusters of at most 4 KiB: 64 KiB. A damaged record claiming more (up to 1 GiB
+        // was accepted) would have each unit read into that much memory.
+        if (count > 10_000_000 || unitBytes > MaxCompressionUnitBytes)
         {
             file.Evidence.Add("Its compressed layout is larger than FileCat reads.");
             file.State = RecoveryState.NameOnly;

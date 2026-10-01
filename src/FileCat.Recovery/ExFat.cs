@@ -38,7 +38,11 @@ internal sealed class ExFatScanner
         _fatOffset = (long)BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(80)) * sector;
         long fatLength = (long)BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(84)) * sector;
         _heapOffset = (long)BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(88)) * sector;
-        _clusterCount = BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(92));
+        // Only the clusters within the volume exist: a damaged boot sector declaring more made the table, the allocation
+        // bitmap and every folder read as large as their limits allow (release issue I37, as in FAT).
+        long present = (volume.Length - _heapOffset) / _clusterSize;
+        if (present <= 0) throw new InvalidDataException("the exFAT cluster heap lies beyond the end of the volume.");
+        _clusterCount = (uint)Math.Min(BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(92)), present);
         RootCluster = BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(96));
         long fatBytes = Math.Min(fatLength, (_clusterCount + 2L) * 4);
         if (fatBytes > MaxTableBytes) throw new InvalidDataException("the allocation table is larger than FileCat reads.");
