@@ -33,7 +33,8 @@ file system gives no identity, it behaves as before.
 thread as fast as the disk takes them (6,000 files made, 2,000 renamed, 2,000 deleted, 2,000 rewritten). Once settled
 the panel shows exactly what the disk holds (4,050 items, 0.6 to 0.7 s after the churn ended, in three runs), and the
 marks and the cursor on the untouched files are where they were. Whether the system's change buffer overflowed is not
-observed; the panel was right either way.
+observed; the panel was right either way. (Since E-V12-W1: overflows are counted, none in this churn, and the panel
+matches the disk 0.0 s after it, I87's fix rereading during the churn.)
 
 ## Partial sizes labelled
 
@@ -44,6 +45,6 @@ partial size on a marked folder, so labelled, and clears it from an unmarked one
 ## Not covered here
 
 V12's other parts: million-entry and long-name listings, slow parsers, rapidly changing viewports, many tabs,
-disconnected devices, a watcher's overflow observed as such, expensive sorting asked for and cancelled, visible-row
+disconnected devices, expensive sorting asked for and cancelled, visible-row
 verification beside a copy or search, many folders counted and the count cancelled by a test, navigating away, and the
 tab moved to another panel while counting.

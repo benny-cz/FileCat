@@ -492,6 +492,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     least recently used first, and the two used last stay whatever their size (two panels). A member being read keeps
     working when its index goes. Negative controls. I06 stays open for decoded pictures, icon caches and other
     materialized lists (V12).
+119. V12, the watcher (E-V12-W1): forcing an overflow found **I87** (Medium, `3d2bb2e`): while a folder kept changing,
+    the watcher's debounce put its reread off for as long as the changes went on (a file every 50 ms for six seconds:
+    no reread until after the last; 100,000 changes in 30 s: none). Now every two seconds while changes come, and one
+    after. Overflows of the system's buffer are counted and logged: unhindered, this machine's watcher kept up with
+    100,000 changes; held up 2 ms a notification, 20,000 changes overflowed it four times, and a reread followed.
 
 ## Evidence invalidated by the campaign's own changes
 

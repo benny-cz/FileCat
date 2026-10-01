@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I87 | Folder watch: a folder that kept changing was not read again until the changes stopped | Medium (a folder a program keeps saving into stayed as first shown: no reread in six seconds of a file every 50 ms, none in 30 s of churn) | Must fix (V12: rapidly changing folders) | **Remediated `3d2bb2e`; verified** (E-V12-W1; unit test with a negative control) |
 | I86 | Operations: "Clear finished" could leave a job that had just finished, and keep offering to clear it | Low (a click did nothing; a second one worked) | Must fix (CI red; V17: controls do what they say) | **Remediated `506cc75`; verified** (unit test fails on the old code) |
 | I85 | Count: a folder deleted and made again, or replaced, while its size was counted took the first folder's size as counted | Low–Medium (a size shown, as counted, for a folder that was never counted) | Must fix (V12: results never land on replacements) | **Remediated `1ec9d13`; verified** (E-V12-C1; unit test with a negative control) |
 | I84 | Compare directories: of two names differing only in letter case one was dropped unseen; a size or time a listing does not give counted as the same | Medium (items silently missing from a comparison, and pairs called the same that were never compared) | Must fix (V13: no false equality) | **Remediated `bc65646`; verified** (E-V13-C1; unit tests with negative controls) |
@@ -1030,6 +1031,23 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I87 — Folder watch: a folder that kept changing was not read again until the changes stopped
+
+- **Found by:** forcing a change-notification overflow for V12 (E-V12-W1): through 100,000 changes in 30 s, the watcher
+  asked for no reread at all.
+- **What was wrong:** `ChangeMonitor` coalesces bursts and promised never to put a reread off more than two seconds past
+  the first change, but it re-armed its timer at every change, and past two seconds the delay was floored at the
+  minimum interval (300 ms or more): while changes came more often than that, the reread never came. A file every
+  50 ms for six seconds: no reread until 0.32 s after the last.
+- **Remediation (`3d2bb2e`):** due a quarter second after the last change, no later than two seconds after the first,
+  and no sooner than the minimum interval after the previous reread (the throttle for large folders stays). The watcher
+  also counts overflows of the system's buffer and logs the first (path hashed unless diagnostic mode is on).
+- **Verification:** `ChangeMonitorCadenceTests`: rereads at 2.0, 4.0 and 6.0–6.1 s in five runs; fails with the old
+  debounce. `ChangeMonitorOverflowTests`: an overflow forced (the handler held up 2 ms a notification) is counted and a
+  reread follows. The App's churn test matches the disk 0.0 s after the churn (0.6–0.7 s before). Core 740, App 220.
+- **Severity:** Medium: nothing is lost, but the panel showed a folder as it was, for as long as something kept writing
+  into it.
 
 ### I86 — Operations: "Clear finished" could leave a job that had just finished
 
