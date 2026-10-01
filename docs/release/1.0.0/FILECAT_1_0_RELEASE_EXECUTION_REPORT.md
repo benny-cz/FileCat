@@ -486,6 +486,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     the operations panel's "Clear finished" (run 36931084621, a records-only commit) was a real race, **I86** (Low,
     `506cc75`): clearing went by each row's state, the count by each job's. A test that holds the window's thread while
     a job ends fails on the old code.
+118. I06, archive indexes (E-I06-A1, `6b37c41`, `319a38c`): both archive providers kept the last eight archives'
+    indexes by count alone; one index of a million members holds 557 MiB (ZIP) or 291 MiB (TAR), measured. Each index
+    now estimates its size (553 and 290 MiB for those), earlier archives are kept within 256 MiB per provider, the
+    least recently used first, and the two used last stay whatever their size (two panels). A member being read keeps
+    working when its index goes. Negative controls. I06 stays open for decoded pictures, icon caches and other
+    materialized lists (V12).
 
 ## Evidence invalidated by the campaign's own changes
 
