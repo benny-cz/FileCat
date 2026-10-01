@@ -122,6 +122,8 @@ public sealed partial class MainViewModel : ObservableObject
         QuietConnect = state is not null;
         _ = RefreshDriveButtonsAsync();
         Workspace.LoadState(state);
+        if (WorkspaceReadOnly)
+            Notify("The window layout was saved by a newer FileCat; this one starts with the default layout and does not save over it.", true);
         if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)
             Notify("Settings were written by a newer FileCat and are opened read-only; changes will not be saved.", true);
         else if (Services.SettingsStatus is StateLoadStatus.RecoveredFromBackup or StateLoadStatus.CorruptUsingDefaults)
@@ -193,10 +195,31 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Last known window placement, reused by autosave.</summary>
     public WindowPlacement? LastPlacement { get; set; }
 
+    /// <summary>
+    /// The window layout (workspace.json) was written by a newer FileCat: this one starts with the default layout and
+    /// never saves over it — not on exit, not in the minute's autosave (plan §19.1) — as settings and history do.
+    /// </summary>
+    public bool WorkspaceReadOnly { get; private set; }
+
+    /// <summary>
+    /// The saved window layout, or null for the default one: none saved yet, damaged beyond its backup, written by a
+    /// newer FileCat (then <see cref="WorkspaceReadOnly"/>), or a reset the user asked for. Read even for a reset, so that
+    /// a reset never replaces a newer FileCat's layout either.
+    /// </summary>
+    public WorkspaceState? LoadSavedWorkspace(bool reset = false)
+    {
+        var state = JsonFileStore.Load(Services.Paths.WorkspaceFile, StateJsonContext.Default.WorkspaceState,
+            WorkspaceState.CurrentSchema, () => new WorkspaceState(), out var status);
+        if (status is StateLoadStatus.CorruptUsingDefaults) AppLog.Warn("Workspace was corrupt; using the default layout.");
+        WorkspaceReadOnly = status is StateLoadStatus.NewerSchemaReadOnly;
+        return WorkspaceReadOnly || reset ? null : state;
+    }
+
     public void SaveWorkspace(WindowPlacement? placement)
     {
         placement ??= LastPlacement;
         LastPlacement = placement;
+        if (WorkspaceReadOnly) return;
         try
         {
             JsonFileStore.Save(Services.Paths.WorkspaceFile, Workspace.ToState(placement), StateJsonContext.Default.WorkspaceState);

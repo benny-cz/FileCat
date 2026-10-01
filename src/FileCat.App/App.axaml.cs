@@ -43,14 +43,8 @@ public partial class App : Application
         services.Icons.Native = NativeIconSource.TryCreate(services.Shell, () => services.AllowedShellPictures) ?? MacIconSource.TryCreate() ?? FreedesktopIconSource.TryCreate();
 
         var vm = new MainViewModel(services);
-        WorkspaceState? state = null;
-        if (!StartupOptions.ResetLayout)
-        {
-            state = JsonFileStore.Load(services.Paths.WorkspaceFile, StateJsonContext.Default.WorkspaceState,
-                WorkspaceState.CurrentSchema, () => new WorkspaceState(), out var wsStatus);
-            if (wsStatus is StateLoadStatus.CorruptUsingDefaults) AppLog.Warn("Workspace was corrupt; using the default layout.");
-            if (wsStatus is StateLoadStatus.NewerSchemaReadOnly) state = null;
-        }
+        // A newer FileCat's layout is neither used nor saved over, even when the user resets the layout (plan §19.1).
+        WorkspaceState? state = vm.LoadSavedWorkspace(reset: StartupOptions.ResetLayout);
 
         InstallCrashGuard(services, vm);
         UiStallMonitor.Start();
