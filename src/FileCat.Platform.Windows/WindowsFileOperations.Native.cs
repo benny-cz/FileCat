@@ -628,7 +628,22 @@ public partial class WindowsFileOperations
             error = "The Recycle Bin reported success, but the item is not back at its original location.";
             return false;
         }
+        if (ok) RemoveRecordOf(recycledId);
         return ok;
+    }
+
+    /// <summary>
+    /// The Shell's undelete puts the item back but leaves the bin's record of it (<c>$I…</c>) behind, where Windows no
+    /// longer shows it and nothing removes it (each undo added one; FileCat's view of the bin found them). Explorer's own
+    /// restore removes it, and so does this: only that item's record, and only once the item has left the bin.
+    /// </summary>
+    private static void RemoveRecordOf(string recycledId)
+    {
+        string name = Path.GetFileName(recycledId);
+        if (!name.StartsWith("$R", StringComparison.OrdinalIgnoreCase) || File.Exists(recycledId) || Directory.Exists(recycledId)) return;
+        string record = Path.Combine(Path.GetDirectoryName(recycledId)!, "$I" + name[2..]);
+        try { File.Delete(record); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     /// <summary>

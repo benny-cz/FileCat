@@ -257,13 +257,40 @@ public sealed class WindowsFileOperationsTests : IDisposable
         if (!OperatingSystem.IsWindows() || !WindowsFileOperations.RecycleBinExists(_root)) Assert.Skip("The test folder's volume has no Recycle Bin.");
         var f = Path.Combine(_root, $"filecat-recycle-test-{Guid.NewGuid():N}.txt");
         File.WriteAllText(f, "recycle me");
-        var result = Assert.Single(_ops.Recycle([f], null, CancellationToken.None));
-        Assert.Equal(RecycleOutcome.Recycled, result.Outcome);
-        Assert.False(File.Exists(f));
-        Assert.NotNull(result.RecycledId);
-        Assert.True(_ops.TryRestoreRecycled(result.RecycledId!, f, out var error), error);
-        Assert.Equal("recycle me", File.ReadAllText(f));
-        File.Delete(f);
+        try
+        {
+            var result = Assert.Single(_ops.Recycle([f], null, CancellationToken.None));
+            Assert.Equal(RecycleOutcome.Recycled, result.Outcome);
+            Assert.False(File.Exists(f));
+            Assert.NotNull(result.RecycledId);
+            Assert.True(_ops.TryRestoreRecycled(result.RecycledId!, f, out var error), error);
+            Assert.Equal("recycle me", File.ReadAllText(f));
+            // Nothing of it stays in the bin: the Shell's undelete left the item's record behind (I77).
+            Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(result.RecycledId!)!, "$I" + Path.GetFileName(result.RecycledId!)[2..])));
+            File.Delete(f);
+        }
+        finally
+        {
+            // A run that stopped between recycling and restoring left its file in the user's Recycle Bin (two did, found
+            // with FileCat's view of the bin): it goes, and only it.
+            PurgeFromRecycleBin(f);
+        }
+    }
+
+    /// <summary>Removes from this user's bin on the file's drive exactly the items deleted from <paramref name="original"/>.</summary>
+    internal static void PurgeFromRecycleBin(string original)
+    {
+        string bin = Path.Combine(Path.GetPathRoot(original)!, "$Recycle.Bin", System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value);
+        if (!Directory.Exists(bin)) return;
+        foreach (var record in Directory.GetFiles(bin, "$I*"))
+        {
+            var parsed = Core.FileSystem.RecycleBinRecords.Parse(File.ReadAllBytes(record), out _);
+            if (parsed is null || !string.Equals(parsed.OriginalPath, original, StringComparison.OrdinalIgnoreCase)) continue;
+            string data = Path.Combine(bin, Core.FileSystem.RecycleBinRecords.DataName(Path.GetFileName(record))!);
+            if (Directory.Exists(data)) Directory.Delete(data, recursive: true);
+            else if (File.Exists(data)) File.Delete(data);
+            File.Delete(record);
+        }
     }
 
     [Fact]
