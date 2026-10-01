@@ -62,6 +62,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I50 | Synchronize removed or replaced target items that changed after the comparison (while the plan was reviewed) | High (an edited file deleted, permanently where chosen, or overwritten by an older version) | Must fix (DPI P10) | **Remediated `99145cf`, folders again `efc128f`; verified** (E-DPI) |
 | I51 | Linux/macOS: setting a link's read-only changed the item it points to | Low–Medium (metadata of an item outside the selection; links must not be followed) | Must fix (DPI P11) | **Remediated `65a76f8`; verified on macOS** (E-DPI) |
 | I52 | FAT32: the files of a deleted folder were placed by a guess, wrongly, though their entries said where they start | Low–Medium (recovery quality: exactly recoverable files offered only as stated guesses) | Should fix (V09) | **Remediated `78a48ce`; verified on images Windows made** (E-V09-W1) |
+| I53 | Hex editor: a patch that went over the limit of changed bytes was applied in part while the editor said nothing was applied | Medium (a later save writes a half-applied patch the user believes was refused) | Must fix (DPI P05) | **Remediated `7a99f9d`; verified** (E-DPI) |
+| I54 | Hex editor, Linux/macOS: Save As kept a new file that could mix old and new bytes when another program wrote the file during the copy | Low–Medium (a silently inconsistent copy; Windows keeps other writers out) | Must fix (DPI P05) | **Remediated `7a99f9d`; verified on macOS** (E-DPI) |
 
 ## Records of issues worked in this campaign
 
@@ -680,6 +682,32 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remediation (`78a48ce`):** only an entry marked deleted itself counts as half-erased.
 - **Tests:** `ErasedFatStartTests.Entries_a_deleted_folder_kept_unmarked_start_where_they_say` fails before (`A.JPG`
   Uncertain) and passes after; on the Windows-made FAT32 image 6 of 6 files come back byte for byte after (4 before).
+
+### I53 — Hex editor: a patch that went over the limit of changed bytes was applied in part
+
+- **Discovered:** DPI P05 review (E-DPI). Applying a patch checks every range's expected bytes first, then stages the
+  ranges one by one as unsaved edits. The overlay refuses an edit that would take its changed bytes over 8 MiB, so with
+  edits already made a patch could stop part way. The editor then said "Patch not applied … Nothing was changed",
+  while the ranges staged before the stop stayed as unsaved edits.
+- **Severity / disposition:** Medium. The user believes the patch was refused, keeps editing and saves, and the save
+  writes a half-applied patch into a binary. Must fix.
+- **Remediation (`7a99f9d`):** the whole patch is checked against the limit, beside the edits already made, before
+  anything is staged. Should reading the file fail part way, the editor says how many ranges were applied as unsaved
+  edits, and that Undo removes them.
+- **Tests:** `HexEditingTests.A_patch_that_does_not_fit_beside_the_edits_made_is_not_applied_in_part` fails before
+  (8,388,608 changed bytes instead of 7,340,032: 1 MiB of the patch left staged) and passes after.
+
+### I54 — Hex editor, Linux/macOS: Save As could keep a copy mixing old and new bytes
+
+- **Discovered:** DPI P05 review (E-DPI). On Linux and macOS no program can be kept from writing a file another has
+  open. The in-place save checks every byte it replaces and says so before it runs, and its warning points to Save As
+  as the alternative. Save As, however, read the whole file without noticing a write during the copy.
+- **Severity / disposition:** Low–Medium. The new file could hold the old bytes of what was read before the write and
+  the new bytes of the rest, without a word. Windows keeps other writers out while the editor has the file open. Must fix.
+- **Remediation (`7a99f9d`):** the file's length and modified time must be the same at the end of the copy as at its
+  start; otherwise the copy is not kept, and the editor says why.
+- **Tests:** `HexEditorPosixTests.Save_as_keeps_no_copy_of_a_file_another_program_wrote_meanwhile` fails on macOS
+  before (no exception; the mixed copy kept) and passes after.
 
 ## New detail on open issues
 
