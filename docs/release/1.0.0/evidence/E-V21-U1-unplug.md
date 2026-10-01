@@ -96,5 +96,6 @@ owner choosing File transfer). FileCat's device code told the answering phone wi
   the iPhone's re-sent photos are the unit test's case (a different start: copied again from the start), not rerun on
   the iPhone.
 - **A copy onto the phone after the final fix.** Its message was right in pull 1; the fix only widens what is caught.
-- **SFTP uploads:** their resume (`SftpJobs.ResumePoint`) still compares only the 64 KiB before the break. Their
-  source is a local file, which no device regenerates; to be looked at on its own.
+- **SFTP uploads** keep their own check (`SftpJobs.ResumePoint`: the 64 KiB before the break), looked at afterwards: an
+  upload resumes only while the local file's size and modification time are unchanged, and any write to a local file
+  changes its time, which a phone regenerating what it sends does not. Nothing to change there.
