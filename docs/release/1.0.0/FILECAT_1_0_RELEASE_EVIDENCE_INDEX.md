@@ -38,6 +38,10 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I35 | Read-back verification for uploads, downloads and extraction | `53b0794` | Host | Implemented and tested; resume with altered tail and earlier content | Preliminary automated | [E-I35](evidence/E-I35-read-back.md) | I35 |
 | E-I36 | FTP names exact or refused | `e50b9d4` | Host; library probes; Ubuntu VM (vsftpd) | Heuristics off, exact listing names, unsendable names refused; live and pyftpdlib tests | Preliminary automated | [E-I36](evidence/E-I36-ftp-names.md) | I36 |
 | E-I37 | Recovery scans bounded by the volume | `02acee6` | Host; Ubuntu VM kernel log | 1 GiB / 513 MB rounds found and fixed; worst rounds 0–42 MB after | Preliminary automated | [E-I37](evidence/E-I37-recovery-allocation.md) | I37 |
+| E-I38-I39 | Remote transfers at a 100 ms round trip; FTP stats, SFTP uploads, the restart choice | `02acee6` → `2ba114e`, `1dce2c2` | Host → Ubuntu VM with netem | 15/16 → 16/16; 33 min 52 s → 20 min 36 s; a cut-off upload 6 min 59 s → 3 min 31 s | Preliminary automated | [E-I38-I39](evidence/E-I38-I39-remote-latency.md) | I38, I39 |
+| E-I41 | SFTP socket buffers; per-file round trips | `1dce2c2` → `4c6b910` | Host → Ubuntu VM with netem | 32 MB at 100 ms: down 1.23 → 11.58 MB/s, up 1.62 → 8.17; whole lab 19/19 in 13 min 8 s | Preliminary automated | [E-I41](evidence/E-I41-sftp-socket-buffers.md) | I41, I42 |
+| E-I43 | Modified times kept on FTP servers without MFMT, and back | `e399276` → `e527a86` | Host → Ubuntu VM (vsftpd, OpenSSH) | Tree times wrong on vsftpd before (both FTPS modes), kept both ways after over all three | Preliminary automated | [E-I43](evidence/E-I43-I44.md) | I43 |
+| E-I44 | A running job not shown as interrupted to a second FileCat | `e399276` | Owner's Mac; host | New test fails on macOS before, passes after; journal suites green on Windows and macOS | Preliminary automated | [E-I44](evidence/E-I43-I44.md) | I44 |
 | E-I25 | Markdown drawn as a page | `7abd0fe` | Host; WebView2 | 44 renderer tests (hostile inputs), App viewer test, real-WebView2 test with a picture of the page | Preliminary automated/runtime | [E-I25](evidence/E-I25-markdown.md) | I25 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
@@ -75,3 +79,17 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `02acee6` | Recovery scans no longer allocate by a damaged size; fuzz allocation budget | I37 | E-I37 |
 | `5b8b180` | Test: a copy faked as cut short has a fresh creation time (CI flake, run 36790868204) | — | E-X01 |
 | `7abd0fe` | Markdown files drawn as pages (built-in renderer through the page engine) | I25 | E-I25 |
+| `0ca4f44` | Release records: I35–I37, I25, V08 odd names, the fuzz campaign after the OOM | — | — |
+| `7847d16` | Test: the MFT-record test prints what the report saw when it misses (ARM64 diagnosis) | — | E-X01 |
+| `ec5d475` | Tests: Markdown drawn by WebKitGTK and WKWebView too | I25 | E-I25 |
+| `b9c41eb` | exFAT held to its volume, FAT long names capped, NTFS compression units as NTFS writes them | I37 | E-I37 |
+| `f93f919` | FTP: a stat asks for the file, not the whole folder; no second stat before reading | I38 | E-I38-I39 |
+| `0ec94f1` | A damaged compressed size no longer makes an object per unit nothing describes | I37 | E-I37 |
+| `2ba114e` | SFTP: a new upload keeps many requests in flight; the speed limit counts from each attempt | I39 | E-I38-I39 |
+| `8b0dafd` | FileCat's own folders are its user's alone on Linux and macOS | I40 | issue record |
+| `9347070` | Test: replay exFAT round 5326394 (the Mac's fuzz run) | I37 | E-I37 |
+| `1dce2c2` | SFTP: an upload cut off on a slow link starts again when that is quicker | I39 | E-I38-I39 |
+| `4c6b910` | SFTP connections no longer held to SSH.NET's small socket buffers; lab test of links on the server | I41 | E-I41 |
+| `2a6f882` | Shell helper starts the Shell before it says it is ready; the operations test waits as long for every state | — | E-X01 (CI runs 36801387149, 36801942257) |
+| `e399276` | A job still running is never shown as interrupted, even to another FileCat | I44 | E-I44 |
+| `e527a86` | Uploads keep modified times on servers without MFMT and say when a server did not; downloads take the stated time | I43 | E-I43 |

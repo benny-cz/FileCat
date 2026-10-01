@@ -5,12 +5,12 @@ Operational plan: [FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md](../../d
 [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), [open blockers and decisions](FILECAT_1_0_RELEASE_BLOCKERS.md).
 Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` once a candidate exists.
 
-## Current state (updated 2026-09-30)
+## Current state (updated 2026-10-01)
 
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `7abd0fe` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `e527a86` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -19,9 +19,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   (seconds in the Modified column), I26 (progress and time left, confirmed Medium), I28's second finding, I29 (a CI-red
   race in shell previews).
 - **Done since:** I30 (how running operations show, `67f70f9`; the taskbar still to be seen on a real desktop), I32 (a
-  folder's counted size vanishing at a refresh, `6e9ee75`). **Queued:** I25 (Markdown shown rendered), I27 (Linux icons
-  under Adwaita 41), I31 (viewer windows only partly themed; assessed). **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the
-  Mac (E-I28-C1).
+  folder's counted size vanishing at a refresh, `6e9ee75`), I33–I41, I43 and I44 (remote transfers against real
+  servers, recovery allocation, state-folder permissions, a second FileCat seeing a running job) and I25 (Markdown drawn
+  as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision). **Queued:** I27 (Linux
+  icons under Adwaita 41), I31 (viewer windows only partly themed; assessed), I45 (FTP listing times taken as exact).
+  **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the Mac (E-I28-C1).
 
 ## Execution baseline
 
@@ -142,7 +144,27 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 38. CI on `a1be480` failed one recovery-review test on Windows: the test faked an interrupted copy whose creation time
     came from its source, which a stalled runner put outside the review's margin; reproduced and fixed in the test
     (`5b8b180`). The product logic is unchanged (an interrupted copy never gets its source's times).
-39. I25 Markdown viewer implemented (`7abd0fe`): built-in renderer, drawn in the page engine, checked in WebView2.
+39. I25 Markdown viewer implemented (`7abd0fe`): built-in renderer, drawn in the page engine, checked in WebView2; drawn
+    by WebKitGTK and WKWebView in CI too (`ec5d475`).
+40. I37 follow-ups: FAT and exFAT reviewed the way I28 reviewed NTFS (`b9c41eb`); the Ubuntu run's NTFS round 169883
+    (1.6 GiB for a damaged compressed size, `0ec94f1`) and the Mac's exFAT round 5326394 (`9347070`) found, fixed and
+    replayed; the runs resumed on the newest decoders.
+41. V08 at a 100 ms round trip (E-I38-I39): correctness held, but an SFTP upload cut off by the server missed its time
+    limit. FTP stats listed whole folders on vsftpd (I38, `f93f919`); SFTP uploads wrote one request at a time (I39,
+    `2ba114e`); a cut-off upload on a slow link now starts again when that is quicker (`1dce2c2`).
+42. P16 review: FileCat's state folders were readable by other local accounts on Linux and macOS (I40, `8b0dafd`).
+43. A channel trace at 100 ms found SFTP held to SSH.NET's socket buffers after `ConnectAsync` (I41): fixed (`4c6b910`),
+    32 MB at 100 ms now 11.6 MB/s down and 8.2 up instead of 1.2 and 1.6; the whole lab at 100 ms 19 of 19 in 13 min 8 s
+    (33 min 52 s before I38/I39). The trace also measured what one small file costs (I42, open: owner decision).
+44. A lab case renames, moves, sets aside, replaces and deletes links on the real server over SFTP and FTPS, checked
+    with the server's own shell: links change themselves, never their targets (no defect; `4c6b910`).
+45. CI red twice on unrelated tests (`2ba114e` ARM64 shell preview, `8b0dafd` x64 operations strip): the Shell helper
+    now starts the Shell before it says it is ready, and the test waits as long for every state (`2a6f882`).
+46. DPI P04 review: a second FileCat on the same profile showed a running job as interrupted on Linux and macOS (I44),
+    reproduced on the Mac, fixed (`e399276`). The hex-save journal and edit sessions were checked for the same and are
+    safe (exclusive journal while saving; commits refuse a changed target).
+47. Uploads to FTP servers without MFMT silently kept the arrival time, and downloads took vsftpd's coarse listing time
+    (I43): fixed (`e527a86`); the lab's tree case now checks every time both ways and fails before the change.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -156,13 +178,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - `47c27b9` (Registry provider): V13 Registry browsing evidence for explicit views.
 - `63d5fc4` (Windows file operations, comparison window): V03 replace and move-over-existing evidence on Windows.
 - `98fb594` (NTFS recovery decoder): V11 NTFS recovery evidence.
+- `f93f919`, `2ba114e`, `1dce2c2`, `4c6b910`, `e527a86` (FTP and SFTP channels, remote jobs): every V08 result before
+  them; the lab's runs must be repeated on the candidate.
+- `8b0dafd` (state folders), `e399276` (journal recovery): V11/V23 state evidence and V03 interruption evidence.
+- `2a6f882` (Shell helper): the helper binary changed; V16 Shell-preview evidence must use the candidate.
 
 ## Next actions (unblocked)
 
-1. V08: the Windows VM as a client; second server implementations; collect the fuzz campaign's results (E-I28-C1).
-2. I25 on Linux and macOS page engines (WebKitGTK, WKWebView) with a Markdown file.
-3. Review the FAT and exFAT decoders the way I28 reviewed NTFS (after the campaign's results); I22/I34 replace on a
-   FAT destination.
+1. V08: second server implementations (ProFTPD with MLSD, its mod_sftp); the Windows VM as a client; collect the fuzz
+   campaign's results (E-I28-C1).
+2. I45: FTP listing times taken as exact (vsftpd's LIST: minutes, or days) — panels show invented seconds, comparisons
+   see false differences.
+3. I22/I34 replace on a FAT destination; DPI P01 (copy/move source deletion: the copy is not re-checked right before
+   its source goes), P02, P08, P14.
 4. The queued Low issues: I27, I31.
 5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
    I09 topology), as the owner permitted.

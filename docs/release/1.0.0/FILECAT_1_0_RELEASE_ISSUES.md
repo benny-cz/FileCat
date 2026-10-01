@@ -46,7 +46,15 @@ level the plan already states; exploit-level detail is not recorded here.
 | I34 | On a network share, replacing an open file still failed with the Controlled Folder Access message, and a share was named by the file system it claims | Low–Medium (misleading causes; I22's symptom on SMB) | Must fix (PI-07) | **Remediated `6585024`; verified against Samba** |
 | I35 | "Read back and compare content" was silently ignored for uploads, downloads, extraction and copies to phones | Medium (a verification the user chose was not done, and nothing said so; PI-06) | Must fix | **Remediated `53b0794`; verified** (E-I35) |
 | I36 | FTP names refused, trimmed or redirected by the FTP library (a look-alike could be listed, read or deleted instead) | Medium (wrong-item operations possible; legitimate names unusable; V08 fail condition) | Must fix | **Remediated `e50b9d4`; verified against vsftpd** (E-I36) |
-| I37 | A damaged size made a recovery scan allocate gigabytes; a fuzz run took the Linux VM out of memory | Medium (scanning a damaged disk could exhaust memory; V09 bounded reads) | Must fix | **Remediated `02acee6`; verified** (E-I37) |
+| I37 | A damaged size made a recovery scan allocate gigabytes; a fuzz run took the Linux VM out of memory | Medium (scanning a damaged disk could exhaust memory; V09 bounded reads) | Must fix | **Remediated `02acee6`, `b9c41eb`, `0ec94f1`; verified** (E-I37) |
+| I38 | FTP: every stat listed the whole folder on servers without MLST; each file stat'ed twice | Medium (2.65 s per small file at 100 ms; copies of large folders listed them once per file) | Must fix | **Remediated `f93f919`; verified against vsftpd** (E-I38-I39) |
+| I39 | SFTP: uploads wrote one request at a time (0.29 MB/s at 100 ms) | Medium (remote copies over real-world links; a resumed upload missed its test limit) | Must fix | **Remediated `2ba114e`, `1dce2c2`; verified at 100 ms** (E-I38-I39) |
+| I40 | Linux/macOS: FileCat's state folders were readable by other local accounts (history, journals, previews, hex originals) | Medium (confidentiality on multi-user systems with open homes; plan P16) | Must fix | **Remediated `8b0dafd`; verified on the Ubuntu VM** |
+| I41 | SFTP connections held to SSH.NET's small socket buffers (1.2 MB/s down, 1.7 up at 100 ms) | Medium (every SFTP transfer over a real-world link; FTPS on the same link 10–14 MB/s) | Must fix | **Remediated `4c6b910`; verified at 100 ms** (E-I41) |
+| I42 | Remote copies cost 1–1.5 s per small file at 100 ms (about 14 round trips per SFTP upload; one file at a time) | Low–Medium (folders of many small files over long links: 1,000 files ≈ 23 min up) | Owner decision (performance; post-1.0 candidate) | **Open — measured** (E-I41) |
+| I43 | Uploads to FTP servers without MFMT (vsftpd) silently carried the time they arrived; downloads took the listing's coarse time | Medium (timestamps are data; sync and "newer" decisions rely on them; nothing said so) | Must fix | **Remediated `e527a86`; verified against vsftpd and OpenSSH** (E-I43) |
+| I44 | Linux/macOS: a second FileCat on the same profile showed a running job as interrupted and offered its partial files for deletion | Medium (a live operation undermined; no data loss reachable) | Must fix (DPI P04) | **Remediated `e399276`; verified on macOS** (E-I44) |
+| I45 | FTP listing times taken as exact: vsftpd's LIST gives minutes, or only the day for older files | Low–Medium (panels show invented seconds; comparing with such a server sees false time differences) | Should fix | **Open** |
 
 ## Records of issues worked in this campaign
 
@@ -260,7 +268,7 @@ level the plan already states; exploit-level detail is not recorded here.
   pictures load only from the file's folder, the page's policy forbids everything else; F3 opens Markdown drawn, F4
   shows its text.
 - **Tests:** `MarkdownTests` (44, hostile inputs included), an App viewer test, and a real-WebView2 test (drawn, picture
-  served, nothing requested from the web). Remaining: WebKitGTK and WKWebView runs with a Markdown file.
+  served, nothing requested from the web); WebKitGTK and WKWebView draw a Markdown file in CI run 36799348088 (E-I25).
 
 ### I26 — Progress at 100% while an operation still works, and a time left that was not honest
 
@@ -444,6 +452,118 @@ level the plan already states; exploit-level detail is not recorded here.
   more than 256 MiB or eight times its image, and replays both rounds.
 - **Tests / revalidation:** the two rounds fail before and pass after; 1,500 rounds per image pass with every image's
   worst round at 0–42 MB (E-I37); the Ubuntu runs restarted on `02acee6` as user services with a 1 GiB heap cap.
+- **Follow-ups:** reviewing FAT and exFAT the way I28 reviewed NTFS (`b9c41eb`): exFAT's declared cluster count is held to
+  the volume too (284 MiB allocated for a 16 MiB image with a damaged count and bitmap entry; such a volume now also
+  reads instead of being refused), FAT long-name runs are capped at 20 entries, and NTFS compression units at the 64 KiB
+  NTFS writes. The Ubuntu run on `02acee6` then stopped at NTFS round 169883 on its new allocation limit (1,596 MiB): a
+  damaged compressed size made an object per unit for up to 10 million units no run described; units past the last run
+  are now one lost stretch (`0ec94f1`). Both rounds are replayed in every run.
+
+### I38 — FTP: every stat listed the whole folder on servers without MLST
+
+- **Discovered:** V08's latency run (E-I38-I39): FTP cases took about six minutes at a 100 ms round trip; a command
+  trace showed FluentFTP's `GetObjectInfo` listing the whole parent folder over a data connection for each stat on a
+  server without MLST (vsftpd), and FileCat stat'ing every file twice on the way to reading it — 2.65 s for a 1 KB file,
+  growing with the folder.
+- **Severity / disposition:** Medium — copying a large folder from a common FTP server would list it once per file (a
+  10,000-file folder: 20,000 listings); the listing also reported a link instead of following it. Must fix.
+- **Remediation (`f93f919`):** without MLST a stat is `SIZE` and `MDTM` (which follow links, as the channel's contract
+  says); content whose length is known opens without another stat: 0.85 s per small file at 100 ms.
+
+### I39 — SFTP: uploads wrote one request at a time
+
+- **Discovered:** V08's latency run (E-I38-I39): an upload grew at about 314 KB/s at a 100 ms round trip; SSH.NET's
+  stream writes wait for each request's answer (0.29 MB/s), where its `UploadFile` keeps requests in flight (5.71 MB/s).
+  Downloads were not affected (SSH.NET reads ahead; FileCat's position setting does not stop it).
+- **Severity / disposition:** Medium — uploads over real-world links slowed twentyfold; the resumed-upload test missed its
+  five-minute limit at 100 ms. Must fix.
+- **Remediation (`2ba114e`):** a new upload goes through `UploadFile` (still created exclusively), fed by a stream that
+  counts, paces to the speed limit and lets pause and cancel act at each read; a continued upload still appends with
+  stream writes. The speed limit after a resume counted the bytes already on the server; it counts from the attempt.
+- **Follow-up (`1dce2c2`):** a continued upload still writes one request at a time, so after a break FileCat starts
+  again when that is at least twice as quick (the new upload's measured pace against one request per round trip), and
+  says so; at 100 ms the 128 MB case went from 6 min 59 s to 3 min 31 s (E-I38-I39).
+- **Limitation:** an upload cut off when most of it is on the server still continues one request at a time.
+
+### I40 — Linux/macOS: FileCat's state folders were readable by other local accounts
+
+- **Discovered:** the P16 review (state, diagnostics, caches, scratch): only the listing scratch was made private;
+  settings and history, journals, diagnostics, caches, the temp folder of previews (archive members, remote files) and
+  hex-save originals were created under the usual umask (0755).
+- **Severity / disposition:** Medium — on a multi-user Linux or macOS machine whose home folders are open (Debian's are
+  0755), any local account could read file names and file contents FileCat kept. Must fix.
+- **Remediation (`8b0dafd`):** FileCat's roots are 0700; folders an earlier start made are tightened at the next one;
+  where a mode cannot be set (a portable copy on a FAT stick), nothing fails.
+- **Tests:** `PathAndStateTests.FileCats_own_folders_are_its_users_alone_on_Linux_and_macOS` (a 0755 root tightened; run on
+  the Ubuntu VM, and by CI's Linux and macOS lanes).
+
+### I41 — SFTP connections held to SSH.NET's small socket buffers
+
+- **Discovered:** tracing V08's latency run after I39 (E-I41): through FileCat a 32 MB file went up at 1.8 MB/s and down
+  at 1.3 at a 100 ms round trip, where SSH.NET alone (made the default way) moved 5.3 each way and FTPS 10–14.
+- **Cause:** SSH.NET fixes a connection's socket buffers once connected — 137,072 bytes after `ConnectAsync`, which
+  FileCat uses so that connecting can be cancelled, 685,360 after `Connect` — and a buffer set explicitly turns off the
+  system's window tuning: one buffer per round trip. Clients made four ways isolated it (FileCat's own settings made no
+  difference).
+- **Severity / disposition:** Medium — every SFTP transfer over a real-world link ran at a fraction of what the link and
+  the server offered (about 1.3 MB/s per 100 ms of round trip). Must fix.
+- **Remediation (`4c6b910`):** the connector raises both buffers to 4 MiB after connecting (through SSH.NET's private
+  session socket; SSH.NET has no setting). At 100 ms, 32 MB through FileCat's jobs: up 1.62 → 8.17 MB/s, down 1.23 →
+  11.58 MB/s. 16 MiB left reads slow (not investigated), so 4 MiB.
+- **Tests:** a guard that fails if an SSH.NET upgrade moves the socket (every platform), a local-sshd test on CI's Linux
+  and macOS lanes (Linux caps the buffers at `net.core.rmem_max`), and a lab test from the Windows host (4,194,304).
+- **Limitation:** Linux clients cannot be raised past `rmem_max`, and SSH.NET's own setting has already turned off
+  Linux's tuning: they gain less (not measured).
+
+### I42 — Remote copies cost 1–1.5 s per small file at 100 ms
+
+- **Discovered:** the same trace (E-I41): each small file costs SFTP about 1.4 s up (writing the temporary copy, setting
+  its time, checking its size, taking the name: about 14 round trips, since SSH.NET has the server resolve each path
+  before acting on it) and 0.76 s down; explicit FTPS 1.5 s up and 0.85–0.95 s down. Files go one at a time over one
+  connection.
+- **Severity / disposition:** Low–Medium (performance, not correctness): a thousand small files 100 ms away take about
+  23 minutes up. Fewer requests per file and several files in flight over the pool's connections would both help; the
+  latter changes the job engine. Owner decision whether before or after 1.0.0.
+
+### I43 — Uploads to FTP servers without MFMT carried the time they arrived
+
+- **Discovered:** the channel trace of E-I41: setting a time took no time at all over FTP. FileCat sent nothing when the
+  server lacks MFMT (vsftpd, a common Linux FTP server), so every uploaded file showed its arrival time — and said nothing,
+  although "keep timestamps" is on by default. Downloads set the time from the listing, which vsftpd gives to the
+  minute, or for older files only the day.
+- **Severity / disposition:** Medium — timestamps are part of the data (sorting, backups, Synchronize's "newer"
+  decisions), and the loss was silent. Must fix.
+- **Remediation (`e527a86`):** without MFMT FileCat sends MDTM with a time, which vsftpd takes as setting it (other
+  servers answer it as a question about an odd name and change nothing). The size check after each upload reads the time
+  as well; files whose time did not hold are counted and named once at the end of the job. A server refusing to set
+  times over SFTP no longer fails the upload; "keep timestamps" off sends no time. Downloads use the time the source
+  states when the content is opened (MDTM, to the second) instead of the listing's.
+- **Tests:** `SftpJobTests.Uploads_keep_modified_times_and_say_so_where_the_server_does_not`; the lab's tree case now
+  checks every file's time on the server and after the way back — it fails on vsftpd (both FTPS modes) before the
+  change and passes over SFTP and both FTPS modes after it (E-I43).
+
+### I44 — A running job shown as interrupted to a second FileCat (Linux, macOS)
+
+- **Discovered:** reviewing DPI P04 (journal reconciliation): FileCat can run twice on one profile (`--new-instance`,
+  "one window per profile" turned off, or a first instance not answering), and each start scans the job journals. On
+  Linux and macOS a running job's journal read like a crashed one: the second FileCat showed the job as interrupted and
+  offered its partial files for deletion, its renames for finishing, a rerun, and closing its journal. On Windows the
+  read failed on the writer's sharing mode and the journal was skipped, by accident.
+- **Severity / disposition:** Medium. No data loss was reachable (a move checks its copy by path before deleting the
+  source, and deleting a partial copy re-checks it), but a live operation could be undermined or duplicated. Must fix.
+- **Remediation (`e399276`):** a journal is probed for its writer before it is read: the writer keeps it open sharing
+  only reads, which .NET backs with an advisory lock on Linux and macOS, so asking for it alone fails while the job
+  runs. (On network home folders .NET takes no such lock; there the old behaviour remains.)
+- **Tests:** `JobEngineTests.A_job_still_running_is_not_interrupted_even_to_another_FileCat` — fails on the owner's Mac
+  before the change, passes after; the journal suites pass on Windows and macOS (E-I44).
+
+### I45 — FTP listing times taken as exact
+
+- **Discovered:** while fixing I43: on a server without MLSD (vsftpd), FileCat reads times from LIST, which gives the
+  minute for files changed in the last half year and only the day for older ones (`Mar 04  2021`). FileCat treats them
+  as exact: the Modified column shows seconds (`00`) that were never stated, and comparing a local tree with such a
+  server — or synchronizing from it — sees times that differ by up to a day where the files are the same.
+- **Severity / disposition:** Low–Medium (truthful display; comparison and Synchronize decisions). Should fix.
 
 ## New detail on open issues
 

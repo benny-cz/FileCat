@@ -35,11 +35,18 @@ Release issue I25 (owner-reported; required for 1.0.0 by DEC-11). Preliminary au
   request at all leaves (no web picture requested). A picture of the page as WebView2 drew it:
   `i25-markdown-webview2.png` `caeb25c8745a454023811bf2aba40bbc39f35775c6b2498b86d95a8c76c507ae`.
 
+## On the other page engines (E-I25-T2)
+
+CI run [36799348088](https://github.com/benny-cz/FileCat/actions/runs/36799348088) on `ec5d475`: on `ubuntu-latest`,
+WebKitGTK under a virtual display with the engine required (`FILECAT_REQUIRE_WEBKIT=1`): both `LinuxPageEngineTests` ran
+and passed (2 of 2, none skipped), the new one drawing a Markdown file with its title the file's name and no request
+refused (none made); on `macos-latest`, the page-engine smoke in WKWebView: "markdown loaded: True (); title: README.md;
+refused: 0 — PASS".
+
 ## Limitations
 
 - Not every CommonMark corner case (link destinations with nested brackets, some list-indentation rules, HTML blocks
   as such); GitHub extensions beyond tables, task lists, strikethrough and bare addresses (footnotes, alerts, math,
   Mermaid) are drawn as text.
 - Drawn pages follow the system's light or dark scheme, not FileCat's theme (I31).
-- Checked here in WebView2 (Windows 11); WebKitGTK and WKWebView use the same page and containment, not yet run with a
-  Markdown file.
+- The engines' own rendering differences (fonts, spacing) were looked at only in WebView2's picture.
