@@ -8,11 +8,16 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
+/// <summary>Tests that measure what the whole process allocates run alone: tests running alongside would be counted too.</summary>
+[CollectionDefinition(nameof(AllocationMeasured), DisableParallelization = true)]
+public sealed class AllocationMeasured;
+
 /// <summary>
 /// Archives are untrusted input (plan §15, trust boundary B02): a damaged ZIP, TAR, gzip, 7z, RAR, xz or zstd file must end
 /// in a refusal or a shorter listing, never an unexpected exception, a hang or an unbounded allocation, both while it is
 /// listed and while its members are read.
 /// </summary>
+[Collection(nameof(AllocationMeasured))]
 public sealed class ArchiveFuzzTests : IDisposable
 {
     private readonly TempDir _dir = new();
