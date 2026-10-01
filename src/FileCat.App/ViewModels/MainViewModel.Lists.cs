@@ -143,6 +143,19 @@ public sealed partial class MainViewModel
         }
         var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         if (Directory.Exists(downloads)) places.Add(new Place("Downloads", downloads, Location.FileSystem(downloads), FolderIcon(Location.FileSystem(downloads))) { Group = PlaceGroup.Folders });
+        // The cloud providers' folders (OneDrive, Dropbox, iCloud Drive, …) by the names they give them, with the icon
+        // their folder carries (OneDrive's is a known folder's; the others name theirs in desktop.ini, which is read only
+        // for a folder marked read-only or system, so the folder's real attributes go with it).
+        foreach (var root in Services.Shell.CloudSyncRoots)
+        {
+            FileAttributes attributes;
+            try { attributes = File.GetAttributes(root.Path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+            var cloud = Location.FileSystem(root.Path);
+            var entry = new EntryData(Path.GetFileName(root.Path), EntryKind.Directory) { Attributes = (uint)attributes };
+            var holder = Path.GetDirectoryName(root.Path) is { } parent ? Location.FileSystem(parent) : null;
+            places.Add(new Place(root.Provider, root.Path, cloud, () => icons.GetIcon(entry, holder)) { Group = PlaceGroup.Folders });
+        }
         foreach (var b in Services.History.Bookmarks.Where(b => b.Location is not null).OrderBy(b => b.Slot ?? 99))
         {
             string display = Services.Providers.Display(b.Location!);

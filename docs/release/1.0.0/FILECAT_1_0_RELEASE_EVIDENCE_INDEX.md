@@ -188,6 +188,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `b70be07` | Workspace: a layout saved by a newer FileCat is never saved over | I71 | I71's record |
 | — (test only) | Windows paths over MAX_PATH: every file operation, with long paths allowed and not | — (held) | E-V02-L1 |
 | `0ade5a1` | State: a save that fails is told to the user, once | — | E-V11-S1-F1 |
+| `b2d96ea` | Cloud files: OneDrive, Dropbox and iCloud Drive states drawn on their icons; their folders among the places | — | E-CLOUD-1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

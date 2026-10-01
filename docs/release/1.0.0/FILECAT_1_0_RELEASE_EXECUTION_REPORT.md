@@ -351,6 +351,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 92. V11 unwritable state (E-V11-S1-F1): a portable copy that cannot write beside itself already fell back to the
     profile and said why (now tested). A save failing during a session was only logged, so changes silently did not
     survive a restart; it is now told once per file per session (`0ade5a1`).
+93. Cloud providers, at the owner's request (E-CLOUD-1): OneDrive's, Dropbox's and iCloud Drive's marks never showed
+    (FileCat asked the Shell for overlays only inside Git repositories), and their folders were not among the places.
+    FileCat now draws the states itself from the attributes a listing has — only in the cloud, on this computer, kept
+    here always — for every Cloud Files provider, without running their Shell code or downloading anything, and lists
+    the providers' folders with their icons. The owner's own folders showed an "excluded" state (both pin attributes)
+    that a first version drew wrongly. A validation pass of operations on cloud files is queued.
 
 ## Evidence invalidated by the campaign's own changes
 
