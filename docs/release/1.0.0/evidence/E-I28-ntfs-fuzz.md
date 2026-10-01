@@ -52,7 +52,8 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Ubuntu 22.04 VM | `98fb594` | 100,000–1,099,999 | NTFS stopped on the second finding (317 s; `ubu-fuzz-ntfs.txt` `9c829e934c1238e6f28a8d891fe719c6f41a30585969942c258276d33fe87dce`); the other six images **lost**: the VM ran out of memory at 01:54 (I37) and the runs were stopped with VMware Tools' service group |
 | Ubuntu 22.04 VM | `bb977d0` | NTFS 100,000–1,099,999 | **lost** with the others (I37) |
 | Ubuntu 22.04 VM | `02acee6` | 100,000–1,099,999 (all images) | restarted 2026-10-01 00:34 UTC as user services (heap cap 1 GiB, lowest priority; `fuzz-02acee6.zip` `b1a86a5adcc6dcfa0603587b52c7947e2e5f71db911f879d46bfb96db3eda674`). NTFS **stopped at round 169,883** on the allocation budget (1,596 MiB for a damaged compressed size; fixed `0ec94f1`, replayed in every run, E-I37); the other six images running |
-| Ubuntu 22.04 VM | `2ba114e` | NTFS 169,884–1,099,999 | resumed after that round on the newest decoders (`fuzz-2ba114e.zip` `9e66fe99b0405718fb174a14ce4023a1c378aaddeec666fe05f3582b77b0fab8`); running |
+| Ubuntu 22.04 VM | `2ba114e` | NTFS 169,884–1,099,999 | resumed after that round on the newest decoders (`fuzz-2ba114e.zip` `9e66fe99b0405718fb174a14ce4023a1c378aaddeec666fe05f3582b77b0fab8`); **lost** at the VM's reset (2026-10-01 06:11, its network adapter hung, E-ENV-05), as were exFAT, FAT16, FAT32 and both disks of `02acee6`; FAT12 of `02acee6` had **passed** (12,965 s; `fuzz-c1/ubu-i37/`) |
+| Ubuntu 22.04 VM | `2ba114e` | 100,000–1,099,999 (all images, four at a time) | started again 2026-10-01 04:24 UTC as one queue (heap cap 768 MiB, lowest priority); running |
 | Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | fat12 (5,530 s), fat16 (12,731 s), exFAT (11,856 s), disk-mbr (21,593 s) and disk-gpt (22,206 s) **passed**; NTFS stopped on the second finding (317 s); fat32 running |
 | Windows 11 VM | `bb977d0` | NTFS 1,100,000–2,099,999 | **passed** (11,981 s) |
 | Windows 11 VM | `2ba114e` | NTFS, exFAT, FAT32 6,100,000–7,099,999 | started 2026-10-01 01:32 UTC; running |
@@ -63,7 +64,7 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Owner's M1 Mac | `2ba114e` | 7,100,000–8,099,999 (all images) | started 2026-10-01 03:41 UTC; running |
 
 Outputs of the finished runs, fetched from the Mac and the Windows VM, are kept under `fuzz-c1/` with a hash manifest
-(`fuzz-c1/SHA256SUMS.txt` `f797232e73214c1c01993c74d6dc23ee47c518183cd2fe30a2a18c6c09042f6e`, 23 files). Passed so far,
+(`fuzz-c1/SHA256SUMS.txt` `90979f922f424b490f0fc9b825c627683f6f0debe090c2c526c7bc657dfff4e5`, 26 files). Passed so far,
 each on the decoders of its run: rounds 0–99,999 and 2,100,000–3,099,999 of every image; 1,100,000–2,099,999 of every
 image but FAT32 (running); 5,100,000–6,099,999 of every image but NTFS (not run there); NTFS also 3,100,000–5,099,999.
 Running: 100,000–1,099,999 (Ubuntu), 6,100,000–7,099,999 of NTFS, exFAT and FAT32 (Windows VM), 7,100,000–8,099,999 of

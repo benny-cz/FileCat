@@ -59,6 +59,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I47 | FTP: an upload cut off on a server that will not continue it (ProFTPD) never finished; a dropped session stalled a minute | Medium (an interrupted upload could not complete; each retry refused; a 60 s stall) | Must fix | **Remediated `111ebcd`; verified against ProFTPD and vsftpd** (E-V08-L2) |
 | I48 | A move across volumes deleted its source without checking that the copy was still at the destination | Medium (data loss when another program takes the new copy away at once: antivirus quarantine, sync clients) | Must fix (DPI P01) | **Remediated `e72e3fc`; verified** (E-DPI) |
 | I49 | Moves to and from servers could delete what was never copied: a folder moved off a server went whole (with files that appeared or changed meanwhile); a moved local file went though it changed during the upload | High (silent data loss under concurrent change) | Must fix (DPI P09) | **Remediated `e72e3fc`; verified against OpenSSH, vsftpd and ProFTPD** (E-DPI) |
+| I50 | Synchronize removed or replaced target items that changed after the comparison (while the plan was reviewed) | High (an edited file deleted, permanently where chosen, or overwritten by an older version) | Must fix (DPI P10) | **Remediated `99145cf`; verified** (E-DPI) |
+| I51 | Linux/macOS: setting a link's read-only changed the item it points to | Low–Medium (metadata of an item outside the selection; links must not be followed) | Must fix (DPI P11) | **Remediated `65a76f8`; verified on macOS** (E-DPI) |
 
 ## Records of issues worked in this campaign
 
@@ -626,6 +628,30 @@ level the plan already states; exploit-level detail is not recorded here.
   move deletes exactly those, each only while a fresh stat shows that version, and folders only once empty; anything
   else stays and is named. A move to a server keeps a source that changed during the upload.
 - **Tests:** two `SftpJobTests` cases (both fail before), and a lab case moving a tree off OpenSSH, vsftpd and ProFTPD.
+
+### I50 — Synchronize removed or replaced target items that changed after the comparison
+
+- **Discovered:** DPI P10 review (E-DPI): Synchronize's plan becomes ordinary jobs — removals as Delete or Recycle,
+  replacements as copies that replace — acting on whatever is at each path when they run, though the plan may be
+  reviewed for a while first.
+- **Severity / disposition:** High — a target file edited meanwhile was deleted (permanently where chosen) or replaced by
+  the source's older version; a folder planned for removal went with files added since. Must fix.
+- **Remediation (`99145cf`):** each removal goes only while the item has the size and time the comparison saw (a folder
+  its time, which changes when items are added to it or removed; changes deeper inside are not seen), each replacement
+  only while the target file is as compared; anything else stays and is named, to compare again.
+- **Tests:** `SyncTests.Mirror_removes_a_target_item_only_while_it_is_as_compared` and
+  `SyncTests.Mirror_replaces_a_target_file_only_while_it_is_as_compared` fail before (the edited file deleted;
+  overwritten by "left d") and pass after.
+
+### I51 — Linux/macOS: setting a link's read-only changed the item it points to
+
+- **Discovered:** DPI P11 review (E-DPI): the attribute job applied read-only to a link chosen itself with .NET's
+  `File.SetAttributes`, a chmod on Linux and macOS that follows the link. On the owner's Mac the target became
+  read-only. Recursion never entered links; permissions were already guarded; times are set on the link itself.
+- **Severity / disposition:** Low–Medium — the metadata of an item outside the selection, possibly anywhere. Must fix.
+- **Remediation (`65a76f8`):** on Linux and macOS a link's attributes are left as they are, with a note.
+- **Tests:** `AttributeLinkTests.Changing_a_links_time_or_read_only_never_changes_what_it_points_to` fails on macOS before
+  and passes after; passes on Windows throughout.
 
 ## New detail on open issues
 

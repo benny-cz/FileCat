@@ -91,6 +91,23 @@ of day; that run was not repeated on the old build.
 | OpenSSH and vsftpd (22, 21, 990) | 19 of 19, 110 s | `v08-base-111ebcd-remote.trx` `29091ca3efc0366966be86193674ff4c6b4a4ae0c6ce9925a4857fadf0087a7f` | `v08-base-111ebcd-remote.txt` `52a52459798a7566a126ce0485dbe723e4c8182c8199ac7ec5833118e78b2051` |
 | Samba (E-V08-S1) | 7 of 7, 37 s | `v08-base-111ebcd-smb.trx` `98ddd2596bc024ead3afd2e6d6603e701ccc329d4f1cc53191007b944d4506ed` | `v08-base-111ebcd-smb.txt` `b14bee4d88769045a167727b4ab770c81a63cec9329d14fd5410420f2d67acff` |
 
+## The Windows VM as a client (`d228632`, Release)
+
+The same lab run from the lent Windows 11 VM (build 26300, its own fresh profile), not the host: OpenSSH and vsftpd,
+then ProFTPD, then the Samba share signed in with `net use`; the lab helpers from Windows PowerShell 5.1, their commands
+base64-encoded (E-ENV-05). Bundle `fc-lab-d228632.zip` `6a610f15295d7775e1a90c693088b3c7c08b71c1aed8f017319de674c8220e02`.
+Outputs under `vm-lab-d228632/`:
+
+| Lab | Result | TRX | Console |
+|---|---|---|---|
+| OpenSSH and vsftpd | **21 of 21**, 104 s | `v08-vm-remote.trx` `caa55931bc61042f595f0f407a7b2ad3838efa1e750d85562c2e2ca303b7cc2f` | `v08-vm-remote.txt` `86e93a0c114d8c466158dd5a192554cbac8eda1697c8f871948280ab0ed7c120` |
+| ProFTPD | **21 of 21**, 92 s | `v08-vm-proftpd.trx` `58f6428a0bc8b5e658b0800934b3f2eece26afc746e78ec5142712ec59691ed6` | `v08-vm-proftpd.txt` `aadeec0353b95794a86f096b7ed5119ed19cd275410b166ccedc1c7c014b2dcc` |
+| Samba | **7 of 7**, 35 s | `v08-vm-smb.trx` `6b9b328a8f177d89e87483fa9021cbcb38dff5d0fda57c6f9851b6e7b0fbad73` | `v08-vm-smb.txt` `40e8a84bdb9701e54cd47cd8463e35e004635525ac136275156906bf88e08763` |
+
+A first attempt (`febb51d`) is void: the lab VM's network adapter hung during it (E-ENV-05), and two of its helpers
+failed in PowerShell 5.1 (quotes dropped from native arguments; fixed). It also showed the cut-off case depending on how
+quickly the drop command ran; the case now holds the job while the server drops it (`d228632`).
+
 ## Limitations
 
 - One version of each server, on one machine, with near-default configurations; the Windows VM as a client is still to

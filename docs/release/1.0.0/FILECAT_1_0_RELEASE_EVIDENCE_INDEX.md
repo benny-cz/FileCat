@@ -42,8 +42,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I41 | SFTP socket buffers; per-file round trips | `1dce2c2` → `4c6b910` | Host → Ubuntu VM with netem | 32 MB at 100 ms: down 1.23 → 11.58 MB/s, up 1.62 → 8.17; whole lab 19/19 in 13 min 8 s | Preliminary automated | [E-I41](evidence/E-I41-sftp-socket-buffers.md) | I41, I42 |
 | E-I43 | Modified times kept on FTP servers without MFMT, and back | `e399276` → `e527a86` | Host → Ubuntu VM (vsftpd, OpenSSH) | Tree times wrong on vsftpd before (both FTPS modes), kept both ways after over all three | Preliminary automated | [E-I43](evidence/E-I43-I44.md) | I43 |
 | E-I44 | A running job not shown as interrupted to a second FileCat | `e399276` | Owner's Mac; host | New test fails on macOS before, passes after; journal suites green on Windows and macOS | Preliminary automated | [E-I44](evidence/E-I43-I44.md) | I44 |
-| E-V08-L2 | The remote lab against a second implementation (ProFTPD: FTPS with MLSD, `mod_sftp`) | `e527a86` → `3f1b554`, `111ebcd` | Host → Ubuntu VM (ProFTPD 1.3.7c beside OpenSSH, vsftpd, Samba) | 14/19 at first: I46, I47, a test expectation; after: 19/19 ProFTPD, 19/19 OpenSSH/vsftpd, 7/7 Samba | Preliminary automated | [E-V08-L2](evidence/E-V08-L2-second-implementations.md) | I45, I46, I47 |
-| E-DPI | Source review of DPI P01, P02, P04, P08, P09, P14 | `16b1e47` → `e72e3fc` | Host; lab servers | I48 and I49 found and fixed (with I44, I46, I47 from the same rows); P02, P08, P14 without defects | Static + preliminary automated | [E-DPI](evidence/E-DPI-review.md) | I44, I48, I49 |
+| E-V08-L2 | The remote lab against a second implementation (ProFTPD: FTPS with MLSD, `mod_sftp`); the Windows VM as a client | `e527a86` → `3f1b554`, `111ebcd`, `d228632` | Host and the lent Windows 11 VM → Ubuntu VM (ProFTPD 1.3.7c beside OpenSSH, vsftpd, Samba) | 14/19 at first: I46, I47, a test expectation; after: 19/19 ProFTPD, 19/19 OpenSSH/vsftpd, 7/7 Samba; from the Windows VM 21/21, 21/21, 7/7 | Preliminary automated | [E-V08-L2](evidence/E-V08-L2-second-implementations.md) | I45, I46, I47 |
+| E-DPI | Source review of DPI P01, P02, P04, P08–P11, P14 | `16b1e47` → `65a76f8` | Host; owner's Mac; lab servers | I48–I51 found and fixed (with I44, I46, I47 from the same rows); P02, P08, P14 without defects | Static + preliminary automated | [E-DPI](evidence/E-DPI-review.md) | I44, I48–I51 |
 | E-I25 | Markdown drawn as a page | `7abd0fe` | Host; WebView2 | 44 renderer tests (hostile inputs), App viewer test, real-WebView2 test with a picture of the page | Preliminary automated/runtime | [E-I25](evidence/E-I25-markdown.md) | I25 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
@@ -102,3 +102,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `f9e7cba` | Release records: V08 against ProFTPD; I45–I47 | — | — |
 | `16b1e47` | Release records: the fuzz campaign's finished ranges | — | E-I28-C1 |
 | `e72e3fc` | Moves delete a source only while its copy is in place and both are as they were copied | I48, I49 | E-DPI |
+| `febb51d` | Release records: DPI review, I48, I49 | — | — |
+| `99145cf` | Synchronize removes and replaces a target item only while it is as the comparison saw it | I50 | E-DPI |
+| `d228632` | Test: the lab's cut-off upload is held while the server drops it | — | E-V08-L2 |
+| `5a8d3c9` | Release records: the lab VM's network adapter hang; ProFTPD beside vsftpd; the Windows VM as a client | — | E-ENV-05 |
+| `65a76f8` | Attributes: a link's read-only is never set through it on Linux and macOS | I51 | E-DPI |
