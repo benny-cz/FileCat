@@ -42,6 +42,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I41 | SFTP socket buffers; per-file round trips | `1dce2c2` → `4c6b910` | Host → Ubuntu VM with netem | 32 MB at 100 ms: down 1.23 → 11.58 MB/s, up 1.62 → 8.17; whole lab 19/19 in 13 min 8 s | Preliminary automated | [E-I41](evidence/E-I41-sftp-socket-buffers.md) | I41, I42 |
 | E-I43 | Modified times kept on FTP servers without MFMT, and back | `e399276` → `e527a86` | Host → Ubuntu VM (vsftpd, OpenSSH) | Tree times wrong on vsftpd before (both FTPS modes), kept both ways after over all three | Preliminary automated | [E-I43](evidence/E-I43-I44.md) | I43 |
 | E-I44 | A running job not shown as interrupted to a second FileCat | `e399276` | Owner's Mac; host | New test fails on macOS before, passes after; journal suites green on Windows and macOS | Preliminary automated | [E-I44](evidence/E-I43-I44.md) | I44 |
+| E-V08-L2 | The remote lab against a second implementation (ProFTPD: FTPS with MLSD, `mod_sftp`) | `e527a86` → `3f1b554`, `111ebcd` | Host → Ubuntu VM (ProFTPD 1.3.7c beside OpenSSH, vsftpd, Samba) | 14/19 at first: I46, I47, a test expectation; after: 19/19 ProFTPD, 19/19 OpenSSH/vsftpd, 7/7 Samba | Preliminary automated | [E-V08-L2](evidence/E-V08-L2-second-implementations.md) | I45, I46, I47 |
 | E-I25 | Markdown drawn as a page | `7abd0fe` | Host; WebView2 | 44 renderer tests (hostile inputs), App viewer test, real-WebView2 test with a picture of the page | Preliminary automated/runtime | [E-I25](evidence/E-I25-markdown.md) | I25 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
@@ -93,3 +94,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `2a6f882` | Shell helper starts the Shell before it says it is ready; the operations test waits as long for every state | — | E-X01 (CI runs 36801387149, 36801942257) |
 | `e399276` | A job still running is never shown as interrupted, even to another FileCat | I44 | E-I44 |
 | `e527a86` | Uploads keep modified times on servers without MFMT and say when a server did not; downloads take the stated time | I43 | E-I43 |
+| `f02063b` | Release records: I38–I44, I45 opened | — | — |
+| `3f1b554` | SFTP: links are renamed and moved only where the server renames links themselves | I46 | E-V08-L2 |
+| `111ebcd` | FTP: an upload the server will not continue starts again; a dropped session no longer stalls; listing times as far as stated | I45, I47 | E-V08-L2 |
+| `b4d0f52` | Test: the MFT-record case reads the record again while the time change is not on disk yet (CI run 36806933971) | — | E-X01 |

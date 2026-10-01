@@ -54,7 +54,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I42 | Remote copies cost 1–1.5 s per small file at 100 ms (about 14 round trips per SFTP upload; one file at a time) | Low–Medium (folders of many small files over long links: 1,000 files ≈ 23 min up) | Owner decision (performance; post-1.0 candidate) | **Open — measured** (E-I41) |
 | I43 | Uploads to FTP servers without MFMT (vsftpd) silently carried the time they arrived; downloads took the listing's coarse time | Medium (timestamps are data; sync and "newer" decisions rely on them; nothing said so) | Must fix | **Remediated `e527a86`; verified against vsftpd and OpenSSH** (E-I43) |
 | I44 | Linux/macOS: a second FileCat on the same profile showed a running job as interrupted and offered its partial files for deletion | Medium (a live operation undermined; no data loss reachable) | Must fix (DPI P04) | **Remediated `e399276`; verified on macOS** (E-I44) |
-| I45 | FTP listing times taken as exact: vsftpd's LIST gives minutes, or only the day for older files | Low–Medium (panels show invented seconds; comparing with such a server sees false time differences) | Should fix | **Open** |
+| I45 | FTP listing times taken as exact: vsftpd's LIST gives minutes, or only the day for older files | Low–Medium (panels show invented seconds; comparing with such a server sees false time differences) | Should fix | **Remediated `111ebcd`; verified against vsftpd and ProFTPD** (E-V08-L2) |
+| I46 | SFTP to ProFTPD: renaming, moving or setting aside a link renamed or moved its target instead | High (a different item than the one chosen moved, possibly elsewhere, silently; the link left dangling) | Must fix | **Remediated `3f1b554`; verified against ProFTPD and OpenSSH** (E-V08-L2) |
+| I47 | FTP: an upload cut off on a server that will not continue it (ProFTPD) never finished; a dropped session stalled a minute | Medium (an interrupted upload could not complete; each retry refused; a 60 s stall) | Must fix | **Remediated `111ebcd`; verified against ProFTPD and vsftpd** (E-V08-L2) |
 
 ## Records of issues worked in this campaign
 
@@ -564,6 +566,40 @@ level the plan already states; exploit-level detail is not recorded here.
   as exact: the Modified column shows seconds (`00`) that were never stated, and comparing a local tree with such a
   server — or synchronizing from it — sees times that differ by up to a day where the files are the same.
 - **Severity / disposition:** Low–Medium (truthful display; comparison and Synchronize decisions). Should fix.
+- **Remediation (`111ebcd`):** entries carry how precisely their time is known (from each listing line: MLSD to the
+  second, Unix LIST to the minute or the day, other LIST formats to the minute); panels show only that much (a day as the
+  server's date, not moved into another by the local time zone); comparisons treat such a time as every moment of its
+  minute or day. Unit tests for the comparison, the line precision and the display; the lab's tree case compares the
+  local tree with its copy on vsftpd and on ProFTPD by size and time and finds them the same (E-V08-L2).
+
+### I46 — SFTP to ProFTPD: renaming or moving a link renamed or moved its target
+
+- **Discovered:** V08's second implementation (E-V08-L2): against ProFTPD 1.3.7c's `mod_sftp`, FileCat's lab case found
+  the targets moved and the links dangling. OpenSSH's own `sftp` client gets the same from that server — the server
+  resolves a link given to RENAME — while OpenSSH renames the link; removing a link is right on both.
+- **Severity / disposition:** High — a different item than the one the user chose is renamed or moved (into another
+  folder, or out of one, a whole folder included), silently, and the link no longer leads anywhere. Must fix.
+- **Remediation (`3f1b554`):** SSH.NET cannot read a link to check a rename first or undo it, so FileCat renames, moves
+  and sets aside links over SFTP only on servers that identify as OpenSSH; elsewhere the item fails with the reason, and
+  no retry question is asked. FTP servers (RNFR/RNTO) rename links themselves (vsftpd and ProFTPD in the lab).
+- **Tests:** `SftpJobTests.Links_are_not_renamed_moved_or_set_aside_where_the_server_may_rename_their_targets`; the lab
+  case holds on every server that targets stay where they were, and passes on OpenSSH, vsftpd and ProFTPD.
+- **Limitation:** other SFTP servers are not known, so link renames are refused on them too.
+
+### I47 — FTP: an upload cut off on ProFTPD never finished; a dropped session stalled a minute
+
+- **Discovered:** E-V08-L2: the FTPS cut-off case against ProFTPD ran into its time limit. A trace: closing the broken
+  transfer waited the whole 60 s read timeout for a reply from the killed session; then ProFTPD refused to append
+  (`451 Append/Restart not permitted, try again`, its default), FileCat asked the user, and each Retry was refused the
+  same way.
+- **Severity / disposition:** Medium — an interrupted upload to such a server could not complete without starting it
+  again by hand, and every break cost a minute of apparent stall. Must fix.
+- **Remediation (`111ebcd`):** a server's refusal to continue makes the upload start again, saying why (the channel's
+  contract said so; the upload did not do it). After a broken transfer FileCat waits 5 s for the server's verdict,
+  keeping a reason such as a full quota, then ends the connection without QUIT and reports it lost, so Retry reconnects.
+  FTP replies are quoted in the server's words (FluentFTP repeated the code first).
+- **Tests:** `SftpJobTests.A_dropped_upload_starts_again_where_the_server_will_not_continue_it`; the lab's cut-off case
+  passes on ProFTPD (started again) and vsftpd (continued), each in under half a minute.
 
 ## New detail on open issues
 

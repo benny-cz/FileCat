@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `e527a86` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `b4d0f52` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -19,10 +19,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   (seconds in the Modified column), I26 (progress and time left, confirmed Medium), I28's second finding, I29 (a CI-red
   race in shell previews).
 - **Done since:** I30 (how running operations show, `67f70f9`; the taskbar still to be seen on a real desktop), I32 (a
-  folder's counted size vanishing at a refresh, `6e9ee75`), I33–I41, I43 and I44 (remote transfers against real
-  servers, recovery allocation, state-folder permissions, a second FileCat seeing a running job) and I25 (Markdown drawn
-  as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision). **Queued:** I27 (Linux
-  icons under Adwaita 41), I31 (viewer windows only partly themed; assessed), I45 (FTP listing times taken as exact).
+  folder's counted size vanishing at a refresh, `6e9ee75`), I33–I41 and I43–I47 (remote transfers against real
+  servers of two implementations, recovery allocation, state-folder permissions, a second FileCat seeing a running job)
+  and I25 (Markdown drawn as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
+  **Queued:** I27 (Linux icons under Adwaita 41), I31 (viewer windows only partly themed; assessed).
   **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the Mac (E-I28-C1).
 
 ## Execution baseline
@@ -165,6 +165,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     safe (exclusive journal while saving; commits refuse a changed target).
 47. Uploads to FTP servers without MFMT silently kept the arrival time, and downloads took vsftpd's coarse listing time
     (I43): fixed (`e527a86`); the lab's tree case now checks every time both ways and fails before the change.
+48. V08's second implementations (E-V08-L2): ProFTPD 1.3.7c with FTPS (MLSD) and `mod_sftp` beside the lab's servers
+    (installing it removed vsftpd, which was put back beside it). 14 of 19 at first: over ProFTPD's SFTP, renaming or
+    moving a link moved its target (I46, High; the server's behaviour, confirmed with OpenSSH's own client; fixed
+    `3f1b554` by renaming links over SFTP only on OpenSSH), and an FTPS upload cut off never finished (I47: a refused
+    APPE retried forever, a 60 s stall; fixed `111ebcd`). FTP listing times are now shown and compared as far as the
+    server states them (I45, `111ebcd`). After: 19/19 on ProFTPD, 19/19 on OpenSSH/vsftpd, 7/7 on Samba.
+49. CI red once more on the MFT-record test (x64, after ARM64 earlier): the record and its log read a moment before the
+    time change reached the disk; the test now reads again as a user would (`b4d0f52`).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -185,12 +193,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. V08: second server implementations (ProFTPD with MLSD, its mod_sftp); the Windows VM as a client; collect the fuzz
-   campaign's results (E-I28-C1).
-2. I45: FTP listing times taken as exact (vsftpd's LIST: minutes, or days) — panels show invented seconds, comparisons
-   see false differences.
-3. I22/I34 replace on a FAT destination; DPI P01 (copy/move source deletion: the copy is not re-checked right before
-   its source goes), P02, P08, P14.
+1. V08: the Windows VM as a client; collect the fuzz campaign's results (E-I28-C1).
+2. DPI P01 (copy/move: the copy is not re-checked right before its source goes), P02, P08, P14; I22/I34 replace on a
+   FAT destination.
+3. I42's options for the owner (fewer requests per file; several files in flight).
 4. The queued Low issues: I27, I31.
 5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
    I09 topology), as the owner permitted.
