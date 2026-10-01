@@ -2,6 +2,18 @@ using FileCat.Core.Diagnostics;
 
 namespace FileCat.Platform.Windows.Shell;
 
+/// <summary>What came of asking the helper for one picture.</summary>
+public enum ShellAnswer
+{
+    /// <summary>The helper answered: here is the picture, or this file has none. The answer is worth remembering.</summary>
+    Answered,
+    /// <summary>Nothing was asked: this item hung or crashed a helper before, or Shell pictures are off this session.</summary>
+    Refused,
+    /// <summary>It was asked and no answer came: the helper could not start, or it stopped while this was in flight.
+    /// Nothing is known about the file, so this is no answer to remember — asking again later may well work.</summary>
+    Failed,
+}
+
 /// <summary>
 /// Talks to FileCat.ShellHost.exe, where Windows Shell handlers run instead of in FileCat (plan §8.2, TV-16). One
 /// request at a time, each with a deadline: a helper that hangs or crashes is ended and replaced, the item that caused
@@ -57,45 +69,62 @@ public sealed class ShellHostClient : IDisposable
         }
     }
 
-    public ShellImage? Get(ShellImageKind kind, string path, int size, TimeSpan timeout) =>
-        Ask((byte)kind, path, size, timeout) is { Status: ShellHostProtocol.Status.Image } r ? r.Image : null;
+    public ShellImage? Get(ShellImageKind kind, string path, int size, TimeSpan timeout) => Get(kind, path, size, timeout, out _);
+
+    /// <summary>The picture, with <paramref name="answer"/> saying whether what came back is an answer at all.</summary>
+    public ShellImage? Get(ShellImageKind kind, string path, int size, TimeSpan timeout, out ShellAnswer answer) =>
+        Ask((byte)kind, path, size, timeout, out answer) is { Status: ShellHostProtocol.Status.Image } r ? r.Image : null;
 
     /// <summary>Test requests (hang, crash, spawn, integrity, write probe); only a helper started with test faults honors them.</summary>
-    public string? AskTest(byte request, string argument, TimeSpan timeout) => Ask(request, argument, 1, timeout)?.Message;
+    public string? AskTest(byte request, string argument, TimeSpan timeout) => Ask(request, argument, 1, timeout, out _)?.Message;
 
-    private (ShellHostProtocol.Status Status, ShellImage? Image, string? Message)? Ask(byte kind, string path, int size, TimeSpan timeout)
+    private (ShellHostProtocol.Status Status, ShellImage? Image, string? Message)? Ask(byte kind, string path, int size, TimeSpan timeout, out ShellAnswer answer)
     {
         lock (_lock)
         {
+            answer = ShellAnswer.Answered;
             string key = kind + "|" + path;
-            if (_disposed || DisabledReason is not null || _poisoned.Contains(key)) return null;
-            if (!EnsureStarted()) return null;
+            if (_disposed || DisabledReason is not null || _poisoned.Contains(key))
+            {
+                answer = ShellAnswer.Refused;
+                return null;
+            }
+            if (!EnsureStarted())
+            {
+                // A helper that could not start says nothing about this file; one that is now off for the session does.
+                answer = DisabledReason is null ? ShellAnswer.Failed : ShellAnswer.Refused;
+                return null;
+            }
             try
             {
                 ShellHostProtocol.WriteRequest(_writer!, kind, Math.Clamp(size, 1, ShellHostProtocol.MaxPixels), path);
             }
             catch (IOException)
             {
-                Failed(key, "The Shell helper stopped unexpectedly.");
+                // The helper was gone before the request even reached it: nothing was read, so nothing is known.
+                Failure("The Shell helper stopped unexpectedly.");
+                answer = ShellAnswer.Failed;
                 return null;
             }
             var reader = _reader!;
-            var answer = Task.Run(() => ShellHostProtocol.ReadResponse(reader));
+            var response = Task.Run(() => ShellHostProtocol.ReadResponse(reader));
             bool finished;
-            try { finished = answer.Wait(timeout); }
+            try { finished = response.Wait(timeout); }
             catch (AggregateException) { finished = true; }
             if (!finished)
             {
                 Failed(key, $"A Shell handler did not answer within {timeout.TotalSeconds:0.#} seconds for {Path.GetFileName(path)}; the helper was ended.");
-                try { answer.Wait(TimeSpan.FromSeconds(2)); } catch (AggregateException) { }
+                try { response.Wait(TimeSpan.FromSeconds(2)); } catch (AggregateException) { }
+                answer = ShellAnswer.Refused; // this item hung the helper: it is this file's answer, and its last
                 return null;
             }
-            if (answer.IsFaulted)
+            if (response.IsFaulted)
             {
                 Failed(key, $"The Shell helper ended while handling {Path.GetFileName(path)} (a handler crashed).");
+                answer = ShellAnswer.Refused; // this item crashed the helper: likewise
                 return null;
             }
-            var result = answer.Result;
+            var result = response.Result;
             if (result.Status == ShellHostProtocol.Status.Failed) AppLog.Info("Shell picture unavailable: " + result.Message);
             return result;
         }

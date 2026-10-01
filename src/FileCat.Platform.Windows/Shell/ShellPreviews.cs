@@ -94,6 +94,14 @@ public sealed class ShellPreviews : IDisposable
     private Request? _running;
     private readonly Dictionary<string, ShellImage?> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> _cacheOrder = new();
+    /// <summary>
+    /// How often asking the helper for this picture failed outright (the helper died on it, most often because the
+    /// Shell handler it ran did). A failure is not an answer: it is not remembered as "this file has no picture", so
+    /// the next time the picture is wanted a fresh helper is asked. A handler that brings the helper down every time
+    /// would otherwise be asked for ever, so after <see cref="MostAttempts"/> tries the miss is remembered after all.
+    /// </summary>
+    private readonly Dictionary<string, int> _failures = new(StringComparer.OrdinalIgnoreCase);
+    private const int MostAttempts = 3;
     private readonly Thread _worker;
     private readonly SemaphoreSlim _signal = new(0);
     private volatile bool _disposed;
@@ -119,6 +127,9 @@ public sealed class ShellPreviews : IDisposable
 
     /// <summary>Tests: runs on the worker after it took a request and before it asks the helper.</summary>
     internal Action<string>? BeforeHelperRequest { get; init; }
+
+    /// <summary>Tests: stands in for the helper, so that each kind of answer can be given on purpose.</summary>
+    internal Func<ShellImageKind, string, int, TimeSpan, (ShellAnswer Answer, ShellImage? Image)>? AskForTests { get; init; }
 
     private int _helperRequests;
 
@@ -192,16 +203,41 @@ public sealed class ShellPreviews : IDisposable
             while (!_disposed && Next() is { } request)
             {
                 ShellImage? image = null;
+                var answer = ShellAnswer.Failed;
                 BeforeHelperRequest?.Invoke(request.Key);
                 Interlocked.Increment(ref _helperRequests);
-                try { image = _client.Get(request.Kind, request.Path, request.Size, request.Timeout); }
+                try { image = Ask(request); }
                 catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException) { }
+                bool failed = answer == ShellAnswer.Failed;
+
+                ShellImage? Ask(Request r)
+                {
+                    if (AskForTests is { } fake)
+                    {
+                        var (kind, picture) = fake(r.Kind, r.Path, r.Size, r.Timeout);
+                        answer = kind;
+                        return picture;
+                    }
+                    return _client.Get(r.Kind, r.Path, r.Size, r.Timeout, out answer);
+                }
                 List<(TaskCompletionSource<ShellImage?> Tcs, CancellationToken Ct)> waiters;
                 lock (_lock)
                 {
-                    _cache[request.Key] = image;
-                    _cacheOrder.Enqueue(request.Key);
-                    while (_cacheOrder.Count > CacheLimit) _cache.Remove(_cacheOrder.Dequeue());
+                    // Counting tries costs memory of its own; past the cache's size, start the counts over.
+                    if (_failures.Count > CacheLimit) _failures.Clear();
+                    int attempts = failed ? _failures[request.Key] = _failures.GetValueOrDefault(request.Key) + 1 : 0;
+                    if (!failed || attempts >= MostAttempts)
+                    {
+                        _failures.Remove(request.Key);
+                        _cache[request.Key] = image;
+                        _cacheOrder.Enqueue(request.Key);
+                        while (_cacheOrder.Count > CacheLimit)
+                        {
+                            string oldest = _cacheOrder.Dequeue();
+                            _cache.Remove(oldest);
+                            _failures.Remove(oldest);
+                        }
+                    }
                     _running = null;
                     waiters = [.. request.Waiters];
                 }

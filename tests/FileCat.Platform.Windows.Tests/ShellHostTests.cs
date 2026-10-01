@@ -137,6 +137,51 @@ public sealed class ShellHostTests : IDisposable
         Assert.Equal(1, previews.Client.Starts);
     }
 
+    /// <summary>
+    /// Release issue I70: the helper is meant to be fragile — it runs the Shell's own handlers, and one that crashes
+    /// takes the helper with it. A request that failed because no helper was there to answer says nothing about the
+    /// file, so it is not remembered as "this file has no picture"; a helper that answers, even with no picture, is.
+    /// A handler that brings the helper down on every try is still given up on, so nothing is asked for ever.
+    /// </summary>
+    [Fact]
+    public async Task A_request_that_got_no_answer_is_not_remembered_as_the_file_having_no_picture()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        string file = Path.Combine(_dir, "picture.bmp");
+        var answers = new Queue<ShellAnswer>();
+        int asked = 0;
+        using var previews = new ShellPreviews(new ShellHostClient(Helper(), testFaults: true), () => false)
+        {
+            AskForTests = (_, _, _, _) =>
+            {
+                asked++;
+                return (answers.Count > 0 ? answers.Dequeue() : ShellAnswer.Answered, null);
+            },
+        };
+
+        // The helper could not be started twice running: neither failure is an answer, and each is asked afresh.
+        answers.Enqueue(ShellAnswer.Failed);
+        answers.Enqueue(ShellAnswer.Failed);
+        Assert.Null(await previews.GetAsync(ShellImageKind.Thumbnail, file, 1, FileAttributes.Normal, 32, ct));
+        Assert.False(previews.TryGetCached(ShellImageKind.Thumbnail, file, 1, 32, out _), "a failure was remembered as an answer");
+        Assert.Null(await previews.GetAsync(ShellImageKind.Thumbnail, file, 1, FileAttributes.Normal, 32, ct));
+        Assert.False(previews.TryGetCached(ShellImageKind.Thumbnail, file, 1, 32, out _));
+        Assert.Equal(2, asked);
+
+        // It works the third time: the picture is remembered, and the file is not asked about again.
+        Assert.Null(await previews.GetAsync(ShellImageKind.Thumbnail, file, 1, FileAttributes.Normal, 32, ct));
+        Assert.True(previews.TryGetCached(ShellImageKind.Thumbnail, file, 1, 32, out _));
+        Assert.Null(await previews.GetAsync(ShellImageKind.Thumbnail, file, 1, FileAttributes.Normal, 32, ct));
+        Assert.Equal(3, asked);
+
+        // Another file that fails every time is given up on instead of being asked for ever.
+        string hopeless = Path.Combine(_dir, "hopeless.bmp");
+        for (int i = 0; i < 5; i++) answers.Enqueue(ShellAnswer.Failed);
+        for (int i = 0; i < 5; i++) Assert.Null(await previews.GetAsync(ShellImageKind.Thumbnail, hopeless, 1, FileAttributes.Normal, 32, ct));
+        Assert.True(previews.TryGetCached(ShellImageKind.Thumbnail, hopeless, 1, 32, out _), "a hopeless file is asked about for ever");
+        Assert.Equal(6, asked);
+    }
+
     [Fact]
     public async Task While_paused_the_helper_is_asked_for_nothing_and_known_pictures_stay()
     {
