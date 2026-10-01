@@ -329,6 +329,93 @@ public sealed class RemoteLabTests : IDisposable
         }
     }
 
+    [Fact]
+    public void An_sftp_connection_gets_socket_buffers_for_long_links()
+    {
+        // Release issue I41: SSH.NET left 137,072-byte socket buffers, 1.2 MB/s down at a 100 ms round trip.
+        var lab = Lab();
+        var profile = Profile(RemoteProtocols.Sftp, 22, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "buffers"));
+        using var lease = stack.Connections.Lease(profile.Id, TestContext.Current.CancellationToken);
+        int buffer = Assert.IsType<SshNetChannel>(lease.Channel).SocketBuffer;
+        TestContext.Current.TestOutputHelper?.WriteLine($"receive buffer {buffer}");
+        Assert.True(OperatingSystem.IsLinux() ? buffer > 2 * 137_072 : buffer >= SshNetConnector.SocketBufferBytes, $"receive buffer {buffer}");
+    }
+
+    /// <summary>
+    /// A link on the server is renamed, moved, set aside, replaced and deleted itself, never its target, over each
+    /// protocol: the channel's contract, which a library's path handling must not undo (SSH.NET canonicalizes paths with
+    /// REALPATH, and a server's REALPATH resolves links). The lab account's own shell makes the links and reads the outcome.
+    /// </summary>
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, 22)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, 21)]
+    public async Task Links_on_the_server_are_changed_themselves_never_their_targets(string protocol, int port)
+    {
+        var lab = Lab();
+        var profile = Profile(protocol, port, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "links-" + protocol));
+        string root = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        // The lab's throwaway account on a private network: its shell is only the test's instrument.
+        using var shell = new Renci.SshNet.SshClient(lab.Host, LabPort(RemoteProtocols.Sftp, 22), lab.User, lab.Password);
+        shell.Connect();
+        string Shell(string command)
+        {
+            using var run = shell.RunCommand(command);
+            Assert.True(run.ExitStatus == 0, $"{command}: {run.Error}");
+            return run.Result;
+        }
+        Shell($"cd && mkdir {root} && cd {root} && mkdir real into up doomed && echo target > target.txt && echo kept > real/inside.txt"
+            + " && ln -s target.txt 'file link' && ln -s real 'dir link' && ln -s ../target.txt up/a.txt && ln -s ../target.txt up/b.txt"
+            + " && ln -s ../real doomed/to-real");
+        string local = Directory.CreateDirectory(Path.Combine(_dir, "links-src-" + protocol)).FullName;
+        File.WriteAllText(Path.Combine(local, "a.txt"), "uploaded a\n");
+        File.WriteAllText(Path.Combine(local, "b.txt"), "uploaded b\n");
+        var at = SftpProvider.At(profile, root);
+        try
+        {
+            var jobs = new[]
+            {
+                await RunAsync(stack, new JobRequest { Kind = JobKind.Rename, Sources = [new ItemRef(at, "file link", EntryKind.File)], NewName = "renamed link" }),
+                await RunAsync(stack, new JobRequest { Kind = JobKind.Move, Sources = [new ItemRef(at, "dir link", EntryKind.File)], Destination = SftpProvider.At(profile, root + "/into") }),
+                await RunAsync(stack, new JobRequest
+                {
+                    Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(Path.Combine(local, "a.txt"), EntryKind.File)], Destination = SftpProvider.At(profile, root + "/up"),
+                    Options = new TransferOptions { Conflicts = ConflictPolicy.Replace },
+                }),
+                await RunAsync(stack, new JobRequest
+                {
+                    Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(Path.Combine(local, "b.txt"), EntryKind.File)], Destination = SftpProvider.At(profile, root + "/up"),
+                    Options = new TransferOptions { Conflicts = ConflictPolicy.KeepBothRenameExisting },
+                }),
+                await RunAsync(stack, new JobRequest { Kind = JobKind.Delete, Sources = [new ItemRef(at, "doomed", EntryKind.Directory)] }),
+            };
+            string story = string.Join(" | ", jobs.Select(j => $"{j.Request.Kind} {j.State}: {string.Join("; ", j.Issues.Select(i => i.Message))}"));
+            // What the server holds: type, path, and where a link points.
+            string tree = Shell($"cd ~/{root} && find . -mindepth 1 -printf '%y %p>%l\\n' | LC_ALL=C sort");
+            string contents = Shell($"cd ~/{root} && cat target.txt real/inside.txt up/a.txt up/b.txt");
+            TestContext.Current.TestOutputHelper?.WriteLine(story + "\n" + tree + contents);
+            Assert.All(jobs, j => Assert.True(j.State == JobState.Completed, story));
+            string[] lines = tree.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            Assert.Contains("f ./target.txt>", lines); // the targets stay where they were, as they were
+            Assert.Contains("d ./real>", lines);
+            Assert.Contains("f ./real/inside.txt>", lines);
+            Assert.Contains("l ./renamed link>target.txt", lines); // the renamed link is the link, pointing where it did
+            Assert.DoesNotContain(lines, l => l.StartsWith("l ./file link>", StringComparison.Ordinal));
+            Assert.Contains("l ./into/dir link>real", lines); // the moved link moved, unchanged
+            Assert.DoesNotContain(lines, l => l.StartsWith("l ./dir link>", StringComparison.Ordinal));
+            Assert.Contains("f ./up/a.txt>", lines); // the link that was replaced is now the uploaded file
+            Assert.Contains("f ./up/b.txt>", lines); // the link set aside keeps pointing at the target under its new name
+            Assert.Single(lines, l => l.StartsWith("l ./up/b", StringComparison.Ordinal) && l.EndsWith(">../target.txt", StringComparison.Ordinal));
+            Assert.DoesNotContain(lines, l => l.StartsWith("d ./doomed", StringComparison.Ordinal) || l.Contains("to-real", StringComparison.Ordinal));
+            Assert.Equal("target\nkept\nuploaded a\nuploaded b\n", contents);
+        }
+        finally
+        {
+            Shell($"cd && rm -rf -- {root}");
+        }
+    }
+
     /// <summary>
     /// Names that shells, option parsers, URL encoders and Unicode normalizers treat specially; valid on every client.
     /// </summary>

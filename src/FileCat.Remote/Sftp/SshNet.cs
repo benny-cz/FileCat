@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Reflection;
 using FileCat.Core.State;
 using Renci.SshNet;
 using Renci.SshNet.Common;
@@ -53,7 +54,7 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
             client = new SftpClient(info) { KeepAliveInterval = TimeSpan.FromSeconds(30), OperationTimeout = TimeSpan.FromMinutes(2) };
             client.HostKeyReceived += (_, e) => e.CanTrust = context.ApproveHostKey(e.HostKey);
             client.ConnectAsync(ct).GetAwaiter().GetResult();
-            var channel = new SshNetChannel(client, key);
+            var channel = new SshNetChannel(client, key) { SocketBuffer = WidenSocketBuffers(client) };
             client = null;
             key = null;
             return channel;
@@ -90,6 +91,41 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
             client?.Dispose();
             key?.Dispose();
             agent?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// The socket buffers a connection gets. SSH.NET fixes them once connected (2 × 68,536 bytes after ConnectAsync, 10 ×
+    /// after Connect), which turns off the system's window tuning and holds a transfer to one buffer per round trip:
+    /// 1.2 MB/s down and 1.7 up at 100 ms (release issue I41). At 4 MiB the same link carried 12.5 down and 8.4 up; at
+    /// 16 MiB, beyond what Windows' window scaling advertises, reads stayed slow. On Linux the system caps the size
+    /// (net.core.rmem_max).
+    /// </summary>
+    internal const int SocketBufferBytes = 4 << 20;
+
+    private const BindingFlags Hidden = BindingFlags.NonPublic | BindingFlags.Instance;
+
+    /// <summary>SSH.NET has no setting for its socket; these are where 2026.0 keeps it (a test fails if they move).</summary>
+    internal static readonly PropertyInfo? SessionProperty = typeof(BaseClient).GetProperty("Session", Hidden);
+
+    internal static readonly FieldInfo? SocketField = typeof(Session).GetField("_socket", Hidden);
+
+    /// <summary>
+    /// Raises a connected client's socket buffers to <see cref="SocketBufferBytes"/>; returns the receive buffer the
+    /// system then reports, or -1 where the socket cannot be reached (the connection works as SSH.NET made it).
+    /// </summary>
+    internal static int WidenSocketBuffers(SftpClient client)
+    {
+        try
+        {
+            if (SessionProperty?.GetValue(client) is not Session session || SocketField?.GetValue(session) is not Socket socket) return -1;
+            socket.ReceiveBufferSize = SocketBufferBytes;
+            socket.SendBufferSize = SocketBufferBytes;
+            return socket.ReceiveBufferSize;
+        }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException or TargetInvocationException or ArgumentException)
+        {
+            return -1;
         }
     }
 
@@ -140,6 +176,9 @@ public sealed class SshNetConnector(string? agentAddress = null) : ISftpConnecto
 
 internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftpChannel
 {
+    /// <summary>The connection's socket receive buffer as the system reports it after widening (-1: not reached).</summary>
+    internal int SocketBuffer { get; init; } = -1;
+
     public bool IsConnected => client.IsConnected;
 
     public string HomeDirectory { get; } = client.WorkingDirectory;

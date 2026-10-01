@@ -124,6 +124,26 @@ public sealed class OpenSshIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void A_connection_is_not_held_to_the_small_socket_buffers_SSH_NET_sets()
+    {
+        // Release issue I41: SSH.NET's ConnectAsync leaves 137,072-byte buffers (Linux reports twice what was set), which
+        // held a transfer to 1.2 MB/s at 100 ms. Linux caps what may be set at net.core.rmem_max (212,992 by default).
+        var (channel, _) = Connect();
+        using var _ = channel;
+        int buffer = Assert.IsType<SshNetChannel>(channel).SocketBuffer;
+        Assert.True(buffer > 2 * 137_072, $"receive buffer {buffer}");
+        if (!OperatingSystem.IsLinux()) Assert.True(buffer >= SshNetConnector.SocketBufferBytes, $"receive buffer {buffer}");
+    }
+
+    [Fact]
+    public void SSH_NET_keeps_its_socket_where_FileCat_widens_it()
+    {
+        // Runs everywhere, no server needed: an SSH.NET upgrade that moves the socket fails here, not silently in speed.
+        Assert.NotNull(SshNetConnector.SessionProperty);
+        Assert.Equal(typeof(Socket), SshNetConnector.SocketField?.FieldType);
+    }
+
+    [Fact]
     public void Links_are_renamed_and_deleted_themselves_never_their_targets()
     {
         var (channel, root) = Connect();
