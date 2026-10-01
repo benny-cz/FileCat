@@ -720,6 +720,34 @@ public sealed partial class MainViewModel
         var token = BeginSizing(key);
         tab.SizingFolders++;
         tab.UpdateStatus();
+        // The count is the tab's until it ends, or until the tab leaves the folder or closes: then it stops at once, as its
+        // size could not land, and the next folder's status line must not say it is counting (V12). From then on nothing
+        // it posts touches the listing, which a closed tab has disposed (release issue I88).
+        bool open = true, left = false, closed = false;
+        void Ended()
+        {
+            if (!open) return;
+            open = false;
+            listing.Changed -= Moved;
+            tab.Closed -= Closed;
+            tab.SizingFolders = Math.Max(0, tab.SizingFolders - 1);
+        }
+        void Moved(object? sender, ListingChange change)
+        {
+            if (Equals(listing.Location, vol)) return;
+            left = true;
+            Ended();
+            CancelSizing(key, token);
+            tab.UpdateStatus();
+        }
+        void Closed()
+        {
+            left = closed = true;
+            Ended();
+            CancelSizing(key, token);
+        }
+        listing.Changed += Moved;
+        tab.Closed += Closed;
         var name = e.Name;
         var device = Services.Providers.For(vol).GetDeviceKey(vol);
         var fs = Services.Platform.FileOperations;
@@ -736,7 +764,7 @@ public sealed partial class MainViewModel
             // Sizes land only while the panel still shows that folder's parent: another folder may hold one of the same name.
             var size = DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
             {
-                if (listing.Location == vol) listing.SetComputedSize(name, p.Bytes, false);
+                if (!left && listing.Location == vol) listing.SetComputedSize(name, p.Bytes, false);
             }), linked.Token);
             return (Size: size, Modified: modified, Replaced: before is not null && fs.GetFileIdentity(path) != before);
         }, token).ContinueWith(t =>
@@ -744,8 +772,8 @@ public sealed partial class MainViewModel
             Services.Ui.Post(() =>
             {
                 EndSizing(key, token);
-                tab.SizingFolders = Math.Max(0, tab.SizingFolders - 1);
-                if (listing.Location == vol)
+                Ended();
+                if (!left && listing.Location == vol)
                 {
                     if (t.IsCompletedSuccessfully && t.Result.Replaced)
                     {
@@ -762,7 +790,7 @@ public sealed partial class MainViewModel
                         listing.SetComputedSize(name, -1, false);
                     }
                 }
-                tab.UpdateStatus();
+                if (!closed) tab.UpdateStatus();
             });
         }, TaskScheduler.Default);
     }

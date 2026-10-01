@@ -164,6 +164,16 @@ public sealed partial class MainViewModel : ObservableObject
         if (_sizing.Remove(key, out var cts)) cts.Cancel();
     }
 
+    /// <summary>Stops one count, not a count of the same name started since.</summary>
+    internal void CancelSizing(string key, CancellationToken token)
+    {
+        if (_sizing.TryGetValue(key, out var cts) && cts.Token == token)
+        {
+            _sizing.Remove(key);
+            cts.Cancel();
+        }
+    }
+
     /// <summary>Esc stops folder sizing started in this tab; true when something was running.</summary>
     internal bool CancelSizing(TabViewModel tab)
     {

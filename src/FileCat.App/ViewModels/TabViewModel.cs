@@ -896,9 +896,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         _back.AddRange(s.BackHistory);
     }
 
+    /// <summary>Raised once, as the tab is closed (work started for it, such as folder counts, stops).</summary>
+    internal event Action? Closed;
+
     public void Dispose()
     {
         _disposed = true;
+        Closed?.Invoke();
+        Closed = null;
         StopWatching();
         Listing.Changed -= OnListingChanged;
         Services.Columns.Changed -= OnProfilesChanged;
