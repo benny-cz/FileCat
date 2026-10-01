@@ -194,6 +194,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `2e93339` | Phones: only what the device's driver and storage allow is offered; an iPhone is offered for copying off and deleting | I72 | E-V21-I1 |
 | `f1b48de` | Type icons: the Shell is asked under a placeholder no one can put a file at; the browsing test marks when browsing ends | I73 | E-V24-D1-F1 |
 | — (trace) | V24: which files browsing a folder built to tempt FileCat opens (kernel file events, before and after `f1b48de`) | I16 (held), I73 | E-V24-D1-F1 |
+| `71bfd99` | Test: RAR 4 round 3655801, once still reading after 60 s, repeated in every run | — | E-B02-A1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
