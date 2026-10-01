@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I83 | Find: a saved time range shown again in the dialog lost the last minute of its end day | Low (an item modified in the end day's last minute missed by a saved search run again) | Should fix (V13) | **Remediated `c67fa85`; verified** (unit test with a negative control) |
 | I82 | Compare: the window said "1 difference" over a list of two (changed lines, then lines only on one side) | Low (the summary's count disagreed with the list and with next and previous) | Should fix (V13) | **Remediated `db2e9b4`; verified** (E-V13-C1) |
 | I81 | Compare: the text comparison anchored on a line that occurs once on each side even where it was far from its place, and presented the result as exact | Low–Medium (an 11-line edit shown as 84 lines only left or only right, unlabelled; no false equality) | Must fix (V13: labels correct) | **Remediated `db2e9b4`; verified** (E-V13-C1, with a negative control) |
 | I80 | Tooltips over icons are not styled by the selected theme, and an icon button's tip ran its parts together on one line | Low (looks; the owner's request) | Should fix (owner's request, 2026-10-01) | **Remediated `fab03b8`; verified** (unit tests with negative controls; all seven themes pictured) |
@@ -1026,6 +1027,18 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I83 — Find: a saved time range shown again lost the last minute of its end day
+
+- **Found by:** reading Find's dialog for E-V13-F1's reference.
+- **What was wrong:** a date typed without a time as the range's end means the end of that day (23:59:59.9999999).
+  Shown again (a saved search opened), it was written with minutes only, "31.03.2026 23:59"; read back, that has a time,
+  so the end became 23:59:00. A start typed with seconds lost them the same way.
+- **Remediation (`c67fa85`):** the dialog's ends go through one place: an end of day and a midnight start are written as
+  the date alone, any other time with its seconds; a midnight typed as an end keeps its time.
+- **Verification:** `FindTimeTextTests` in cs-CZ, en-US, de-DE and ja-JP: every end and start comes back as written; the
+  old formatting fails it ("31.03.2026 23:59", read back 23:59:00).
+- **Severity:** Low: a minute at the edge of a range, but a saved search must find the same items each time it is run.
 
 ### I82 — Compare: the count of differences disagreed with the list
 
