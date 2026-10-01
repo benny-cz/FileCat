@@ -224,6 +224,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `319a38c` | Archives: the two indexes used last stay whatever their size | I06 | E-I06-A1 |
 | `3d2bb2e` | Folder watch: a folder that keeps changing is read again every two seconds; overflows counted | I87 | E-V12-W1 |
 | `a9a9dcf` | Count: a folder's count stops when its tab leaves the folder or closes | I88 | E-V12-C2 |
+| `34042cc` | Listing: a closed tab's listing never loads again | I88 | E-V12-C2 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

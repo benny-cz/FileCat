@@ -1043,7 +1043,9 @@ level the plan already states; exploit-level detail is not recorded here.
   seconds. Leaving the folder kept the count running for nothing, and the next folder's status line said it was
   counting, refused Count, and Esc spoke of the old folder's counts.
 - **Remediation (`a9a9dcf`):** a count ends with its tab's stay in the folder: leaving or closing cancels it at once,
-  takes it off the tab's running counts at once, and nothing it posts touches the listing afterwards.
+  takes it off the tab's running counts at once, and nothing it posts touches the listing afterwards. The same kind,
+  read for elsewhere (`34042cc`): a closed SFTP tab's late navigation and a closed result tab's refreshes loaded its
+  disposed listing again (a read for nobody, no exception); a disposed listing now ignores `Load`.
 - **Verification:** `FolderCountLeaveTests` (the count held at its start, then the folder left or the tab closed) fail
   on the old code and pass; the experiment (90,300 folders, not committed): 24 window-thread exceptions before, 0
   after. App 222.

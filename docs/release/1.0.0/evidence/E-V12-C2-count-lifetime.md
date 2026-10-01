@@ -34,6 +34,15 @@ disposed.
 | The experiment above (not committed) | 24 window-thread exceptions | **0** |
 | App suite | — | 222, 0 failed |
 
+## The same kind elsewhere (`34042cc`)
+
+The window's other posted work was read for the same mistake (work finishing after its tab closed). Most of it checks
+the tab first. Two paths did not: an SFTP tab closed while connecting navigated once connected, and a search's result
+tab closed while the search ran refreshed on the next results (and reloaded if its listing had failed). Either loaded a
+disposed listing again, starting a read for nobody; neither threw. A disposed listing now ignores `Load`, and a closed
+tab ignores `Refresh` and the late navigation. `EntryStoreTests.A_disposed_listing_does_not_load_again` fails without
+the guard. Core 741, App 222.
+
 ## Not covered here
 
 - A tab moved to another panel while counting.

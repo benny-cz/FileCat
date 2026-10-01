@@ -501,7 +501,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     posted to the disposed listing four times a second; each post threw on the window's thread, and the crash guard
     ends FileCat past five in three seconds (24 in five seconds measured, closing a tab 0.3 s into a 6-second count).
     Leaving the folder kept the tab "counting" in the next one. Now a count ends with the tab's stay in its folder;
-    the same experiment raised none.
+    the same experiment raised none. The rest of the window's posted work, read for the same mistake: two paths loaded
+    a closed tab's listing again (no exception); a disposed listing now ignores Load (`34042cc`).
 
 ## Evidence invalidated by the campaign's own changes
 
