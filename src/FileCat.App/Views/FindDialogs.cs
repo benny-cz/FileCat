@@ -208,12 +208,9 @@ internal static class FindDialogs
             _between.IsChecked = c.Mode == TimeFilterMode.Between;
             _amount.Text = c.Amount.ToString(CultureInfo.CurrentCulture);
             _unit.SelectedIndex = (int)c.Unit;
-            _from.Text = Format(c.From);
-            _to.Text = Format(c.To);
+            _from.Text = TimeText.Format(c.From, end: false);
+            _to.Text = TimeText.Format(c.To, end: true);
         }
-
-        private static string Format(DateTime? t) => t is not { } v ? string.Empty
-            : v.TimeOfDay == TimeSpan.Zero ? v.ToString("d", CultureInfo.CurrentCulture) : v.ToString("g", CultureInfo.CurrentCulture);
 
         /// <summary>Reads the controls into <paramref name="c"/>; returns why they cannot be used, or null.</summary>
         public string? Read(TimeCriterion c)
@@ -223,22 +220,42 @@ internal static class FindDialogs
             else if (_within.IsChecked == true) return "In the last: enter a whole number above zero.";
             c.Mode = _within.IsChecked == true ? TimeFilterMode.Within : _between.IsChecked == true ? TimeFilterMode.Between : TimeFilterMode.Any;
             if (c.Mode != TimeFilterMode.Between) return null;
-            if (!When(_from.Text, out var from)) return $"From: \"{_from.Text}\" is not a date (such as {DateTime.Now:d}).";
-            if (!When(_to.Text, out var to)) return $"To: \"{_to.Text}\" is not a date (such as {DateTime.Now:d}).";
-            // A date without a time ends at the end of that day.
-            if (to is { } end && end.TimeOfDay == TimeSpan.Zero && !(_to.Text ?? string.Empty).Contains(':')) to = end.AddDays(1).AddTicks(-1);
+            if (!TimeText.TryRead(_from.Text, end: false, out var from)) return $"From: \"{_from.Text}\" is not a date (such as {DateTime.Now:d}).";
+            if (!TimeText.TryRead(_to.Text, end: true, out var to)) return $"To: \"{_to.Text}\" is not a date (such as {DateTime.Now:d}).";
             c.From = from;
             c.To = to;
             if (from > to) return "The time range ends before it starts, so nothing could match.";
             return null;
         }
+    }
 
-        private static bool When(string? text, out DateTime? value)
+    /// <summary>
+    /// A time range's ends as Find's dialog writes and reads them: a date alone starts at midnight and, as an end, ends at
+    /// the end of that day; a time keeps its seconds. Written and read again, an end stays the same: the end of a day was
+    /// written with its minutes only and read back as 23:59:00, so a saved search shown again lost its last minute.
+    /// </summary>
+    internal static class TimeText
+    {
+        private static readonly TimeSpan EndOfDay = TimeSpan.FromDays(1) - TimeSpan.FromTicks(1);
+
+        public static string Format(DateTime? time, bool end)
+        {
+            if (time is not { } t) return string.Empty;
+            var culture = CultureInfo.CurrentCulture;
+            if (t.TimeOfDay == (end ? EndOfDay : TimeSpan.Zero)) return t.ToString("d", culture);
+            return t.ToString(t.Second == 0 && t.Millisecond == 0 ? "g" : "G", culture);
+        }
+
+        /// <summary>The text as a local time (null when empty); false when it is not a date.</summary>
+        public static bool TryRead(string? text, bool end, out DateTime? value)
         {
             value = null;
             if (string.IsNullOrWhiteSpace(text)) return true;
-            if (!DateTime.TryParse(text.Trim(), CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowWhiteSpaces, out var t)) return false;
+            var culture = CultureInfo.CurrentCulture;
+            if (!DateTime.TryParse(text.Trim(), culture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowWhiteSpaces, out var t)) return false;
             value = DateTime.SpecifyKind(t, DateTimeKind.Local);
+            // A date without a time ends at the end of that day.
+            if (end && t.TimeOfDay == TimeSpan.Zero && !text.Contains(':')) value = value.Value.AddDays(1).AddTicks(-1);
             return true;
         }
     }
