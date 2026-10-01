@@ -57,7 +57,8 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | fat12 (5,530 s), fat16 (12,731 s), exFAT (11,856 s), disk-mbr (21,593 s) and disk-gpt (22,206 s) **passed**; NTFS stopped on the second finding (317 s); fat32 **lost** unfinished when the VM was reverted (2026-10-01 07:35, its host drive full, E-ENV-05) |
 | Windows 11 VM | `bb977d0` | NTFS 1,100,000–2,099,999 | **passed** (11,981 s) |
 | Windows 11 VM | `2ba114e` | NTFS, exFAT, FAT32 6,100,000–7,099,999 | started 2026-10-01 01:32 UTC; **lost** unfinished in the same revert |
-| Host | `07e6833` | FAT32 1,100,000–2,099,999; NTFS, exFAT, FAT32 6,100,000–7,099,999 | the lost ranges again, on the newest decoders (I52's FAT change among them); started 2026-10-01 05:38 UTC, below-normal priority, heap cap 1 GiB; running |
+| Host | `07e6833` | FAT32 1,100,000–2,099,999; NTFS, exFAT, FAT32 6,100,000–7,099,999 | the lost ranges again, on the newest decoders (I52's FAT change among them); started 2026-10-01 05:38 UTC, below-normal priority, heap cap 1 GiB. exFAT **passed** (6,141 s; `exfat-6100000.txt` `16d4d9b14257c82b709e491aadaa8a1ea010c46f0712c44c220186e3ed492599`), NTFS **passed** (8,310 s; `ntfs-6100000.txt` `d4492d8b8baea13fa5ab582bb3db265377b47131c62514172ea6fc7f09294c36`); both FAT32 ranges running |
+| Windows 11 VM | `ca91908` | 3,100,000–4,099,999 of FAT12, FAT16, FAT32, exFAT and both disks (NTFS ran them on the Mac) | started 2026-10-01 07:29 UTC, six processes at below-normal priority, heap cap 1 GiB, on the private .NET 10.0.12 copy (E-X01 W7); running |
 | Owner's M1 Mac | `bb977d0` | 2,100,000–3,099,999 (all images) | **all seven passed** (1,899–10,815 s per image; `done.txt` on the Mac) |
 | Owner's M1 Mac | `02acee6` | 5,100,000–6,099,999 (all but NTFS) | fat12 (1,842 s), fat16 (6,225 s), fat32 (8,646 s), disk-mbr (8,358 s) and disk-gpt (8,606 s) **passed**; exFAT **stopped at round 5,326,394** (256 MiB for a 16 MiB image: exFAT's declared cluster count, held to the volume by `b9c41eb`; replayed by `9347070`, E-I37) |
 | Owner's M1 Mac | `2ba114e` | exFAT 5,326,395–6,099,999 | **passed** (2,421 s) |
@@ -69,9 +70,9 @@ Outputs of the finished runs, fetched from the Mac and the Windows VM, are kept 
 (`fuzz-c1/SHA256SUMS.txt` `dcf8dc8ed9ab05171bfdf20b62fa802dbd317892081078b113d2d31379d8b570`, 37 files). Passed so far,
 each on the decoders of its run: rounds 0–99,999 and 2,100,000–3,099,999 of every image; 1,100,000–2,099,999 of every
 image but FAT32 (lost, running again on the host); 5,100,000–6,099,999 of every image but NTFS (not run there); NTFS also
-3,100,000–5,099,999; 7,100,000–8,099,999 of every image; 100,000–1,099,999 of fat16. Running: the rest of
-100,000–1,099,999 (Ubuntu), 6,100,000–7,099,999 of NTFS, exFAT and FAT32 and the lost FAT32 range (host),
-8,100,000–9,099,999 of every image (Mac). The stops since the I37 fixes were allocation findings of I37, fixed and
+3,100,000–5,099,999 and 6,100,000–7,099,999 (as exFAT); 7,100,000–8,099,999 of every image; 100,000–1,099,999 of fat16. Running: the rest of
+100,000–1,099,999 (Ubuntu), 6,100,000–7,099,999 of FAT32 and the lost FAT32 range (host), 8,100,000–9,099,999 of
+every image (Mac), 3,100,000–4,099,999 of every image but NTFS (Windows VM). The stops since the I37 fixes were allocation findings of I37, fixed and
 replayed.
 
 ## E-I28-V2 — second finding and fix `bb977d0`

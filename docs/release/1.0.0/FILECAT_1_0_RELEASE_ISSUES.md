@@ -18,7 +18,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I06 | Aggregate content-cache accounting | Potential High | Validation gate | Open |
 | I07 | Performance targets not proved | Medium–High | Performance gate | Open |
 | I08 | Containment documentation versus reality | Potential High/Critical | Security gate | Open |
-| I09 | Recovery whole-source safety | Potential Critical | Safety gate | Open |
+| I09 | Recovery whole-source safety: FileCat wrote to its own folders on the disk being recovered after only a warning; destinations behind loop devices, disk images, VHDs and shares served by the same computer were taken for other disks | Potential Critical (writes can overwrite the deleted files being recovered) | Safety gate (V09) | **Remediated preliminarily** (`27256f6`, `7418c04`, `0a52b7b`; live topology checks on Ubuntu, macOS and the Windows VM); the independent write trace V09 asks for is pending |
 | I10 | Documentation drift | Medium | Blocker where safety/support claims mislead | Open |
 | I11 | Missing mandatory external evidence | Qualification blocker | Blocker | Open — resources |
 | I12 | Historical regressions need durable coverage | Medium | Non-blocker once covered | **Covered** (`62bd88f`'s tests; `85d512d`) — closure pending re-audit |
@@ -778,6 +778,65 @@ level the plan already states; exploit-level detail is not recorded here.
   `da193a7a5fffe5a7d1703c874000c6239299223e4afbcd18991f78bc68c021f2`); CI's macOS lane runs it. The original failure
   was intermittent and cannot be forced, so the phase shows the lifecycle holds, not that it would have caught it.
 
+### I09 — Recovery scanned a disk FileCat itself writes to, and took some destinations on the source disk for other disks
+
+- **Found by:** the V23 review of trust boundary B08 (image/device → raw access and output) against plan V09, whose
+  pass criterion says a warning followed by writes fails. Earlier, the DPI review's P14 row called the warning enough;
+  that was wrong (corrected in E-DPI).
+- **What was wrong:**
+  1. A scan of a drive or disk only warned that FileCat keeps "settings and logs" on that disk, judged by the journal
+     folder alone, and then went on writing there: settings, history (written as the scan's folders are visited),
+     logs, journals (an F5 copy writes one), the administrator helper's exchange, caches, the listing scratch (on the
+     user's local disk even for a portable copy), hex originals, page view data.
+  2. Destinations and FileCat's folders were placed wrongly in cases V09 names. Linux: a missing sysfs entry counted as
+     "on no disk"; a folder reached through a link was placed by the link's own mount; a loop device written to counted
+     as a disk of its own, not as its backing file's disk; a btrfs file system counted as only the device mounted; a
+     share served by this computer counted as remote. macOS: written into, a disk image counted as itself only; network
+     mounts came out unknown. Windows: shares served by this computer (`\\localhost\C$`, its own name and addresses) and
+     disks made from a file or from other disks (VHD/VHDX, storage spaces) counted as other disks. On the host, the
+     campaign's `ca91908` build answered "another disk" for `\\localhost\C$\x` against C: (checked by loading it).
+     Links and junctions on Windows were already followed (`GetVolumePathName` resolves them; checked the same way).
+  3. A device's scan could open without its checks: the persisted folder history recorded device scans, and opening
+     such an entry later started reading the device. A disk plugged in under a chosen disk's number (Windows
+     `PhysicalDriveN`, Linux `/dev/sdX`, macOS `diskN`) between the choice and the approval was read in its place.
+- **Remediation:**
+  - `27256f6`: every folder FileCat writes in is listed (`AppPaths.WriteFolders`); a drive or disk whose disk holds
+    any of them, or where that cannot be told, is not scanned, and the refusal names them and gives the command that
+    starts FileCat with everything it writes in one folder on another disk (`--data`, new; a FileCat started that way
+    also waits while the usual one runs with its files on that disk). While a scan is open, the Shell is asked for no
+    pictures and gpg is not run when their folders lie on that disk (both write there). A device opens only from the
+    drive's own command in this session, and only at the size it had when chosen. The topology changes above.
+  - `7418c04` (found by the live checks): a loop device or disk image written into counted only as its backing file's
+    disk, so recovering an image into itself was allowed; it now counts as itself as well. Folders under `/dev`
+    (`/dev/shm`) were taken for devices.
+  - `0a52b7b`: macOS answers kept for 20 s (each `diskutil` round took 2–3.6 s under load; the fourteen folders now
+    take 4–7 ms once one is known).
+- **Tests:** `UnixDeviceTests.Where_writing_goes_is_told_by_real_paths_backing_files_and_servers_and_unknown_never_counts_as_elsewhere`
+  (a sysfs and mount table laid out as Linux does, every platform), `…A_folder_reached_from_memory_through_a_link…`
+  (Linux), `ThisComputerTests`, `DeviceReadTests.Destinations_are_judged…` (shares served here) and
+  `…A_folder_reached_through_a_link…` (Windows), `RecoveryJobTests.A_drive_opens_only_as_the_user_chose_it`,
+  `PathAndStateTests.With_a_data_folder_everything_FileCat_writes_is_in_it…`, `VerificationTests.While_a_disk_holding_GnuPGs_folder…`,
+  `ShellHostTests.While_paused_the_helper_is_asked_for_nothing…`, `RecoverySafetyTests` (the refusal, the hold-offs,
+  `--data`, the usual instance). Full Core, Platform.Windows and App suites on the host: 642/0 failed, 125/0, 187/0.
+- **Live checks** (the gated `Where_writing_goes_on_this_system_is_what_the_tester_expects`): Ubuntu VM, `7418c04`
+  (`i09/ubu-topology-7418c04.txt` `d261d42e135c6bcbadbb31b96af193c7ee2ecc2cd9b5c8614c83ee164788642a`): a loop-mounted image whose file is on
+  sda — shares sda; the loop device read, recovering to sda — separate; into itself — shares; `/dev/shm` — memory; a
+  link from it to sda — sda. Owner's Mac, `7418c04` (`i09/mac-topology-7418c04.txt` `5343619e45384b5a2ca496fdd760ad5f1046432f5eb6b8107dd1e3b368e421cb`):
+  the same with an attached disk image whose file is on disk0 (APFS's physical store). Windows VM, `0a52b7b`
+  (`i09/win-topology-0a52b7b.txt` `6a3a0f8c2946eaea9b2a1267155674e56166036eda44ca2648927c4d5ca1e3bc`): a VHDX whose file is on disk 0 —
+  unknown (refused), read — separate, into itself — shares; `\\localhost\C$`, `\\127.0.0.1\C$` and
+  `\\DESKTOP-A60F1NE\C$` — unknown. Not run live: a CIFS share served by the Ubuntu VM itself (no `mount.cifs`
+  there; the unit test covers the mount table's form).
+- **Residual risk and what V09 still needs:** the plan asks for an independent trace of every write FileCat and its
+  helpers make while a source is selected and scanned (ETW, `fs_usage`, `blktrace`/`strace`), with before/after hashes
+  of disposable source media; not done yet. Writes FileCat cannot place stay possible: Windows itself on its own disk
+  (registry hives, prefetch, error reports), access times the system updates when the user browses the mounted source,
+  memory file systems swapping to a swap area on the source. A disk swapped for one of exactly the same size between
+  the choice and the approval is not noticed (this host has two such disks). The usual FileCat is only noticed when
+  it was started normally under the same profile. A VHD destination is refused as unknown rather than placed.
+- **Severity / disposition:** Potential Critical where it happens (the deleted files being recovered can be
+  overwritten); remediated preliminarily; closure needs V09's write trace and the final-candidate evidence.
+
 ## New detail on open issues
 
 - **I03 / I18:** the Windows installer's compiler is whatever Inno Setup the hosted runner image provides: the A01
@@ -796,7 +855,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 ## Initial register entries not yet worked
 
-I01–I11, I13, I14 and I18 keep the plan's §7 text as their current record, I16 beyond what is recorded above, and I17
-for the parts not worked above.
+I01–I08, I10, I11, I13, I14 and I18 keep the plan's §7 text as their current record, I16 beyond what is recorded
+above, and I17 for the parts not worked above.
 I24–I27 are queued owner reports and findings of lower severity.
 None has been closed. Their evidence, reproduction and remediation fields will be filled when worked.

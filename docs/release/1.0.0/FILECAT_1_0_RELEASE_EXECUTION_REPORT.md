@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `4a4349f` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `0a52b7b` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -27,7 +27,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   and I25 (Markdown drawn as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
   The queued Low issues are done: I31 (viewer windows only partly themed, `99a6ae4`) and I27 (Linux icons under
   Adwaita 41, `4a4349f`).
-  **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the Mac (E-I28-C1).
+  **I09** (recovery scanned a disk FileCat itself writes to; destinations behind loop devices, disk images, VHDs and
+  shares served by the same computer were taken for other disks; Potential Critical) remediated preliminarily
+  (`27256f6`, `7418c04`, `0a52b7b`), live-checked on Ubuntu, macOS and the Windows VM; V09's write trace pending.
+  **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs, the host and the Mac (E-I28-C1).
 
 ## Execution baseline
 
@@ -49,7 +52,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
 | 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B06 and B10 reviewed (I16; `34c4b9d`); P07's loader audit (V06), P13 and the other B rows remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B06, B08 (I09) and B10 (I16) reviewed; P14 corrected to I09; P07's loader audit (V06), P13 and B01–B03, B05, B07, B09, B11 remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
@@ -222,6 +225,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     their strips, their content on the card color (`99a6ae4`; pictures before and after).
 67. I27: under Adwaita 41, whose type icons are symbolic only, files get those icons in the text color (`4a4349f`;
     the icon test passes on the Ubuntu VM where it skipped).
+68. B06 reviewed (`34c4b9d`). The Windows VM ran every Windows suite of `ca91908` unelevated (W7, E-X01; its lent
+    snapshot has no .NET 10, so a private runtime copy was used): 0 failures; then fuzz rounds 3.1–4.1 M of six
+    images. The host's exFAT and NTFS re-runs of 6.1–7.1 M passed.
+69. B08 reviewed against V09: **I09**. FileCat scanned a disk that holds its own folders after a warning (my P14 entry
+    had accepted that; corrected); it now refuses, names the folders and gives `--data`, which keeps everything
+    FileCat writes in one folder. Destinations and folders are placed through links, loop devices, disk images and
+    shares served by the same computer; a device scan opens only from the drive's own command, at its chosen size
+    (`27256f6`). Live checks on the Ubuntu VM found that an image written into still counted only as its backing
+    file's disk (`7418c04`); macOS's `diskutil` answers are kept briefly so the checks take milliseconds
+    (`0a52b7b`). All checks pass on Ubuntu, macOS and in the Windows VM (a VHDX on its system disk, `\\localhost\C$`).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -245,12 +258,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaign's results (E-I28-C1): the host's re-run of the lost ranges, the Mac's 8.1–9.1 M, Ubuntu's
-   queue.
-2. Continue the V23 source review in risk order: B08 (I09), B05, B01–B03, B11; I16's independent file, network and
-   process evidence.
-3. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
-4. Keep the records current after each change.
+1. Collect the fuzz campaign's results (E-I28-C1): the host's two FAT32 ranges, the Mac's 8.1–9.1 M, Ubuntu's queue,
+   the Windows VM's 3.1–4.1 M.
+2. V09's write trace for I09: a FileCat session against a disposable source (the Windows VM's own disk with FileCat's
+   files elsewhere through `--data`; a loop device on Ubuntu), every write of FileCat and its helpers traced and the
+   source hashed before and after.
+3. Continue the V23 source review in risk order: B05, B01–B03, B11; I16's independent file, network and process
+   evidence.
+4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
+5. Keep the records current after each change.
 
 Waiting on people, hardware or a candidate: DPI P13 (the phone, PPL-03); P07's loader audit (V06, installed
 candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); I04 on Ubuntu 26.04

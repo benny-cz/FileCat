@@ -17,6 +17,7 @@ reason (since `be6ca25`, E-S01). None of these machines is a final target (E-ENV
 | `d40e510` | `tests-d40e510-portable.zip` | `b8e07c3f4680d2330711ca188f1bb2976bb1b9fd9833e83339e2839895a26e6d` | App, Core, Remote |
 | `d40e510` | `tests-d40e510-win.zip` | `2e390aeb2080086dfa4de88f9a4f72ec2f79cebcd1fe3e4c0264a35b34658312` | App, Core, Platform.Windows, Remote |
 | `98fb594` | `fuzz-98fb594.zip` | `f3d3417809bdda147f9cc8ceee5117ed6d751110ea3c20ae27afaffcc0a43ce2` | Core (for the fuzz campaign, E-I28) |
+| `ca91908` | `tests-ca91908-win.zip` | `47377301c23f0e415ce236378a8ccda97ccc08a19dff4eccb12dbee92d08fbd5` | App, Core, Platform.Windows, Remote (Release, built in a clean detached worktree) |
 
 ## Runs (total / passed / failed / skipped)
 
@@ -33,9 +34,16 @@ reason (since `be6ca25`, E-S01). None of these machines is a final target (E-ENV
 | W4 | Windows 11 VM, unelevated | `5c54181` | 543/505/0/38 | 108/89/0/19 | 43/34/0/9 | 159/155/0/4 | — |
 | W5 | same | `5c54181` | — | — | — | Whole App suite 15 ×: 0 failures | I22 baseline under the original conditions |
 | W6 | same | `d40e510` | 544/506/0/38 | 110/91/0/19 | 43/34/0/9 | 160/156/0/4, then 15 × more: 0 failures | I22 and I23 fixes |
+| W7 | same, after the VM's revert to its lent snapshot (which has no .NET 10: a private copy of the host's 10.0.12 runtime, through `DOTNET_ROOT`) | `ca91908` | 637/595/0/42 | 123/96/0/27 | 114/81/0/33 | 185/179/0/6 | — (the campaign's fixes up to B06) |
 | U3 | Ubuntu VM, inside the logged-in GNOME (Wayland) session | `5c54181` | Icons: skipped (Adwaita has no text icon); Samba + GVFS: 5/5 passed; secret store: not run (login keyring locked) | — | — | WebKitGTK page engine with **libwebkit2gtk-4.0** 2.50.4 (the 4.0 fallback): 1/1 passed | I27; the 4.0 fallback works |
 | U4 | Ubuntu VM | `d40e510` | 539/508/0/31 | — | 43/42/0/1 | 160/151/0/9 | Discovery tests 20 ×: 0 failures |
 | U5 | Ubuntu VM, 16 busy threads on 8 vCPUs | `5c54181` | Discovery naming test 20 ×: 0 failures | — | — | — | In-guest load does not reproduce I23 |
+
+TRX SHA-256 of W7 (`win-tests7-out/`): Core `16665cc539b9f73eebd535cdb8eac84db733444a3918016b51bcfbf5ca9e9d88`,
+Platform.Windows `7e37f4fff6066406c4cf561100e77716891774dd747011317ee91cc167b7e3aa`, Remote
+`b20378ff541cb7b61c4f48096a38efbcb321a739123b723c50c091bd6b19b392`, App
+`a7ee52712fa204246d1e67b14b03c4d2d86ca35e1e62d16c046e22ddf0103860`; the runtime copy
+`dotnet-runtime-10.0.12-win-x64-private.zip` `d3a5d78d5ff2efe8337924ab984eed2e43fa3be25bf6a41e010c4900826c8753`.
 
 TRX SHA-256: W1 Core `e2d0b4584e75ebccda6b6b98f290fcf0f2bf6f1e03c27bde28186257b5e977fc`, Platform.Windows
 `0cdc46ae346266779c89544c0cd318b6045523cb38b44b0f83de1ab4eec967f6`, Remote
