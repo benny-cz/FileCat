@@ -55,6 +55,7 @@ public sealed class RecoveryFuzzTests
     [InlineData("ntfs", 56958)] // the root record listed as a nameless file: the whole scan threw
     [InlineData("fat32", 100061)] // release issue I37: a declared cluster count took a 1 GiB table for a 40 MiB image
     [InlineData("ntfs", 100927)] // I37: a damaged $Bitmap size was read whole, 512 MiB
+    [InlineData("ntfs", 169883)] // I37: a damaged compressed size made 10 million unit objects, 1.6 GiB
     public void Rounds_that_once_failed_stay_fixed(string image, int round) => new Fuzz(image).Round(round);
 
     [Theory]

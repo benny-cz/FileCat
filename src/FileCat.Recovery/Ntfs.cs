@@ -246,7 +246,11 @@ internal sealed class NtfsScanner
         var runs = stream.Runs.OrderBy(r => r.Vcn).ToList();
         var units = new List<CompressedUnit>();
         var extents = new List<Extent>();
-        for (long u = 0; u < count; u++)
+        // Units past the last run hold nothing to read: one lost stretch, not an object each (a damaged size of hundreds of
+        // gigabytes made millions of them, 1.6 GiB for a 16 MiB volume; release issue I37).
+        long described = runs.Count == 0 ? 0 : runs.Max(r => r.Vcn + r.Length);
+        long describedUnits = Math.Min(count, (described + stream.UnitClusters - 1) / stream.UnitClusters);
+        for (long u = 0; u < describedUnits; u++)
         {
             long first = u * stream.UnitClusters, end = first + stream.UnitClusters;
             var pieces = new List<(long, long)>();
@@ -277,6 +281,13 @@ internal sealed class NtfsScanner
             var state = lost ? ExtentState.InUse : kind == CompressedUnitKind.Sparse ? ExtentState.Zero : owned ? ExtentState.Owned : ExtentState.Free;
             if (extents.Count > 0 && extents[^1].State == state) extents[^1] = extents[^1] with { Length = extents[^1].Length + length };
             else extents.Add(new Extent(0, length, state));
+        }
+        if (describedUnits < count)
+        {
+            // No run describes these clusters inside the file's size, so they are lost, as each unit would have said.
+            long rest = stream.Size - describedUnits * unitBytes;
+            if (extents.Count > 0 && extents[^1].State == ExtentState.InUse) extents[^1] = extents[^1] with { Length = extents[^1].Length + rest };
+            else extents.Add(new Extent(0, rest, ExtentState.InUse));
         }
         file.Compression = new CompressedLayout((int)unitBytes, units);
         file.Extents = extents;
