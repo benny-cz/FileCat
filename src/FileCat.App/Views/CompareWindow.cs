@@ -193,6 +193,7 @@ public sealed class CompareWindow : Window
             ThemeManager.ThemeChanged -= RefreshIcons;
             _work?.Cancel();
             ReleaseWhenIdle(_left, _right, _leftView, _rightView);
+            DisposePages(_pages);
         };
         _summary.Text = "Comparing…";
         Opened += (_, _) => _loading = LoadAsync();
@@ -577,8 +578,14 @@ public sealed class CompareWindow : Window
             }, ct);
             _runs = Task.WhenAll(_runs, reading);
             var loaded = await reading;
-            if (_closed || ct.IsCancellationRequested) return;
+            if (_closed || ct.IsCancellationRequested)
+            {
+                DisposePages(loaded.pages);
+                return;
+            }
+            var replaced = _pages;
             (_bytes, _pages, _leftText, _rightText, _textProblem, _revisions) = loaded;
+            DisposePages(replaced);
             _aligning = null;
         }
         catch (OperationCanceledException)
@@ -632,6 +639,16 @@ public sealed class CompareWindow : Window
         var readers = Task.WhenAll(_runs, leftView.CloseAsync(), rightView.CloseAsync());
         if (readers.IsCompleted) Release();
         else readers.ContinueWith(_ => Release(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// The byte view's page readers count against the shared content budget until disposed. Disposing them leaves the
+    /// contents to <see cref="ReleaseWhenIdle"/>: their sources here are views whose Dispose does nothing.
+    /// </summary>
+    private static void DisposePages((PagedReader Left, PagedReader Right)? pages)
+    {
+        pages?.Left.Dispose();
+        pages?.Right.Dispose();
     }
 
     /// <summary>F5: both files are opened and compared again (after they were edited, say).</summary>

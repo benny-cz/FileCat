@@ -27,6 +27,7 @@ public sealed class AppServices : IDisposable
             () => new HistoryState(), out var historyStatus);
         HistoryStatus = historyStatus;
         AppLog.DiagnosticMode = Settings.DiagnosticMode;
+        Core.Content.PageCacheBudget.Shared.LimitBytes = Math.Clamp(Settings.ContentCacheMiB, 4, 4096) * 1024L * 1024;
 
         Io = new DeviceIoScheduler();
         Io.HealthChanged += (device, health) => FileCatEventSource.Log.DeviceHealth(device, health.ToString());

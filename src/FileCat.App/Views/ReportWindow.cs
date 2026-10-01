@@ -104,6 +104,7 @@ public sealed class ReportWindow : Window
             ThemeManager.ThemeChanged -= OnThemeChanged;
             _closing.Cancel();
             _reading?.Cancel();
+            _reader?.Dispose();
         };
     }
 
@@ -157,8 +158,11 @@ public sealed class ReportWindow : Window
     private void Show(string text)
     {
         _text = text;
+        var old = _reader;
         _reader = new PagedReader(new MemoryContentSource("Report", Encoding.UTF8.GetBytes(text)));
         _view.SetReader(_reader, new UTF8Encoding(false), 0);
+        // Its pages count against the shared content budget until it is disposed.
+        old?.Dispose();
         _lastHit = -1;
     }
 

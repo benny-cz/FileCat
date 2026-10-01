@@ -239,6 +239,7 @@ public sealed class ViewerWindow : Window
             _searchCts?.Cancel();
             _closing.Cancel();
             _reader.Dispose();
+            _infoReader?.Dispose();
         };
     }
 
@@ -450,8 +451,11 @@ public sealed class ViewerWindow : Window
     private void ShowInfoText(string text)
     {
         _infoText = text;
+        var old = _infoReader;
         _infoReader = new PagedReader(new MemoryContentSource("Info", Encoding.UTF8.GetBytes(text)));
         _info.SetReader(_infoReader, new UTF8Encoding(false), 0);
+        // Its pages count against the shared content budget until it is disposed.
+        old?.Dispose();
         _lastHit = -1;
     }
 

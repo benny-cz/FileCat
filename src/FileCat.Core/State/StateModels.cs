@@ -116,6 +116,8 @@ public sealed class AppSettings : IVersionedState
     public bool DiagnosticMode { get; set; }
     public int RecentlyClosedTabs { get; set; } = 25;
     public int HistorySize { get; set; } = 200;
+    /// <summary>The budget the page caches of every viewer, editor and comparison share, in MiB (plan §21.2).</summary>
+    public int ContentCacheMiB { get; set; } = 64;
     public string DefaultVerify { get; set; } = "Native";
     public bool QuickSearchMatchAnywhere { get; set; }
     public bool SingleInstance { get; set; } = true;

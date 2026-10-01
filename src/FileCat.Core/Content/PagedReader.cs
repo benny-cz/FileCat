@@ -5,13 +5,21 @@ namespace FileCat.Core.Content;
 /// <summary>
 /// Bounded page cache over a random-access source (plan §13.1): 64-bit offsets, explicit short reads, and an
 /// LRU budget, so opening a huge file never scans or loads it. Reads missing pages synchronously only when
-/// asked to; views use <see cref="TryRead"/> and request pages in the background.
+/// asked to; views use <see cref="TryRead"/> and request pages in the background. The pages count against a
+/// <see cref="PageCacheBudget"/> shared with every other reader, besides this reader's own limit.
 /// </summary>
 public sealed class PagedReader : IDisposable
 {
     public const int PageSize = 64 * 1024;
+
+    /// <summary>Pages a reader keeps whatever the shared budget says: more than one screen of text or hex.</summary>
+    internal const int FloorPages = 4;
+
     private readonly IContentSource _source;
     private readonly int _maxPages;
+    private readonly PageCacheBudget _budget;
+    private readonly PageCacheBudget.Account _account;
+    private bool _disposed;
     private readonly object _lock = new();
     private readonly Dictionary<long, LinkedListNode<Page>> _pages = new();
     private readonly LinkedList<Page> _lru = new();
@@ -24,14 +32,35 @@ public sealed class PagedReader : IDisposable
     // Bumped whenever cached content is replaced; a load that started earlier must not insert its stale page.
     private long _generation;
 
-    private sealed record Page(long Index, byte[] Data, int Length);
+    private sealed class Page(long index, byte[] data, int length)
+    {
+        public long Index { get; } = index;
+        public byte[] Data { get; } = data;
+        public int Length { get; } = length;
+        /// <summary>When it was last moved to the front, on the shared budget's clock.</summary>
+        public long Used;
+    }
 
-    public PagedReader(IContentSource source, int maxPages = 256)
+    public PagedReader(IContentSource source, int maxPages = 256, PageCacheBudget? budget = null)
     {
         _source = source;
-        _maxPages = Math.Max(4, maxPages);
+        _maxPages = Math.Max(FloorPages, maxPages);
         _length = Math.Max(0, source.Length);
         Revision = source.GetRevision();
+        _budget = budget ?? PageCacheBudget.Shared;
+        _account = _budget.Open(this);
+    }
+
+    /// <summary>Pages cached now.</summary>
+    internal int CachedPages
+    {
+        get { lock (_lock) return _pages.Count; }
+    }
+
+    /// <summary>Whether the page of that number is cached (tests: asking through a read would load it).</summary>
+    internal bool HasPage(long index)
+    {
+        lock (_lock) return _pages.ContainsKey(index);
     }
 
     public IContentSource Source => _source;
@@ -62,6 +91,7 @@ public sealed class PagedReader : IDisposable
                 {
                     _lru.Remove(node);
                     _lru.AddFirst(node);
+                    node.Value.Used = _budget.Tick();
                     page = node.Value;
                 }
                 else page = null;
@@ -150,16 +180,41 @@ public sealed class PagedReader : IDisposable
         {
             _failed.Remove(index);
             if (_pages.TryGetValue(index, out var raced)) return raced.Value;
-            if (generation != _generation) return page;
+            if (generation != _generation || _disposed) return page;
+            page.Used = _budget.Tick();
             _pages[index] = _lru.AddFirst(page);
-            while (_pages.Count > _maxPages)
+            if (_pages.Count > _maxPages)
             {
                 var last = _lru.Last!;
                 _lru.RemoveLast();
                 _pages.Remove(last.Value.Index);
+                // One in, one out: this reader's charge stays as it was.
+                return page;
             }
+            _budget.Adjust(_account, PageSize);
         }
+        // Outside this reader's lock: trimming may take the oldest page of any reader, this one included.
+        _budget.Trim();
         return page;
+    }
+
+    /// <summary>When this reader's oldest page was last used, if the shared budget may take it; otherwise the maximum.</summary>
+    internal long OldestEvictable()
+    {
+        lock (_lock) return _pages.Count > FloorPages ? _lru.Last!.Value.Used : long.MaxValue;
+    }
+
+    /// <summary>Drops this reader's oldest page for the shared budget, unless it is down to its floor.</summary>
+    internal void EvictOldest()
+    {
+        lock (_lock)
+        {
+            if (_pages.Count <= FloorPages) return;
+            var last = _lru.Last!;
+            _lru.RemoveLast();
+            _pages.Remove(last.Value.Index);
+            _budget.Adjust(_account, -PageSize);
+        }
     }
 
     /// <summary>Re-reads length and revision; drops cached pages when the content changed (external truncation).</summary>
@@ -173,6 +228,7 @@ public sealed class PagedReader : IDisposable
             lock (_lock)
             {
                 _generation++;
+                _budget.Adjust(_account, -(long)_pages.Count * PageSize);
                 _pages.Clear();
                 _lru.Clear();
             }
@@ -208,5 +264,18 @@ public sealed class PagedReader : IDisposable
         }
     }
 
-    public void Dispose() => _source.Dispose();
+    /// <summary>Disposes the source and lets go of the cached pages and their charge on the shared budget.</summary>
+    public void Dispose()
+    {
+        lock (_lock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _generation++;
+            _pages.Clear();
+            _lru.Clear();
+        }
+        _budget.Close(_account);
+        _source.Dispose();
+    }
 }
