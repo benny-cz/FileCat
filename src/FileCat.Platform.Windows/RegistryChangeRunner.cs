@@ -1,9 +1,7 @@
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows;
 
@@ -20,7 +18,7 @@ public interface IRegistryStepLog
 /// and returns the guarded inverse that undoes it, or null when the change cannot be reverted (deleted subtrees).
 /// Shared by the job executor and the per-plan elevated broker, so both have identical semantics.
 /// </summary>
-public static partial class RegistryChangeRunner
+public static class RegistryChangeRunner
 {
     public static RegistryChange? Apply(RegistryChange change, IRegistryStepLog log, Action checkpoint, CancellationToken ct)
     {
@@ -105,12 +103,13 @@ public static partial class RegistryChangeRunner
     {
         if (c.TargetName is null) throw new ArgumentException("The new key name is missing.");
         using var parent = WindowsRegistryProvider.Open(c.Key, writable: true);
-        if (RegistryRaw.LinkTarget(parent, c.Name) is not null)
-            throw new NotSupportedException("Registry links are not renamed here: renaming could change the link's target instead.");
         if (RegistryRaw.SubKeyExists(parent, c.TargetName)) throw new RegistryConflictException("The destination key already exists.");
+        // The key is opened as itself, checked and renamed through that one handle: renamed by name, a link put in its
+        // place meanwhile would have had its target renamed instead, wherever that is (release issue I59).
+        using var key = RegistryRaw.OpenForRename(parent, c.Name);
+        if (RegistryRaw.IsLink(key)) throw new NotSupportedException("Registry links are not renamed here.");
         int step = log.Intent("reg-rename-key", Child(c.Key, c.Name).ToString(), c.TargetName);
-        int code = RegRenameKey(parent.Handle, c.Name, c.TargetName);
-        if (code != 0) throw new Win32Exception(code);
+        RegistryRaw.RenameOpenKey(key, c.TargetName);
         if (!RegistryRaw.SubKeyExists(parent, c.TargetName)) throw new IOException("Rename result could not be verified.");
         log.Done(step, StepOutcome.Committed);
         return new RegistryChange(RegistryAction.RenameKey, c.Key, c.TargetName, TargetName: c.Name);
@@ -264,7 +263,4 @@ public static partial class RegistryChangeRunner
     /// <summary>Access denied, which an administrator retry may resolve (as opposed to conflicts or missing keys).</summary>
     public static bool IsAccessDenied(Exception ex) =>
         ex is UnauthorizedAccessException or System.Security.SecurityException || ex is Win32Exception { NativeErrorCode: 5 };
-
-    [LibraryImport("advapi32.dll", EntryPoint = "RegRenameKey", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial int RegRenameKey(SafeRegistryHandle key, string subKeyName, string newName);
 }

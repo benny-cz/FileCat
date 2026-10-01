@@ -426,6 +426,31 @@ public static partial class RegistryRaw
     public static bool IsLink(RegistryKey key) => ReadIfPresent(key, "SymbolicLinkValue", PreviewLimit) is { Type: 6 };
 
     /// <summary>
+    /// Opens the key object itself for renaming (a Registry link as the link), so the caller checks exactly what
+    /// <see cref="RenameOpenKey"/> renames.
+    /// </summary>
+    public static RegistryKey OpenForRename(RegistryKey parent, string name)
+    {
+        int code = RegOpenKeyEx(parent.Handle, name, OpenLink, KeyWriteAndRead | ViewAccess(parent.View), out var handle);
+        if (code != 0) throw new Win32Exception(code);
+        return RegistryKey.FromHandle(handle, parent.View);
+    }
+
+    /// <summary>
+    /// Renames the key behind this handle. RegRenameKey reopens the subkey by name and follows a link found there,
+    /// renaming the link's target wherever it is (release issue I59); NtRenameKey renames the object of the handle.
+    /// </summary>
+    public static unsafe void RenameOpenKey(RegistryKey key, string newName)
+    {
+        fixed (char* chars = newName)
+        {
+            var name = new UnicodeString { Length = checked((ushort)(newName.Length * 2)), MaximumLength = checked((ushort)(newName.Length * 2)), Buffer = (nint)chars };
+            int status = NtRenameKey(key.Handle, &name);
+            if (status != 0) throw new Win32Exception(RtlNtStatusToDosError(status));
+        }
+    }
+
+    /// <summary>
     /// Deletes the key behind this handle. RegDeleteKeyEx reopens by name and would follow a link to its target;
     /// NtDeleteKey on a handle opened with REG_OPTION_OPEN_LINK removes the link itself.
     /// </summary>
@@ -527,6 +552,9 @@ public static partial class RegistryRaw
 
     [LibraryImport("ntdll.dll")]
     private static partial int NtDeleteKey(SafeRegistryHandle key);
+
+    [LibraryImport("ntdll.dll")]
+    private static unsafe partial int NtRenameKey(SafeRegistryHandle key, UnicodeString* newName);
 
     [LibraryImport("ntdll.dll")]
     private static partial int RtlNtStatusToDosError(int status);

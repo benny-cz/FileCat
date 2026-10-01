@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
@@ -74,6 +75,54 @@ public sealed partial class RegistryHardeningTests
             using (var zone = fixture.OpenSubKey("zone"))
                 if (zone is not null)
                     try { using var link = RegistryRaw.OpenForDelete(zone, "link"); RegistryRaw.DeleteOpenKey(link); }
+                    catch (Exception) { }
+            Registry.CurrentUser.DeleteSubKeyTree(root, throwOnMissingSubKey: false);
+        }
+    }
+
+    /// <summary>
+    /// A key is renamed through the handle it was checked by (release issue I59): renamed by name, RegRenameKey follows a
+    /// link found there and renames the link's target, wherever that is. Here the key is swapped for a link to another
+    /// key between the check and the rename, as a process able to write the parent could do: the rename fails, and the
+    /// link's target keeps its name. The plan step refuses links, and renames a plain key.
+    /// </summary>
+    [Fact]
+    public void A_key_is_renamed_through_the_handle_it_was_checked_by_never_through_a_link_put_in_its_place()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string root = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        using var fixture = Registry.CurrentUser.CreateSubKey(root)!;
+        try
+        {
+            using (var target = fixture.CreateSubKey("target")) target!.SetValue("keep", 1, RegistryValueKind.DWord);
+            using var zone = fixture.CreateSubKey("zone")!;
+            using (zone.CreateSubKey("victim")) { }
+            string sid = WindowsIdentity.GetCurrent().User!.Value;
+            using (var victim = RegistryRaw.OpenForRename(zone, "victim"))
+            {
+                Assert.False(RegistryRaw.IsLink(victim));
+                zone.DeleteSubKey("victim");
+                if (!TryCreateLink(zone, "victim", $@"\REGISTRY\USER\{sid}\{root}\target")) Assert.Skip("Registry links cannot be made here.");
+                Assert.Throws<Win32Exception>(() => RegistryRaw.RenameOpenKey(victim, "renamed"));
+            }
+            Assert.Equal(["target", "zone"], fixture.GetSubKeyNames().Order(StringComparer.Ordinal));
+            using (var kept = fixture.OpenSubKey("target")) Assert.Equal(1, kept!.GetValue("keep"));
+
+            var zoneKey = new Location(Schemes.Registry, @"HKCU\" + root + @"\zone", session: "default");
+            Assert.Throws<NotSupportedException>(() => RegistryChangeRunner.Apply(new RegistryChange(RegistryAction.RenameKey, zoneKey, "victim", TargetName: "renamed"),
+                new Log(), () => { }, TestContext.Current.CancellationToken));
+            using (zone.CreateSubKey("plain")) { }
+            var undo = RegistryChangeRunner.Apply(new RegistryChange(RegistryAction.RenameKey, zoneKey, "plain", TargetName: "plain2"),
+                new Log(), () => { }, TestContext.Current.CancellationToken);
+            Assert.Equal(["plain2", "victim"], zone.GetSubKeyNames().Order(StringComparer.Ordinal));
+            Assert.Equal(("plain2", "plain"), (undo!.Name, undo.TargetName));
+            Assert.Equal(["target", "zone"], fixture.GetSubKeyNames().Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            using (var zone = fixture.OpenSubKey("zone"))
+                if (zone is not null)
+                    try { using var link = RegistryRaw.OpenForDelete(zone, "victim"); if (RegistryRaw.IsLink(link)) RegistryRaw.DeleteOpenKey(link); }
                     catch (Exception) { }
             Registry.CurrentUser.DeleteSubKeyTree(root, throwOnMissingSubKey: false);
         }
