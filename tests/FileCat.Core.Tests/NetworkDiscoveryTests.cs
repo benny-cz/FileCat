@@ -177,30 +177,36 @@ public sealed class NetworkDiscoveryTests
         using var http = new TcpListener(IPAddress.Loopback, 0);
         http.Start();
         int httpPort = ((IPEndPoint)http.LocalEndpoint).Port;
-        var serving = Task.Run(async () =>
-        {
-            using var client = await http.AcceptTcpClientAsync(ct);
-            using var stream = client.GetStream();
-            var buffer = new byte[16384];
-            int read = 0;
-            while (!Encoding.UTF8.GetString(buffer, 0, read).Contains("</soap:Envelope>", StringComparison.Ordinal))
-            {
-                int n = await stream.ReadAsync(buffer.AsMemory(read), ct);
-                if (n == 0) return;
-                read += n;
-            }
-            await Task.Delay(window + TimeSpan.FromMilliseconds(700), ct);
-            byte[] body = Encoding.UTF8.GetBytes(Metadata);
-            await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/soap+xml\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"), ct);
-            await stream.WriteAsync(body, ct);
-        }, ct);
         using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var silentMdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-        var answering = Task.Run(async () =>
+        // The device runs on threads of its own: on CI's busy ARM64 runner a device served from the thread pool once
+        // answered too late for the metadata client's 3 s, and the host was listed by its address.
+        var device = new Thread(() =>
         {
-            var probe = await wsd.ReceiveAsync(ct);
-            await wsd.SendAsync(Encoding.UTF8.GetBytes(ProbeMatches($"http://127.0.0.1:{httpPort}/1f7b8c3a/")), probe.RemoteEndPoint, ct);
-        }, ct);
+            try
+            {
+                var from = new IPEndPoint(IPAddress.Any, 0);
+                wsd.Receive(ref from);
+                wsd.Send(Encoding.UTF8.GetBytes(ProbeMatches($"http://127.0.0.1:{httpPort}/1f7b8c3a/")), from);
+                using var client = http.AcceptTcpClient();
+                using var stream = client.GetStream();
+                var buffer = new byte[16384];
+                int read = 0;
+                while (!Encoding.UTF8.GetString(buffer, 0, read).Contains("</soap:Envelope>", StringComparison.Ordinal))
+                {
+                    int n = stream.Read(buffer, read, buffer.Length - read);
+                    if (n == 0) return;
+                    read += n;
+                }
+                // After the search window has ended, whenever the request came.
+                Thread.Sleep(window + TimeSpan.FromMilliseconds(300));
+                byte[] body = Encoding.UTF8.GetBytes(Metadata);
+                stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/soap+xml\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"));
+                stream.Write(body);
+            }
+            catch (Exception ex) when (ex is SocketException or IOException or ObjectDisposedException) { }
+        }) { IsBackground = true };
+        device.Start();
 
         var found = new List<NetworkHost>();
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -211,7 +217,7 @@ public sealed class NetworkDiscoveryTests
         Assert.Equal("Workgroup: WORKGROUP", host.Detail);
         // The lookup is bounded by the metadata client's own timeout (3 s), not endless.
         Assert.True(clock.Elapsed < window + TimeSpan.FromSeconds(4), $"Took {clock.Elapsed}.");
-        await serving;
+        Assert.True(device.Join(TimeSpan.FromSeconds(10)));
         http.Stop();
     }
 
