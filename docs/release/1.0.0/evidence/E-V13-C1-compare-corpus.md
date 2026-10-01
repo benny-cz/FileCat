@@ -43,9 +43,31 @@ not labelled).
 | The million-line benchmark (`FILECAT_COMPARE_BENCH=1`) before and after | the same speed within this host's noise (identical 0.87 / 0.88–0.91 s, shifted 1.44 / 1.36–1.49 s, 1,000 scattered edits 1.37 / 1.50–1.67 s, unrelated and repetitive 0.8–1.3 s, cancelling within 20 ms); shifted and scattered edits not labelled heuristic: split on unique lines, and provably the best |
 | Core suite 722, App suite 209 | 0 failed |
 
+## Directory comparison (`bc65646`, I84)
+
+V13 asks to exercise timestamp precision and letter-case collisions in directory comparison. Reading it for that found
+two ways it could call items the same, or miss them, without saying so:
+
+- **Letter-case collisions:** names compared without letter case went through a dictionary that kept the first of two
+  names differing only in case; a folder from a case-sensitive file system holding `A.txt` and `a.txt` had the second
+  neither compared, marked nor counted. Names now pair exactly first, then by letter case only where a name is the only
+  one of its folded form left on each side; the rest stays one-sided and marked. The panels' comparison ignored case
+  whenever FileCat ran on Windows, also against a server's folder; it now does so only between two local folders, as the
+  recursive comparison did.
+- **Undecided counted as the same:** a size or a time a listing does not give (the Registry's listings, some servers,
+  some archives) made a pair "the same" by that criterion. It is now undecided (marked, "could not be compared"; in the
+  recursive comparison Unknown with its reason) unless another criterion tells the files apart; the same content
+  answers an unknown size, not an unknown time.
+
+`DirectoryCompareTests`: the cases above, a recursive comparison over a listing without times, and 3,000 random pairs of
+folders (names in case variants, files and folders, sizes and times known or not, every criterion) against a reference
+written from the rules: every item counted once on its side, counts and marks as the reference says. The old pairing
+fails three of the four tests, "undecided is the same" two, the recursive comparison's old decision its test. Timestamp
+precision (a listing's minute or day, the coarser file system's tolerance) was already tested (`FileCompareTests`,
+I45's FTP case); Synchronize's letter-case collisions and changed targets are `SyncTests` (I50).
+
 ## Not covered here
 
-- V13's search parts other than content search (masks, attributes, size and time, ignored paths, whole words, regex
-  timeout, hex, refine and append, saved criteria, archive member names), result sets, directory comparison's timestamp
-  precision and case collisions, and Synchronize with the target changed before the run: next.
-- The window's own wording of "heuristic" is checked by reading the code, not by a UI test.
+- V13's result sets as such (removing membership against deleting originals) beyond `WorkingSetTests`, refine and
+  append, saved criteria and archive member names; Find's criteria are E-V13-F1.
+- The window's own wording of "heuristic" and "could not be compared" is checked by reading the code, not by a UI test.

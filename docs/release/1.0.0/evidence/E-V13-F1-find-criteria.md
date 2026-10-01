@@ -42,5 +42,6 @@ one place that writes an end of day and a midnight start as the date alone and a
 
 - Unreadable folders and links met during the walk (the engine logs the first and does not follow the second; not part
   of this corpus), archive member names, searching within results, and the hidden-data criterion (D-55, its own tests).
-- Whole words, regular expressions with their timeout, and hex patterns as criteria of the content search: E-V13-S1
-  covers the content search's reading; these options' own semantics are next.
+- Whole words and regular expressions are E-V13-S1's; the regular expression's timeout is now tested
+  (`FindCriteriaTests`, `0b52e70`: a runaway pattern in content and in a name mask gives up after its second, the
+  search finds the rest and says so); hex patterns have their parse and split-read tests, no corpus.

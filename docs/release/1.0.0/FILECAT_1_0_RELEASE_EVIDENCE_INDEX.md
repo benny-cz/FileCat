@@ -209,6 +209,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `fab03b8` | Tooltips in the selected theme's colors; icon buttons' tips laid out (the owner's request) | I80 | I80's record |
 | `db2e9b4` | Compare: exact alignment where affordable, labelled heuristic when not; one count of differences; V13's comparison corpus | I81, I82 | E-V13-C1 |
 | `c67fa85` | Find: a saved time range shown again keeps its ends; V13's criteria corpus | I83 | E-V13-F1 |
+| `0b52e70` | Test: a runaway regular expression in Find times out, says so, and the search goes on | — | E-V13-F1 |
+| `bc65646` | Compare directories: no item dropped by a letter-case collision; undecided never "same" | I84 | E-V13-C1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

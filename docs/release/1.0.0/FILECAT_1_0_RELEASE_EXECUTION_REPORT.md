@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `c67fa85` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `bc65646` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -449,6 +449,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     attributes, ignored folders) against a reference written from the criteria's documentation: 15,400 queries, about
     293,000 results, all as meant; a mutation of the size bound is caught. Beside it **I83** (Low, `c67fa85`): a saved
     time range shown again in Find's dialog lost its end day's last minute. Core 723, App 213.
+112. V13, the rest of the search and comparison: a runaway regular expression times out, says so, and the search goes on
+    (`0b52e70`); directory comparison read for letter-case collisions and precision found **I84** (Medium, `bc65646`): of
+    two names differing only in case one was dropped unseen, and a size or time a listing does not give counted as the
+    same. One pairing rule and an undecided state for both comparisons; 3,000 random folder pairs against a reference.
+    Core 728, App 213.
 
 ## Evidence invalidated by the campaign's own changes
 

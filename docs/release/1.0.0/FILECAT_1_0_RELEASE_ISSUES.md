@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I84 | Compare directories: of two names differing only in letter case one was dropped unseen; a size or time a listing does not give counted as the same | Medium (items silently missing from a comparison, and pairs called the same that were never compared) | Must fix (V13: no false equality) | **Remediated `bc65646`; verified** (E-V13-C1; unit tests with negative controls) |
 | I83 | Find: a saved time range shown again in the dialog lost the last minute of its end day | Low (an item modified in the end day's last minute missed by a saved search run again) | Should fix (V13) | **Remediated `c67fa85`; verified** (unit test with a negative control) |
 | I82 | Compare: the window said "1 difference" over a list of two (changed lines, then lines only on one side) | Low (the summary's count disagreed with the list and with next and previous) | Should fix (V13) | **Remediated `db2e9b4`; verified** (E-V13-C1) |
 | I81 | Compare: the text comparison anchored on a line that occurs once on each side even where it was far from its place, and presented the result as exact | Low–Medium (an 11-line edit shown as 84 lines only left or only right, unlabelled; no false equality) | Must fix (V13: labels correct) | **Remediated `db2e9b4`; verified** (E-V13-C1, with a negative control) |
@@ -1027,6 +1028,23 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I84 — Compare directories: a letter-case collision dropped an item; undecided counted as the same
+
+- **Found by:** reading the directory comparison for V13's letter-case and precision cases (E-V13-C1).
+- **What was wrong:** names compared without letter case went into a dictionary that kept the first of two names
+  differing only in case, so in a folder from a case-sensitive file system the second was neither compared, marked nor
+  counted, and an exact-case match could lose to a case variant; the panels' comparison ignored case whenever FileCat ran
+  on Windows, also against a server's folder. And a size or time a listing does not give (the Registry, some servers,
+  some archives) counted as the same under that criterion.
+- **Remediation (`bc65646`):** one pairing rule for both comparisons (exact names first, a case variant only where it is
+  the only one left on each side, the rest one-sided and marked); case ignored only between two local folders; a
+  criterion the listings cannot answer leaves the pair undecided ("could not be compared", marked; Unknown with its
+  reason in the recursive comparison) unless another criterion tells the files apart.
+- **Verification:** `DirectoryCompareTests` (4, among them 3,000 random folder pairs against a reference written from
+  the rules); each half of the change, taken out, fails its tests. Core 728, App 213; 0 failed.
+- **Severity:** Medium: a comparison exists to show what differs; one that drops an item or calls an uncompared pair the
+  same misleads exactly where it is relied on.
 
 ### I83 — Find: a saved time range shown again lost the last minute of its end day
 
