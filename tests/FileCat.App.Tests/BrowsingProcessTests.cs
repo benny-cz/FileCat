@@ -101,6 +101,8 @@ public sealed class BrowsingProcessTests
         }
         finally
         {
+            // A file trace must not count the clean-up below as browsing: it opens everything in the folder.
+            if (Environment.GetEnvironmentVariable("FILECAT_V24_BROWSE_DONE") is { Length: > 0 } done) File.WriteAllText(done, DateTime.Now.ToString("o"));
             foreach (var folder in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)) new DirectoryInfo(folder).Attributes = FileAttributes.Directory;
             foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }

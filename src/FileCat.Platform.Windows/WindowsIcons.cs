@@ -96,11 +96,18 @@ public static unsafe partial class WindowsIcons
     {
         var info = new SHFILEINFOW();
         uint attributes = isDirectory ? 0x10u : 0x80u;
-        if (SHGetFileInfoW(name, attributes, &info, (uint)sizeof(SHFILEINFOW), SHGFI_ICONLOCATION | SHGFI_USEFILEATTRIBUTES) == 0) return null;
+        if (SHGetFileInfoW(TypeProbe(name), attributes, &info, (uint)sizeof(SHFILEINFOW), SHGFI_ICONLOCATION | SHGFI_USEFILEATTRIBUTES) == 0) return null;
         string path = new string(info.szDisplayName);
         if (path.Length == 0 || path.StartsWith('*') || !IsLocal(path)) return null;
         return new IconLocation(Environment.ExpandEnvironmentVariables(path), info.iIcon);
     }
+
+    /// <summary>
+    /// The name the Shell is asked about a type under ("file.url" for links to web pages): fully qualified, in a folder
+    /// that does not exist and that only an administrator could make. Told not to touch the file, the Shell's handler for
+    /// .url still tried to open a bare "file.url", as C:ile.url (release plan V24, the file trace of browsing).
+    /// </summary>
+    public static string TypeProbe(string name) => Path.Combine(Environment.SystemDirectory, "FileCat type probe", Path.GetFileName(name));
 
     /// <summary>A path on this computer's fixed drives (never a share, whose contact would reveal credentials).</summary>
     public static bool IsLocal(string path) =>

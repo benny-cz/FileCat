@@ -67,7 +67,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         bgra = [];
         var info = new SHFILEINFOW();
         uint attrs = isDirectory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
-        var r = SHGetFileInfo(name, attrs, ref info, (uint)sizeof(SHFILEINFOW), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES);
+        var r = SHGetFileInfo(WindowsIcons.TypeProbe(name), attrs, ref info, (uint)sizeof(SHFILEINFOW), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES);
         if (r == 0 || info.hIcon == 0) return false;
         try
         {
@@ -135,7 +135,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     {
         var info = new SHFILEINFOW();
         uint attrs = isDirectory ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
-        if (SHGetFileInfo(name, attrs, ref info, (uint)sizeof(SHFILEINFOW), SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES) == 0) return base.GetTypeName(name, isDirectory);
+        if (SHGetFileInfo(WindowsIcons.TypeProbe(name), attrs, ref info, (uint)sizeof(SHFILEINFOW), SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES) == 0) return base.GetTypeName(name, isDirectory);
         return new string(info.szTypeName);
     }
 
