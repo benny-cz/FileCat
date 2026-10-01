@@ -30,9 +30,30 @@ public static class SingleInstance
     /// </summary>
     public static bool UsualInstanceRunning(string? profile)
     {
+        string name = BaseName(profile, null);
+        if (!OperatingSystem.IsWindows())
+        {
+            // On Linux and macOS .NET keeps named mutexes as files in the temporary folder, and even looking one up makes
+            // its folders there: asked while a disk's scan is being chosen, that would write to the disk when it holds
+            // the temporary folder (release plan V09). The usual instance's pipe answers without writing anything.
+            try
+            {
+                using var client = new NamedPipeClientStream(".", name, PipeDirection.Out, PipeOptions.CurrentUserOnly);
+                client.Connect(500);
+                return true;
+            }
+            catch (Exception ex) when (ex is TimeoutException or IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return true;
+            }
+        }
         try
         {
-            if (!Mutex.TryOpenExisting("Local\\" + BaseName(profile, null), out var usual)) return false;
+            if (!Mutex.TryOpenExisting("Local\\" + name, out var usual)) return false;
             usual.Dispose();
             return true;
         }

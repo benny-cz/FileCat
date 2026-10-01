@@ -69,9 +69,17 @@ public sealed class RecoverySafetyTests
         string profile = "recovery-test-" + Guid.NewGuid().ToString("N")[..8];
         Assert.False(SingleInstance.UsualInstanceRunning(profile));
         Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile, NewInstance = false }));
+        SingleInstance.StartServer(profile, null);
         try
         {
-            Assert.True(SingleInstance.UsualInstanceRunning(profile));
+            // Windows asks for the instance's mutex; Linux and macOS for its pipe, which leaves no files behind.
+            bool running = false;
+            for (int i = 0; i < 50 && !running; i++)
+            {
+                running = SingleInstance.UsualInstanceRunning(profile);
+                if (!running) Thread.Sleep(20);
+            }
+            Assert.True(running);
         }
         finally
         {

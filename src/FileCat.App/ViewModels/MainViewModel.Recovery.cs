@@ -506,7 +506,11 @@ public sealed partial class MainViewModel
         // An AppImage runs from a folder that is gone once it ends: the image itself is what to start again.
         string program = Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } image ? image : Environment.ProcessPath ?? "FileCat";
         static string Quote(string text) => OperatingSystem.IsWindows() ? $"\"{text}\"" : "'" + text.Replace("'", "'\\''") + "'";
-        return $"{Quote(program)} --data {Quote(folder)}";
+        if (OperatingSystem.IsWindows()) return $"{Quote(program)} --data {Quote(folder)}";
+        // Linux and macOS: the .NET runtime keeps files of its own in the temporary folder (its debugger and diagnostics
+        // endpoints, named locks) from start to exit; there too, they go to the data folder (release plan V09's trace).
+        string temp = Quote(Path.Combine(folder, "tmp"));
+        return $"mkdir -p {temp} && TMPDIR={temp} {Quote(program)} --data {Quote(folder)}";
     }
 
     /// <summary>A folder on a local drive known to lie on another disk than <paramref name="device"/>, with room; null when none is.</summary>
