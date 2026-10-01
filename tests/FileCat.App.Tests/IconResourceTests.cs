@@ -54,6 +54,26 @@ public sealed class IconResourceTests
     }
 
     /// <summary>
+    /// A shell link whose target is <paramref name="target"/>, carried the way shortcuts to environment-dependent
+    /// paths carry it (HasExpString and an EnvironmentVariableDataBlock), with no icon of its own: what it shows is its
+    /// target's icon, which for a program is the program's own.
+    /// </summary>
+    private static byte[] ShortcutTo(string target)
+    {
+        var link = new byte[0x4C];
+        BinaryPrimitives.WriteUInt32LittleEndian(link, 0x4C);
+        new Guid("00021401-0000-0000-c000-000000000046").TryWriteBytes(link.AsSpan(4, 16));
+        BinaryPrimitives.WriteUInt32LittleEndian(link.AsSpan(0x14), 0x80 | 0x200); // IsUnicode | HasExpString
+        BinaryPrimitives.WriteUInt32LittleEndian(link.AsSpan(0x18), 0x80); // FILE_ATTRIBUTE_NORMAL: a file, not a folder
+        BinaryPrimitives.WriteUInt32LittleEndian(link.AsSpan(0x3C), 1);
+        var block = new byte[0x314];
+        BinaryPrimitives.WriteUInt32LittleEndian(block, 0x314);
+        BinaryPrimitives.WriteUInt32LittleEndian(block.AsSpan(4), 0xA0000001);
+        Encoding.Unicode.GetBytes(target).CopyTo(block, 8 + 260);
+        return [.. link, .. block, 0, 0, 0, 0];
+    }
+
+    /// <summary>
     /// Release plan V24, with a packet capture on the named host as the oracle: a folder of files that name their icon
     /// on a share — an Internet shortcut, a shell link and a customized folder — is listed and every icon asked for.
     /// Beside each is the same file naming an icon on this computer, which must get its icon: that control is what
@@ -93,6 +113,14 @@ public sealed class IconResourceTests
             Custom("shared-folder", share);
             Custom("local-folder", local);
             Custom("plain-folder", null);
+            // Shortcuts that name no icon but a program as their target, whose own icon they then show: on the share,
+            // on this computer, and on this computer but missing — the last is what the program type looks like, which
+            // is all a target on the share may show.
+            string shareTarget = $@"\\{host}\evidence-{Guid.NewGuid():N}\program.exe";
+            File.WriteAllBytes(Path.Combine(root, "target-shared.lnk"), ShortcutTo(shareTarget));
+            File.WriteAllBytes(Path.Combine(root, "target-local.lnk"), ShortcutTo(Path.Combine(Environment.SystemDirectory, "notepad.exe")));
+            File.WriteAllBytes(Path.Combine(root, "target-missing.lnk"), ShortcutTo(Path.Combine(root, "no-such-folder", "program.exe")));
+            log?.WriteLine($"the share named as a target: {shareTarget}");
 
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(root, "data")));
             services.Settings.ShellPictures = true;
@@ -145,6 +173,31 @@ public sealed class IconResourceTests
                 Assert.False(arrived.GetValueOrDefault("shared.url"), "An icon came from the share.");
                 Assert.False(arrived.GetValueOrDefault("shared.lnk"), "An icon came from the share.");
                 Assert.False(arrived.GetValueOrDefault("shared-folder"), "An icon came from the share.");
+
+                // Targets: the local program's own icon arrives (it is not the program type's icon, which the missing
+                // target shows), and the shortcut to a program on the share shows the program type's icon and no other.
+                Avalonia.Media.IImage? Icon(string name)
+                {
+                    for (int i = 0; i < tab.Listing.VisibleCount; i++)
+                        if (tab.Listing.GetVisible(i) is var entry && entry.Name.ToString() == name) return icons.GetIcon(entry, place);
+                    return null;
+                }
+                bool ownArrived = false;
+                var typeIcon = (Avalonia.Media.IImage?)null;
+                clock.Restart();
+                while (clock.Elapsed < TimeSpan.FromSeconds(30))
+                {
+                    typeIcon = Icon("target-missing.lnk");
+                    var own = Icon("target-local.lnk");
+                    Icon("target-shared.lnk");
+                    if (typeIcon is not null && own is not null && !ReferenceEquals(own, typeIcon)) { ownArrived = true; break; }
+                    await Task.Delay(100, ct);
+                }
+                var sharedTarget = Icon("target-shared.lnk");
+                log?.WriteLine($"targets: the local program's own icon {(ownArrived ? "arrived" : "did not arrive")}; the program on the share shows {(sharedTarget is not null && ReferenceEquals(sharedTarget, typeIcon) ? "the program type's icon" : "something else")}");
+                Assert.True(ownArrived, "The control shortcut to a local program never showed that program's own icon.");
+                Assert.NotNull(sharedTarget);
+                Assert.Same(typeIcon, sharedTarget);
             }
             finally
             {

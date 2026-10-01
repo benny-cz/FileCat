@@ -107,6 +107,18 @@ same file as run B above). The oracle's positive control is runs A and C above: 
 show the contact when one happens. The three local fixtures are the pipeline's control: the helper did run and did read
 named icons during the very run that contacted nothing.
 
+**Shortcut targets (added later, same test).** A shortcut that names no icon shows its target's, and for a program
+that is the program's own icon — the one place where a target is read for its icon. Three more fixtures, built in the
+test with the target in an environment block (`HasExpString`): a program on the share, `notepad.exe` on this computer
+(control), and a program on this computer that does not exist (what the program type looks like). The local program's
+own icon arrived; the shortcut to the program on the share showed the program type's icon, the very same instance as
+the missing one's — so nothing about the share's program was read. Under a capture of everything to or from the VM's
+address, 18 packets were recorded, **none of them from or to the host**: all 18 were the VM's own — Samba announcing
+itself by NetBIOS broadcast, and Ubuntu's connectivity check through the NAT gateway. (`v24-icons2.pcap`
+`687d33b7f6e582a09ef8e1b062378f646d9384daf292387068d498f0a8989d5f`, read with `tcpdump -nn "host 192.168.58.1"`: 0
+packets.) That filter was broader than it needed to be; the earlier icon and gpg runs used it too and were empty
+outright, and the right one for what FileCat contacts is the host's own address.
+
 ## E-V24-G1-P1 — a signature naming a key server, under the same capture (no defect)
 
 The third route: an OpenPGP signature beside a downloaded file. The charter names "malicious local gpg
@@ -166,8 +178,8 @@ E-V24-G1-T2 above.
 
 This pass covered the three routes by which content a user merely browses or checks names an address of its own: the
 Git configuration, the icons, and an OpenPGP signature's key server. What remains: the terminal and association routes as the user drives them from a window (the
-tool route is measured in E-V24-G1-T2); malformed WS-Discovery and mDNS; `.lnk` *targets* on a share (guarded by the same locality check at the one place a target's own icon is read, not yet exercised end to end);
-and the capture-and-trace form of the whole case on a final candidate. On Linux and macOS a value naming a path under
+tool route is measured in E-V24-G1-T2; malformed discovery answers in E-V24-D1); and the capture-and-trace form of the
+whole case on a final candidate. On Linux and macOS a value naming a path under
 an automounter is still only a path to FileCat (`IsLocalPath` is a Windows decision); that is the same limitation the
 `gitdir:`/`commondir` checks have carried since `2f35a6b`. On the owner's Mac it reaches nothing: `/net` is commented
 out in `/etc/auto_master`, and `stat /net/192.0.2.1/share/x` there fails in 0.008 s. A machine whose automounter is

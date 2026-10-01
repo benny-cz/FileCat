@@ -360,8 +360,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 1. Collect the fuzz campaigns' results: E-I28-C1 (the Windows VM's 3.1–4.1 M and the Mac's 9.1 M of the recovery
    scanner, Ubuntu's two disk images), E-B02-A1 and E-B02-I1 (the host's and Ubuntu's lanes on `cddce72`).
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the file-access half of
-   I16's gate (which handler touched what, which needs a file-system trace); `.lnk` targets on a share; the same cases
-   on a candidate's installed files. Done so far: the Git, icon and gpg routes (E-V24-G1), the tool route with a
+   I16's gate (which handler touched what, which needs a file-system trace); the same cases on a candidate's
+   installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg routes (E-V24-G1), the tool route with a
    recording program (E-V24-G1-T2), the discovery parsers and the process trace of browsing (E-V24-D1).
 2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
