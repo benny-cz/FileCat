@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `7ee8e92` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `fab03b8` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -431,7 +431,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     before resuming (the 64 KiB before the break) could not tell; the file's start is compared too now. The JPEG question
     of item 102 is answered: the iPhone sends its converted JPEGs at exactly their listed sizes. Locking a phone
     mid-transfer is not done. Suites: Core 719, Windows 159, App 206, Remote 116; 0 failed.
-108. The owner's request, queued (low priority): tooltips over icons styled by the selected theme (**I80**).
+108. The owner's request (low priority): tooltips over icons styled by the selected theme (**I80**, `fab03b8`): tooltips
+    take the theme's surface, solid, with contrast checked in every theme; icon buttons' tips laid out (title, key,
+    description, how else used). App suite 209, 0 failed; the owner: "tested it on my own, works".
 
 ## Evidence invalidated by the campaign's own changes
 

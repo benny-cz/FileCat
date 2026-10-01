@@ -76,7 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I80 | Tooltips over icons are not styled by the selected theme | Low (looks; the owner's request) | Should fix (owner's request, 2026-10-01) | **Queued** |
+| I80 | Tooltips over icons are not styled by the selected theme, and an icon button's tip ran its parts together on one line | Low (looks; the owner's request) | Should fix (owner's request, 2026-10-01) | **Remediated `fab03b8`; verified** (unit tests with negative controls; all seven themes pictured) |
 | I79 | Resuming checked only the 64 KiB before the break: an iPhone, reconnected, sends some photos with other bytes at their start, and the resumed copy kept the old start with the new rest | Low–Medium (a resumed copy can mix two versions of a file whose start changed at the same size and time; on the owner's iPhone it happened to equal one version) | Must fix (V21, plan §14) | **Remediated `7ee8e92`; verified** (unit test with a negative control; the Motorola) |
 | I78 | Phones: an unplugged phone was reported as the file being copied "no longer exists"; a folder listed as it was unplugged came back shorter or empty, without an error | Medium (a false statement about the user's file; a listing cut short passed off as the folder's contents) | Must fix (V21) | **Remediated `7ee8e92`; verified** (unit tests with a negative control; the owner's Motorola, cable pulled) |
 | I77 | Windows: a FileCat test left 163 records of its deleted files in the owner's Recycle Bin; FileCat's undo of a recycle leaves the item's record behind, as Explorer's own Restore does | Low (records Windows neither shows nor counts, a few hundred bytes each, without bound; no user data affected) | Should fix (E-BIN-1, test hygiene) | **Remediated `f95e4cd`; verified** (unit test with a negative control; the owner's bin; Windows' own Restore observed on the lent VM) |
@@ -1028,7 +1028,21 @@ level the plan already states; exploit-level detail is not recorded here.
 ### I80 — Tooltips over icons are not styled by the selected theme
 
 - **Found by:** the owner (2026-10-01): "improve tooltips for icons, style them better according to the selected theme".
-- **Status:** queued, low priority, after V21's records.
+- **What was wrong:** tooltips were Fluent's own, light or dark, whatever FileCat's theme was (a white tooltip over
+  DosCommander's blue). The place and toolbar buttons' tips were one line run together with dots ("Recycle Bin · Deleted
+  items, ... · a middle click opens it in a new tab · the right button offers ...").
+- **Remediation (`fab03b8`):** tooltips take the theme's surface, as its menus and notifications do: its card color made
+  solid over its window color (Psychedelic's card is see-through, which let the toolbar show through the words), its
+  text and border colors and its font, with rounded corners. Icon buttons' tips are laid out: the title, its key at the
+  right in the accent color where that reads as text does (WCAG's 4.5:1; Psychedelic's accent reaches 4.3:1, so its key
+  is in the text color), the description, then how else the button is used, muted. Their plain text goes to screen
+  readers as help text.
+- **Verification:** `TooltipTests` (3): the surface is solid and text, hints and key read at 4.5:1 or more in every
+  theme (fails with the card's own color: alpha 240; and with the plain accent: Psychedelic 4.3:1); a rich tip's plain
+  text and parts; a toolbar button's tip drawn in Classic's colors, then in ClassicDark's. `PanelKeysTests`: toolbar tips
+  still start with the button's name and give its key; screen readers get the same words. The screenshot tool's new
+  `tip:` mode pictured the Copy button's and the Recycle Bin place's tips in all seven themes, looked at. App suite 209,
+  0 failed. The owner wrote, after this change was pushed: "tested it on my own, works".
 
 ### I79 — Resuming checked only the bytes before the break
 
