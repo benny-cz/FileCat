@@ -1030,7 +1030,7 @@ level the plan already states; exploit-level detail is not recorded here.
   it **failed** (no helper answered at all). Only an answer or a refusal is remembered. A failure is tried again next
   time the picture is wanted, at most three times per file, so a handler that brings the helper down on every try is
   still given up on.
-- **The same again on the icon side (`PENDING`):** `NativeIconSource` keeps a plan per item, so a shortcut or a
+- **The same again on the icon side (`855674a`):** `NativeIconSource` keeps a plan per item, so a shortcut or a
   customized folder whose icon the helper never answered for stayed a plain type icon for the session too. The same
   distinction now reaches it (`ShellPreviews.GetWithAnswerAsync`), and a plan made from an unanswered request is not
   kept. This also covers a case that has nothing to do with a crash: while FileCat recovers deleted files it pauses
