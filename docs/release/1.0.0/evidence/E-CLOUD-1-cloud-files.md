@@ -45,6 +45,29 @@ carries (OneDrive's known-folder icon; Dropbox's and iCloud Drive's from their f
   by whole path segments), `CloudSyncRootTests` (on the owner's computer: Dropbox, iCloud Drive, OneDrive - Personal,
   each a real folder). App suite 202, Platform suite 131, 0 failed.
 
+## Validation: looking at a cloud folder downloads nothing (asked by the owner)
+
+FileCat already kept away from cloud files' content wherever it reads on its own: the listing flags a placeholder
+(`EntryFlags.Offline`), quick view shows a message for one instead of its content ("press F3 to open it
+explicitly"), the metadata service reads nothing from one, content search passes over it, and the checksum files
+beside files are not read while they are only in the cloud. `CloudBrowsingTests.Looking_at_a_cloud_folder_downloads_nothing`
+(gated on `FILECAT_CLOUD_FOLDER`) checks all of it at once on a real provider's folder, with the Windows platform as
+the app registers it and the real icon source and its Shell helper:
+
+- the folder listed; for six seconds, as drawn rows ask, every file's icon, four metadata fields (dimensions,
+  duration, title, the checksum check) and the checksum check of the row;
+- a content search over the folder and its subfolders, and the folder's size counted;
+- before and after, the attributes of every file underneath.
+
+On the owner's OneDrive, a folder chosen so that a fault would cost little (five online-only files, 1.1 MB): 42 files
+underneath, **all 42 only in the cloud before and all 42 still only in the cloud after**; the five at the top marked as
+placeholders in the listing; the search found nothing (it reads no cloud file's content); the size counted
+7,012,811 bytes in 42 files from the listing alone.
+
+**Not yet checked, for want of a place to do it:** copying from, moving, renaming and deleting files in a provider's
+folder, and the Recycle Bin there. Every such test writes to the owner's cloud account (what is made in OneDrive
+uploads), so it waits for the owner to name a folder for it, as with the phone's `FileCat-test`.
+
 ## Not done (possible next steps)
 
 - **Syncing and error states** (Explorer's arrows and red cross) are not in the attributes; they would need the Cloud
