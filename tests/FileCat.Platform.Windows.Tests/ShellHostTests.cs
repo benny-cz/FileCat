@@ -189,6 +189,50 @@ public sealed class ShellHostTests : IDisposable
         Assert.Equal(6, asked);
     }
 
+    /// <summary>
+    /// Release issue I70's last part: something on screen is asked for once, so when no helper answered that one time
+    /// (it was still starting — what failed the ARM64 lane's quick view test), it is asked once more. A refusal or a
+    /// real "none" is final, and while pictures are paused nothing is asked at all.
+    /// </summary>
+    [Fact]
+    public async Task What_is_on_screen_is_asked_for_once_more_when_no_helper_answered()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var picture = new ShellImage(1, 1, new byte[4]);
+        var answers = new Queue<(ShellAnswer, ShellImage?)>();
+        int asked = 0;
+        using var previews = new ShellPreviews(new ShellHostClient(Helper(), testFaults: true), () => false)
+        {
+            AskForTests = (_, _, _, _) =>
+            {
+                asked++;
+                return answers.Count > 0 ? answers.Dequeue() : (ShellAnswer.Answered, null);
+            },
+        };
+
+        // The first helper never answered; the second one does.
+        answers.Enqueue((ShellAnswer.Failed, null));
+        answers.Enqueue((ShellAnswer.Answered, picture));
+        Assert.Same(picture, await previews.GetForDisplayAsync(ShellImageKind.Thumbnail, Path.Combine(_dir, "a.bmp"), 1, FileAttributes.Normal, 32, ct));
+        Assert.Equal(2, asked);
+
+        // A refusal is final: asked once.
+        answers.Enqueue((ShellAnswer.Refused, null));
+        Assert.Null(await previews.GetForDisplayAsync(ShellImageKind.Thumbnail, Path.Combine(_dir, "b.bmp"), 1, FileAttributes.Normal, 32, ct));
+        Assert.Equal(3, asked);
+
+        // Twice without an answer: given up for this showing, not asked a third time.
+        answers.Enqueue((ShellAnswer.Failed, null));
+        answers.Enqueue((ShellAnswer.Failed, null));
+        Assert.Null(await previews.GetForDisplayAsync(ShellImageKind.Thumbnail, Path.Combine(_dir, "c.bmp"), 1, FileAttributes.Normal, 32, ct));
+        Assert.Equal(5, asked);
+
+        // Paused (FileCat is recovering deleted files): nothing is asked of the helper, not even once.
+        previews.Paused = true;
+        Assert.Null(await previews.GetForDisplayAsync(ShellImageKind.Thumbnail, Path.Combine(_dir, "d.bmp"), 1, FileAttributes.Normal, 32, ct));
+        Assert.Equal(5, asked);
+    }
+
     [Fact]
     public async Task While_paused_the_helper_is_asked_for_nothing_and_known_pictures_stay()
     {

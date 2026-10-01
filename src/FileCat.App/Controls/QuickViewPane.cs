@@ -185,7 +185,8 @@ public sealed class QuickViewPane : Border
     {
         double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
         int size = (int)Math.Min(FileCat.Platform.Windows.Shell.ShellHostProtocol.MaxPixels, Math.Round(PictureSize * scale));
-        var image = await pictures.GetAsync(FileCat.Platform.Windows.Shell.ShellImageKind.Thumbnail, path, modified, attributes, size, CancellationToken.None);
+        // Asked once for what is on screen: a helper that was still starting (or had just died) is given a second go.
+        var image = await pictures.GetForDisplayAsync(FileCat.Platform.Windows.Shell.ShellImageKind.Thumbnail, path, modified, attributes, size, CancellationToken.None);
         if (image is null || key != _shownKey) return;
         _picture.Source = ShellBitmaps.ToBitmap(image, scale);
         _pictureKey = key;

@@ -157,6 +157,18 @@ public sealed class ShellPreviews : IDisposable
         (await GetWithAnswerAsync(kind, path, modifiedTicks, attributes, size, ct).ConfigureAwait(false)).Image;
 
     /// <summary>
+    /// The picture for something on screen now, which is asked for once and then shown or not: when no helper
+    /// answered (it was still starting, or it had just died), it is asked once more, which starts a fresh one. A
+    /// refusal or a real "this file has none" is final, and nothing is asked while pictures are paused (I09).
+    /// </summary>
+    public async Task<ShellImage?> GetForDisplayAsync(ShellImageKind kind, string path, long modifiedTicks, FileAttributes attributes, int size, CancellationToken ct)
+    {
+        var (image, answer) = await GetWithAnswerAsync(kind, path, modifiedTicks, attributes, size, ct).ConfigureAwait(false);
+        if (image is not null || answer != ShellAnswer.Failed || Paused || ct.IsCancellationRequested) return image;
+        return (await GetWithAnswerAsync(kind, path, modifiedTicks, attributes, size, ct).ConfigureAwait(false)).Image;
+    }
+
+    /// <summary>
     /// The picture, with what came of asking for it. <see cref="ShellAnswer.Failed"/> means nothing is known about this
     /// file yet — the helper did not answer, or pictures were paused, or the wait was given up — so a caller that
     /// remembers answers of its own must not remember this one.
