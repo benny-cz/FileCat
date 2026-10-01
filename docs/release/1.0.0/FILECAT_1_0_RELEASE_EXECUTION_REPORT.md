@@ -344,6 +344,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     older FileCat set a newer layout aside and then saved over it in its minute's autosave; two saves later no file
     held the newer layout, its backup included. Fixed `b70be07` (the layout is read-only then, as settings and history
     are; a reset does not overwrite it either).
+91. Long paths on Windows, at the owner's request (E-V02-L1): every file operation FileCat offers — listing, copy,
+    rename, attributes, move, new folder and file, checksum, alternate streams, hex editing, permanent delete — works
+    on paths of 330 and 630 characters, on the host (long paths allowed) and on the VM with `LongPathsEnabled` 0, the
+    Windows default. The Recycle Bin is the one refusal, Windows' own; FileCat says so and changes nothing.
 
 ## Evidence invalidated by the campaign's own changes
 
