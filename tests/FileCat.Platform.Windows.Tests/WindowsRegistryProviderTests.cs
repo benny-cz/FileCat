@@ -172,7 +172,8 @@ public sealed class WindowsRegistryProviderTests
             var done = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
             jobs.JobFinished += j => done.TrySetResult(j);
             jobs.Submit(new JobRequest { Kind = JobKind.Registry, RegistryChanges = plan.Changes, Destination = scope });
-            var completed = await done.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            // A minute: a hang still fails, a CI runner busy with four test assemblies at once does not (run 36904910785).
+            var completed = await done.Task.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             Assert.Equal(JobState.Completed, completed.State);
             using var opened = WindowsRegistryProvider.Open(scope, false);
             Assert.Equal(new byte[] { 0, 255 }, RegistryRaw.Read(opened, "").Data);
@@ -360,7 +361,8 @@ public sealed class WindowsRegistryProviderTests
                 void Finished(Job j) { jobs.JobFinished -= Finished; done.TrySetResult(j); }
                 jobs.JobFinished += Finished;
                 jobs.Submit(new JobRequest { Kind = JobKind.Registry, Registry = change, Destination = key });
-                return await done.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                // A minute: a hang still fails, a CI runner busy with four test assemblies at once does not (run 36904910785).
+                return await done.Task.WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             }
             var create = await Run(new RegistryChange(RegistryAction.SetValue, key, "blob", Desired: binary));
             Assert.Equal(JobState.Completed, create.State);
