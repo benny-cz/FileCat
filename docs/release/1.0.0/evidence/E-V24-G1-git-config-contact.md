@@ -107,12 +107,52 @@ same file as run B above). The oracle's positive control is runs A and C above: 
 show the contact when one happens. The three local fixtures are the pipeline's control: the helper did run and did read
 named icons during the very run that contacted nothing.
 
+## E-V24-G1-P1 — a signature naming a key server, under the same capture (no defect)
+
+The third route: an OpenPGP signature beside a downloaded file. The charter names "malicious local gpg
+configuration/keyserver hints". `VerificationTests.A_signature_naming_a_key_server_is_checked_without_contacting_it`
+(build `aaee133`, host, GnuPG 2.4.9) builds the whole hostile case in a throwaway GnuPG home:
+
+- `gpg.conf` asks for what an attacker would want: `keyserver hkp://192.168.58.129:11371`, `auto-key-retrieve`,
+  `keyserver-options honor-keyserver-url`;
+- the detached signature carries a preferred key server of its own (`hashed subpkt 24 … preferred keyserver:
+  http://192.168.58.129:11371`, seen in `gpg --list-packets`);
+- the signing key is then deleted from the keyring, so **only** a fetch from that server could check the signature.
+
+| Run | What checked it | Answer | Packets to the VM |
+|---|---|---|---|
+| B | **FileCat** (`OpenPgp.Verify`) | "made with OpenPGP key …, which is not in your keyring" in **0.1 s** | **0** |
+| C | the same files, by a caller that does not pass `--no-auto-key-retrieve` | gpg says "key available at http://…", requests it from the signature's address **and** from the configured key server, 6.4 s | **8**, all to port 11371 |
+
+B and C ran one after the other, each with its own capture and nothing else capturing at the time. FileCat's refusal
+is `--no-auto-key-retrieve` on gpg's command line (and the files after `--`, so a name starting with `-` is never read
+as an option) — already in the source before this pass; this is the evidence for it, with C as the oracle's positive
+control. An earlier pair of runs was discarded because both captures overlapped and recorded the same packets.
+
+Files (`artifacts/release-evidence/v24/`): `v24-gpg-keyserver-capture.txt`
+`521620d4f6d23f4f8a7f0ac3b9e573b453f9ecb5a63d016e143cf2fd2b215bea`; `v24-gpg-b.pcap`
+`704e5e5b3234433c01fcfd1b20a306e77e985038120492dc53965c3edd38a4ea`; `v24-gpg-c.pcap`
+`612d4c4a1a5fc2a442c14db3187e3589a86caa843e3ecb822482d888de13da11`; `v24-gpg-a.pcap` (a first control run, whose
+filter also caught the host's unrelated broadcasts) `7c2c75022f269c1fa6bccd524f77e9328e977cf66dc11cacd2f79d49e7fc4369`.
+
+## E-V24-G1-S2 — the launch routes, read (no defect found)
+
+Read in the same pass, without a defect to report: `SmbTools` runs the system's SMB tools by full path with every
+argument in a vector (no shell), and a server or share name is never a leading argument — it is embedded in a
+`smb://…` URI or after `//`, and a share name is URL-escaped, so a name beginning with `-` cannot become an option.
+`ToolLauncher` resolves a bare program name to a real file on PATH's absolute entries before launching, passes
+arguments as a vector, refuses a batch file whose arguments carry cmd metacharacters (BatBadBut) unless the user turns
+on shell mode for that tool, and splits over-long selections rather than truncating them. The Windows terminal routes
+start `wt.exe`, PowerShell 7 and Windows PowerShell by full path (I16), and pass a typed command line to the shell the
+user chose, which is that shell's own language by intent. Not yet exercised with a recording executable, which the
+charter asks for and which stays open.
+
 ## Still open in V24
 
-This pass covered the two routes by which a listed folder's own content names a path: the Git configuration and the
-icons. The charter's other seed groups — gpg and sidecars, the terminal, SSH and association routes with a recording
-executable, and malformed discovery — remain, as does the capture-and-trace form of the whole case on a final
-candidate, and `.lnk` *targets* on a share (guarded by the same locality check at the one place a target's own icon is
-read, not yet exercised end to end). On Linux and macOS a value naming a path under an automounter is still only a path
-to FileCat (`IsLocalPath` is a Windows decision); that is the same limitation the `gitdir:`/`commondir` checks have
-carried since `2f35a6b`.
+This pass covered the three routes by which content a user merely browses or checks names an address of its own: the
+Git configuration, the icons, and an OpenPGP signature's key server. What remains: the terminal, SSH and association
+routes with a recording executable (read here, not exercised); malformed WS-Discovery and mDNS; `.lnk` *targets* on a
+share (guarded by the same locality check at the one place a target's own icon is read, not yet exercised end to end);
+and the capture-and-trace form of the whole case on a final candidate. On Linux and macOS a value naming a path under
+an automounter is still only a path to FileCat (`IsLocalPath` is a Windows decision); that is the same limitation the
+`gitdir:`/`commondir` checks have carried since `2f35a6b`.

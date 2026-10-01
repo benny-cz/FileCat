@@ -288,6 +288,84 @@ public sealed class VerificationTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Release plan V24, with a packet capture on the named host as the oracle: FILECAT_V24_SHARE is a host FileCat
+    /// has no reason to contact. A detached signature that names it as its key server, made by a key this keyring does
+    /// not have, in a home whose gpg.conf asks for missing keys to be fetched from it and for the address a signature
+    /// names to be honoured — the charter's "malicious local gpg configuration/keyserver hints". Checking it must say
+    /// the key is unknown and contact nothing. FILECAT_V24_FETCH=1 checks the same files the way a caller that does
+    /// not forbid fetching would, to show on the same capture what that configuration asks for.
+    /// </summary>
+    [Fact]
+    public void A_signature_naming_a_key_server_is_checked_without_contacting_it()
+    {
+        string? host = Environment.GetEnvironmentVariable("FILECAT_V24_SHARE");
+        if (host is null) { Assert.Skip("Set FILECAT_V24_SHARE to a host under capture (and FILECAT_V24_FETCH=1 to show the contact)."); return; }
+        string? gpg = FindGpg();
+        if (gpg is null) { Assert.Skip("No gpg here."); return; }
+        bool fetch = Environment.GetEnvironmentVariable("FILECAT_V24_FETCH") == "1";
+        var log = TestContext.Current.TestOutputHelper;
+        // gpg-agent's socket lives in the home, and socket paths are short: the test's own folder is too long for it.
+        string home = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fcg-" + Guid.NewGuid().ToString("N")[..8])).FullName;
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(home, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        try
+        {
+            string server = $"hkp://{host}:11371";
+            File.WriteAllText(Path.Combine(home, "gpg.conf"), $"keyserver {server}\nauto-key-retrieve\nkeyserver-options honor-keyserver-url\n");
+            string file = Write("download.bin", "the file the user downloaded");
+            string[] quiet = ["--batch", "--pinentry-mode", "loopback", "--passphrase", ""];
+            Run(gpg, home, [.. quiet, "--quick-gen-key", "V24 Fixture <v24@example.invalid>", "ed25519", "sign", "never"]);
+            Run(gpg, home, [.. quiet, "--sig-keyserver-url", $"http://{host}:11371", "--detach-sign", "--output", file + ".sig", file]);
+            // Nothing is left to check it with: only a fetch from that server could supply the key. (In batch mode gpg
+            // deletes a key by its fingerprint, never by the name it carries.)
+            var listing = new ProcessStartInfo(gpg) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            foreach (string a in new[] { "--homedir=" + home, "--batch", "--with-colons", "--list-keys" }) listing.ArgumentList.Add(a);
+            using (var list = Process.Start(listing)!)
+            {
+                string keys = list.StandardOutput.ReadToEnd();
+                list.WaitForExit(60_000);
+                string fingerprint = keys.Split('\n').First(l => l.StartsWith("fpr:", StringComparison.Ordinal)).Split(':')[9];
+                Run(gpg, home, [.. quiet, "--yes", "--delete-secret-and-public-key", fingerprint]);
+            }
+            log?.WriteLine($"the signature names {server}; the keyring is empty");
+
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            if (fetch)
+            {
+                // What the configuration asks for, run as a caller that does not forbid it: it may well fail, and
+                // whether it does is not the point — the capture is.
+                var start = new ProcessStartInfo(gpg) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+                foreach (string a in new[] { "--homedir=" + home, "--batch", "--no-tty", "--verify", "--", file + ".sig", file }) start.ArgumentList.Add(a);
+                using var p = Process.Start(start)!;
+                p.StandardOutput.ReadToEnd();
+                string errors = p.StandardError.ReadToEnd();
+                p.WaitForExit(120_000);
+                log?.WriteLine($"gpg without --no-auto-key-retrieve: exit {p.ExitCode} in {clock.Elapsed.TotalSeconds:N1} s; {errors.Trim().Replace('\n', ' ')}");
+                return;
+            }
+
+            var result = OpenPgp.Verify(file + ".sig", file, TestContext.Current.CancellationToken, home);
+            log?.WriteLine($"FileCat: {result.State} in {clock.Elapsed.TotalSeconds:N1} s; {result.Text}");
+            Assert.Equal(VerificationState.SignatureUnknownKey, result.State);
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20), $"Took {clock.Elapsed}: the key server was tried.");
+        }
+        finally
+        {
+            string gpgconf = Path.Combine(Path.GetDirectoryName(gpg)!, OperatingSystem.IsWindows() ? "gpgconf.exe" : "gpgconf");
+            if (File.Exists(gpgconf))
+            {
+                try
+                {
+                    using var stop = Process.Start(new ProcessStartInfo(gpgconf, ["--homedir", home, "--kill", "all"]) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true });
+                    stop?.WaitForExit(10_000);
+                }
+                catch (System.ComponentModel.Win32Exception) { }
+            }
+            try { Directory.Delete(home, recursive: true); } catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     /// <summary>The gpg FileCat itself would use (Git for Windows' own, which wants its own paths, is not one).</summary>
     private static string? FindGpg()
     {

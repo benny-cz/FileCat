@@ -30,6 +30,7 @@ WebM, HTML and APK (a package with a binary manifest).
 | Host | `5e5f4ab` (Debug) | 0–199 of all seventeen | passed (5.5 s for all) |
 | Host | `5e5f4ab` (Debug) | 0–199,999 of all seventeen, one process each | fifteen **passed** (41–102 s each); at most 3 MB in a round (APK), 0 MB for the others; `pe` **stopped at round 197769** (I65); `pe-managed` running |
 | Host | `8cb0737` (Debug) | `pe` 197,769–199,999 | **passed** after the fix (at most 12 MB in a round) |
+| Ubuntu VM | `cddce72` (Debug; contains the fix; zip `0fac8dea…792a`, the host's build) | 200,000–1,199,999 of all seventeen: `pe-managed` in a lane of its own, the other sixteen one after another | started 13:54 UTC; running (`~/fc-v8`, script `artifacts/vm/ubu-fuzz-v8.sh`). `pe-managed`'s original is the build's own FileCat.Core.dll, so its rounds replay only on this build |
 
 Outputs: `artifacts/fuzz-host/inspect-5e5f4ab/out-0/` (`pe.txt`
 `1a0284dfa5f168ed75760a2beda61a048d7ef34023af392be7ee3d86456deadf`).

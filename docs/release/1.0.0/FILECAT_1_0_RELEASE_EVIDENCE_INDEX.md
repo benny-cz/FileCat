@@ -177,6 +177,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `e5b4e3b` | Delete: a permanent delete never reaches into a file system mounted inside the folder | I68 | E-DPI (B01) |
 | `aaee133` | Git badges: a repository's configuration never sends Git off this computer | I69 | E-V24-G1 |
 | — (test only) | V24: icons a folder's files name on a share are never contacted while it is listed | I16 (held) | E-V24-G1-I1 |
+| — (test only) | V24: a signature naming a key server is checked without contacting it | I16 (held) | E-V24-G1-P1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |
