@@ -337,10 +337,13 @@ public sealed partial class MainViewModel
             return;
         }
         string how = Environment.IsPrivilegedProcess
-            ? "FileCat runs as administrator and reads the drive itself, only reading: nothing on it is changed. "
-            : "Windows asks for administrator approval, and FileCat's helper then only reads the drive: nothing on it is changed. ";
+            ? "FileCat runs as administrator and reads the drive itself, only reading: FileCat changes nothing on it. "
+            : "Windows asks for administrator approval, and FileCat's helper then only reads the drive: FileCat changes nothing on it. ";
+        // A drive with a letter is mounted: Windows writes its own pending changes to it, sooner while it is read (release
+        // plan V09's trace of the system drive: NTFS wrote its metadata out as FileCat read the volume).
         string text = $"Scan {name} for deleted files? " + how +
-                      (system ? "Windows runs from this drive and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the drive from another computer. " : "") +
+                      (system ? "Windows runs from this drive and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the drive from another computer. "
+                       : "Windows keeps it mounted and may still write its own pending changes to it while FileCat reads; for the best chance, scan it while nothing else uses it, or image it. ") +
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         HoldOff(safety);
@@ -376,10 +379,11 @@ public sealed partial class MainViewModel
             return;
         }
         string how = Environment.IsPrivilegedProcess
-            ? "FileCat runs as administrator and reads the disk itself, only reading: nothing on it is changed. "
-            : "Windows asks for administrator approval, and FileCat's helper then only reads the disk: nothing on it is changed. ";
+            ? "FileCat runs as administrator and reads the disk itself, only reading: FileCat changes nothing on it. "
+            : "Windows asks for administrator approval, and FileCat's helper then only reads the disk: FileCat changes nothing on it. ";
         string text = $"Scan {name} for deleted files? The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " + how +
-                      (system ? "Windows runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. " : "") +
+                      (system ? "Windows runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. "
+                       : disk.Drives.Count > 0 ? $"Windows keeps its drives mounted ({string.Join(", ", disk.Drives)}) and may still write its own pending changes to them while FileCat reads; for the best chance, take them offline in Disk Management first (the disk stays in this list). " : "") +
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         HoldOff(safety);
@@ -542,9 +546,9 @@ public sealed partial class MainViewModel
         bool disk = device.Disk is null;
         string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
         bool direct = await Task.Run(() => CanRead(device.Device));
-        string how = direct ? "FileCat can read it with your own rights, and only reads: nothing on it is changed. "
-            : OperatingSystem.IsMacOS() ? "macOS asks for an administrator's password, and FileCat then only reads it: nothing on it is changed. "
-            : "Your system asks for an administrator's password, and FileCat then only reads it: nothing on it is changed. ";
+        string how = direct ? "FileCat can read it with your own rights, and only reads: FileCat changes nothing on it. "
+            : OperatingSystem.IsMacOS() ? "macOS asks for an administrator's password, and FileCat then only reads it: FileCat changes nothing on it. "
+            : "Your system asks for an administrator's password, and FileCat then only reads it: FileCat changes nothing on it. ";
         var mounts = disk ? (await Task.Run(UnixDisks.List)).Where(v => v.Disk == device.Device).SelectMany(v => v.MountPoints).ToList() : device.MountPoints.ToList();
         bool system = mounts.Contains("/") || mounts.Contains("/System/Volumes/Data");
         var safety = await Task.Run(() => CheckDiskSafety(device.Device, name));
