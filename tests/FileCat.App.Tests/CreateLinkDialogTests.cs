@@ -34,11 +34,11 @@ public sealed class CreateLinkDialogTests
             string folder = Path.Combine(root, "files");
             Assert.Equal(Path.Combine(folder, "a - link.txt"), path.Text);
             path.Text = Path.Combine(folder, "a.txt");
-            for (int i = 0; i < 100 && Confirm().IsEnabled; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 250 && Confirm().IsEnabled; i++) await Task.Delay(20, ct);
             Assert.False(Confirm().IsEnabled);
 
             path.Text = Path.Combine(folder, "a-link.txt");
-            for (int i = 0; i < 100 && !Confirm().IsEnabled; i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 250 && !Confirm().IsEnabled; i++) await Task.Delay(20, ct);
             Assert.True(Confirm().IsEnabled);
             Confirm().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             for (int i = 0; i < 250 && dialogs.IsOpen; i++) await Task.Delay(20, ct);

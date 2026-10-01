@@ -234,12 +234,14 @@ public sealed class TruthfulOutcomeTests : IDisposable
         public override string GetVolumeRoot(string path) =>
             path.StartsWith(destination, StringComparison.OrdinalIgnoreCase) ? destination : base.GetVolumeRoot(path);
 
-        // The source is checked again just before it goes: by then its copy has been taken away.
-        public override FileSystemItemInfo? TryGetInfo(string path)
+        // Just before the source goes, the move asks whether the copy is the source itself: by then the copy has been taken
+        // away. (Not on reading the source's information: the job also counts its sources on another thread, which may
+        // come late and would take the copy away while it is written.)
+        public override string? GetFileIdentity(string path)
         {
             string copy = Path.Combine(destination, Path.GetFileName(path));
             if (string.Equals(path, source, StringComparison.OrdinalIgnoreCase) && File.Exists(copy)) File.Delete(copy);
-            return base.TryGetInfo(path);
+            return base.GetFileIdentity(path);
         }
     }
 

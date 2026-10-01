@@ -56,10 +56,13 @@ public sealed class ShellPictureUiTests
                 await Task.Delay(20, TestContext.Current.CancellationToken);
             if (Thumbnail() is not { IsVisible: true })
             {
+                // What quick view was answered (its request: 256 pixels at the headless scale of 1), before asking again.
+                bool answered = services.ShellPictures.TryGetCached(ShellImageKind.Thumbnail, picture, File.GetLastWriteTimeUtc(picture).Ticks, 256, out var first);
+                string quickView = !answered ? "quick view's request has no answer yet" : first is null ? "quick view's request was answered with no picture" : "quick view's request was answered with a picture";
                 // Distinguish "no handler on this machine" from a broken quick view.
                 var direct = services.ShellPictures.Client.Get(ShellImageKind.Thumbnail, picture, 64, TimeSpan.FromSeconds(30));
                 if (direct is null) Assert.Skip("This Windows installation has no thumbnail handler for .bmp files.");
-                Assert.Fail("The helper made a thumbnail, but quick view did not show it.");
+                Assert.Fail($"The helper made a thumbnail, but quick view did not show it: {quickView}; helpers started: {services.ShellPictures.Client.Starts}.");
             }
             Assert.Equal(1, services.ShellPictures.Client.Starts);
             Assert.True(services.ShellPictures.Client.RunsAtLowIntegrity);
