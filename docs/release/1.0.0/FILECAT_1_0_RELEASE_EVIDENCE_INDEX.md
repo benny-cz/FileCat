@@ -143,6 +143,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `1df5a21` | Recovery topology, Windows: a VHD written into lies on itself and on its file's disk | I09 | V09 trace |
 | `ee476f0` | FTP: data connections go to the server itself, whatever its PASV reply names | I56 | issue record |
 | `a5c25d1` | Network discovery: no redirects from a device's metadata address | I57 | issue record |
+| `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
+| `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
 | `2f35a6b` | Git badges, icon resources and program lookups touch no path before it is known to be local, and never search the current directory | I16 | issue record |
 | `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |
