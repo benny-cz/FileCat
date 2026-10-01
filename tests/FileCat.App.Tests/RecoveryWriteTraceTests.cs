@@ -34,8 +34,8 @@ public sealed class RecoveryWriteTraceTests
         string? expect = Environment.GetEnvironmentVariable("FILECAT_V09_EXPECT");
         string? output = Environment.GetEnvironmentVariable("FILECAT_V09_OUT");
         bool windows = OperatingSystem.IsWindows() && (disk is not null || drive is not null);
-        if (!windows && (unix is null || OperatingSystem.IsWindows()) || expect is not ("scan" or "refuse") || output is null)
-            Assert.Skip("Set FILECAT_V09_DISK or FILECAT_V09_DRIVE (Windows) or FILECAT_V09_UNIX_DEVICE, FILECAT_V09_OUT and FILECAT_V09_EXPECT (scan, refuse); FILECAT_V09_DATA and FILECAT_V09_WAIT as needed.");
+        if (!windows && (unix is null || OperatingSystem.IsWindows()) || expect is not ("scan" or "refuse" or "denied") || output is null)
+            Assert.Skip("Set FILECAT_V09_DISK or FILECAT_V09_DRIVE (Windows) or FILECAT_V09_UNIX_DEVICE, FILECAT_V09_OUT and FILECAT_V09_EXPECT (scan, refuse, denied); FILECAT_V09_DATA and FILECAT_V09_WAIT as needed.");
         if (windows && !Environment.IsPrivilegedProcess) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
         string? data = Environment.GetEnvironmentVariable("FILECAT_V09_DATA");
         int wait = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_V09_WAIT"), out int w) ? w : 70;
@@ -103,6 +103,16 @@ public sealed class RecoveryWriteTraceTests
             await flow;
             var scan = vm.ActiveTab!;
             Assert.NotSame(before, scan);
+            if (expect == "denied")
+            {
+                // The system would not hand the device over (polkit saying no to UDisks2): the scan says so, reads nothing.
+                for (int i = 0; i < 1500 && scan.Listing.State is ListingState.Loading or ListingState.Empty; i++) await Task.Delay(20, ct);
+                Log($"denied: {scan.Listing.State}; {scan.Listing.Error}");
+                Assert.Equal(ListingState.Failed, scan.Listing.State);
+                Assert.Contains("not authorized", scan.Listing.Error ?? "", StringComparison.OrdinalIgnoreCase);
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(wait, 10)), ct);
+                return;
+            }
             async Task Complete()
             {
                 for (int i = 0; i < 30_000 && scan.Listing.State is ListingState.Loading or ListingState.Empty; i++) await Task.Delay(20, ct);
