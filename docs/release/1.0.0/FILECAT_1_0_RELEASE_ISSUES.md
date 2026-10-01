@@ -57,6 +57,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I45 | FTP listing times taken as exact: vsftpd's LIST gives minutes, or only the day for older files | Low–Medium (panels show invented seconds; comparing with such a server sees false time differences) | Should fix | **Remediated `111ebcd`; verified against vsftpd and ProFTPD** (E-V08-L2) |
 | I46 | SFTP to ProFTPD: renaming, moving or setting aside a link renamed or moved its target instead | High (a different item than the one chosen moved, possibly elsewhere, silently; the link left dangling) | Must fix | **Remediated `3f1b554`; verified against ProFTPD and OpenSSH** (E-V08-L2) |
 | I47 | FTP: an upload cut off on a server that will not continue it (ProFTPD) never finished; a dropped session stalled a minute | Medium (an interrupted upload could not complete; each retry refused; a 60 s stall) | Must fix | **Remediated `111ebcd`; verified against ProFTPD and vsftpd** (E-V08-L2) |
+| I48 | A move across volumes deleted its source without checking that the copy was still at the destination | Medium (data loss when another program takes the new copy away at once: antivirus quarantine, sync clients) | Must fix (DPI P01) | **Remediated `e72e3fc`; verified** (E-DPI) |
+| I49 | Moves to and from servers could delete what was never copied: a folder moved off a server went whole (with files that appeared or changed meanwhile); a moved local file went though it changed during the upload | High (silent data loss under concurrent change) | Must fix (DPI P09) | **Remediated `e72e3fc`; verified against OpenSSH, vsftpd and ProFTPD** (E-DPI) |
 
 ## Records of issues worked in this campaign
 
@@ -600,6 +602,30 @@ level the plan already states; exploit-level detail is not recorded here.
   FTP replies are quoted in the server's words (FluentFTP repeated the code first).
 - **Tests:** `SftpJobTests.A_dropped_upload_starts_again_where_the_server_will_not_continue_it`; the lab's cut-off case
   passes on ProFTPD (started again) and vsftpd (continued), each in under half a minute.
+
+### I48 — A move deleted its source without checking its copy
+
+- **Discovered:** DPI P01 review (E-DPI): `DeleteMovedSource` re-checked the source (unchanged, not the destination
+  through a link) but not the copy; between the copy's publication and the source's deletion another program can take
+  the new file away (an antivirus quarantine, a sync client), and the move then deleted the only copy.
+- **Severity / disposition:** Medium — data loss, though it needs another program acting in that moment. Must fix.
+- **Remediation (`e72e3fc`):** the copy must be at the destination, whole, just before the source goes; otherwise the
+  source stays and the job says why.
+- **Tests:** `TruthfulOutcomeTests.A_move_keeps_its_source_when_the_copy_is_gone_before_the_source_would_go` fails
+  before (the file was gone from both places) and passes after.
+
+### I49 — Moves to and from servers could delete what was never copied
+
+- **Discovered:** DPI P09 review (E-DPI). A move from a server copied a folder, then deleted it on the server as a whole
+  (a fresh listing, everything in it): files that appeared there during the move, or changed after they were copied,
+  went with it, never copied. A move to a server deleted the local file once its copy was published, even if it had
+  been saved again meanwhile (local moves keep such a source).
+- **Severity / disposition:** High — silent loss of other people's or the user's own newer data whenever the source
+  changes during a move. Must fix.
+- **Remediation (`e72e3fc`):** the copy step reports each file with the version its source stated when it was read; the
+  move deletes exactly those, each only while a fresh stat shows that version, and folders only once empty; anything
+  else stays and is named. A move to a server keeps a source that changed during the upload.
+- **Tests:** two `SftpJobTests` cases (both fail before), and a lab case moving a tree off OpenSSH, vsftpd and ProFTPD.
 
 ## New detail on open issues
 
