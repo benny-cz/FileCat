@@ -110,6 +110,33 @@ public sealed class AppPaths
         return this;
     }
 
+    /// <summary>
+    /// Files a crashed session left in <see cref="TempDirectory"/>: archive members and nested archives spooled for viewing
+    /// ("member-*", "nested-*"). They are deleted on close, by Windows even after a crash, but on Linux and macOS only by
+    /// FileCat itself. Those older than <paramref name="age"/> go; one still open stays usable (Windows refuses the
+    /// deletion; Linux and macOS keep its data until it is closed). Returns how many went.
+    /// </summary>
+    public int SweepTemporaryLeftovers(TimeSpan age)
+    {
+        int removed = 0;
+        try
+        {
+            foreach (var file in new DirectoryInfo(TempDirectory).EnumerateFiles())
+            {
+                if (!file.Name.StartsWith("member-", StringComparison.Ordinal) && !file.Name.StartsWith("nested-", StringComparison.Ordinal)) continue;
+                if ((file.Attributes & FileAttributes.ReparsePoint) != 0 || DateTime.UtcNow - file.LastWriteTimeUtc < age) continue;
+                try
+                {
+                    file.Delete();
+                    removed++;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        return removed;
+    }
+
     private static string Sanitize(string name) =>
         new(name.Where(c => char.IsLetterOrDigit(c) || c is '-' or '_').Take(40).ToArray());
 }

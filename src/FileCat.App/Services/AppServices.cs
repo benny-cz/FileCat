@@ -54,8 +54,13 @@ public sealed class AppServices : IDisposable
         // Read-only TAR, 7z, RAR, compressed files, and disc images (P8); archives of either kind nest in the other.
         Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers);
         Providers.Register(Archives);
-        // Files staged for dragging out of archives are taken by other programs long before a day passes.
-        Task.Run(() => Core.Operations.DragStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1)));
+        // Files staged for dragging out of archives are taken by other programs long before a day passes; members spooled
+        // for viewing that a crash left behind (Linux, macOS) go after a day as well.
+        Task.Run(() =>
+        {
+            Core.Operations.DragStaging.Sweep(paths.TempDirectory, TimeSpan.FromDays(1));
+            paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
+        });
         // Deleted items of disk images, read-only (P10).
         Recovery = new FileCat.Recovery.RecoveryProvider();
         if (OperatingSystem.IsWindows())

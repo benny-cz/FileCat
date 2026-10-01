@@ -27,6 +27,28 @@ public class PathAndStateTests
     }
 
     [Fact]
+    public void Members_a_crash_left_in_the_temp_folder_go_after_a_day_and_nothing_else_does()
+    {
+        // Release plan B06: spooled archive members are deleted on close, but on Linux and macOS a crash leaves them.
+        using var dir = new TempDir();
+        var paths = AppPaths.Resolve(overrideRoot: dir.Path);
+        string Make(string name, double hoursOld)
+        {
+            string file = Path.Combine(paths.TempDirectory, name);
+            File.WriteAllText(file, "x");
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddHours(-hoursOld));
+            return file;
+        }
+        string oldMember = Make("member-0123456789abcdef.tmp", 30), oldNested = Make("nested-0123456789abcdef.zip", 30);
+        string freshMember = Make("member-fedcba9876543210.tmp", 1), oldOther = Make("rename-0123.txt", 30);
+        Assert.Equal(2, paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1)));
+        Assert.False(File.Exists(oldMember));
+        Assert.False(File.Exists(oldNested));
+        Assert.True(File.Exists(freshMember));
+        Assert.True(File.Exists(oldOther));
+    }
+
+    [Fact]
     public void Containment_is_segment_aware()
     {
         var root = Path.Combine(Path.GetTempPath(), "abc");

@@ -28,7 +28,9 @@ internal static class NativeBenchmark
     public static async Task RunAsync(MainWindow window, MainViewModel vm, AppServices services, StartupOptions options, string syntheticRoot)
     {
         var results = new JsonObject();
-        var output = options.BenchmarkOut ?? Path.Combine(Path.GetTempPath(), $"filecat-benchmark-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+        // The shared temp folder (Linux, macOS): a name nobody can guess, made new, so no link planted there is followed.
+        bool chosen = options.BenchmarkOut is not null;
+        var output = options.BenchmarkOut ?? Path.Combine(Path.GetTempPath(), $"filecat-benchmark-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}.json");
         try
         {
             await RunCoreAsync(window, vm, services, options, syntheticRoot, results);
@@ -40,7 +42,13 @@ internal static class NativeBenchmark
         }
         try
         {
-            File.WriteAllText(output, results.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            string json = results.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            if (chosen) File.WriteAllText(output, json);
+            else
+            {
+                using var file = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                file.Write(System.Text.Encoding.UTF8.GetBytes(json));
+            }
             AppLog.Info("Benchmark results written to " + output);
             Console.WriteLine(output);
         }
