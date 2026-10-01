@@ -2,7 +2,7 @@
 # Builds FileCat for macOS on Apple silicon (P9, approved 2026-09-28) under artifacts/:
 #   FileCat-<ver>-osx-arm64.zip   FileCat.app, ad-hoc signed only (not notarized: Gatekeeper asks on first launch;
 #                                 right-click → Open, or remove the quarantine attribute, to run it)
-# Usage: eng/package-macos.sh [version]      (needs macOS: sips, iconutil, codesign, ditto)
+# Usage: eng/package-macos.sh [version]      (needs macOS: iconutil, codesign, ditto; and the .NET SDK)
 set -euo pipefail
 
 VERSION="${1:-0.1.0-preview}"
@@ -24,20 +24,23 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp -a "$PUB/." "$APP/Contents/MacOS/"
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
 
-# Icon: every size macOS asks for, from the 256-pixel artwork.
+# Icon: every size macOS asks for, from the frames drawn for each size (the 16-pixel one by hand) rather than the
+# 256-pixel artwork shrunk, which reads poorly small. 512 and up are left out: macOS scales the 256 for them.
+FRAMES="$OUT/icon-frames"
+rm -rf "$FRAMES"
+dotnet run "$ROOT/eng/icon-frames.cs" -- "$ROOT/src/FileCat.App/Assets/filecat.ico" "$FRAMES" >/dev/null
 ICONSET="$OUT/FileCat.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
-SRC="$ROOT/src/FileCat.App/Assets/filecat.png"
-for s in 16 32 64 128 256; do
-  sips -z "$s" "$s" "$SRC" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-done
-cp "$ICONSET/icon_32x32.png" "$ICONSET/icon_16x16@2x.png"
-cp "$ICONSET/icon_64x64.png" "$ICONSET/icon_32x32@2x.png"
-cp "$ICONSET/icon_256x256.png" "$ICONSET/icon_128x128@2x.png"
-rm "$ICONSET/icon_64x64.png"
+cp "$FRAMES/filecat-16.png" "$ICONSET/icon_16x16.png"
+cp "$FRAMES/filecat-32.png" "$ICONSET/icon_16x16@2x.png"
+cp "$FRAMES/filecat-32.png" "$ICONSET/icon_32x32.png"
+cp "$FRAMES/filecat-64.png" "$ICONSET/icon_32x32@2x.png"
+cp "$FRAMES/filecat-128.png" "$ICONSET/icon_128x128.png"
+cp "$FRAMES/filecat-256.png" "$ICONSET/icon_128x128@2x.png"
+cp "$FRAMES/filecat-256.png" "$ICONSET/icon_256x256.png"
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/FileCat.icns"
-rm -rf "$ICONSET"
+rm -rf "$ICONSET" "$FRAMES"
 
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

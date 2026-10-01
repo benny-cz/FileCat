@@ -244,6 +244,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ./artifacts/filecat_*.deb
           filecat --version
+          # The icon at every size it is drawn for, so a desktop need not shrink the large artwork.
+          for s in 16 24 32 48 64 128 256; do test -s "/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"; done
           APPIMAGE_EXTRACT_AND_RUN=1 ./artifacts/FileCat-*-x86_64.AppImage --version
           mkdir unpacked && tar -xzf artifacts/FileCat-*-linux-x64.tar.gz -C unpacked
           unpacked/FileCat-*/FileCat --version
@@ -287,6 +289,9 @@ jobs:
           mkdir unpacked && ditto -x -k artifacts/FileCat-*-osx-arm64.zip unpacked
           codesign --verify --deep --strict unpacked/FileCat.app
           unpacked/FileCat.app/Contents/MacOS/FileCat --version
+          # The icon at every size macOS asks for, the small ones from the frames drawn for them.
+          iconutil -c iconset unpacked/FileCat.app/Contents/Resources/FileCat.icns -o icon-check.iconset
+          test "$(ls icon-check.iconset | wc -l)" -eq 7
       - uses: actions/upload-artifact@v7
         with:
           name: filecat-macos

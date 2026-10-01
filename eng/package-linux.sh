@@ -27,6 +27,12 @@ rm -f "$PUB"/FileCat.ShellHost* "$PUB"/FileCat.PrivilegedHost*
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$PUB/"
 install -m 644 "$ROOT/src/FileCat.App/Assets/filecat.png" "$PUB/filecat.png"
 chmod +x "$PUB/FileCat"
+# The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not
+# shrink the large artwork, which reads poorly small.
+ICONS="$OUT/icons-$RID"
+rm -rf "$ICONS"
+dotnet run "$ROOT/eng/icon-frames.cs" -- "$ROOT/src/FileCat.App/Assets/filecat.ico" "$ICONS" >/dev/null
+ICON_SIZES="16 24 32 48 64 128 256"
 
 desktop_entry() { # $1: Exec, $2: Icon
   cat <<EOF
@@ -65,12 +71,14 @@ tar -C "$OUT/publish" -czf "$TARBALL" --transform "s,^$RID,FileCat-$VERSION," "$
 DEB_VERSION="${VERSION/-/\~}"
 DEB="$OUT/deb-$RID"
 rm -rf "$DEB"
-mkdir -p "$DEB/DEBIAN" "$DEB/opt/filecat" "$DEB/usr/bin" "$DEB/usr/share/applications" "$DEB/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "$DEB/DEBIAN" "$DEB/opt/filecat" "$DEB/usr/bin" "$DEB/usr/share/applications"
 cp -a "$PUB/." "$DEB/opt/filecat/"
 rm -f "$DEB/opt/filecat/install-desktop-entry.sh"
 ln -s /opt/filecat/FileCat "$DEB/usr/bin/filecat"
 desktop_entry filecat filecat > "$DEB/usr/share/applications/filecat.desktop"
-install -m 644 "$PUB/filecat.png" "$DEB/usr/share/icons/hicolor/256x256/apps/filecat.png"
+for s in $ICON_SIZES; do
+  install -Dm 644 "$ICONS/filecat-$s.png" "$DEB/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"
+done
 SIZE_KB="$(du -sk "$DEB/opt" | cut -f1)"
 cat > "$DEB/DEBIAN/control" <<EOF
 Package: filecat
@@ -100,6 +108,9 @@ cp -a "$PUB/." "$APPDIR/usr/lib/filecat/"
 rm -f "$APPDIR/usr/lib/filecat/install-desktop-entry.sh"
 desktop_entry FileCat filecat > "$APPDIR/filecat.desktop"
 install -m 644 "$PUB/filecat.png" "$APPDIR/filecat.png"
+for s in $ICON_SIZES; do
+  install -Dm 644 "$ICONS/filecat-$s.png" "$APPDIR/usr/share/icons/hicolor/${s}x${s}/apps/filecat.png"
+done
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"

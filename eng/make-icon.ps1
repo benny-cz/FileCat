@@ -1,6 +1,11 @@
-# Generates the original FileCat icon (folder with cat ears) as PNGs and a multi-size .ico.
-# Windows PowerShell / pwsh on Windows (System.Drawing). Re-run only when the artwork changes.
-param([string]$OutDir = "$PSScriptRoot\..\src\FileCat.App\Assets")
+# Generates the ORIGINAL FileCat icon (a folder with cat ears) as PNGs and a multi-size .ico. The icon is now the
+# owner's own artwork (2026-10-01: a two-pane window with cat ears; its 16 and 24 pixel frames drawn by hand for the
+# Windows taskbar), so running this would overwrite it with the old design: it refuses unless asked with -Force.
+param([string]$OutDir = "$PSScriptRoot\..\src\FileCat.App\Assets", [switch]$Force)
+if (-not $Force) {
+  Write-Error "make-icon.ps1 draws the old icon over the owner's artwork in $OutDir. Pass -Force to do that anyway."
+  exit 1
+}
 Add-Type -AssemblyName System.Drawing
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $sizes = 16, 24, 32, 48, 64, 128, 256
