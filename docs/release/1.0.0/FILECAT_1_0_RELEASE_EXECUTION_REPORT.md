@@ -481,8 +481,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the last fuzz result: E-B02-I1 (`pe-managed` on Ubuntu, running since 13:54 UTC), then shut the Ubuntu VM
-   down (the owner's leave). The rest is in (item 109; FAT32's 4.1–5.1 M passed too, and the Windows VM is shut down).
+1. The fuzz campaigns are collected (item 109; FAT32's 4.1–5.1 M and `pe-managed`'s 200,000–1,199,999 passed last).
+   Both VMs are shut down with the owner's leave ("when you do not need VMs anymore, you are allowed to shut them
+   down"), their snapshots kept; the V: free-space watchdog that guarded them is stopped.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
