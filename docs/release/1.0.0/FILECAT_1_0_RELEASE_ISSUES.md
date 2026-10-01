@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I85 | Count: a folder deleted and made again, or replaced, while its size was counted took the first folder's size as counted | Low–Medium (a size shown, as counted, for a folder that was never counted) | Must fix (V12: results never land on replacements) | **Remediated `1ec9d13`; verified** (E-V12-C1; unit test with a negative control) |
 | I84 | Compare directories: of two names differing only in letter case one was dropped unseen; a size or time a listing does not give counted as the same | Medium (items silently missing from a comparison, and pairs called the same that were never compared) | Must fix (V13: no false equality) | **Remediated `bc65646`; verified** (E-V13-C1; unit tests with negative controls) |
 | I83 | Find: a saved time range shown again in the dialog lost the last minute of its end day | Low (an item modified in the end day's last minute missed by a saved search run again) | Should fix (V13) | **Remediated `c67fa85`; verified** (unit test with a negative control) |
 | I82 | Compare: the window said "1 difference" over a list of two (changed lines, then lines only on one side) | Low (the summary's count disagreed with the list and with next and previous) | Should fix (V13) | **Remediated `db2e9b4`; verified** (E-V13-C1) |
@@ -1028,6 +1029,19 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I85 — Count: a folder's counted size landed on the folder put in its place
+
+- **Found by:** reading how a folder's size count is applied, for V12 (E-V12-C1).
+- **What was wrong:** the count put its size on the panel's row of the folder's name when it ended; a folder deleted and
+  made again, or replaced, under that name meanwhile is another folder, and its row showed the first one's size as
+  counted. The time recorded at the start (I32) cannot tell such a folder apart.
+- **Remediation (`1ec9d13`):** the folder's identity from the file system (file ID; device and inode) is read as the
+  count begins and as it ends; when it differs, the row shows no size and FileCat says the folder was replaced while
+  counted. Without an identity, as before.
+- **Verification:** `FolderCountIdentityTests` (fails without the check); FileCat's identity of a folder deleted and
+  made again at once on NTFS differs. App 218; 0 failed.
+- **Severity:** Low–Medium: a size is a hint, but one shown as counted for a folder that was never counted is false.
 
 ### I84 — Compare directories: a letter-case collision dropped an item; undecided counted as the same
 

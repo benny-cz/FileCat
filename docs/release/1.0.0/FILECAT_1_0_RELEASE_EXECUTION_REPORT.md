@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `bc65646` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `1ec9d13` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -64,7 +64,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
 | 10 High-risk preliminary cases and remediation | **In progress** | V03-PARTIAL (I19), V19-UNINSTALL (I15), V06-CONSENT display (I17) done preliminarily; I20, I21, I22, I23 from test runs; preliminary V19 package checks on Ubuntu 22.04 and macOS (E-V19-P1) |
-| 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | **Started** (V13's content search and file comparison) / blocked | V13: content search against an independent corpus (E-V13-S1, I74); file comparison against a generated corpus (E-V13-C1, I81, I82); Find's criteria against a generated tree (E-V13-F1, I83); V01's operation scope (E-V01-S1); V01's other parts, V12 and V16 not started. Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
+| 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | **Started** (V13's content search and file comparison) / blocked | V13: content search against an independent corpus (E-V13-S1, I74); file comparison against a generated corpus (E-V13-C1, I81, I82); Find's criteria against a generated tree (E-V13-F1, I83); V01's operation scope (E-V01-S1); V12's counted sizes (E-V12-C1, I85); V01's and V12's other parts and V16 not started. Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
 | 14 Pipeline, docs, release controls, preview | Not started | DEC-07, DEC-09 |
 | 15–26 Freezes, candidate, FQ, REP, GO, publication | Not reachable | Depend on everything above |
 
@@ -458,6 +458,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     planned destination while files arrive, the target panel moves, the panels swap and a panel is added (direct
     manifests before and after); a mark the filter hides is said in F5's dialog and copied only while included. Passed
     as written; nothing found.
+114. V12 begun (E-V12-C1): how a folder's size count is applied, read for "results never land on replacements", found
+    **I85** (Low–Medium, `1ec9d13`): a folder deleted and made again, or replaced, while counted took the first one's
+    size as counted. The count now compares the folder's file-system identity at its start and end. App 218.
 
 ## Evidence invalidated by the campaign's own changes
 
