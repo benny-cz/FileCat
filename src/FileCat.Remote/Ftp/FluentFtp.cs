@@ -47,6 +47,15 @@ public sealed class FluentFtpConnector : ISftpConnector
         config.RetryAttempts = 1;
         config.TimeConversion = FtpDate.UTC;
         config.DataConnectionType = FtpDataConnectionType.AutoPassive;
+        // Names as they are (release issue I36): FluentFTP's heuristics refuse legitimate names (";", "|", tabs, "%",
+        // "..", bidirectional marks), and its "rename" mode would change names silently. What FTP cannot carry exactly
+        // is refused by the channel itself (Safe); line breaks stay refused by the library too.
+        config.SanitizeMode = FtpSanitize.Throw;
+        config.SanitizeMultiline = true;
+        config.SanitizeControlChars = false;
+        config.SanitizeUrlEncoding = false;
+        config.SanitizeTraversal = false;
+        config.SanitizeUnicodeSpoofing = false;
         client.Encoding = Encoding.UTF8;
         bool rejected = false;
         client.ValidateCertificate += (_, e) =>
@@ -120,7 +129,7 @@ public sealed record CertificateInfo(string Subject, string Issuer, DateTime Not
 /// <summary>The user or FileCat's trust store did not accept an FTPS server's certificate.</summary>
 public sealed class CertificateRejectedException(string message, Exception? inner = null) : IOException(message, inner);
 
-internal sealed class FtpChannel : ISftpChannel
+internal sealed partial class FtpChannel : ISftpChannel
 {
     private readonly FtpClient _client;
 
@@ -134,9 +143,18 @@ internal sealed class FtpChannel : ISftpChannel
 
     public string HomeDirectory { get; }
 
-    /// <summary>FTP commands end at a line break; a path containing one could smuggle another command.</summary>
-    private static string Safe(string path) =>
-        path.Contains('\r') || path.Contains('\n') ? throw new IOException("FTP cannot carry names with line breaks.") : path;
+    /// <summary>
+    /// Paths FTP cannot carry exactly, refused before anything is sent: a line break ends the command (and could smuggle
+    /// another), NUL ends a name at the server, and FluentFTP turns every backslash into a folder separator and trims
+    /// spaces from both ends of every path, so a name with a backslash, or one ending the path with a space, would reach a
+    /// different item (release issue I36). SFTP carries all of these.
+    /// </summary>
+    internal static string Safe(string path) =>
+        path.AsSpan().IndexOfAny('\r', '\n', '\0') >= 0 ? throw new IOException("FTP cannot carry names with line breaks or NUL characters.")
+        : path.Contains('\\') ? throw new IOException("This name contains a backslash, which FileCat's FTP connection would turn into a folder separator, reaching a different item; nothing was done with it. SFTP handles such names.")
+        : path.Length > 0 && (char.IsWhiteSpace(path[0]) || char.IsWhiteSpace(path[^1]))
+            ? throw new IOException("This name ends with a space (or the path begins with one), which FileCat's FTP connection would drop, reaching a different item; nothing was done with it. SFTP handles such names.")
+        : path;
 
     /// <summary>FluentFTP's failures as the channel's contract: IOException and its kinds, never library types.</summary>
     internal T Run<T>(Func<T> action)
@@ -177,12 +195,38 @@ internal sealed class FtpChannel : ISftpChannel
         foreach (var item in items)
         {
             ct.ThrowIfCancellationRequested();
-            if (item.Name is "." or ".." or "") continue;
-            list.Add(new FtpEntry(this, _client, item.Name, RemotePath.Combine(path, item.Name), item.Type == FtpObjectType.Directory,
+            string name = ExactName(item.Name, item.Input, item.Type == FtpObjectType.Link ? item.LinkTarget : null);
+            if (name is "." or ".." or "") continue;
+            list.Add(new FtpEntry(this, _client, name, RemotePath.Combine(path, name), item.Type == FtpObjectType.Directory,
                 item.Type == FtpObjectType.Link, item.Type == FtpObjectType.Directory ? 0 : item.Size, Utc(item.Modified)));
         }
         return (IReadOnlyList<IRemoteEntry>)list;
     });
+
+    /// <summary>The fields of a Unix-style listing line before the name, up to the one space that precedes it.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[-bcdlps][-rwxsStTlL]{9}[+@.]?\s+\d+\s+(?:\S+\s+){1,2}\d+\s+\S{3,4}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4}) ")]
+    private static partial System.Text.RegularExpressions.Regex UnixListingPrefix();
+
+    /// <summary>
+    /// The name as the server has it (release issue I36). FluentFTP's parser of Unix-style listings — what servers
+    /// without MLSD, such as vsftpd, send — trims spaces at the edges of names, so " notes" was listed as "notes" and
+    /// then reached as that, possibly another item. In that format exactly one space separates the time or year from the
+    /// name, so the name is taken from the listing's own line, when the line has that shape and agrees with the parser
+    /// apart from spaces at the edges; otherwise the parser's name stands. <paramref name="linkTarget"/>: a link's
+    /// target, which follows its name after " -> ".
+    /// </summary>
+    internal static string ExactName(string parsed, string? line, string? linkTarget)
+    {
+        if (string.IsNullOrEmpty(line) || UnixListingPrefix().Match(line) is not { Success: true } prefix) return parsed;
+        string rest = line[prefix.Length..];
+        if (!string.IsNullOrEmpty(linkTarget))
+        {
+            string arrow = " -> " + linkTarget;
+            if (!rest.EndsWith(arrow, StringComparison.Ordinal)) return parsed;
+            rest = rest[..^arrow.Length];
+        }
+        return rest.Length > 0 && rest.Trim() == parsed.Trim() ? rest : parsed;
+    }
 
     private static DateTime Utc(DateTime t) => t == DateTime.MinValue ? DateTime.MinValue : t.Kind == DateTimeKind.Utc ? t : DateTime.SpecifyKind(t, DateTimeKind.Utc);
 

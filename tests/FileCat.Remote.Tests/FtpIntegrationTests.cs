@@ -270,4 +270,49 @@ public sealed class FtpIntegrationTests : IDisposable
         var ex = Assert.ThrowsAny<IOException>(() => connections.Lease(profile.Id, TestContext.Current.CancellationToken).Dispose());
         Assert.Contains("encryption", ex.Message);
     }
+
+    [Fact]
+    public void Names_FTP_can_carry_travel_exactly()
+    {
+        // Release issue I36: FluentFTP refused these legitimate names as "injection" (";", "|", tab, "%", "..", a
+        // bidirectional mark); they are only names, and arrive as themselves.
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        string[] names = ["semi;colon", "100%", "%20 not a space", "..leading dots", "gpj\u202Eexe.txt", "a+b=c", "-rf"];
+        if (!OperatingSystem.IsWindows()) names = [.. names, "pipe|x", "tab\tx"]; // not valid in Windows names
+        using var lease = connections.Lease(profile.Id, ct);
+        foreach (string name in names)
+        {
+            using (var s = lease.Channel.CreateNew("/" + name)) s.Write(Encoding.UTF8.GetBytes(name));
+            using var read = lease.Channel.OpenRead("/" + name);
+            Assert.Equal(name, new StreamReader(read).ReadToEnd());
+        }
+        Assert.Equal(names.Order(StringComparer.Ordinal), lease.Channel.List("/", ct).Select(e => e.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(names.Order(StringComparer.Ordinal), Directory.GetFiles(server.Root).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void A_name_with_a_backslash_is_refused_rather_than_reaching_another_item()
+    {
+        // FluentFTP turns every backslash in a path into a folder separator: deleting "back\slash" would delete
+        // "back/slash". FileCat refuses such names over FTP instead, and the other file stays.
+        if (OperatingSystem.IsWindows()) Assert.Skip("A backslash cannot be part of a file name on Windows, where this server keeps its files.");
+        using var server = TestFtpServer.TryStart();
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        File.WriteAllText(Path.Combine(server.Root, "back\\slash"), "the listed file");
+        File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(server.Root, "back")).FullName, "slash"), "another file");
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, ct);
+        var listed = Assert.Single(lease.Channel.List("/", ct), e => e.Name == "back\\slash");
+        var refused = Assert.ThrowsAny<IOException>(listed.Delete);
+        Assert.Contains("backslash", refused.Message);
+        Assert.ThrowsAny<IOException>(() => lease.Channel.OpenRead("/back\\slash").Dispose());
+        Assert.Equal("the listed file", File.ReadAllText(Path.Combine(server.Root, "back\\slash")));
+        Assert.Equal("another file", File.ReadAllText(Path.Combine(server.Root, "back", "slash")));
+    }
 }

@@ -315,6 +315,145 @@ public sealed class RemoteLabTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Names that shells, option parsers, URL encoders and Unicode normalizers treat specially; valid on every client.
+    /// </summary>
+    private static readonly string[] OddNames =
+    [
+        "-rf", "--help", " leading space", "two  spaces", "#hash", "100%", "%20 not a space", "semi;colon", "quote's",
+        "brackets [1]", "a+b=c", "Žluťoučký kůň.txt", "emoji 😀.txt", "..leading dots", "e\u0301 decomposed.txt", "\u00e9 composed.txt",
+        "ｆｕｌｌｗｉｄｔｈ.txt", "日本語.txt",
+    ];
+
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, 22)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, 21)]
+    public async Task Odd_names_arrive_on_the_server_exactly_and_come_back_the_same(string protocol, int port)
+    {
+        // Release plan V08: no quoting, option parsing, encoding or normalization changes a name on the way, checked
+        // against the bytes of the names on the server's own file system (FILECAT_REMOTE_LAB_SERVER_NAMES), not through
+        // FileCat's reading of the server.
+        var lab = Lab();
+        string? names = Environment.GetEnvironmentVariable("FILECAT_REMOTE_LAB_SERVER_NAMES");
+        if (string.IsNullOrEmpty(names)) Assert.Skip("Set FILECAT_REMOTE_LAB_SERVER_NAMES to a command that lists a server folder's names as bytes.");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = Profile(protocol, port, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "names-" + protocol));
+        // Anything FileCat asks is recorded and skipped, so the result says which name failed and why.
+        var asked = new List<string>();
+        stack.Jobs.DecisionRequested += q =>
+        {
+            lock (asked) asked.Add(q.Request.Title + ": " + q.Request.Message);
+            q.Resolve(new Decision(DecisionAction.Skip));
+        };
+        string local = Directory.CreateDirectory(Path.Combine(_dir, "names-src-" + protocol, "Odd names")).FullName;
+        foreach (string name in OddNames) File.WriteAllText(Path.Combine(local, name), name);
+        string remoteRoot = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        string home;
+        using (var lease = stack.Connections.Lease(profile.Id, ct))
+        {
+            lease.Channel.CreateDirectory(remoteRoot);
+            home = lease.Channel.HomeDirectory;
+        }
+        try
+        {
+            var up = await RunAsync(stack, new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [ItemRef.ForFileSystemPath(local, EntryKind.Directory)],
+                Destination = SftpProvider.At(profile, remoteRoot),
+            });
+            Assert.True(up.State == JobState.Completed, $"{up.State}; asked: {string.Join(" | ", asked)}; issues: {string.Join("; ", up.Issues.Select(i => $"{i.Path}: {i.Message}"))}");
+
+            // The server's file system: exactly these names, as UTF-8 bytes, each file with its own content's size.
+            string listing = Path.Combine(_dir, "names-" + protocol + ".txt");
+            using (var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe",
+                       "/c " + names.Replace("{root}", RemotePath.Combine(RemotePath.Combine(home, remoteRoot), "Odd names"), StringComparison.Ordinal).Replace("{out}", listing, StringComparison.Ordinal))
+                   { UseShellExecute = false, CreateNoWindow = true })!)
+                await p.WaitForExitAsync(ct);
+            var onServer = File.ReadAllLines(listing).Select(l => l.Split(' ')).Where(f => f.Length == 3 && f[0] == "f")
+                .ToDictionary(f => System.Text.Encoding.UTF8.GetString(Convert.FromHexString(f[1])), f => long.Parse(f[2], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(OddNames.Order(StringComparer.Ordinal), onServer.Keys.Order(StringComparer.Ordinal));
+            Assert.All(OddNames, n => Assert.Equal(System.Text.Encoding.UTF8.GetByteCount(n), onServer[n]));
+
+            // And back: the same names, the same contents.
+            string back = Directory.CreateDirectory(Path.Combine(_dir, "names-back-" + protocol)).FullName;
+            var down = await RunAsync(stack, new JobRequest
+            {
+                Kind = JobKind.Copy,
+                Sources = [new ItemRef(SftpProvider.At(profile, remoteRoot), "Odd names", EntryKind.Directory)],
+                Destination = Location.FileSystem(back),
+            });
+            Assert.True(down.State == JobState.Completed, $"{down.State}: {string.Join("; ", down.Issues.Select(i => i.Message))}");
+            var returned = Directory.GetFiles(Path.Combine(back, "Odd names")).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToList();
+            Assert.Equal(OddNames.Order(StringComparer.Ordinal), returned);
+            Assert.All(OddNames, n => Assert.Equal(n, File.ReadAllText(Path.Combine(back, "Odd names", n))));
+        }
+        finally
+        {
+            await RunAsync(stack, new JobRequest { Kind = JobKind.Delete, Sources = [new ItemRef(SftpProvider.At(profile, "."), remoteRoot, EntryKind.Directory)] });
+        }
+    }
+
+    [Fact]
+    public void Names_with_spaces_at_their_edges_are_listed_exactly_and_never_reach_another_item_over_ftp()
+    {
+        // Release issue I36: FluentFTP's parser of vsftpd's listing (no MLSD) trimmed these names, and it trims every path
+        // it sends, so FileCat would have reached "both" when " both " was meant. Made over SFTP (exact bytes), then over
+        // FTP: every name is listed exactly; names that begin with spaces are read and deleted as themselves; names that
+        // end with one cannot be sent exactly, so FileCat refuses them; the look-alikes without spaces stay untouched.
+        var lab = Lab();
+        var ct = TestContext.Current.CancellationToken;
+        string[] leading = [" leading", "  two"];
+        string[] trailing = [" both ", "trailing space "];
+        string[] lookAlikes = ["both", "trailing space"];
+        string[] all = [.. leading, .. trailing, .. lookAlikes];
+        string folder = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        var sftp = Profile(RemoteProtocols.Sftp, 22, lab);
+        using var sftpStack = Open(sftp, new Interaction(lab.Password), Path.Combine(_dir, "edges-sftp"));
+        using (var lease = sftpStack.Connections.Lease(sftp.Id, ct))
+        {
+            lease.Channel.CreateDirectory(folder);
+            foreach (string name in all)
+                using (var s = lease.Channel.CreateNew(RemotePath.Combine(folder, name))) s.Write(System.Text.Encoding.UTF8.GetBytes(name));
+        }
+        try
+        {
+            var ftp = Profile(RemoteProtocols.FtpExplicitTls, 21, lab);
+            using var ftpStack = Open(ftp, new Interaction(lab.Password), Path.Combine(_dir, "edges-ftp"));
+            using (var lease = ftpStack.Connections.Lease(ftp.Id, ct))
+            {
+                var listed = lease.Channel.List(folder, ct);
+                Assert.Equal(all.Order(StringComparer.Ordinal), listed.Select(e => e.Name).Order(StringComparer.Ordinal));
+                foreach (var entry in listed.Where(e => leading.Contains(e.Name)))
+                {
+                    using (var read = lease.Channel.OpenRead(entry.FullPath))
+                        Assert.Equal(entry.Name, new StreamReader(read).ReadToEnd());
+                    entry.Delete();
+                }
+                foreach (var entry in listed.Where(e => trailing.Contains(e.Name)))
+                {
+                    Assert.Contains("ends with a space", Assert.ThrowsAny<IOException>(() => lease.Channel.OpenRead(entry.FullPath).Dispose()).Message);
+                    Assert.Contains("ends with a space", Assert.ThrowsAny<IOException>(entry.Delete).Message);
+                }
+            }
+            // On the server: the names that begin with spaces are gone; everything else is as it was.
+            using (var lease = sftpStack.Connections.Lease(sftp.Id, ct))
+            {
+                Assert.Equal(trailing.Concat(lookAlikes).Order(StringComparer.Ordinal), lease.Channel.List(folder, ct).Select(e => e.Name).Order(StringComparer.Ordinal));
+                foreach (string name in lookAlikes)
+                    using (var read = lease.Channel.OpenRead(RemotePath.Combine(folder, name)))
+                        Assert.Equal(name, new StreamReader(read).ReadToEnd());
+            }
+        }
+        finally
+        {
+            using var lease = sftpStack.Connections.Lease(sftp.Id, CancellationToken.None);
+            foreach (var entry in lease.Channel.List(folder, CancellationToken.None)) entry.Delete();
+            lease.Channel.List(".", CancellationToken.None).Single(e => e.Name == folder).Delete();
+        }
+    }
+
     [Theory]
     [InlineData(RemoteProtocols.Sftp, 22)]
     [InlineData(RemoteProtocols.FtpExplicitTls, 21)]

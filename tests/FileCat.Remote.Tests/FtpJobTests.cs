@@ -126,4 +126,43 @@ public sealed class FtpJobTests : IDisposable
         Assert.Equal("The server refused.", RemoteErrorText.Reason(new IOException("The server refused.", new IOException("inner"))));
         Assert.Equal("see inner exception", RemoteErrorText.Reason(new IOException("see inner exception")));
     }
+
+    [Theory]
+    [InlineData("/dir/a\rb")]
+    [InlineData("/dir/a\nb")]
+    [InlineData("/dir/a\0b")]
+    [InlineData("/dir/back\\slash")]
+    [InlineData("/dir/ends with a space ")]
+    [InlineData(" relative path")]
+    public void Paths_FTP_cannot_carry_exactly_are_refused_before_anything_is_sent(string path) =>
+        Assert.ThrowsAny<IOException>(() => FtpChannel.Safe(path));
+
+    [Theory]
+    [InlineData("/dir/semi;colon")]
+    [InlineData("/dir/100%")]
+    [InlineData("/dir/..leading dots")]
+    [InlineData("/dir/gpj\u202Eexe.txt")]
+    [InlineData("/dir/tab\tx")]
+    [InlineData("/dir/ leading space")]
+    [InlineData("/ spaced folder /file")]
+    public void Names_FTP_can_carry_pass_unchanged(string path) => Assert.Equal(path, FtpChannel.Safe(path));
+
+    [Theory]
+    // Release issue I36: vsftpd's listing (no MLSD); FluentFTP's parser gave the names trimmed.
+    [InlineData("-rw-------    1 1001     1001           14 Oct 01 01:40  leading space", "leading space", null, " leading space")]
+    [InlineData("-rw-------    1 1001     1001           13 Oct 01 01:40   two leading", "two leading", null, "  two leading")]
+    [InlineData("drwx------    2 1001     1001         4096 Oct 01 01:40  spaced folder", "spaced folder", null, " spaced folder")]
+    [InlineData("-rw-r--r--    1 1001     1001           14 Jan 05  2024  old file", "old file", null, " old file")]
+    [InlineData("lrwxrwxrwx    1 1001     1001            5 Oct 01 01:40  link with spaces  -> plain", "link with spaces", "plain", " link with spaces ")]
+    // Names the parser already gets right stay as they are, even ones that look like listing fields.
+    [InlineData("-rw-r--r--    1 1001     1001           14 Oct 01 01:40 two  inner", "two  inner", null, "two  inner")]
+    [InlineData("-rw-r--r--    1 1001     1001           14 Oct 01 01:40 a -> b", "a -> b", null, "a -> b")]
+    [InlineData("-rw-r--r--    1 1001     1001           14 Jan 05  2024 2024 report", "2024 report", null, "2024 report")]
+    [InlineData("-rw-r--r--    1 owner           14 Oct 01 01:40  no group column", "no group column", null, " no group column")]
+    // A line of another shape, or one that disagrees with the parser beyond spaces, leaves the parser's name.
+    [InlineData("10-01-26  01:40AM                   14  dos listing", "dos listing", null, "dos listing")]
+    [InlineData("-rw-r--r--    1 1001     1001           14 Oct 01 01:40 other", "different", null, "different")]
+    [InlineData(null, "machine listing", null, "machine listing")]
+    public void Listed_names_keep_the_spaces_at_their_edges(string? line, string parsed, string? linkTarget, string expected) =>
+        Assert.Equal(expected, FtpChannel.ExactName(parsed, line, linkTarget));
 }
