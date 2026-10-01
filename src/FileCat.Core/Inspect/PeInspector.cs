@@ -253,7 +253,7 @@ public static partial class PeInspector
         var fields = new List<(string, string)>
         {
             ("Magic", $"0x{U16(o, 0):X4} ({(pe64 ? "PE32+" : "PE32")})"),
-            ("Linker version", $"{o[2]}.{o[3]}"),
+            ("Linker version", $"{U8(o, 2)}.{U8(o, 3)}"),
             ("Size of code", Size(U32(o, 4))),
             ("Size of initialized data", Size(U32(o, 8))),
             ("Size of uninitialized data", Size(U32(o, 12))),
@@ -1107,6 +1107,9 @@ public static partial class PeInspector
     }
 
     private static string Printable(string s) => new(s.Select(c => char.IsControl(c) ? '?' : c).ToArray());
+
+    /// <summary>A byte, or 0 past the end: an optional header may be shorter than its fields (a damaged size, a cut file).</summary>
+    private static byte U8(ReadOnlySpan<byte> b, int at) => at >= 0 && at < b.Length ? b[at] : (byte)0;
 
     private static ushort U16(ReadOnlySpan<byte> b, int at) => at >= 0 && at + 2 <= b.Length ? BinaryPrimitives.ReadUInt16LittleEndian(b[at..]) : (ushort)0;
 

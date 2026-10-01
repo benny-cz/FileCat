@@ -66,6 +66,15 @@ public sealed class InspectorFuzzTests
         TestContext.Current.TestOutputHelper?.WriteLine($"{format}: rounds {first}..{first + rounds - 1}; most allocated by one round: {most >> 20} MB (round {mostRound})");
     }
 
+    /// <summary>Rounds that once failed in long runs, kept so every run repeats them.</summary>
+    [Theory]
+    [InlineData("pe", 197769)] // an optional header shorter than its fields: the linker version was read past its end
+    public void Rounds_that_once_failed_stay_fixed(string format, int round)
+    {
+        Inspect(Damage(format, Seed(format), round), out var failure);
+        Assert.Null(failure);
+    }
+
     /// <summary>One round's damage: bytes changed, more often in the first and last kilobyte, sometimes cut short.</summary>
     private static byte[] Damage(string format, byte[] original, int round)
     {
