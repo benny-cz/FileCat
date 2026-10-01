@@ -230,6 +230,7 @@ internal sealed class FatScanner
                 ModifiedUtc = modified,
                 CreatedUtc = created,
                 NameUncertain = uncertain,
+                SizeMayBeCleared = !isDirectory && size == 0 && start == 0,
             };
             if (uncertain) item.Evidence.Add("The first letter of the name is lost (FAT overwrites it when a file is deleted); it is shown as _.");
             folder.Children.Add(item);

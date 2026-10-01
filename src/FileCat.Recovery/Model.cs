@@ -115,6 +115,12 @@ public sealed class RecoveryItem
             State = RecoveryState.Recoverable;
             return;
         }
+        if (Size == 0 && SizeMayBeCleared)
+        {
+            State = RecoveryState.NameOnly;
+            Evidence.Insert(0, ClearedEntry);
+            return;
+        }
         if (Size == 0)
         {
             State = RecoveryState.Recoverable;
@@ -146,6 +152,15 @@ public sealed class RecoveryItem
     }
 
     internal const string UncertainStart = "Where it starts is FileCat's best guess, so this may not be its data: check the file after recovering it.";
+
+    internal const string ClearedEntry = "Its entry keeps no size and no start: the file was empty, or the system that deleted it cleared both (Linux may), and then nothing in the file system says where its content was.";
+
+    /// <summary>
+    /// A deleted entry whose size and start are both zero, which says nothing for sure: an empty file has them, and so has
+    /// a file whose system cleared them as it deleted it (Linux's FAT driver may write the emptied file's entry back after
+    /// marking it deleted). Such a file is not called empty, nor recoverable.
+    /// </summary>
+    public bool SizeMayBeCleared { get; init; }
 
     internal static string Bytes(long n) => n < 1024 ? $"{n} bytes" : n < 1024 * 1024 ? $"{n / 1024.0:0.#} KiB"
         : n < 1024L * 1024 * 1024 ? $"{n / (1024.0 * 1024):0.#} MiB" : $"{n / (1024.0 * 1024 * 1024):0.#} GiB";

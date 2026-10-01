@@ -269,6 +269,23 @@ public sealed class ErasedFatStartTests
         Assert.Empty(content.MissingRanges);
     }
 
+    /// <summary>
+    /// A deleted entry with neither a size nor a start: an empty file has them, and so has a file Linux's FAT driver
+    /// deleted and then wrote back emptied (seen on the Ubuntu VM in release plan V09's L5, where 3 MiB files came back as
+    /// "empty"). It is not called empty or recoverable, and says why (release issue I66).
+    /// </summary>
+    [Fact]
+    public void A_deleted_entry_with_neither_size_nor_start_is_not_called_empty()
+    {
+        var image = new Fat32Image();
+        image.PutAllocated(10, Fat32Image.Text(100, "kept"));
+        image.Put(2, [.. Fat32Image.Entry("KEEP    TXT", 0x20, 10, 100), .. Fat32Image.Entry("LOST    BIN", 0x20, 0, 0, deleted: true)]);
+
+        var item = RecoveryFixtures.Find(Scan(image).Root, "_OST.BIN")!;
+        Assert.True(item.State == RecoveryState.NameOnly, Explain(item));
+        Assert.Equal(RecoveryItem.ClearedEntry, item.Evidence[0]);
+    }
+
     [Fact]
     public void A_file_whose_every_possible_start_is_in_use_is_overwritten()
     {
