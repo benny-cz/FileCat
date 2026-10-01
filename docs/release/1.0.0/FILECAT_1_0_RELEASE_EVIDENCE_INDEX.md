@@ -185,6 +185,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `c7a02e9` | Quick view: a picture nobody answered for is asked once more | I70 | E-V24-D1 |
 | — (test only) | V24: what runs while a folder naming a program three times over is shown | I16 (held) | E-V24-D1-B1 |
 | — (test only) | V11: passwords reach neither the log nor any file FileCat writes; saved ones go to Credential Manager | — (held) | E-V11-S1 |
+| `b70be07` | Workspace: a layout saved by a newer FileCat is never saved over | I71 | I71's record |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |

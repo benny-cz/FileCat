@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I71 | An older FileCat saved over a newer FileCat's window layout within two minutes | Medium (the newer layout and its backup were both gone) | Must fix (V11, plan §19.1) | **Remediated `b70be07`; verified** (unit test with a negative control) |
 | I70 | A Shell picture that got no answer was remembered as the file having none | Medium (after a helper died, quick view showed no picture for those files for the rest of the session) | Must fix (V24, CI flake) | **Remediated `3f647bd`; verified** (unit test with a negative control) |
 | I69 | A repository's own configuration sent Git to a server while the folder was merely shown | High (an unasked connection to an attacker-named server during ordinary browsing; 21 s per repository where it does not answer) | Must fix (V24, V23 B10) | **Remediated `aaee133`; verified** (E-V24-G1, with a packet capture) |
 | I68 | Linux/macOS: a permanent delete reached into a file system mounted inside the deleted folder | High (deleting a folder that holds a mounted drive, share or bind mount emptied that volume too) | Must fix (V23 B01, DPI) | **Remediated `e5b4e3b`; verified** (unit test; live on the Ubuntu VM) |
@@ -1014,6 +1015,25 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I71 — An older FileCat saved over a newer FileCat's window layout
+
+- **Found by:** the V11 pass on state files ("newer schemas not destructively rewritten"). Plan §19.1 says state a
+  newer FileCat wrote opens read-only and is never overwritten; `JsonFileStore` reports such a file as
+  `NewerSchemaReadOnly`, and the guarantee rests on every save checking that.
+- **What was wrong:** settings and history check it; the window layout (`workspace.json`) did not. Startup set a newer
+  layout aside and used the default one, but nothing marked the file read-only, and the layout is saved every minute
+  and on exit. Measured with the unchanged code: after two saves, **no file in the folder still held the newer
+  layout** — the first save rotated it into `workspace.json.bak`, the second rotated that out. Running an older
+  FileCat for two minutes (a portable copy, a downgrade to try something) cost the newer one its layout.
+- **Remediation (`b70be07`):** `MainViewModel.LoadSavedWorkspace` loads the layout and remembers when a newer FileCat
+  wrote it (`WorkspaceReadOnly`); `SaveWorkspace` then leaves the file alone, and so does a layout reset the user asks
+  for at start. FileCat says once that the layout was saved by a newer version, as it already did for settings.
+- **Verification:** `WorkspaceSchemaTests.A_layout_saved_by_a_newer_FileCat_is_not_saved_over` — a layout of the next
+  schema with a field this version has never heard of, two autosaves and an exit save, with and without a reset: the
+  file is byte for byte unchanged and no backup was made of it; a layout of the current schema is still saved (the
+  control). It fails with the guard taken out. App suite: 201 total, 0 failed.
+- **Severity:** Medium: no files of the user's are touched, but their working arrangement is silently lost.
 
 ### I70 — A Shell picture that got no answer was remembered as the file having none
 

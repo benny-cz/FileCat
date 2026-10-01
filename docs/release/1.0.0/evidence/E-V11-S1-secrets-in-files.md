@@ -49,6 +49,7 @@ Saving only after the server accepts the password would avoid it; recorded here 
 
 ## Still open in V11
 
-Linux (Secret Service) and macOS (Keychain), including a store that is absent, locked or refuses; settings files of an
-older, newer, corrupt or truncated schema; competing instances, read-only profiles and unwritable portable folders;
-crash reports and exports; and the argument-recording half, which E-V24-G1-T2 covers for tools.
+Linux (Secret Service) and macOS (Keychain), including a store that is absent, locked or refuses; corrupt and
+truncated state files; competing instances, read-only profiles and unwritable portable folders; crash reports and
+exports; and the argument-recording half, which E-V24-G1-T2 covers for tools. A newer schema is covered for every state
+file now that the layout honours it too ([I71](../FILECAT_1_0_RELEASE_ISSUES.md#i71--an-older-filecat-saved-over-a-newer-filecats-window-layout)).

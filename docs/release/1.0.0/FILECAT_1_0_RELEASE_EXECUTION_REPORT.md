@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `c7a02e9` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `b70be07` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -340,6 +340,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     none of the three secrets is in any file FileCat wrote, as UTF-8, UTF-16 or Base64. Observation for a decision:
     a password answered "save" is stored before the server accepts it, so a mistyped one is retried on every
     reconnect.
+90. V11 state files: **I71** (Medium) — the window layout was the one state file that did not honour plan §19.1. An
+    older FileCat set a newer layout aside and then saved over it in its minute's autosave; two saves later no file
+    held the newer layout, its backup included. Fixed `b70be07` (the layout is read-only then, as settings and history
+    are; a reset does not overwrite it either).
 
 ## Evidence invalidated by the campaign's own changes
 
