@@ -3,6 +3,13 @@ namespace FileCat.Core.State;
 /// <summary>Release version comparison for the opt-in update check ("v1.2.0", "0.1.0-preview", "1.0.0+build").</summary>
 public static class ReleaseVersion
 {
+    /// <summary>
+    /// Whether a release's tag reads as one: "1.2.3" or "v1.2.3", up to four numbers, with an optional pre-release of SemVer's
+    /// characters ("-rc.1"). An update check shows only such a tag, never whatever text an answer carries.
+    /// </summary>
+    public static bool IsReleaseTag(string tag) =>
+        System.Text.RegularExpressions.Regex.IsMatch(tag, @"^[vV]?[0-9]{1,9}(\.[0-9]{1,9}){1,3}(-[0-9A-Za-z][0-9A-Za-z.-]{0,63})?\z");
+
     /// <summary>True when <paramref name="candidate"/> is a newer release than <paramref name="current"/>.</summary>
     public static bool IsNewer(string current, string candidate)
     {

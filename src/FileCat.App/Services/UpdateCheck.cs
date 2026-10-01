@@ -16,6 +16,12 @@ public static class UpdateCheck
 {
     public const string LatestReleaseApi = "https://api.github.com/repos/benny-cz/FileCat/releases/latest";
 
+    /// <summary>The page offered when an answer names no page of FileCat's own releases.</summary>
+    public const string ReleasesPage = "https://github.com/benny-cz/FileCat/releases";
+
+    /// <summary>The most of an answer read (a release's answer is a few kilobytes, its notes included).</summary>
+    internal const int MaxAnswerBytes = 4 << 20;
+
     public sealed record Result(bool Newer, string Current, string? Latest, string? Url, string? Error);
 
     public static string CurrentVersion
@@ -48,16 +54,20 @@ public static class UpdateCheck
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("FileCat", current));
             http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-            using var response = await http.GetAsync(LatestReleaseApi, ct);
+            using var response = await http.GetAsync(LatestReleaseApi, HttpCompletionOption.ResponseHeadersRead, ct);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return new Result(false, current, null, null, "No release has been published yet.");
             response.EnsureSuccessStatusCode();
+            if (response.Content.Headers.ContentLength > MaxAnswerBytes) return new Result(false, current, null, null, Unreadable);
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-            var tag = doc.RootElement.TryGetProperty("tag_name", out var t) ? t.GetString() : null;
-            var url = doc.RootElement.TryGetProperty("html_url", out var u) ? u.GetString() : null;
+            using var answer = new MemoryStream();
+            var buffer = new byte[64 * 1024];
+            for (int n; (n = await stream.ReadAsync(buffer, ct)) > 0;)
+            {
+                if (answer.Length + n > MaxAnswerBytes) return new Result(false, current, null, null, Unreadable);
+                answer.Write(buffer, 0, n);
+            }
             AppLog.Info("Update check completed.");
-            if (tag is null) return new Result(false, current, null, null, "The release information could not be read.");
-            return new Result(ReleaseVersion.IsNewer(current, tag), current, tag.TrimStart('v', 'V'), url, null);
+            return Interpret(current, answer.ToArray());
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
         {
@@ -65,4 +75,34 @@ public static class UpdateCheck
             return new Result(false, current, null, null, "The release information could not be retrieved (offline or blocked).");
         }
     }
+
+    private const string Unreadable = "The release information could not be read.";
+
+    /// <summary>
+    /// What an answer says, believed only as far as it reads like FileCat's own (V23 B13): a tag that reads as a version,
+    /// and a page among FileCat's releases on GitHub; any other page is replaced by the releases page. The answer travels
+    /// over TLS from GitHub, but a proxy that inspects traffic, or a compromise there, must not get its text shown as a
+    /// version or its address (another site, or a local program) opened.
+    /// </summary>
+    internal static Result Interpret(string current, ReadOnlySpan<byte> json)
+    {
+        string? tag, url;
+        try
+        {
+            var reader = new Utf8JsonReader(json);
+            using var doc = JsonDocument.ParseValue(ref reader);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return new Result(false, current, null, null, Unreadable);
+            tag = doc.RootElement.TryGetProperty("tag_name", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
+            url = doc.RootElement.TryGetProperty("html_url", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() : null;
+        }
+        catch (JsonException) { return new Result(false, current, null, null, Unreadable); }
+        if (tag is null || !ReleaseVersion.IsReleaseTag(tag)) return new Result(false, current, null, null, Unreadable);
+        return new Result(ReleaseVersion.IsNewer(current, tag), current, tag.TrimStart('v', 'V'), IsOwnReleasePage(url) ? url : ReleasesPage, null);
+    }
+
+    /// <summary>An https address of a page under github.com/benny-cz/FileCat/releases, nothing else.</summary>
+    internal static bool IsOwnReleasePage(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps && uri.IsDefaultPort &&
+        string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase) && uri.UserInfo.Length == 0 &&
+        uri.AbsolutePath.StartsWith("/benny-cz/FileCat/releases/", StringComparison.OrdinalIgnoreCase);
 }

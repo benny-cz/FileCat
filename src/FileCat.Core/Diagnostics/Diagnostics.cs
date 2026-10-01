@@ -74,7 +74,7 @@ public static class AppLog
 
     public static void Write(LogLevel level, string message, Exception? ex = null)
     {
-        var line = $"{DateTime.UtcNow:O} {level,-7} {message}{(ex is null ? "" : " | " + ex.GetType().Name + ": " + ex.Message)}";
+        var line = OneLine($"{DateTime.UtcNow:O} {level,-7} {message}{(ex is null ? "" : " | " + ex.GetType().Name + ": " + ex.Message)}");
         System.Diagnostics.Debug.WriteLine(line);
         if (_file is null) return;
         lock (Lock)
@@ -83,6 +83,23 @@ public static class AppLog
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    /// <summary>
+    /// One record per line: line breaks and other control characters in a message (a server's error text, a file's name)
+    /// are written escaped, so no such text can pose as records of its own in a log sent for support (V23 B13).
+    /// </summary>
+    internal static string OneLine(string line)
+    {
+        static bool Control(char c) => c is < ' ' and not (char)9 or (char)0x7F or (char)0x85 or (char)0x2028 or (char)0x2029;
+        if (!line.Any(Control)) return line;
+        var escaped = new StringBuilder(line.Length + 16);
+        foreach (char c in line)
+        {
+            if (!Control(c)) escaped.Append(c);
+            else escaped.Append(c switch { '\r' => @"\r", '\n' => @"\n", _ => $@"\u{(int)c:x4}" });
+        }
+        return escaped.ToString();
     }
 
     public static void Info(string message) => Write(LogLevel.Info, message);

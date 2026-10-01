@@ -75,4 +75,18 @@ public sealed class ToolAssociationTests
     [InlineData("1.2", "1.2.1", true)]
     public void Release_versions_compare_like_semver(string current, string candidate, bool newer) =>
         Assert.Equal(newer, ReleaseVersion.IsNewer(current, candidate));
+
+    [Theory]
+    [InlineData("v1.0.0", true)]
+    [InlineData("1.0", true)]
+    [InlineData("1.0.0-rc.1", true)]
+    [InlineData("1.2.3.4", true)]
+    [InlineData("1.0.0-", false)]
+    [InlineData("1.0.0-rc 1", false)]
+    [InlineData("1.0.0+build", false)]
+    [InlineData("v1", false)]
+    [InlineData("1.0.0\n", false)]
+    [InlineData("1.0.0-ñ", false)]
+    public void A_release_tag_reads_as_a_version_or_not_at_all(string tag, bool release) =>
+        Assert.Equal(release, ReleaseVersion.IsReleaseTag(tag));
 }
