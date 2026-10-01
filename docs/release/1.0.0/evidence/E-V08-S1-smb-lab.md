@@ -35,6 +35,14 @@ fix; TRX `v08-smb2.trx` `35ff1946e38d017c0905e19d95a75b4409a59663fcffe0ee240bebc
 | A 256 MB copy cancelled at a fifth | Passed: nothing left on the share |
 | A 128 MB copy whose SMB session the server dropped at 30 % (killed smbd) | Passed both runs: run 1, Windows' client reported the loss ("The network location is no longer reachable …", offline) and FileCat's Retry completed the file; run 2, Windows' client reconnected by itself (the server's log shows the killed session and a new one) and the copy went on without a question. Both times the server's digest equals the source's, and nothing else is left |
 
+## Again at `02acee6`
+
+7 of 7 (TRX `v08-base2-02acee6-smb.trx` `e0e4a3b6a917c448e019361fe0a9ff6d35019b726184cc2fb4c39462545c25aa`, console
+`v08-base2-02acee6-smb.txt` `899e24cbf813160bb6bfafe912b2e98e9d438c4a8ac326be6c14d192c084ac6d`), with the server's
+listing and the session drop now taken over SSH. A first run with that route failed the round trip on the oracle's own
+reading (`v08-base-02acee6-smb.txt` `b5ab7a3b58f9024aa666bdf7a14f238deb4b754d53b9f8c1fe2668043c0cc758`): the console
+code page mangled "Žluťoučký kůň" in the server's listing; the helper now passes UTF-8 through. Not a FileCat finding.
+
 ## Limitations and next cases
 
 - One server implementation (Samba 4.15, default configuration); a Windows server share and a NAS remain.

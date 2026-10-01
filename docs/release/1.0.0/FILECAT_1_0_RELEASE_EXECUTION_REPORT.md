@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `6585024` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `7abd0fe` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -132,6 +132,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     and a share was called NTFS in the metadata question (I34), fixed (`6585024`).
 34. Fuzz campaign status (E-I28-C1, in progress): Mac 1 M rounds each of fat12, exFAT and NTFS at `bb977d0` passed;
     Windows VM 1 M rounds of fat12 at `98fb594` passed; the other runs continue.
+35. Read-back verification was ignored for uploads, downloads, extraction and copies to phones (I35); fixed
+    (`53b0794`), with V08's altered-resume cases as tests.
+36. V08 odd names: FTP refused, trimmed or redirected names (I36); fixed (`e50b9d4`); odd names now arrive exactly over
+    SFTP and FTPS (checked against the bytes on the server's disk).
+37. The Ubuntu VM ran out of memory: a fuzz round of a damaged FAT image sized a 1 GiB table, and a damaged NTFS
+    `$Bitmap` was read at 512 MiB (I37); fixed (`02acee6`). The VM's runs restarted as user services, at the lowest
+    priority and with a heap cap; guest operations to that VM now go over SSH (E-ENV-05).
+38. CI on `a1be480` failed one recovery-review test on Windows: the test faked an interrupted copy whose creation time
+    came from its source, which a stalled runner put outside the review's margin; reproduced and fixed in the test
+    (`5b8b180`). The product logic is unchanged (an interrupted copy never gets its source's times).
+39. I25 Markdown viewer implemented (`7abd0fe`): built-in renderer, drawn in the page engine, checked in WebView2.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -148,9 +159,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. V08: latency (netem) over SFTP, FTPS and SMB; the Windows VM as a client; second server implementations; collect the
-   fuzz campaign's results (E-I28-C1).
-2. I25 Markdown viewer (required for 1.0.0, low priority).
+1. V08: the Windows VM as a client; second server implementations; collect the fuzz campaign's results (E-I28-C1).
+2. I25 on Linux and macOS page engines (WebKitGTK, WKWebView) with a Markdown file.
 3. Review the FAT and exFAT decoders the way I28 reviewed NTFS (after the campaign's results); I22/I34 replace on a
    FAT destination.
 4. The queued Low issues: I27, I31.

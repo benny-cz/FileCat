@@ -41,8 +41,20 @@ message now gives the first inner failure that says what happened. An earlier ru
 suite (TRX `v08-lab2.trx` `0c754ac5d8b8c15156c077d1e918c5738d952188fb2f1f014585993b613a43c9`: 57, 0 failed, 5 skipped)
 continued at 62,924,358 (SFTP) and 87,932,928 bytes (FTPS).
 
+## Odd names, names with spaces at their edges (at `02acee6`: 16 of 16; TRX `v08-base2-02acee6-remote.trx` `03a3317bcdf730a50791777329e40b306976d765c004a0ef2429106d4863f823`, console `v08-base2-02acee6-remote.txt` `ab03368dcdfe49946fd584a45675b7ed0001516f38fe705b9d687fa41caa64ee`)
+
+- **Odd names** (`-rf`, `--help`, a leading space, two spaces, `#`, `%`, `%20`, `;`, `'`, brackets, `+=`, Czech,
+  emoji, leading dots, `é` decomposed and composed, fullwidth letters, Japanese) up through a Copy job over SFTP and
+  explicit FTPS: the **bytes of every name on the server's own disk** (read over SSH as root, hex-encoded, so no
+  encoding stands between) equal the names' UTF-8, each file its own size; back through a job, the same names and
+  contents. Over FTPS this first failed: I36 (refused, trimmed and redirected names), fixed in `e50b9d4`.
+- **Names with spaces at their edges** made over SFTP (exact bytes), handled over FTPS against vsftpd (no MLSD): every
+  name listed exactly; those beginning with spaces read and deleted as themselves; those ending with one refused, with
+  the reason; the look-alikes without spaces untouched (checked over SFTP afterwards).
+- The interruption cases (drop and resume) passed again, the drop now made over SSH (`ubu-lab-ssh.ps1 -Action drop`).
+
 ## Limitations and next cases
 
 - One implementation per protocol; a second FTP server (for example Pure-FTPd or ProFTPD) and a second SSH server remain.
-- Not yet run: high latency (netem), very large folders, links on the server, the Windows VM as a client. SMB through
-  the operating system's client: E-V08-S1.
+- Not yet run: very large folders, links on the server, the Windows VM as a client. SMB through the operating system's
+  client: E-V08-S1. High latency (100 ms): in progress.

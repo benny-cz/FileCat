@@ -60,3 +60,10 @@ updates disabled.
   the plan asks for two where applicable.
 - **Parallel use:** the owner asked that the VMs and the Mac be kept busy in parallel; runs on different machines may
   overlap and share the host's CPUs (relevant to timing-sensitive results, see E-I23).
+- **Ubuntu VM out of memory (2026-10-01 01:54, I37):** a fuzz process grew to 4.4 GiB; the kernel killed it and systemd
+  stopped VMware Tools' service group, where runs started through guest operations live — every other run and VMware
+  Tools itself, which then answered intermittently. Since then: long runs on that VM are user services (`systemd-run
+  --user`, lowest priority, .NET heap capped at 1 GiB, lingering on), and guest commands go over SSH as the VM's user
+  (SSH.NET from the host's package cache; the VM's host key pinned on first use, SHA-256
+  `YOGYoStN1b+viZGymPI7ipmmzjXcg9sAZOWOYs/cOp4`). The lab's server helpers (connection drop, SMB listing and drop,
+  names, latency) use the same route (`artifacts/vm/ubu-lab-ssh.ps1`, `ubu-names-ssh.ps1`).

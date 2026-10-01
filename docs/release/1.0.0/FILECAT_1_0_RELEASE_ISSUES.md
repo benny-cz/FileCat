@@ -34,7 +34,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I22 | Replacing a file that is open failed on Windows with a misleading "Access denied"; a closed comparison kept its files open | Medium | Must fix (confirmed copy/sync surface; destabilized two required lanes) | **Remediated `63d5fc4`; verified** — closure pending re-audit |
 | I23 | Network discovery listed a device by its address when its name arrived late | Low (name missing; device listed) | Must fix (confirmed feature; nondeterministic required test) | **Remediated `d40e510`; verified** — closure pending re-audit |
 | I24 | The panels' Modified column shows no seconds by default | Low (UI) | Fix before release if time allows; owner-reported | **Remediated `2197074`** (seconds by default; screenshot checked) |
-| I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | **Required for 1.0.0** (owner, 2026-10-01), low priority | **Queued**; built-in renderer, no new dependency |
+| I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | **Required for 1.0.0** (owner, 2026-10-01), low priority | **Implemented `7abd0fe`; verified in WebView2** (E-I25) |
 | I26 | Progress at 100% while an operation still works, and a time left that was not honest | Medium (confirmed: 100% for 63% of a verified copy) | Must fix; owner-reported | **Remediated `d40fda0`; verified** — closure pending re-audit |
 | I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
 | I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
@@ -44,6 +44,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I32 | A folder's counted size vanished when the listing refreshed right after | Low (UX); made a required test fail 9 in 10 on a busy host | Must fix | **Remediated `6e9ee75`; verified** |
 | I33 | A cancelled upload left its partial copy on the server | Medium (junk under a hidden name on the user's server; V08 interruption requirement) | Must fix | **Remediated `3ec60cc`; verified against real servers** |
 | I34 | On a network share, replacing an open file still failed with the Controlled Folder Access message, and a share was named by the file system it claims | Low–Medium (misleading causes; I22's symptom on SMB) | Must fix (PI-07) | **Remediated `6585024`; verified against Samba** |
+| I35 | "Read back and compare content" was silently ignored for uploads, downloads, extraction and copies to phones | Medium (a verification the user chose was not done, and nothing said so; PI-06) | Must fix | **Remediated `53b0794`; verified** (E-I35) |
+| I36 | FTP names refused, trimmed or redirected by the FTP library (a look-alike could be listed, read or deleted instead) | Medium (wrong-item operations possible; legitimate names unusable; V08 fail condition) | Must fix | **Remediated `e50b9d4`; verified against vsftpd** (E-I36) |
+| I37 | A damaged size made a recovery scan allocate gigabytes; a fuzz run took the Linux VM out of memory | Medium (scanning a damaged disk could exhaust memory; V09 bounded reads) | Must fix | **Remediated `02acee6`; verified** (E-I37) |
 
 ## Records of issues worked in this campaign
 
@@ -251,6 +254,13 @@ level the plan already states; exploit-level detail is not recorded here.
   engine with scripts off and no network; no new dependency, so the 1.0 dependency set stays as audited.
 - **Severity / disposition:** Low; required for 1.0.0. Rendering must keep the page engine's containment — a Markdown
   file must not become a way to load remote content or run scripts.
+- **Implementation (`7abd0fe`, E-I25):** a built-in renderer (CommonMark blocks and inlines with GitHub's tables, task
+  lists, strikethrough, bare addresses and heading anchors) served through the page engine; the file's HTML is shown as
+  text (a few attribute-free formatting tags and hidden comments apart), links lead only to the web, mail or the page,
+  pictures load only from the file's folder, the page's policy forbids everything else; F3 opens Markdown drawn, F4
+  shows its text.
+- **Tests:** `MarkdownTests` (44, hostile inputs included), an App viewer test, and a real-WebView2 test (drawn, picture
+  served, nothing requested from the web). Remaining: WebKitGTK and WKWebView runs with a Markdown file.
 
 ### I26 — Progress at 100% while an operation still works, and a time left that was not honest
 
@@ -390,6 +400,50 @@ level the plan already states; exploit-level detail is not recorded here.
   (22 skipped) pass on the host.
 - **Limitation:** on a share, the replace still cannot happen while the file is open (the server refuses); closing it
   and choosing Retry replaces it. FAT destinations (no POSIX rename either) take the same path but were not run yet.
+
+### I35 — "Read back and compare content" was silently ignored outside copies between folders on disk
+
+- **Discovered:** while planning V08's "alter resume tails and earlier content" case (E-I35): only the executor for copies
+  between folders on disk read the verification choice; uploads to SFTP/FTP, downloads, extraction from archives (and
+  moves from servers) and copies to phones passed it by, and said nothing.
+- **Severity / disposition:** Medium — a verification the user asked for (or set as the default) was not performed, and
+  the outcome looked the same as a verified one (PI-06: state weaker guarantees). Must fix.
+- **Remediation (`53b0794`):** uploads read their copy back from the server before publishing it (which also catches
+  bytes before a resume's checked tail that changed during a break); downloads and extractions read their source again
+  before the copy takes its name; a mismatch discards the copy. Copies whose engine cannot read back (to a phone) end
+  with "Not read back: … checked by their size only".
+- **Tests / revalidation:** E-I35 (seven new tests, including V08's altered resume tail and earlier content); host
+  suites green.
+
+### I36 — FTP names refused, trimmed or redirected by the FTP library
+
+- **Discovered:** the live odd-names test (E-V08-L1): FluentFTP 55 refused legitimate names as "injection" and showed its
+  configuration advice to the user; probes found it also trims spaces from both ends of every path and turns backslashes
+  into slashes, and that its parser of Unix-style listings (servers without MLSD) trims names' edge spaces (E-I36).
+- **Severity / disposition:** Medium — over FTP, FileCat could list, read or delete a different item than the one named
+  (a look-alike without the spaces, or `slash` in folder `back`), the V08 fail condition; legitimate names (`;`, `%`, `|`,
+  `..`, bidirectional marks) could not be copied at all. Must fix.
+- **Remediation (`e50b9d4`):** the library's heuristics off (line breaks still refused by it); exact names recovered from
+  Unix-style listing lines; paths FTP cannot carry exactly (a backslash, a space at the path's end or start, NUL, line
+  breaks) refused with the reason and a pointer to SFTP.
+- **Tests / revalidation:** E-I36 (unit, pyftpdlib and live vsftpd tests; the new names test fails on the previous
+  adapter).
+
+### I37 — A damaged size made a recovery scan allocate gigabytes
+
+- **Discovered:** the Ubuntu VM's fuzz runs ended without results; its kernel log showed an out-of-memory kill of a fuzz
+  process holding 4.4 GiB, after which systemd stopped every other run and VMware Tools with it (they lived in VMware
+  Tools' service group) (E-I37).
+- **Mechanism:** a FAT boot sector's declared cluster count sized an in-memory table of up to 268 million entries (1 GiB
+  for a 40 MiB image), past the check on the table actually read; a damaged NTFS `$Bitmap` size was read whole (up to
+  512 MiB).
+- **Severity / disposition:** Medium — scanning a damaged disk could exhaust a machine's memory (V09: reads are bounded).
+  Must fix.
+- **Remediation (`02acee6`):** the FAT cluster range is held to the volume's size (the FAT type still follows the
+  declared count); the `$Bitmap` read to one bit per existing cluster. The fuzz harness now fails a round that allocates
+  more than 256 MiB or eight times its image, and replays both rounds.
+- **Tests / revalidation:** the two rounds fail before and pass after; 1,500 rounds per image pass with every image's
+  worst round at 0–42 MB (E-I37); the Ubuntu runs restarted on `02acee6` as user services with a 1 GiB heap cap.
 
 ## New detail on open issues
 

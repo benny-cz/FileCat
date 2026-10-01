@@ -49,10 +49,13 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Owner's M1 Mac | `5c54181` | 0–99,999 (all images) | NTFS failed (round 8842, this issue); the other six images passed (1,920 s; `fuzz-100000.txt` `c9bfe2289f0ed0134d8e56a16c7a34ab87713620df6056e4be133ee2d2b0badf`) |
 | Host | `98fb594` | NTFS 0–99,999 | **failed at round 56958**: the scan threw `ArgumentNullException` (second finding, E-I28-V2; `fuzz-ntfs-98fb594.txt` `779846a58993d5da10643e82e2d675e7411c55dfc3a6eb1732edbeed451171cd`) |
 | Host | `bb977d0` | NTFS 0–99,999 | passed (1,283 s; `fuzz-ntfs-host-fixed2.txt` `c6570e4c2b6618b92ff873fca01b7c37385cf7fd61d6b3894a87d34703ebb413`) |
-| Ubuntu 22.04 VM | `98fb594` | 100,000–1,099,999 | NTFS stopped on the second finding (317 s; `ubu-fuzz-ntfs.txt` `9c829e934c1238e6f28a8d891fe719c6f41a30585969942c258276d33fe87dce`); the other six images running |
-| Ubuntu 22.04 VM | `bb977d0` | NTFS 100,000–1,099,999 | running |
-| Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | the other six images running; NTFS restarted on `bb977d0` |
-| Owner's M1 Mac | `bb977d0` | 2,100,000–3,099,999 (all images) | running |
+| Ubuntu 22.04 VM | `98fb594` | 100,000–1,099,999 | NTFS stopped on the second finding (317 s; `ubu-fuzz-ntfs.txt` `9c829e934c1238e6f28a8d891fe719c6f41a30585969942c258276d33fe87dce`); the other six images **lost**: the VM ran out of memory at 01:54 (I37) and the runs were stopped with VMware Tools' service group |
+| Ubuntu 22.04 VM | `bb977d0` | NTFS 100,000–1,099,999 | **lost** with the others (I37) |
+| Ubuntu 22.04 VM | `02acee6` | 100,000–1,099,999 (all images) | restarted 2026-10-01 00:34 UTC as user services (heap cap 1 GiB, lowest priority; `fuzz-02acee6.zip` `b1a86a5adcc6dcfa0603587b52c7947e2e5f71db911f879d46bfb96db3eda674`); running |
+| Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | fat12 passed (5,530 s); the other five images running; NTFS restarted on `bb977d0` |
+| Owner's M1 Mac | `bb977d0` | 2,100,000–3,099,999 (all images) | **all seven passed** (1,899–10,815 s per image; `done.txt` on the Mac) |
+| Owner's M1 Mac | `02acee6` | 5,100,000–6,099,999 (all but NTFS) | started 2026-10-01 00:54 UTC (heap cap 1 GiB); running |
+| Owner's M1 Mac | `bb977d0` | NTFS 3,100,000–5,099,999 (two processes) | running |
 
 ## E-I28-V2 — second finding and fix `bb977d0`
 
