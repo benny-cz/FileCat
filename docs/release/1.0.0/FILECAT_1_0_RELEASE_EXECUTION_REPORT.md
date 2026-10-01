@@ -434,6 +434,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 108. The owner's request (low priority): tooltips over icons styled by the selected theme (**I80**, `fab03b8`): tooltips
     take the theme's surface, solid, with contrast checked in every theme; icon buttons' tips laid out (title, key,
     description, how else used). App suite 209, 0 failed; the owner: "tested it on my own, works".
+109. The fuzz campaigns collected: recovery (E-I28-C1) the Mac's 10.1–11.1 M of all seven images, the Windows VM's
+    4.1–5.1 M of FAT12, FAT16, exFAT and both disks, and Ubuntu's MBR disk over 100,000–1,099,999 **passed**, so every
+    image is now covered from 0 to 4.1 M and from 7.1 to 11.1 M, and between them as the campaign table lists (FAT32's
+    4.1–5.1 M still running on the VM); archives (E-B02-A1) Ubuntu's 4–5 M of the seven formats it runs **passed**,
+    nothing kept (RAR 4's 516 MB round is the PPMd model, recorded and accepted). Outputs copied off every machine and
+    checked by hash; the fuzz archive's manifest grows from 64 to 80 files.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -457,9 +463,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's MBR disk; the Windows VM's 4.1–5.1 M and the Mac's
-   10.1–11.1 M on `5394c71`), E-B02-A1 (Ubuntu's seven formats over 4–5 M on `5394c71`), E-B02-I1 (`pe-managed` on
-   Ubuntu).
+1. Collect the last fuzz results: E-I28-C1 (FAT32's 4.1–5.1 M on the Windows VM), E-B02-I1 (`pe-managed` on
+   Ubuntu, running since 13:54 UTC). The rest is in (item 109).
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
@@ -471,6 +476,6 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 5. Keep the records current after each change.
 
-Waiting on people, hardware or a candidate: DPI P13's remaining cases (mid-transfer disconnect and lock on the phone, with the owner; E-V21-M1); reading a photo off the iPhone (the owner's leave; E-V21-I1); P07's loader audit (V06, installed
+Waiting on people, hardware or a candidate: DPI P13's remaining case (locking the phone mid-transfer, with the owner; the disconnect cases are done, E-V21-U1); P07's loader audit (V06, installed
 candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); I04 on Ubuntu 26.04
 (that system); steps 2, 5, 7 and 11–26 of the plan.
