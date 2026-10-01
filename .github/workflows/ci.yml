@@ -67,6 +67,8 @@ jobs:
       - run: dotnet build FileCat.slnx -c Release
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build
       - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build
+      # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
+      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --blame-hang-timeout 4m --blame-hang-dump-type mini
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --blame-hang-timeout 4m --blame-hang-dump-type mini
       - name: The ARM64 package starts and draws its window
         shell: pwsh
