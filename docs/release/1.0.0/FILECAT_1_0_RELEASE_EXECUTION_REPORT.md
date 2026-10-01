@@ -64,7 +64,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
 | 10 High-risk preliminary cases and remediation | **In progress** | V03-PARTIAL (I19), V19-UNINSTALL (I15), V06-CONSENT display (I17) done preliminarily; I20, I21, I22, I23 from test runs; preliminary V19 package checks on Ubuntu 22.04 and macOS (E-V19-P1) |
-| 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | **Started** (V13's content search and file comparison) / blocked | V13: content search against an independent corpus (E-V13-S1, I74); file comparison against a generated corpus (E-V13-C1, I81, I82); Find's criteria against a generated tree (E-V13-F1, I83); V01's operation scope (E-V01-S1); V12's counted sizes (E-V12-C1, I85); V01's and V12's other parts and V16 not started. Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
+| 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | **Started** (V13's content search and file comparison) / blocked | V13: content search against an independent corpus (E-V13-S1, I74); file comparison against a generated corpus (E-V13-C1, I81, I82); Find's criteria against a generated tree (E-V13-F1, I83); V01's operation scope (E-V01-S1); V12's counted sizes and churn (E-V12-C1, I85); V16's harness inventory (E-V16-H1); V01's and V12's other parts and V16's acceptance runs not started. Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
 | 14 Pipeline, docs, release controls, preview | Not started | DEC-07, DEC-09 |
 | 15–26 Freezes, candidate, FQ, REP, GO, publication | Not reachable | Depend on everything above |
 
@@ -463,6 +463,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     size as counted. The count now compares the folder's file-system identity at its start and end. App 218. A folder
     churned with 12,000 changes at full speed ends as the disk is, marks and cursor kept (`4a156b5`); partial sizes are
     drawn with "…".
+115. V16 begun (E-V16-H1): the harness inventory §9 asks for (what each benchmark measures, asserts or only prints)
+    and preliminary runs on this machine, the historical regression profile, not the reference: comparison, search and
+    archives within every asserted budget. Gaps before acceptance: ready-for-input and OS-input-to-present latency are
+    not what the window's benchmark measures; no harness for huge hex, large copies or the shared content cache.
 
 ## Evidence invalidated by the campaign's own changes
 
