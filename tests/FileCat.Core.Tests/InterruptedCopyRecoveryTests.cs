@@ -42,6 +42,19 @@ public sealed class InterruptedCopyRecoveryTests : IDisposable
         return Assert.Single(JournalRecovery.Scan(journals));
     }
 
+    /// <summary>
+    /// What the "crash" left of a copy: its first bytes, under the creation time of a file the job made. A copy really cut
+    /// short never had its source's times applied (the copy sets them once every byte is written); rewriting a finished
+    /// copy kept the source's creation time, which a stalled runner put more than the review's two-second margin before
+    /// the job (CI run 36790868204). Set explicitly: deleting and creating the file again would get the old time back from
+    /// NTFS's name tunneling.
+    /// </summary>
+    private static void CutShort(string copy, string content)
+    {
+        File.WriteAllText(copy, content);
+        File.SetCreationTimeUtc(copy, DateTime.UtcNow);
+    }
+
     [Fact]
     public async Task A_complete_copy_from_a_second_source_folder_is_never_taken_for_a_partial_one()
     {
@@ -72,8 +85,8 @@ public sealed class InterruptedCopyRecoveryTests : IDisposable
         File.WriteAllText(Path.Combine(b, "two.txt"), "22222222");
         var crashed = await CopyThenCrashAsync([Path.Combine(a, "one.txt"), Path.Combine(b, "two.txt")], dest);
         // The "crash" cut both copies short.
-        File.WriteAllText(Path.Combine(dest, "one.txt"), "111");
-        File.WriteAllText(Path.Combine(dest, "two.txt"), "22");
+        CutShort(Path.Combine(dest, "one.txt"), "111");
+        CutShort(Path.Combine(dest, "two.txt"), "22");
 
         var found = JournalRecovery.FindIncompleteCopies(crashed).Select(Path.GetFileName).Order().ToList();
         Assert.Equal(["one.txt", "two.txt"], found);
@@ -130,8 +143,8 @@ public sealed class InterruptedCopyRecoveryTests : IDisposable
         File.WriteAllText(Path.Combine(src, "a.txt"), "aaaaaaaa");
         File.WriteAllText(Path.Combine(src, "b.txt"), "bbbbbbbb");
         var crashed = await CopyThenCrashAsync([Path.Combine(src, "a.txt"), Path.Combine(src, "b.txt")], dest);
-        File.WriteAllText(Path.Combine(dest, "a.txt"), "aa");
-        File.WriteAllText(Path.Combine(dest, "b.txt"), "bb");
+        CutShort(Path.Combine(dest, "a.txt"), "aa");
+        CutShort(Path.Combine(dest, "b.txt"), "bb");
         var review = JournalRecovery.ReviewCopies(crashed);
         Assert.Equal(2, review.Incomplete.Count);
 
@@ -154,7 +167,7 @@ public sealed class InterruptedCopyRecoveryTests : IDisposable
         File.WriteAllText(Path.Combine(src, "p.txt"), "pppppp");
         var crashed = await CopyThenCrashAsync([Path.Combine(src, "p.txt")], dest);
         var copy = Path.Combine(dest, "p.txt");
-        File.WriteAllText(copy, "p");
+        CutShort(copy, "p");
         var review = JournalRecovery.ReviewCopies(crashed);
         Assert.Single(review.Incomplete);
 
