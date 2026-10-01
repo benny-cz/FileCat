@@ -155,6 +155,17 @@ public sealed class JobRequest
     /// </summary>
     public bool IndependentSteps { get; init; }
     /// <summary>
+    /// For <see cref="JobKind.Delete"/> and <see cref="JobKind.Recycle"/>: each source goes only while it is as the
+    /// comparison that planned it saw it (its size and modified time, as its <see cref="ItemRef"/> carries them); one
+    /// that changed since stays (Synchronize's removals: the target can change while the plan is reviewed).
+    /// </summary>
+    public bool OnlyAsCompared { get; init; }
+    /// <summary>
+    /// For copies that replace (Synchronize's replacements): the target file each source replaces, as the comparison saw
+    /// it (size, modified UTC ticks), keyed by the source. A target that changed since is not replaced.
+    /// </summary>
+    public IReadOnlyDictionary<ItemRef, (long Size, long ModifiedTicks)>? ExpectedTargets { get; init; }
+    /// <summary>
     /// For a bulk <see cref="JobKind.Rename"/>: the new name of each source (same order and count). For
     /// <see cref="JobKind.CreateLink"/>: the name of each link, when it differs from the source's name.
     /// </summary>

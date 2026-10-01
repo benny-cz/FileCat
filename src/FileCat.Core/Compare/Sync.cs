@@ -107,6 +107,8 @@ public static class SyncPlanner
         var replaceOlder = new List<ItemRef>();
         var replace = new List<ItemRef>();
         var remove = new List<ItemRef>();
+        // The target each replacement replaces, as compared: one edited meanwhile is not overwritten.
+        var expected = new Dictionary<ItemRef, (long Size, long ModifiedTicks)>();
         foreach (var item in items.Where(i => i.Include && i.CanInclude))
         {
             var e = item.Entry;
@@ -129,6 +131,8 @@ public static class SyncPlanner
                 RelativeFolder = relative,
             };
             (item.Action switch { SyncAction.Copy => copy, SyncAction.ReplaceOlder => replaceOlder, _ => replace }).Add(withFolder);
+            if (item.Action is SyncAction.Replace or SyncAction.ReplaceOlder && (sourceIsLeft ? e.Right : e.Left) is { } target && target.Modified > 0)
+                expected[withFolder] = (target.Size, target.Modified);
         }
         var requests = new List<JobRequest>();
         void Transfer(List<ItemRef> sources, ConflictPolicy conflicts, string description)
@@ -142,6 +146,7 @@ public static class SyncPlanner
                 Options = new TransferOptions { Conflicts = conflicts },
                 Mode = QueueMode.Queue,
                 Description = description,
+                ExpectedTargets = conflicts is ConflictPolicy.Replace or ConflictPolicy.ReplaceIfNewer ? expected : null,
             });
         }
         Transfer(copy, ConflictPolicy.Ask, "Synchronize: copy new items");
@@ -155,6 +160,7 @@ public static class SyncPlanner
                 Sources = remove,
                 Mode = QueueMode.Queue,
                 Description = "Synchronize: remove items only in the target",
+                OnlyAsCompared = true,
             });
         }
         return requests;

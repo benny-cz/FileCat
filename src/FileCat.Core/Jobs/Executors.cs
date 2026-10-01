@@ -145,6 +145,21 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
 
     public abstract void Execute();
 
+    /// <summary>
+    /// Whether an item planned by a comparison changed since (<see cref="JobRequest.OnlyAsCompared"/>): a file's size or
+    /// modified time, a folder's modified time (which changes when items are added to it, removed or renamed in it;
+    /// changes deeper inside are not seen). Such an item stays, and the job says why.
+    /// </summary>
+    protected bool ChangedSinceCompared(ItemRef source, FileSystemItemInfo now)
+    {
+        if (!Job.Request.OnlyAsCompared || source.Modified <= 0) return false;
+        bool changed = now.ModifiedUtc.Ticks != source.Modified || !now.IsDirectory && source.Size >= 0 && now.Size != source.Size;
+        if (changed)
+            Issue(IssueSeverity.Warning, source.FileSystemPath ?? source.Name,
+                "Not removed: it changed after the comparison that planned this, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
+        return changed;
+    }
+
     protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
         Job.AddIssue(new JobIssue(severity, path, message, outcome) { Cause = cause });
 
@@ -415,6 +430,15 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Skipped;
         }
         if (Move && SameVolume(src, dst)) return MoveByRename(src, dst, info);
+        // A replacement planned by a comparison happens only while the target is as compared: one edited while the plan
+        // was reviewed is not overwritten (release plan DPI P10).
+        if (Job.Request.ExpectedTargets is { } expected && expected.TryGetValue(root, out var seen) && Fs.TryGetInfo(dst) is { IsDirectory: false } there &&
+            (there.Size != seen.Size || there.ModifiedUtc.Ticks != seen.ModifiedTicks))
+        {
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Warning, dst, "Not replaced: the file here changed after the comparison that planned this, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
+            return Result.Skipped;
+        }
         return info.IsDirectory && !info.IsLink ? CopyDirectory(src, dst, info) : CopyFileItem(src, dst, info);
     }
 
@@ -1263,6 +1287,7 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
         Run(Enumerable.Range(0, sources.Count).Select(i => (i, sources[i].FileSystemPath!)), sources.Count);
     }
 
+
     /// <param name="roots">Positions in the request's sources with their paths, streamed.</param>
     internal void Run(IEnumerable<(int Index, string Path)> roots, int count)
     {
@@ -1276,6 +1301,12 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
                 Job.ItemSkipped();
                 Issue(IssueSeverity.Info, path, "Already gone; nothing to delete.", StepOutcome.Skipped);
                 Job.RootCompleted(index);
+                continue;
+            }
+            if (index < Job.Request.Sources.Count && ChangedSinceCompared(Job.Request.Sources[index], info))
+            {
+                Job.ItemSkipped();
+                Job.RootFailed(index);
                 continue;
             }
             int step = Journal.Intent(info.IsDirectory && !info.IsLink ? "delete-tree" : "delete", path);
@@ -1369,6 +1400,13 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.ItemSkipped();
                     Issue(IssueSeverity.Info, p, "Already gone; nothing to delete.", StepOutcome.Skipped);
                     Job.RootCompleted(i);
+                    continue;
+                }
+                if (ChangedSinceCompared(sources[i], info))
+                {
+                    Job.AddTotals(1, 0);
+                    Job.ItemSkipped();
+                    Job.RootFailed(i);
                     continue;
                 }
                 var c = Fs.ClassifyRecycle(p, info.IsDirectory ? -1 : info.Size);

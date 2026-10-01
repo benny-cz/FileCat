@@ -101,6 +101,46 @@ public sealed class SyncTests : IDisposable
     }
 
     [Fact]
+    public async Task Mirror_removes_a_target_item_only_while_it_is_as_compared()
+    {
+        // Release plan DPI P10: the removals ran as ordinary deletions of whatever was at the path when they ran; a target
+        // file edited while the plan was reviewed was deleted, here permanently.
+        var (left, right) = Trees();
+        var providers = Providers();
+        var plan = SyncPlanner.Propose(Compare(providers, left, right), sourceIsLeft: true, SyncMode.Mirror, targetIgnoresCase: OperatingSystem.IsWindows());
+        var by = ByPath(plan);
+        Assert.Equal((SyncAction.Remove, true), (by["x.txt"].Action, by["x.txt"].Include));
+        Assert.Equal((SyncAction.Remove, true), (by["olddir"].Action, by["olddir"].Include));
+        File.WriteAllText(Path.Combine(right, "x.txt"), "x, edited after the comparison");
+        File.WriteAllText(Path.Combine(right, "olddir", "z.txt"), "added after the comparison"); // the folder's time changes with it
+        var requests = SyncPlanner.BuildRequests(plan.Where(i => i.Action == SyncAction.Remove), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true);
+        var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "journal"));
+        var job = manager.Submit(Assert.Single(requests));
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal("x, edited after the comparison", File.ReadAllText(Path.Combine(right, "x.txt")));
+        Assert.True(File.Exists(Path.Combine(right, "olddir", "z.txt")));
+        Assert.Equal(2, job.Issues.Count(i => i.Message.StartsWith("Not removed: it changed after the comparison", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Mirror_replaces_a_target_file_only_while_it_is_as_compared()
+    {
+        // Release plan DPI P10: a replacement overwrote a target file edited while the plan was reviewed.
+        var (left, right) = Trees();
+        var providers = Providers();
+        var plan = SyncPlanner.Propose(Compare(providers, left, right), sourceIsLeft: true, SyncMode.Mirror, targetIgnoresCase: OperatingSystem.IsWindows());
+        var by = ByPath(plan);
+        Assert.Equal((SyncAction.Replace, true), (by["d.txt"].Action, by["d.txt"].Include));
+        File.WriteAllText(Path.Combine(right, "d.txt"), "right d, edited after the comparison");
+        var requests = SyncPlanner.BuildRequests(plan.Where(i => i.Entry.RelativePath == "d.txt"), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true);
+        var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "journal"));
+        var job = manager.Submit(Assert.Single(requests));
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal("right d, edited after the comparison", File.ReadAllText(Path.Combine(right, "d.txt")));
+        Assert.Contains(job.Issues, i => i.Message.StartsWith("Not replaced: the file here changed after the comparison", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Update_copies_new_and_newer_items_and_removes_nothing()
     {
         var (left, right) = Trees();
