@@ -212,6 +212,23 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Opens locations forwarded by a second launch or passed on the command line.</summary>
     public void OpenArguments(StartupOptions options, bool initial = false)
     {
+        // A named workspace replaces the panels and tabs first; the locations and a list then open in it (plan §19.1).
+        if (options.Workspace is { Length: > 0 } workspace)
+        {
+            _ = OpenArgumentsInWorkspaceAsync(workspace, options);
+            return;
+        }
+        OpenLocations(options, initial);
+    }
+
+    private async Task OpenArgumentsInWorkspaceAsync(string workspace, StartupOptions options)
+    {
+        await OpenNamedWorkspaceAsync(workspace);
+        OpenLocations(options, initial: false);
+    }
+
+    private void OpenLocations(StartupOptions options, bool initial)
+    {
         var panel = Workspace.ActivePanel;
         if (panel is null) return;
         void Open(string text, PanelViewModel? into)
@@ -236,5 +253,43 @@ public sealed partial class MainViewModel : ObservableObject
         if (options.LeftLocation is { } l && Workspace.Panels.Count > 0) Open(l, Workspace.Panels[0]);
         if (options.RightLocation is { } r && Workspace.Panels.Count > 1) Open(r, Workspace.Panels[1]);
         foreach (var loc in options.Locations) Open(loc, null);
+        if (options.ListFile is { Length: > 0 } list) OpenListFile(list);
+    }
+
+    /// <summary>A list file (--list, Total Commander's LOADLIST) opens as a result set in a new tab; reading it may take a while.</summary>
+    private void OpenListFile(string file)
+    {
+        string path;
+        try { path = Path.GetFullPath(file); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            Notify($"Could not open the list \"{file}\": {ex.Message}", true);
+            return;
+        }
+        var set = Services.ResultSets.Create($"List: {Path.GetFileName(path)}", $"Paths listed in {path}");
+        set.FullFolders = true;
+        OpenResultSet(set, null);
+        _ = Task.Run(() =>
+        {
+            string? problem = null;
+            Core.Search.ListFile.Outcome? outcome = null;
+            try { outcome = Core.Search.ListFile.Load(path, set, CancellationToken.None); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { problem = ex.Message; }
+            set.IsComplete = true;
+            set.NotifyChanged();
+            Services.Ui.Post(() =>
+            {
+                if (outcome is null)
+                {
+                    Notify($"Could not read the list {path}: {problem}", true);
+                    return;
+                }
+                var left = new List<string>();
+                if (outcome.Missing > 0) left.Add($"{outcome.Missing:N0} named nothing that exists");
+                if (outcome.Network > 0) left.Add($"{outcome.Network:N0} on network shares were left out (FileCat does not contact servers for a list; open them from the path line)");
+                if (outcome.Truncated) left.Add($"the list stops at {Core.Search.ListFile.MaxItems:N0} items");
+                Notify($"Opened {Formatters.Plural(outcome.Added, "item", "items")} from {Path.GetFileName(path)}" + (left.Count > 0 ? "; " + string.Join("; ", left) + "." : "."), left.Count > 0);
+            });
+        });
     }
 }

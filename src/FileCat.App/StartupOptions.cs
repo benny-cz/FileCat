@@ -67,7 +67,8 @@ public sealed class StartupOptions
         var list = new List<string>();
         if (LeftLocation is not null) list.AddRange(["--left", LeftLocation]);
         if (RightLocation is not null) list.AddRange(["--right", RightLocation]);
-        if (ListFile is not null) list.AddRange(["--list", ListFile]);
+        // Relative paths are this process's: the running instance has another current folder.
+        if (ListFile is not null) list.AddRange(["--list", Path.IsPathRooted(ListFile) ? ListFile : Path.GetFullPath(ListFile)]);
         if (Workspace is not null) list.AddRange(["--workspace", Workspace]);
         list.AddRange(Locations.Select(l => Path.IsPathRooted(l) ? l : Path.GetFullPath(l)));
         return list.ToArray();
