@@ -62,14 +62,17 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Owner's M1 Mac | `02acee6` | 5,100,000–6,099,999 (all but NTFS) | fat12 (1,842 s), fat16 (6,225 s), fat32 (8,646 s), disk-mbr (8,358 s) and disk-gpt (8,606 s) **passed**; exFAT **stopped at round 5,326,394** (256 MiB for a 16 MiB image: exFAT's declared cluster count, held to the volume by `b9c41eb`; replayed by `9347070`, E-I37) |
 | Owner's M1 Mac | `2ba114e` | exFAT 5,326,395–6,099,999 | **passed** (2,421 s) |
 | Owner's M1 Mac | `bb977d0` | NTFS 3,100,000–5,099,999 (two processes) | **passed** (3,130 s and 3,172 s) |
-| Owner's M1 Mac | `2ba114e` | 7,100,000–8,099,999 (all images) | started 2026-10-01 03:41 UTC; fat12 (2,081 s), exFAT (4,684 s), NTFS (4,815 s) and fat16 (6,865 s) **passed** (`fuzz-c1/mac-v5/`); fat32, disk-mbr, disk-gpt running |
+| Owner's M1 Mac | `2ba114e` | 7,100,000–8,099,999 (all images) | **all seven passed** (2,081–9,271 s per image; `fuzz-c1/mac-v5/`) |
+| Owner's M1 Mac | `07e6833` | 8,100,000–9,099,999 (all images) | started 2026-10-01 06:17 UTC on the build with I52's FAT change (`fuzz-07e6833.zip` `4e3979c9947884d55289182b09653df92a703b0423a0a7e38556c6b908b92f3e`); running |
 
 Outputs of the finished runs, fetched from the Mac and the Windows VM, are kept under `fuzz-c1/` with a hash manifest
-(`fuzz-c1/SHA256SUMS.txt` `6d690ba1cf45d8ef89c6fdc0426671adadb9c8882e9b02dc98d3edde8bfa78c2`, 34 files). Passed so far,
+(`fuzz-c1/SHA256SUMS.txt` `dcf8dc8ed9ab05171bfdf20b62fa802dbd317892081078b113d2d31379d8b570`, 37 files). Passed so far,
 each on the decoders of its run: rounds 0–99,999 and 2,100,000–3,099,999 of every image; 1,100,000–2,099,999 of every
 image but FAT32 (lost, running again on the host); 5,100,000–6,099,999 of every image but NTFS (not run there); NTFS also
-3,100,000–5,099,999; 7,100,000–8,099,999 of fat12, fat16, exFAT and NTFS; 100,000–1,099,999 of fat16. Running: 100,000–1,099,999 (Ubuntu),
-6,100,000–7,099,999 of NTFS, exFAT and FAT32 and the lost FAT32 range (host), the rest of 7,100,000–8,099,999 (Mac). The stops since the I37 fixes were allocation findings of I37, fixed and replayed.
+3,100,000–5,099,999; 7,100,000–8,099,999 of every image; 100,000–1,099,999 of fat16. Running: the rest of
+100,000–1,099,999 (Ubuntu), 6,100,000–7,099,999 of NTFS, exFAT and FAT32 and the lost FAT32 range (host),
+8,100,000–9,099,999 of every image (Mac). The stops since the I37 fixes were allocation findings of I37, fixed and
+replayed.
 
 ## E-I28-V2 — second finding and fix `bb977d0`
 
