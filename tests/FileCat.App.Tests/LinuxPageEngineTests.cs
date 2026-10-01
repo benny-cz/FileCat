@@ -66,6 +66,53 @@ public sealed class LinuxPageEngineTests
         }
     }
 
+    [Fact]
+    public async Task WebKitGTK_draws_a_markdown_file_and_asks_the_web_for_nothing()
+    {
+        // Release issue I25 in WebKitGTK: the file drawn (its title is the file's name; its script is text), the picture
+        // beside it loaded, and the picture on the web never requested.
+        if (!OperatingSystem.IsLinux())
+        {
+            Assert.Skip("WebKitGTK is Linux's.");
+            return;
+        }
+        bool required = Environment.GetEnvironmentVariable("FILECAT_REQUIRE_WEBKIT") == "1";
+        if (!required && Environment.GetEnvironmentVariable("DISPLAY") is null)
+        {
+            Assert.Skip("No X display.");
+            return;
+        }
+        if (LinuxPageEngine.Unavailable is { } why)
+        {
+            if (required) Assert.Fail(why);
+            Assert.Skip(why);
+            return;
+        }
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-page-tests", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "pic.png"), Convert.FromBase64String(Png));
+            string readme = Path.Combine(root, "README.md");
+            File.WriteAllText(readme, "# Notes\n\n![local](pic.png) ![remote](https://example.com/remote.png)\n\n<script>document.title = 'SCRIPT RAN';</script>\n");
+            using var engine = LinuxPageEngine.Create(offscreen: true, out string? unavailable);
+            Assert.True(engine is not null, unavailable);
+            var loaded = new TaskCompletionSource<(bool Ok, string? Why)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            engine.Loaded += (ok, reason) => loaded.TrySetResult((ok, reason));
+            engine.Show(HtmlPage.ForMarkdown(new FileContentSource(readme), readme));
+            var (ok, reason) = await loaded.Task.WaitAsync(TimeSpan.FromSeconds(60), ct);
+            Assert.True(ok, reason);
+            for (int i = 0; i < 100 && engine.Title is null; i++) await Task.Delay(50, ct);
+            Assert.Equal("README.md", engine.Title);
+            await Task.Delay(1000, ct); // anything the page would still ask for
+            Assert.Equal(0, engine.BlockedCount);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
     /// <summary>A 1×1 PNG.</summary>
-    private const string Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    private const string Png ="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 }
