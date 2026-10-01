@@ -49,6 +49,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-DPI | Source review of DPI P01, P02, P04–P06, P08–P12, P14; P07 in part | `16b1e47` → `65a76f8`, `efc128f`, `7a99f9d`, `cf92679` | Host; owner's Mac; lab servers | I48–I51, I53–I55 found and fixed (with I44, I46, I47 from the same rows; I50's folder check redone after CI flakes); P02, P08, P12, P14 without defects | Static + preliminary automated | [E-DPI](evidence/E-DPI-review.md) | I44, I48–I51, I53–I55 |
 | E-V09-W1 | Recovery from NTFS, exFAT and FAT32 images made by Windows' own drivers | `9a0725b` → `78a48ce` | Lent Windows 11 VM (images); host | NTFS 6/6, exFAT 4/4 with the reused folder's 2 rightly declared lost, FAT32 4/6 with 2 wrong guesses (I52) → 6/6; raw bytes read independently | Preliminary automated | [E-V09-W1](evidence/E-V09-W1-windows-made-images.md) | I52 |
 | E-I25 | Markdown drawn as a page | `7abd0fe` | Host; WebView2 | 44 renderer tests (hostile inputs), App viewer test, real-WebView2 test with a picture of the page | Preliminary automated/runtime | [E-I25](evidence/E-I25-markdown.md) | I25 |
+| E-V09-T1 | Recovery sessions under a write trace in the Windows VM: a dismounted source with FileCat's files on another disk; the system drive with FileCat's files on a share; FileCat's files on the source | `1df5a21`, `1977e8e` | Lent Windows 11 VM; Process Monitor | Source opened for reading only and unchanged (hash); no file of FileCat's on the system drive (NTFS's own metadata writes disclosed); the third refused before any device access | Preliminary live | [E-V09-T1](evidence/E-V09-T1-windows-write-trace.md) | I09 |
+| E-B02-A1 | Damaged archives of every format, listed and read | `b0b2329`, `6bbbb21` | Host; Ubuntu VM; owner's Mac; CI | 5,000 rounds of each of eleven formats passed on the host; 200,000 of both 7z passed on Ubuntu; longer runs going | Preliminary automated | [E-B02-A1](evidence/E-B02-A1-archive-fuzz.md) | — |
 | E-I09-T1 | Where writing goes, on real systems: loop devices, disk images and a VHDX whose files lie on the source's disk; memory and links from it; shares served by the same computer | `7418c04`, `0a52b7b` | Ubuntu VM; owner's Mac; Windows VM; host | All cases as expected after `7418c04` (which the first Ubuntu run found); the old build took `\\localhost\C$` for another disk | Preliminary live | [I09](FILECAT_1_0_RELEASE_ISSUES.md) | I09 |
 | E-V19-P1 | `.deb`, tarball, AppImage on Ubuntu 22.04; macOS app ZIP on an M1 Mac | CI 36759624490 (`45efc09`) | Lent Ubuntu VM; owner's Mac | Linux packages install, run and uninstall cleanly; Gatekeeper rejects the ad-hoc app; universal dylibs in the arm64 app | Preliminary runtime | [E-V19-P1](evidence/E-V19-P1-preliminary-packages.md) | I03, I04, DEC-03 |
 
@@ -143,6 +145,10 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `1df5a21` | Recovery topology, Windows: a VHD written into lies on itself and on its file's disk | I09 | V09 trace |
 | `ee476f0` | FTP: data connections go to the server itself, whatever its PASV reply names | I56 | issue record |
 | `a5c25d1` | Network discovery: no redirects from a device's metadata address | I57 | issue record |
+| `b0b2329` | Test: damaged archives of every format refused or listed, never crashed on | — | E-B02-A1 |
+| `1977e8e` | Test: the recovery session reads a recovered file as the viewer does, without drawing it headless | I09 | E-V09-T1 |
+| `6bbbb21` | Test: the archive damage test runs alone (CI red at `b0b2329`) | — | E-B02-A1 |
+| `deaf776` | Recovery: the question says FileCat changes nothing, and that Windows may write to a mounted drive | I09 | E-V09-T1 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
