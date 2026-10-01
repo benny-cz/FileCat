@@ -159,12 +159,48 @@ internal static class GitStatusReader
             for (var dir = new DirectoryInfo(folder); dir is not null; dir = dir.Parent)
             {
                 string dotGit = Path.Join(dir.FullName, ".git");
-                if (Directory.Exists(dotGit)) return ConfigFiles(dotGit) is { } own && own.All(IsHarmless) ? dir.FullName : null;
-                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && ConfigFiles(linked) is { } shared && shared.All(IsHarmless) ? dir.FullName : null;
+                if (Directory.Exists(dotGit)) return Trusted(dotGit) ? dir.FullName : null;
+                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && Trusted(linked) ? dir.FullName : null;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
+        // A path a repository's files name can be unusable as a path at all (ArgumentException, NotSupportedException):
+        // that is no reason to fail the listing it was shown in, and no repository to trust.
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException or NotSupportedException) { }
         return null;
+    }
+
+    /// <summary>
+    /// Whether Git may read this repository: neither its own files nor those of the repository a linked work tree
+    /// shares name a program to run or a path off this computer.
+    /// </summary>
+    private static bool Trusted(string gitDir)
+    {
+        if (SharedWith(gitDir) is not { } dirs) return false;
+        foreach (string dir in dirs)
+        {
+            if (!IsHarmless(Path.Join(dir, "config")) || !IsHarmless(Path.Join(dir, "config.worktree"))) return false;
+            string info = Path.Join(dir, "objects", "info");
+            if (!AlternatesAreLocal(Path.Join(info, "alternates")) || !AlternatesAreLocal(Path.Join(info, "http-alternates"))) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// This repository's directory and, where a linked work tree names one ("commondir"), the directory it shares;
+    /// null when that one is not on this computer (such a repository gets no badges).
+    /// </summary>
+    private static List<string>? SharedWith(string gitDir)
+    {
+        var dirs = new List<string> { gitDir };
+        string commonDir = Path.Join(gitDir, "commondir");
+        if (File.Exists(commonDir) && new FileInfo(commonDir).Length <= 4096)
+        {
+            string common = File.ReadAllText(commonDir).Trim();
+            string full = Path.GetFullPath(Path.IsPathRooted(common) ? common : Path.Join(gitDir, common));
+            if (!IsLocalPath(full)) return null;
+            dirs.Add(full);
+        }
+        return dirs;
     }
 
     /// <summary>A work tree's ".git" file (linked work trees, submodules): "gitdir: path", relative to the work tree.</summary>
@@ -179,25 +215,6 @@ internal static class GitStatusReader
     }
 
     /// <summary>
-    /// The repository's own configuration files, and those of the repository a linked work tree shares; null when that
-    /// one is not on this computer (such a repository gets no badges).
-    /// </summary>
-    private static List<string>? ConfigFiles(string gitDir)
-    {
-        var files = new List<string> { Path.Join(gitDir, "config"), Path.Join(gitDir, "config.worktree") };
-        string commonDir = Path.Join(gitDir, "commondir");
-        if (File.Exists(commonDir) && new FileInfo(commonDir).Length <= 4096)
-        {
-            string common = File.ReadAllText(commonDir).Trim();
-            string full = Path.GetFullPath(Path.IsPathRooted(common) ? common : Path.Join(gitDir, common));
-            if (!IsLocalPath(full)) return null;
-            files.Add(Path.Join(full, "config"));
-            files.Add(Path.Join(full, "config.worktree"));
-        }
-        return files;
-    }
-
-    /// <summary>
     /// A path a repository's own files name (".git" file, "commondir") is looked at only when it is on this computer:
     /// a downloaded folder can name any path there, and on Windows merely testing a network path connects to it. Decided
     /// from the path itself, before any file-system call on it.
@@ -205,21 +222,89 @@ internal static class GitStatusReader
     internal static bool IsLocalPath(string fullPath) => !OperatingSystem.IsWindows() || WindowsIcons.IsLocal(fullPath);
 
     /// <summary>
-    /// No [filter …] and no [include]/[includeIf …] section (names are case-insensitive; "[filter.x]" is the old
-    /// spelling of a subsection). A missing file is harmless; an outsized one is not a configuration to trust.
+    /// The [core] settings whose value Git opens while it compares files: the ignore and attribute rules, the work
+    /// tree, the hooks directory. (core.fsmonitor is overridden on Git's command line, so this one is never read.)
+    /// </summary>
+    private static readonly string[] OpenedByGit = ["excludesfile", "attributesfile", "worktree", "hookspath"];
+
+    /// <summary>
+    /// No [filter …] and no [include]/[includeIf …] section, and no [core] setting that sends Git to a path off this
+    /// computer (names are case-insensitive; "[filter.x]" is the old spelling of a subsection). A missing file is
+    /// harmless; an outsized one is not a configuration to trust.
     /// </summary>
     internal static bool IsHarmless(string configPath)
     {
         var info = new FileInfo(configPath);
         if (!info.Exists) return true;
         if (info.Length > 1_000_000) return false;
+        bool core = false;
         foreach (string raw in File.ReadLines(configPath))
         {
-            var line = raw.AsSpan().TrimStart();
-            if (line.Length == 0 || line[0] != '[') continue;
-            var name = line[1..].TrimStart();
-            if (name.StartsWith("include", StringComparison.OrdinalIgnoreCase)) return false;
-            if (name.StartsWith("filter", StringComparison.OrdinalIgnoreCase) && (name.Length == 6 || !char.IsLetterOrDigit(name[6]))) return false;
+            var line = raw.AsSpan().Trim();
+            if (line.Length == 0) continue;
+            if (line[0] == '[')
+            {
+                var name = line[1..].TrimStart();
+                if (name.StartsWith("include", StringComparison.OrdinalIgnoreCase)) return false;
+                if (name.StartsWith("filter", StringComparison.OrdinalIgnoreCase) && (name.Length == 6 || !char.IsLetterOrDigit(name[6]))) return false;
+                core = name.StartsWith("core", StringComparison.OrdinalIgnoreCase) && (name.Length == 4 || !char.IsLetterOrDigit(name[4]));
+                int close = line.IndexOf(']');
+                if (close < 0) continue;
+                line = line[(close + 1)..].Trim(); // Git takes a setting on the section's own line too.
+                if (line.Length == 0) continue;
+            }
+            if (!core) continue;
+            int equals = line.IndexOf('=');
+            if (equals < 0) continue;
+            var key = line[..equals].TrimEnd();
+            foreach (string opened in OpenedByGit)
+                if (key.Equals(opened, StringComparison.OrdinalIgnoreCase) && !NamesThisComputer(Value(line[(equals + 1)..]))) return false;
+        }
+        return true;
+    }
+
+    /// <summary>A setting's value as Git reads it: its quotes and any comment after it removed.</summary>
+    private static ReadOnlySpan<char> Value(ReadOnlySpan<char> text)
+    {
+        text = text.Trim();
+        if (text.Length != 0 && text[0] == '"')
+        {
+            int end = text[1..].IndexOf('"');
+            return end < 0 ? text[1..] : text.Slice(1, end);
+        }
+        int comment = text.IndexOfAny('#', ';');
+        return (comment < 0 ? text : text[..comment]).TrimEnd();
+    }
+
+    /// <summary>
+    /// Whether a setting's value keeps Git on this computer. A relative value does: Git resolves it against the work
+    /// tree or the repository, both of which are here. An absolute one must be local — a downloaded repository naming
+    /// a share makes Windows connect to the server while the folder is merely shown, which takes seconds to fail and
+    /// offers the user's name to whoever answers. Decided from the text, before any file-system call on it.
+    /// </summary>
+    private static bool NamesThisComputer(ReadOnlySpan<char> value)
+    {
+        if (value.Length == 0) return true;
+        string text = value.ToString();
+        if (text.StartsWith('~') || !Path.IsPathRooted(text)) return true; // "~" is expanded in this user's home folder.
+        try { return IsLocalPath(Path.GetFullPath(text)); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException) { return false; }
+    }
+
+    /// <summary>
+    /// The object directories of other repositories that Git reads as this one's own (objects/info/alternates, one
+    /// path per line; http-alternates likewise): every one must be on this computer, for the same reason.
+    /// </summary>
+    private static bool AlternatesAreLocal(string path)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists) return true;
+        if (info.Length > 1_000_000) return false;
+        foreach (string raw in File.ReadLines(path))
+        {
+            var line = raw.AsSpan().Trim();
+            if (line.Length == 0 || line[0] == '#') continue;
+            if (!NamesThisComputer(line)) return false;
         }
         return true;
     }

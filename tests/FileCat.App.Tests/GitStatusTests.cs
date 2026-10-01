@@ -82,6 +82,134 @@ public sealed class GitStatusTests
         }
     }
 
+    /// <summary>
+    /// Release plan V24: a downloaded repository's own configuration sends Git to the files it names, and "git status"
+    /// reads them while it compares — core.excludesFile and core.attributesFile for the rules, core.worktree for the
+    /// work tree, objects/info/alternates for the objects. Naming a share there makes Windows connect to it while the
+    /// folder is merely shown (measured: 21.2 s each against a documentation address, which never answers), so such a
+    /// repository gets no badges, decided from the text of the setting.
+    /// </summary>
+    [Fact]
+    public void Repositories_whose_configuration_sends_Git_off_this_computer_get_no_badges()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-git-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            string work = Path.Combine(root, "repo"), sub = Directory.CreateDirectory(Path.Combine(work, "src")).FullName;
+            string gitDir = Directory.CreateDirectory(Path.Combine(work, ".git")).FullName;
+            string config = Path.Combine(gitDir, "config");
+            string alternates = Path.Combine(Directory.CreateDirectory(Path.Combine(gitDir, "objects", "info")).FullName, "alternates");
+            const string benign = "[core]\n\trepositoryformatversion = 0\n\tbare = false\n";
+            File.WriteAllText(config, benign);
+            Assert.Equal(work, GitStatusReader.SafeRepository(sub));
+
+            // Settings whose value Git opens, in the spellings Git accepts (names are case-insensitive, values may be
+            // quoted, a comment may follow). 203.0.113.9 is a documentation address.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            foreach (var setting in new[]
+            {
+                @"excludesFile = \\203.0.113.9\share\ignore",
+                @"excludesFile = \\\\203.0.113.9\\share\\ignore", // as "git config" writes that same path
+                @"excludesfile = //203.0.113.9/share/ignore",
+                "excludesFile = \"//203.0.113.9/share/ignore\" # mine",
+                @"attributesFile = \\203.0.113.9\share\attributes",
+                @"worktree = \\203.0.113.9\share\work",
+                @"hooksPath = \\203.0.113.9\share\hooks",
+            })
+            {
+                File.WriteAllText(config, benign + "\t" + setting + "\n");
+                Assert.Null(GitStatusReader.SafeRepository(sub));
+            }
+
+            // The objects of another repository, which Git reads as its own; one path per line.
+            File.WriteAllText(config, benign);
+            Assert.Equal(work, GitStatusReader.SafeRepository(sub));
+            File.WriteAllText(alternates, "../../../other/.git/objects\n" + @"\\203.0.113.9\share\repo.git\objects" + "\n");
+            Assert.Null(GitStatusReader.SafeRepository(sub));
+            File.WriteAllText(alternates, "../../../other/.git/objects\n");
+            Assert.Equal(work, GitStatusReader.SafeRepository(sub));
+
+            // The same settings pointing at this computer are ordinary and keep their badges.
+            File.WriteAllText(config, benign + "\texcludesFile = " + Path.Combine(root, "ignore") + "\n\tworktree = ../repo\n\tpager = less -R\n");
+            Assert.Equal(work, GitStatusReader.SafeRepository(sub));
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4), $"Took {clock.Elapsed}: a path off this computer was tried.");
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    /// <summary>
+    /// Release plan V24 with a packet capture on the named host as the oracle: FILECAT_V24_SHARE is a host in the lab
+    /// that FileCat has no reason to contact. Listing a folder of repositories, one of which points Git at
+    /// \\host\share, must leave that host alone — the capture, not this test, is what proves it. FILECAT_V24_RUN_GIT=1
+    /// runs Git in that repository once instead, to show on the same capture what the configuration asks for.
+    /// </summary>
+    [Fact]
+    public async Task A_repository_that_points_Git_at_a_share_is_never_run_in()
+    {
+        string? host = Environment.GetEnvironmentVariable("FILECAT_V24_SHARE");
+        if (host is null) { Assert.Skip("Set FILECAT_V24_SHARE to a host under capture (and FILECAT_V24_RUN_GIT=1 to show the contact)."); return; }
+        if (GitStatusReader.FindGit(Environment.GetEnvironmentVariable("PATH")) is not { } git) { Assert.Skip("Git is not installed."); return; }
+        bool runGit = Environment.GetEnvironmentVariable("FILECAT_V24_RUN_GIT") == "1";
+        var log = TestContext.Current.TestOutputHelper;
+        var ct = TestContext.Current.CancellationToken;
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-v24", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            void Git(string folder, params string[] arguments)
+            {
+                var start = new System.Diagnostics.ProcessStartInfo(git) { WorkingDirectory = folder, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var argument in new[] { "-c", "user.name=FileCat", "-c", "user.email=filecat@example.com" }.Concat(arguments)) start.ArgumentList.Add(argument);
+                using var process = System.Diagnostics.Process.Start(start)!;
+                process.StandardOutput.ReadToEnd();
+                string errors = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+                log?.WriteLine($"git {string.Join(' ', arguments)} in {Path.GetFileName(folder)}: exit {process.ExitCode} {errors.Trim()}");
+            }
+            string Repository(string name)
+            {
+                string folder = Directory.CreateDirectory(Path.Combine(root, name)).FullName;
+                Git(folder, "init", "-q");
+                File.WriteAllText(Path.Combine(folder, "a.txt"), "one");
+                Git(folder, "add", "a.txt");
+                Git(folder, "commit", "-q", "-m", "first");
+                return folder;
+            }
+            // The control proves Git runs here at all, so a missing badge below is the policy and not a broken harness.
+            Repository("ordinary");
+            string hostile = Repository("downloaded");
+            // Forward slashes: Git reads them as the same UNC path and needs no escaping in a configuration file. The
+            // share's name is fresh each run, so no earlier answer about it can stand in for a contact.
+            string setting = $"//{host}/evidence-{Guid.NewGuid():N}/ignore";
+            File.AppendAllText(Path.Combine(hostile, ".git", "config"), $"[core]\n\texcludesFile = {setting}\n");
+            log?.WriteLine($"downloaded/.git/config names {setting}");
+
+            if (runGit)
+            {
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                Git(hostile, "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "--untracked-files=normal");
+                log?.WriteLine($"Git read the configuration in {clock.Elapsed.TotalSeconds:N1} s (what FileCat used to run).");
+                return;
+            }
+
+            var clock2 = System.Diagnostics.Stopwatch.StartNew();
+            var snapshot = await GitStatusReader.ReadAsync(root, ct);
+            var inside = await GitStatusReader.ReadAsync(hostile, ct);
+            log?.WriteLine($"listed in {clock2.Elapsed.TotalSeconds:N1} s; ordinary {snapshot?.ForName("ordinary")}, downloaded {snapshot?.ForName("downloaded")}, inside it {(inside is null ? "no snapshot" : "a snapshot")}");
+            Assert.Equal(GitStatusKind.Clean, snapshot?.ForName("ordinary"));
+            Assert.Equal(GitStatusKind.None, snapshot?.ForName("downloaded"));
+            Assert.Null(inside);
+            Assert.True(clock2.Elapsed < TimeSpan.FromSeconds(20), $"Took {clock2.Elapsed}: the share was tried.");
+        }
+        finally
+        {
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
     [Fact]
     public void Git_is_found_by_full_path_and_never_through_relative_PATH_entries()
     {
