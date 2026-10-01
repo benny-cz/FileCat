@@ -30,7 +30,8 @@ public sealed class JobProgressViewTests
             vm.Operations.IsOpen = true;
             Assert.Same(vm.Operations.Primary, vm.Operations.Selected);
             // The taskbar button follows it: its bar while it runs, yellow while it is paused.
-            for (int i = 0; i < 100 && vm.Operations.TaskbarState != Platform.Windows.TaskbarProgressState.Normal; i++) await Task.Delay(20, ct);
+            // Indeterminate until the job has counted its work: as long as the other states get (CI, run 36801942257).
+            for (int i = 0; i < 250 && vm.Operations.TaskbarState != Platform.Windows.TaskbarProgressState.Normal; i++) await Task.Delay(20, ct);
             Assert.Equal(Platform.Windows.TaskbarProgressState.Normal, vm.Operations.TaskbarState);
             job.Pause();
             for (int i = 0; i < 250 && vm.Operations.TaskbarState != Platform.Windows.TaskbarProgressState.Paused; i++) await Task.Delay(20, ct);

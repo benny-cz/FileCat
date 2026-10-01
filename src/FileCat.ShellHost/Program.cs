@@ -20,6 +20,11 @@ internal static partial class Program
         Mitigations.Apply();
         using var input = new BinaryReader(Console.OpenStandardInput());
         using var output = new BinaryWriter(Console.OpenStandardOutput());
+        // The Shell's own start (COM, its image machinery, the icon cache) is paid here, within the start's time limit,
+        // not by the first picture asked for: on a slow computer that outlasted an icon's limit, and the item was then
+        // never asked for again (CI, Windows ARM64). A system program's icon is the least a Shell can be asked.
+        try { ShellImages.Get(Path.Combine(Environment.SystemDirectory, "cmd.exe"), ShellImageKind.Icon, 16, out _); }
+        catch (Exception ex) when (ex is not IOException) { }
         ShellHostProtocol.WriteStatus(output, ShellHostProtocol.Status.Text, ShellHostProtocol.ReadyMessage);
         while (ShellHostProtocol.TryReadRequest(input, out byte kind, out int size, out string path))
         {
