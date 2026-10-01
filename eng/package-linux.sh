@@ -119,10 +119,26 @@ if [ -z "$TOOL" ]; then
   fi
   chmod +x "$TOOL"
 fi
+# The runtime, the start-up part every AppImage carries, pinned by checksum too: without --runtime-file appimagetool
+# takes whatever type2-runtime's "continuous" release holds when the package is built. This is the build of commit
+# 8f39b89 (2026-09-28, extraction directories made with mode 0700). When the release moves on, the check fails: review
+# the new runtime, then update the commit and checksum here (or set APPIMAGE_RUNTIME to a reviewed file).
+RUNTIME="${APPIMAGE_RUNTIME:-}"
+if [ -z "$RUNTIME" ]; then
+  RUNTIME="$OUT/runtime-$APPIMAGE_ARCH"
+  if [ "$APPIMAGE_ARCH" = "x86_64" ]; then
+    RUNTIME_SUM=156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074
+    curl -fsSL -o "$RUNTIME" "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
+    echo "$RUNTIME_SUM  $RUNTIME" | sha256sum -c - || { echo "type2-runtime's continuous build is no longer the pinned one: review it, then update the pin." >&2; exit 2; }
+  else
+    echo "Set APPIMAGE_RUNTIME to a type2-runtime for $APPIMAGE_ARCH." >&2
+    exit 2
+  fi
+fi
 APPIMAGE="$OUT/FileCat-$VERSION-$APPIMAGE_ARCH.AppImage"
 rm -f "$APPIMAGE"
 # Runs without FUSE (CI containers).
-APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream "$APPDIR" "$APPIMAGE"
+APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
 
 echo "Done:"
