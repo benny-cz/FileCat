@@ -310,7 +310,7 @@ public sealed partial class MainViewModel
     /// otherwise through the helper, which Windows asks to approve). With <paramref name="folder"/>, the tab then goes to
     /// that folder, or as close to it as the scan goes.
     /// </summary>
-    private async Task FindDeletedOnDriveAsync(PanelViewModel panel, DriveTag drive, string? folder)
+    internal async Task FindDeletedOnDriveAsync(PanelViewModel panel, DriveTag drive, string? folder)
     {
         if (DriveScanProblem() is { } problem)
         {
@@ -355,7 +355,7 @@ public sealed partial class MainViewModel
     /// A whole disk: after a confirmation, its scan opens in a new tab with the disk's partitions, those found where no
     /// partition is listed (deleted, or a lost table), and those whose first sector is damaged, read from a backup.
     /// </summary>
-    private async Task FindDeletedOnDiskAsync(PanelViewModel panel, FileCat.Platform.Windows.Recovery.PhysicalDisk disk)
+    internal async Task FindDeletedOnDiskAsync(PanelViewModel panel, FileCat.Platform.Windows.Recovery.PhysicalDisk disk)
     {
         if (DriveScanProblem() is { } problem)
         {
