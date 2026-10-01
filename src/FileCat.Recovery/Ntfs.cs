@@ -73,8 +73,10 @@ internal sealed class NtfsScanner
         if (mft.Stream is not { Resident: null } stream || stream.Runs.Count == 0) throw new InvalidDataException("the MFT's own data runs are missing.");
         _mftRuns = stream.Runs;
         long records = Math.Min(stream.Size / _recordSize, MaxRecords);
+        // A bit for each cluster of the volume as it exists: a damaged $Bitmap record claiming more (up to MaxBitmapBytes)
+        // was read whole, 512 MiB for a volume of a few megabytes (release issue I37).
         if (Record(6) is { } bitmapRecord && Parse(6, bitmapRecord, followLists: true)?.Stream is { Resident: null } bitmap)
-            _bitmap = ReadStream(bitmap, MaxBitmapBytes);
+            _bitmap = ReadStream(bitmap, Math.Min(MaxBitmapBytes, (Math.Min(_totalClusters, _volume.Length / _clusterSize) + 63) / 64 * 8));
         if (_bitmap.Length < _totalClusters / 8) _result.Warnings.Add("The volume's $Bitmap could not be read completely; unread clusters count as in use.");
         if (Record(3) is { } volumeRecord) _result.Label = VolumeName(volumeRecord);
 

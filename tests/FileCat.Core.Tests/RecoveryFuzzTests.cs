@@ -44,7 +44,8 @@ public sealed class RecoveryFuzzTests
         if (Environment.GetEnvironmentVariable("FILECAT_FUZZ_IMAGE") is { Length: > 0 } only && only != image)
             Assert.Skip($"FILECAT_FUZZ_IMAGE picks {only}.");
         for (int round = firstRound; round < firstRound + rounds; round++) outcomes[fuzz.Round(round)]++;
-        TestContext.Current.TestOutputHelper?.WriteLine($"{image}: " + string.Join(", ", outcomes.Select(o => $"{o.Key} {o.Value}")));
+        TestContext.Current.TestOutputHelper?.WriteLine($"{image}: " + string.Join(", ", outcomes.Select(o => $"{o.Key} {o.Value}")) +
+            $"; most allocated by one round: {fuzz.MostAllocated >> 20} MB (round {fuzz.MostAllocatedRound})");
         Assert.True(outcomes["damaged"] + outcomes["changed"] > 0, "No round changed what the scan found: the damage misses the structures.");
     }
 
@@ -52,6 +53,8 @@ public sealed class RecoveryFuzzTests
     [Theory]
     [InlineData("ntfs", 8842)] // a $Bitmap size read as negative: the whole volume was reported unreadable
     [InlineData("ntfs", 56958)] // the root record listed as a nameless file: the whole scan threw
+    [InlineData("fat32", 100061)] // release issue I37: a declared cluster count took a 1 GiB table for a 40 MiB image
+    [InlineData("ntfs", 100927)] // I37: a damaged $Bitmap size was read whole, 512 MiB
     public void Rounds_that_once_failed_stay_fixed(string image, int round) => new Fuzz(image).Round(round);
 
     /// <summary>One image and the damage each round does to it.</summary>
@@ -61,6 +64,17 @@ public sealed class RecoveryFuzzTests
         private readonly byte[] _original;
         private readonly List<int>[] _pools;
         private readonly int _baseline;
+
+        /// <summary>
+        /// What one round may allocate (FILECAT_FUZZ_ALLOC_MB, by default 256 MiB or eight times the image, whichever is
+        /// more): the images are 4 to 40 MiB, so a round past this is a decoder believing a damaged size (release issue
+        /// I37: a long fuzz run on Linux grew one process to 4.4 GiB, and the machine ran out of memory).
+        /// </summary>
+        private long AllocationBudget =>
+            long.TryParse(Environment.GetEnvironmentVariable("FILECAT_FUZZ_ALLOC_MB"), out var mb) ? mb << 20 : Math.Max(256L << 20, 8L * _original.Length);
+
+        public long MostAllocated { get; private set; }
+        public int MostAllocatedRound { get; private set; }
 
         public Fuzz(string image)
         {
@@ -98,6 +112,7 @@ public sealed class RecoveryFuzzTests
             }
             using var source = new MemorySource(data);
             var clock = System.Diagnostics.Stopwatch.StartNew();
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             IReadOnlyList<RecoveryVolume> volumes;
             try
             {
@@ -124,6 +139,10 @@ public sealed class RecoveryFuzzTests
                         Assert.True(content.Read(at, buffer) > 0, $"{_image}, round {round}: {item.Name} could not be read at {at}.");
                 }
             }
+            // The scan and the reading run on this thread: what they allocated, the damaged copy included.
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            if (allocated > MostAllocated) (MostAllocated, MostAllocatedRound) = (allocated, round);
+            Assert.True(allocated <= AllocationBudget, $"{_image}, round {round} allocated {allocated >> 20} MiB to scan a {_original.Length >> 20} MiB image.");
             return outcome;
         }
     }

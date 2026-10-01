@@ -50,12 +50,19 @@ internal sealed class FatScanner
         long dataSectors = total - (reserved + fats * fatSectors + rootSectors);
         if (dataSectors <= 0) throw new InvalidDataException("the FAT boot sector describes no data area.");
         _clusterSize = bytesPerSector * sectorsPerCluster;
-        _clusterCount = (uint)Math.Min(dataSectors / sectorsPerCluster, 0x0FFFFFF5);
-        _bits = _clusterCount < 4085 ? 12 : _clusterCount < 65525 ? 16 : 32;
+        long declared = Math.Min(dataSectors / sectorsPerCluster, 0x0FFFFFF5);
+        // The FAT type follows from the cluster count the boot sector declares (the specification's rule)...
+        _bits = declared < 4085 ? 12 : declared < 65525 ? 16 : 32;
         long fatOffset = (long)reserved * bytesPerSector;
         RootOffset = fatOffset + fats * fatSectors * bytesPerSector;
         RootBytes = (int)(rootSectors * bytesPerSector);
         _dataOffset = RootOffset + RootBytes;
+        // ...but only the clusters within the volume exist. A damaged or truncated boot sector declaring more (up to 268
+        // million: a gigabyte of table, and as many steps in every pass over the clusters) is held to the volume's own
+        // size (release issue I37).
+        long present = (volume.Length - _dataOffset) / _clusterSize;
+        if (present <= 0) throw new InvalidDataException("the FAT data area lies beyond the end of the volume.");
+        _clusterCount = (uint)Math.Min(declared, present);
         RootCluster = _bits == 32 ? BinaryPrimitives.ReadUInt32LittleEndian(boot.AsSpan(44)) : 0;
         int labelAt = _bits == 32 ? 71 : 43;
         if (boot[_bits == 32 ? 66 : 38] == 0x29) _label = Ascii(boot.AsSpan(labelAt, 11)).Trim() is { Length: > 0 } l && l != "NO NAME" ? l : null;
