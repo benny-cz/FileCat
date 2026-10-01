@@ -460,7 +460,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     as written; nothing found.
 114. V12 begun (E-V12-C1): how a folder's size count is applied, read for "results never land on replacements", found
     **I85** (Low–Medium, `1ec9d13`): a folder deleted and made again, or replaced, while counted took the first one's
-    size as counted. The count now compares the folder's file-system identity at its start and end. App 218.
+    size as counted. The count now compares the folder's file-system identity at its start and end. App 218. A folder
+    churned with 12,000 changes at full speed ends as the disk is, marks and cursor kept (`4a156b5`); partial sizes are
+    drawn with "…".
 
 ## Evidence invalidated by the campaign's own changes
 

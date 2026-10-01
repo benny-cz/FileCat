@@ -27,9 +27,23 @@ file system gives no identity, it behaves as before.
 | FileCat's own Windows identity of a folder deleted and made again at once under the same name (NTFS) | differs: the same record, its sequence number moved on (`…72…` then `…73…`) |
 | App suite | 218, 0 failed |
 
+## Watchers under churn (`4a156b5`)
+
+`FolderChurnTests`: a shown folder of 50 files, ten marked and the cursor on another, takes 12,000 changes from another
+thread as fast as the disk takes them (6,000 files made, 2,000 renamed, 2,000 deleted, 2,000 rewritten). Once settled
+the panel shows exactly what the disk holds (4,050 items, 0.6 to 0.7 s after the churn ended, in three runs), and the
+marks and the cursor on the untouched files are where they were. Whether the system's change buffer overflowed is not
+observed; the panel was right either way.
+
+## Partial sizes labelled
+
+Read in the code (`Formatters`): a folder's size is drawn bare only when its count finished; a size from a count still
+running or cancelled is drawn with "…" after it, and a folder never counted as `<DIR>`. A cancelled count leaves its
+partial size on a marked folder, so labelled, and clears it from an unmarked one.
+
 ## Not covered here
 
 V12's other parts: million-entry and long-name listings, slow parsers, rapidly changing viewports, many tabs,
-disconnected devices, watchers under churn and overflow, expensive sorting asked for and cancelled, visible-row
-verification beside a copy or search, many folders counted and the count cancelled, navigating away, and the tab moved to
-another panel while counting.
+disconnected devices, a watcher's overflow observed as such, expensive sorting asked for and cancelled, visible-row
+verification beside a copy or search, many folders counted and the count cancelled by a test, navigating away, and the
+tab moved to another panel while counting.
