@@ -233,6 +233,9 @@ public sealed class SftpConnections : IDisposable
         for (int attempt = 1; ; attempt++)
         {
             bool retry = attempt > 1;
+            // A secret the user asked to keep is kept once the server has accepted it: a mistyped one is never stored,
+            // and so never tried first on every later connection (where a server that locks accounts would count it).
+            string? toSave = null;
             var context = new ConnectContext
             {
                 ApproveHostKey = key =>
@@ -249,23 +252,7 @@ public sealed class SftpConnections : IDisposable
                     if (answer is null) throw new ConnectCanceledException();
                     known = answer.Secret;
                     _sessionSecrets[profile.Id] = answer.Secret;
-                    if (answer.Save && _secrets.IsPersistent)
-                    {
-                        try
-                        {
-                            _secrets.Write(profile.SecretKey, answer.Secret, $"FileCat: {profile.Name} ({RemoteProtocols.Describe(profile.Protocol)}, {profile.Display})");
-                            if (!profile.SaveSecret)
-                            {
-                                profile.SaveSecret = true;
-                                ProfileChanged?.Invoke(profile);
-                            }
-                        }
-                        catch (IOException ex)
-                        {
-                            AppLog.Warn("Could not save a secret", ex);
-                            Interaction.Inform(profile, "The password was not saved, so FileCat keeps it only until it closes. " + ex.Message);
-                        }
-                    }
+                    toSave = answer.Save ? answer.Secret : null;
                     return answer.Secret;
                 },
                 AnswerPrompts = (instruction, prompts) =>
@@ -277,7 +264,9 @@ public sealed class SftpConnections : IDisposable
             };
             try
             {
-                return _connector.Connect(profile, context, ct);
+                var channel = _connector.Connect(profile, context, ct);
+                if (toSave is not null) SaveSecret(profile, toSave);
+                return channel;
             }
             catch (RemoteAuthenticationException) when (attempt < MaxAuthenticationAttempts)
             {
@@ -289,6 +278,26 @@ public sealed class SftpConnections : IDisposable
             {
                 throw new HostKeyRejectedException($"The host key of {profile.Display} was not accepted, so FileCat did not connect.");
             }
+        }
+    }
+
+    /// <summary>Keeps a secret the server has just accepted in the operating system's store, where there is one.</summary>
+    private void SaveSecret(RemoteProfile profile, string secret)
+    {
+        if (!_secrets.IsPersistent) return;
+        try
+        {
+            _secrets.Write(profile.SecretKey, secret, $"FileCat: {profile.Name} ({RemoteProtocols.Describe(profile.Protocol)}, {profile.Display})");
+            if (!profile.SaveSecret)
+            {
+                profile.SaveSecret = true;
+                ProfileChanged?.Invoke(profile);
+            }
+        }
+        catch (IOException ex)
+        {
+            AppLog.Warn("Could not save a secret", ex);
+            Interaction.Inform(profile, "The password was not saved, so FileCat keeps it only until it closes. " + ex.Message);
         }
     }
 

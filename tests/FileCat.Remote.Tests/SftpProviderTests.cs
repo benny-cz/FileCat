@@ -131,6 +131,28 @@ public sealed class SftpProviderTests : IDisposable
         Assert.Single(_ui.SecretQuestions);
     }
 
+    /// <summary>
+    /// A password the user asks to keep is kept once the server has accepted it (E-V11-S1): a mistyped one is never
+    /// stored, so it is not tried first on every later connection — on a server that locks an account after a few
+    /// failed logins, each of those would count.
+    /// </summary>
+    [Fact]
+    public async Task A_secret_is_saved_only_once_the_server_has_accepted_it()
+    {
+        _ui.SaveSecret = true;
+        foreach (var s in new[] { "mistyped", "wrong again", "still wrong" }) _ui.Secrets.Enqueue(s);
+        await Assert.ThrowsAsync<RemoteAuthenticationException>(() => ListAsync(SftpProvider.At(_profile)));
+        Assert.Null(_secrets.Read(_profile.SecretKey));
+        Assert.False(_profile.SaveSecret);
+
+        // Wrong once more, then right: only the one the server took is kept.
+        _ui.Secrets.Enqueue("mistyped");
+        _ui.Secrets.Enqueue("secret");
+        await ListAsync(SftpProvider.At(_profile));
+        Assert.Equal("secret", _secrets.Read(_profile.SecretKey));
+        Assert.True(_profile.SaveSecret);
+    }
+
     [Fact]
     public async Task Listings_show_links_as_what_they_point_to_and_skip_unsafe_names()
     {
