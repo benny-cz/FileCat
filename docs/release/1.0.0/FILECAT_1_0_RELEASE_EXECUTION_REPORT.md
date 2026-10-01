@@ -312,8 +312,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 86. V24 on the Git route (E-V24-G1): **I69** (High) — a downloaded repository's own configuration sent Git to a
     server while the folder was merely shown (`core.excludesFile` and the four others; 21.1 s per repository against an
     address that never answers, and an SMB session with the server on a packet capture). Fixed `aaee133`: such a
-    repository is not read at all, decided from the text of the setting. The rest of V24 (shortcuts and icon resources,
-    gpg, terminals and associations, discovery) is still open.
+    repository is not read at all, decided from the text of the setting. The icon route of the same charter
+    (`.url`, `.lnk`, `desktop.ini`) was then taken under the same capture and **held**: the three fixtures naming an
+    icon on the share kept their type icon and contacted nothing, while the three naming one on this computer got it
+    during the same run (E-V24-G1-I1). The rest of V24 (gpg and sidecars, terminals and associations, discovery)
+    is still open.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -339,8 +342,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
    E-B02-A1 (a million rounds of every archive format on `325aa63`).
-1a. Continue V24: `.lnk`/`.url`/`desktop.ini` and icon resources, gpg and sidecars, terminal/SSH/association routes
-   with a recording executable, malformed discovery (E-V24-G1 covered the Git route).
+1a. Continue V24: gpg and sidecars, terminal/SSH/association routes with a recording executable, malformed discovery
+   (E-V24-G1 covered the Git route and the icon route; `.lnk` targets on a share remain).
 2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's

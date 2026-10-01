@@ -1,4 +1,4 @@
-# E-V24-G1 — a repository's configuration sending Git off this computer (I69)
+# E-V24-G1 — what a folder's own content makes FileCat contact while it is listed (I69)
 
 Issue: [I69](../FILECAT_1_0_RELEASE_ISSUES.md#i69--a-repositorys-own-configuration-sent-git-to-a-server-while-the-folder-was-merely-shown).
 Plan: V24 (hostile content during ordinary browsing and external launch; T01/T03/T11/T12, SEC-003/004/006), V23 B10
@@ -72,7 +72,7 @@ throwing out of the listing it was shown in.
 Tests: `Repositories_whose_configuration_sends_Git_off_this_computer_get_no_badges` (six settings, both slash forms and
 the escaped form, the alternates file, and local counterparts of the same settings keeping their badges, all inside
 4 s) and the gated `A_repository_that_points_Git_at_a_share_is_never_run_in` above. `FileCat.App.Tests` whole suite:
-197 total, 0 failed, 8 skipped, 101.3 s (host, Debug).
+198 total, 0 failed, 9 skipped, 100.9 s (host, Debug; the two gated cases above skip without their host).
 
 Files (`artifacts/release-evidence/v24/`): `v24-git-share-capture.txt`
 `81486c7127fb5a60b3dde517ba70887f4fb2179e7f688f701a6d2d60eed6d58b`; `v24-a-git.pcap`
@@ -80,10 +80,39 @@ Files (`artifacts/release-evidence/v24/`): `v24-git-share-capture.txt`
 `704e5e5b3234433c01fcfd1b20a306e77e985038120492dc53965c3edd38a4ea`; `v24-c-git.pcap`
 `dd51cdbd64fec99441f6e86ebeddb72fa72a13c9b57f5407b563a5e7b10d98e2`.
 
+## E-V24-G1-I1 — icons a folder's own files name, under the same capture (no defect)
+
+The second route by which a listed folder names a path of its own: the icon in an Internet shortcut (`.url`
+`IconFile`), in a shell link (`.lnk` icon location) and in a customized folder (`desktop.ini` `IconResource`). I16
+(`2f35a6b`) made the restricted helper's policy decide before the path is touched; this pass asked V24's question of
+the whole pipeline, parent and child process together, with the same oracle.
+
+`IconResourceTests.Icons_named_on_a_share_are_never_contacted_while_a_folder_is_listed` (build `aaee133`, host) lists
+one folder holding nine fixtures: a `.url`, a crafted `.lnk` (MS-SHLLINK, built in the test so no Shell code of
+Windows' own touches the path while the fixture is made) and a read-only folder with a `desktop.ini`, in three sets —
+one naming the icon on the share, one naming `%SystemRoot%\system32\imageres.dll`, one naming no icon at all. Every
+row's icon is then asked for as a drawn row asks, for up to 30 s. A refused icon and one still being read both show
+the row's type icon, so the third set is the measuring stick: "the icon it names arrived" means the row's icon is not
+the one its type shows.
+
+| Fixture | Names | Result |
+|---|---|---|
+| `local.url`, `local.lnk`, `local-folder` | `imageres.dll` on this computer | **the icon they name**, within 0.3 s |
+| `shared.url`, `shared.lnk`, `shared-folder` | `\\192.168.58.129\evidence-…\folder.ico` | **the type icon only** |
+
+Under `tcpdump` on the VM for the whole run (and for a first run of the same case whose assertion was wrong, which is
+in the same capture): **0 packets**, `v24-icons.pcap`
+`704e5e5b3234433c01fcfd1b20a306e77e985038120492dc53965c3edd38a4ea` (a pcap header and nothing else — byte for byte the
+same file as run B above). The oracle's positive control is runs A and C above: the same host, interface and filter
+show the contact when one happens. The three local fixtures are the pipeline's control: the helper did run and did read
+named icons during the very run that contacted nothing.
+
 ## Still open in V24
 
-This pass covered the Git route's configuration. The charter's other seed groups — `.lnk`/`.url`/`desktop.ini` and
-icon resources, gpg and sidecars, the terminal, SSH and association routes with a recording executable, and malformed
-discovery — remain, as does the capture-and-trace form of the whole case on a final candidate. On Linux and macOS a
-value naming a path under an automounter is still only a path to FileCat (`IsLocalPath` is a Windows decision); that is
-the same limitation the `gitdir:`/`commondir` checks have carried since `2f35a6b`.
+This pass covered the two routes by which a listed folder's own content names a path: the Git configuration and the
+icons. The charter's other seed groups — gpg and sidecars, the terminal, SSH and association routes with a recording
+executable, and malformed discovery — remain, as does the capture-and-trace form of the whole case on a final
+candidate, and `.lnk` *targets* on a share (guarded by the same locality check at the one place a target's own icon is
+read, not yet exercised end to end). On Linux and macOS a value naming a path under an automounter is still only a path
+to FileCat (`IsLocalPath` is a Windows decision); that is the same limitation the `gitdir:`/`commondir` checks have
+carried since `2f35a6b`.
