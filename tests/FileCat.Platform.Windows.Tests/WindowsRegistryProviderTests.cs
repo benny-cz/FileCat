@@ -191,7 +191,13 @@ public sealed class WindowsRegistryProviderTests
         {
             Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
             if (File.Exists(file)) File.Delete(file);
-            if (Directory.Exists(journals)) Directory.Delete(journals, recursive: true);
+            // The job closes its journal as it finishes, which may come just after the event that said it finished (CI once
+            // found the journal still open).
+            for (int i = 0; i < 50 && Directory.Exists(journals); i++)
+            {
+                try { Directory.Delete(journals, recursive: true); }
+                catch (IOException) { Thread.Sleep(100); }
+            }
         }
     }
 
