@@ -42,6 +42,12 @@ executing agent, not the independent re-audit the plan requires before closure.
 - I51: `AttributeLinkTests.Changing_a_links_time_or_read_only_never_changes_what_it_points_to` (before, on macOS: the
   target became read-only).
 
+## Trust boundaries (V23)
+
+| Boundary | Reviewed | Outcome |
+|---|---|---|
+| B10 folder metadata → automatic tools/contact | `GitStatusReader`, `NativeIconSource`, `OpenPgp`, `VerificationService`, `FolderSidecars`, `ChecksumManifests`, `ShellPreviewPolicy` | **I16** (fixed `2f35a6b`): a repository's linked paths and an icon named in desktop.ini were touched before they were known to be local; programs were looked for in the current directory. Held: Git runs only in local folders, with its configuration checked for programs it would run; automatic checks hash only files listed in the folder, local, settled and within the size threshold; a manifest's entries are confined to its folder while it is parsed (absolute paths, network paths among them, and `..` refused before any file call); gpg runs with `--batch --no-auto-key-retrieve` and file names after `--`; the Shell sees no shortcut-like files, folder customization files or cloud placeholders, and network and removable drives only when allowed. |
+
 ## Not reviewed in this pass
 
 P07's loader audit (V06, on installed candidates) and P13 (MTP: its checks need the phone, PPL-03).
