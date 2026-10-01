@@ -69,6 +69,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I57 | Network discovery followed HTTP redirects from a device's metadata address | Low–Medium (any device answering discovery could make FileCat send a request to another address, a service on this computer included) | Should fix (V23 B05) | **Remediated `a5c25d1`; verified** (fake device) |
 | I58 | A damaged TAR header made .NET's TAR reader take up to 2 GiB before finding the data missing | Low–Medium (a 31 KiB archive took 512 MiB each time it was listed; a crafted one up to 2 GiB; then refused) | Should fix (V23 B02) | **Remediated `325aa63`; verified** (E-B02-A1) |
 | I60 | The AppImage's runtime was whatever type2-runtime's "continuous" release held when the package was built, unchecked | Medium (supply chain: the first code to run when FileCat's AppImage starts, taken unverified from a moving release) | Must fix (V23 B09, part of I03) | **Remediated `84b847a`; verified** (packaging run 36855265633) |
+| I61 | Command line: `--workspace` and `--list` were read, forwarded, and ignored | Low–Medium (plan §19.1 promises both; a launch with them opened nothing and said nothing) | Must fix (V23 B12, product claim) | **Remediated `dcd81a1`; verified** (E-DPI) |
+| I62 | Profiles: two names for one profile's folders ran as two instances at once | Low (`--profile Work!` beside `--profile Work`: one profile's settings and journals in use by two FileCats) | Should fix (V23 B12) | **Remediated `2cd313f`; verified** (E-DPI) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
@@ -926,6 +928,29 @@ level the plan already states; exploit-level detail is not recorded here.
   24 skipped (gated), none failed.
 - **Severity:** Low: a renamed key can disable what reads it, but the setup needs an account with write and link rights
   under the key's parent and an administrator's approval of that very rename.
+
+### I61 — `--workspace` and `--list` were read, forwarded, and ignored
+
+- **Found by:** the V23 review of B12 (startup modes). `StartupOptions` read both options and a second launch forwarded
+  them to the running FileCat, but nothing opened them, at start or forwarded; no list file reader existed. Plan §19.1:
+  "Command-line arguments open locations, named workspaces, and list files; a list file opens as a result set, like
+  Total Commander's LOADLIST."
+- **Remediation (`dcd81a1`):** a named workspace opens first and the locations given with it open in it; a list file
+  (paths one per line, UTF-8 or as its byte order mark says, relative paths from the list's own folder) opens as a
+  result set in a new tab, saying how many lines named nothing. Network paths in a list are left out and counted, never
+  contacted on the list's behalf (I16's rule); a relative list path is made full before it is forwarded.
+- **Verification:** `ListFileTests` (UTF-8, UTF-8 with BOM, UTF-16; files, a folder, a relative line, a missing one, three
+  network forms, a duplicate; a missing and an oversized list refused) and
+  `StartupArgumentsTests` (the list's result set in a new tab; a named workspace, then a file's folder opened in it with
+  the file focused); the App suite: 190, 7 skipped, none failed.
+
+### I62 — Two names for one profile's folders ran as two instances
+
+- **Found by:** the V23 review of B12. A profile's folders keep only letters, digits, `-` and `_` of its name (at most
+  40), while the single-instance check used the name as given; a name with nothing usable named the folder that holds
+  every profile.
+- **Remediation (`2cd313f`):** both use the folder's name (`AppPaths.ProfileFolderName`); a name with nothing usable is
+  the default profile. **Verification:** `RecoverySafetyTests.Profile_names_that_name_one_folder_are_one_instance`.
 
 ### I60 — The AppImage's runtime came unchecked from a moving release
 
