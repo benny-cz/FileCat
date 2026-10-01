@@ -722,6 +722,7 @@ public sealed partial class MainViewModel
         tab.UpdateStatus();
         var name = e.Name;
         var device = Services.Providers.For(vol).GetDeviceKey(vol);
+        var fs = Services.Platform.FileOperations;
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, ct =>
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, token);
@@ -729,11 +730,15 @@ public sealed partial class MainViewModel
             long? modified = null;
             try { modified = Directory.GetLastWriteTimeUtc(path).Ticks; }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+            // Which folder this is, before and after: one deleted and made again, or replaced, under the same name while
+            // it was counted is another folder, and the size counted is not its size (V12).
+            string? before = fs.GetFileIdentity(path);
             // Sizes land only while the panel still shows that folder's parent: another folder may hold one of the same name.
-            return (Size: DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
+            var size = DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
             {
                 if (listing.Location == vol) listing.SetComputedSize(name, p.Bytes, false);
-            }), linked.Token), Modified: modified);
+            }), linked.Token);
+            return (Size: size, Modified: modified, Replaced: before is not null && fs.GetFileIdentity(path) != before);
         }, token).ContinueWith(t =>
         {
             Services.Ui.Post(() =>
@@ -742,7 +747,12 @@ public sealed partial class MainViewModel
                 tab.SizingFolders = Math.Max(0, tab.SizingFolders - 1);
                 if (listing.Location == vol)
                 {
-                    if (t.IsCompletedSuccessfully)
+                    if (t.IsCompletedSuccessfully && t.Result.Replaced)
+                    {
+                        listing.SetComputedSize(name, -1, false);
+                        Notify($"\"{name}\" was replaced while its size was counted; count it again.");
+                    }
+                    else if (t.IsCompletedSuccessfully)
                     {
                         listing.SetComputedSize(name, t.Result.Size.Bytes, true, t.Result.Modified);
                         if (t.Result.Size.Inaccessible > 0) Notify($"\"{name}\": {t.Result.Size.Inaccessible} folder(s) could not be read; the size is a lower bound.");
