@@ -76,6 +76,42 @@ public sealed class OpenTargetReplaceTests : IDisposable
         Assert.Equal(["log.txt"], Directory.GetFiles(folder).Select(Path.GetFileName));
     }
 
+    /// <summary>
+    /// FAT32 and exFAT have no POSIX renames, so I22's fallback cannot apply there (release plan V03): the file a viewer
+    /// holds open stays as it was, the question says it is in use, nothing staged is left, and once the viewer has
+    /// closed it, Retry replaces it. Runs where FILECAT_FAT_FOLDER names a folder on such a drive.
+    /// </summary>
+    [Fact]
+    public async Task On_a_FAT_drive_an_open_file_is_reported_in_use_and_replaced_once_closed()
+    {
+        string? fat = Environment.GetEnvironmentVariable("FILECAT_FAT_FOLDER");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(fat)) Assert.Skip("Set FILECAT_FAT_FOLDER to a folder on a FAT32 or exFAT drive.");
+        string format = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(fat))!).DriveFormat;
+        Assert.True(format is "FAT32" or "exFAT" or "FAT", $"FILECAT_FAT_FOLDER is on {format}.");
+        string folder = Directory.CreateDirectory(Path.Combine(fat, "filecat-open-target-" + Guid.NewGuid().ToString("N")[..8])).FullName;
+        try
+        {
+            var src = Directory.CreateDirectory(Path.Combine(_root, "src")).FullName;
+            string source = Path.Combine(src, "log.txt"), target = Path.Combine(folder, "log.txt");
+            File.WriteAllText(source, "newer");
+            File.WriteAllText(target, "old");
+            using (var viewer = new FileContentSource(target))
+            {
+                var (job, asked) = await CopyAsync(source, folder, DecisionAction.Skip);
+                var question = Assert.IsType<ErrorRequest>(Assert.Single(asked));
+                Assert.True(question.ErrorClass == "sharing" && question.Message.Contains("in use", StringComparison.Ordinal), $"{format}: {Questions(asked)}");
+                Assert.NotEqual(JobState.Completed, job.State);
+            }
+            Assert.Equal("old", File.ReadAllText(target));
+            Assert.Equal(["log.txt"], Directory.GetFiles(folder).Select(Path.GetFileName));
+            var (again, _) = await CopyAsync(source, folder, DecisionAction.Retry);
+            Assert.Equal(JobState.Completed, again.State);
+            Assert.Equal("newer", File.ReadAllText(target));
+            Assert.Equal(["log.txt"], Directory.GetFiles(folder).Select(Path.GetFileName));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
     [Fact]
     public async Task A_file_held_without_sharing_deletion_is_reported_in_use_and_kept()
     {
