@@ -197,7 +197,7 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
             string path = PathOf(item, lease.Channel);
             var stat = lease.Channel.Stat(path) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
             if (stat.IsDirectory) throw new IOException($"\"{item.Name}\" is a folder.");
-            return new SftpContentSource(lease, lease.Channel.OpenRead(path), GetDisplayPath(item.Parent.WithPath(path)), stat);
+            return new SftpContentSource(lease, lease.Channel.OpenRead(path, stat.Size), GetDisplayPath(item.Parent.WithPath(path)), stat);
         }
         catch (Exception ex)
         {

@@ -233,11 +233,16 @@ internal sealed partial class FtpChannel : ISftpChannel
     public RemoteStat? Stat(string path) => Run(() =>
     {
         Safe(path);
-        // MLST where the server has it (FluentFTP answers null otherwise), then SIZE, MDTM, and CWD. Each is a round trip,
-        // and a copy stats every file a few times, so MLST's own answer is used whenever there is one.
-        FtpListItem? info;
-        try { info = _client.GetObjectInfo(path, false); }
-        catch (FtpCommandException) { info = null; }
+        // MLST where the server has it, then SIZE, MDTM, and CWD. Each is a round trip, and a copy stats every file a few
+        // times, so MLST's own answer is used whenever there is one. Without MLST, FluentFTP's GetObjectInfo lists the
+        // whole parent folder instead (a data connection and every name in it, for each stat: 2.7 s per small file at a
+        // 100 ms round trip, and growing with the folder), and reports a link rather than following it.
+        FtpListItem? info = null;
+        if (_client.HasFeature(FtpCapability.MLST))
+        {
+            try { info = _client.GetObjectInfo(path, false); }
+            catch (FtpCommandException) { info = null; }
+        }
         if (info is not null)
         {
             // MLST's "modify" fact is the time in UTC (RFC 3659); MDTM only when a server leaves it out.
@@ -270,6 +275,9 @@ internal sealed partial class FtpChannel : ISftpChannel
         if (stat.IsDirectory) throw new IOException("This is a folder.");
         return new FtpReadStream(this, _client, Safe(path), stat.Size);
     }
+
+    /// <summary>A file the caller has just stat'ed: its length is known, so no second stat (FTP needs one for the length).</summary>
+    public Stream OpenRead(string path, long length) => new FtpReadStream(this, _client, Safe(path), length);
 
     public Stream CreateNew(string path)
     {

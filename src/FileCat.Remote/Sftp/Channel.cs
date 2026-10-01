@@ -45,6 +45,12 @@ public interface ISftpChannel : IDisposable
     /// <summary>Seekable read-only content (links followed).</summary>
     Stream OpenRead(string path);
 
+    /// <summary>
+    /// The same, for a file the caller has just stat'ed at <paramref name="length"/> bytes: a channel that would otherwise
+    /// ask the server for the length again (FTP) does not.
+    /// </summary>
+    Stream OpenRead(string path, long length) => OpenRead(path);
+
     /// <summary>Creates a new file; fails when the name exists.</summary>
     Stream CreateNew(string path);
 

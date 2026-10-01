@@ -564,7 +564,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             byte[] ours, theirs;
             using (var source = openSource()) ours = PortableFileOperations.HashStream(source, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
             streamDone = 0;
-            using (var copy = Channel.OpenRead(temp)) theirs = PortableFileOperations.HashStream(copy, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+            using (var copy = Channel.OpenRead(temp, length)) theirs = PortableFileOperations.HashStream(copy, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
             return ours.AsSpan().SequenceEqual(theirs);
         }
         catch
@@ -625,7 +625,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             int n = (int)Math.Min(ResumeCheckBytes, stat.Size);
             var theirs = new byte[n];
             var ours = new byte[n];
-            using (var remote = Channel.OpenRead(temp))
+            using (var remote = Channel.OpenRead(temp, stat.Size))
             {
                 remote.Position = stat.Size - n;
                 remote.ReadExactly(theirs);
