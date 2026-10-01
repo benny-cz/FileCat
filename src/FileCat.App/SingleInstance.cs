@@ -18,8 +18,9 @@ public static class SingleInstance
 
     private static string BaseName(string? profile, string? dataRoot)
     {
-        // A FileCat keeping its files in a folder of their own (--data) is another instance than the usual one.
-        var id = $"{Environment.UserDomainName}\\{Environment.UserName}|{profile ?? "default"}" + (dataRoot is null ? "" : "|" + dataRoot.ToUpperInvariant());
+        // A FileCat keeping its files in a folder of their own (--data) is another instance than the usual one. The
+        // profile is named as its folders name it: "Work!" and "Work" share one profile's files, so they are one instance.
+        var id = $"{Environment.UserDomainName}\\{Environment.UserName}|{Core.State.AppPaths.ProfileFolderName(profile)}" + (dataRoot is null ? "" : "|" + dataRoot.ToUpperInvariant());
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id)))[..16];
         return "FileCat-" + hash;
     }

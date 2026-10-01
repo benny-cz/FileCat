@@ -93,7 +93,7 @@ public sealed class AppPaths
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder (recovering from the disk that holds FileCat's usual places).</param>
     public static AppPaths Resolve(string? profile = null, string? baseDirectory = null, string? overrideRoot = null, string? dataRoot = null)
     {
-        profile = string.IsNullOrWhiteSpace(profile) ? "default" : Sanitize(profile);
+        profile = ProfileFolderName(profile);
         var suffix = profile == "default" ? string.Empty : Path.Combine("profiles", profile);
         if (!string.IsNullOrEmpty(overrideRoot))
         {
@@ -128,7 +128,7 @@ public sealed class AppPaths
     /// </summary>
     public static AppPaths Usual(string? profile = null, string? baseDirectory = null)
     {
-        profile = string.IsNullOrWhiteSpace(profile) ? "default" : Sanitize(profile);
+        profile = ProfileFolderName(profile);
         var suffix = profile == "default" ? string.Empty : Path.Combine("profiles", profile);
         baseDirectory ??= AppContext.BaseDirectory;
         if (File.Exists(Path.Combine(baseDirectory, PortableMarker)))
@@ -205,6 +205,13 @@ public sealed class AppPaths
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return removed;
     }
+
+    /// <summary>
+    /// A profile's name as its folders and its instance use it: letters, digits, '-' and '_', at most 40; "default" when
+    /// nothing of it is left. Two names that differ only in other characters are one profile, so one instance.
+    /// </summary>
+    public static string ProfileFolderName(string? profile) =>
+        string.IsNullOrWhiteSpace(profile) || Sanitize(profile) is not { Length: > 0 } safe ? "default" : safe;
 
     private static string Sanitize(string name) =>
         new(name.Where(c => char.IsLetterOrDigit(c) || c is '-' or '_').Take(40).ToArray());

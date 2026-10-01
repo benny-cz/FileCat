@@ -96,5 +96,41 @@ public sealed class RecoverySafetyTests
         Assert.True(stopped);
     }
 
+    /// <summary>
+    /// Profile names that differ only in characters a folder name drops are one profile: its files and its instance
+    /// (before, "Work!" and "Work" shared one profile's settings and journals as two instances at once; found reviewing V23
+    /// B12). A name with nothing usable is the default profile.
+    /// </summary>
+    [Fact]
+    public void Profile_names_that_name_one_folder_are_one_instance()
+    {
+        string profile = "work-" + Guid.NewGuid().ToString("N")[..8];
+        string root = Path.Combine(Path.GetTempPath(), "filecat-profile-names-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Assert.Equal(AppPaths.Resolve(profile, overrideRoot: root).SettingsDirectory, AppPaths.Resolve(profile + "!", overrideRoot: root).SettingsDirectory);
+            Assert.Equal("default", AppPaths.ProfileFolderName(".."));
+            Assert.Equal(AppPaths.Resolve(overrideRoot: root).SettingsDirectory, AppPaths.Resolve("..", overrideRoot: root).SettingsDirectory);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+
+        Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile + "!", NewInstance = false }));
+        SingleInstance.StartServer(profile + "!", null);
+        try
+        {
+            bool running = false;
+            for (int i = 0; i < 50 && !running; i++)
+            {
+                running = SingleInstance.UsualInstanceRunning(profile);
+                if (!running) Thread.Sleep(20);
+            }
+            Assert.True(running);
+        }
+        finally
+        {
+            SingleInstance.Release();
+        }
+    }
+
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
 }
