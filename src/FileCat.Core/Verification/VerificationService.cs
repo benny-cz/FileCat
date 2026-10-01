@@ -156,6 +156,12 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>The instance the app configured (its cache file, the size threshold setting, its key folders).</summary>
     public static VerificationService? Current { get; set; }
 
+    /// <summary>
+    /// Set while FileCat recovers deleted files from the disk that holds GnuPG's folder (release plan V09, I09): gpg may
+    /// write there (its trust database, locks), so OpenPGP signatures are left unchecked, and such results are not kept.
+    /// </summary>
+    public bool SignatureToolsPaused { get; set; }
+
     /// <summary>Raised (on the calling thread) when a folder's checksum files or signatures changed: values shown for it are stale.</summary>
     public event Action<string>? SidecarsChanged;
 
@@ -254,15 +260,21 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         // Keys the user keeps in FileCat's keys folder are trusted; a key beside the file is not (it came from the same place).
         IReadOnlyList<Minisign.PublicKey>? keys = null;
         var trustedFolders = keyFolders();
-        SignatureResult Check(SignatureClaim claim, CancellationToken token) => claim.Kind == SignatureKind.Minisign
-            ? Minisign.Verify(claim.Signed, claim.Signature, keys ??= [.. Minisign.KeysIn(trustedFolders, trusted: true), .. Minisign.KeysIn([folder])], token, progress,
-                trustedFolders.FirstOrDefault())
-            : OpenPgp.Verify(claim.Signature, claim.Signed, token);
+        bool heldOff = false;
+        SignatureResult Check(SignatureClaim claim, CancellationToken token)
+        {
+            if (claim.Kind == SignatureKind.Minisign)
+                return Minisign.Verify(claim.Signed, claim.Signature, keys ??= [.. Minisign.KeysIn(trustedFolders, trusted: true), .. Minisign.KeysIn([folder])], token, progress,
+                    trustedFolders.FirstOrDefault());
+            if (!SignatureToolsPaused) return OpenPgp.Verify(claim.Signature, claim.Signed, token);
+            heldOff = true;
+            return new SignatureResult(VerificationState.SignatureUnchecked, "not checked while FileCat recovers deleted files from the disk that holds GnuPG's folder (gpg writes there)");
+        }
         var result = Verifier.Check(checksums, signatures, Hash, Check, sidecars.Signatures, ct);
         if (result.State == VerificationState.Unreadable) return result;
-        // Shown from now on without reading the file again: the row says when it was checked.
+        // Shown from now on without reading the file again: the row says when it was checked. A check held off is not kept.
         result = result with { CheckedUtc = DateTime.UtcNow };
-        cache.Put(key, result);
+        if (!heldOff) cache.Put(key, result);
         return result;
     }
 

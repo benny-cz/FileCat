@@ -101,6 +101,109 @@ public sealed class UnixDeviceTests : IDisposable
     }
 
     [Fact]
+    public void Where_writing_goes_is_told_by_real_paths_backing_files_and_servers_and_unknown_never_counts_as_elsewhere()
+    {
+        // Release plan V09 (I09): a recovery's destination, and FileCat's own folders, must not be taken for another disk
+        // when they are not on one. sysfs as Linux lays it out: class/block/NAME links to the device's folder, a partition's
+        // folder inside its disk's.
+        string sys = Path.Combine(_dir.Path, "sys");
+        void Write(string relative, string content)
+        {
+            string path = Path.Combine(sys, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, content + "\n");
+        }
+        void Device(string name, string folder)
+        {
+            string target = Path.Combine(sys, folder.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(target);
+            string link = Path.Combine(sys, "class", "block", name);
+            Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+            try { Directory.CreateSymbolicLink(link, target); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Assert.Skip("Symbolic links cannot be made here (Windows without Developer Mode or administrator rights).");
+            }
+        }
+        Device("sdb", "devices/pci/block/sdb");
+        Device("sdb1", "devices/pci/block/sdb/sdb1");
+        Write("devices/pci/block/sdb/sdb1/partition", "1");
+        Device("sdb2", "devices/pci/block/sdb/sdb2");
+        Write("devices/pci/block/sdb/sdb2/partition", "2");
+        Device("sdc", "devices/pci/block/sdc");
+        Device("sdc1", "devices/pci/block/sdc/sdc1");
+        Write("devices/pci/block/sdc/sdc1/partition", "1");
+        Device("sdc2", "devices/pci/block/sdc/sdc2");
+        Write("devices/pci/block/sdc/sdc2/partition", "2");
+        Device("dm-0", "devices/virtual/block/dm-0");
+        Directory.CreateDirectory(Path.Combine(sys, "devices", "virtual", "block", "dm-0", "slaves", "sdc1"));
+        Device("dm-1", "devices/virtual/block/dm-1");
+        Directory.CreateDirectory(Path.Combine(sys, "devices", "virtual", "block", "dm-1", "slaves", "sdq1")); // not in sysfs
+        Device("loop0", "devices/virtual/block/loop0");
+        Write("devices/virtual/block/loop0/loop/backing_file", "/home/u/stick.img");
+        Device("loop1", "devices/virtual/block/loop1");
+        Write("devices/virtual/block/loop1/loop/backing_file", "/home/u/gone.img (deleted)");
+        Device("nbd0", "devices/virtual/block/nbd0");
+        Directory.CreateDirectory(Path.Combine(sys, "fs", "btrfs", "5e1f", "devices", "sdb2"));
+        Directory.CreateDirectory(Path.Combine(sys, "fs", "btrfs", "5e1f", "devices", "sdc2"));
+        var mounts = UnixDisks.ParseMountInfo(
+        [
+            "22 1 8:17 / / rw - ext4 /dev/sdb1 rw",
+            "30 22 253:0 / /data rw - ext4 /dev/dm-0 rw",
+            "31 22 7:0 / /mnt/img rw - vfat /dev/loop0 rw",
+            "32 22 7:1 / /mnt/old rw - vfat /dev/loop1 rw",
+            "33 22 43:0 / /mnt/nbd rw - ext4 /dev/nbd0 rw",
+            "34 22 0:50 / /mnt/nas rw - cifs //user@nas.example/share rw",
+            "35 22 0:51 / /mnt/self rw - cifs //localhost/share rw",
+            "36 22 0:52 / /mnt/nfs rw - nfs4 [fe80::1]:/export rw",
+            "37 22 0:53 / /mnt/overlay rw - overlay overlay rw",
+            "38 22 0:54 / /tmp rw - tmpfs tmpfs rw",
+            "39 22 0:55 / /run/user/1000/gvfs rw - fuse.gvfsd-fuse gvfsd-fuse rw",
+            "40 22 0:56 / /mnt/host rw - virtiofs share rw",
+            "41 22 0:57 / /pool rw - btrfs /dev/sdb2 rw",
+            "42 22 8:33 / /mnt/broken rw - ext4 /dev/dm-1 rw",
+            "43 22 0:58 / /data/over rw - tmpfs tmpfs rw",
+            "44 22 0:59 / /data/over rw - ext4 /dev/sdb1 rw", // mounted over the tmpfs: it is what is written to
+        ]);
+        // A link in the home folder leads to /data.
+        string? Resolve(string path) => path.StartsWith("/home/u/to-data/", StringComparison.Ordinal) ? "/data/" + path["/home/u/to-data/".Length..] : path;
+        var topology = new UnixDisks.LinuxTopology(sys, mounts, Resolve, server => server is "localhost" or "127.0.0.1");
+
+        Assert.Null(topology.BlockDisks("sdz", written: true)); // no sysfs entry: unknown, never "no disk"
+        Assert.Equal(["sdb"], topology.DisksOf("/dev/sdb1"));
+        Assert.Equal(["sdb"], topology.DisksOf("/home/u/out"));
+        Assert.Equal(["sdc"], topology.DisksOf("/data/out")); // a mapped device's disks
+        Assert.Equal(["sdc"], topology.DisksOf("/home/u/to-data/out")); // where the link leads, not where it is
+        Assert.Null(topology.DisksOf("/mnt/broken/out")); // a mapped device over something sysfs does not list
+        // Written, a loop device is its backing file (here on sdb); read, a disk of its own.
+        Assert.Equal(["sdb"], topology.DisksOf("/mnt/img/out"));
+        Assert.Equal(["loop0"], topology.DisksOf("/dev/loop0"));
+        Assert.Null(topology.DisksOf("/mnt/old/out")); // its file was deleted
+        Assert.Null(topology.DisksOf("/mnt/nbd/out")); // served by another program, from anywhere
+        Assert.Equal(["nbd0"], topology.DisksOf("/dev/nbd0"));
+        // Another computer's share is on no disk here; one this computer serves is on one of its own.
+        Assert.Empty(topology.DisksOf("/mnt/nas/out")!);
+        Assert.Null(topology.DisksOf("/mnt/self/out"));
+        Assert.Empty(topology.DisksOf("/mnt/nfs/out")!);
+        Assert.Null(topology.DisksOf("/mnt/overlay/out")); // no block device to follow
+        Assert.Empty(topology.DisksOf("/tmp/out")!);
+        Assert.Empty(topology.DisksOf("/mnt/host/out")!); // a virtual machine's host share
+        Assert.Empty(topology.DisksOf("/run/user/1000/gvfs/smb-share:server=nas,share=s/out")!);
+        Assert.Null(topology.DisksOf("/run/user/1000/gvfs/smb-share:server=localhost,share=s/out"));
+        Assert.Null(topology.DisksOf("/run/user/1000/gvfs/archive:host=file%253A%252F%252F%252Fhome%252Fu%252Fa.zip/out"));
+        Assert.Empty(topology.DisksOf("/run/user/1000/gvfs/mtp:host=Phone/out")!);
+        Assert.Equal(["sdb", "sdc"], topology.DisksOf("/pool/out")!.Order()); // every device the btrfs spans
+        Assert.Equal(["sdb"], topology.DisksOf("/data/over/out")); // the mount on top
+        Assert.Null(new UnixDisks.LinuxTopology(sys, mounts, _ => null, _ => false).DisksOf("/home/u/out")); // a path that cannot be resolved
+
+        Assert.Equal("nas", UnixDisks.ServerOf("//user@nas/share"));
+        Assert.Equal("nas", UnixDisks.ServerOf("nas:/export"));
+        Assert.Equal("fe80::1", UnixDisks.ServerOf("[fe80::1]:/export"));
+        Assert.Equal("host", UnixDisks.ServerOf("user@host:/home/user"));
+        Assert.Equal("dav.example", UnixDisks.ServerOf("https://dav.example/files"));
+    }
+
+    [Fact]
     public void A_diskutil_property_list_is_read()
     {
         const string xml = """

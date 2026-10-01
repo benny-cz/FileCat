@@ -339,7 +339,8 @@ public static class UnixDisks
     {
         try
         {
-            return File.ResolveLinkTarget(path, returnFinalTarget: true)?.FullName ?? path;
+            FileSystemInfo item = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+            return item.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? path;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -347,58 +348,262 @@ public static class UnixDisks
         }
     }
 
+    /// <summary>File systems in memory: writing there touches no disk.</summary>
+    private static readonly string[] InMemory = ["tmpfs", "ramfs"];
+
+    /// <summary>File systems a virtual machine's host shares with it: stored on the host's disks, none of this system's.</summary>
+    private static readonly string[] HostShares = ["9p", "virtiofs", "vboxsf", "fuse.vmhgfs-fuse"];
+
+    /// <summary>File systems on another computer, named in the mount's source: on its disks, unless that computer is this one.</summary>
+    private static readonly string[] Network = ["nfs", "nfs4", "cifs", "smb3", "fuse.sshfs", "smbfs", "afpfs", "webdav"];
+
     /// <summary>
-    /// Linux: the whole disks a block device (sdb1, dm-0) lies on, from sysfs: a partition's parent, a mapped device's
-    /// underlying ones.
+    /// Linux: which whole disks a device or a folder lies on, from sysfs and the mount table (tests pass their own of each,
+    /// with how a folder's real path is found and which servers are this computer). Null whenever that cannot be told (no
+    /// sysfs entry, a device served over the network), which never counts as another disk (release plan V09).
     /// </summary>
-    internal static List<string> LinuxDisksOf(string sys, string name, int depth = 0)
+    internal sealed class LinuxTopology(string sys, IReadOnlyList<Mount> mounts, Func<string, string?> resolve, Func<string, bool> thisComputer)
     {
-        string dir = Path.Combine(sys, "class", "block", name);
-        if (depth > 8 || !Directory.Exists(dir)) return [];
-        string real = RealPath(dir);
-        if (File.Exists(Path.Combine(dir, "partition"))) return [Path.GetFileName(Path.GetDirectoryName(real)!)];
-        string slaves = Path.Combine(dir, "slaves");
-        if (Directory.Exists(slaves) && Directory.EnumerateFileSystemEntries(slaves).Any())
-            return Directory.EnumerateFileSystemEntries(slaves).SelectMany(s => LinuxDisksOf(sys, Path.GetFileName(s), depth + 1)).Distinct().ToList();
-        return [name];
+        /// <summary>
+        /// A device (read) or a folder (written to). A folder is placed by its real path (every link resolved), on the mount
+        /// that holds it; empty when that is memory or another computer's storage.
+        /// </summary>
+        public IReadOnlyList<string>? DisksOf(string pathOrDevice, int depth = 0)
+        {
+            if (depth > 8) return null;
+            if (pathOrDevice.StartsWith("/dev/", StringComparison.Ordinal))
+                return BlockDisks(Path.GetFileName(RealPath(pathOrDevice)), written: false, depth);
+            if (resolve(pathOrDevice) is not { } full) return null;
+            // The mount over a folder is the last one listed at the longest point that holds it (a later mount hides an earlier).
+            var mount = mounts.Select((m, i) => (Mount: m, Order: i))
+                .Where(x => full == x.Mount.Point || full.StartsWith(x.Mount.Point.TrimEnd('/') + "/", StringComparison.Ordinal))
+                .OrderByDescending(x => x.Mount.Point.Length).ThenByDescending(x => x.Order).Select(x => x.Mount).FirstOrDefault();
+            if (mount is null) return null;
+            if (InMemory.Contains(mount.Type) || HostShares.Contains(mount.Type)) return [];
+            if (Network.Contains(mount.Type)) return ServerOf(mount.Source) is { } server && !thisComputer(server) ? [] : null;
+            if (mount.Type == "fuse.gvfsd-fuse") return GvfsDisks(mount.Point, full, thisComputer);
+            if (mount.Type == "btrfs") return BtrfsMembers(mount, depth);
+            // bcachefs names all its devices, joined by colons.
+            if (mount.Source.StartsWith("/dev/", StringComparison.Ordinal))
+            {
+                var disks = new List<string>();
+                foreach (var device in mount.Source.Split(':'))
+                {
+                    if (!device.StartsWith("/dev/", StringComparison.Ordinal) ||
+                        BlockDisks(Path.GetFileName(RealPath(device)), written: true, depth + 1) is not { } under) return null;
+                    disks.AddRange(under);
+                }
+                return disks.Distinct().ToList();
+            }
+            string byNumbers = Path.Combine(sys, "dev", "block", mount.MajorMinor);
+            return Directory.Exists(byNumbers) ? BlockDisks(Path.GetFileName(RealPath(byNumbers)), written: true, depth + 1) : null;
+        }
+
+        /// <summary>
+        /// A block device (sdb1, dm-0, loop0): a partition's disk, a mapped device's underlying ones. Writing to a loop
+        /// device writes its backing file, so where something is written (<paramref name="written"/>) a loop device lies on
+        /// that file's disks; read, it is a disk of its own (writing next to an image file never changes what it holds).
+        /// </summary>
+        public IReadOnlyList<string>? BlockDisks(string name, bool written, int depth = 0)
+        {
+            string dir = Path.Combine(sys, "class", "block", name);
+            if (depth > 8 || !Directory.Exists(dir)) return null;
+            if (File.Exists(Path.Combine(dir, "partition")))
+                return BlockDisks(Path.GetFileName(Path.GetDirectoryName(RealPath(dir))!), written, depth + 1);
+            if (name.StartsWith("loop", StringComparison.Ordinal))
+            {
+                if (!written) return [name];
+                // One whose file was deleted, or that has none, cannot be placed.
+                string? backing = Read(dir, "loop/backing_file");
+                return backing is null || !backing.StartsWith('/') || backing.EndsWith(" (deleted)", StringComparison.Ordinal)
+                    ? null : DisksOf(backing, depth + 1);
+            }
+            // Devices served by another program over the network (qemu-nbd, Ceph) may be backed by a file on any disk here.
+            if (name.StartsWith("nbd", StringComparison.Ordinal) || name.StartsWith("rbd", StringComparison.Ordinal)) return written ? null : [name];
+            string slaves = Path.Combine(dir, "slaves");
+            var members = Directory.Exists(slaves) ? Directory.EnumerateFileSystemEntries(slaves).Select(Path.GetFileName).OfType<string>().ToList() : [];
+            if (members.Count == 0) return [name];
+            var disks = new List<string>();
+            foreach (var member in members)
+            {
+                if (BlockDisks(member, written, depth + 1) is not { } under) return null;
+                disks.AddRange(under);
+            }
+            return disks.Distinct().ToList();
+        }
+
+        /// <summary>A btrfs file system's disks: every device it spans (sysfs lists them by its id), not only the one mounted.</summary>
+        private IReadOnlyList<string>? BtrfsMembers(Mount mount, int depth)
+        {
+            string root = Path.Combine(sys, "fs", "btrfs");
+            if (!mount.Source.StartsWith("/dev/", StringComparison.Ordinal) || !Directory.Exists(root)) return null;
+            string name = Path.GetFileName(RealPath(mount.Source));
+            foreach (var fs in Directory.EnumerateDirectories(root))
+            {
+                string devices = Path.Combine(fs, "devices");
+                if (!Directory.Exists(devices) || !Directory.EnumerateFileSystemEntries(devices).Any(d => Path.GetFileName(d) == name)) continue;
+                var disks = new List<string>();
+                foreach (var device in Directory.EnumerateFileSystemEntries(devices))
+                {
+                    if (BlockDisks(Path.GetFileName(device), written: true, depth + 1) is not { } under) return null;
+                    disks.AddRange(under);
+                }
+                return disks.Distinct().ToList();
+            }
+            return null;
+        }
     }
 
-    /// <summary>File systems that live in memory or on another computer: writing there never touches a local disk.</summary>
-    private static readonly string[] NotOnDisk = ["tmpfs", "ramfs", "nfs", "nfs4", "cifs", "smb3", "fuse.sshfs", "9p", "virtiofs", "fuse.rclone"];
+    /// <summary>
+    /// GVFS's folders (/run/user/ID/gvfs/smb-share:server=…,share=…): another computer's storage when the folder names a
+    /// server that is not this one; unknown for everything else GVFS serves (archives, which are local files; trash).
+    /// </summary>
+    private static IReadOnlyList<string>? GvfsDisks(string point, string full, Func<string, bool> thisComputer)
+    {
+        if (full.Length <= point.TrimEnd('/').Length + 1) return null;
+        string first = full[(point.TrimEnd('/').Length + 1)..].Split('/')[0];
+        int colon = first.IndexOf(':');
+        if (colon < 0) return null;
+        string scheme = first[..colon];
+        if (scheme is not ("smb-share" or "sftp" or "ftp" or "ftps" or "dav" or "davs" or "afp-volume" or "nfs" or "mtp" or "gphoto2" or "afc")) return null;
+        // A phone or a camera is a device of its own.
+        if (scheme is "mtp" or "gphoto2" or "afc") return [];
+        foreach (var setting in first[(colon + 1)..].Split(','))
+            if (setting.StartsWith("server=", StringComparison.Ordinal) || setting.StartsWith("host=", StringComparison.Ordinal))
+            {
+                string server = Uri.UnescapeDataString(setting[(setting.IndexOf('=') + 1)..]);
+                return thisComputer(server) ? null : [];
+            }
+        return null;
+    }
+
+    /// <summary>The server a network mount's source names: //server/share, server:/export, [v6]:/export, user@server:path, a URL.</summary>
+    internal static string? ServerOf(string source)
+    {
+        string s = source;
+        if (Uri.TryCreate(s, UriKind.Absolute, out var url) && url.Scheme is "http" or "https") return url.Host;
+        if (s.StartsWith("//", StringComparison.Ordinal))
+        {
+            s = s[2..];
+            int slash = s.IndexOf('/');
+            if (slash >= 0) s = s[..slash];
+            int at = s.LastIndexOf('@');
+            return at >= 0 ? s[(at + 1)..] : s;
+        }
+        int user = s.IndexOf('@');
+        if (user >= 0 && user < s.IndexOf(':')) s = s[(user + 1)..];
+        if (s.StartsWith('['))
+        {
+            int close = s.IndexOf(']');
+            return close > 1 ? s[1..close] : null;
+        }
+        int separator = s.IndexOf(':');
+        return separator > 0 ? s[..separator] : null;
+    }
+
+    /// <summary>A folder's real path: the nearest part of it that exists with every link resolved, then the rest as written.</summary>
+    internal static string? ResolveExisting(string path)
+    {
+        string full = Path.GetFullPath(path);
+        var rest = new Stack<string>();
+        string? at = full;
+        while (at is not null)
+        {
+            if (Directory.Exists(at) || File.Exists(at))
+            {
+                if (UnixFiles.RealPath(at) is not { } real) return null;
+                foreach (var part in rest) real = Path.Combine(real, part);
+                return real;
+            }
+            rest.Push(Path.GetFileName(at));
+            at = Path.GetDirectoryName(at);
+        }
+        return null;
+    }
 
     /// <summary>
     /// The whole disks a device or a folder lies on (sdb; disk0 on macOS); empty when a folder is on no local disk
-    /// (memory, network); null when unknown.
+    /// (memory, another computer's storage); null when unknown, which never counts as another disk.
     /// </summary>
     public static IReadOnlyList<string>? DisksOf(string pathOrDevice)
     {
         try
         {
             if (OperatingSystem.IsLinux())
-            {
-                if (pathOrDevice.StartsWith("/dev/", StringComparison.Ordinal)) return LinuxDisksOf("/sys", Path.GetFileName(RealPath(pathOrDevice)));
-                var mounts = ParseMountInfo(File.ReadLines("/proc/self/mountinfo"));
-                string full = Path.GetFullPath(pathOrDevice);
-                var mount = mounts.Where(m => full == m.Point || full.StartsWith(m.Point.TrimEnd('/') + "/", StringComparison.Ordinal))
-                    .OrderByDescending(m => m.Point.Length).FirstOrDefault();
-                if (mount is null) return null;
-                if (NotOnDisk.Contains(mount.Type)) return [];
-                if (mount.Source.StartsWith("/dev/", StringComparison.Ordinal)) return LinuxDisksOf("/sys", Path.GetFileName(RealPath(mount.Source)));
-                string byNumbers = Path.Combine("/sys/dev/block", mount.MajorMinor);
-                return Directory.Exists(byNumbers) ? LinuxDisksOf("/sys", Path.GetFileName(RealPath(byNumbers))) : null;
-            }
-            if (OperatingSystem.IsMacOS())
-            {
-                string target = pathOrDevice.StartsWith("/dev/", StringComparison.Ordinal) ? pathOrDevice.Replace("/dev/rdisk", "/dev/disk", StringComparison.Ordinal)
-                    : UnixFiles.MountOf(Path.GetFullPath(pathOrDevice))?.Name ?? pathOrDevice;
-                if (Plist(Run("/usr/sbin/diskutil", "info", "-plist", target)) is not Dictionary<string, object?> info) return null;
-                if (info.GetValueOrDefault("APFSPhysicalStores") is List<object?> stores)
-                    return stores.OfType<Dictionary<string, object?>>().Select(s => WholeDisk(s.GetValueOrDefault("APFSPhysicalStore") as string)).OfType<string>().Distinct().ToList();
-                return info.GetValueOrDefault("ParentWholeDisk") is string whole ? [whole] : null;
-            }
+                return new LinuxTopology("/sys", ParseMountInfo(File.ReadLines("/proc/self/mountinfo")), ResolveExisting, ThisComputerLookup).DisksOf(pathOrDevice);
+            if (OperatingSystem.IsMacOS()) return MacDisksOf(pathOrDevice, 0);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Xml.XmlException or System.ComponentModel.Win32Exception)
         {
+        }
+        return null;
+    }
+
+    private static bool ThisComputerLookup(string server) => FileCat.Core.Network.ThisComputer.Is(server, TimeSpan.FromSeconds(2));
+
+    /// <summary>
+    /// macOS: a device (read), or a folder (written to) by its real path on the volume that holds it; an APFS volume's
+    /// physical stores. Written to, an attached disk image lies where its image file is; read, it is a disk of its own.
+    /// </summary>
+    private static IReadOnlyList<string>? MacDisksOf(string pathOrDevice, int depth)
+    {
+        if (depth > 8) return null;
+        string target;
+        bool written = !pathOrDevice.StartsWith("/dev/", StringComparison.Ordinal);
+        if (!written) target = pathOrDevice.Replace("/dev/rdisk", "/dev/disk", StringComparison.Ordinal);
+        else
+        {
+            if (ResolveExisting(pathOrDevice) is not { } full || UnixFiles.MountOf(full) is not { } mount) return null;
+            string type = mount.DriveFormat;
+            if (InMemory.Contains(type) || HostShares.Contains(type)) return [];
+            if (Network.Contains(type) || type is "nfs" or "ftp")
+                return MacMountSource(mount.Name) is { } source && ServerOf(source) is { } server && !ThisComputerLookup(server) ? [] : null;
+            target = mount.Name;
+        }
+        if (Plist(Run("/usr/sbin/diskutil", "info", "-plist", target)) is not Dictionary<string, object?> info) return null;
+        List<string> wholes;
+        if (info.GetValueOrDefault("APFSPhysicalStores") is List<object?> stores)
+            wholes = stores.OfType<Dictionary<string, object?>>().Select(s => WholeDisk(s.GetValueOrDefault("APFSPhysicalStore") as string)).OfType<string>().Distinct().ToList();
+        else if (info.GetValueOrDefault("ParentWholeDisk") is string whole) wholes = [whole];
+        else return null;
+        if (wholes.Count == 0) return null;
+        var disks = new List<string>();
+        foreach (var whole in wholes)
+        {
+            var wholeInfo = written ? Plist(Run("/usr/sbin/diskutil", "info", "-plist", whole)) as Dictionary<string, object?> : null;
+            if (!written || wholeInfo?.GetValueOrDefault("BusProtocol") as string != "Disk Image")
+            {
+                disks.Add(whole);
+                continue;
+            }
+            // An attached disk image is stored in its image file, wherever that is.
+            if (ImageFileOf("/dev/" + whole) is not { } image || MacDisksOf(image, depth + 1) is not { } under) return null;
+            disks.AddRange(under);
+        }
+        return disks.Distinct().ToList();
+    }
+
+    /// <summary>The image file an attached disk image (/dev/diskN) is read from (hdiutil info), or null.</summary>
+    private static string? ImageFileOf(string device)
+    {
+        if (Plist(Run("/usr/bin/hdiutil", "info", "-plist")) is not Dictionary<string, object?> info || info.GetValueOrDefault("images") is not List<object?> images) return null;
+        foreach (var image in images.OfType<Dictionary<string, object?>>())
+        {
+            if (image.GetValueOrDefault("system-entities") is not List<object?> entities) continue;
+            if (entities.OfType<Dictionary<string, object?>>().Any(e => e.GetValueOrDefault("dev-entry") as string == device))
+                return image.GetValueOrDefault("image-path") is string path && path.StartsWith('/') ? path : null;
+        }
+        return null;
+    }
+
+    /// <summary>What a macOS mount point is mounted from (//user@server/share for a share), as mount(8) lists it.</summary>
+    private static string? MacMountSource(string point)
+    {
+        string trimmed = point.Length > 1 ? point.TrimEnd('/') : point;
+        foreach (var line in Run("/sbin/mount").Split('\n'))
+        {
+            int on = line.IndexOf(" on " + trimmed + " (", StringComparison.Ordinal);
+            if (on > 0) return line[..on];
         }
         return null;
     }

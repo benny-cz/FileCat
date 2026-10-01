@@ -2,8 +2,8 @@ namespace FileCat.App;
 
 /// <summary>
 /// Command-line arguments (plan §19.1, adapting Total Commander's /O /L /R /S): locations open in new tabs
-/// of the active panel (or with --left/--right in a given panel), --profile selects a profile, and
-/// --new-instance bypasses forwarding to a running instance.
+/// of the active panel (or with --left/--right in a given panel), --profile selects a profile, --data keeps
+/// everything FileCat writes in one folder, and --new-instance bypasses forwarding to a running instance.
 /// </summary>
 public sealed class StartupOptions
 {
@@ -11,6 +11,11 @@ public sealed class StartupOptions
     public string? LeftLocation { get; set; }
     public string? RightLocation { get; set; }
     public string? Profile { get; set; }
+    /// <summary>
+    /// --data: a folder that holds everything FileCat writes (settings, logs, journals, caches, scratch, hex originals),
+    /// for recovering deleted files from the disk that holds FileCat's usual places (release plan V09, I09).
+    /// </summary>
+    public string? DataRoot { get; set; }
     public string? Workspace { get; set; }
     public string? ListFile { get; set; }
     public bool NewInstance { get; set; }
@@ -35,6 +40,7 @@ public sealed class StartupOptions
                 case "--left" or "/l": o.LeftLocation = Next(); break;
                 case "--right" or "/r": o.RightLocation = Next(); break;
                 case "--profile": o.Profile = Next(); break;
+                case "--data": o.DataRoot = Next() is { Length: > 0 } data ? Path.GetFullPath(data) : null; break;
                 case "--workspace": o.Workspace = Next(); break;
                 case "--list" or "--loadlist": o.ListFile = Next(); break;
                 case "--new-instance" or "/n": o.NewInstance = true; break;

@@ -39,12 +39,15 @@ Requires the .NET 10 SDK. No paid components or accounts are needed.
 ```
 dotnet build FileCat.slnx
 dotnet test FileCat.slnx
-dotnet run --project src/FileCat.App -- [path] [--left PATH] [--right PATH] [--profile NAME]
+dotnet run --project src/FileCat.App -- [path] [--left PATH] [--right PATH] [--profile NAME] [--data FOLDER]
 ```
 
 Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
 framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.
 A portable copy keeps its settings in `Data/` next to the executable (marker file `FileCat.portable`).
+`--data FOLDER` keeps everything FileCat writes (settings, history, logs, journals, caches, scratch) in that one
+folder. FileCat does not scan a disk for deleted files while it keeps files of its own there: to recover from that
+disk, close FileCat and start it with `--data` on another disk.
 
 ## Keyboard essentials
 

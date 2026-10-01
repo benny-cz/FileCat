@@ -46,6 +46,8 @@ public sealed class RecoveryProvider : ResourceProvider
     private readonly ConcurrentDictionary<string, string> _deviceNames = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Devices that are one volume (a drive, a partition) rather than a whole disk.</summary>
     private readonly ConcurrentDictionary<string, bool> _volumeDevices = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>The size each device had when the user chose it.</summary>
+    private readonly ConcurrentDictionary<string, long> _deviceLengths = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _scanLock = new();
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes) : IDisposable
@@ -89,12 +91,17 @@ public sealed class RecoveryProvider : ResourceProvider
     /// <summary>
     /// The deleted items of a drive or a disk (\\?\Volume{…} or \\.\PhysicalDriveN; /dev/sdb1 or /dev/sdb; /dev/rdisk4s1);
     /// <paramref name="name"/> is what the user calls it. With <paramref name="volume"/>, the device is one volume (a drive,
-    /// a partition) and opens at that volume; without, it is a whole disk and opens at its list of volumes.
+    /// a partition) and opens at that volume; without, it is a whole disk and opens at its list of volumes. This is the only
+    /// way a device's scan opens, after the user chose it and its checks passed: a device location reached otherwise (a
+    /// bookmark, the folder history) is refused. With <paramref name="length"/> (its size when it was chosen), a device that
+    /// opens with another size is refused: a disk replaced meanwhile can take the chosen one's name.
     /// </summary>
-    public Location ForDevice(string device, string name, int? volume = null)
+    public Location ForDevice(string device, string name, int? volume = null, long length = 0)
     {
         _deviceNames[device] = name;
         if (volume is not null) _volumeDevices[device] = true;
+        if (length > 0) _deviceLengths[device] = length;
+        else _deviceLengths.TryRemove(device, out _);
         return new(Schemes.Recovery, string.Empty, new Location(Schemes.Device, device), volume?.ToString(CultureInfo.InvariantCulture));
     }
 
@@ -438,12 +445,17 @@ public sealed class RecoveryProvider : ResourceProvider
             if (!device)
                 foreach (var old in _sessions.Where(s => s.Key.StartsWith(Path.GetFullPath(path) + "|", StringComparison.OrdinalIgnoreCase)).ToList())
                     if (_sessions.TryRemove(old.Key, out var stale)) stale.Dispose();
+            if (device && !_deviceNames.ContainsKey(path))
+                throw new UnauthorizedAccessException("A drive's deleted files are scanned only when you ask for it: right-click the drive or disk and choose Find deleted files, so that FileCat can first check that it may.");
             IBlockSource source = device
                 ? (OpenDevice ?? throw new NotSupportedException("Reading drives directly is not available here: make an image of the drive on another drive, then open the image."))
                     .Invoke(path, SourceName(location), ct)
                 : new ImageFileSource(path);
             try
             {
+                if (device && _deviceLengths.TryGetValue(path, out long chosen) && source.Length != chosen)
+                    throw new IOException($"{SourceName(location)} is not the disk that was chosen: it now holds {source.Length:N0} bytes, not {chosen:N0}. " +
+                                          "A disk plugged in meanwhile can take another one's place: choose it again from the list of drives.");
                 var session = new Session(source, Scan(source, device, ct));
                 _sessions[key] = session;
                 while (_sessions.Count > MaxSessions)

@@ -138,6 +138,22 @@ public sealed class ShellHostTests : IDisposable
     }
 
     [Fact]
+    public async Task While_paused_the_helper_is_asked_for_nothing_and_known_pictures_stay()
+    {
+        // Release plan V09 (I09): while FileCat recovers from the disk that holds the Shell's picture caches, the Shell
+        // (which writes what it draws into them) is asked for nothing; what was already known is still shown.
+        var ct = TestContext.Current.CancellationToken;
+        string notepad = Path.Combine(Environment.SystemDirectory, "notepad.exe"), cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+        using var previews = new ShellPreviews(new ShellHostClient(Helper(), testFaults: true), () => false);
+        var known = await previews.GetAsync(ShellImageKind.Icon, notepad, 1, FileAttributes.Normal, 32, ct);
+        int before = previews.HelperRequests;
+        previews.Paused = true;
+        Assert.Null(await previews.GetAsync(ShellImageKind.Icon, cmd, 1, FileAttributes.Normal, 32, ct));
+        Assert.Same(known, await previews.GetAsync(ShellImageKind.Icon, notepad, 1, FileAttributes.Normal, 32, ct));
+        Assert.Equal(before, previews.HelperRequests);
+    }
+
+    [Fact]
     public async Task A_request_made_while_the_same_one_is_with_the_helper_shares_its_answer()
     {
         // Release issue I29: the same picture asked for while the helper already works on it (the worker had taken the

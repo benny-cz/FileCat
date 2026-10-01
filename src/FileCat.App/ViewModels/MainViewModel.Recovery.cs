@@ -4,6 +4,7 @@ using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.State;
 using FileCat.Recovery;
 using FileCat.Recovery.Unix;
 
@@ -329,15 +330,21 @@ public sealed partial class MainViewModel
         }
         string name = $"drive {drive.RootPath.TrimEnd('\\')}" + (string.IsNullOrWhiteSpace(drive.Label) ? "" : $" ({drive.Label})");
         bool system = string.Equals(Path.GetPathRoot(Environment.SystemDirectory), drive.RootPath, StringComparison.OrdinalIgnoreCase);
-        bool ownFiles = FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk(device, Services.Paths.JournalDirectory) != false;
+        var safety = await Task.Run(() => CheckDiskSafety(device, name));
+        if (safety.Refusal is not null)
+        {
+            await RefuseScanAsync(safety);
+            return;
+        }
         string how = Environment.IsPrivilegedProcess
             ? "FileCat runs as administrator and reads the drive itself, only reading: nothing on it is changed. "
             : "Windows asks for administrator approval, and FileCat's helper then only reads the drive: nothing on it is changed. ";
         string text = $"Scan {name} for deleted files? " + how +
                       (system ? "Windows runs from this drive and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the drive from another computer. " : "") +
-                      (ownFiles && !system ? "FileCat keeps its own settings and logs on this disk, and writes to them while it works. " : "") +
+                      safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
+        HoldOff(safety);
         var root = Services.Recovery.ForDevice(device, name, 1);
         var scan = panel.OpenTab(root);
         if (folder is not null && folder.Length > drive.RootPath.Length)
@@ -357,17 +364,141 @@ public sealed partial class MainViewModel
         }
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
         bool system = HoldsWindows(disk);
-        bool ownFiles = !system && FileCat.Platform.Windows.Recovery.DeviceTopology.SharesDisk(disk.Device, Services.Paths.JournalDirectory) != false;
+        var safety = await Task.Run(() => CheckDiskSafety(disk.Device, name));
+        if (safety.Refusal is not null)
+        {
+            await RefuseScanAsync(safety);
+            return;
+        }
         string how = Environment.IsPrivilegedProcess
             ? "FileCat runs as administrator and reads the disk itself, only reading: nothing on it is changed. "
             : "Windows asks for administrator approval, and FileCat's helper then only reads the disk: nothing on it is changed. ";
         string text = $"Scan {name} for deleted files? The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " + how +
                       (system ? "Windows runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. " : "") +
-                      (ownFiles ? "FileCat keeps its own settings and logs on this disk, and writes to them while it works. " : "") +
+                      safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
-        panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name));
+        HoldOff(safety);
+        // The disk's size when it was chosen: a disk plugged in meanwhile under the same number is refused.
+        panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name, length: disk.Length));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
+    }
+
+    /// <summary>
+    /// Whether a device's scan can leave its disk alone (release plan V09, I09), worked out before anything is shown:
+    /// <see cref="Refusal"/> says why it cannot (with <see cref="Command"/>, the way to start FileCat that can); otherwise
+    /// what FileCat holds off while the scan is open, since the Shell and gpg write into folders of the user's on that disk.
+    /// </summary>
+    internal sealed record DiskSafety(string? Refusal, string? Command, bool PauseShellPictures, bool PauseSignatures)
+    {
+        /// <summary>What the confirmation says FileCat holds off while the scan is open.</summary>
+        public string HeldOff => (PauseShellPictures, PauseSignatures) switch
+        {
+            (true, true) => "While the scan is open, FileCat asks Windows for no file pictures and runs no GnuPG checks: both write into folders on this disk. ",
+            (true, false) => "While the scan is open, FileCat asks Windows for no file pictures: Windows writes them into a cache on this disk. ",
+            (false, true) => "While the scan is open, FileCat runs no GnuPG checks: gpg writes into its folder on this disk. ",
+            _ => "",
+        };
+    }
+
+    /// <summary>
+    /// FileCat writes to its own folders while it works (settings, history, logs, journals, caches, scratch, the helper's
+    /// exchange), and each write can land where deleted files still lie. A warning followed by such writes would not keep
+    /// them safe, so a device whose disk holds any of those folders, or where that cannot be told, is not scanned at all.
+    /// A FileCat started with its files elsewhere (--data) also waits for the usual one to be closed when that one's files
+    /// are on the disk.
+    /// </summary>
+    internal DiskSafety CheckDiskSafety(string device, string name)
+    {
+        var shares = Services.Recovery.SharesDisk;
+        bool? Shares(string folder) => shares?.Invoke(device, folder);
+        (List<string> Known, List<string> Unknown) Check(IEnumerable<(string What, string Folder)> folders)
+        {
+            var known = new List<string>();
+            var unknown = new List<string>();
+            foreach (var group in folders.GroupBy(f => f.What))
+            {
+                var answers = group.Select(f => Shares(f.Folder)).ToList();
+                string shown = $"{group.Key} ({group.First().Folder})";
+                if (answers.Contains(true)) known.Add(shown);
+                else if (answers.Contains(null)) unknown.Add(shown);
+            }
+            return (known, unknown);
+        }
+        var (own, unsure) = Check(Services.Paths.WriteFolders);
+        if (own.Count > 0 || unsure.Count > 0)
+        {
+            string command = DataCommand(SuggestedDataFolder(device) ?? (OperatingSystem.IsWindows() ? @"X:\FileCat data" : "/media/USB/FileCat data"));
+            string refusal = $"FileCat does not scan {name}. " +
+                             (own.Count > 0 ? $"It keeps files of its own on that disk and writes to them while it works, and each write can land where deleted files still lie: {string.Join("; ", own)}. " : "") +
+                             (unsure.Count > 0 ? $"It cannot tell whether these files of its own, which it writes to while it works, are on that disk: {string.Join("; ", unsure)}. " : "") +
+                             "\n\nTo recover from that disk, close FileCat and start it with all of its files in a folder on another disk (a USB stick, say), then scan the disk there and recover to another disk:\n\n" +
+                             command + "\n\nSafer still: make an image of the disk from another computer, and recover from the image.";
+            return new DiskSafety(refusal, command, false, false);
+        }
+        string? profile = App.StartupOptions.Profile;
+        if (Services.Paths.DataRoot is not null && SingleInstance.UsualInstanceRunning(profile))
+        {
+            var (usual, usualUnsure) = Check(AppPaths.Usual(profile).WriteFolders);
+            if (usual.Count > 0 || usualUnsure.Count > 0)
+                return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, and it writes to them while it works: " +
+                                      string.Join("; ", usual.Concat(usualUnsure)) + (usual.Count > 0 ? " are on that disk." : " may be on that disk.") +
+                                      " Close it, then ask for the scan again here.", null, false, false);
+        }
+        bool shellCache = OperatingSystem.IsWindows() && Services.ShellPictures is not null &&
+                          Shares(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer")) != false;
+        bool gpg = Shares(Core.Verification.OpenPgp.Home()) != false;
+        return new DiskSafety(null, null, shellCache, gpg);
+    }
+
+    private async Task RefuseScanAsync(DiskSafety safety)
+    {
+        if (safety.Command is null)
+        {
+            await Dialogs.AlertAsync("Recover deleted files", safety.Refusal!);
+            return;
+        }
+        if (await Dialogs.ConfirmAsync("Recover deleted files", safety.Refusal!, "Copy the command", cancelText: "Close"))
+        {
+            CopyTextToClipboard(safety.Command);
+            Notify("The command is on the clipboard: close FileCat, then run it (the folder it names must be on another disk).");
+        }
+    }
+
+    /// <summary>Once a device's scan is confirmed: what writes into folders on its disk is held off until FileCat closes.</summary>
+    private void HoldOff(DiskSafety safety)
+    {
+        if (safety.PauseShellPictures && Services.ShellPictures is { } shell) shell.Paused = true;
+        if (safety.PauseSignatures && Core.Verification.VerificationService.Current is { } verification) verification.SignatureToolsPaused = true;
+    }
+
+    /// <summary>The command that starts this FileCat with everything it writes in <paramref name="folder"/>.</summary>
+    private static string DataCommand(string folder)
+    {
+        // An AppImage runs from a folder that is gone once it ends: the image itself is what to start again.
+        string program = Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } image ? image : Environment.ProcessPath ?? "FileCat";
+        static string Quote(string text) => OperatingSystem.IsWindows() ? $"\"{text}\"" : "'" + text.Replace("'", "'\\''") + "'";
+        return $"{Quote(program)} --data {Quote(folder)}";
+    }
+
+    /// <summary>A folder on a local drive known to lie on another disk than <paramref name="device"/>, with room; null when none is.</summary>
+    private string? SuggestedDataFolder(string device)
+    {
+        try
+        {
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                string root = drive.RootDirectory.FullName;
+                if (drive.DriveType is not (DriveType.Fixed or DriveType.Removable) || !drive.IsReady) continue;
+                if (!OperatingSystem.IsWindows() && !(root.StartsWith("/media/", StringComparison.Ordinal) || root.StartsWith("/run/media/", StringComparison.Ordinal) ||
+                                                      root.StartsWith("/mnt/", StringComparison.Ordinal) || root.StartsWith("/Volumes/", StringComparison.Ordinal))) continue;
+                if (drive.AvailableFreeSpace >= 1L << 30 && Services.Recovery.SharesDisk?.Invoke(device, root) == false) return Path.Combine(root, "FileCat data");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+        return null;
     }
 
     /// <summary>A mounted partition with a file system a scan reads.</summary>
@@ -392,14 +523,21 @@ public sealed partial class MainViewModel
             : "Your system asks for an administrator's password, and FileCat then only reads it: nothing on it is changed. ";
         var mounts = disk ? (await Task.Run(UnixDisks.List)).Where(v => v.Disk == device.Device).SelectMany(v => v.MountPoints).ToList() : device.MountPoints.ToList();
         bool system = mounts.Contains("/") || mounts.Contains("/System/Volumes/Data");
-        bool ownFiles = !system && UnixDisks.SharesDisk(device.Device, Services.Paths.JournalDirectory) != false;
+        var safety = await Task.Run(() => CheckDiskSafety(device.Device, name));
+        if (safety.Refusal is not null)
+        {
+            await RefuseScanAsync(safety);
+            return;
+        }
         string text = $"Scan {name} for deleted files? " + (disk ? "The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " : "") + how +
                       (system ? "The system runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. "
                        : mounts.Count > 0 ? $"It is mounted ({string.Join(", ", mounts)}), so programs can write to it while FileCat reads: unmounting it first keeps it unchanged (its disk stays in this list). " : "") +
-                      (ownFiles ? "FileCat keeps its own settings and logs on this disk, and writes to them while it works. " : "") +
+                      safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
         if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
-        var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1);
+        HoldOff(safety);
+        // Its size when it was chosen: a disk plugged in meanwhile under the same name is refused.
+        var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1, device.Length);
         var scan = panel.OpenTab(root);
         if (!disk && folder is not null && device.MountPoints.FirstOrDefault(m => Holds(m, folder)) is { } mount && folder.Length > mount.TrimEnd('/').Length)
             GoToFolderWhenScanned(scan, root, folder[mount.TrimEnd('/').Length..].Trim('/'));

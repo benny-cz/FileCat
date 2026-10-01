@@ -23,7 +23,7 @@ public partial class App : Application
         bool benchmark = StartupOptions.BenchmarkCount > 0;
         // The TV-01 benchmark runs on isolated, temporary state with synthetic listings.
         string? benchmarkRoot = benchmark ? Path.Combine(Path.GetTempPath(), "FileCat-benchmark-" + Guid.NewGuid().ToString("N")) : null;
-        var services = AppServices.Initialize(StartupOptions.Profile, benchmarkRoot);
+        var services = AppServices.Initialize(StartupOptions.Profile, benchmarkRoot, StartupOptions.DataRoot);
         string syntheticRoot = Path.Combine(benchmarkRoot ?? services.Paths.TempDirectory, "synthetic");
         if (benchmark)
         {
@@ -98,7 +98,7 @@ public partial class App : Application
                     if (window.WindowState == Avalonia.Controls.WindowState.Minimized) window.WindowState = Avalonia.Controls.WindowState.Normal;
                     window.Activate();
                 });
-                SingleInstance.StartServer(StartupOptions.Profile);
+                SingleInstance.StartServer(StartupOptions.Profile, StartupOptions.DataRoot);
             }
         }
         base.OnFrameworkInitializationCompleted();

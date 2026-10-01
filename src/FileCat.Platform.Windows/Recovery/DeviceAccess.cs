@@ -6,6 +6,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Network;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Recovery;
 using Microsoft.Win32.SafeHandles;
@@ -508,7 +509,7 @@ public static unsafe partial class DeviceTopology
     {
         if (pathOrDevice.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase))
             return int.TryParse(pathOrDevice.AsSpan(17), out int n) ? [n] : null;
-        string? volume = pathOrDevice.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) ? pathOrDevice.TrimEnd('\\') : VolumeOfPath(pathOrDevice);
+        string? volume = pathOrDevice.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) ? pathOrDevice.TrimEnd('\\') : Locate(pathOrDevice)?.Volume;
         if (volume is null) return null;
         using var handle = CreateFile(volume, 0, 3, 0, 3, 0, 0);
         if (handle.IsInvalid) return null;
@@ -528,23 +529,56 @@ public static unsafe partial class DeviceTopology
 
     /// <summary>
     /// Whether writing into <paramref name="folder"/> would write to a disk <paramref name="device"/> lies on: true, false,
-    /// or null when either side is unknown. Network folders are never on a local disk.
+    /// or null when that cannot be told, which never counts as another disk (release plan V09). Another computer's share
+    /// is on no disk here; a share this computer serves itself is on one of its own, which one is not known.
     /// </summary>
     public static bool? SharesDisk(string device, string folder)
     {
-        if (PathUtil.IsUncPath(folder) || Path.GetPathRoot(Path.GetFullPath(folder)) is { } root && GetDriveType(root) == 4 /* DRIVE_REMOTE */) return false;
+        if (Locate(folder) is not { } place) return null;
+        if (place.Server is { } server) return ThisComputer.Is(server, TimeSpan.FromSeconds(2)) ? null : false;
         var source = DisksOf(device);
-        var target = DisksOf(folder);
+        var target = DisksOf(place.Volume!);
         if (source is null || target is null) return null;
-        return source.Intersect(target).Any();
+        if (source.Intersect(target).Any()) return true;
+        // A disk Windows makes from a file (VHD, VHDX) or from other disks (a storage space) is written where those
+        // lie, which is not known here.
+        return target.Any(IsComposite) ? null : false;
     }
 
-    private static string? VolumeOfPath(string path)
+    /// <summary>
+    /// Where writing into a folder goes: the volume (\\?\Volume{…}) its real path lies on, every link, junction and
+    /// mapped drive on the way resolved, or the server of the share it reaches. Null when neither can be told.
+    /// </summary>
+    internal static (string? Volume, string? Server)? Locate(string folder)
     {
-        var mount = new char[1024];
-        fixed (char* chars = mount)
-            if (!Native.NativeMethods.GetVolumePathName(Path.GetFullPath(path), chars, mount.Length)) return null;
-        return VolumeDevice(new string(mount).TrimEnd('\0'));
+        string full = Path.GetFullPath(folder);
+        string? existing = full;
+        while (existing is not null && !Directory.Exists(existing)) existing = Path.GetDirectoryName(existing);
+        string? share = PathUtil.GetUncServer(full)?.TrimStart('\\');
+        if (existing is not null)
+        {
+            string native = existing.Length < 248 || existing.StartsWith(@"\\?\", StringComparison.Ordinal) ? existing
+                : PathUtil.IsUncPath(existing) ? @"\\?\UNC\" + existing[2..] : @"\\?\" + existing;
+            using var handle = CreateFile(native, 0x80 /* FILE_READ_ATTRIBUTES */, 7, 0, 3, 0x02000000 /* FILE_FLAG_BACKUP_SEMANTICS */, 0);
+            if (!handle.IsInvalid)
+            {
+                if (ElevationPaths.FinalPath(handle, 0x1 /* VOLUME_NAME_GUID */) is { } guid && guid.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) &&
+                    guid.IndexOf('}') is var close and > 0)
+                    return (guid[..(close + 1)], null);
+                if (ElevationPaths.FinalPath(handle, 0 /* VOLUME_NAME_DOS */) is { } dos && dos.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+                    share = dos[8..].Split('\\')[0];
+                else return null;
+            }
+        }
+        // A WebDAV share's server is written with its port or "@SSL" after it.
+        return share is { Length: > 0 } ? (null, share.Split('@')[0]) : null;
+    }
+
+    /// <summary>A disk Windows makes from a file or from other disks: a VHD or VHDX, a storage space.</summary>
+    private static bool IsComposite(int disk)
+    {
+        using var handle = CreateFile(@"\\.\PhysicalDrive" + disk.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, 3, 0, 3, 0, 0);
+        return handle.IsInvalid || Describe(handle).Bus is "virtual" or "Storage Spaces";
     }
 
     internal static long Length(SafeFileHandle device)
@@ -573,7 +607,4 @@ public static unsafe partial class DeviceTopology
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DeviceIoControl(SafeFileHandle device, uint code, void* input, uint inputSize, void* output, uint outputSize, uint* returned, nint overlapped);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial uint GetDriveType(string root);
 }

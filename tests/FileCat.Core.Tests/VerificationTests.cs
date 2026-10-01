@@ -488,6 +488,24 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void While_a_disk_holding_GnuPGs_folder_is_recovered_gpg_is_not_run_and_nothing_is_kept()
+    {
+        // Release plan V09 (I09): gpg may write into its folder while it checks (trust database, locks), so while FileCat
+        // recovers deleted files from the disk that holds that folder, OpenPGP signatures stay unchecked, saying why, and
+        // that result is not kept to be shown later. Minisign is FileCat's own and goes on.
+        string cacheFile = Path.Combine(_dir, "cache", "verification.jsonl");
+        string signed = Write("release.tar", "release");
+        Write("release.tar.asc", "-----BEGIN PGP SIGNATURE-----\nnot really\n-----END PGP SIGNATURE-----\n");
+        var service = Service(cacheFile: cacheFile);
+        service.SignatureToolsPaused = true;
+        var held = service.Automatic(signed, TestContext.Current.CancellationToken)!;
+        Assert.Contains("recovers deleted files", string.Join("\n", [held.Text, .. held.Details]), StringComparison.Ordinal);
+        service.SignatureToolsPaused = false;
+        var later = service.Automatic(signed, TestContext.Current.CancellationToken)!;
+        Assert.DoesNotContain("recovers deleted files", string.Join("\n", [later.Text, .. later.Details]), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Verifying_on_request_checks_large_files_says_what_it_found_and_keeps_it()
     {
         string cacheFile = Path.Combine(_dir, "cache", "verification.jsonl");

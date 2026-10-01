@@ -195,12 +195,16 @@ public static class OpenPgp
         return candidates.FirstOrDefault(c => !c.Contains(Path.Combine("Git", "usr"), StringComparison.OrdinalIgnoreCase) && File.Exists(c));
     }
 
+    /// <summary>GnuPG's folder: GNUPGHOME, or gpg's default home. gpg may write there while it checks (its trust database, locks).</summary>
+    public static string Home() =>
+        Environment.GetEnvironmentVariable("GNUPGHOME") is { Length: > 0 } set ? set
+        : OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "gnupg")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gnupg");
+
     /// <summary>The user's keyring and trust database (GNUPGHOME, or gpg's default home), which a result depends on.</summary>
     public static IEnumerable<FileInfo> KeyringFiles()
     {
-        string home = Environment.GetEnvironmentVariable("GNUPGHOME") is { Length: > 0 } set ? set
-            : OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "gnupg")
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gnupg");
+        string home = Home();
         foreach (string name in new[] { "pubring.kbx", "pubring.gpg", "trustdb.gpg" })
         {
             var file = new FileInfo(Path.Combine(home, name));

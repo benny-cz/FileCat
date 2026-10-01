@@ -88,7 +88,7 @@ public sealed class ViewerWindow : Window
         _services = services;
         _displayName = displayName;
         _source = source;
-        _pageView = new PageView(Path.Combine(services.Paths.CacheDirectory, "webview")) { IsVisible = false };
+        _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
         s_open.Add(this);
         Closed += (_, _) => s_open.Remove(this);
         _reader = new PagedReader(source);

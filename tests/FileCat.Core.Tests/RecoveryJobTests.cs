@@ -245,6 +245,36 @@ public sealed class RecoveryJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_drive_opens_only_as_the_user_chose_it()
+    {
+        // Release plan V09 (I09): a drive's scan is started from the drive, after its checks; a device location reached
+        // otherwise (a bookmark, the folder history of an earlier session) opens nothing. A disk that took the chosen one's
+        // name meanwhile (another stick plugged in under the same number) is refused by its size.
+        string stick = RecoveryFixtures.Image("fat16");
+        long size = new FileInfo(stick).Length;
+        const string device = @"\\.\PhysicalDrive7";
+        var opened = new List<string>();
+        _recovery.OpenDevice = (d, _, _) =>
+        {
+            opened.Add(d);
+            return new ImageFileSource(stick);
+        };
+        var unchosen = new Location(Schemes.Recovery, string.Empty, new Location(Schemes.Device, device));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => ListAsync(unchosen));
+        Assert.Empty(opened);
+
+        var swapped = _recovery.ForDevice(device, "disk 7 (STICK)", length: size + 512);
+        var error = await Assert.ThrowsAsync<IOException>(() => ListAsync(swapped));
+        Assert.Contains("is not the disk that was chosen", error.Message, StringComparison.Ordinal);
+        Assert.Equal([device], opened);
+
+        var chosen = _recovery.ForDevice(device, "disk 7 (STICK)", length: size);
+        Assert.Equal(["Volume 1"], (await ListAsync(chosen)).Entries.Select(e => e.Name));
+        Assert.Equal([device, device], opened);
+        _recovery.CloseAll();
+    }
+
+    [Fact]
     public async Task A_partitioned_disk_lists_its_volumes_and_nothing_changes_the_image()
     {
         var image = RecoveryFixtures.Image("disk-gpt");

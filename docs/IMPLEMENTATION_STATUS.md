@@ -10,7 +10,7 @@ dotnet build FileCat.slnx
 dotnet test FileCat.slnx                              # Core 532, Windows integration 102 (9 need a phone, 6 a USB stick), App headless 158 (1 needs a USB stick), Remote 43 tests
 eng/package-linux.sh VERSION linux-x64                # Linux .tar.gz, .deb, AppImage (on Linux); eng/package-macos.sh VERSION on macOS
 FileCat.exe --benchmark 1000000 --benchmark-panels 4  # TV-01 native benchmark (isolated state, JSON results)
-dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --workspace NAME --new-instance --reset-layout
+dotnet run --project src/FileCat.App                  # [paths] --left P --right P --profile NAME --data FOLDER --workspace NAME --new-instance --reset-layout
 ```
 
 - **Portable mode:** put an empty `FileCat.portable` next to the exe; state goes to `Data/`.

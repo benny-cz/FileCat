@@ -67,7 +67,7 @@ public sealed class AppServices : IDisposable
         {
             // Drives are read through the installed administrator helper, which only reads (ADR-08); a FileCat that
             // runs as administrator already has the rights the helper would ask for, and reads them itself.
-            string exchange = Path.Combine(paths.JournalDirectory, "elevation");
+            string exchange = paths.ElevationExchangeDirectory;
             Recovery.OpenDevice = (device, name, ct) => Environment.IsPrivilegedProcess
                 ? FileCat.Platform.Windows.Recovery.DirectDeviceSource.Open(device, name)
                 : FileCat.Platform.Windows.Recovery.BrokeredDeviceSource.Open(device, name, paths.IsPortable, exchange, ct);
@@ -113,7 +113,7 @@ public sealed class AppServices : IDisposable
         // Shell handlers run only in the restricted helper beside FileCat (plan §8.2, TV-16), started on first use.
         if (FileCat.Platform.Windows.Shell.ShellHostClient.FindExecutable() is { } shellHelper)
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
-        EditSessions = new Core.Edit.EditSessionStore(Path.Combine(paths.LocalDirectory, "edit-sessions"), Platform.FileOperations);
+        EditSessions = new Core.Edit.EditSessionStore(paths.EditSessionsDirectory, Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
@@ -195,7 +195,7 @@ public sealed class AppServices : IDisposable
     public AppSettings Settings { get; }
 
     /// <summary>Public keys FileCat trusts for signatures beside files (minisign's .pub files), in the profile.</summary>
-    public string KeyDirectory => Path.Combine(Paths.SettingsDirectory, "keys");
+    public string KeyDirectory => Paths.KeysDirectory;
     public StateLoadStatus SettingsStatus { get; }
     public HistoryState History { get; }
     public StateLoadStatus HistoryStatus { get; }
@@ -216,9 +216,10 @@ public sealed class AppServices : IDisposable
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
 
     /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
-    public static AppServices Initialize(string? profile, string? overrideRoot = null)
+    /// <param name="dataRoot">--data: everything FileCat writes goes below this folder.</param>
+    public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null)
     {
-        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot));
+        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot));
         return Current;
     }
 
@@ -308,6 +309,8 @@ public sealed class AppServices : IDisposable
     public void RecordFolder(Location location)
     {
         if (location.Scheme is Schemes.ResultSet && !Core.Search.ResultSetProvider.IsPersistent(location)) return;
+        // A drive's deleted items open only from the drive, after its checks (release plan V09): not from the history.
+        if (location.Scheme is Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(location)) return;
         var list = History.Folders;
         list.RemoveAll(h => h.Location == location && !h.Pinned);
         var existing = list.FirstOrDefault(h => h.Location == location);

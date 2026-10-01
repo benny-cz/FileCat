@@ -108,6 +108,12 @@ public sealed class ShellPreviews : IDisposable
 
     public ShellHostClient Client => _client;
 
+    /// <summary>
+    /// Set while FileCat recovers deleted files from the disk that holds the Shell's picture caches (release plan V09, I09):
+    /// the helper asks for nothing, since the Shell writes what it draws into those caches. Pictures already known stay.
+    /// </summary>
+    public bool Paused { get; set; }
+
     /// <summary>Why an icon a user's file names may not be read under this session's settings, or null when it may.</summary>
     public string? IconResourceRefusal(IconLocation location) => ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable());
 
@@ -139,6 +145,10 @@ public sealed class ShellPreviews : IDisposable
     public Task<ShellImage?> GetAsync(ShellImageKind kind, string path, long modifiedTicks, FileAttributes attributes, int size, CancellationToken ct)
     {
         if (_disposed || _client.DisabledReason is not null) return Task.FromResult<ShellImage?>(null);
+        if (Paused)
+        {
+            lock (_lock) return Task.FromResult(_cache.GetValueOrDefault(KeyOf(kind, path, modifiedTicks, size)));
+        }
         if (kind == ShellImageKind.IconResource
                 ? IconResourceRequest.Parse(path) is not { } location || ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable()) is not null
                 : ShellPreviewPolicy.Refusal(path, attributes, _allowNetworkAndRemovable()) is not null)
@@ -209,7 +219,8 @@ public sealed class ShellPreviews : IDisposable
             {
                 var r = _pending[i];
                 _pending.RemoveAt(i);
-                if (r.Waiters.Any(w => !w.Ct.IsCancellationRequested)) return _running = r;
+                // Paused meanwhile: what was asked for before is not asked of the helper either.
+                if (!Paused && r.Waiters.Any(w => !w.Ct.IsCancellationRequested)) return _running = r;
                 foreach (var (tcs, _) in r.Waiters) tcs.TrySetResult(null);
             }
             return null;

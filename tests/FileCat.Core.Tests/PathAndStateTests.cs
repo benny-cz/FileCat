@@ -49,6 +49,33 @@ public class PathAndStateTests
     }
 
     [Fact]
+    public void With_a_data_folder_everything_FileCat_writes_is_in_it_and_the_usual_places_are_only_worked_out()
+    {
+        // Release plan V09 (I09): to recover from the disk that holds FileCat's usual places, FileCat is started with all
+        // of its files elsewhere (--data). Every folder it writes in must then lie in that folder, scratch and hex originals too.
+        using var dir = new TempDir();
+        string data = Path.Combine(dir.Path, "recovery data");
+        var paths = AppPaths.Resolve(dataRoot: data);
+        Assert.Equal(Path.GetFullPath(data), paths.DataRoot);
+        Assert.NotEmpty(paths.WriteFolders);
+        Assert.All(paths.WriteFolders, f => Assert.True(PathUtil.IsSameOrUnder(f.Folder, data), $"{f.What}: {f.Folder}"));
+        Assert.Contains(paths.WriteFolders, f => f.Folder == paths.ListingScratchDirectory);
+        Assert.Contains(paths.WriteFolders, f => f.Folder == paths.HexRecoveryDirectory);
+        Assert.Contains(paths.WriteFolders, f => f.Folder == paths.ElevationExchangeDirectory);
+        Assert.True(Directory.Exists(paths.ListingScratchDirectory) && Directory.Exists(paths.HexRecoveryDirectory));
+        // A profile keeps its own folders inside the data folder as well.
+        Assert.All(AppPaths.Resolve("second", dataRoot: data).WriteFolders, f => Assert.True(PathUtil.IsSameOrUnder(f.Folder, data), $"{f.What}: {f.Folder}"));
+
+        // The usual places, for a portable copy: worked out, nothing made.
+        string program = dir.Dir("portable copy");
+        File.WriteAllText(Path.Combine(program, AppPaths.PortableMarker), "");
+        var usual = AppPaths.Usual(baseDirectory: program);
+        Assert.True(usual.IsPortable);
+        Assert.Equal(Path.Combine(program, "Data"), usual.SettingsDirectory);
+        Assert.False(Directory.Exists(Path.Combine(program, "Data")));
+    }
+
+    [Fact]
     public void Containment_is_segment_aware()
     {
         var root = Path.Combine(Path.GetTempPath(), "abc");

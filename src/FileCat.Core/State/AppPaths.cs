@@ -9,18 +9,29 @@ public sealed class AppPaths
 {
     public const string PortableMarker = "FileCat.portable";
 
-    private AppPaths(string settingsDir, string localDir, bool portable, string profile, IReadOnlyList<string> ownRoots)
+    /// <param name="dataRoot">A folder that holds everything FileCat writes (--data), the listing scratch and hex originals included.</param>
+    private AppPaths(string settingsDir, string localDir, bool portable, string profile, IReadOnlyList<string> ownRoots, string? dataRoot = null)
     {
         SettingsDirectory = settingsDir;
         LocalDirectory = localDir;
         IsPortable = portable;
         ProfileName = profile;
-        var privateRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(privateRoot)) privateRoot = Path.GetTempPath();
-        ListingScratchDirectory = Path.Combine(privateRoot, "FileCat", "scratch", profile);
-        HexRecoveryDirectory = Path.Combine(privateRoot, "FileCat", "hex-recovery", profile);
-        OwnRoots = [.. ownRoots, Path.Combine(privateRoot, "FileCat")];
+        DataRoot = dataRoot;
+        string privateRoot;
+        if (dataRoot is not null) privateRoot = dataRoot;
+        else
+        {
+            privateRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrWhiteSpace(privateRoot)) privateRoot = Path.GetTempPath();
+            privateRoot = Path.Combine(privateRoot, "FileCat");
+        }
+        ListingScratchDirectory = Path.Combine(privateRoot, "scratch", profile);
+        HexRecoveryDirectory = Path.Combine(privateRoot, "hex-recovery", profile);
+        OwnRoots = [.. ownRoots, privateRoot];
     }
+
+    /// <summary>The folder given with --data, which holds everything FileCat writes; null when FileCat keeps its usual places.</summary>
+    public string? DataRoot { get; }
 
     /// <summary>The folders FileCat owns whole: all its state lives below them.</summary>
     private IReadOnlyList<string> OwnRoots { get; }
@@ -48,8 +59,39 @@ public sealed class AppPaths
     public string HistoryFile => Path.Combine(SettingsDirectory, "history.json");
     public string WorkingSetsFile => Path.Combine(SettingsDirectory, "working-sets.json");
     public string WorkspacesDirectory => Path.Combine(SettingsDirectory, "workspaces");
+    /// <summary>Trusted minisign keys (D-57).</summary>
+    public string KeysDirectory => Path.Combine(SettingsDirectory, "keys");
+    /// <summary>Files being edited in other programs (P5).</summary>
+    public string EditSessionsDirectory => Path.Combine(LocalDirectory, "edit-sessions");
+    /// <summary>Plans and reports exchanged with the administrator helper (Windows).</summary>
+    public string ElevationExchangeDirectory => Path.Combine(JournalDirectory, "elevation");
+    /// <summary>The page views' own data (WebView2, WebKit's content rules).</summary>
+    public string PageViewDataDirectory => Path.Combine(CacheDirectory, "webview");
 
-    public static AppPaths Resolve(string? profile = null, string? baseDirectory = null, string? overrideRoot = null)
+    /// <summary>
+    /// Every folder FileCat itself writes in, with what it keeps there: the inventory a recovery's source is checked against
+    /// (release plan V09, I09). Folders inside others are listed as well, since any of them can be a link to elsewhere.
+    /// </summary>
+    public IReadOnlyList<(string What, string Folder)> WriteFolders =>
+    [
+        ("settings and history", SettingsDirectory),
+        ("settings and history", WorkspacesDirectory),
+        ("settings and history", KeysDirectory),
+        ("logs, journals, caches and temporary files", LocalDirectory),
+        ("logs, journals, caches and temporary files", JournalDirectory),
+        ("logs, journals, caches and temporary files", ElevationExchangeDirectory),
+        ("logs, journals, caches and temporary files", LogDirectory),
+        ("logs, journals, caches and temporary files", CacheDirectory),
+        ("logs, journals, caches and temporary files", PageViewDataDirectory),
+        ("logs, journals, caches and temporary files", TempDirectory),
+        ("logs, journals, caches and temporary files", RegistryBackupDirectory),
+        ("logs, journals, caches and temporary files", EditSessionsDirectory),
+        ("the scratch of large listings", ListingScratchDirectory),
+        ("originals kept while hex edits are saved", HexRecoveryDirectory),
+    ];
+
+    /// <param name="dataRoot">--data: everything FileCat writes goes below this folder (recovering from the disk that holds FileCat's usual places).</param>
+    public static AppPaths Resolve(string? profile = null, string? baseDirectory = null, string? overrideRoot = null, string? dataRoot = null)
     {
         profile = string.IsNullOrWhiteSpace(profile) ? "default" : Sanitize(profile);
         var suffix = profile == "default" ? string.Empty : Path.Combine("profiles", profile);
@@ -59,6 +101,13 @@ public sealed class AppPaths
             return new AppPaths(root, Path.Combine(root, "local"), true, profile, [overrideRoot]).Ensure();
         }
         baseDirectory ??= AppContext.BaseDirectory;
+        if (!string.IsNullOrEmpty(dataRoot))
+        {
+            string data = Path.GetFullPath(dataRoot);
+            var root = Path.Combine(data, suffix);
+            // A portable copy or an installed one alike: which administrator helper it may use does not change.
+            return new AppPaths(root, Path.Combine(root, "local"), File.Exists(Path.Combine(baseDirectory, PortableMarker)), profile, [data], data).Ensure();
+        }
         string? portableProblem = null;
         if (File.Exists(Path.Combine(baseDirectory, PortableMarker)))
         {
@@ -71,6 +120,26 @@ public sealed class AppPaths
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create);
         return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile,
             [Path.Combine(roaming, "FileCat"), Path.Combine(local, "FileCat")]) { PortableUnavailableReason = portableProblem }.Ensure();
+    }
+
+    /// <summary>
+    /// Where a FileCat started without --data keeps its files, worked out without making or writing anything: what the
+    /// usual FileCat goes on writing to while one started with --data recovers (release plan V09, I09).
+    /// </summary>
+    public static AppPaths Usual(string? profile = null, string? baseDirectory = null)
+    {
+        profile = string.IsNullOrWhiteSpace(profile) ? "default" : Sanitize(profile);
+        var suffix = profile == "default" ? string.Empty : Path.Combine("profiles", profile);
+        baseDirectory ??= AppContext.BaseDirectory;
+        if (File.Exists(Path.Combine(baseDirectory, PortableMarker)))
+        {
+            var root = Path.Combine(baseDirectory, "Data", suffix);
+            return new AppPaths(root, Path.Combine(root, "local"), true, profile, [Path.Combine(baseDirectory, "Data")]);
+        }
+        var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.DoNotVerify);
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify);
+        return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile,
+            [Path.Combine(roaming, "FileCat"), Path.Combine(local, "FileCat")]);
     }
 
     private static bool IsWritable(string directory)

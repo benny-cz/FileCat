@@ -268,7 +268,32 @@ public sealed class DeviceReadTests : IDisposable
         Assert.NotEmpty(disks);
         Assert.Equal(disks, DeviceTopology.DisksOf(_dir));
         Assert.True(DeviceTopology.SharesDisk(device, _dir));
-        Assert.False(DeviceTopology.SharesDisk(device, @"\\server\share\recovered"));
+        Assert.False(DeviceTopology.SharesDisk(device, @"\\server.invalid\share\recovered"));
         Assert.Equal([3], DeviceTopology.DisksOf(@"\\.\PhysicalDrive3"));
+        // A folder that is not there yet is placed by the nearest one that is.
+        Assert.True(DeviceTopology.SharesDisk(device, Path.Combine(_dir, "new", "deeper")));
+        // Release plan V09 (I09): a share this computer serves is on one of its own disks, which one is not known here.
+        Assert.Null(DeviceTopology.SharesDisk(device, @"\\localhost\C$\recovered"));
+        Assert.Null(DeviceTopology.SharesDisk(device, @"\\127.0.0.1\share\recovered"));
+        Assert.Null(DeviceTopology.SharesDisk(device, $@"\\{Environment.MachineName}\share\recovered"));
+    }
+
+    [Fact]
+    public void A_folder_reached_through_a_link_is_placed_where_the_link_leads()
+    {
+        // Release plan V09 (I09): a link on one volume to a folder on another writes to the other one.
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Disk topology is read from Windows.");
+        string? elsewhere = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).Select(d => d.RootDirectory.FullName)
+            .FirstOrDefault(root => !string.Equals(root, Path.GetPathRoot(_dir), StringComparison.OrdinalIgnoreCase) && DeviceTopology.VolumeDevice(root) is not null);
+        if (elsewhere is null) Assert.Skip("There is no other local volume here.");
+        string link = Path.Combine(_dir, "to-system");
+        try { Directory.CreateSymbolicLink(link, elsewhere); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Assert.Skip("Symbolic links cannot be made here."); }
+        string system = DeviceTopology.VolumeDevice(Path.GetPathRoot(elsewhere)!)!;
+        Assert.Equal(DeviceTopology.DisksOf(system), DeviceTopology.DisksOf(Path.Combine(link, "out")));
+        Assert.True(DeviceTopology.SharesDisk(system, Path.Combine(link, "out")));
+        var here = DeviceTopology.DisksOf(DeviceTopology.VolumeDevice(Path.GetPathRoot(_dir)!)!);
+        if (here is not null && !here.Intersect(DeviceTopology.DisksOf(system)!).Any())
+            Assert.False(DeviceTopology.SharesDisk(DeviceTopology.VolumeDevice(Path.GetPathRoot(_dir)!)!, Path.Combine(link, "out")));
     }
 }
