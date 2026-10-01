@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `98bc539` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `2f35a6b` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -209,7 +209,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     checks that nothing connects there, and fails when discovery is made to follow (`783c1b4`).
 62. Step 3 completed (E-A02): every lane's skips from CI run 36821398706 with their reasons from source. 37 tests run
     on no lane, all gated on labs, devices, a phone or benchmarks (their evidence is this campaign's runs); the ARM64
-    lane ran no Remote tests, now added (`98bc539`).
+    lane ran no Remote tests, now added (`98bc539`; 81 passed, 33 skipped, 0 failed on its first run).
+63. I16's three named items: Git badges no longer touch a repository's linked paths before they are known to be on this
+    computer, an icon named in a folder's desktop.ini goes through the helper's policy before anything is read, and every
+    program FileCat starts is found by full path, never in the current directory (`2f35a6b`).
 
 ## Evidence invalidated by the campaign's own changes
 

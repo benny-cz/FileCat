@@ -123,5 +123,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `dd1e326` | Release records: DPI P06 reviewed; P07 in part | — | — |
 | `cc33b5d` | Release records: I22/I34 on FAT32 and exFAT destinations; the Windows VM's lent .NET runtime | — | E-I22-F1 |
 | `783c1b4` | Test: a device that names another address is checked by where FileCat connects, not by time (CI run 36821096985) | — | E-X01 |
-| `98bc539` | CI: the Windows ARM64 lane runs the Remote tests too | — | E-A02 |
+| `98bc539` | CI: the Windows ARM64 lane runs the Remote tests too (run 36822797898: 81 passed, 33 skipped, 0 failed) | — | E-A02 |
+| `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
+| `2f35a6b` | Git badges, icon resources and program lookups touch no path before it is known to be local, and never search the current directory | I16 | issue record |
 | `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |

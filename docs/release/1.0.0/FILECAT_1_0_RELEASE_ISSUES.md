@@ -25,7 +25,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I13 | Latest features lack interaction evidence | Potential Medium–High | Gates open | Open |
 | I14 | RAR decoder provenance / OSI-only eligibility | High | Blocker (license/signing) | Open |
 | I15 | Uninstaller removed the whole installation folder | **Critical** (data loss) | Blocker | **Remediated `5b061cc`; verified in a VM** — closure pending re-audit and the final setup |
-| I16 | Automatic browse/launch boundaries | Potential High | Security gate | Open |
+| I16 | Automatic browse/launch boundaries | Potential High | Security gate | **The three named items remediated `2f35a6b`**; the gate's independent file, network and process evidence (V23/V24) open |
 | I17 | Broker consent/loader/pipe completeness | Potential High/Critical | Security gate | **Consent display: remediated `33b7de2` + `5c54181`, verified in a VM.** Loader, pipe, requester, cancellation: open |
 | I18 | Release control and pipeline provenance | High | Blocker (integrity) | Open; new detail below |
 | I19 | Interrupted-copy cleanup deleted complete or user-changed files | **High** (data loss) | Blocker (non-waivable class) | **Remediated `f87ad32`; verified** — closure pending re-audit |
@@ -725,6 +725,27 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Tests:** `WindowsRegistryProviderTests.A_reg_file_FileCat_exported_from_one_view_is_not_imported_into_another`
   fails before (no exception) and passes after; the Registry provider tests pass.
 
+### I16 — Automatic browse and launch boundaries: the three items the plan names
+
+- **Git badges:** a repository's ".git" file (a linked work tree) and its "commondir" name other folders, and FileCat
+  checked them with ordinary file calls before deciding anything about them: a downloaded folder naming a network path
+  made Windows try to connect there while the folder was merely shown (the call took 21.1 s to fail against a
+  documentation address, a missing local path 0.8 ms). Now a path that is not on this computer means no badges,
+  decided from the path itself first.
+- **Icon resources:** an icon named by a user's file (a folder's desktop.ini) had its time read before the helper's
+  policy (files on this computer only, unless allowed) was asked; now the policy decides first, and a refused path is not
+  touched.
+- **Programs by name:** gpg was looked for through every PATH entry, relative ones included, which follow FileCat's
+  current directory. The same held for external tools and Windows' terminal lookup, and several programs were started
+  by bare name, which Windows (and .NET on Linux and macOS) also looks for in the current directory first: Windows
+  PowerShell, the fallbacks for PowerShell 7 and Windows Terminal, the openers, terminals and keep-awake helpers on Linux
+  and macOS. Now every one is found by full path through PATH's absolute entries and the usual folders, or reported as
+  not found.
+- **Remediation (`2f35a6b`)** with tests: `GitStatusTests` (linked work tree and commondir on a network path: no badges,
+  at once), `IconResourceTests`, `VerificationTests.Gpg_is_found_by_full_path_never_through_a_relative_PATH_entry`,
+  `ContentAndToolTests.Programs_are_found_by_full_path_never_through_a_relative_PATH_entry`, `ProgramLookupTests`.
+- **Still open:** the gate's independent file, network and process evidence (V23/V24) on the candidate.
+
 ## New detail on open issues
 
 - **I03 / I18:** the Windows installer's compiler is whatever Inno Setup the hosted runner image provides: the A01
@@ -743,6 +764,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 ## Initial register entries not yet worked
 
-I01–I14, I16 and I18 keep the plan's §7 text as their current record, and I17 keeps it for the parts not worked above.
+I01–I14 and I18 keep the plan's §7 text as their current record, I16 beyond what is recorded above, and I17 for the
+parts not worked above.
 I24–I27 are queued owner reports and findings of lower severity.
 None has been closed. Their evidence, reproduction and remediation fields will be filled when worked.
