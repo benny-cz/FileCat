@@ -25,7 +25,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I13 | Latest features lack interaction evidence | Potential Medium–High | Gates open | Open |
 | I14 | RAR decoder provenance / OSI-only eligibility | High | Blocker (license/signing) | Open |
 | I15 | Uninstaller removed the whole installation folder | **Critical** (data loss) | Blocker | **Remediated `5b061cc`; verified in a VM** — closure pending re-audit and the final setup |
-| I16 | Automatic browse/launch boundaries | Potential High | Security gate | **The three named items remediated `2f35a6b`**; the gate's independent file, network and process evidence (V23/V24) open |
+| I16 | Automatic browse/launch boundaries | Potential High | Security gate | **The three named items remediated `2f35a6b`**; the Git route's network evidence taken (E-V24-G1, which found [I69](#i69--a-repositorys-own-configuration-sent-git-to-a-server-while-the-folder-was-merely-shown)); the gate's remaining independent file, network and process evidence (V23/V24) open |
 | I17 | Broker consent/loader/pipe completeness | Potential High/Critical | Security gate | **Consent display: remediated `33b7de2` + `5c54181`, verified in a VM.** Loader, pipe, requester, cancellation: open |
 | I18 | Release control and pipeline provenance | High | Blocker (integrity) | Open; new detail below |
 | I19 | Interrupted-copy cleanup deleted complete or user-changed files | **High** (data loss) | Blocker (non-waivable class) | **Remediated `f87ad32`; verified** — closure pending re-audit |
@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I69 | A repository's own configuration sent Git to a server while the folder was merely shown | High (an unasked connection to an attacker-named server during ordinary browsing; 21 s per repository where it does not answer) | Must fix (V24, V23 B10) | **Remediated `aaee133`; verified** (E-V24-G1, with a packet capture) |
 | I68 | Linux/macOS: a permanent delete reached into a file system mounted inside the deleted folder | High (deleting a folder that holds a mounted drive, share or bind mount emptied that volume too) | Must fix (V23 B01, DPI) | **Remediated `e5b4e3b`; verified** (unit test; live on the Ubuntu VM) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
@@ -776,7 +777,9 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remediation (`2f35a6b`)** with tests: `GitStatusTests` (linked work tree and commondir on a network path: no badges,
   at once), `IconResourceTests`, `VerificationTests.Gpg_is_found_by_full_path_never_through_a_relative_PATH_entry`,
   `ContentAndToolTests.Programs_are_found_by_full_path_never_through_a_relative_PATH_entry`, `ProgramLookupTests`.
-- **Still open:** the gate's independent file, network and process evidence (V23/V24) on the candidate.
+- **Still open:** the gate's independent file, network and process evidence (V23/V24) on the candidate. The Git route
+  has it preliminarily (E-V24-G1, under a packet capture); it found that the guard above stopped at the paths FileCat
+  follows itself and not at what the repository's configuration makes Git open ([I69](#i69--a-repositorys-own-configuration-sent-git-to-a-server-while-the-folder-was-merely-shown)).
 
 ### I12 — The two historical failures have lasting coverage
 
@@ -1010,6 +1013,27 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I69 — A repository's own configuration sent Git to a server while the folder was merely shown
+
+- **Found by:** the V24 pass on the Git route, which is the one place where showing a folder runs another program in
+  it. I16's guard (`2f35a6b`) covered the paths FileCat follows itself and refused a configuration naming programs
+  (`[filter]`, `[include]`); it did not cover what the configuration makes **Git** open.
+- **What was wrong:** `git status` opens what `core.excludesFile`, `core.attributesFile`, `core.worktree` and
+  `core.hooksPath` name, and the object directories in `objects/info/alternates`, before comparing anything. A
+  downloaded repository writes those itself, so one naming `\\server\share\…` made Windows connect to that server
+  while the folder was merely listed. Measured on the host: 21.1–21.2 s per repository against an address that never
+  answers (TEST-NET-1), and, under a packet capture on the lab VM, a TCP connection, an SMB2 negotiate and a session
+  setup with the server the folder named.
+- **Remediation (`aaee133`):** a repository is read only when none of those settings leaves this computer, decided from
+  the text of the value (relative stays here; absolute must be local, never a share or a mapped network drive), in the
+  spellings Git accepts, and likewise for the alternates files of this repository and of the one a linked work tree
+  shares. A value that is no usable path no longer throws out of the listing.
+- **Verification:** E-V24-G1 — the reproduction failed before the fix; afterwards the capture shows no packet while
+  FileCat lists the folder and reads inside the repository, bracketed by two runs that do contact the server, with an
+  ordinary repository beside it keeping its badge as the control.
+- **Severity:** High: ordinary local browsing contacts a server the content names, which V24's pass criterion forbids
+  outright, and the listing stalls for 21 s per such repository.
 
 ### I68 — A permanent delete reached into a file system mounted inside the folder
 

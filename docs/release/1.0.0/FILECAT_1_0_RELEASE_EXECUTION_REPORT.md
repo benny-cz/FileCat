@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `e5b4e3b` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `aaee133` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -309,6 +309,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 85. B01 focused pass (E-DPI): **I68** (High) — on Linux and macOS a permanent delete reached into a file system mounted
     inside the deleted folder, emptying it; it now stops there and says so (`e5b4e3b`; a unit test and a live tmpfs check
     on the Ubuntu VM). Windows already treated a mounted volume's folder as a link.
+86. V24 on the Git route (E-V24-G1): **I69** (High) — a downloaded repository's own configuration sent Git to a
+    server while the folder was merely shown (`core.excludesFile` and the four others; 21.1 s per repository against an
+    address that never answers, and an SMB session with the server on a packet capture). Fixed `aaee133`: such a
+    repository is not read at all, decided from the text of the setting. The rest of V24 (shortcuts and icon resources,
+    gpg, terminals and associations, discovery) is still open.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -334,6 +339,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
    E-B02-A1 (a million rounds of every archive format on `325aa63`).
+1a. Continue V24: `.lnk`/`.url`/`desktop.ini` and icon resources, gpg and sidecars, terminal/SSH/association routes
+   with a recording executable, malformed discovery (E-V24-G1 covered the Git route).
 2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's

@@ -175,6 +175,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `63a215a` | Test: the traced recovery session can expect the system to refuse the device | I09 | E-V09-T2 |
 | `134db5e` | Listing: a refusal says its reason, not only "Access is denied." | I67 | E-V09-T2 |
 | `e5b4e3b` | Delete: a permanent delete never reaches into a file system mounted inside the folder | I68 | E-DPI (B01) |
+| `aaee133` | Git badges: a repository's configuration never sends Git off this computer | I69 | E-V24-G1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |
