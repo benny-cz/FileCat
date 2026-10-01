@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I73 | Type icons: a placeholder name made the Shell try to open `C:\file.url` from FileCat's own process | Low (a constant, local, nonexistent path at the system drive's root, where standard users can make only folders; nothing was read) | Should fix (V24, I16's file half) | **Remediated `f1b48de`; verified** (file trace with and without the change; unit test) |
 | I72 | Phones: creating folders, renaming and copying onto an iPhone were offered, and every one failed | Low–Medium (V21's read-only capability was not shown; F7 there ended in "The request is not supported. (0x80070032) (0x80070032)") | Must fix (V21) | **Remediated `2e93339`; verified** (on the owner's iPhone, and unit tests with a negative control) |
 | I71 | An older FileCat saved over a newer FileCat's window layout within two minutes | Medium (the newer layout and its backup were both gone) | Must fix (V11, plan §19.1) | **Remediated `b70be07`; verified** (unit test with a negative control) |
 | I70 | A Shell picture that got no answer was remembered as the file having none | Medium (after a helper died, quick view showed no picture for those files for the rest of the session) | Must fix (V24, CI flake) | **Remediated `3f647bd`; verified** (unit test with a negative control) |
@@ -1016,6 +1017,23 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I73 — Type icons: a placeholder name made the Shell try to open `C:\file.url` from FileCat's own process
+
+- **Found by:** V24's file trace of browsing a folder built to tempt FileCat (E-V24-D1-F1): the kernel's file events of
+  the browsing processes, between the moment the fixtures are built and the moment browsing ends.
+- **What was wrong:** to draw a type's icon (and to name a type), FileCat asks the Shell about a placeholder such as
+  "file.url", with the flag that tells it not to touch the file. For .url the Shell's handler tried to open it anyway, as
+  `C:\file.url`, from FileCat's own process rather than the restricted helper. The path is constant and local, nothing
+  was there, and standard users can make only folders at the root of `C:\` (`icacls`); but a placeholder should name no
+  place at all.
+- **Remediation (`f1b48de`):** every Shell type lookup (icon place, small icon, type name) uses a fully qualified name
+  in a folder below System32 that does not exist and that only an administrator could make.
+- **Verification:** `TypeIconTests` (the name; and the Shell answering it exactly as it answered the bare name, icon
+  place and type name of ten types, a folder among them). The trace with the change taken out shows the attempt, and
+  with it does not, nothing else differing (`v24-browse-files-before.txt`, `v24-browse-files-after.txt`). Platform suite
+  139, app suite 203, 0 failed.
+- **Severity:** Low: hardening; nothing was read, contacted or run.
 
 ### I72 — Phones: creating folders, renaming and copying onto an iPhone were offered, and every one failed
 

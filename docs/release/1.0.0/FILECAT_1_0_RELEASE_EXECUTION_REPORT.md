@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `2e93339` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `f1b48de` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -376,7 +376,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     0.2–1.2 M, the recovery scanner's 3.1–4.1 M on the Windows VM, 9.1–10.1 M on the Mac and Ubuntu's GPT disk: all
     passed. RAR 4 round 3655801 on Ubuntu was still reading after 60 s and reads in milliseconds alone; not the VM
     stalling, not leftover pool memory, not leaked threads, and not the rounds before it: run again in one process with
-    the same settings, all 655,802 up to it passed (E-B02-A1). Unexplained and open; the Mac runs the whole range again. The Windows VM and the Mac now run the ranges no machine had run.
+    the same settings, all 655,802 up to it passed (E-B02-A1). Unexplained and open; the Mac runs the whole range
+    again. The Windows VM, the Mac and Ubuntu now run ranges no machine had run.
+98. V24, the file half of I16's gate (E-V24-D1-F1): the kernel's file events while FileCat shows the folder built to
+    tempt it. Nothing on the network; the repository that names a program is only inspected by FileCat's own reader and
+    never opened by Git; the program the fixtures name is read for its time and its icon, never started. One finding,
+    **I73** (Low): the type-icon lookup made the Shell try to open `C:\file.url` from FileCat's own process; the
+    placeholder now names no place anyone could fill (`f1b48de`), traced again with and without the change.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -403,10 +409,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's MBR disk; the Windows VM's 4.1–5.1 M and the Mac's
    10.1–11.1 M on `5394c71`), E-B02-A1 (the Mac's RAR 4 and generated formats over 3–4 M on `5394c71`), E-B02-I1
    (`pe-managed` on Ubuntu).
-1a. Continue V24: the terminal and association routes as the user drives them from a window; the file-access half of
-   I16's gate (which handler touched what, which needs a file-system trace); the same cases on a candidate's
-   installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg routes (E-V24-G1), the tool route with a
-   recording program (E-V24-G1-T2), the discovery parsers and the process trace of browsing (E-V24-D1).
+1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
+   candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
+   routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
+   and file traces of browsing (E-V24-D1, E-V24-D1-F1).
 2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's

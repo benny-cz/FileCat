@@ -99,5 +99,33 @@ absent while the ordinary one's is `Clean` — which is what the test asserts fr
 documented child that reads icons. Host, build `3f647bd`; `v24-browse-processes.txt`
 `4a3eb05157faf50f9c88efc92e15dec42d375249d274aac02c9df66b6a50ca63`.
 
-Not covered here: the same case on a candidate's installed files, and the file-access half (which handler touched
-what), which needs a file-system trace rather than a process trace.
+Not covered here: the same case on a candidate's installed files. The file-access half (which handler touched what) is
+E-V24-D1-F1 below.
+
+## E-V24-D1-F1 — which files browsing that folder opens
+
+The file half of I16's gate: the same test under the kernel's own file events — an elevated ETW session of
+`Microsoft-Windows-Kernel-File`, event 12 ("Create", logged as an open starts, so a failed attempt counts too) — with
+the process tree from `Win32_ProcessStartTrace`, counting only the opens between the test's two markers, fixtures built
+and browsing over, since building the fixtures with Git and removing them afterwards open everything
+(`artifacts/vm/win-browse-filetrace.ps1`; the test writes the second marker since `f1b48de`). No event was lost.
+
+| Process | What it opened while the folder was shown |
+|---|---|
+| FileCat (the test process) | the folder and its data folder; its build, .NET and Windows; `git.exe` looked for in each folder on PATH (finding Git); the parent folders up to `C:\.git` (finding the repository a folder is in); of the repository that names a program only `.git`, `.git\commondir` and `.git\config` — the reading that decides it is not to be read; `notepad.exe` six times, for its time (part of the icon cache's key, read once the helper's policy has accepted the path); the Shell's icon cache; its user-local scratch and hex-recovery folders (user-local by design, also for a portable copy) |
+| Git (`git.exe` and its `conhost.exe`) | the ordinary repository, Git's installation and the user's global Git configuration — **nothing of the repository that names a program** |
+| The Shell helper (`FileCat.ShellHost.exe`) | `notepad.exe` three times (its icon, extracted); three of the fixtures' files; .NET; the Shell's caches; the user's known folders and their `desktop.ini`, on C: and D: (the Shell resolving known folders) |
+| Any of them | **no network path** (no `\Device\Mup\…`), and `notepad.exe` never started (E-V24-D1-B1) |
+
+**Found and changed (I73, Low, `f1b48de`):** FileCat's own process also tried to open `C:\file.url`, which does not
+exist. Its type-icon lookup asked the Shell about a bare "file.url", and the Shell's handler for .url tried to open it
+at the system drive's root, although told not to touch the file. Standard users can make only folders there (`icacls`:
+Authenticated Users have AD on `C:\` itself), and nothing was there; but a placeholder should name no place at all. It is
+now a fully qualified name in a folder below System32 that does not exist and that only an administrator could make.
+`TypeIconTests` checks that name, and that the Shell answers it exactly as it answered the bare one: the same icon place
+and type name for ten types, a folder among them. Traced again with the change and without it: the attempt is there
+without it and gone with it, and nothing else differs (1,009 and 1,011 opens; the two more are the probe's own name).
+
+Reports: `v24-browse-files-before.txt` `f5d0aac3b3e8746188fdc6040c0f296b255fbe8e39d56b86764c273ee0adc497` (the change
+taken out) and `v24-browse-files-after.txt` `ca3008fa8be46b02ff3c321c151d32285ee543213952bfcae9f5b28a53ab25e8`
+(`f1b48de`); host, Windows 11 26220, Debug test builds. Platform suite 139, app suite 203, 0 failed.
