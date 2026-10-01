@@ -364,16 +364,17 @@ public static class UnixDisks
     /// </summary>
     internal sealed class LinuxTopology(string sys, IReadOnlyList<Mount> mounts, Func<string, string?> resolve, Func<string, bool> thisComputer)
     {
+        /// <summary>A device that is read (/dev/sdb1, /dev/mapper/…): the disks it lies on.</summary>
+        public IReadOnlyList<string>? DeviceDisks(string device) => BlockDisks(Path.GetFileName(RealPath(device)), written: false);
+
         /// <summary>
-        /// A device (read) or a folder (written to). A folder is placed by its real path (every link resolved), on the mount
-        /// that holds it; empty when that is memory or another computer's storage.
+        /// A folder that is written to, placed by its real path (every link resolved) on the mount that holds it; empty when
+        /// that is memory or another computer's storage. A folder under /dev (/dev/shm) is a folder like any other.
         /// </summary>
-        public IReadOnlyList<string>? DisksOf(string pathOrDevice, int depth = 0)
+        public IReadOnlyList<string>? FolderDisks(string folder, int depth = 0)
         {
             if (depth > 8) return null;
-            if (pathOrDevice.StartsWith("/dev/", StringComparison.Ordinal))
-                return BlockDisks(Path.GetFileName(RealPath(pathOrDevice)), written: false, depth);
-            if (resolve(pathOrDevice) is not { } full) return null;
+            if (resolve(folder) is not { } full) return null;
             // The mount over a folder is the last one listed at the longest point that holds it (a later mount hides an earlier).
             var mount = mounts.Select((m, i) => (Mount: m, Order: i))
                 .Where(x => full == x.Mount.Point || full.StartsWith(x.Mount.Point.TrimEnd('/') + "/", StringComparison.Ordinal))
@@ -402,7 +403,8 @@ public static class UnixDisks
         /// <summary>
         /// A block device (sdb1, dm-0, loop0): a partition's disk, a mapped device's underlying ones. Writing to a loop
         /// device writes its backing file, so where something is written (<paramref name="written"/>) a loop device lies on
-        /// that file's disks; read, it is a disk of its own (writing next to an image file never changes what it holds).
+        /// itself and on that file's disks; read, it is a disk of its own (writing next to an image file never changes what
+        /// the image holds, but writing into the image does).
         /// </summary>
         public IReadOnlyList<string>? BlockDisks(string name, bool written, int depth = 0)
         {
@@ -415,8 +417,8 @@ public static class UnixDisks
                 if (!written) return [name];
                 // One whose file was deleted, or that has none, cannot be placed.
                 string? backing = Read(dir, "loop/backing_file");
-                return backing is null || !backing.StartsWith('/') || backing.EndsWith(" (deleted)", StringComparison.Ordinal)
-                    ? null : DisksOf(backing, depth + 1);
+                return backing is null || !backing.StartsWith('/') || backing.EndsWith(" (deleted)", StringComparison.Ordinal) ||
+                       FolderDisks(backing, depth + 1) is not { } file ? null : [name, .. file];
             }
             // Devices served by another program over the network (qemu-nbd, Ceph) may be backed by a file on any disk here.
             if (name.StartsWith("nbd", StringComparison.Ordinal) || name.StartsWith("rbd", StringComparison.Ordinal)) return written ? null : [name];
@@ -521,23 +523,42 @@ public static class UnixDisks
         return null;
     }
 
+    /// <summary>The whole disks a device that is read lies on (sdb; disk0 on macOS); null when unknown.</summary>
+    public static IReadOnlyList<string>? DeviceDisks(string device) => Guarded(() =>
+        OperatingSystem.IsLinux() ? new LinuxTopology("/sys", [], ResolveExisting, ThisComputerLookup).DeviceDisks(device)
+        : OperatingSystem.IsMacOS() ? MacDisksOf(device, device: true, 0) : null);
+
+    /// <summary>
+    /// The whole disks writing into a folder writes to; empty when it is on no local disk (memory, another computer's
+    /// storage); null when unknown, which never counts as another disk.
+    /// </summary>
+    public static IReadOnlyList<string>? FolderDisks(string folder) => Guarded(() =>
+        OperatingSystem.IsLinux() ? new LinuxTopology("/sys", ParseMountInfo(File.ReadLines("/proc/self/mountinfo")), ResolveExisting, ThisComputerLookup).FolderDisks(folder)
+        : OperatingSystem.IsMacOS() ? MacDisksOf(folder, device: false, 0) : null);
+
+    private static IReadOnlyList<string>? Guarded(Func<IReadOnlyList<string>?> find)
+    {
+        try
+        {
+            return find();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Xml.XmlException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>A device node (/dev/sdb1, /dev/mapper/…, /dev/disk/by-id/…), as opposed to a folder that happens to be under /dev (/dev/shm).</summary>
+    internal static bool IsDevicePath(string path) =>
+        path.StartsWith("/dev/", StringComparison.Ordinal) && !Directory.Exists(path) &&
+        (path.IndexOf('/', 5) < 0 || path.StartsWith("/dev/mapper/", StringComparison.Ordinal) || path.StartsWith("/dev/disk/", StringComparison.Ordinal) ||
+         path.StartsWith("/dev/md/", StringComparison.Ordinal));
+
     /// <summary>
     /// The whole disks a device or a folder lies on (sdb; disk0 on macOS); empty when a folder is on no local disk
     /// (memory, another computer's storage); null when unknown, which never counts as another disk.
     /// </summary>
-    public static IReadOnlyList<string>? DisksOf(string pathOrDevice)
-    {
-        try
-        {
-            if (OperatingSystem.IsLinux())
-                return new LinuxTopology("/sys", ParseMountInfo(File.ReadLines("/proc/self/mountinfo")), ResolveExisting, ThisComputerLookup).DisksOf(pathOrDevice);
-            if (OperatingSystem.IsMacOS()) return MacDisksOf(pathOrDevice, 0);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.Xml.XmlException or System.ComponentModel.Win32Exception)
-        {
-        }
-        return null;
-    }
+    public static IReadOnlyList<string>? DisksOf(string pathOrDevice) => IsDevicePath(pathOrDevice) ? DeviceDisks(pathOrDevice) : FolderDisks(pathOrDevice);
 
     private static bool ThisComputerLookup(string server) => FileCat.Core.Network.ThisComputer.Is(server, TimeSpan.FromSeconds(2));
 
@@ -545,12 +566,12 @@ public static class UnixDisks
     /// macOS: a device (read), or a folder (written to) by its real path on the volume that holds it; an APFS volume's
     /// physical stores. Written to, an attached disk image lies where its image file is; read, it is a disk of its own.
     /// </summary>
-    private static IReadOnlyList<string>? MacDisksOf(string pathOrDevice, int depth)
+    private static IReadOnlyList<string>? MacDisksOf(string pathOrDevice, bool device, int depth)
     {
         if (depth > 8) return null;
         string target;
-        bool written = !pathOrDevice.StartsWith("/dev/", StringComparison.Ordinal);
-        if (!written) target = pathOrDevice.Replace("/dev/rdisk", "/dev/disk", StringComparison.Ordinal);
+        bool written = !device;
+        if (device) target = pathOrDevice.Replace("/dev/rdisk", "/dev/disk", StringComparison.Ordinal);
         else
         {
             if (ResolveExisting(pathOrDevice) is not { } full || UnixFiles.MountOf(full) is not { } mount) return null;
@@ -576,8 +597,9 @@ public static class UnixDisks
                 disks.Add(whole);
                 continue;
             }
-            // An attached disk image is stored in its image file, wherever that is.
-            if (ImageFileOf("/dev/" + whole) is not { } image || MacDisksOf(image, depth + 1) is not { } under) return null;
+            // An attached disk image is itself, stored in its image file, wherever that is.
+            if (ImageFileOf("/dev/" + whole) is not { } image || MacDisksOf(image, device: false, depth + 1) is not { } under) return null;
+            disks.Add(whole);
             disks.AddRange(under);
         }
         return disks.Distinct().ToList();
@@ -619,8 +641,8 @@ public static class UnixDisks
     /// <summary>Whether writing into <paramref name="folder"/> would write to a disk <paramref name="device"/> lies on: true, false, or null when unknown.</summary>
     public static bool? SharesDisk(string device, string folder)
     {
-        var source = DisksOf(device);
-        var target = DisksOf(folder);
+        var source = DeviceDisks(device);
+        var target = FolderDisks(folder);
         if (source is null || target is null) return null;
         return source.Intersect(target).Any();
     }

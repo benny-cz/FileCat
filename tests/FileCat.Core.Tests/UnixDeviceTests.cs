@@ -170,31 +170,40 @@ public sealed class UnixDeviceTests : IDisposable
         var topology = new UnixDisks.LinuxTopology(sys, mounts, Resolve, server => server is "localhost" or "127.0.0.1");
 
         Assert.Null(topology.BlockDisks("sdz", written: true)); // no sysfs entry: unknown, never "no disk"
-        Assert.Equal(["sdb"], topology.DisksOf("/dev/sdb1"));
-        Assert.Equal(["sdb"], topology.DisksOf("/home/u/out"));
-        Assert.Equal(["sdc"], topology.DisksOf("/data/out")); // a mapped device's disks
-        Assert.Equal(["sdc"], topology.DisksOf("/home/u/to-data/out")); // where the link leads, not where it is
-        Assert.Null(topology.DisksOf("/mnt/broken/out")); // a mapped device over something sysfs does not list
-        // Written, a loop device is its backing file (here on sdb); read, a disk of its own.
-        Assert.Equal(["sdb"], topology.DisksOf("/mnt/img/out"));
-        Assert.Equal(["loop0"], topology.DisksOf("/dev/loop0"));
-        Assert.Null(topology.DisksOf("/mnt/old/out")); // its file was deleted
-        Assert.Null(topology.DisksOf("/mnt/nbd/out")); // served by another program, from anywhere
-        Assert.Equal(["nbd0"], topology.DisksOf("/dev/nbd0"));
+        Assert.Equal(["sdb"], topology.DeviceDisks("/dev/sdb1"));
+        Assert.Equal(["sdb"], topology.FolderDisks("/home/u/out"));
+        Assert.Equal(["sdc"], topology.FolderDisks("/data/out")); // a mapped device's disks
+        Assert.Equal(["sdc"], topology.FolderDisks("/home/u/to-data/out")); // where the link leads, not where it is
+        Assert.Null(topology.FolderDisks("/mnt/broken/out")); // a mapped device over something sysfs does not list
+        // Written, a loop device is itself and its backing file (here on sdb); read, a disk of its own.
+        Assert.Equal(["loop0", "sdb"], topology.FolderDisks("/mnt/img/out"));
+        Assert.Equal(["loop0"], topology.DeviceDisks("/dev/loop0"));
+        Assert.Null(topology.FolderDisks("/mnt/old/out")); // its file was deleted
+        Assert.Null(topology.FolderDisks("/mnt/nbd/out")); // served by another program, from anywhere
+        Assert.Equal(["nbd0"], topology.DeviceDisks("/dev/nbd0"));
         // Another computer's share is on no disk here; one this computer serves is on one of its own.
-        Assert.Empty(topology.DisksOf("/mnt/nas/out")!);
-        Assert.Null(topology.DisksOf("/mnt/self/out"));
-        Assert.Empty(topology.DisksOf("/mnt/nfs/out")!);
-        Assert.Null(topology.DisksOf("/mnt/overlay/out")); // no block device to follow
-        Assert.Empty(topology.DisksOf("/tmp/out")!);
-        Assert.Empty(topology.DisksOf("/mnt/host/out")!); // a virtual machine's host share
-        Assert.Empty(topology.DisksOf("/run/user/1000/gvfs/smb-share:server=nas,share=s/out")!);
-        Assert.Null(topology.DisksOf("/run/user/1000/gvfs/smb-share:server=localhost,share=s/out"));
-        Assert.Null(topology.DisksOf("/run/user/1000/gvfs/archive:host=file%253A%252F%252F%252Fhome%252Fu%252Fa.zip/out"));
-        Assert.Empty(topology.DisksOf("/run/user/1000/gvfs/mtp:host=Phone/out")!);
-        Assert.Equal(["sdb", "sdc"], topology.DisksOf("/pool/out")!.Order()); // every device the btrfs spans
-        Assert.Equal(["sdb"], topology.DisksOf("/data/over/out")); // the mount on top
-        Assert.Null(new UnixDisks.LinuxTopology(sys, mounts, _ => null, _ => false).DisksOf("/home/u/out")); // a path that cannot be resolved
+        Assert.Empty(topology.FolderDisks("/mnt/nas/out")!);
+        Assert.Null(topology.FolderDisks("/mnt/self/out"));
+        Assert.Empty(topology.FolderDisks("/mnt/nfs/out")!);
+        Assert.Null(topology.FolderDisks("/mnt/overlay/out")); // no block device to follow
+        Assert.Empty(topology.FolderDisks("/tmp/out")!);
+        Assert.Empty(topology.FolderDisks("/mnt/host/out")!); // a virtual machine's host share
+        Assert.Empty(topology.FolderDisks("/run/user/1000/gvfs/smb-share:server=nas,share=s/out")!);
+        Assert.Null(topology.FolderDisks("/run/user/1000/gvfs/smb-share:server=localhost,share=s/out"));
+        Assert.Null(topology.FolderDisks("/run/user/1000/gvfs/archive:host=file%253A%252F%252F%252Fhome%252Fu%252Fa.zip/out"));
+        Assert.Empty(topology.FolderDisks("/run/user/1000/gvfs/mtp:host=Phone/out")!);
+        Assert.Equal(["sdb", "sdc"], topology.FolderDisks("/pool/out")!.Order()); // every device the btrfs spans
+        Assert.Equal(["sdb"], topology.FolderDisks("/data/over/out")); // the mount on top
+        Assert.Null(new UnixDisks.LinuxTopology(sys, mounts, _ => null, _ => false).FolderDisks("/home/u/out")); // a path that cannot be resolved
+
+        // A folder under /dev is a folder: memory here, and a link from it leads to a disk.
+        var withShm = new UnixDisks.LinuxTopology(sys, [.. mounts, .. UnixDisks.ParseMountInfo(["45 22 0:60 / /dev/shm rw - tmpfs tmpfs rw"])],
+            path => path == "/dev/shm/link/out" ? "/data/out" : path, _ => false);
+        Assert.Empty(withShm.FolderDisks("/dev/shm/out")!);
+        Assert.Equal(["sdc"], withShm.FolderDisks("/dev/shm/link/out"));
+        Assert.True(UnixDisks.IsDevicePath("/dev/sdb1"));
+        Assert.True(UnixDisks.IsDevicePath("/dev/mapper/luks-1"));
+        Assert.False(UnixDisks.IsDevicePath("/dev/shm/out"));
 
         Assert.Equal("nas", UnixDisks.ServerOf("//user@nas/share"));
         Assert.Equal("nas", UnixDisks.ServerOf("nas:/export"));
