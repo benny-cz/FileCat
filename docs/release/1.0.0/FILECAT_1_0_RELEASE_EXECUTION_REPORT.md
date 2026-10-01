@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `e6e9ad0` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `1477de3` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -29,7 +29,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   through a link put in its place, V23 B07, `b02a01f`) I60 (the AppImage's runtime came unchecked from a moving
   release, V23 B09, `84b847a`), I61 (`--workspace` and `--list` ignored, `dcd81a1`), I62 (two names for one profile
   ran as two instances, `2cd313f`; both V23 B12) I63 (the update check opened whatever page its answer named, V23
-  B13, `9bedead`) and I64 (a folder's name could turn the shown location around, V23 B14, `e6e9ad0`). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
+  B13, `9bedead`) I64 (a folder's name could turn the shown location around, V23 B14, `e6e9ad0`), I65 (a
+  damaged PE made the inspector throw, found by its damage campaign, `8cb0737`) and I66 (a Linux-deleted FAT file was
+  called empty and recoverable, `1477de3`). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
   The queued Low issues are done: I31 (viewer windows only partly themed, `99a6ae4`) and I27 (Linux icons under
   Adwaita 41, `4a4349f`).
   **I09** (recovery scanned a disk FileCat itself writes to; destinations behind loop devices, disk images, VHDs and
@@ -290,6 +292,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     title, the path line and the command line's path did not: a right-to-left override in a folder's name made the
     location read otherwise. All three escape now, as do the line and paragraph separators (`e6e9ad0`). With B14 every
     V23 boundary but B01–B03 (largely covered by the DPI rows, the fuzz campaigns, V07 and V10) has had its pass.
+82. B02's inspectors got a damage campaign of their own (E-B02-I1): 200,000 rounds of fifteen formats passed; a PE round
+    threw (**I65**, fixed `8cb0737`). B03's source pass found the containment as claimed (E-DPI). V09 through UDisks2
+    (E-V09-T2, L5): a user who may not read the device got a read-only descriptor from UDisks2 and recovered a deleted
+    file, nothing written to the source. On the way, **I66**: files Linux deleted from FAT32 showed as "0 bytes,
+    recoverable: the file was empty", their entries cleared by Linux's driver; such entries now say what is known.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -315,8 +322,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
    E-B02-A1 (a million rounds of every archive format on `325aa63`).
-2. V09 on macOS (`fs_usage` with a disk image as the source), UDisks2, the installed helper path, approval refusal and
-   device removal.
+2. V09 on macOS (`fs_usage` with a disk image as the source; needs the owner's administrator rights), the installed
+   helper path, approval refusal and device removal.
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
