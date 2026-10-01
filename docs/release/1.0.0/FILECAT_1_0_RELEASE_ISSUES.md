@@ -71,6 +71,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I60 | The AppImage's runtime was whatever type2-runtime's "continuous" release held when the package was built, unchecked | Medium (supply chain: the first code to run when FileCat's AppImage starts, taken unverified from a moving release) | Must fix (V23 B09, part of I03) | **Remediated `84b847a`; verified** (packaging run 36855265633) |
 | I61 | Command line: `--workspace` and `--list` were read, forwarded, and ignored | Low–Medium (plan §19.1 promises both; a launch with them opened nothing and said nothing) | Must fix (V23 B12, product claim) | **Remediated `dcd81a1`; verified** (E-DPI) |
 | I62 | Profiles: two names for one profile's folders ran as two instances at once | Low (`--profile Work!` beside `--profile Work`: one profile's settings and journals in use by two FileCats) | Should fix (V23 B12) | **Remediated `2cd313f`; verified** (E-DPI) |
+| I63 | Update check: the page an answer named was opened through the system's association, whatever it was | Low–Medium (one "Open release page" away from opening any address or local program, for whoever can alter the answer: an inspecting proxy, a compromise at GitHub) | Should fix (V23 B13) | **Remediated `9bedead`; verified** (E-DPI) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
@@ -951,6 +952,21 @@ level the plan already states; exploit-level detail is not recorded here.
   every profile.
 - **Remediation (`2cd313f`):** both use the folder's name (`AppPaths.ProfileFolderName`); a name with nothing usable is
   the default profile. **Verification:** `RecoverySafetyTests.Profile_names_that_name_one_folder_are_one_instance`.
+
+### I63 — The update check opened whatever page its answer named
+
+- **Found by:** the V23 review of B13 (update and diagnostic inputs). Help → Check for updates and the daily check take
+  `tag_name` and `html_url` from GitHub's answer; on a newer tag the user is asked "Open release page?" and the
+  address goes to the system's association (`Shell.Open`). The address was not checked (an `https` page elsewhere, a
+  `file:` address, a UNC path to a program, an `ms-settings:` link), the tag was shown as the version whatever its
+  text (a pre-release part may hold any characters: "1.0.1-Visit … to update"), and the answer was read whole however
+  long.
+- **Remediation (`9bedead`):** a tag is shown and compared only when it reads as a version (up to four numbers, a
+  pre-release of SemVer's characters, 64 at most); only an `https` page under `github.com/benny-cz/FileCat/releases/`
+  is offered (the releases page otherwise); at most 4 MiB of the answer is read. The answer comes over TLS from GitHub,
+  so this guards against an inspecting proxy or a compromise there, not a network neighbour.
+- **Verification:** `UpdateCheckTests` (eight foreign addresses replaced, five foreign tags neither shown nor taken for
+  newer, malformed answers refused) and `ToolAssociationTests.A_release_tag_reads_as_a_version_or_not_at_all`.
 
 ### I60 — The AppImage's runtime came unchecked from a moving release
 
