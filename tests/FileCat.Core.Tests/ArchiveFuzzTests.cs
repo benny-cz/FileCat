@@ -69,6 +69,7 @@ public sealed class ArchiveFuzzTests : IDisposable
     [Theory]
     [InlineData("tar", 97053)] // release issue I58: a PAX header's damaged size made .NET's TarReader take 512 MiB for a 31 KiB archive
     [InlineData("Rar.rar", 248010)] // a PPMd block asking for the most model memory RAR 4 allows (see the budget)
+    [InlineData("Rar.rar", 3655801)] // still reading after 60 s once in a long run on Linux; 4 ms everywhere since (E-B02-A1)
     public void Rounds_that_once_failed_stay_fixed(string format, int round)
     {
         var fuzz = new Fuzz(format, Original(format), _dir.Dir("fuzz"));
