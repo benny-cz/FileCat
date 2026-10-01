@@ -283,6 +283,9 @@ public static class JournalRecovery
         var cutoff = DateTime.UtcNow - (maxAge ?? TimeSpan.FromDays(30));
         foreach (var f in files)
         {
+            // A job still running, here or in another FileCat on the same profile, is not interrupted: nothing of it may be
+            // reviewed, deleted, renamed or closed (DPI P04), nor its journal pruned.
+            if (InUse(f.FullName)) continue;
             JournalRecord? begin = null;
             bool ended = false;
             int completed = 0;
@@ -345,6 +348,24 @@ public static class JournalRecovery
             });
         }
         return result;
+    }
+
+    /// <summary>
+    /// Whether a running job holds the journal: its writer keeps it open from the first record to the last and shares
+    /// only reading, which on Linux and macOS .NET backs with an advisory lock, so asking for it alone fails while it
+    /// runs. A FileCat that crashed holds nothing. (On network home folders .NET takes no such lock; such a journal reads
+    /// as interrupted, as before.)
+    /// </summary>
+    internal static bool InUse(string path)
+    {
+        try
+        {
+            using var probe = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+            return false;
+        }
+        catch (FileNotFoundException) { return false; }
+        catch (IOException) { return true; }
+        catch (UnauthorizedAccessException) { return true; }
     }
 
     /// <summary>Staged partial files that belong to the interrupted job (safe to delete: never published).</summary>

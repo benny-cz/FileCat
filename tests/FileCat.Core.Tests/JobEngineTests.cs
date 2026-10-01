@@ -113,6 +113,26 @@ public sealed class JobEngineTests : IDisposable
     }
 
     [Fact]
+    public void A_job_still_running_is_not_interrupted_even_to_another_FileCat()
+    {
+        // Release plan DPI P04: a second FileCat on the same profile (--new-instance, one window per profile turned off,
+        // or a first one not answering) scanned the journals at its start and showed a running job as interrupted, with
+        // its partial files offered for deletion and its renames for finishing.
+        var request = new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(Path.Combine(_src, "a.txt"), EntryKind.File)], Destination = Location.FileSystem(_dst) };
+        var job = new Job(request, "Copy", "device", [_src], [_dst]);
+        string journals = Path.Combine(_dir.Path, "journal-live");
+        using (var live = JobJournal.Create(journals, job))
+        {
+            live.StagingDirectory(_dst);
+            live.Intent("copy", Path.Combine(_src, "a.txt"), Path.Combine(_dst, "a.txt"), Path.Combine(_dst, ".fc-live-1.tmp"));
+            Assert.Empty(JournalRecovery.Scan(journals));
+            Assert.Single(Directory.GetFiles(journals, "job-*.fcj")); // nor pruned
+        }
+        // Its writer gone without an end record (a crash): now it is interrupted.
+        Assert.Single(JournalRecovery.Scan(journals));
+    }
+
+    [Fact]
     public async Task A_finished_job_keeps_no_manifest_and_a_torn_manifest_is_not_trusted()
     {
         var files = Enumerable.Range(0, 100).Select(i =>
