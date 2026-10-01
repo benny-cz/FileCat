@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using FileCat.Core.Content;
@@ -499,7 +500,7 @@ public sealed class SearchSession
                 {
                     if (RegexMatches(window, view.First, out view.MatchAtEnd)) return true;
                 }
-                else if (view.Ordinal ? window.IndexOf(text, _query.MatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) >= 0 : Contains(window, text))
+                else if (view.Ordinal ? window.IndexOf(text, _query.MatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase) >= 0 : Contains(window, text, out view.MatchAtEnd))
                 {
                     return true;
                 }
@@ -517,8 +518,9 @@ public sealed class SearchSession
     /// How a file's bytes are read as text: in the encoding its start suggests, and with <see cref="SearchQuery.Unicode"/>
     /// also as UTF-16 in either byte order from even and from odd offsets (strings in programs and other binary files:
     /// .NET's user strings start at odd ones), and as UTF-8 where the file is not read so already (text other than
-    /// ASCII inside a binary file). Binary files and those views compare ordinally: a linguistic comparison skips
-    /// ignorable characters, NUL among them, so "H", zero, "i" in bytes that are no text at all counted as "Hi".
+    /// ASCII inside a binary file, and any text inside a file read as UTF-16). Binary files and those views compare
+    /// ordinally: a linguistic comparison skips ignorable characters, NUL among them, so "H", zero, "i" in bytes that
+    /// are no text at all counted as "Hi".
     /// </summary>
     private List<TextView> ViewsFor(EncodingGuess guess)
     {
@@ -540,8 +542,9 @@ public sealed class SearchSession
             if (mainUtf16 && mainBigEndian == bigEndian && start == 0) continue;
             views.Add(View(slot, new UnicodeEncoding(bigEndian, byteOrderMark: false, throwOnInvalidBytes: false), start, ordinal: true));
         }
-        // ASCII text reads the same in UTF-8 as in the file's own reading; a regular expression may match other text.
-        if (guess.Encoding is not UTF8Encoding && (_query.Regex || !Ascii.IsValid(_query.Text!)))
+        // ASCII text reads the same in UTF-8 as in an 8-bit reading of the file, not in a UTF-16 one (release plan V13: a
+        // UTF-16 file holding the word as UTF-8 was not found); a regular expression may match other text.
+        if (guess.Encoding is not UTF8Encoding && (_query.Regex || !Ascii.IsValid(_query.Text!) || mainUtf16))
             views.Add(View(5, new UTF8Encoding(false, throwOnInvalidBytes: false), 0, ordinal: true));
         return views;
     }
@@ -561,16 +564,17 @@ public sealed class SearchSession
     }
 
     /// <summary>
-    /// A regex match in the window. With whole words, a match at the window's first character is left to the window
-    /// before, which saw what precedes it, and a match that ends with the window waits for the next read to show what
-    /// follows (<paramref name="atEnd"/>: when the file ends there, it counts).
+    /// A regex match in the window. A window's edges are not the file's: anchors and look-arounds there see nothing,
+    /// so "^word" matched where a read happened to start and "word$" where one happened to end (release plan V13). A
+    /// match at the window's first character is left to the window before, which saw what precedes it, and a match that
+    /// ends with the window waits for the next read to show what follows (<paramref name="atEnd"/>: when the file ends
+    /// there, it counts). Whole words rely on the same: their guards are look-arounds.
     /// </summary>
     private bool RegexMatches(ReadOnlySpan<char> window, bool first, out bool atEnd)
     {
         atEnd = false;
         try
         {
-            if (!_query.WholeWords) return _regex!.IsMatch(window);
             foreach (var match in _regex!.EnumerateMatches(window, first ? 0 : 1))
             {
                 if (match.Index + match.Length < window.Length) return true;
@@ -595,12 +599,20 @@ public sealed class SearchSession
     /// times slower than ordinal comparison. An ordinal match counts at once, and plain ASCII text without control
     /// characters cannot match linguistically where it does not match ordinally, so only other text takes the slow path.
     /// </summary>
-    private bool Contains(ReadOnlySpan<char> window, string text)
+    private bool Contains(ReadOnlySpan<char> window, string text, out bool atEnd)
     {
+        atEnd = false;
         if (_query.MatchCase) return window.IndexOf(text, StringComparison.Ordinal) >= 0;
         if (window.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0) return true;
         if (_plainAsciiText && IsPlainAscii(window)) return false;
-        return window.IndexOf(text, StringComparison.CurrentCultureIgnoreCase) >= 0;
+        // A linguistic match compares characters as written, and what follows can still change the last one (an accent
+        // written as a mark of its own: "naïve" matched where the file says "naïvë" and the mark began the next read). One
+        // that ends with the window waits for the next read, as a regex match does.
+        int at = CultureInfo.CurrentCulture.CompareInfo.IndexOf(window, text, CompareOptions.IgnoreCase, out int length);
+        if (at < 0) return false;
+        if (at + length < window.Length) return true;
+        atEnd = true;
+        return false;
     }
 
     private static bool IsPlainAscii(ReadOnlySpan<char> text) =>
