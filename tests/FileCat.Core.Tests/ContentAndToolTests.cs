@@ -151,6 +151,55 @@ public class ContentAndToolTests
         Assert.Single(ToolLauncher.Plan(tool, new ToolContext([evil], dir.Path), dir.Path, out _));
     }
 
+    /// <summary>
+    /// Release plan V24: a tool the user starts receives exactly the names FileCat meant, whatever those names are.
+    /// The oracle is a recording program — the system's own shell, writing down the argument vector it was handed —
+    /// and the names are the ones a shell or a command line would otherwise read as something else.
+    /// </summary>
+    [Fact]
+    public void A_started_tool_receives_exactly_the_names_it_was_given()
+    {
+        using var dir = new TempDir();
+        string recorded = Path.Combine(dir.Path, "recorded.txt");
+        // Names that mean something to a shell, to cmd.exe, or to an option parser. (A quote, '<', '>' and '|' cannot
+        // be in a Windows file name at all; on Unix they can, and are included there.)
+        var names = new List<string> { "a b.txt", "a&calc.txt", "a;id.txt", "a%PATH%.txt", "a$(id).txt", "a'quote.txt", "-rf.txt", "a`tick.txt", "a!bang.txt", "a^caret.txt" };
+        if (!OperatingSystem.IsWindows()) names.AddRange(["a\"quote.txt", "a|pipe.txt", "a>redirect.txt", "a\nnewline.txt"]);
+        var files = names.Select(n => dir.File(n)).ToList();
+
+        // The records are separated by a zero byte, which no name can contain: a name holding a newline (Unix allows
+        // one) would otherwise look like two records.
+        ToolDefinition tool;
+        if (OperatingSystem.IsWindows())
+        {
+            string script = dir.File("recorder.ps1", "[IO.File]::WriteAllText($args[0], ($args[1..($args.Count-1)] -join \"`0\") + \"`0\")\n");
+            string powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+            if (!File.Exists(powershell)) { Assert.Skip("Windows PowerShell is not here."); return; }
+            tool = new ToolDefinition { Name = "recorder", Executable = powershell, Arguments = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, recorded, "{files}"] };
+        }
+        else
+        {
+            string script = dir.File("recorder.sh", "#!/bin/sh\nout=$1\nshift\nprintf '%s\\0' \"$@\" > \"$out\"\n");
+            File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            tool = new ToolDefinition { Name = "recorder", Executable = "/bin/sh", Arguments = [script, recorded, "{files}"] };
+        }
+
+        var result = ToolLauncher.Launch(tool, new ToolContext(files, dir.Path), dir.Path);
+        Assert.Single(result.Invocations);
+        string[] got = [];
+        for (int i = 0; i < 150; i++)
+        {
+            try { if (File.Exists(recorded)) got = File.ReadAllText(recorded).Split('\0', StringSplitOptions.RemoveEmptyEntries); }
+            catch (IOException) { }
+            if (got.Length >= files.Count) break;
+            Thread.Sleep(100);
+        }
+        Assert.True(got.Length > 0, "The recording program wrote nothing: it did not run.");
+
+        // Every name, once, unchanged: nothing split at a space, expanded, swallowed as an option or run as a command.
+        Assert.Equal(files, got);
+    }
+
     [Fact]
     public void Programs_are_found_by_full_path_never_through_a_relative_PATH_entry()
     {

@@ -35,6 +35,11 @@ the suite takes 100 rounds of each.
   them, and FileCat's TAR, gzip and member-reading paths hold no allocation that size behind the I58 guard. Open; the
   generated formats run again with replayable rounds and kept copies (`cddce72`).
 
+**The Mac's TAR+gzip round 2294974** (build `325aa63`, 512 MiB) is not the same input as the host's run over that same
+range on `cddce72`: `325aa63` built each machine's TAR original differently, which is why that round could not be
+rebuilt, and `cddce72` normalizes it. So the host's pass says the range is clean for the bytes everyone now builds; it
+neither reproduces nor refutes what the Mac saw. The round stays recorded as unexplained.
+
 ## Runs
 
 | Machine | Build | Rounds per format | Result |
@@ -50,7 +55,8 @@ the suite takes 100 rounds of each.
 | Ubuntu VM | `cddce72` (Debug; zip `0fac8dea…792a`, the build the host runs) | 3,000,000–3,999,999 of both 7z, the three RAR, TAR+xz, TAR+zstd, four lanes; failing rounds kept | started 13:54 UTC; running (`~/fc-v8`, script `artifacts/vm/ubu-fuzz-v8.sh`) |
 | Host | `325aa63` (Debug) | 1,000,000–1,999,999 of ZIP, TAR+gzip, gzip | **all three passed** (2,093–3,313 s; at most 48 MB in a round, ZIP) (`fuzz-host/archive-325aa63/`) |
 | Owner's Mac | `325aa63` | 2,000,000–2,999,999 of all eleven (RAM disk) | ten **passed** (RAR 4 at most 516 MB, the PPMd model; the rest at most 48 MB); TAR+gzip **stopped at round 2294974** (512 MiB; not rebuildable, above) |
-| Host | `cddce72` (Debug) | 2,000,000–2,999,999 of ZIP, TAR, TAR+gzip, gzip, replayable, failing rounds kept | started 12:31 UTC; running (`fuzz-host/archive-cddce72/`) |
+| Host | `cddce72` (Debug) | 4,000,000–4,999,999 of ZIP, TAR, TAR+gzip, gzip | started 14:21 UTC; running (`fuzz-host/archive-cddce72/out-4000000/`) |
+| Host | `cddce72` (Debug) | 2,000,000–2,999,999 of ZIP, TAR, TAR+gzip, gzip, replayable, failing rounds kept | **all four passed** (1,830–3,819 s; nothing kept). Most allocated by one round: ZIP 48 MB (round 2927387), TAR+gzip 21 MB (2640410), TAR 16 MB (2540928), gzip under 1 MB; slowest round 667 ms (ZIP 2117542). Originals' SHA-256 printed by each run, so another machine rebuilds the same bytes (`fuzz-host/archive-cddce72/out-2000000/`) |
 
 Host round outputs (`out-0/`): 7z LZMA2 `8ffb9731b073a590ffe486875c00380e44320f507f6a6107aecc0475cbd4fe0e`, 7z solid
 `9da80a10d139829c1bef9d4bf96b6053080f6c31670abba6574a8cdfbf967012`, RAR `39630aac2125110305f4a4af1bf09d02caad9fbf2d73687356ef3c9d5069c208`,

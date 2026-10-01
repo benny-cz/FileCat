@@ -135,6 +135,21 @@ Files (`artifacts/release-evidence/v24/`): `v24-gpg-keyserver-capture.txt`
 `612d4c4a1a5fc2a442c14db3187e3589a86caa843e3ecb822482d888de13da11`; `v24-gpg-a.pcap` (a first control run, whose
 filter also caught the host's unrelated broadcasts) `7c2c75022f269c1fa6bccd524f77e9328e977cf66dc11cacd2f79d49e7fc4369`.
 
+## E-V24-G1-T2 — a started tool receives exactly the names it was given (no defect)
+
+The charter asks for the explicit-launch routes to be checked "using a recording executable".
+`ContentAndToolTests.A_started_tool_receives_exactly_the_names_it_was_given` configures a tool whose program is the
+system's own shell running a script that writes down the argument vector it was handed, separated by zero bytes (no
+name can contain one, so a name holding a newline cannot look like two records), and starts it the way FileCat starts
+a tool (`ToolLauncher.Launch`, not a plan). The selection is ten files whose names mean something to a shell, to
+cmd.exe or to an option parser — `a b.txt`, `a&calc.txt`, `a;id.txt`, `a%PATH%.txt`, `a$(id).txt`, `a'quote.txt`,
+`-rf.txt`, `` a`tick.txt ``, `a!bang.txt`, `a^caret.txt` — and four more where the file system allows them
+(`a"quote.txt`, `a|pipe.txt`, `a>redirect.txt`, and one holding a newline).
+
+Every name arrived once and unchanged: nothing split at a space, expanded, swallowed as an option or run as a command.
+Run on the host (Windows PowerShell as the recorder, 0.7 s) and on the Ubuntu VM (`/bin/sh`, 0.4 s), and on every CI
+lane from `ed50c13` on.
+
 ## E-V24-G1-S2 — the launch routes, read (no defect found)
 
 Read in the same pass, without a defect to report: `SmbTools` runs the system's SMB tools by full path with every
@@ -144,15 +159,16 @@ argument in a vector (no shell), and a server or share name is never a leading a
 arguments as a vector, refuses a batch file whose arguments carry cmd metacharacters (BatBadBut) unless the user turns
 on shell mode for that tool, and splits over-long selections rather than truncating them. The Windows terminal routes
 start `wt.exe`, PowerShell 7 and Windows PowerShell by full path (I16), and pass a typed command line to the shell the
-user chose, which is that shell's own language by intent. Not yet exercised with a recording executable, which the
-charter asks for and which stays open.
+user chose, which is that shell's own language by intent. The argument vector a tool actually receives is measured in
+E-V24-G1-T2 above.
 
 ## Still open in V24
 
 This pass covered the three routes by which content a user merely browses or checks names an address of its own: the
-Git configuration, the icons, and an OpenPGP signature's key server. What remains: the terminal, SSH and association
-routes with a recording executable (read here, not exercised); malformed WS-Discovery and mDNS; `.lnk` *targets* on a
-share (guarded by the same locality check at the one place a target's own icon is read, not yet exercised end to end);
+Git configuration, the icons, and an OpenPGP signature's key server. What remains: the terminal and association routes as the user drives them from a window (the
+tool route is measured in E-V24-G1-T2); malformed WS-Discovery and mDNS; `.lnk` *targets* on a share (guarded by the same locality check at the one place a target's own icon is read, not yet exercised end to end);
 and the capture-and-trace form of the whole case on a final candidate. On Linux and macOS a value naming a path under
 an automounter is still only a path to FileCat (`IsLocalPath` is a Windows decision); that is the same limitation the
-`gitdir:`/`commondir` checks have carried since `2f35a6b`.
+`gitdir:`/`commondir` checks have carried since `2f35a6b`. On the owner's Mac it reaches nothing: `/net` is commented
+out in `/etc/auto_master`, and `stat /net/192.0.2.1/share/x` there fails in 0.008 s. A machine whose automounter is
+turned on would be a different answer, which is why this stays named here.

@@ -344,8 +344,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
-   E-B02-A1 (a million rounds of every archive format on `325aa63`).
+1. Collect the fuzz campaigns' results: E-I28-C1 (the Windows VM's 3.1–4.1 M and the Mac's 9.1 M of the recovery
+   scanner, Ubuntu's two disk images), E-B02-A1 and E-B02-I1 (the host's and Ubuntu's lanes on `cddce72`).
 1a. Continue V24: the terminal, SSH and association routes with a recording executable, and malformed discovery
    (E-V24-G1 covered the Git, icon and gpg routes; `.lnk` targets on a share remain).
 2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
