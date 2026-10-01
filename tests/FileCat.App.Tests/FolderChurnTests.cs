@@ -6,9 +6,9 @@ using FileCat.Core.Resources;
 namespace FileCat.App.Tests;
 
 /// <summary>
-/// V12: a shown folder churned at full speed (12,000 changes: files made, renamed, rewritten and deleted, more than a
-/// change notification buffer is made for; whether it overflowed is not observed) ends as the disk is, and the marks and
-/// the cursor on files the churn did not touch stay where they were.
+/// V12: a shown folder churned at full speed (12,000 changes: files made, renamed, rewritten and deleted) ends as the disk
+/// is, and the marks and the cursor on files the churn did not touch stay where they were. Whether the folder's change
+/// notifications overflowed is reported; an overflow is forced and observed in ChangeMonitorOverflowTests.
 /// </summary>
 public sealed class FolderChurnTests
 {
@@ -53,7 +53,7 @@ public sealed class FolderChurnTests
             Assert.True(shown.SequenceEqual(disk),
                 $"after {operations} changes and {clock.Elapsed.TotalSeconds:F1} s the panel shows {shown.Count} items for {disk.Count} on disk; " +
                 $"missing {string.Join(", ", disk.Except(shown).Take(5))}; extra {string.Join(", ", shown.Except(disk).Take(5))}");
-            TestContext.Current.TestOutputHelper?.WriteLine($"{operations} changes; the panel matched the disk ({disk.Count} items) {clock.Elapsed.TotalSeconds:F1} s after they ended");
+            TestContext.Current.TestOutputHelper?.WriteLine($"{operations} changes, {tab.WatcherOverflows} notification overflow(s); the panel matched the disk ({disk.Count} items) {clock.Elapsed.TotalSeconds:F1} s after they ended");
 
             // Marks and the cursor on files the churn did not touch stayed where they were.
             var marks = Enumerable.Range(0, listing.VisibleCount).Where(listing.IsVisibleMarked).Select(i => listing.GetVisible(i).Name).Order(StringComparer.Ordinal).ToList();

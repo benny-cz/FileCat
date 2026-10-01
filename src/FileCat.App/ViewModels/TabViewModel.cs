@@ -134,6 +134,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     // ---- Change watching (plan §8.2): only the visible tab of each panel watches its folder ------------------
 
     private ChangeMonitor? _monitor;
+
+    /// <summary>How often the shown folder's change notifications overflowed (tests, diagnostics).</summary>
+    internal int WatcherOverflows => _monitor?.Overflows ?? 0;
     private FolderPoller? _poller;
     private RegistryChangeMonitor? _registryMonitor;
     private bool _registryDirty;
