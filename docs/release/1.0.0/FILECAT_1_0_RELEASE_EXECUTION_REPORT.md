@@ -466,7 +466,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 115. V16 begun (E-V16-H1): the harness inventory §9 asks for (what each benchmark measures, asserts or only prints)
     and preliminary runs on this machine, the historical regression profile, not the reference: comparison, search and
     archives within every asserted budget. Gaps before acceptance: ready-for-input and OS-input-to-present latency are
-    not what the window's benchmark measures; no harness for huge hex, large copies or the shared content cache.
+    not what the window's benchmark measures; no harness for large copies or the shared content cache. Huge hex got
+    one (`6df923b`): a 4 TiB sparse file and 2 GiB of data through the viewer and the editor, first page at most 1 ms
+    warm and seek p95 at most 1.33 ms here (budgets 250 and 100 ms).
 
 ## Evidence invalidated by the campaign's own changes
 

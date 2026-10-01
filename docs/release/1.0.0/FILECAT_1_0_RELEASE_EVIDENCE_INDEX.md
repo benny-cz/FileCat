@@ -215,6 +215,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `1ec9d13` | Count: a folder's size lands only on that folder, not on one put in its place | I85 | E-V12-C1 |
 | `4a156b5` | Test: a folder churned at full speed ends as the disk is, marks and cursor kept | — | E-V12-C1 |
 | — (benchmarks) | V16: the harness inventory; comparison, search and archive benchmarks run on the regression profile | — | E-V16-H1 |
+| `6df923b` | Benchmark: huge-file hex access, first page and random seeks (§9's huge-hex row) | — | E-V16-H1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

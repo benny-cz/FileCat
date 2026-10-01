@@ -21,7 +21,7 @@ Insider build), Debug builds of the test projects, other sessions' work running 
 | Scrolling (p95 ≤16.7 ms) | `NativeBenchmark` | frame intervals under continuous paging | no | each shipping theme and dynamic columns not run |
 | Listing storage (512 MiB shared index) | `eng/ListingScale` | peak private and managed memory, index budget given | no | mappings and spill not reported separately |
 | Content caches (64 MiB shared) | none | — | — | no aggregate accounting harness |
-| Huge hex (first page ≤250 ms, seek p95 ≤100 ms) | none found | — | — | no harness |
+| Huge hex (first page ≤250 ms, seek p95 ≤100 ms) | `HexBenchmark` (`FILECAT_HEX_BENCH`, `6df923b`, added here) | a 4 TiB sparse file with data islands and a 2 GiB file of real data, through the viewer's and the editor's readers: first page on a first and a second open, 300 random seeks (anywhere, inside the data, dense) by nearest rank | **yes**, both budgets | cold cache (after a reboot or a cache reset) not done: the dense file was just written |
 | Large copy (≤10% over CopyFile2) | none found | — | — | no harness |
 | Small copy (100,000 × 4 KiB, ≤25%) | `SmallFileCopyBenchmark` (`FILECAT_COPY_BENCH`, `_ROUNDS`) | job time against CopyFile2 alone on the same files, median overhead over rounds | no: prints; asserts only that the copy completed | ungraded; the default is 500 files, not 100,000 |
 | Comparison (binary ≤2 s, text ≤10 s, aligned ≤30 s, cancel ≤250 ms) | `CompareBenchmark` (`FILECAT_COMPARE_BENCH`) | the TV-08 workloads | **yes**, all four | — |
@@ -38,6 +38,7 @@ Insider build), Debug builds of the test projects, other sessions' work running 
 |---|---|
 | `CompareBenchmark` (before and after `db2e9b4`) | passed: identical million lines 0.87–0.91 s; shifted 1.36–1.49 s; 1,000 scattered edits 1.37–1.67 s; binary 256 MiB identical 0.10 s; aligned binary 2.6 s and 4.7–4.8 s; cancel within 12–20 ms |
 | `SearchBenchmark` | passed: by name over 50,000 files 95 ms; content in 50,000 small files 3.6–4.1 s (budget 20 s), 44 MiB allocated (512 MiB); 200 files of 1 MiB 48–75 ms (2 s); cancel within 13 ms (250 ms) |
+| `HexBenchmark` (added) | passed: first page at most 52.5 ms on a first open (the editor's protected open of the 4 TiB sparse file) and at most 1.0 ms on a second; seek p95 0.07 ms (viewer) and 1.33 ms (editor) in the sparse file's holes, 0.27 and 1.14 ms inside its data, 0.03 and 0.63 ms in the dense file; max 3.33 ms |
 | `ArchiveBenchmark` (273 MiB payload) | passed: ZIP list 72 ms, first 64 KiB of a 64 MiB member 41 ms cold and 2 ms warm, extract 31.3 s against `ZipFile` 12.4 s (2.52×, budget 4×), update scratch 132 MiB; TAR.GZ extract 1.22× `TarFile`, last member's first 64 KiB 1,040 ms cold and 418 ms warm (reported); 7z extract 27.7 s against native 7-Zip 15.3 s (1.81×, budget 5×); ISO first page 179 ms cold, 0 ms warm |
 
 The window's own benchmark (`--benchmark`) was not run: it opens FileCat's window on the owner's desktop.
@@ -48,5 +49,6 @@ The window's own benchmark (`--benchmark`) was not run: it opens FileCat's windo
    negative control, and a launcher for warm and cold launches with a documented cold-start method.
 2. Input latency from the OS input event to the presented frame (or a documented equivalent the owner accepts), and
    physical autorepeat, per §9's definition.
-3. Harnesses for the huge-hex, large-copy and content-cache rows; grading for the rows that only print.
+3. Harnesses for the large-copy and content-cache rows (huge hex has one now); grading for the rows that only print;
+   a cold-cache method for the hex and first-rows rows.
 4. The reference machine of §21.2, isolated from other work.
