@@ -9,7 +9,7 @@ FileCat reads the devices directly (a loop device this user may read; root for t
 - **Machine:** the lent Ubuntu 22.04.5 VM (E-ENV-02), kernel 6.8.0-138; its disk sda: sda1 (BIOS boot), sda2 (FAT, the
   EFI partition, mounted at `/boot/efi`), sda3 (ext4, `/`, which holds `/tmp` and the home folders). Fuzz processes ran
   meanwhile (other processes, not traced).
-- **Builds:** `901b4a5` (L1–L3), `d39c402` (L4, after the fix below), `1477de3` (L5).
+- **Builds:** `901b4a5` (L1–L3), `d39c402` (L4, after the fix below), `1477de3` (L5), `134db5e` (L6).
 
 | Case | What | Result |
 |---|---|---|
@@ -17,6 +17,7 @@ FileCat reads the devices directly (a loop device this user may read; root for t
 | L2 — a partition of the system disk | The EFI partition (`/dev/sda2`, mounted) scanned as root with FileCat's files in memory; scan only; 70 s | Opened once `O_RDONLY`; **no write to it or under `/boot/efi`**. The question said it is mounted and programs can write to it meanwhile |
 | L3 — FileCat's own files on the source | The whole system disk (`/dev/sda`) with FileCat in its usual places (`~/.config/FileCat`, `~/.local/share/FileCat`) | **Refused; `/dev/sda` never opened**; the refusal names the folders and gives the `--data` command |
 | L5 — through UDisks2 | A user not in `disk` (the loop device `root:disk 0660`; an earlier test had left it readable to all, which the first attempt caught) scans a 64 MiB FAT32 image in memory through UDisks2 (2.9.4): FileCat cannot open the device, asks UDisks2's `OpenDevice`, and polkit (0.105) grants it here without a password by a local authority entry made for this test and removed after it. The files were deleted by editing the image as Windows deletes them (I66, below); a deleted 3 MiB file read as the viewer reads it and recovered; 70 s open | **FileCat's process never opened the device**: the descriptor came from UDisks2, opened read-only (`/proc/…/fdinfo` flags `02100000`: `O_RDONLY`, large file, close-on-exec). **No write to the device or its image; SHA-256 before and after `0b2fa99025a863bf6c1590aefa6c540149c4dac819cdc3c84eceaf657725bf9b`**. FileCat's writes: its data folder, the recovered file, .NET's endpoints in `/tmp` (no `TMPDIR` set here), thread names under `/proc`, and its anonymous memory file |
+| L6 — the approval refused | As L5, but polkit says no (a local authority entry denying `open-device` to this user, made for the test and removed after it) | The scan tab failed with **"Reading /dev/loop3 was not authorized: Not authorized to perform operation"**; **the device never opened, nothing read; the image unchanged (SHA-256 `b81c650326a6d2f38c9f76acd09d76821a8255b88d93f659de0566afc930da19`)**. The first run of L6 (`63a215a`) showed only "Access is denied.": every refusal's reason was dropped by the listing (I67, fixed `134db5e`) |
 | L4 — the whole system disk | `/dev/sda` scanned as root with FileCat's files in memory and `TMPDIR` there (as the `--data` command now sets it); scan only; 70 s | Opened twice, `O_RDONLY`; **not one write of FileCat's processes on any disk**: all in `/dev/shm` (its data folder, `TMPDIR` with .NET's own endpoints) and an anonymous memory file of .NET's (`memfd:doublemapper`) |
 
 **Found and fixed (`d39c402`):** in L1 the trace showed `/tmp/.dotnet/shm` made while the disk was being chosen: in a
@@ -52,5 +53,9 @@ L5 files: `l5-out.txt` `97b5ae5d4e5d03c4c240623c1360c90d0501f931699558085802b828
 `a1f126005073949ff0d25e7fa5c340d5a76c21cd788cbcf91df06a87a9183de7`, `l5-fd.txt`
 `e0fd8b0ce57335161d2bd539c7f97d178ab200f3eaf82165ab2deb7dfa3f17be`.
 
-**Not covered here:** approval refusal (polkit saying no, which FileCat reports as a refusal), device removal during a
-scan, and macOS (authopen, `fs_usage`).
+L6 files: `l6-out.txt` `e2d64d36ef4e08242ef9a6c182d6e9c3331966258f71a1f6e1b93f1d039fdd30`, `l6-test.txt`
+`dba0c71533999862823c513f5167827e712bec66dcccc2a51e454ef52dd6e9b1`, `l6.strace`
+`def22e1a9f3031a7eb18264af91e92828a82f69c9a81ba7f0faf6206ef401888`, `l6-writes.txt`
+`94b2a5b363a3c3a7f46c4e64781e6f24ca20889b3a052e03785c0064ad2eb588`.
+
+**Not covered here:** device removal during a scan, and macOS (authopen, `fs_usage`).

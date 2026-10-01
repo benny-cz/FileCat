@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `1477de3` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `134db5e` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -297,6 +297,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     (E-V09-T2, L5): a user who may not read the device got a read-only descriptor from UDisks2 and recovered a deleted
     file, nothing written to the source. On the way, **I66**: files Linux deleted from FAT32 showed as "0 bytes,
     recoverable: the file was empty", their entries cleared by Linux's driver; such entries now say what is known.
+83. V09's refused approval on Linux (E-V09-T2, L6): with polkit saying no, nothing was opened or read. The scan first said
+    only "Access is denied." because every refusal's reason was dropped by the listing (**I67**, fixed `134db5e`); it
+    now says the system did not authorize reading the drive. The archive damage test's generated archives turned out to
+    differ between runs and machines (the writing process's ID in PAX headers, native deflate's architecture-dependent
+    bytes): made identical everywhere (`c4d81d7`), a failing round keeps its bytes (`cddce72`); one TAR+gzip round on the
+    Mac over budget could not be rebuilt and stays open (E-B02-A1). Two recurring CI flakes fixed (`9b734da`).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -323,7 +329,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
    E-B02-A1 (a million rounds of every archive format on `325aa63`).
 2. V09 on macOS (`fs_usage` with a disk image as the source; needs the owner's administrator rights), the installed
-   helper path, approval refusal and device removal.
+   helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
