@@ -211,6 +211,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `c67fa85` | Find: a saved time range shown again keeps its ends; V13's criteria corpus | I83 | E-V13-F1 |
 | `0b52e70` | Test: a runaway regular expression in Find times out, says so, and the search goes on | — | E-V13-F1 |
 | `bc65646` | Compare directories: no item dropped by a letter-case collision; undecided never "same" | I84 | E-V13-C1 |
+| `49570df` | Test: a queued copy keeps its items and destination; hidden marks are said | — | E-V01-S1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
