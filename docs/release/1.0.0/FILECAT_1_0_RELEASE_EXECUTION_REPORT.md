@@ -497,6 +497,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     no reread until after the last; 100,000 changes in 30 s: none). Now every two seconds while changes come, and one
     after. Overflows of the system's buffer are counted and logged: unhindered, this machine's watcher kept up with
     100,000 changes; held up 2 ms a notification, 20,000 changes overflowed it four times, and a reread followed.
+120. V12, counts and their tab (E-V12-C2): **I88** (High, `a9a9dcf`): a folder's count went on after its tab closed and
+    posted to the disposed listing four times a second; each post threw on the window's thread, and the crash guard
+    ends FileCat past five in three seconds (24 in five seconds measured, closing a tab 0.3 s into a 6-second count).
+    Leaving the folder kept the tab "counting" in the next one. Now a count ends with the tab's stay in its folder;
+    the same experiment raised none.
 
 ## Evidence invalidated by the campaign's own changes
 

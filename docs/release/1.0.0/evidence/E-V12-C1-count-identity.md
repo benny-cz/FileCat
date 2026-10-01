@@ -46,5 +46,5 @@ partial size on a marked folder, so labelled, and clears it from an unmarked one
 
 V12's other parts: million-entry and long-name listings, slow parsers, rapidly changing viewports, many tabs,
 disconnected devices, expensive sorting asked for and cancelled, visible-row
-verification beside a copy or search, many folders counted and the count cancelled by a test, navigating away, and the
-tab moved to another panel while counting.
+verification beside a copy or search, many folders counted and the count cancelled by a test, and the tab moved to
+another panel while counting. Navigating away and closing the tab while counting: E-V12-C2 (I88).

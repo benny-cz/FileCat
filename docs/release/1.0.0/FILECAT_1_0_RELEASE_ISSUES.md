@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I88 | Count: a folder's count went on after its tab closed and threw on every progress post, enough for the crash guard to end FileCat; leaving the folder kept the tab "counting" | High (FileCat ends about 1.6 s after closing a tab during a count with that much left: 24 exceptions in five seconds measured) | Must fix (V12: navigating away and closing while counting) | **Remediated `a9a9dcf`; verified** (E-V12-C2; tests fail on the old code; the experiment: 24 exceptions before, 0 after) |
 | I87 | Folder watch: a folder that kept changing was not read again until the changes stopped | Medium (a folder a program keeps saving into stayed as first shown: no reread in six seconds of a file every 50 ms, none in 30 s of churn) | Must fix (V12: rapidly changing folders) | **Remediated `3d2bb2e`; verified** (E-V12-W1; unit test with a negative control) |
 | I86 | Operations: "Clear finished" could leave a job that had just finished, and keep offering to clear it | Low (a click did nothing; a second one worked) | Must fix (CI red; V17: controls do what they say) | **Remediated `506cc75`; verified** (unit test fails on the old code) |
 | I85 | Count: a folder deleted and made again, or replaced, while its size was counted took the first folder's size as counted | Low–Medium (a size shown, as counted, for a folder that was never counted) | Must fix (V12: results never land on replacements) | **Remediated `1ec9d13`; verified** (E-V12-C1; unit test with a negative control) |
@@ -1031,6 +1032,23 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I88 — Count: a folder's count went on after its tab closed, and could end FileCat
+
+- **Found by:** writing V12's check that a count stops when its folder is left (E-V12-C2): the test closing the tab
+  failed with `ObjectDisposedException` from the count's post to the window.
+- **What was wrong:** the count posts progress to the tab's listing four times a second and its result at the end; a
+  closed tab has disposed its listing, so each post threw on the window's thread. The crash guard reports one and keeps
+  going but ends the process past five in three seconds: a tab closed 0.3 s into a 6-second count raised 24 in five
+  seconds. Leaving the folder kept the count running for nothing, and the next folder's status line said it was
+  counting, refused Count, and Esc spoke of the old folder's counts.
+- **Remediation (`a9a9dcf`):** a count ends with its tab's stay in the folder: leaving or closing cancels it at once,
+  takes it off the tab's running counts at once, and nothing it posts touches the listing afterwards.
+- **Verification:** `FolderCountLeaveTests` (the count held at its start, then the folder left or the tab closed) fail
+  on the old code and pass; the experiment (90,300 folders, not committed): 24 window-thread exceptions before, 0
+  after. App 222.
+- **Severity:** High: FileCat itself ends, from an everyday action (Space on a large folder, then closing its tab),
+  whenever the count had more than about a second and a half left.
 
 ### I87 — Folder watch: a folder that kept changing was not read again until the changes stopped
 
