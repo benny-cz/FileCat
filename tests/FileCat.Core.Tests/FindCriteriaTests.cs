@@ -86,6 +86,27 @@ public sealed class FindCriteriaTests : IDisposable
     }
 
     [Fact]
+    public void A_regular_expression_that_runs_away_times_out_says_so_and_the_search_goes_on()
+    {
+        // (a+)+b against a run of a's with no b backtracks for ever: the match gives up after its second (V13).
+        Write("runaway.txt", new string('a', 40) + "c");
+        Write("quick.txt", "xx ab yy");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var (found, session) = Run(new SearchQuery { Roots = [_dir.Path], Text = "(a+)+b", Regex = true, IncludeDirectories = false });
+        Assert.Equal(["quick.txt"], found);
+        Assert.True(session.RegexTimedOut);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"took {clock.Elapsed}");
+        // A runaway name mask does the same for names.
+        Write(new string('a', 40) + "c.txt", "x");
+        Assert.True(Selection.Mask.TryParse("/(a+)+b/", out var mask, out _));
+        clock.Restart();
+        var (named, nameSession) = Run(new SearchQuery { Roots = [_dir.Path], Names = mask, IncludeDirectories = false });
+        Assert.Empty(named);
+        Assert.True(nameSession.RegexTimedOut);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(30), $"took {clock.Elapsed}");
+    }
+
+    [Fact]
     public void Hex_search_finds_bytes_split_across_two_reads()
     {
         var data = new byte[1024 * 1024 + 10];
