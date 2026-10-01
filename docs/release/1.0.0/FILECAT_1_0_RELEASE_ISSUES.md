@@ -18,7 +18,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I06 | Aggregate content-cache accounting | Potential High | Validation gate | Open |
 | I07 | Performance targets not proved | Medium–High | Performance gate | Open |
 | I08 | Containment documentation versus reality | Potential High/Critical | Security gate | Open |
-| I09 | Recovery whole-source safety: FileCat wrote to its own folders on the disk being recovered after only a warning; destinations behind loop devices, disk images, VHDs and shares served by the same computer were taken for other disks | Potential Critical (writes can overwrite the deleted files being recovered) | Safety gate (V09) | **Remediated preliminarily** (`27256f6`, `7418c04`, `0a52b7b`, `1df5a21`, `f241897`, `deaf776`; live topology checks on Ubuntu, macOS and the Windows VM; write traces in the Windows VM, E-V09-T1); Linux/macOS traces and the installed helper path pending |
+| I09 | Recovery whole-source safety: FileCat wrote to its own folders on the disk being recovered after only a warning; destinations behind loop devices, disk images, VHDs and shares served by the same computer were taken for other disks | Potential Critical (writes can overwrite the deleted files being recovered) | Safety gate (V09) | **Remediated preliminarily** (`27256f6`, `7418c04`, `0a52b7b`, `1df5a21`, `f241897`, `deaf776`; live topology checks on Ubuntu, macOS and the Windows VM; write traces in the Windows VM, E-V09-T1, and on the Ubuntu VM, E-V09-T2, `d39c402`); macOS, UDisks2 and the installed helper path pending |
 | I10 | Documentation drift | Medium | Blocker where safety/support claims mislead | Open |
 | I11 | Missing mandatory external evidence | Qualification blocker | Blocker | Open — resources |
 | I12 | Historical regressions need durable coverage | Medium | Non-blocker once covered | **Covered** (`62bd88f`'s tests; `85d512d`) — closure pending re-audit |
@@ -836,9 +836,15 @@ level the plan already states; exploit-level detail is not recorded here.
   FileCat's files on the system drive, its scan was refused before any device access. On the way: a VHDX data disk was
   refused as unknown (`1df5a21` places a VHD by its file), and the Shell and gpg are now held off from the moment a
   disk is chosen (`f241897`).
-- **Residual risk and what V09 still needs:** traces on Linux and macOS (`strace`/`fs_usage`) with real devices, the
-  installed helper path, approval refusal and device removal, and the final candidate's package rather than the test
-  host. Writes FileCat cannot place stay possible: Windows itself on its own disk
+- **Write traces on Linux (E-V09-T2):** under `strace` on the Ubuntu VM: a loop device's image unchanged (hash) and only
+  read; the system disk's EFI partition and the whole system disk read only, and in the whole-disk case not one write of
+  FileCat's processes on any disk; FileCat's own files on the system disk: refused before opening it. Found on the way
+  and fixed in `d39c402`: in a FileCat started with `--data`, asking whether the usual FileCat runs looked up a named
+  mutex, which .NET keeps in files under `/tmp`, so choosing a disk wrote to the temporary folder; the `--data` command
+  now also moves .NET's own endpoints (`TMPDIR`).
+- **Residual risk and what V09 still needs:** macOS (`fs_usage`, authopen), UDisks2 for a user who may not read the
+  device, the installed helper path, approval refusal and device removal, and the final candidate's package rather than
+  the test host. Writes FileCat cannot place stay possible: Windows itself on its own disk
   (registry hives, prefetch, error reports), access times the system updates when the user browses the mounted source,
   memory file systems swapping to a swap area on the source. A disk swapped for one of exactly the same size between
   the choice and the approval is not noticed (this host has two such disks). The usual FileCat is only noticed when

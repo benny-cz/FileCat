@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `deaf776` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `d39c402` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -244,6 +244,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     only read; the system drive got no file of FileCat's (NTFS wrote its own pending metadata as FileCat read it,
     disclosed, wording corrected `deaf776`); FileCat's own files on the source: refused before any device access. The
     runs found a VHDX data disk refused as unknown (`1df5a21`) and the hold-off starting too late (`f241897`).
+74. I09 on Linux (E-V09-T2): a loop device's image unchanged and only read; the whole system disk scanned with FileCat's
+    files and `TMPDIR` in memory got not one disk write from FileCat's processes; FileCat's own files on the disk:
+    refused. The trace found a write to `/tmp` at the moment a disk was chosen (a named-mutex lookup), fixed `d39c402`.
+    The archive damage campaign's longer runs found TAR and RAR 4 rounds over the allocation budget that did not replay
+    alone: the generated archives carried the run's time (fixed `c22c793`); the hunt goes on with replayable rounds.
 73. V: (the VMs' drive) fell to 24.7 GB as the Windows VM's change disk grew 59 GB this morning (Windows' own block
     rewrites; nothing large is visible in the guest); a stronger watchdog stops the VMs' fuzz below 15 GB and pauses the
     Windows VM below 8 GB. The host's re-run of the lost fuzz ranges and the Mac's 8.1–9.1 M all passed.
@@ -272,8 +277,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 1. Collect the fuzz campaign's results (E-I28-C1): the host's two FAT32 ranges, the Mac's 8.1–9.1 M, Ubuntu's queue,
    the Windows VM's 3.1–4.1 M.
-2. V09 on Linux and macOS (`strace`/`fs_usage` with a loop device or disk image as the source), the installed helper
-   path, approval refusal and device removal.
+2. V09 on macOS (`fs_usage` with a disk image as the source), UDisks2, the installed helper path, approval refusal and
+   device removal; find and fix the archive rounds over budget (TAR, RAR 4) now that rounds replay.
 3. Continue the V23 source review in risk order: B01–B03 (largely covered by the DPI rows, the fuzz campaign and V07/V10),
    B07, B09; I16's independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
