@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `edd950a` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `f9b0c13` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -402,6 +402,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 102. The iPhone, reading (E-V21-I1): one photo read into memory with the owner's leave — a PNG, so sizes agree but
     nothing was converted; the phone lists its photos as JPEG (no HEIC), so one JPEG read would show whether converted
     photos come off whole. Asked.
+103. The owner's request: the Recycle Bin among the places, beside Downloads, opening Windows' own window, since only it
+    restores what it holds (`f9b0c13`): Windows' stock icon, empty or full by the fixed drives' bins; tests with a test
+    platform's Shell (nothing opens on the desktop); the exact command run in the lent VM opened its Recycle Bin window.
+    A view of FileCat's own (reading the bins' records, restoring) is the owner's decision.
 
 ## Evidence invalidated by the campaign's own changes
 
