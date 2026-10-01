@@ -305,8 +305,12 @@ public sealed class RemoteLabTests : IDisposable
             });
             while (!job.State.IsFinished() && job.BytesDone < bytes.Length * 3L / 10) await Task.Delay(20, ct);
             Assert.False(job.State.IsFinished(), "The upload finished before the connection could be cut.");
+            // Held while the server drops the connection, so the cut lands mid-upload however long the drop command takes
+            // (from the lent Windows VM it outlasted the upload once).
+            job.Pause();
             using (var cut = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c " + drop) { UseShellExecute = false }))
                 await cut!.WaitForExitAsync(ct);
+            job.Resume();
             var deadline = DateTime.UtcNow.AddMinutes(5);
             while (!job.State.IsFinished() && DateTime.UtcNow < deadline) await Task.Delay(50, ct);
             string story = $"{job.State}; asked: {string.Join(" | ", asked)}; issues: {string.Join(" | ", job.Issues.Select(i => i.Message))}";
