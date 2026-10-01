@@ -67,3 +67,19 @@ updates disabled.
   (SSH.NET from the host's package cache; the VM's host key pinned on first use, SHA-256
   `YOGYoStN1b+viZGymPI7ipmmzjXcg9sAZOWOYs/cOp4`). The lab's server helpers (connection drop, SMB listing and drop,
   names, latency) use the same route (`artifacts/vm/ubu-lab-ssh.ps1`, `ubu-names-ssh.ps1`).
+- **Second implementations on the Ubuntu VM (2026-10-01, E-V08-L2):** ProFTPD 1.3.7c with explicit FTPS on 2121,
+  implicit FTPS on 2990 and SFTP (`mod_sftp`, its own ed25519 host key, SHA-256
+  `ztBPAN9/s2JbZMLMHnonJEHgLbwXX1ckgSVdl3T3UZg`) on 2222. Installing it removed the vsftpd package (both provide
+  `ftp-server`); vsftpd 3.0.5's own package was unpacked under `/opt/fc-vsftpd` and runs from two units with the lab's
+  configurations. After a reboot `/var/run/vsftpd/empty` was missing and vsftpd refused logins ("OOPS: … secure_chroot_dir");
+  the units now create it before starting.
+- **Ubuntu VM network adapter hang (2026-10-01 06:00:49–06:11):** under the lab's load from the host and the Windows VM
+  at once (with seven fuzz processes on the VM), the emulated Intel e1000 adapter reported "Detected Tx Unit Hang" 304
+  times and the VM stopped answering on the network, VMware Tools included. It was reset (power cycle); its fuzz runs
+  were lost and its lab services came back. Since then the adapter's segmentation and receive offloads are off
+  (`ethtool -K ens33 tso off gso off gro off`, re-applied at boot by a unit), the usual remedy for that e1000 hang. Lab
+  results taken from 06:00:49 until the reset are void: the Windows VM's first client run and two host runs of one case.
+- **The Windows VM as a client (V08):** reaches the Ubuntu VM directly on the NAT network (192.168.58.128 →
+  .129); .NET 10.0.6 runtime installed. The lab helpers there run in Windows PowerShell 5.1, which drops quotes inside
+  arguments to native programs; the VM's helpers send their commands base64-encoded (`artifacts/vm/vm-lab-ssh.ps1`,
+  `vm-names-ssh.ps1`).
