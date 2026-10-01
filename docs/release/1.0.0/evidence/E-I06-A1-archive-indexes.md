@@ -42,8 +42,8 @@ Eight such ZIPs and eight such TARs opened one after another would have stayed i
 | The same with a limit below one index | the two used last are kept, the one before goes |
 | A 35 MiB member being read while its archive's index is let go (limit of one byte, two other archives opened) | read to the end, byte for byte |
 | Negative control: eviction by count only, as before | all three tests fail (on both versions) |
-| Negative control: a cache hit not counted as use | both ordering tests fail |
-| Core suite / App suite | 738 / 220, 0 failed |
+| Negative control: a cache hit not counted as use | both ordering tests fail (run on the first version) |
+| Core suite / App suite | 738, 0 failed, on both versions / 220, 0 failed, on the first |
 
 ## Not covered here
 
