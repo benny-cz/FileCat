@@ -10,17 +10,17 @@ public sealed class NetworkDiscoveryTests
 {
     private const string Endpoint = "urn:uuid:1f7b8c3a-0000-4000-8000-00155d000001";
 
-    private static string ProbeMatches(string xaddrs) => $"""
+    internal static string ProbeMatches(string xaddrs) => $"""
         <?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing" xmlns:wsd="http://schemas.xmlsoap.org/ws/2005/04/discovery" xmlns:wsdp="http://schemas.xmlsoap.org/ws/2006/02/devprof" xmlns:pub="http://schemas.microsoft.com/windows/pub/2005/07"><soap:Header><wsa:To>http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous</wsa:To><wsa:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/ProbeMatches</wsa:Action><wsa:MessageID>urn:uuid:5d2c1a4e-1111-4222-8333-444455556666</wsa:MessageID><wsa:RelatesTo>urn:uuid:0e9e8f7a-1111-4222-8333-444455556666</wsa:RelatesTo><wsd:AppSequence InstanceId="3" MessageNumber="1"></wsd:AppSequence></soap:Header><soap:Body><wsd:ProbeMatches><wsd:ProbeMatch><wsa:EndpointReference><wsa:Address>{Endpoint}</wsa:Address></wsa:EndpointReference><wsd:Types>wsdp:Device pub:Computer</wsd:Types><wsd:XAddrs>{xaddrs}</wsd:XAddrs><wsd:MetadataVersion>2</wsd:MetadataVersion></wsd:ProbeMatch></wsd:ProbeMatches></soap:Body></soap:Envelope>
         """;
 
     /// <summary>What Windows answers a WS-Transfer Get with (the device host first, then the computer it runs on).</summary>
-    private const string Metadata = """
+    internal const string Metadata = """
         <?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing" xmlns:wsx="http://schemas.xmlsoap.org/ws/2004/09/mex" xmlns:wsdp="http://schemas.xmlsoap.org/ws/2006/02/devprof" xmlns:pub="http://schemas.microsoft.com/windows/pub/2005/07"><soap:Header><wsa:Action>http://schemas.xmlsoap.org/ws/2004/09/transfer/GetResponse</wsa:Action></soap:Header><soap:Body><wsx:Metadata><wsx:MetadataSection Dialect="http://schemas.xmlsoap.org/ws/2006/02/devprof/ThisDevice"><wsdp:ThisDevice><wsdp:FriendlyName>Microsoft Publication Service Device Host</wsdp:FriendlyName><wsdp:FirmwareVersion>1.0</wsdp:FirmwareVersion></wsdp:ThisDevice></wsx:MetadataSection><wsx:MetadataSection Dialect="http://schemas.xmlsoap.org/ws/2006/02/devprof/Relationship"><wsdp:Relationship Type="http://schemas.xmlsoap.org/ws/2006/02/devprof/host"><wsdp:Host><wsa:EndpointReference><wsa:Address>urn:uuid:1f7b8c3a-0000-4000-8000-00155d000001</wsa:Address></wsa:EndpointReference><wsdp:Types>pub:Computer</wsdp:Types><pub:Computer>TESTBOX/Workgroup:WORKGROUP</pub:Computer></wsdp:Host></wsdp:Relationship></wsx:MetadataSection></wsx:Metadata></soap:Body></soap:Envelope>
         """;
 
     /// <summary>An mDNS answer: a PTR to "NAS._smb._tcp.local", its SRV naming nas.local, and nas.local's address.</summary>
-    private static byte[] MdnsAnswer(IPAddress address)
+    internal static byte[] MdnsAnswer(IPAddress address)
     {
         var bytes = new List<byte> { 0, 0, 0x84, 0, 0, 0, 0, 1, 0, 0, 0, 2 };
         void Name(params string[] labels)

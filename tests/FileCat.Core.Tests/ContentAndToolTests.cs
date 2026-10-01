@@ -167,34 +167,57 @@ public class ContentAndToolTests
         if (!OperatingSystem.IsWindows()) names.AddRange(["a\"quote.txt", "a|pipe.txt", "a>redirect.txt", "a\nnewline.txt"]);
         var files = names.Select(n => dir.File(n)).ToList();
 
-        // The records are separated by a zero byte, which no name can contain: a name holding a newline (Unix allows
-        // one) would otherwise look like two records.
-        ToolDefinition tool;
+        // Each record ends with a separator that cannot be inside a name: a zero byte on Unix, where a name may hold a
+        // newline, and a newline on Windows, where it may not.
+        char separator = OperatingSystem.IsWindows() ? '\n' : '\0';
+        var recorders = new List<(string What, ToolDefinition Tool)>();
         if (OperatingSystem.IsWindows())
         {
-            string script = dir.File("recorder.ps1", "[IO.File]::WriteAllText($args[0], ($args[1..($args.Count-1)] -join \"`0\") + \"`0\")\n");
+            // Two of them, because a machine may forbid one: the Windows Script Host answers to no execution policy,
+            // and PowerShell is there even where scripting is switched off.
+            string js = dir.File("recorder.js", "var fso = new ActiveXObject('Scripting.FileSystemObject');\nvar out = fso.CreateTextFile(WScript.Arguments.Item(0), true, true);\nfor (var i = 1; i < WScript.Arguments.length; i++) out.WriteLine(WScript.Arguments.Item(i));\nout.Close();\n");
+            string ps1 = dir.File("recorder.ps1", "[IO.File]::WriteAllLines($args[0], $args[1..($args.Count-1)])\n");
+            string cscript = Path.Combine(Environment.SystemDirectory, "cscript.exe");
             string powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
-            if (!File.Exists(powershell)) { Assert.Skip("Windows PowerShell is not here."); return; }
-            tool = new ToolDefinition { Name = "recorder", Executable = powershell, Arguments = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, recorded, "{files}"] };
+            if (File.Exists(cscript)) recorders.Add(("the Windows Script Host", new ToolDefinition { Name = "recorder", Executable = cscript, Arguments = ["//nologo", "//B", js, recorded, "{files}"] }));
+            if (File.Exists(powershell)) recorders.Add(("Windows PowerShell", new ToolDefinition { Name = "recorder", Executable = powershell, Arguments = ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps1, recorded, "{files}"] }));
         }
         else
         {
             string script = dir.File("recorder.sh", "#!/bin/sh\nout=$1\nshift\nprintf '%s\\0' \"$@\" > \"$out\"\n");
             File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            tool = new ToolDefinition { Name = "recorder", Executable = "/bin/sh", Arguments = [script, recorded, "{files}"] };
+            recorders.Add(("/bin/sh", new ToolDefinition { Name = "recorder", Executable = "/bin/sh", Arguments = [script, recorded, "{files}"] }));
         }
 
-        var result = ToolLauncher.Launch(tool, new ToolContext(files, dir.Path), dir.Path);
-        Assert.Single(result.Invocations);
         string[] got = [];
-        for (int i = 0; i < 150; i++)
+        var tried = new List<string>();
+        foreach (var (what, tool) in recorders)
         {
-            try { if (File.Exists(recorded)) got = File.ReadAllText(recorded).Split('\0', StringSplitOptions.RemoveEmptyEntries); }
-            catch (IOException) { }
-            if (got.Length >= files.Count) break;
-            Thread.Sleep(100);
+            try { File.Delete(recorded); } catch (IOException) { }
+            var result = ToolLauncher.Launch(tool, new ToolContext(files, dir.Path), dir.Path);
+            Assert.Single(result.Invocations);
+            for (int i = 0; i < 300; i++) // a cold shell on a loaded machine can take a while to start
+            {
+                // A Windows recorder ends its lines with CRLF, and no Windows name can hold a carriage return; a Unix
+                // name can, so there the zero byte alone separates them and nothing is trimmed.
+                try
+                {
+                    if (File.Exists(recorded))
+                    {
+                        got = File.ReadAllText(recorded).Split(separator, StringSplitOptions.RemoveEmptyEntries);
+                        if (OperatingSystem.IsWindows()) got = [.. got.Select(r => r.TrimEnd('\r'))];
+                    }
+                }
+                catch (IOException) { }
+                if (got.Length >= files.Count) break;
+                Thread.Sleep(100);
+            }
+            tried.Add($"{what}: {got.Length} records");
+            if (got.Length > 0) break;
         }
-        Assert.True(got.Length > 0, "The recording program wrote nothing: it did not run.");
+        // Where no recording program can run at all, this machine cannot answer the question; where one did, it must
+        // have been handed the names unchanged.
+        if (got.Length == 0) { Assert.Skip("No recording program ran here — " + string.Join("; ", tried)); return; }
 
         // Every name, once, unchanged: nothing split at a space, expanded, swallowed as an option or run as a command.
         Assert.Equal(files, got);

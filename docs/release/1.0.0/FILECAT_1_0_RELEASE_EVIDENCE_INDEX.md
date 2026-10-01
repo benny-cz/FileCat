@@ -178,6 +178,10 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `aaee133` | Git badges: a repository's configuration never sends Git off this computer | I69 | E-V24-G1 |
 | — (test only) | V24: icons a folder's files name on a share are never contacted while it is listed | I16 (held) | E-V24-G1-I1 |
 | — (test only) | V24: a signature naming a key server is checked without contacting it | I16 (held) | E-V24-G1-P1 |
+| — (test only) | V24: a started tool receives exactly the names it was given (recording program) | I16 (held) | E-V24-G1-T2 |
+| — (test only) | V24: damaged WS-Discovery, device metadata and mDNS answers, a million rounds each | B05 (held) | E-V24-D1 |
+| `3f647bd` | Shell pictures: a request that got no answer is not remembered as the file having none | I70 | E-V24-D1 |
+| — (test only) | V24: what runs while a folder naming a program three times over is shown | I16 (held) | E-V24-D1-B1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |

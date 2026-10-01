@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I70 | A Shell picture that got no answer was remembered as the file having none | Medium (after a helper died, quick view showed no picture for those files for the rest of the session) | Must fix (V24, CI flake) | **Remediated `3f647bd`; verified** (unit test with a negative control) |
 | I69 | A repository's own configuration sent Git to a server while the folder was merely shown | High (an unasked connection to an attacker-named server during ordinary browsing; 21 s per repository where it does not answer) | Must fix (V24, V23 B10) | **Remediated `aaee133`; verified** (E-V24-G1, with a packet capture) |
 | I68 | Linux/macOS: a permanent delete reached into a file system mounted inside the deleted folder | High (deleting a folder that holds a mounted drive, share or bind mount emptied that volume too) | Must fix (V23 B01, DPI) | **Remediated `e5b4e3b`; verified** (unit test; live on the Ubuntu VM) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
@@ -1013,6 +1014,27 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I70 — A Shell picture that got no answer was remembered as the file having none
+
+- **Found by:** a CI failure on the Windows ARM64 lane (`ShellPictureUiTests`, run 36875934453), which said "quick
+  view's request was answered with no picture; helpers started: 2" — the helper had died and been replaced, and the
+  file was left without a thumbnail.
+- **What was wrong:** the restricted helper is meant to be fragile: it runs the Shell's own handlers, so one that
+  crashes takes the helper with it, and a busy computer can miss the 20-second start. `ShellHostClient` answers all of
+  these with `null`, exactly as it answers "this file has no picture", and `ShellPreviews` cached that null under a key
+  made of the file, its time and the size. Quick view asks once per item shown, so the picture stayed missing for the
+  rest of the session even though a fresh helper would have made it. Icons fell back to the type icon the same way.
+- **Remediation (`3f647bd`):** the client now says which of the three it was — the helper **answered** (a picture or a
+  definite none), it **refused** (this item hung or crashed a helper before, or pictures are off for this session), or
+  it **failed** (no helper answered at all). Only an answer or a refusal is remembered. A failure is tried again next
+  time the picture is wanted, at most three times per file, so a handler that brings the helper down on every try is
+  still given up on.
+- **Verification:** `ShellHostTests.A_request_that_got_no_answer_is_not_remembered_as_the_file_having_no_picture` —
+  two failures leave nothing remembered and are asked afresh, the answer that follows is remembered and ends the
+  asking, and a file that fails every time is given up on after three. Checked against the unfixed code as well, where
+  it fails on the first assertion.
+- **Severity:** Medium: a visible feature degrades for the rest of a session after a fault it was designed to survive.
 
 ### I69 — A repository's own configuration sent Git to a server while the folder was merely shown
 
