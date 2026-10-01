@@ -53,28 +53,32 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Ubuntu 22.04 VM | `bb977d0` | NTFS 100,000–1,099,999 | **lost** with the others (I37) |
 | Ubuntu 22.04 VM | `02acee6` | 100,000–1,099,999 (all images) | restarted 2026-10-01 00:34 UTC as user services (heap cap 1 GiB, lowest priority; `fuzz-02acee6.zip` `b1a86a5adcc6dcfa0603587b52c7947e2e5f71db911f879d46bfb96db3eda674`). NTFS **stopped at round 169,883** on the allocation budget (1,596 MiB for a damaged compressed size; fixed `0ec94f1`, replayed in every run, E-I37); the other six images running |
 | Ubuntu 22.04 VM | `2ba114e` | NTFS 169,884–1,099,999 | resumed after that round on the newest decoders (`fuzz-2ba114e.zip` `9e66fe99b0405718fb174a14ce4023a1c378aaddeec666fe05f3582b77b0fab8`); **lost** at the VM's reset (2026-10-01 06:11, its network adapter hung, E-ENV-05), as were exFAT, FAT16, FAT32 and both disks of `02acee6`; FAT12 of `02acee6` had **passed** (12,965 s; `fuzz-c1/ubu-i37/`) |
-| Ubuntu 22.04 VM | `2ba114e` | 100,000–1,099,999 (all images, four at a time) | started again 2026-10-01 04:24 UTC as one queue (heap cap 768 MiB, lowest priority); fat16 (5,855 s), fat12 (12,735 s), fat32 (16,564 s), exFAT (16,206 s) and NTFS (28,358 s, by 12:16 UTC) **passed**; both disks running (paused twice while the host's VM drive was low, E-ENV-05) |
+| Ubuntu 22.04 VM | `2ba114e` | 100,000–1,099,999 (all images, four at a time) | started again 2026-10-01 04:24 UTC as one queue (heap cap 768 MiB, lowest priority); fat16 (5,855 s), fat12 (12,735 s), fat32 (16,564 s), exFAT (16,206 s) and NTFS (28,358 s, by 12:16 UTC) **passed**; the GPT disk **passed** (26,063 s, at 16:14 UTC; all six in `fuzz-c1/ubu-r2/`); the MBR disk running (both were paused twice while the host's VM drive was low, E-ENV-05) |
 | Windows 11 VM | `98fb594` | 1,100,000–2,099,999 | fat12 (5,530 s), fat16 (12,731 s), exFAT (11,856 s), disk-mbr (21,593 s) and disk-gpt (22,206 s) **passed**; NTFS stopped on the second finding (317 s); fat32 **lost** unfinished when the VM was reverted (2026-10-01 07:35, its host drive full, E-ENV-05) |
 | Windows 11 VM | `bb977d0` | NTFS 1,100,000–2,099,999 | **passed** (11,981 s) |
 | Windows 11 VM | `2ba114e` | NTFS, exFAT, FAT32 6,100,000–7,099,999 | started 2026-10-01 01:32 UTC; **lost** unfinished in the same revert |
 | Host | `07e6833` | FAT32 1,100,000–2,099,999; NTFS, exFAT, FAT32 6,100,000–7,099,999 | the lost ranges again, on the newest decoders (I52's FAT change among them); started 2026-10-01 05:38 UTC, below-normal priority, heap cap 1 GiB. exFAT **passed** (6,141 s; `exfat-6100000.txt` `16d4d9b14257c82b709e491aadaa8a1ea010c46f0712c44c220186e3ed492599`), NTFS **passed** (8,310 s; `ntfs-6100000.txt` `d4492d8b8baea13fa5ab582bb3db265377b47131c62514172ea6fc7f09294c36`), FAT32 1.1–2.1 M **passed** (14,097 s; `fat32-1100000.txt` `4bb44901ba737bf0123e60caac2f6d91efaf72556b45495bb34669aff200f7d8`), FAT32 6.1–7.1 M **passed** (14,081 s; `fat32-6100000.txt` `fa2466e86da5edadd5eff55f8be92839c3ae5e3c6ff60247c9d6fd05231fc855`): every lost range done (`fuzz-c1/host-07e6833/`) |
 | Windows 11 VM | `ca91908` | 3,100,000–4,099,999 of FAT12, FAT16, FAT32, exFAT and both disks (NTFS ran them on the Mac) | started 2026-10-01 07:29 UTC, six processes at below-normal priority, heap cap 1 GiB, on the private .NET 10.0.12 copy (E-X01 W7). FAT12 finished; the other five were **stopped** at 10:25 UTC by the V: watchdog, and every result was **lost** when the VM went back to its snapshot (the guest's own update had filled V: again, E-ENV-05) |
-| Windows 11 VM | `325aa63` | 3,100,000–4,099,999 of FAT12, FAT16, FAT32, exFAT and both disks | the same ranges again from 10:59 UTC, the guest's updates and network off; running |
+| Windows 11 VM | `325aa63` | 3,100,000–4,099,999 of FAT12, FAT16, FAT32, exFAT and both disks | the same ranges again from 10:59 UTC, the guest's updates and network off: **all six passed** (FAT12 8,756 s, exFAT 11,876 s, FAT16 14,337 s, disk-mbr 19,017 s, disk-gpt 19,255 s, FAT32 20,341 s; `fuzz-c1/win-fuzz8/`) |
 | Owner's M1 Mac | `bb977d0` | 2,100,000–3,099,999 (all images) | **all seven passed** (1,899–10,815 s per image; `done.txt` on the Mac) |
 | Owner's M1 Mac | `02acee6` | 5,100,000–6,099,999 (all but NTFS) | fat12 (1,842 s), fat16 (6,225 s), fat32 (8,646 s), disk-mbr (8,358 s) and disk-gpt (8,606 s) **passed**; exFAT **stopped at round 5,326,394** (256 MiB for a 16 MiB image: exFAT's declared cluster count, held to the volume by `b9c41eb`; replayed by `9347070`, E-I37) |
 | Owner's M1 Mac | `2ba114e` | exFAT 5,326,395–6,099,999 | **passed** (2,421 s) |
 | Owner's M1 Mac | `bb977d0` | NTFS 3,100,000–5,099,999 (two processes) | **passed** (3,130 s and 3,172 s) |
 | Owner's M1 Mac | `2ba114e` | 7,100,000–8,099,999 (all images) | **all seven passed** (2,081–9,271 s per image; `fuzz-c1/mac-v5/`) |
 | Owner's M1 Mac | `07e6833` | 8,100,000–9,099,999 (all images) | started 2026-10-01 06:17 UTC on the build with I52's FAT change (`fuzz-07e6833.zip` `4e3979c9947884d55289182b09653df92a703b0423a0a7e38556c6b908b92f3e`); **all seven passed** (2,080–9,309 s per image; `done.txt` on the Mac) |
+| Owner's M1 Mac | `325aa63` | 9,100,000–10,099,999 (all images) | **all seven passed** (3,474–9,938 s per image; `fuzz-c1/mac-q8-recovery-9100000/`) |
+| Windows 11 VM | `5394c71` | 4,100,000–5,099,999 of FAT12, FAT16, FAT32, exFAT and both disks, the one range no machine had run for them | started 2026-10-01 16:58 UTC on the newest decoders (I66's FAT change among them; zip `08888eb6…948d`), six processes at below-normal priority, heap cap 1 GiB (`artifacts/vm/win-fuzz9.ps1`); running |
+| Owner's M1 Mac | `5394c71` | 10,100,000–11,099,999 (all images) | queued behind the archive lanes (`artifacts/vm/mac-queue-v9.sh`) |
 
-Outputs of the finished runs, fetched from the Mac and the Windows VM, are kept under `fuzz-c1/` with a hash manifest
-(`fuzz-c1/SHA256SUMS.txt` `dcf8dc8ed9ab05171bfdf20b62fa802dbd317892081078b113d2d31379d8b570`, 37 files). Passed so far,
-each on the decoders of its run: rounds 0–99,999 and 2,100,000–3,099,999 of every image; 1,100,000–2,099,999 of every
-image but FAT32 (lost, running again on the host); 5,100,000–6,099,999 of every image but NTFS (not run there); NTFS also
-3,100,000–5,099,999; 6,100,000–7,099,999 of NTFS, exFAT and FAT32; 7,100,000–9,099,999 of every image;
-100,000–1,099,999 of FAT12, FAT16, FAT32, exFAT and NTFS; FAT32 1,100,000–2,099,999 (again, on the host). Running:
-100,000–1,099,999 of both disks (Ubuntu), 3,100,000–4,099,999 of every image but NTFS (the Windows VM, again),
-9,100,000–10,099,999 of every image (the Mac). The stops since the I37 fixes were allocation findings of I37, fixed and replayed.
+Outputs of the finished runs, fetched from the Mac, the VMs and the host, are kept under `fuzz-c1/` with a hash
+manifest (`fuzz-c1/SHA256SUMS.txt` `ce688dc336ad5724e80f8912645a57760d9b781e071a4d763f4c66b8bdef0730`, 64 files; it
+replaces `dcf8dc8e…d570`, whose 37 entries it holds unchanged). Passed so far, each on the decoders of its run:
+0–99,999 of every image; 100,000–1,099,999 of every image but the MBR disk (Ubuntu); 1,100,000–2,099,999 of every
+image (FAT32 on the host, after the Windows VM lost it); 2,100,000–4,099,999 of every image; 4,100,000–5,099,999 of
+NTFS; 5,100,000–6,099,999 of every image but NTFS (not run there); 6,100,000–7,099,999 of NTFS, exFAT and FAT32;
+7,100,000–10,099,999 of every image. Running: 100,000–1,099,999 of the MBR disk (Ubuntu), 4,100,000–5,099,999 of every
+image but NTFS (the Windows VM), 10,100,000–11,099,999 of every image (the Mac, queued). The stops since the I37
+fixes were allocation findings of I37, fixed and replayed.
 
 ## E-I28-V2 — second finding and fix `bb977d0`
 
