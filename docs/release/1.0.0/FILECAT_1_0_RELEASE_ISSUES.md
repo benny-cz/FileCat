@@ -64,6 +64,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I52 | FAT32: the files of a deleted folder were placed by a guess, wrongly, though their entries said where they start | Low–Medium (recovery quality: exactly recoverable files offered only as stated guesses) | Should fix (V09) | **Remediated `78a48ce`; verified on images Windows made** (E-V09-W1) |
 | I53 | Hex editor: a patch that went over the limit of changed bytes was applied in part while the editor said nothing was applied | Medium (a later save writes a half-applied patch the user believes was refused) | Must fix (DPI P05) | **Remediated `7a99f9d`; verified** (E-DPI) |
 | I54 | Hex editor, Linux/macOS: Save As kept a new file that could mix old and new bytes when another program wrote the file during the copy | Low–Medium (a silently inconsistent copy; Windows keeps other writers out) | Must fix (DPI P05) | **Remediated `7a99f9d`; verified on macOS** (E-DPI) |
+| I55 | Registry: a .reg file FileCat exported from the 32-bit view could be imported into the default view, writing other keys | Medium (a restore from FileCat's own backup misses and overwrites values at the same paths in the other view) | Must fix (DPI P06) | **Remediated `cf92679`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
 
@@ -708,6 +709,19 @@ level the plan already states; exploit-level detail is not recorded here.
   start; otherwise the copy is not kept, and the editor says why.
 - **Tests:** `HexEditorPosixTests.Save_as_keeps_no_copy_of_a_file_another_program_wrote_meanwhile` fails on macOS
   before (no exception; the mixed copy kept) and passes after.
+
+### I55 — Registry: a .reg file exported from one view could be imported into the other
+
+- **Discovered:** DPI P06 review (E-DPI). FileCat's .reg export, including the backup offered before deleting Registry
+  keys, names the view the keys were read in only in a comment, and the import ignored it. In the 32-bit view the same
+  path text names other keys than in the default (64-bit) view. A backup of a 32-bit-view key, restored as its hint
+  says from the default view, would have written the 64-bit keys at those paths.
+- **Severity / disposition:** Medium. The restore misses its keys, and values already at the same paths in the other
+  view are overwritten (the preview counts them, but does not say they are in the wrong view). Must fix.
+- **Remediation (`cf92679`):** the import refuses a file FileCat exported from the other view and names the view to
+  open. Files from regedit carry no such comment, and their paths name `WOW6432Node` themselves.
+- **Tests:** `WindowsRegistryProviderTests.A_reg_file_FileCat_exported_from_one_view_is_not_imported_into_another`
+  fails before (no exception) and passes after; the Registry provider tests pass.
 
 ## New detail on open issues
 

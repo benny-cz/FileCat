@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `7a99f9d` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `cf92679` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -23,7 +23,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   servers of two implementations, recovery allocation, state-folder permissions, a second FileCat seeing a running job,
   moves deleting a source whose copy was gone or deleting what was never copied, Synchronize acting on targets changed
   since the comparison, a link's read-only set through it, FAT32 recovery guessing where an entry was whole: I52, the
-  hex editor's patch and Save As: I53, I54)
+  hex editor's patch and Save As: I53, I54, a .reg backup restorable into the wrong Registry view: I55)
   and I25 (Markdown drawn as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
   **Queued:** I27 (Linux icons under Adwaita 41), I31 (viewer windows only partly themed; assessed).
   **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the Mac (E-I28-C1).
@@ -48,7 +48,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 3 Collect CI/validation evidence and skip inventory | **Partial** | E-A01 (explicit skips on TRX lanes); early-return audit done (E-S01, `be6ca25`: 28 tests now skip with reasons). Still to do: portable-lane and ARM64 skip lists from logs |
 | 4 Reconcile manifest and registers against source | Not started | Plan §§3–5 registers stand as the starting point |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P05, P08–P12, P14–P16 reviewed (I15, I19, I40, I44, I48–I51, I53, I54; E-DPI); B04 consent display audited (I17); DPI P06, P07, P13 and the other B rows remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); P07's loader audit (V06), P13 and the other B rows remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
@@ -197,6 +197,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 57. DPI P05 (hex saves, recovery, Save As, patches): a patch that went over the limit of changed bytes was applied in
     part while the editor said it was not (I53, Medium); on Linux and macOS Save As could keep a copy mixing old and
     new bytes (I54). Both fixed `7a99f9d`, each test failing before (the second on the Mac).
+58. The host's VM drive (V:) filled: the Windows VM's snapshot disk had grown to 87.7 GB, and the VM stopped on a
+    disk-full question. It had no `filecat-before` snapshot after all; it was reverted to the owner's snapshot it was
+    lent from (one unrelated file moved off V: for the revert and put back unchanged). Its unfinished fuzz ranges run
+    again on the host; a watchdog pauses the Ubuntu VM's runs should V: run low again (E-ENV-05, E-I28-C1).
+59. DPI P06 (Registry): a .reg backup from the 32-bit view could be imported into the default view (I55, fixed
+    `cf92679`). DPI P07 in part: consent, scope and path handling held; the loader audit stays with V06.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -221,7 +227,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 ## Next actions (unblocked)
 
 1. Collect the fuzz campaign's results (E-I28-C1).
-2. DPI P06, P07, P13; I22/I34 replace on a FAT destination.
+2. DPI P13 (needs the phone); P07's loader audit with V06 on installed candidates; I22/I34 replace on a FAT
+   destination.
 3. I42's options for the owner (fewer requests per file; several files in flight).
 4. The queued Low issues: I27, I31.
 5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
