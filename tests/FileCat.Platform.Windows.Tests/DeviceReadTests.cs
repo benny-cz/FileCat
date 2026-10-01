@@ -279,6 +279,25 @@ public sealed class DeviceReadTests : IDisposable
     }
 
     [Fact]
+    public void Where_writing_goes_on_this_system_is_what_the_tester_expects()
+    {
+        // Release plan V09 (I09), checked by hand on real systems: FILECAT_TOPOLOGY_DEVICE (read), FILECAT_TOPOLOGY_FOLDER
+        // (written to) and FILECAT_TOPOLOGY_EXPECT (true, false or unknown) name a case such as a VHD whose file lies on
+        // the device's disk, or a share this computer serves.
+        string? device = Environment.GetEnvironmentVariable("FILECAT_TOPOLOGY_DEVICE");
+        string? folder = Environment.GetEnvironmentVariable("FILECAT_TOPOLOGY_FOLDER");
+        string? expect = Environment.GetEnvironmentVariable("FILECAT_TOPOLOGY_EXPECT");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(device) || string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(expect))
+            Assert.Skip("Set FILECAT_TOPOLOGY_DEVICE, FILECAT_TOPOLOGY_FOLDER and FILECAT_TOPOLOGY_EXPECT (true, false, unknown) on Windows.");
+        var output = TestContext.Current.TestOutputHelper;
+        output?.WriteLine($"{device} is on: {string.Join(", ", DeviceTopology.DisksOf(device)?.Select(d => d.ToString()) ?? ["unknown"])}");
+        output?.WriteLine($"{folder} is on: {string.Join(", ", DeviceTopology.DisksOf(folder)?.Select(d => d.ToString()) ?? ["unknown or a share"])}");
+        bool? shares = DeviceTopology.SharesDisk(device, folder);
+        output?.WriteLine($"shares: {shares?.ToString() ?? "unknown"}");
+        Assert.Equal(expect, shares switch { true => "true", false => "false", null => "unknown" });
+    }
+
+    [Fact]
     public void A_folder_reached_through_a_link_is_placed_where_the_link_leads()
     {
         // Release plan V09 (I09): a link on one volume to a folder on another writes to the other one.

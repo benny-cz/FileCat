@@ -204,6 +204,47 @@ public sealed class UnixDeviceTests : IDisposable
     }
 
     [Fact]
+    public void A_folder_reached_from_memory_through_a_link_is_on_the_disk_the_link_leads_to()
+    {
+        // Release plan V09 (I09): /dev/shm is memory, but a link there to a folder on a disk writes to that disk.
+        if (!OperatingSystem.IsLinux() || !Directory.Exists("/dev/shm")) Assert.Skip("Needs Linux with /dev/shm.");
+        string home = _dir.Dir("target");
+        var disks = UnixDisks.DisksOf(home);
+        if (disks is null or { Count: 0 }) Assert.Skip("The test folder is on no disk this system can name (a container?).");
+        string link = Path.Combine("/dev/shm", "filecat-link-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateSymbolicLink(link, home);
+        try
+        {
+            Assert.Empty(UnixDisks.DisksOf("/dev/shm")!);
+            Assert.Equal(disks, UnixDisks.DisksOf(Path.Combine(link, "out")));
+            Assert.True(UnixDisks.SharesDisk("/dev/" + disks[0], Path.Combine(link, "out")));
+        }
+        finally
+        {
+            File.Delete(link);
+        }
+    }
+
+    [Fact]
+    public void Where_writing_goes_on_this_system_is_what_the_tester_expects()
+    {
+        // Release plan V09 (I09), checked by hand on real systems: FILECAT_TOPOLOGY_DEVICE (read), FILECAT_TOPOLOGY_FOLDER
+        // (written to) and FILECAT_TOPOLOGY_EXPECT (true, false or unknown) name a case such as a loop device or a disk
+        // image whose file lies on the device's disk.
+        string? device = Environment.GetEnvironmentVariable("FILECAT_TOPOLOGY_DEVICE");
+        string? folder = Environment.GetEnvironmentVariable("FILECAT_TOPOLOGY_FOLDER");
+        string? expect = Environment.GetEnvironmentVariable("FILECAT_TOPOLOGY_EXPECT");
+        if (OperatingSystem.IsWindows() || string.IsNullOrEmpty(device) || string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(expect))
+            Assert.Skip("Set FILECAT_TOPOLOGY_DEVICE, FILECAT_TOPOLOGY_FOLDER and FILECAT_TOPOLOGY_EXPECT (true, false, unknown) on Linux or macOS.");
+        var output = TestContext.Current.TestOutputHelper;
+        output?.WriteLine($"{device} is on: {string.Join(", ", UnixDisks.DisksOf(device) ?? ["unknown"])}");
+        output?.WriteLine($"{folder} is on: {string.Join(", ", UnixDisks.DisksOf(folder) ?? ["unknown"])}");
+        bool? shares = UnixDisks.SharesDisk(device, folder);
+        output?.WriteLine($"shares: {shares?.ToString() ?? "unknown"}");
+        Assert.Equal(expect, shares switch { true => "true", false => "false", null => "unknown" });
+    }
+
+    [Fact]
     public void A_diskutil_property_list_is_read()
     {
         const string xml = """
