@@ -312,7 +312,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}";
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        if (_cache.TryGetValue(key, out var cached))
+        {
+            cached.Touch();
+            return cached;
+        }
         // The archive changed or was never opened: drop stale indexes for this path.
         foreach (var k in _cache.Keys.Where(k => k.StartsWith(path + "|", StringComparison.OrdinalIgnoreCase)).ToList())
         {
@@ -320,13 +324,24 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         }
         var index = ZipIndex.Build(path, location.Session is { Length: > 0 } enc ? Encoding.GetEncoding(enc) : null);
         _cache[key] = index;
-        while (_cache.Count > 8)
+        // Archives opened before are kept for going back into them: eight at most, and their indexes together within
+        // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The one just opened
+        // stays whatever its size. An index that still feeds a viewer closes when the viewer is done with it.
+        while (_cache.Count > 1 && (_cache.Count > 8 || RetainedIndexBytes > RetainedIndexLimitBytes))
         {
-            var oldest = _cache.OrderBy(kv => kv.Value.LastUsed).First();
+            var oldest = _cache.Where(kv => !ReferenceEquals(kv.Value, index)).MinBy(kv => kv.Value.LastUsed);
+            if (oldest.Key is null) break;
             if (_cache.TryRemove(oldest.Key, out var evicted)) evicted.Dispose();
         }
         return index;
     }
+
+    /// <summary>What the indexes of earlier archives may hold together before the oldest go (see <see cref="GetIndex"/>).</summary>
+    public long RetainedIndexLimitBytes { get; set; } = 256L << 20;
+
+    /// <summary>The estimated size of the indexes kept now, and how many.</summary>
+    public long RetainedIndexBytes => _cache.Values.Sum(i => i.EstimatedBytes);
+    public int RetainedIndexes => _cache.Count;
 
     public void Release(string zipPath)
     {
@@ -347,7 +362,7 @@ internal sealed class ZipIndex : IDisposable
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ZipMemberTag? Tag);
 
     private ZipIndex(FileStream stream, ZipArchive archive, List<ZipArchiveEntry> entries, Dictionary<string, List<Node>> children, string? warning,
-        bool readOnly)
+        bool readOnly, long estimatedBytes)
     {
         _stream = stream;
         _archive = archive;
@@ -356,8 +371,17 @@ internal sealed class ZipIndex : IDisposable
         Warning = warning;
         ReadOnly = readOnly;
         HasEncrypted = entries.Any(e => e.IsEncrypted);
+        EstimatedBytes = estimatedBytes;
         LastUsed = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// What this index holds in memory, estimated: .NET's entry and FileCat's node per member, and their names. Measured
+    /// with members of 30-character names (ArchiveIndexScaleTests): 584 bytes a member at a million, 598 at 200,000.
+    /// </summary>
+    public long EstimatedBytes { get; }
+
+    public void Touch() => LastUsed = DateTime.UtcNow;
 
     public Dictionary<string, List<Node>> Children { get; }
 
@@ -397,6 +421,7 @@ internal sealed class ZipIndex : IDisposable
             throw;
         }
         var entries = new List<ZipArchiveEntry>();
+        long nameChars = 0;
         var children = new Dictionary<string, List<Node>>(StringComparer.Ordinal) { [string.Empty] = [] };
         var dirs = new HashSet<string>(StringComparer.Ordinal) { string.Empty };
         var seen = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -421,6 +446,7 @@ internal sealed class ZipIndex : IDisposable
                 break;
             }
             entries.Add(entry);
+            nameChars += entry.FullName.Length;
             var raw = entry.FullName.Replace('\\', '/');
             string? unsafeReason = null;
             if (raw.StartsWith('/') || raw.Length > 1 && raw[1] == ':') unsafeReason = "absolute path";
@@ -459,7 +485,9 @@ internal sealed class ZipIndex : IDisposable
         bool readOnly;
         try { readOnly = (File.GetAttributes(path) & FileAttributes.ReadOnly) != 0; }
         catch (IOException) { readOnly = false; }
-        return new ZipIndex(fs, archive, entries, children, warning, readOnly);
+        // .NET keeps every entry of the central directory, also past the ones listed.
+        long estimate = archive.Entries.Count * 460L + nameChars * 4;
+        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate);
     }
 
     /// <summary>

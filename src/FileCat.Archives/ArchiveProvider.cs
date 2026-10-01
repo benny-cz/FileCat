@@ -207,7 +207,11 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}";
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        if (_cache.TryGetValue(key, out var cached))
+        {
+            cached.Touch();
+            return cached;
+        }
         foreach (var k in _cache.Keys.Where(k => k.StartsWith(path + "|", StringComparison.OrdinalIgnoreCase)).ToList())
             if (_cache.TryRemove(k, out var old)) old.Dispose();
         string displayName = Path.GetFileName(DisplayArchive(root));
@@ -221,13 +225,24 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         }
         var index = ArchiveIndex.Build(reader, fi.Length, ct);
         _cache[key] = index;
-        while (_cache.Count > 8)
+        // Archives opened before are kept for going back into them: eight at most, and their indexes together within
+        // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The one just opened
+        // stays whatever its size. An index that still feeds a viewer closes when the viewer is done with it.
+        while (_cache.Count > 1 && (_cache.Count > 8 || RetainedIndexBytes > RetainedIndexLimitBytes))
         {
-            var oldest = _cache.OrderBy(kv => kv.Value.LastUsed).First();
+            var oldest = _cache.Where(kv => !ReferenceEquals(kv.Value, index)).MinBy(kv => kv.Value.LastUsed);
+            if (oldest.Key is null) break;
             if (_cache.TryRemove(oldest.Key, out var evicted)) evicted.Dispose();
         }
         return index;
     }
+
+    /// <summary>What the indexes of earlier archives may hold together before the oldest go (see <see cref="GetIndex"/>).</summary>
+    public long RetainedIndexLimitBytes { get; set; } = 256L << 20;
+
+    /// <summary>The estimated size of the indexes kept now, and how many.</summary>
+    public long RetainedIndexBytes => _cache.Values.Sum(i => i.EstimatedBytes);
+    public int RetainedIndexes => _cache.Count;
 
     /// <summary>The local file holding the archive: the file itself, or a private spool of a member of another archive.</summary>
     private string ArchiveFile(Location location, int depth)
@@ -309,14 +324,23 @@ internal sealed class ArchiveIndex : IDisposable
 
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ArchiveMemberTag? Tag);
 
-    private ArchiveIndex(IMemberReader reader, long archiveLength, Dictionary<string, List<Node>> children, List<string> warnings)
+    private ArchiveIndex(IMemberReader reader, long archiveLength, Dictionary<string, List<Node>> children, List<string> warnings, long estimatedBytes)
     {
         _reader = reader;
         _archiveLength = archiveLength;
         Children = children;
         Warnings = warnings;
+        EstimatedBytes = estimatedBytes;
         LastUsed = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// What this index holds in memory, estimated: FileCat's node and tag per member, and their names. Measured with
+    /// members of 30-character names in a TAR (ArchiveIndexScaleTests): 305 bytes a member at a million, 312 at 200,000.
+    /// </summary>
+    public long EstimatedBytes { get; }
+
+    public void Touch() => LastUsed = DateTime.UtcNow;
 
     public Dictionary<string, List<Node>> Children { get; }
 
@@ -356,10 +380,12 @@ internal sealed class ArchiveIndex : IDisposable
             children.TryAdd(dir, []);
         }
         int count = 0;
+        long nameChars = 0;
         try
         {
             foreach (var m in reader.List(warnings.Add, ct))
             {
+                nameChars += m.Path.Length;
                 if (++count > ArchiveProvider.MaxEntries)
                 {
                     warnings.Add($"The archive has more than {ArchiveProvider.MaxEntries:N0} entries; only the first ones are listed.");
@@ -405,7 +431,7 @@ internal sealed class ArchiveIndex : IDisposable
             throw;
         }
         if (seen.Values.Any(v => v > 0)) warnings.Add("The archive contains duplicate names; each copy is listed separately.");
-        return new ArchiveIndex(reader, archiveLength, children, warnings);
+        return new ArchiveIndex(reader, archiveLength, children, warnings, count * 185L + nameChars * 4);
     }
 
     /// <summary>
