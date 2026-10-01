@@ -41,6 +41,9 @@ internal sealed class FakeSftpServer
     /// <summary>A faulty server or disk: the next written file keeps the byte at this offset inverted.</summary>
     public long? CorruptAt { get; set; }
 
+    /// <summary>False: a server that does not set times when asked (vsftpd without MFMT, before I43), and says nothing.</summary>
+    public bool KeepsTimes { get; set; } = true;
+
     public FakeSftpServer() => Dir(Home);
 
     public static byte[] KeyBlob(string type, byte seed)
@@ -268,7 +271,8 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         Check();
         lock (server.Lock)
         {
-            (server.Lookup(path, followFinal: true) ?? throw new FileNotFoundException(path)).Modified = utc;
+            var node = server.Lookup(path, followFinal: true) ?? throw new FileNotFoundException(path);
+            if (server.KeepsTimes) node.Modified = utc;
         }
     }
 

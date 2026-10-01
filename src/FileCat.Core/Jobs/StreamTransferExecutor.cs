@@ -33,6 +33,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     : ExecutorBase(job, fs, journal), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private const int BufferSize = 1024 * 1024;
+
+    /// <summary>1980-01-01: a content revision that states an earlier "time" states a version counter or nothing.</summary>
+    private const long MinimumFileTimeTicks = 624_511_296_000_000_000;
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
     private int _staged;
     private string? _originMark;
@@ -282,8 +285,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 }
                 lost = (content as IPartialContent)?.MissingRanges;
                 caveat = (content as IPartialContent)?.Caveat;
-                // Through the open handle: no second open, and later writes on it cannot change the time.
-                if (item.Modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(item.Modified, DateTimeKind.Utc));
+                // Through the open handle: no second open, and later writes on it cannot change the time. The time is the
+                // one the source stated when this content was opened, where it gives one: an FTP server's listing may
+                // carry only the minute, or for older files the day, where its MDTM gives the second (I43).
+                long modified = revision is { ModifiedTicks: > MinimumFileTimeTicks } stated ? stated.ModifiedTicks : item.Modified;
+                if (modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(modified, DateTimeKind.Utc));
             }
             if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
                 Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);

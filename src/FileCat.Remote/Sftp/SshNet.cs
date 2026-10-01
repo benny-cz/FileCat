@@ -246,7 +246,12 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
         }
     });
 
-    public void SetModified(string path, DateTime utc) => Wrap(() => client.SetLastWriteTimeUtc(path, utc));
+    public void SetModified(string path, DateTime utc)
+    {
+        // Some servers refuse to set times (no SETSTAT); the content already arrived, and the job's stat tells.
+        try { Wrap(() => client.SetLastWriteTimeUtc(path, utc)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && ex is not RemoteDisconnectedException && client.IsConnected) { }
+    }
 
     public void Dispose()
     {

@@ -88,6 +88,10 @@ public interface ISftpChannel : IDisposable
     /// </summary>
     bool TryReplace(string source, string target);
 
+    /// <summary>
+    /// Asks the server to give a file this modified time. A server that refuses or cannot is not an error (the content
+    /// arrived); whether the time held shows in a <see cref="Stat"/> afterwards, which is how jobs report it (I43).
+    /// </summary>
     void SetModified(string path, DateTime utc);
 }
 

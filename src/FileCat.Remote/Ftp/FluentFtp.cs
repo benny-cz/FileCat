@@ -317,11 +317,18 @@ internal sealed partial class FtpChannel : ISftpChannel
     /// <summary>FTP has no atomic replace; the caller deletes the old file just before renaming (and says so).</summary>
     public bool TryReplace(string source, string target) => false;
 
+    /// <summary>
+    /// MFMT where the server offers it (RFC draft, most servers); otherwise MDTM with a time, which vsftpd takes as setting
+    /// it (when the argument is not itself an existing name) and other servers answer as a question about a file of that
+    /// odd name, changing nothing. Without this, uploads to vsftpd carried the time they arrived (I43).
+    /// </summary>
     public void SetModified(string path, DateTime utc)
     {
-        if (!_client.HasFeature(FtpCapability.MFMT)) return;
-        try { Run(() => _client.SetModifiedTime(Safe(path), utc)); }
-        catch (IOException) when (_client.IsConnected) { } // a time is a courtesy; the content already arrived
+        Safe(path);
+        string time = utc.ToUniversalTime().ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture);
+        // A time is a courtesy: the content already arrived, and the job's stat afterwards says whether the time held.
+        try { Run(() => _client.HasFeature(FtpCapability.MFMT) ? _client.Execute($"MFMT {time} {path}") : _client.Execute($"MDTM {time} {path}")); }
+        catch (IOException) when (_client.IsConnected) { }
     }
 
     /// <summary>Removes exactly one entry: RMD for an empty folder, DELE for a file or a link (never its target).</summary>

@@ -356,8 +356,9 @@ public sealed class RemoteLabTests : IDisposable
         var profile = Profile(protocol, port, lab);
         using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "links-" + protocol));
         string root = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
-        // The lab's throwaway account on a private network: its shell is only the test's instrument.
-        using var shell = new Renci.SshNet.SshClient(lab.Host, LabPort(RemoteProtocols.Sftp, 22), lab.User, lab.Password);
+        // The lab's throwaway account on a private network: its shell (the host's own sshd on 22, whichever server the
+        // case talks to) is only the test's instrument.
+        using var shell = new Renci.SshNet.SshClient(lab.Host, 22, lab.User, lab.Password);
         shell.Connect();
         string Shell(string command)
         {
@@ -608,6 +609,15 @@ public sealed class RemoteLabTests : IDisposable
         File.WriteAllBytes(Path.Combine(local, "Žluťoučký kůň", "large.bin"), large);
         var expected = Directory.EnumerateFiles(local, "*", SearchOption.AllDirectories)
             .ToDictionary(f => Path.GetRelativePath(local, f).Replace('\\', '/'), f => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f))));
+        // Modified times far from now and a minute apart: they arrive on the server (I43) and come back.
+        var times = new Dictionary<string, DateTime>();
+        foreach (string f in Directory.EnumerateFiles(local, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            var t = new DateTime(2021, 3, 4, 5, 6, 7, DateTimeKind.Utc).AddSeconds(61 * times.Count);
+            File.SetLastWriteTimeUtc(f, t);
+            times[Path.GetRelativePath(local, f).Replace('\\', '/')] = t;
+        }
+        static bool Near(DateTime a, DateTime b) => Math.Abs((a - b).TotalSeconds) < 2;
 
         string remoteRoot = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
         using (var lease = stack.Connections.Lease(profile.Id, ct)) lease.Channel.CreateDirectory(remoteRoot);
@@ -620,11 +630,13 @@ public sealed class RemoteLabTests : IDisposable
                 Destination = SftpProvider.At(profile, remoteRoot),
             });
             Assert.True(up.State == JobState.Completed, $"{up.State}: {string.Join("; ", up.Issues.Select(i => i.Message))}");
+            Assert.DoesNotContain(up.Issues, i => i.Message.Contains("modified time", StringComparison.Ordinal));
 
-            // The server's own reading of what arrived: every file, its size and its bytes, and nothing half-written.
+            // The server's own reading of what arrived: every file, its size, bytes and time, and nothing half-written.
             using (var lease = stack.Connections.Lease(profile.Id, ct))
             {
                 var seen = new Dictionary<string, string>();
+                var seenTimes = new Dictionary<string, DateTime>();
                 void Walk(string remote, string relative)
                 {
                     foreach (var entry in lease.Channel.List(remote, ct))
@@ -633,13 +645,14 @@ public sealed class RemoteLabTests : IDisposable
                         if (entry.IsDirectory) Walk(path, rel);
                         else
                         {
-                            using var s = lease.Channel.OpenRead(path);
-                            seen[rel] = Convert.ToHexString(SHA256.HashData(s));
+                            using (var s = lease.Channel.OpenRead(path)) seen[rel] = Convert.ToHexString(SHA256.HashData(s));
+                            seenTimes[rel] = lease.Channel.Stat(path)!.Value.ModifiedUtc;
                         }
                     }
                 }
                 Walk(RemotePath.Combine(remoteRoot, "Lab tree"), "");
                 Assert.Equal(expected.OrderBy(p => p.Key), seen.OrderBy(p => p.Key));
+                Assert.All(times, t => Assert.True(Near(seenTimes[t.Key], t.Value), $"{t.Key}: {seenTimes[t.Key]:o} on the server, {t.Value:o} sent"));
                 Assert.Contains(lease.Channel.List(RemotePath.Combine(remoteRoot, "Lab tree/Žluťoučký kůň"), ct), e => e.Name == "empty" && e.IsDirectory);
             }
 
@@ -655,6 +668,7 @@ public sealed class RemoteLabTests : IDisposable
             var returned = Directory.EnumerateFiles(Path.Combine(back, "Lab tree"), "*", SearchOption.AllDirectories)
                 .ToDictionary(f => Path.GetRelativePath(Path.Combine(back, "Lab tree"), f).Replace('\\', '/'), f => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f))));
             Assert.Equal(expected.OrderBy(p => p.Key), returned.OrderBy(p => p.Key));
+            Assert.All(times, t => Assert.True(Near(File.GetLastWriteTimeUtc(Path.Combine(back, "Lab tree", t.Key)), t.Value), t.Key));
             Assert.True(Directory.Exists(Path.Combine(back, "Lab tree", "Žluťoučký kůň", "empty")));
             // Every downloaded file carries its origin: the Internet zone and the server it came from.
             string host = $"HostUrl={protocol}://{lab.Host}/";

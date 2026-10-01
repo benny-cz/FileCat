@@ -254,9 +254,17 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             if (ok) Job.RootCompleted(i);
             else Job.RootFailed(i);
         }
+        if (_timesNotKept > 0)
+            Issue(IssueSeverity.Info, _firstTimeNotKept!, _timesNotKept == 1
+                ? "The server did not keep this file's modified time: on the server it shows when the file arrived."
+                : $"The server did not keep the modified times of {_timesNotKept:N0} uploaded files, this one among them: on the server they show when the files arrived.", StepOutcome.Committed);
         Job.TotalsFinal = true;
         Job.SetCurrent(null);
     }
+
+    /// <summary>Uploaded files whose time the server did not keep (I43), told once at the end.</summary>
+    private int _timesNotKept;
+    private string? _firstTimeNotKept;
 
     private static bool IsLink(string path) => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
@@ -473,6 +481,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         string? temp = null;
         long written = 0;
         bool differs = false;
+        bool timeKept = true;
         long freshBytes = 0;
         var freshTime = TimeSpan.Zero;
         var freshClock = new Stopwatch();
@@ -528,10 +537,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                         paced.CopyTo(output, BufferSize);
                     }
                 }
-                if (incoming.ModifiedUtc > DateTime.MinValue) Channel.SetModified(temp!, incoming.ModifiedUtc);
+                bool keepTime = Options.PreserveTimestamps && incoming.ModifiedUtc > DateTime.MinValue;
+                if (keepTime) Channel.SetModified(temp!, incoming.ModifiedUtc);
                 var stat = Channel.Stat(temp!);
                 if (stat is not { } s || s.Size != written)
                     throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
+                // Whether the time held, as the server reports it (whole seconds; two for servers on FAT). A server that
+                // reports no time cannot be checked and is not blamed.
+                timeKept = !keepTime || s.ModifiedUtc == DateTime.MinValue || Math.Abs((s.ModifiedUtc - incoming.ModifiedUtc).TotalSeconds) < 2;
                 // "Read back and compare content": the server's copy, before it takes the name.
                 if (Options.Verify == VerifyMode.ReadBack && !ServerCopyMatches(openSource, temp!, written, sourceDisplay))
                 {
@@ -560,6 +573,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
         Journal.Done(step, StepOutcome.Committed);
         Job.ItemDone();
+        if (!timeKept && _timesNotKept++ == 0) _firstTimeNotKept = dst;
         return true;
     }
 

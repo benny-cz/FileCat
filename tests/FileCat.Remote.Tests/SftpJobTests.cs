@@ -141,6 +141,37 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(["big.bin"], Names("/up"));
     }
 
+    [Fact]
+    public async Task Uploads_keep_modified_times_and_say_so_where_the_server_does_not()
+    {
+        // Release issue I43: vsftpd has no MFMT, so FileCat sent no time, and every upload silently showed its arrival.
+        var when = new DateTime(2020, 2, 2, 2, 2, 2, DateTimeKind.Utc);
+        foreach (string f in new[] { LocalFile("t/a.txt", "a"), LocalFile("t/b.txt", "b") }) File.SetLastWriteTimeUtc(f, when);
+        var tree = ItemRef.ForFileSystemPath(Path.Combine(_local, "t"), EntryKind.Directory);
+        _server.Dir("/up");
+
+        var kept = await RunAsync(new JobRequest { Kind = JobKind.Copy, Sources = [tree], Destination = Remote("/up") });
+        Assert.Equal(JobState.Completed, kept.State);
+        Assert.Equal(when, _server.Lookup("/up/t/a.txt", followFinal: false)!.Modified);
+        Assert.DoesNotContain(kept.Issues, i => i.Message.Contains("modified time", StringComparison.Ordinal));
+
+        _server.KeepsTimes = false;
+        _server.Dir("/up2");
+        var lost = await RunAsync(new JobRequest { Kind = JobKind.Copy, Sources = [tree], Destination = Remote("/up2") });
+        Assert.Equal(JobState.Completed, lost.State);
+        var note = Assert.Single(lost.Issues, i => i.Message.Contains("modified time", StringComparison.Ordinal));
+        Assert.Equal(IssueSeverity.Info, note.Severity);
+        Assert.Contains("2 uploaded files", note.Message, StringComparison.Ordinal);
+
+        // Times not to be kept: none is sent, so the server's own stands, and nothing is said about it.
+        _server.KeepsTimes = true;
+        _server.Dir("/up3");
+        var asIs = await RunAsync(new JobRequest { Kind = JobKind.Copy, Sources = [tree], Destination = Remote("/up3"), Options = new TransferOptions { PreserveTimestamps = false } });
+        Assert.Equal(JobState.Completed, asIs.State);
+        Assert.NotEqual(when, _server.Lookup("/up3/t/a.txt", followFinal: false)!.Modified);
+        Assert.DoesNotContain(asIs.Issues, i => i.Message.Contains("modified time", StringComparison.Ordinal));
+    }
+
     [Theory]
     // Release issue I39: at 100 ms a continued SFTP upload writes 0.3 MB/s, a new one 5.7 MB/s (measured in the lab).
     [InlineData(48_000_000L, 128_000_000L, 5.7, 100, true, true)] // a third on the server, a slow link: starting again wins
