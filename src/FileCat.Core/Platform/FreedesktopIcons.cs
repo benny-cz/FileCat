@@ -245,9 +245,23 @@ public sealed class FreedesktopIcons
                     if (File.Exists(pixmap)) return pixmap;
                 }
             }
+            // Last, as GTK does, the symbolic variants: adwaita-icon-theme 41 and later ship only those for many types
+            // (release issue I27). They are drawn in one color, which the caller sets to the text's (IsSymbolic).
+            foreach (var theme in Chain(ThemeName, new HashSet<string>(StringComparer.Ordinal)).Append("hicolor"))
+            {
+                if (Load(theme) is not { } t) continue;
+                foreach (var name in names)
+                    if (Best(t, name + "-symbolic", size) is { } file) return file;
+            }
             return null;
         }
     }
+
+    /// <summary>Whether a found icon is a symbolic one, meant to be drawn in the text's color.</summary>
+    public static bool IsSymbolic(string file) => Path.GetFileNameWithoutExtension(file).EndsWith("-symbolic", StringComparison.Ordinal);
+
+    /// <summary>Tests: icons from <paramref name="baseDirectories"/> with <paramref name="theme"/> as the desktop's theme.</summary>
+    internal static FreedesktopIcons ForTests(string theme, params string[] baseDirectories) => new(theme, [.. baseDirectories]);
 
     private IEnumerable<string> Chain(string theme, HashSet<string> visited)
     {

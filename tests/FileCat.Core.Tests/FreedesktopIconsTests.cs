@@ -27,4 +27,32 @@ public sealed class FreedesktopIconsTests
         Assert.Equal((16, 16), (w, h));
         Assert.Contains(bgra.Where((_, i) => i % 4 == 3), a => a > 0);
     }
+
+    [Fact]
+    public void A_theme_with_only_symbolic_icons_still_gives_types_their_icons()
+    {
+        // Release issue I27: adwaita-icon-theme 41 ships text-x-generic only as text-x-generic-symbolic; GTK falls back to
+        // the symbolic variant, last, and so does FileCat.
+        string root = Path.Combine(Path.GetTempPath(), "filecat-icons-" + Guid.NewGuid().ToString("N")[..8]);
+        string dir = Directory.CreateDirectory(Path.Combine(root, "TestTheme", "scalable", "mimetypes")).FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "TestTheme", "index.theme"),
+                "[Icon Theme]\nName=TestTheme\nDirectories=scalable/mimetypes\n\n[scalable/mimetypes]\nSize=16\nMinSize=8\nMaxSize=512\nType=Scalable\n");
+            const string svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#2e3436\"/></svg>";
+            File.WriteAllText(Path.Combine(dir, "text-x-generic-symbolic.svg"), svg);
+            File.WriteAllText(Path.Combine(dir, "folder-symbolic.svg"), svg);
+            File.WriteAllText(Path.Combine(dir, "folder.svg"), svg);
+            var icons = FreedesktopIcons.ForTests("TestTheme", root);
+            string? text = icons.Find(["text-plain", "text-x-generic", "unknown"], 16);
+            Assert.Equal(Path.Combine(dir, "text-x-generic-symbolic.svg"), Path.GetFullPath(text!));
+            Assert.True(FreedesktopIcons.IsSymbolic(text!));
+            // A full-color icon is still preferred to a symbolic one.
+            string? folder = icons.Find(["folder"], 16);
+            Assert.Equal(Path.Combine(dir, "folder.svg"), Path.GetFullPath(folder!));
+            Assert.False(FreedesktopIcons.IsSymbolic(folder!));
+            Assert.Null(icons.Find(["no-such-icon"], 16));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
 }

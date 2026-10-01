@@ -29,6 +29,13 @@ public sealed class FreedesktopIconSource : INativeIconSource
         _icons = icons;
         _thread = new Thread(Worker) { IsBackground = true, Name = "FileCat icons" };
         _thread.Start();
+        // Symbolic icons are drawn in the theme's text color: a new theme draws them again (this source lives as long as
+        // FileCat, so the static event keeps nothing alive that would otherwise go).
+        ThemeManager.ThemeChanged += () =>
+        {
+            _cache.Clear();
+            IconsLoaded?.Invoke();
+        };
     }
 
     public event Action? IconsLoaded;
@@ -100,7 +107,10 @@ public sealed class FreedesktopIconSource : INativeIconSource
                     _ => _icons.NamesForFile("file." + key[5..], executable: false),
                 };
                 if (_icons.Find(names, size) is { } file && FreedesktopIcons.TryRender(file, size, out int w, out int h, out var bgra))
+                {
+                    if (FreedesktopIcons.IsSymbolic(file)) Tint(bgra, ThemeManager.Current.Text);
                     image = ToBitmap(w, h, bgra);
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException)
             {
@@ -114,6 +124,18 @@ public sealed class FreedesktopIconSource : INativeIconSource
                 Interlocked.Exchange(ref _pendingNotify, 0);
                 IconsLoaded?.Invoke();
             }, DispatcherPriority.Background);
+        }
+    }
+
+    /// <summary>A symbolic icon in <paramref name="color"/>: its own color is a placeholder, as GTK treats it (I27).</summary>
+    internal static void Tint(byte[] bgra, string color)
+    {
+        var c = Color.Parse(color);
+        for (int i = 0; i + 3 < bgra.Length; i += 4)
+        {
+            bgra[i] = c.B;
+            bgra[i + 1] = c.G;
+            bgra[i + 2] = c.R;
         }
     }
 
