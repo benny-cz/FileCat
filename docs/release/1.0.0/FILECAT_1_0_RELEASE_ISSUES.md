@@ -73,6 +73,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I62 | Profiles: two names for one profile's folders ran as two instances at once | Low (`--profile Work!` beside `--profile Work`: one profile's settings and journals in use by two FileCats) | Should fix (V23 B12) | **Remediated `2cd313f`; verified** (E-DPI) |
 | I63 | Update check: the page an answer named was opened through the system's association, whatever it was | Low–Medium (one "Open release page" away from opening any address or local program, for whoever can alter the answer: an inspecting proxy, a compromise at GitHub) | Should fix (V23 B13) | **Remediated `9bedead`; verified** (E-DPI) |
 | I64 | Names: a folder's name turned its tab, the path line and the command line's path around | Low (a right-to-left override in a folder's name made the shown location read otherwise; the file list already escaped it) | Should fix (V23 B14, §18.3) | **Remediated `e6e9ad0`; verified** (E-DPI) |
+| I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
+| I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
@@ -982,6 +984,30 @@ level the plan already states; exploit-level detail is not recorded here.
   `TabStripTests.A_folders_name_cannot_turn_its_tab_or_path_around`,
   `PathLineTests.A_folders_name_is_drawn_escaped_and_its_part_still_goes_there`; the App suite: 195, 7 skipped, none
   failed. (A culture-aware `Contains` ignores such format characters: the test checks ordinally.)
+
+### I65 — A damaged PE's optional header made the inspector throw
+
+- **Found by:** the inspector damage campaign (E-B02-I1): round 197769 of the fixed `test.exe` threw
+  `IndexOutOfRangeException` in `PeInspector.OptionalHeader`.
+- **Cause and remediation (`8cb0737`):** the linker version was read by index (`o[2]`, `o[3]`) while every other field
+  of the optional header goes through the bounds-checked readers; a damaged size made the header shorter than its
+  fields. It is read the checked way; the round is replayed in every run, and rounds 197,769–199,999 pass.
+
+### I66 — A deleted FAT file whose entry Linux cleared was called empty
+
+- **Found by:** V09's UDisks2 trace on the Ubuntu VM (E-V09-T2, L5): files deleted with `rm` from a FAT32 volume
+  listed as "0 bytes, recoverable: the file was empty", where the morning's L1 run, with the same recipe, recovered
+  3 MiB. The raw entries showed why: marked deleted with first cluster 0 and size 0. Linux's FAT driver may write the
+  emptied file's entry back after marking it deleted, which clears both; whether it does depends on its timing.
+- **Cause:** a deleted entry of size 0 was classified "recoverable, the file was empty". An empty file has the same
+  entry, so nothing tells the two apart.
+- **Remediation (`1477de3`):** such an entry is listed by its name only, saying that the file was empty, or that the
+  system that deleted it cleared its size and start (as Linux may), and that nothing then locates its content.
+- **Verification:** `ErasedFatStartTests.A_deleted_entry_with_neither_size_nor_start_is_not_called_empty`; the FAT and
+  recovery suites (ErasedFatStartTests 25, RecoveryEngineTests 13, RecoveryJobTests and the replayed fuzz rounds 25,
+  RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
+- **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
+  finding (the class of I20).
 
 ### I60 — The AppImage's runtime came unchecked from a moving release
 
