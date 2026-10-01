@@ -67,6 +67,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I55 | Registry: a .reg file FileCat exported from the 32-bit view could be imported into the default view, writing other keys | Medium (a restore from FileCat's own backup misses and overwrites values at the same paths in the other view) | Must fix (DPI P06) | **Remediated `cf92679`; verified** (E-DPI) |
 | I56 | FTP: data connections followed the address a server's PASV reply named | Low (a server could aim uploads and downloads at another host; curl's CVE-2020-8284 is the same class, rated Low there) | Should fix (V23 B05) | **Remediated `ee476f0`; verified** (test server and the remote lab) |
 | I57 | Network discovery followed HTTP redirects from a device's metadata address | Low–Medium (any device answering discovery could make FileCat send a request to another address, a service on this computer included) | Should fix (V23 B05) | **Remediated `a5c25d1`; verified** (fake device) |
+| I58 | A damaged TAR header made .NET's TAR reader take up to 2 GiB before finding the data missing | Low–Medium (a 31 KiB archive took 512 MiB each time it was listed; a crafted one up to 2 GiB; then refused) | Should fix (V23 B02) | **Remediated `325aa63`; verified** (E-B02-A1) |
 
 ## Records of issues worked in this campaign
 
@@ -876,6 +877,29 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remediation (`a5c25d1`):** redirects are not followed; the device is then listed by its address.
 - **Severity:** Low–Medium: a request (no credentials, no cookies) to an address of a network neighbour's choosing,
   services that trust requests from this computer included.
+
+### I58 — A damaged TAR header made .NET's TAR reader take up to 2 GiB before finding the data missing
+
+- **Found by:** the archive damage campaign (E-B02-A1, trust boundary B02): TAR round 97053 allocated 512 MiB on the
+  thread that read a 31 KiB archive (the host at `b0b2329`, and again alone at `c22c793`; the Mac's run stopped on the
+  same class).
+- **Cause:** .NET's `TarReader` reads a PAX extended header or a GNU long name ('x', 'g', 'L', 'K') whole, into an array
+  it rents at the size the header's size field gives (up to about 2 GiB), before reading the data. The round changed one
+  digit of a PAX header's size (to 268 million bytes): the reader rented 512 MiB, then found the end of the file (a
+  refusal). The reader does not check a header's checksum; the damaged header was taken as it was.
+- **Reproduction:** `ArchiveFuzzTests.Rounds_that_once_failed_stay_fixed("tar", 97053)` and
+  `ArchiveFormatTests.A_TAR_member_claiming_more_metadata_than_FileCat_reads_ends_the_list_without_taking_the_memory`
+  (PAX and GNU, plain and gzip: the third member's metadata header claims 300,000,000 bytes, with a right checksum).
+  Both failed before the fix.
+- **Remediation (`325aa63`):** a stream between the archive and the reader follows the TAR framing and checks each
+  metadata header as it passes, before the reader acts on it: more than 16 MiB of metadata, or more than a plain archive
+  has left, is refused as damage. The listing ends there and says why; a member past it is refused. Large metadata that
+  is there still lists and reads: a 2 MiB PAX attribute, a GNU name of 5,000 characters, plain and compressed.
+- **Verification:** the archive suites (ArchiveFormatTests 26, NestedArchiveTests 2, ArchiveUpdateTests 6,
+  ArchiveFuzzTests 13); TAR and TAR+gzip, 20,000 rounds each on the host, at most 1 MB in a round. The campaign goes on
+  with the fixed build (E-B02-A1).
+- **Severity:** Low–Medium: memory taken for a moment each time the archive is listed, then refused; nothing written,
+  no data at risk.
 
 ## New detail on open issues
 

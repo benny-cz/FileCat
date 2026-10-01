@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `d39c402` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `c5f7387` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -24,7 +24,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   moves deleting a source whose copy was gone or deleting what was never copied, Synchronize acting on targets changed
   since the comparison, a link's read-only set through it, FAT32 recovery guessing where an entry was whole: I52, the
   hex editor's patch and Save As: I53, I54, a .reg backup restorable into the wrong Registry view: I55)
-  and I25 (Markdown drawn as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
+  and I25 (Markdown drawn as a page); I56, I57 (V23 B05) and I58 (a damaged TAR header made .NET's TAR reader take up
+  to 2 GiB, found by the archive damage campaign, `325aa63`). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
   The queued Low issues are done: I31 (viewer windows only partly themed, `99a6ae4`) and I27 (Linux icons under
   Adwaita 41, `4a4349f`).
   **I09** (recovery scanned a disk FileCat itself writes to; destinations behind loop devices, disk images, VHDs and
@@ -244,14 +245,24 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     only read; the system drive got no file of FileCat's (NTFS wrote its own pending metadata as FileCat read it,
     disclosed, wording corrected `deaf776`); FileCat's own files on the source: refused before any device access. The
     runs found a VHDX data disk refused as unknown (`1df5a21`) and the hold-off starting too late (`f241897`).
+73. V: (the VMs' drive) fell to 24.7 GB as the Windows VM's change disk grew 59 GB this morning (Windows' own block
+    rewrites; nothing large is visible in the guest); a stronger watchdog stops the VMs' fuzz below 15 GB and pauses the
+    Windows VM below 8 GB. The host's re-run of the lost fuzz ranges and the Mac's 8.1–9.1 M all passed.
 74. I09 on Linux (E-V09-T2): a loop device's image unchanged and only read; the whole system disk scanned with FileCat's
     files and `TMPDIR` in memory got not one disk write from FileCat's processes; FileCat's own files on the disk:
     refused. The trace found a write to `/tmp` at the moment a disk was chosen (a named-mutex lookup), fixed `d39c402`.
     The archive damage campaign's longer runs found TAR and RAR 4 rounds over the allocation budget that did not replay
     alone: the generated archives carried the run's time (fixed `c22c793`); the hunt goes on with replayable rounds.
-73. V: (the VMs' drive) fell to 24.7 GB as the Windows VM's change disk grew 59 GB this morning (Windows' own block
-    rewrites; nothing large is visible in the guest); a stronger watchdog stops the VMs' fuzz below 15 GB and pauses the
-    Windows VM below 8 GB. The host's re-run of the lost fuzz ranges and the Mac's 8.1–9.1 M all passed.
+75. The two archive rounds, replayed: **I58** — TAR round 97053's 512 MiB was .NET's `TarReader` renting the size a
+    damaged PAX header gave before reading its data; a guard now checks such headers as they pass (`325aa63`; tests
+    failed before, pass after; 20,000 TAR rounds then took at most 1 MB). RAR 4 round 248010's 517 MiB is the most PPMd
+    model memory RAR 4 allows (256 MiB, as unrar takes too), rented by SharpCompress as a 512 MiB array: bounded by the
+    format, accepted, budgeted. CI had been red on Linux and macOS since `d39c402`: a test asked the usual FileCat's
+    pipe at once after its release, before the server stopped (`c5f7387`, checked on the Mac). A million rounds of every
+    archive format now run on the fixed build (Mac, Ubuntu, host).
+76. V: fell to 10.4 GB again: Windows Update in the Windows VM (a Visual Studio update among it) grew its change disk to
+    74.7 GB and restarted the guest. The VM was reverted to its lent state (and once more by the owner); its updates and
+    network are now off. Its unfinished fuzz ranges run again (E-ENV-05, E-I28-C1).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -275,10 +286,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaign's results (E-I28-C1): the host's two FAT32 ranges, the Mac's 8.1–9.1 M, Ubuntu's queue,
-   the Windows VM's 3.1–4.1 M.
+1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
+   E-B02-A1 (a million rounds of every archive format on `325aa63`).
 2. V09 on macOS (`fs_usage` with a disk image as the source), UDisks2, the installed helper path, approval refusal and
-   device removal; find and fix the archive rounds over budget (TAR, RAR 4) now that rounds replay.
+   device removal.
 3. Continue the V23 source review in risk order: B01–B03 (largely covered by the DPI rows, the fuzz campaign and V07/V10),
    B07, B09; I16's independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.

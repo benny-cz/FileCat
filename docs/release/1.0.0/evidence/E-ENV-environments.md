@@ -91,6 +91,18 @@ updates disabled.
   after the revert the VM's .NET 10 runtime is 10.0.5 (the snapshot's); the 10.0.6 recorded in E-ENV-02 was seen on
   2026-09-30, some time after the VM had started. A watchdog (`artifacts/vm/v-space-watch.ps1`) now
   pauses them if V: has less than 25 GB free. Long runs no longer go to the Windows VM.
+- **V: low again; the Windows VM reverted again (2026-10-01, 11:36–12:45 local time):** a fuzz run had gone to the
+  Windows VM again (in memory: the rounds write nothing), and V: fell from 56.6 GB free at 09:46 to 10.4 GB at 12:30. The
+  VM's snapshot disk had reached 74.7 GB, and was still growing by about 40 MB a minute after the watchdog
+  (`v-space-watch2.ps1`: below 15 GB the VMs' fuzz is stopped, below 8 GB the Windows VM is paused) had stopped its fuzz.
+  The writer was the guest itself: Windows Update was installing a Visual Studio update (`VisualStudioUpdate-17.0.0To17.14.40`,
+  `msiexec`, `setup.exe`), with a shadow copy (`VSSVC`), and restarted the guest at 12:30. The VM was reverted to
+  `updated #38` (V: back to 87 GB free), then the owner reverted it once more and started it. In the guest, the Windows
+  Update services were stopped and disabled; within minutes Windows Update was running again (its Medic service sets
+  the services back), and a service process started at 12:50 had written 986 MB by 13:01 (most likely Windows Update's;
+  not confirmed). So Windows Update now points at an update server that does not exist (policy), and the VM's network
+  adapter is disconnected (`vmrun disconnectNamedDevice ethernet0`; `connectNamedDevice` brings it back). Both are undone
+  by the final revert. The Windows VM's unfinished fuzz results were lost again (E-I28-C1).
 - **The Windows VM as a client (V08):** reaches the Ubuntu VM directly on the NAT network (192.168.58.128 →
   .129); .NET 10.0.6 runtime installed. The lab helpers there run in Windows PowerShell 5.1, which drops quotes inside
   arguments to native programs; the VM's helpers send their commands base64-encoded (`artifacts/vm/vm-lab-ssh.ps1`,
