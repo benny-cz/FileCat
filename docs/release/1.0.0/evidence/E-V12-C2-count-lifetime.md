@@ -37,10 +37,10 @@ disposed.
 ## The same kind elsewhere (`34042cc`)
 
 The window's other posted work was read for the same mistake (work finishing after its tab closed). Most of it checks
-the tab first. Two paths did not: an SFTP tab closed while connecting navigated once connected, and a search's result
-tab closed while the search ran refreshed on the next results (and reloaded if its listing had failed). Either loaded a
-disposed listing again, starting a read for nobody; neither threw. A disposed listing now ignores `Load`, and a closed
-tab ignores `Refresh` and the late navigation. `EntryStoreTests.A_disposed_listing_does_not_load_again` fails without
+the tab first. Two paths did not: an SFTP tab closed while connecting navigated once connected, loading its disposed
+listing again (a read for nobody); a search's result tab closed while the search ran refreshed on the next results,
+which the listing ignored unless it had failed, when it loaded again too. A load of a disposed listing does not throw
+(the control below). A disposed listing now ignores `Load`, and a closed tab ignores `Refresh` and the late navigation. `EntryStoreTests.A_disposed_listing_does_not_load_again` fails without
 the guard. Core 741, App 222.
 
 ## Not covered here
