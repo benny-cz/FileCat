@@ -413,8 +413,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     /// <summary>
     /// After the source failed part way (plan §14: "verify resumable partial content before reuse"): the first failure
     /// retries on its own after a second, later ones ask. The part already copied is kept only when the source is
-    /// provably the same file: the same size and time, and the last 64 KiB before the break read the same. Otherwise the
-    /// copy starts again from the beginning, and the job says so. Returns null when the user skips.
+    /// provably the same file: the same size and time, and its first 64 KiB and the last 64 KiB before the break read the
+    /// same. Otherwise the copy starts again from the beginning, and the job says so. Returns null when the user skips.
     /// </summary>
     private IContentSource? Resume(ResourceProvider provider, ItemRef item, Exception error, int failures, ContentRevision revision, FileStream staged, ref long written)
     {
@@ -461,21 +461,32 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
     }
 
-    /// <summary>The same size and time, and the bytes just before <paramref name="written"/> read the same from both.</summary>
+    /// <summary>
+    /// The same size and time, and the start and the bytes just before <paramref name="written"/> read the same from both.
+    /// The start holds a file's metadata: an iPhone, reconnected, sends some photos again with other bytes there at the
+    /// same size and time, which a check of the bytes before the break alone took for the same file. The start is read
+    /// first, so a device that reads only forward goes through the part already copied once, as before.
+    /// </summary>
     private static bool Unchanged(IContentSource source, ContentRevision revision, FileStream staged, long written)
     {
         if (source.GetRevision() is not { } now || now.Length != revision.Length || now.ModifiedTicks != revision.ModifiedTicks || written > now.Length) return false;
         int n = (int)Math.Min(ResumeCheckBytes, written);
-        if (n == 0) return true;
-        var theirs = new byte[n];
-        var ours = new byte[n];
-        for (int done = 0; done < n;)
+        int head = (int)Math.Min(ResumeCheckBytes, written - n);
+        return ReadsTheSame(source, staged, 0, head) && ReadsTheSame(source, staged, written - n, n);
+    }
+
+    private static bool ReadsTheSame(IContentSource source, FileStream staged, long offset, int count)
+    {
+        if (count == 0) return true;
+        var theirs = new byte[count];
+        var ours = new byte[count];
+        for (int done = 0; done < count;)
         {
-            int got = source.Read(written - n + done, theirs.AsSpan(done));
+            int got = source.Read(offset + done, theirs.AsSpan(done));
             if (got <= 0) return false;
             done += got;
         }
-        staged.Position = written - n;
+        staged.Position = offset;
         staged.ReadExactly(ours);
         return theirs.AsSpan().SequenceEqual(ours);
     }

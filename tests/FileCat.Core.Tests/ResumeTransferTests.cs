@@ -118,8 +118,8 @@ public sealed class ResumeTransferTests : IDisposable
         var job = await Download(jobs);
         Assert.Equal(JobState.Completed, job.State); // a resumed copy is complete; the note says it was resumed
         Assert.Equal(data, File.ReadAllBytes(Path.Combine(_dir.Path, "down", "big.bin")));
-        // The second connection read the check window, then continued: nothing before it was fetched again.
-        Assert.Equal([0L, 3 * 1024 * 1024 + 7 - 64 * 1024], server.FirstReads);
+        // The second connection read the file's start and the window before the break, then continued from the break.
+        Assert.Equal([0L, 0L], server.FirstReads);
         Assert.Contains(job.Issues, i => i.Message.Contains("resumed at", StringComparison.Ordinal));
         Assert.Equal(data.Length, job.BytesDone);
     }
@@ -153,6 +153,22 @@ public sealed class ResumeTransferTests : IDisposable
         server.BeforeReopen = () => server.Content = tampered;
         var job = await Download(jobs);
         Assert.Equal(tampered, File.ReadAllBytes(Path.Combine(_dir.Path, "down", "big.bin")));
+        Assert.Contains(job.Issues, i => i.Message.Contains("copied again from the start", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Bytes_that_differ_at_the_start_behind_an_unchanged_size_and_time_are_caught()
+    {
+        // An iPhone, reconnected, sent some photos again with other bytes near their start, at the same size and time
+        // (E-V21-I1): a check of the bytes before the break alone kept the old start and appended the new rest.
+        var data = Data(3 * 1024 * 1024, 8);
+        var (jobs, server) = Rig(data);
+        server.FailAt.Enqueue(2 * 1024 * 1024);
+        var regenerated = (byte[])data.Clone();
+        regenerated[100] ^= 0xFF;
+        server.BeforeReopen = () => server.Content = regenerated;
+        var job = await Download(jobs);
+        Assert.Equal(regenerated, File.ReadAllBytes(Path.Combine(_dir.Path, "down", "big.bin")));
         Assert.Contains(job.Issues, i => i.Message.Contains("copied again from the start", StringComparison.Ordinal));
     }
 

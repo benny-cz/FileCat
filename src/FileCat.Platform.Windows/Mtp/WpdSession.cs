@@ -93,7 +93,7 @@ public sealed class WpdSession : IDisposable
                 : new DeviceAbilities(supported.Contains(Wpd.CommandCreateWithPropertiesOnly), supported.Contains(Wpd.CommandCreateWithPropertiesAndData),
                     supported.Contains(Wpd.CommandSetProperties), supported.Contains(Wpd.CommandDeleteObjects));
         }
-        catch (Exception ex) when (ex is COMException or InvalidCastException) { return DeviceAbilities.Unknown; }
+        catch (Exception ex) when (Failed(ex) || ex is InvalidCastException) { return DeviceAbilities.Unknown; }
         finally
         {
             if (commands is not null) Marshal.ReleaseComObject(commands);
@@ -110,34 +110,44 @@ public sealed class WpdSession : IDisposable
     public static IReadOnlyList<PortableDeviceInfo> ListDevices()
     {
         if (!OperatingSystem.IsWindows()) return [];
+        try { return Enumerate(); }
+        catch (Exception ex) when (Failed(ex)) { return []; }
+    }
+
+    /// <summary>Whether Windows lists the device now; null when it cannot say. Replaceable in tests.</summary>
+    internal static Func<string, bool?> Listed { get; set; } = deviceId =>
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return Enumerate().Any(d => d.Id == deviceId); }
+        catch (Exception ex) when (Failed(ex)) { return null; }
+    };
+
+    private static List<PortableDeviceInfo> Enumerate()
+    {
+        var manager = Wpd.Create<IPortableDeviceManager>(Wpd.CLSID_PortableDeviceManager);
         try
         {
-            var manager = Wpd.Create<IPortableDeviceManager>(Wpd.CLSID_PortableDeviceManager);
-            try
+            manager.RefreshDeviceList();
+            uint count = 0;
+            manager.GetDevices(null, ref count);
+            var list = new List<PortableDeviceInfo>();
+            if (count == 0) return list;
+            var ids = new IntPtr[count];
+            manager.GetDevices(ids, ref count);
+            foreach (var ptr in ids.Take((int)count))
             {
-                manager.RefreshDeviceList();
-                uint count = 0;
-                manager.GetDevices(null, ref count);
-                if (count == 0) return [];
-                var ids = new IntPtr[count];
-                manager.GetDevices(ids, ref count);
-                var list = new List<PortableDeviceInfo>();
-                foreach (var ptr in ids.Take((int)count))
-                {
-                    string id = Marshal.PtrToStringUni(ptr) ?? string.Empty;
-                    Marshal.FreeCoTaskMem(ptr);
-                    if (id.Length == 0 || id.Contains("wpdbusenum", StringComparison.OrdinalIgnoreCase)) continue;
-                    list.Add(new PortableDeviceInfo(id, Text(manager.GetDeviceFriendlyName, id) is { Length: > 0 } name ? name : "Portable device",
-                        Text(manager.GetDeviceManufacturer, id)));
-                }
-                return list;
+                string id = Marshal.PtrToStringUni(ptr) ?? string.Empty;
+                Marshal.FreeCoTaskMem(ptr);
+                if (id.Length == 0 || id.Contains("wpdbusenum", StringComparison.OrdinalIgnoreCase)) continue;
+                list.Add(new PortableDeviceInfo(id, Text(manager.GetDeviceFriendlyName, id) is { Length: > 0 } name ? name : "Portable device",
+                    Text(manager.GetDeviceManufacturer, id)));
             }
-            finally
-            {
-                Marshal.ReleaseComObject(manager);
-            }
+            return list;
         }
-        catch (COMException) { return []; }
+        finally
+        {
+            Marshal.ReleaseComObject(manager);
+        }
     }
 
     private delegate void TextGetter(string id, char[]? buffer, ref uint length);
@@ -153,7 +163,7 @@ public sealed class WpdSession : IDisposable
             get(id, buffer, ref length);
             return new string(buffer, 0, (int)Math.Max(0, Math.Min(length, buffer.Length)) - 0).TrimEnd('\0');
         }
-        catch (COMException) { return string.Empty; }
+        catch (Exception ex) when (Failed(ex)) { return string.Empty; }
     }
 
     public static WpdSession Open(string deviceId)
@@ -173,10 +183,10 @@ public sealed class WpdSession : IDisposable
             device.Open(deviceId, info);
             return new WpdSession(deviceId, device);
         }
-        catch (COMException ex)
+        catch (Exception ex) when (Failed(ex))
         {
             Marshal.ReleaseComObject(device);
-            throw Explain(ex, "open the device", out _);
+            throw Explain(deviceId, ex, "open the device", out _, responds: () => false);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -192,30 +202,78 @@ public sealed class WpdSession : IDisposable
     private static UnauthorizedAccessException Refused(Exception inner) =>
         new("The device refused access. Unlock it and allow this computer (Trust on an iPhone, File transfer in an Android phone's USB options), then try again.", inner);
 
-    private Exception Translate(COMException ex, string what)
+    private Exception Translate(Exception ex, string what)
     {
-        var translated = Explain(ex, what, out bool broken);
+        var translated = Explain(Id, ex, what, out bool broken, Responds);
         IsBroken |= broken;
         return translated;
     }
 
-    private static Exception Explain(COMException ex, string what, out bool broken)
+    /// <summary>
+    /// Whether the device answers at all: one request for its own description. A phone unplugged a moment ago can still be
+    /// in Windows' list for a while, and its failures then read "not found"; it answers nothing.
+    /// </summary>
+    private bool Responds()
     {
-        const int DeviceNotConnected = unchecked((int)0x8007048F), NotFound = unchecked((int)0x80070002), Busy = unchecked((int)0x800700AA),
-            GenFailure = unchecked((int)0x8007001F), Disconnected = unchecked((int)0x80042009), NotSupported = unchecked((int)0x80070032);
+        try
+        {
+            _properties.GetValues(Wpd.DeviceObjectId, _keys, out var values);
+            Marshal.ReleaseComObject(values);
+            return true;
+        }
+        catch (Exception ex) when (Failed(ex) || ex is InvalidCastException) { return false; }
+    }
+
+    /// <summary>How FileCat told a device's failure apart, step by step (the unplug tests print it). Null otherwise.</summary>
+    internal static Action<string>? Trace { get; set; }
+
+    /// <summary>
+    /// A failed call in words. A device that has gone answers with codes that also mean other things (an unplugged phone
+    /// with "not found", so a copy said the photo it was reading no longer existed): when Windows no longer lists the
+    /// device, or it does not answer a request for its own description, that is what is said, whatever the code, and the
+    /// session is not used again. Refusals, a busy device and requests it does not support are what they say.
+    /// </summary>
+    internal static Exception Explain(string deviceId, Exception ex, string what, out bool broken, Func<bool>? responds = null)
+    {
+        const int AccessDenied = unchecked((int)0x80070005), DeviceNotConnected = unchecked((int)0x8007048F), NotFound = unchecked((int)0x80070002),
+            Busy = unchecked((int)0x800700AA), GenFailure = unchecked((int)0x8007001F), Disconnected = unchecked((int)0x80042009),
+            NotSupported = unchecked((int)0x80070032);
+        broken = ex.HResult is DeviceNotConnected or GenFailure or Disconnected;
+        bool gone = ex.HResult is DeviceNotConnected or Disconnected;
+        if (!gone && ex.HResult is not (AccessDenied or Busy or NotSupported))
+        {
+            bool? listed = Listed(deviceId);
+            bool? answers = listed == false ? null : responds?.Invoke();
+            gone = listed == false || answers == false;
+            Trace?.Invoke($"{what}: 0x{ex.HResult:X8}; Windows lists the device: {listed?.ToString() ?? "cannot say"}; it answers: {answers?.ToString() ?? "not asked"}");
+        }
+        else Trace?.Invoke($"{what}: 0x{ex.HResult:X8}");
+        if (gone)
+        {
+            broken = true;
+            return Gone(what, ex);
+        }
         // COM's own message usually ends with the code already ("The request is not supported. (0x80070032)").
         string message = ex.Message.Trim(), code = $"0x{ex.HResult:X8}";
-        broken = ex.HResult is DeviceNotConnected or GenFailure or Disconnected;
         return ex.HResult switch
         {
-            unchecked((int)0x80070005) => Refused(ex),
+            AccessDenied => Refused(ex),
             NotFound => new FileNotFoundException($"Could not {what}: the item is no longer on the device.", ex),
             Busy => new IOException($"Could not {what}: the device is busy with another transfer.", ex),
-            DeviceNotConnected or Disconnected => new IOException($"Could not {what}: the device was disconnected.", ex),
             NotSupported => new IOException($"Could not {what}: the device does not support it.", ex),
             _ => new IOException($"Could not {what}: {message}" + (message.Contains(code, StringComparison.OrdinalIgnoreCase) ? "" : $" ({code})"), ex),
         };
     }
+
+    /// <summary>
+    /// A device call failed. .NET turns some codes into exceptions of their own rather than COMException: "not found"
+    /// (0x80070002), which an unplugged phone answers to everything, arrives as FileNotFoundException, "path not found" as
+    /// DirectoryNotFoundException. They are the device's answers all the same, and are told apart the same way.
+    /// </summary>
+    internal static bool Failed(Exception ex) => ex is COMException or FileNotFoundException or DirectoryNotFoundException;
+
+    private static IOException Gone(string what, Exception? inner) =>
+        new($"Could not {what}: the device was disconnected. Connect it again and unlock it, then try again.", inner);
 
     private T Call<T>(string what, Func<T> action)
     {
@@ -223,13 +281,17 @@ public sealed class WpdSession : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             try { return action(); }
-            catch (COMException ex) { throw Translate(ex, what); }
+            catch (Exception ex) when (Failed(ex)) { throw Translate(ex, what); }
             catch (UnauthorizedAccessException ex) { throw Refused(ex); }
             catch (InvalidCastException ex) { throw new IOException($"Could not {what}: the device answered unexpectedly.", ex); }
         }
     }
 
-    /// <summary>The objects inside a storage or folder ("DEVICE" lists the storages).</summary>
+    /// <summary>
+    /// The objects inside a storage or folder ("DEVICE" lists the storages). A device that goes while it is listed ends
+    /// the listing with an error, or answers with nothing at all; a list cut short is never passed off as the folder's
+    /// contents (an unplugged phone's folder looked empty, and the file being copied off it "no longer existed").
+    /// </summary>
     public IReadOnlyList<PortableObject> Children(string parentId, CancellationToken ct) => Call("list the folder", () =>
     {
         _content.EnumObjects(0, parentId, IntPtr.Zero, out var enumerator);
@@ -247,6 +309,8 @@ public sealed class WpdSession : IDisposable
                     ids.Add(Marshal.PtrToStringUni(batch[i]) ?? string.Empty);
                     Marshal.FreeCoTaskMem(batch[i]);
                 }
+                // S_FALSE: fewer than asked for, the end. An error is an error, not the end of the folder.
+                if (hr < 0) throw new COMException("The device's listing failed.", hr);
                 if (hr != 0 || fetched == 0) break;
             }
         }
@@ -255,10 +319,25 @@ public sealed class WpdSession : IDisposable
             Marshal.ReleaseComObject(enumerator);
         }
         var list = new List<PortableObject>(ids.Count);
+        int unreadable = 0;
         foreach (var id in ids)
         {
             ct.ThrowIfCancellationRequested();
             if (id.Length > 0 && Describe(id) is { } o) list.Add(o);
+            else unreadable++;
+        }
+        // An item can go between listing and describing; items that cannot be described, or an empty answer, from a
+        // device that Windows no longer lists or that does not answer are the device gone (2 ms to ask Windows).
+        if (unreadable > 0 || ids.Count == 0)
+        {
+            bool? listed = Listed(Id);
+            bool answers = listed != false && Responds();
+            Trace?.Invoke($"list the folder: {ids.Count} items, {unreadable} unreadable; Windows lists the device: {listed?.ToString() ?? "cannot say"}; it answers: {answers}");
+            if (listed == false || !answers)
+            {
+                IsBroken = true;
+                throw Gone("list the folder", null);
+            }
         }
         return (IReadOnlyList<PortableObject>)list;
     });
@@ -269,7 +348,7 @@ public sealed class WpdSession : IDisposable
     {
         IPortableDeviceValues values;
         try { _properties.GetValues(id, _keys, out values); }
-        catch (COMException) { return null; }
+        catch (Exception ex) when (Failed(ex)) { return null; }
         try
         {
             Guid contentType = Guid(values, Wpd.ContentType);
@@ -291,7 +370,7 @@ public sealed class WpdSession : IDisposable
     {
         IPortableDeviceValues values;
         try { _properties.GetValues(storageId, _storageKeys, out values); }
-        catch (COMException) { return StorageAccess.ReadWrite; }
+        catch (Exception ex) when (Failed(ex)) { return StorageAccess.ReadWrite; }
         try
         {
             var key = Wpd.StorageAccessCapability;
@@ -439,7 +518,7 @@ public sealed class WpdSession : IDisposable
                     Marshal.ReleaseComObject(results);
                 }
             }
-            catch (COMException) { }
+            catch (Exception ex) when (Failed(ex)) { }
             finally
             {
                 Marshal.ReleaseComObject(values);
@@ -454,7 +533,7 @@ public sealed class WpdSession : IDisposable
         {
             if (_disposed) return;
             _disposed = true;
-            try { _device.Close(); } catch (COMException) { }
+            try { _device.Close(); } catch (Exception ex) when (Failed(ex)) { }
             foreach (var o in new object[] { _storageKeys, _keys, _resources, _properties, _content, _device })
             {
                 try { Marshal.ReleaseComObject(o); } catch (ArgumentException) { }
@@ -484,7 +563,7 @@ public sealed class WpdSession : IDisposable
             lock (owner._lock)
             {
                 try { stream.Read(chunk, count, (IntPtr)(&read)); }
-                catch (COMException ex) { throw owner.Translate(ex, "read the file"); }
+                catch (Exception ex) when (Failed(ex)) { throw owner.Translate(ex, "read the file"); }
             }
             if (offset != 0) Buffer.BlockCopy(chunk, 0, buffer, offset, read);
             _position += read;
@@ -498,7 +577,7 @@ public sealed class WpdSession : IDisposable
             lock (owner._lock)
             {
                 try { stream.Write(chunk, count, (IntPtr)(&written)); }
-                catch (COMException ex) { throw owner.Translate(ex, "write the file"); }
+                catch (Exception ex) when (Failed(ex)) { throw owner.Translate(ex, "write the file"); }
             }
             if (written != count) throw new IOException("The device accepted only part of the data.");
             _position += count;
@@ -518,19 +597,19 @@ public sealed class WpdSession : IDisposable
                             if (_position == expected)
                             {
                                 try { stream.Commit(0); }
-                                catch (COMException ex) { throw owner.Translate(ex, "finish writing the file"); }
+                                catch (Exception ex) when (Failed(ex)) { throw owner.Translate(ex, "finish writing the file"); }
                                 // The new object's ID, so its size can be checked without listing the whole folder.
                                 try
                                 {
                                     ((IPortableDeviceDataStream)stream).GetObjectID(out string id);
                                     CreatedObjectId = id;
                                 }
-                                catch (Exception ex) when (ex is InvalidCastException or COMException) { }
+                                catch (Exception ex) when (ex is InvalidCastException || Failed(ex)) { }
                             }
                             else
                             {
                                 try { stream.Revert(); }
-                                catch (COMException) { } // the caller removes whatever the device kept anyway
+                                catch (Exception ex) when (Failed(ex)) { } // the caller removes whatever the device kept anyway
                             }
                         }
                     }
