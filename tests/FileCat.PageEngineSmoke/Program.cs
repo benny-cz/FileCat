@@ -71,6 +71,47 @@ try
     Console.WriteLine($"markdown loaded: {loaded} ({reason}); title: {markdown.Title}; refused: {markdown.BlockedCount}");
     passed &= loaded == true && markdown.Title == "README.md" && markdown.BlockedCount == 0;
     markdown.Dispose();
+
+    // Release plan §6.3 (I12): the title once came late and was missed (CI run 36711390817); the fix observes it. Many
+    // lifecycles, not one long wait, show it: each engine shows a page, then another in the same view, each with its
+    // own title as observed, and is disposed; its view stays in its window and must not call back afterwards.
+    const int Rounds = 12;
+    int afterDisposal = 0, rounds = 0;
+    for (int round = 1; round <= Rounds; round++)
+    {
+        var cycle = MacPageEngine.Create(Path.Combine(root, "data-" + round), out unavailable);
+        if (cycle is null)
+        {
+            Console.WriteLine("FAIL: " + unavailable);
+            return 1;
+        }
+        cycle.ShowInWindow();
+        bool roundPassed = true;
+        foreach (string side in new[] { "A", "B" })
+        {
+            string file = Path.Combine(site, $"{side}{round}.html"), title = $"{side} {round}";
+            File.WriteAllText(file, $"<!doctype html><html><head><meta charset=\"utf-8\"><title>{title}</title></head><body><p>{side}</p></body></html>");
+            loaded = null;
+            void OnLoaded(bool ok, string? why) => (loaded, reason) = (ok, why);
+            cycle.Loaded += OnLoaded;
+            cycle.Show(new HtmlPage(new FileContentSource(file), Path.GetFileName(file)));
+            clock.Restart();
+            while ((loaded is null || cycle.Title != title) && clock.Elapsed < TimeSpan.FromSeconds(30)) MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(50));
+            cycle.Loaded -= OnLoaded;
+            if (loaded == true && cycle.Title == title) continue;
+            Console.WriteLine($"lifecycle {round}: \"{title}\" loaded {loaded} ({reason}), title {cycle.Title ?? "(none)"}");
+            roundPassed = false;
+            break;
+        }
+        cycle.Changed += () => afterDisposal++;
+        cycle.Loaded += (_, _) => afterDisposal++;
+        cycle.Dispose();
+        MacPageEngine.RunLoop(TimeSpan.FromMilliseconds(200));
+        if (!roundPassed) break;
+        rounds++;
+    }
+    Console.WriteLine($"lifecycles: {rounds} of {Rounds} showed both titles; events after disposal: {afterDisposal}");
+    passed &= rounds == Rounds && afterDisposal == 0;
     Console.WriteLine(passed ? "PASS" : "FAIL");
     return passed ? 0 : 1;
 }
