@@ -45,7 +45,13 @@ the suite takes 100 rounds of each.
     round left; but the round reads alike, refused after 20–28 ms, with the pool's arrays of those sizes given back
     first filled with zeros, 0xFF, random bytes or text;
   - **leaked threads:** the process repeating the run had 14 threads half an hour in.
-  The 655,801 rounds before it are being run again in one process, as in the failing run (`~/fc-v8/rar-prefix`).
+  - **the rounds before it:** rounds 3,000,000 through 3655801 ran again in one process with the failing lane's
+    settings (the same build, copies in `/dev/shm`, the heap capped at 768 MiB, lowest priority; two other fuzz
+    processes beside it instead of five): **all 655,802 passed**, round 3655801 among them (2,280 s; at most 516 MB in a
+    round, 3132495; slowest 994 ms, 3444505; `~/fc-v8/rar-prefix`). The minute does not follow from what ran before it.
+  What is left is something of that one process at that moment, which nothing kept can reconstruct. The Mac runs the
+  whole range again in one process under the same cap (below); if the round never stalls again, it stays recorded as
+  unexplained, with its archive kept.
 
 **The Mac's TAR+gzip round 2294974** (build `325aa63`, 512 MiB) is not the same input as the host's run over that same
 range on `cddce72`: `325aa63` built each machine's TAR original differently, which is why that round could not be

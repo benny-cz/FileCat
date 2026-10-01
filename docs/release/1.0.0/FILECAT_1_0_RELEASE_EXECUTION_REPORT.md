@@ -375,8 +375,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     (PE, PNG, GIF, ELF 1.2–2.2 M), Ubuntu's archive lanes 3–4 M but RAR 4 and all sixteen inspector formats
     0.2–1.2 M, the recovery scanner's 3.1–4.1 M on the Windows VM, 9.1–10.1 M on the Mac and Ubuntu's GPT disk: all
     passed. RAR 4 round 3655801 on Ubuntu was still reading after 60 s and reads in milliseconds alone; not the VM
-    stalling, not leftover pool memory, not leaked threads (E-B02-A1); open, with a rerun of the rounds before it and an
-    independent run of the whole range on the Mac. The Windows VM and the Mac now run the ranges no machine had run.
+    stalling, not leftover pool memory, not leaked threads, and not the rounds before it: run again in one process with
+    the same settings, all 655,802 up to it passed (E-B02-A1). Unexplained and open; the Mac runs the whole range again. The Windows VM and the Mac now run the ranges no machine had run.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -401,9 +401,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 ## Next actions (unblocked)
 
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's MBR disk; the Windows VM's 4.1–5.1 M and the Mac's
-   10.1–11.1 M on `5394c71`), E-B02-A1 (the Mac's RAR 4 and generated formats over 3–4 M on `5394c71`; Ubuntu's rerun
-   of the 655,801 RAR 4 rounds before round 3655801, which decides whether that timeout depends on what ran before it),
-   E-B02-I1 (`pe-managed` on Ubuntu).
+   10.1–11.1 M on `5394c71`), E-B02-A1 (the Mac's RAR 4 and generated formats over 3–4 M on `5394c71`), E-B02-I1
+   (`pe-managed` on Ubuntu).
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the file-access half of
    I16's gate (which handler touched what, which needs a file-system trace); the same cases on a candidate's
    installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg routes (E-V24-G1), the tool route with a
