@@ -149,7 +149,9 @@ public static class NetworkDiscovery
         else report(new NetworkHost(from.ToString(), from.ToString(), from, "WS-Discovery"));
     }
 
-    private static readonly HttpClient Metadata = new(new SocketsHttpHandler { UseProxy = false, ConnectTimeout = TimeSpan.FromSeconds(2) })
+    // No redirects (release plan B05): the metadata is asked of the address that answered, and a redirect from there
+    // would send FileCat's request wherever any device on the network chose (a service on this computer, say).
+    private static readonly HttpClient Metadata = new(new SocketsHttpHandler { UseProxy = false, ConnectTimeout = TimeSpan.FromSeconds(2), AllowAutoRedirect = false })
     {
         Timeout = TimeSpan.FromSeconds(3),
         MaxResponseContentBufferSize = 256 * 1024,

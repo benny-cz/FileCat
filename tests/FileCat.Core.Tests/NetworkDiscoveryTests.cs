@@ -216,6 +216,52 @@ public sealed class NetworkDiscoveryTests
     }
 
     [Fact]
+    public async Task A_device_whose_metadata_redirects_elsewhere_is_not_followed_there()
+    {
+        // Release plan B05: a device's metadata is asked of its own address; a redirect from there to another address (a
+        // service on this computer, say) would make FileCat send a request wherever any device on the network chose.
+        var ct = TestContext.Current.CancellationToken;
+        using var elsewhere = new TcpListener(IPAddress.Loopback, 0);
+        elsewhere.Start();
+        int other = ((IPEndPoint)elsewhere.LocalEndpoint).Port;
+        using var metadata = new TcpListener(IPAddress.Loopback, 0);
+        metadata.Start();
+        int port = ((IPEndPoint)metadata.LocalEndpoint).Port;
+        var serving = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                using var client = await metadata.AcceptTcpClientAsync(ct);
+                var stream = client.GetStream();
+                var buffer = new byte[64 * 1024];
+                int read = 0;
+                while (read < buffer.Length && !Encoding.ASCII.GetString(buffer, 0, read).Contains("</soap:Envelope>", StringComparison.Ordinal))
+                {
+                    int n = await stream.ReadAsync(buffer.AsMemory(read), ct);
+                    if (n == 0) break;
+                    read += n;
+                }
+                await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:{other}/redirected\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"), ct);
+            }
+        }, ct);
+        using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var answering = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var probe = await wsd.ReceiveAsync(ct);
+                await wsd.SendAsync(Encoding.UTF8.GetBytes(ProbeMatches($"http://127.0.0.1:{port}/metadata/")), probe.RemoteEndPoint, ct);
+            }
+        }, ct);
+        using var silent = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var found = new List<NetworkHost>();
+        await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, TimeSpan.FromSeconds(2), ct,
+            (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)silent.Client.LocalEndPoint!, [IPAddress.Loopback]);
+        Assert.Equal("127.0.0.1", Assert.Single(found).Server);
+        Assert.False(elsewhere.Pending(), "Discovery followed the device's redirect to another address.");
+    }
+
+    [Fact]
     public async Task A_device_that_names_another_address_is_not_followed_there()
     {
         var ct = TestContext.Current.CancellationToken;
