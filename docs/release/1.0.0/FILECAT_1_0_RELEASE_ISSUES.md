@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I89 | Change journal: a journal that wrapped twice while it was read failed the whole read; entries skipped once were skipped silently | Low–Medium (the journal view of a busy volume could not be shown) | Must fix (CI red; V14: records shown as they are) | **Remediated `2ad2cfa`; verified** (unit tests with a stand-in journal fail on the old rule with CI's error) |
 | I88 | Count: a folder's count went on after its tab closed and threw on every progress post, enough for the crash guard to end FileCat; leaving the folder kept the tab "counting" | High (FileCat ends about 1.6 s after closing a tab during a count with that much left: 24 exceptions in five seconds measured) | Must fix (V12: navigating away and closing while counting) | **Remediated `a9a9dcf`; verified** (E-V12-C2; tests fail on the old code; the experiment: 24 exceptions before, 0 after) |
 | I87 | Folder watch: a folder that kept changing was not read again until the changes stopped | Medium (a folder a program keeps saving into stayed as first shown: no reread in six seconds of a file every 50 ms, none in 30 s of churn) | Must fix (V12: rapidly changing folders) | **Remediated `3d2bb2e`; verified** (E-V12-W1; unit test with a negative control) |
 | I86 | Operations: "Clear finished" could leave a job that had just finished, and keep offering to clear it | Low (a click did nothing; a second one worked) | Must fix (CI red; V17: controls do what they say) | **Remediated `506cc75`; verified** (unit test fails on the old code) |
@@ -1032,6 +1033,20 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I89 — Change journal: a journal that wrapped twice during a read failed the read
+
+- **Found by:** CI run 36941532909 (Windows, a records-only commit): `UsnJournalTests` failed after 90 s with "The
+  journal entry has been deleted from the journal."
+- **What was wrong:** when the journal overwrote its oldest entries during a read, the reader went on from the new
+  oldest entry once only; a busy volume (a CI runner running four test assemblies) wrapped it a second time and the
+  whole read failed. The skip itself was not said.
+- **Remediation (`2ad2cfa`):** each jump lands past the entry asked for, so the reader goes on as often as needed (the
+  start only moves on towards the end being read to) and stops if the journal answers without moving on; the journal
+  view says its list begins later than the journal did.
+- **Verification:** `UsnJournalWrapTests`, a stand-in journal wrapping three times during a read, and one answering
+  without moving on: both fail with CI's error under the old rule, pass now. Windows platform suite 164, 0 failed.
+- **Severity:** Low–Medium: no wrong data, but the view of a busy volume's journal could fail outright.
 
 ### I88 — Count: a folder's count went on after its tab closed, and could end FileCat
 
