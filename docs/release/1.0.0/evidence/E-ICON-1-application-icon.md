@@ -26,7 +26,8 @@ main window's and the installer's icon; the PNG is the About box's (84 × 84) an
 - **Done (`ecaa254`, with the owner's leave; the owner kept a copy):** the 24- and 16-pixel frames drawn as pixel art
   in the artwork's own terms — a one-pixel bright cyan outline (`#40E6F5`), the cat ears, the two panes and their rows
   with the middle left one lit, the window a shade above black so a dark taskbar does not swallow it. Checked on both
-  taskbar colours at their size and enlarged; Windows picks exactly these frames at 16 and 24; the rebuilt exe carries
+  taskbar colours at their size and enlarged; Windows picks exactly these frames when asked for an icon of 16 or 24
+  pixels (**but a pinned taskbar item is not drawn from the 24-pixel frame**: see "The taskbar again" below); the rebuilt exe carries
   them. **The 32- to 256-pixel frames and the PNG are the owner's, pixel for pixel** (compared against `03fbe0d`).
 - `eng/make-icon.ps1`, the generator of the previous design, would have drawn it over the owner's artwork if anyone
   ran it: it now refuses unless `-Force`.
@@ -58,3 +59,42 @@ macOS builds and tests, and both packaging jobs.
   at the first that is not — passed. The AppImage was built from the same frames.
 - **Package macOS:** `iconutil` unpacked the app's `FileCat.icns` into an iconset of **seven** images, as the check
   requires.
+
+## The taskbar again: a pinned item is the 32-pixel frame shrunk (`a9f48cf`)
+
+The owner, later the same day: the icon "still looks too small in taskbar on Windows when compared to others ... when
+pinned but not executed yet", with a screenshot of the dark taskbar beside Salamander's; "use Win11 VM for testing of
+pinned icon if possible".
+
+- **What the taskbar actually draws.** On the lent Windows 11 VM (100%, the real taskbar, not a simulation), two pinned
+  shortcuts were pointed at icon files — Process Explorer's at the current icon, Chrome's at a proposal with only the
+  16- and 24-pixel frames redrawn — and Explorer restarted from an emptied icon cache (`win-taskbar-icons.ps1`, which
+  backs the shortcuts and the taskbar colour up and puts them back; the VM was restored afterwards). Both drew **the
+  same**: the 32-pixel frame shrunk to 24 (bilinear: it matches the capture within 6.6 levels on average; no other
+  frame, and no other scaling, comes close). So the 24-pixel frame redrawn in `ecaa254` never reached a pinned item,
+  and the earlier check ("Windows picks exactly these frames") held for an icon asked for at 24 pixels, not for the
+  taskbar.
+- **Why it read small.** The artwork's 32-pixel window has a dark teal edge (about `#037982`) around a near-black body.
+  Shrunk to 24, the edge melts into the body; on a dark taskbar only the lit rows inside read, so the icon looks small
+  although it spans 22 × 21 of the 24 pixels, about as much as Salamander's circle.
+- **Done (`a9f48cf`, with the owner's leave to replace the icon files):** the frames the taskbar shrinks — 32 at 100%,
+  48 at 125 and 150%, 64 at 200% — get their edge two pixels wide in cyan: the outer ring the small frames' bright cyan
+  (`#40E6F5`), the ring inside a mid cyan where it was darker. Transparency and everything inside are the artwork's
+  own (206, 312 and 361 pixels change colour, no alpha changes). The 24- and 16-pixel frames take the artwork's
+  proportions — the window filling the square, the ears on the corners of its top edge — instead of `ecaa254`'s tall
+  ears over a short window. 128 and 256 are unchanged, pixel for pixel; the exe built from it carries exactly these
+  frames, and the packaging's frame extraction writes all seven.
+- **Checked on the VM's dark taskbar, as pinned and not running:** the current icon's edge melts into the taskbar; the
+  new one reads as tall and wide as Salamander's beside it.
+
+Kept in `artifacts/release-evidence/icon/`:
+
+| File | What | SHA-256 |
+|---|---|---|
+| `vm-taskbar-light-current-vs-24-redrawn.png` | the VM's light taskbar: the current icon and the one with redrawn small frames, drawn the same | `fc1529d5947abaca8fbbdfac1ddc63dfa5bf9ec73701baee8d47d44eccfb6ddb` |
+| `vm-taskbar-dark-current-vs-edge.png` | the VM's dark taskbar: Salamander, the current icon, the new one | `a32e081adfcf5a0430e9698eb74c642bc87b72f55d95bb8ec60e3e700b23901e` |
+| `shrunk-32-current-1px-2px.png` | the 32-pixel frame shrunk as the taskbar does: current, a one-pixel and the two-pixel edge, dark and light | `fb933cd94d137be2ae419461262eb0e0b78a359830f5a5c371572dce38101a5f` |
+| `frame24-vs-32-48-shrunk.png` | the earlier 24-pixel frame beside the 32 and 48 shrunk to 24 | `deec3a842619fd0328633205ecde087cf5cc5b0dcee26bf165f95e0c20c7cbc7` |
+| `win-taskbar-icons.ps1` | the script run in the VM | `b3ba74de75851a5ead41b2e24c37aadd5b1a87dfe176f90c7cbbf62330c5d8c2` |
+
+Not checked: other scalings on a real taskbar (125, 150, 200%), and the owner's own taskbar with the new build.

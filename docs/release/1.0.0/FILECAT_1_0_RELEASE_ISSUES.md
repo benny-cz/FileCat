@@ -76,6 +76,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I75 | Taskbar: the pinned icon read small on a dark taskbar; the 24-pixel frame fixed earlier is not what a pinned item draws | Low (looks; the owner's report) | Should fix (owner's request, E-ICON-1) | **Remediated `a9f48cf`; verified** (the lent VM's real taskbar, dark and light) |
+| I74 | Content search answered otherwise than the files at 1 MiB read boundaries, and missed UTF-8 inside UTF-16 files | Low–Medium (false positives for anchored or look-around regular expressions and accents at read boundaries; a documented reading left out) | Must fix (V13) | **Remediated `b0a2313`; verified** (a differential corpus test, before and after) |
 | I73 | Type icons: a placeholder name made the Shell try to open `C:\file.url` from FileCat's own process | Low (a constant, local, nonexistent path at the system drive's root, where standard users can make only folders; nothing was read) | Should fix (V24, I16's file half) | **Remediated `f1b48de`; verified** (file trace with and without the change; unit test) |
 | I72 | Phones: creating folders, renaming and copying onto an iPhone were offered, and every one failed | Low–Medium (V21's read-only capability was not shown; F7 there ended in "The request is not supported. (0x80070032) (0x80070032)") | Must fix (V21) | **Remediated `2e93339`; verified** (on the owner's iPhone, and unit tests with a negative control) |
 | I71 | An older FileCat saved over a newer FileCat's window layout within two minutes | Medium (the newer layout and its backup were both gone) | Must fix (V11, plan §19.1) | **Remediated `b70be07`; verified** (unit test with a negative control) |
@@ -1017,6 +1019,38 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I75 — Taskbar: the pinned icon read small on a dark taskbar
+
+- **Found by:** the owner ("icon still looks too small in taskbar on Windows when compared to others ... when pinned but
+  not executed yet"), after `ecaa254` had redrawn the 24-pixel frame for the same complaint.
+- **What was wrong:** on the lent Windows 11 VM's real taskbar a pinned item is drawn from the 32-pixel frame shrunk to
+  24, not from the 24-pixel frame, so `ecaa254` changed a frame the taskbar never shows. The artwork's 32-pixel edge
+  is a dark teal around a near-black window; shrunk, it melts into the window, and on a dark taskbar only the lit rows
+  read.
+- **Remediation (`a9f48cf`):** the frames the taskbar shrinks (32, 48, 64) get a two-pixel cyan edge, everything inside
+  and the transparency unchanged; the 16- and 24-pixel frames take the artwork's proportions; 128 and 256 unchanged.
+- **Verification:** the VM's dark taskbar as pinned and not running: the new icon reads as tall and wide as Salamander's;
+  the built exe carries exactly these frames (E-ICON-1, "The taskbar again").
+- **Severity:** Low: appearance, but the first thing a user sees of the program.
+
+### I74 — Content search answered otherwise than the files at read boundaries, and missed UTF-8 inside UTF-16 files
+
+- **Found by:** V13's differential corpus test (E-V13-S1): files of every encoding FileCat reads, words planted at
+  chosen offsets and encodings, every query's answers compared with reading each whole file at once.
+- **What was wrong:** FileCat reads a file in 1 MiB windows and carries the end of one into the next. (1) A regular
+  expression without whole words was matched against each window as though the window's edges were the file's, so
+  `word$` matched where a read happened to end and `^word` or a look-behind where a window's carried text began. (2)
+  A case-ignoring linguistic match that ended with a window was accepted although the next read began with a combining
+  mark that changes its last letter ("naïve" found in "naïvë"). (3) With Unicode, a word kept as UTF-8 inside a file
+  read as UTF-16 was not found, though `SearchQuery.Unicode` promises UTF-8: that reading was left out for ASCII text.
+- **Remediation (`b0a2313`):** every regular expression and every linguistic match follow the window rule whole words
+  already followed (a match at a window's first character is left to the window before; one that ends with the window
+  waits for the next read, and counts at the file's end); the UTF-8 reading is added for files read as UTF-16.
+- **Verification:** before, 2 of 640 answers wrong with the default corpus and 5, 4 and 2 of 1,920 with three larger
+  ones; after, none. The existing content search tests pass; core suite 714, 0 failed.
+- **Severity:** Low–Medium: false results in a search, rare per file (a candidate must sit on a read boundary) but
+  untrustworthy where they happen; the UTF-16 case is a documented promise not kept.
 
 ### I73 — Type icons: a placeholder name made the Shell try to open `C:\file.url` from FileCat's own process
 

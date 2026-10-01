@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `f1b48de` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `a9f48cf` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -64,7 +64,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
 | 10 High-risk preliminary cases and remediation | **In progress** | V03-PARTIAL (I19), V19-UNINSTALL (I15), V06-CONSENT display (I17) done preliminarily; I20, I21, I22, I23 from test runs; preliminary V19 package checks on Ubuntu 22.04 and macOS (E-V19-P1) |
-| 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | Not started / blocked | Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
+| 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | **Started** (V13's content search) / blocked | V13: content search against an independent corpus (E-V13-S1, I74); its other parts, V01, V12 and V16 not started. Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
 | 14 Pipeline, docs, release controls, preview | Not started | DEC-07, DEC-09 |
 | 15–26 Freezes, candidate, FQ, REP, GO, publication | Not reachable | Depend on everything above |
 
@@ -385,6 +385,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     never opened by Git; the program the fixtures name is read for its time and its icon, never started. One finding,
     **I73** (Low): the type-icon lookup made the Shell try to open `C:\file.url` from FileCat's own process; the
     placeholder now names no place anyone could fill (`f1b48de`), traced again with and without the change.
+99. V13, content search (E-V13-S1): a differential corpus test — files of every encoding FileCat reads, words planted
+    at chosen offsets, encodings and read boundaries, each query's answers compared with reading the whole file at
+    once. **I74** (Low–Medium): regular expressions matched a read window's edges as the file's (`word$`, `^word`, a
+    look-behind), an accent that began the next read was missed, and UTF-8 inside a UTF-16 file was not searched with
+    Unicode on; fixed (`b0a2313`): 2/640 and 5, 4, 2/1,920 wrong answers before, none after. The test runs in every lane.
+100. The application icon, the owner's second report (E-ICON-1, **I75**): on the lent VM's real taskbar a pinned item
+    is the 32-pixel frame shrunk to 24, so `ecaa254`'s redrawn 24-pixel frame never showed; the artwork's dark edge melts
+    on a dark taskbar. The frames the taskbar shrinks get a cyan edge, the small frames the artwork's proportions
+    (`a9f48cf`); on the VM's dark taskbar it now reads as large as Salamander's.
 
 ## Evidence invalidated by the campaign's own changes
 
