@@ -634,8 +634,9 @@ public partial class WindowsFileOperations
 
     /// <summary>
     /// The Shell's undelete puts the item back but leaves the bin's record of it (<c>$I…</c>) behind, where Windows no
-    /// longer shows it and nothing removes it (each undo added one; FileCat's view of the bin found them). Explorer's own
-    /// restore removes it, and so does this: only that item's record, and only once the item has left the bin.
+    /// longer shows or counts it and nothing removes it, emptying the bin included (each undo added one; FileCat's view
+    /// of the bin found them). Explorer's own Restore leaves it too (E-BIN-1); FileCat tidies up after its own undo:
+    /// only that item's record, and only once the item has left the bin.
     /// </summary>
     private static void RemoveRecordOf(string recycledId)
     {

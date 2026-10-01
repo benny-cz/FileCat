@@ -200,6 +200,10 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `edd950a` | Delete: a folder's read-only mark on Windows refuses nothing; writing in a cloud folder (gated test, run on OneDrive) | I76 | E-CLOUD-1 |
 | — (device run) | The iPhone: one photo read into memory with the owner's leave (a PNG; sizes agree); the phone's photos are listed as JPEG | — | E-V21-I1 |
 | `f9b0c13` | Places: the Recycle Bin, beside Downloads, opens Windows' own window (the owner's request) | — | execution report, item 103 |
+| `f88300d` | Test: the Registry jobs' tests wait a minute, not ten seconds, on a busy CI runner | — | execution report, item 104 |
+| `5a4161b` | Recycle Bin: FileCat's own read-only view of it — both record formats read as untrusted input, deleted folders entered, items viewed and copied out | — | E-BIN-1 |
+| `f95e4cd` | Undo of a recycle: the bin's record of the restored item goes too; the test removes its own items from the bin (its comment's claim about Explorer corrected in the next records commit) | I77 | E-BIN-1 |
+| — (VM run) | I77: what Windows' own Restore, its undelete command and emptying the bin do with an item's record | I77 | E-BIN-1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

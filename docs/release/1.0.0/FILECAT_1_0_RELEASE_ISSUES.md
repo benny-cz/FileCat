@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I77 | Windows: a FileCat test left 163 records of its deleted files in the owner's Recycle Bin; FileCat's undo of a recycle leaves the item's record behind, as Explorer's own Restore does | Low (records Windows neither shows nor counts, a few hundred bytes each, without bound; no user data affected) | Should fix (E-BIN-1, test hygiene) | **Remediated `f95e4cd`; verified** (unit test with a negative control; the owner's bin; Windows' own Restore observed on the lent VM) |
 | I76 | Delete: FileCat could not delete a folder OneDrive keeps in sync, nor any customized folder (their read-only mark), and blamed Controlled Folder Access | Medium (a common folder could not be deleted, nor moved off its drive whole; the message pointed elsewhere) | Must fix (E-CLOUD-1, V02) | **Remediated `edd950a`; verified** (unit tests with a negative control; the owner's OneDrive) |
 | I75 | Taskbar: the pinned icon read small on a dark taskbar; the 24-pixel frame fixed earlier is not what a pinned item draws | Low (looks; the owner's report) | Should fix (owner's request, E-ICON-1) | **Remediated `a9f48cf`; verified** (the lent VM's real taskbar, dark and light) |
 | I74 | Content search answered otherwise than the files at 1 MiB read boundaries, and missed UTF-8 inside UTF-16 files | Low–Medium (false positives for anchored or look-around regular expressions and accents at read boundaries; a documented reading left out) | Must fix (V13) | **Remediated `b0a2313`; verified** (a differential corpus test, before and after) |
@@ -1020,6 +1021,39 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I77 — Windows: a FileCat test littered the owner's Recycle Bin with records
+
+- **Found by:** E-BIN-1, the first look at FileCat's new view of the owner's Recycle Bin: two leftovers of a FileCat
+  test, `filecat-recycle-test-…`, among the owner's items.
+- **What was wrong:** Windows keeps each deleted item as two files in `X:\$Recycle.Bin\<SID>`: the item (`$R…`) and its
+  record (`$I…`: where it was and when it was deleted). FileCat's undo of a recycle restores through the Recycle Bin's
+  own "undelete" command, which moves the item back and leaves the record; Windows neither shows nor counts a record
+  without its item, and nothing removes it, emptying the bin included. `WindowsFileOperationsTests` recycles a file and
+  undoes it on the computer it runs on, so every run left one record in the real bin: the owner's bin held 163 records
+  of the test's files (162 found at first, one more, from a run in the user's own temporary folder, found when this
+  entry was checked) and two of their items, never restored.
+- **Not FileCat's alone:** on the lent Windows 11 VM (build 26300), Explorer's own "Restore the selected items" brought
+  a file back in milliseconds and left its record unchanged (three times out of three), as did the undelete command
+  run on a thread that kept handling messages for 15 s, on a thread that ended at once (as FileCat's did), and through
+  Explorer's own view of the bin; emptying the bin with Windows' own call left such records where they were. The first
+  version of this entry, the fix's comment and its commit message said Explorer's restore removes the record; that was
+  not checked then, and it is wrong. Whether Explorer's Ctrl+Z after a restore uses the record was tried and stayed
+  unknown (the keystroke did not demonstrably reach the list).
+- **Remediation (`f95e4cd`; comment corrected afterwards):** the test removes its own items and records from the bin
+  whatever happens. After its own undo, FileCat also removes that item's record, which Windows' own Restore leaves: only
+  the record beside the restored item, named after it, and only once the item has left the bin and is back where it was.
+  This goes one step past Windows; Windows uses no such record (it neither shows nor counts it), and FileCat's restore,
+  done in FileCat's own process, is not on Explorer's undo list. The 163 records and the two items were removed from the
+  owner's bin, only those (by the test's path in each record). Six other records without items stay: one on D: from
+  2023, three on C: from 2025-02 to 2026-05, and two on C: in a temporary folder from FileCat's first night, which
+  match neither the test's names nor its file's size and are not provably FileCat's.
+- **Verification:** `WindowsFileOperationsTests` (a recycle undone leaves nothing of the item in the bin; it fails without
+  the change); Windows platform suite 152, 0 failed. The owner's bin: the Shell's own count of each drive's items
+  (`SHQueryRecycleBin`) equals what FileCat's view lists; no record of FileCat's test is left. The VM's bin was emptied
+  and its experiments' nine records removed (scripts `artifacts/vm/win-restore-exp*.ps1`).
+- **Severity:** Low: no user data is affected and Windows ignores such records, but a test should leave nothing on the
+  computer it runs on, least of all in the user's Recycle Bin.
 
 ### I76 — Delete: a folder's read-only mark stopped FileCat's delete
 

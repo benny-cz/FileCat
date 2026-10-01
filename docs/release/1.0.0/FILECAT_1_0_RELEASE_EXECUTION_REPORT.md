@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `f9b0c13` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `f95e4cd` and a comment-only correction after it (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -406,6 +406,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     restores what it holds (`f9b0c13`): Windows' stock icon, empty or full by the fixed drives' bins; tests with a test
     platform's Shell (nothing opens on the desktop); the exact command run in the lent VM opened its Recycle Bin window.
     A view of FileCat's own (reading the bins' records, restoring) is the owner's decision.
+104. CI (`f88300d`): the Registry jobs' tests waited ten seconds for a job and once ran out on a busy runner; they wait a
+    minute now, the jobs themselves unchanged.
+105. The owner's decision, (b) of three: FileCat's own read-only view of the Recycle Bin (`5a4161b`, E-BIN-1). The
+    place beside Downloads opens it in the panel; Windows' own window is its second entry. Both record formats are read
+    as untrusted input (a million damaged records: none crashed; the fuzz run found one crash before it shipped);
+    deleted folders are entered, files viewed and copied out, nothing outside the bin reached (the test fails with the
+    check taken out). Against the Shell's own listing, item by item: the owner's bin 40 of 40, later 38 of 38; the lent
+    VM's (Czech) 6 of 6. Restoring and emptying stay with Windows' window.
+106. **I77** (Low; `f95e4cd`, E-BIN-1): the view's first look at the owner's bin found a FileCat test's leftovers — 163
+    records of its files and two items, one record per run of a test that recycles a file and undoes it on the computer
+    it runs on. The test now removes its own items whatever happens, FileCat's undo removes the restored item's record,
+    and the leftovers were removed from the owner's bin, only those. Checked afterwards on the lent VM: Windows' own
+    Restore leaves that record too (three runs), as does emptying the bin with such records in it; the fix's comment and
+    commit message had said otherwise, unchecked, and the records and comment are corrected.
 
 ## Evidence invalidated by the campaign's own changes
 
