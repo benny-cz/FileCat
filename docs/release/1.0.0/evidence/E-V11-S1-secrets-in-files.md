@@ -50,9 +50,20 @@ once the server has accepted it, and not before. `SftpProviderTests.A_secret_is_
 the right one is kept. Against the code before the change it fails, the store holding the last wrong password
 ("still wrong"). Remote suite afterwards: 116 total, 0 failed.
 
+## E-V11-S1-F1 — state files that cannot be written (`0ade5a1`)
+
+- **A portable copy that cannot write beside itself** (a write-protected stick, a folder under Program Files): it
+  already started from the user's profile instead and said why; `PathAndStateTests.A_portable_copy_that_cannot_write_beside_itself_starts_from_the_profile_and_says_why`
+  now holds that, with a file standing where its data folder would be made.
+- **A save that fails during a session** (a full disk, a folder made read-only): settings, history, the window layout
+  and working sets each logged it and said nothing else, so the user's changes silently did not survive a restart.
+  The first failure of each is now shown once per session — the layout is saved every minute, so it must not repeat —
+  FileCat keeps trying, and a save that later goes through says nothing more.
+  `StateSaveFailureTests.A_failed_save_is_told_once_and_tried_again` blocks the temporary copy a save writes, saves
+  three times (one notice), unblocks it, and finds the change written. App suite: 202 total, 0 failed.
+
 ## Still open in V11
 
-Linux (Secret Service) and macOS (Keychain), including a store that is absent, locked or refuses; corrupt and
-truncated state files; competing instances, read-only profiles and unwritable portable folders; crash reports and
-exports; and the argument-recording half, which E-V24-G1-T2 covers for tools. A newer schema is covered for every state
+Linux (Secret Service) and macOS (Keychain), including a store that is absent, locked or refuses; competing
+instances; crash reports and exports; and the argument-recording half, which E-V24-G1-T2 covers for tools. A newer schema is covered for every state
 file now that the layout honours it too ([I71](../FILECAT_1_0_RELEASE_ISSUES.md#i71--an-older-filecat-saved-over-a-newer-filecats-window-layout)).

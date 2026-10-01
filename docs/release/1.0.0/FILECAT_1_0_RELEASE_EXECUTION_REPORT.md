@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `f9adb51` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `0ade5a1` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -348,6 +348,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     rename, attributes, move, new folder and file, checksum, alternate streams, hex editing, permanent delete — works
     on paths of 330 and 630 characters, on the host (long paths allowed) and on the VM with `LongPathsEnabled` 0, the
     Windows default. The Recycle Bin is the one refusal, Windows' own; FileCat says so and changes nothing.
+92. V11 unwritable state (E-V11-S1-F1): a portable copy that cannot write beside itself already fell back to the
+    profile and said why (now tested). A save failing during a session was only logged, so changes silently did not
+    survive a restart; it is now told once per file per session (`0ade5a1`).
 
 ## Evidence invalidated by the campaign's own changes
 
