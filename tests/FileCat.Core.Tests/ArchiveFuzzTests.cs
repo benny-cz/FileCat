@@ -220,18 +220,31 @@ public sealed class ArchiveFuzzTests : IDisposable
                 finally { onThread = GC.GetAllocatedBytesForCurrentThread() - start; }
             });
             if (!reading.Wait(TimeSpan.FromSeconds(60)))
-                throw new Xunit.Sdk.XunitException($"{_format}, round {round}: still reading after 60 s (a loop on damaged data?).");
+                throw new Xunit.Sdk.XunitException($"{_format}, round {round}: still reading after 60 s (a loop on damaged data?).{Keep(round, data)}");
             listing = reading.Result;
             long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
-            if (failure is not null) throw new Xunit.Sdk.XunitException($"{_format}, round {round}: {failure}");
+            if (failure is not null) throw new Xunit.Sdk.XunitException($"{_format}, round {round}: {failure}{Keep(round, data)}");
             if (onThread > MostAllocated) (MostAllocated, MostAllocatedRound) = (onThread, round);
             if (clock.Elapsed > Slowest) (Slowest, SlowestRound) = (clock.Elapsed, round);
             // The thread that read the archive does the listing and the reading: its count is this round's alone. The
             // process's count takes in whatever else ran meanwhile (on CI's ARM64 runner 1.1 GiB within 9 ms of a round
             // over a 1 KiB archive), so it is only told.
-            Assert.True(onThread <= Budget, $"{_format}, round {round} allocated {onThread >> 20} MiB on the thread that read a {_original.Length >> 10} KiB archive " +
-                                            $"({allocated >> 20} MiB in the whole process meanwhile).");
+            if (onThread > Budget)
+                Assert.Fail($"{_format}, round {round} allocated {onThread >> 20} MiB on the thread that read a {_original.Length >> 10} KiB archive " +
+                            $"({allocated >> 20} MiB in the whole process meanwhile).{Keep(round, data)}");
             return listing is null ? "refused" : listing == _baseline ? "same" : "changed";
+        }
+
+        /// <summary>
+        /// A failing round's damaged copy, kept in FILECAT_ARCHIVE_FUZZ_KEEP: the bytes themselves, should the round not
+        /// fail again elsewhere; " (kept as …)" for the message, or nothing.
+        /// </summary>
+        private string Keep(int round, byte[] data)
+        {
+            if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_FUZZ_KEEP") is not { Length: > 0 } folder) return "";
+            string path = Path.Combine(Directory.CreateDirectory(folder).FullName, $"{_format}-{round}{Path.GetExtension(_path)}");
+            File.WriteAllBytes(path, data);
+            return $" (kept as {path}, SHA-256 {Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(data))})";
         }
 
         /// <summary>
