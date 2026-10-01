@@ -27,6 +27,11 @@ public static class Schemes
     public const string HiddenData = "hidden";
     /// <summary>A volume's change journal (D-56): its entries as rows; the path is the volume's root.</summary>
     public const string Journal = "usn";
+    /// <summary>
+    /// Windows' Recycle Bin, read-only: the empty path lists every deleted item of this user; "C/$Rxxxxxx[/…]" is a
+    /// deleted item (and what a deleted folder holds) by the drive and the name the bin stores it under.
+    /// </summary>
+    public const string RecycleBin = "bin";
 }
 
 /// <summary>

@@ -61,6 +61,8 @@ public sealed class WindowsPlatform : PortablePlatform
         // Phones and cameras over MTP (P8), with uploads, deletes, renames, and folders as jobs.
         registry.Register(new Mtp.MtpProvider());
         Mtp.MtpJobs.Register();
+        // The Recycle Bin, read-only: viewed and copied out of; restored and emptied in Windows' own window.
+        registry.Register(new RecycleBinProvider());
     }
 
     protected override LocalFileSystemProvider CreateFileSystemProvider() => new WindowsFileSystemProvider();

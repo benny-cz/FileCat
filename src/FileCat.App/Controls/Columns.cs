@@ -183,6 +183,15 @@ public static class ColumnProfiles
         new(ColumnField.Details, "Folder", 260, Star: true),
     ];
 
+    /// <summary>Windows' Recycle Bin: each item's name, the folder it was deleted from, its size, and when it was deleted.</summary>
+    public static ColumnSpec[] RecycleBin { get; } =
+    [
+        new(ColumnField.Name, "Name", 220, Star: true),
+        new(ColumnField.Details, "Deleted from", 280, Star: true),
+        new(ColumnField.Size, "Size", 86, RightAlign: true),
+        new(ColumnField.Modified, "Deleted", 128),
+    ];
+
     public static ColumnSpec[] Registry { get; } =
     [
         new(ColumnField.Name, "Name", 200, Star: true),
@@ -220,7 +229,7 @@ public sealed class ColumnProfileSet
     public string NameOf(int profile) => _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Name;
 
     /// <summary>True when the scheme has a dedicated layout that profiles do not change.</summary>
-    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery or Schemes.HiddenData or Schemes.Journal;
+    public static bool HasFixedLayout(string scheme) => scheme is Schemes.ResultSet or Schemes.Registry or Schemes.Recovery or Schemes.HiddenData or Schemes.Journal or Schemes.RecycleBin;
 
     public ColumnSpec[] Get(int profile, string scheme)
     {
@@ -229,6 +238,7 @@ public sealed class ColumnProfileSet
         if (scheme == Schemes.Recovery) return ColumnProfiles.Recovery;
         if (scheme == Schemes.HiddenData) return ColumnProfiles.HiddenData;
         if (scheme == Schemes.Journal) return ColumnProfiles.Journal;
+        if (scheme == Schemes.RecycleBin) return ColumnProfiles.RecycleBin;
         return _profiles[Math.Clamp(profile, 0, _profiles.Count - 1)].Columns;
     }
 

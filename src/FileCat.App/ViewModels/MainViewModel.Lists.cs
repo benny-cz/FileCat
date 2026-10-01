@@ -148,13 +148,17 @@ public sealed partial class MainViewModel
         }
         var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         if (Directory.Exists(downloads)) places.Add(new Place("Downloads", downloads, Location.FileSystem(downloads), FolderIcon(Location.FileSystem(downloads))) { Group = PlaceGroup.Folders });
-        // Windows' Recycle Bin, beside Downloads (the owner's choice), opens in its own window: only it restores what it
-        // holds to where it was.
+        // Windows' Recycle Bin, beside Downloads (the owner's choice): FileCat's read-only view of it in the panel, and
+        // Windows' own window, where items are restored to where they were or removed for good, as its second entry.
         if (Services.Shell.CanOpenRecycleBin)
         {
             var bin = Services.Shell.RecycleBinHasItems() == true ? IconKind.RecycleBinFull : IconKind.RecycleBin;
-            places.Add(new Place("Recycle Bin", "Opens Windows' Recycle Bin, where deleted items are restored or removed for good", null,
-                () => icons.GetPlaceIcon(bin)) { Group = PlaceGroup.Folders, Opens = Services.Shell.OpenRecycleBin });
+            var window = new Place("Recycle Bin in Windows", "Opens Windows' Recycle Bin, where deleted items are restored or removed for good", null,
+                () => icons.GetPlaceIcon(bin)) { Group = PlaceGroup.Folders, Opens = Services.Shell.OpenRecycleBin };
+            places.Add(Services.Providers.IsRegistered(Schemes.RecycleBin)
+                ? new Place("Recycle Bin", "Deleted items, read-only: view them and copy them out; restore or empty them in Windows' Recycle Bin",
+                    new Location(Schemes.RecycleBin, string.Empty), () => icons.GetPlaceIcon(bin)) { Group = PlaceGroup.Folders, Variants = [window] }
+                : window with { Title = "Recycle Bin" });
         }
         // The cloud providers' folders (OneDrive, Dropbox, iCloud Drive, …) by the names they give them, with the icon
         // their folder carries (OneDrive's is a known folder's; the others name theirs in desktop.ini, which is read only
