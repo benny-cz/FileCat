@@ -72,6 +72,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I61 | Command line: `--workspace` and `--list` were read, forwarded, and ignored | Low–Medium (plan §19.1 promises both; a launch with them opened nothing and said nothing) | Must fix (V23 B12, product claim) | **Remediated `dcd81a1`; verified** (E-DPI) |
 | I62 | Profiles: two names for one profile's folders ran as two instances at once | Low (`--profile Work!` beside `--profile Work`: one profile's settings and journals in use by two FileCats) | Should fix (V23 B12) | **Remediated `2cd313f`; verified** (E-DPI) |
 | I63 | Update check: the page an answer named was opened through the system's association, whatever it was | Low–Medium (one "Open release page" away from opening any address or local program, for whoever can alter the answer: an inspecting proxy, a compromise at GitHub) | Should fix (V23 B13) | **Remediated `9bedead`; verified** (E-DPI) |
+| I64 | Names: a folder's name turned its tab, the path line and the command line's path around | Low (a right-to-left override in a folder's name made the shown location read otherwise; the file list already escaped it) | Should fix (V23 B14, §18.3) | **Remediated `e6e9ad0`; verified** (E-DPI) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
@@ -967,6 +968,20 @@ level the plan already states; exploit-level detail is not recorded here.
   so this guards against an inspecting proxy or a compromise there, not a network neighbour.
 - **Verification:** `UpdateCheckTests` (eight foreign addresses replaced, five foreign tags neither shown nor taken for
   newer, malformed answers refused) and `ToolAssociationTests.A_release_tag_reads_as_a_version_or_not_at_all`.
+
+### I64 — A folder's name could turn the shown location around
+
+- **Found by:** the V23 review of B14 (configuration and text reaching trusted UI). `Formatters.SafeName` escapes control
+  and bidirectional characters in names (plan §18.3); the file list, quick view and the operation dialogs use it, but
+  a tab's title, the path line and the path beside the command line showed a folder's name as it was, so a folder named
+  with a right-to-left override (U+202E) made the location read otherwise. `SafeName` also let the Unicode line and
+  paragraph separators through, where a text engine may break a one-line name and hide its end.
+- **Remediation (`e6e9ad0`):** the three show the name escaped; the path itself, which editing and every operation use,
+  stays as it is, and the path line's parts still go to the folders they stand for. The separators are escaped too.
+- **Verification:** `FormattersTests.A_name_cannot_turn_itself_around_or_hide_its_end`,
+  `TabStripTests.A_folders_name_cannot_turn_its_tab_or_path_around`,
+  `PathLineTests.A_folders_name_is_drawn_escaped_and_its_part_still_goes_there`; the App suite: 195, 7 skipped, none
+  failed. (A culture-aware `Contains` ignores such format characters: the test checks ordinally.)
 
 ### I60 — The AppImage's runtime came unchecked from a moving release
 

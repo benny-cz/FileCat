@@ -163,6 +163,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `2cd313f` | Profiles: names that share one profile's folders are one instance | I62 | E-DPI (B12) |
 | `a0a4bf5` | Test: a verified copy's copying step is required only when it lasted long enough to be seen (CI red on macOS at `84b847a`) | I30 | CI |
 | `9bedead` | Update check: an answer's tag, page and size checked; a log record stays one line | I63 | E-DPI (B13) |
+| `e6e9ad0` | Names: tabs, the path line and the command line's path show names escaped, as the file list does | I64 | E-DPI (B14) |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
