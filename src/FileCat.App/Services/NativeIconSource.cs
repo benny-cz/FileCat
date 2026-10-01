@@ -34,7 +34,12 @@ public sealed class NativeIconSource : INativeIconSource
     private const FileAttributes Placeholder = FileAttributes.Offline | (FileAttributes)0x40000 | (FileAttributes)0x400000;
 
     /// <summary>What an item shows: its own picture, or a shared icon (a shortcut shows its target's type icon).</summary>
-    private sealed record Plan(IImage? Image, string? SharedKey);
+    /// <param name="AskAgain">
+    /// The helper never answered (it died, or pictures were paused while FileCat recovered deleted files), so nothing
+    /// is known about this item yet: the row shows its type icon for now, and the next time it is drawn it is asked
+    /// about again instead of being remembered as having no icon of its own.
+    /// </param>
+    private sealed record Plan(IImage? Image, string? SharedKey, bool AskAgain = false);
 
     private readonly IShellServices _shell;
     private readonly Func<ShellPreviews?> _pictures;
@@ -212,7 +217,9 @@ public sealed class NativeIconSource : INativeIconSource
                 result = new Plan(null, null);
             }
             if (size != PixelSize) return;
-            _perItem[key] = result;
+            // Nothing was learned about this item: forget that it was asked, so drawing the row asks again.
+            if (result.AskAgain) _perItem.TryRemove(key, out _);
+            else _perItem[key] = result;
             if (result.Image is not null || result.SharedKey is not null) NotifyLoaded();
         });
         return null;
@@ -236,7 +243,11 @@ public sealed class NativeIconSource : INativeIconSource
                 ? ShellFileIcons.ReadInternetShortcut(ShellFileIcons.DecodeText(bytes), folder)
                 : ShellFileIcons.ReadShortcut(bytes, folder);
             if (info is null) return new Plan(null, null);
-            if (info.IconFile is { } iconFile && await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false) is { } named) return new Plan(named, null);
+            if (info.IconFile is { } iconFile)
+            {
+                var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false);
+                if (named is not null || askAgain) return new Plan(named, null, askAgain);
+            }
             if (info.KnownFolder is { } id && _knownById is { } byId && byId.TryGetValue(id, out var knownIcon)) return new Plan(null, "res:" + knownIcon);
             if (info.TargetPath is { } target)
             {
@@ -266,16 +277,17 @@ public sealed class NativeIconSource : INativeIconSource
             if (!fileInfo.Exists || fileInfo.Length > ShellFileIcons.MaxBytes || (fileInfo.Attributes & Placeholder) != 0) return new Plan(null, null);
             var info = ShellFileIcons.ReadFolderIcon(ShellFileIcons.DecodeText(await File.ReadAllBytesAsync(ini).ConfigureAwait(false)), path);
             if (info?.IconFile is not { } iconFile) return new Plan(null, null);
-            return new Plan(await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false), null);
+            var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false);
+            return new Plan(named, null, askAgain);
         });
 
     /// <summary>An icon a user's file names, read by the restricted helper under its policy (local files only).</summary>
-    private async Task<IImage?> Resource(IconLocation location)
+    private async Task<(IImage? Image, bool AskAgain)> Resource(IconLocation location)
     {
-        if (_pictures() is not { } pictures) return null;
-        if (ResourceTime(location, pictures.IconResourceRefusal) is not { } modified) return null;
-        var image = await pictures.GetAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, PixelSize, CancellationToken.None).ConfigureAwait(false);
-        return image is null ? null : ShellBitmaps.ToBitmap(image);
+        if (_pictures() is not { } pictures) return (null, false);
+        if (ResourceTime(location, pictures.IconResourceRefusal) is not { } modified) return (null, false);
+        var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, PixelSize, CancellationToken.None).ConfigureAwait(false);
+        return (image is null ? null : ShellBitmaps.ToBitmap(image), answer == ShellAnswer.Failed);
     }
 
     /// <summary>
@@ -296,8 +308,8 @@ public sealed class NativeIconSource : INativeIconSource
         if (_pictures() is not { } pictures) return null;
         return FromPlan(PerItem("own|" + path + "|" + modified, async () =>
         {
-            var image = await pictures.GetAsync(ShellImageKind.Icon, path, modified, attributes, PixelSize, CancellationToken.None).ConfigureAwait(false);
-            return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null);
+            var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.Icon, path, modified, attributes, PixelSize, CancellationToken.None).ConfigureAwait(false);
+            return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null, answer == ShellAnswer.Failed);
         }));
     }
 

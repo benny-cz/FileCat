@@ -1030,11 +1030,19 @@ level the plan already states; exploit-level detail is not recorded here.
   it **failed** (no helper answered at all). Only an answer or a refusal is remembered. A failure is tried again next
   time the picture is wanted, at most three times per file, so a handler that brings the helper down on every try is
   still given up on.
+- **The same again on the icon side (`PENDING`):** `NativeIconSource` keeps a plan per item, so a shortcut or a
+  customized folder whose icon the helper never answered for stayed a plain type icon for the session too. The same
+  distinction now reaches it (`ShellPreviews.GetWithAnswerAsync`), and a plan made from an unanswered request is not
+  kept. This also covers a case that has nothing to do with a crash: while FileCat recovers deleted files it pauses
+  Shell pictures (I09), and every icon asked for in that time was being remembered as "none" for the rest of the
+  session — now they are asked again once the scan is over.
 - **Verification:** `ShellHostTests.A_request_that_got_no_answer_is_not_remembered_as_the_file_having_no_picture` —
   two failures leave nothing remembered and are asked afresh, the answer that follows is remembered and ends the
   asking, and a file that fails every time is given up on after three. Checked against the unfixed code as well, where
-  it fails on the first assertion.
+  it fails on the first assertion. The paused case is checked in the same test.
 - **Severity:** Medium: a visible feature degrades for the rest of a session after a fault it was designed to survive.
+- **Residual:** a failure is no longer remembered, but a view still asks only once for what it shows; if that first
+  attempt is the one that fails, the picture appears only when the file is looked at again.
 
 ### I69 — A repository's own configuration sent Git to a server while the folder was merely shown
 

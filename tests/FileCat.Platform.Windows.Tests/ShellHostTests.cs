@@ -174,6 +174,13 @@ public sealed class ShellHostTests : IDisposable
         Assert.Null(await previews.GetAsync(ShellImageKind.Thumbnail, file, 1, FileAttributes.Normal, 32, ct));
         Assert.Equal(3, asked);
 
+        // Paused is the moment's state, not the file's: what was asked for meanwhile is no answer about it.
+        string during = Path.Combine(_dir, "while-paused.bmp");
+        previews.Paused = true;
+        var (_, pausedAnswer) = await previews.GetWithAnswerAsync(ShellImageKind.Thumbnail, during, 1, FileAttributes.Normal, 32, ct);
+        Assert.Equal(ShellAnswer.Failed, pausedAnswer);
+        previews.Paused = false;
+
         // Another file that fails every time is given up on instead of being asked for ever.
         string hopeless = Path.Combine(_dir, "hopeless.bmp");
         for (int i = 0; i < 5; i++) answers.Enqueue(ShellAnswer.Failed);

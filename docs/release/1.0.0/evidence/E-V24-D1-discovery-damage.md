@@ -50,6 +50,19 @@ afresh, the answer that follows is remembered and ends the asking, and a file th
 after three tries. Run against the unfixed caching as well, where it fails on its first assertion ("a failure was
 remembered as an answer"). `FileCat.Platform.Windows.Tests` whole suite afterwards: 128 total, 0 failed, 24 skipped.
 
+**The icons as well.** `NativeIconSource` keeps a plan of its own per item, so the same thing happened a second time:
+a shortcut or a customized folder whose named icon the helper never answered for stayed a plain type icon for the
+session. The distinction now reaches it too (`ShellPreviews.GetWithAnswerAsync`), and a plan made from an unanswered
+request is dropped instead of kept, so drawing the row asks again. That also covers a case with no crash in it at all:
+while FileCat recovers deleted files it pauses Shell pictures (I09, so that the Shell writes nothing to the disk being
+read), and **every icon asked for during a scan was being remembered as "none" for the rest of the session**. Those
+are now asked again once the scan is over, which the same test checks (`Paused` gives `Failed`, not an answer).
+
+**Residual:** the fix stops a transient failure from being *remembered*; it does not make a single showing retry. Quick
+view asks once for the item on screen, so if that very first attempt is the one that fails, the picture still does not
+appear until the file is looked at again. That is also why the ARM64 test can still fail this way, and it is the
+remaining part of the case: whether a view should ask a second time when no helper answered.
+
 The ARM64 lane's other red run that day (36871560455) was unrelated: `actions/setup-dotnet` crashed while installing
 the SDK.
 

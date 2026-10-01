@@ -141,7 +141,7 @@ public sealed class ShellPreviews : IDisposable
 
     private sealed record Request(string Key, ShellImageKind Kind, string Path, int Size, TimeSpan Timeout)
     {
-        public List<(TaskCompletionSource<ShellImage?> Tcs, CancellationToken Ct)> Waiters { get; } = [];
+        public List<(TaskCompletionSource<(ShellImage? Image, ShellAnswer Answer)> Tcs, CancellationToken Ct)> Waiters { get; } = [];
     }
 
     private static string KeyOf(ShellImageKind kind, string path, long modifiedTicks, int size) => $"{(int)kind}|{size}|{modifiedTicks}|{path}";
@@ -153,27 +153,40 @@ public sealed class ShellPreviews : IDisposable
     }
 
     /// <summary>The picture, or null when policy refuses, the type has none, or the handler failed.</summary>
-    public Task<ShellImage?> GetAsync(ShellImageKind kind, string path, long modifiedTicks, FileAttributes attributes, int size, CancellationToken ct)
+    public async Task<ShellImage?> GetAsync(ShellImageKind kind, string path, long modifiedTicks, FileAttributes attributes, int size, CancellationToken ct) =>
+        (await GetWithAnswerAsync(kind, path, modifiedTicks, attributes, size, ct).ConfigureAwait(false)).Image;
+
+    /// <summary>
+    /// The picture, with what came of asking for it. <see cref="ShellAnswer.Failed"/> means nothing is known about this
+    /// file yet — the helper did not answer, or pictures were paused, or the wait was given up — so a caller that
+    /// remembers answers of its own must not remember this one.
+    /// </summary>
+    public Task<(ShellImage? Image, ShellAnswer Answer)> GetWithAnswerAsync(ShellImageKind kind, string path, long modifiedTicks, FileAttributes attributes, int size, CancellationToken ct)
     {
-        if (_disposed || _client.DisabledReason is not null) return Task.FromResult<ShellImage?>(null);
+        if (_disposed || _client.DisabledReason is not null) return Task.FromResult<(ShellImage?, ShellAnswer)>((null, ShellAnswer.Refused));
         if (Paused)
         {
-            lock (_lock) return Task.FromResult(_cache.GetValueOrDefault(KeyOf(kind, path, modifiedTicks, size)));
+            // Paused is this moment's state, not this file's: what is already known still shows, and the rest is
+            // asked again once the scan that paused it is over.
+            lock (_lock)
+                return Task.FromResult(_cache.TryGetValue(KeyOf(kind, path, modifiedTicks, size), out var known)
+                    ? (known, ShellAnswer.Answered)
+                    : ((ShellImage?)null, ShellAnswer.Failed));
         }
         if (kind == ShellImageKind.IconResource
                 ? IconResourceRequest.Parse(path) is not { } location || ShellPreviewPolicy.IconResourceRefusal(location, _allowNetworkAndRemovable()) is not null
                 : ShellPreviewPolicy.Refusal(path, attributes, _allowNetworkAndRemovable()) is not null)
-            return Task.FromResult<ShellImage?>(null);
+            return Task.FromResult<(ShellImage?, ShellAnswer)>((null, ShellAnswer.Refused));
         string key = KeyOf(kind, path, modifiedTicks, size);
-        var tcs = new TaskCompletionSource<ShellImage?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<(ShellImage? Image, ShellAnswer Answer)>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_lock)
         {
-            if (_cache.TryGetValue(key, out var cached)) return Task.FromResult(cached);
+            if (_cache.TryGetValue(key, out var cached)) return Task.FromResult((cached, ShellAnswer.Answered));
             // Release issue I29: a request the helper already works on is joined, not asked of the helper again.
             if (_running is { } running && running.Key == key)
             {
                 running.Waiters.Add((tcs, ct));
-                if (ct.CanBeCanceled) ct.Register(() => tcs.TrySetResult(null));
+                if (ct.CanBeCanceled) ct.Register(() => tcs.TrySetResult((null, ShellAnswer.Failed)));
                 return tcs.Task;
             }
             var request = _pending.FirstOrDefault(r => r.Key == key);
@@ -190,7 +203,7 @@ public sealed class ShellPreviews : IDisposable
             }
             request.Waiters.Add((tcs, ct));
         }
-        if (ct.CanBeCanceled) ct.Register(() => tcs.TrySetResult(null));
+        if (ct.CanBeCanceled) ct.Register(() => tcs.TrySetResult((null, ShellAnswer.Failed)));
         _signal.Release();
         return tcs.Task;
     }
@@ -220,7 +233,7 @@ public sealed class ShellPreviews : IDisposable
                     }
                     return _client.Get(r.Kind, r.Path, r.Size, r.Timeout, out answer);
                 }
-                List<(TaskCompletionSource<ShellImage?> Tcs, CancellationToken Ct)> waiters;
+                List<(TaskCompletionSource<(ShellImage? Image, ShellAnswer Answer)> Tcs, CancellationToken Ct)> waiters;
                 lock (_lock)
                 {
                     // Counting tries costs memory of its own; past the cache's size, start the counts over.
@@ -241,7 +254,7 @@ public sealed class ShellPreviews : IDisposable
                     _running = null;
                     waiters = [.. request.Waiters];
                 }
-                foreach (var (tcs, _) in waiters) tcs.TrySetResult(image);
+                foreach (var (tcs, _) in waiters) tcs.TrySetResult((image, answer));
             }
         }
     }
@@ -257,7 +270,8 @@ public sealed class ShellPreviews : IDisposable
                 _pending.RemoveAt(i);
                 // Paused meanwhile: what was asked for before is not asked of the helper either.
                 if (!Paused && r.Waiters.Any(w => !w.Ct.IsCancellationRequested)) return _running = r;
-                foreach (var (tcs, _) in r.Waiters) tcs.TrySetResult(null);
+                // Dropped because pictures were paused meanwhile, or nobody waits any more: no answer about the file.
+                foreach (var (tcs, _) in r.Waiters) tcs.TrySetResult((null, ShellAnswer.Failed));
             }
             return null;
         }
@@ -271,7 +285,7 @@ public sealed class ShellPreviews : IDisposable
         lock (_lock)
         {
             foreach (var r in _pending)
-                foreach (var (tcs, _) in r.Waiters) tcs.TrySetResult(null);
+                foreach (var (tcs, _) in r.Waiters) tcs.TrySetResult((null, ShellAnswer.Refused));
             _pending.Clear();
         }
     }
