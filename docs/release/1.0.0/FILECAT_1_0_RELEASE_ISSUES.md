@@ -68,6 +68,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I56 | FTP: data connections followed the address a server's PASV reply named | Low (a server could aim uploads and downloads at another host; curl's CVE-2020-8284 is the same class, rated Low there) | Should fix (V23 B05) | **Remediated `ee476f0`; verified** (test server and the remote lab) |
 | I57 | Network discovery followed HTTP redirects from a device's metadata address | Low–Medium (any device answering discovery could make FileCat send a request to another address, a service on this computer included) | Should fix (V23 B05) | **Remediated `a5c25d1`; verified** (fake device) |
 | I58 | A damaged TAR header made .NET's TAR reader take up to 2 GiB before finding the data missing | Low–Medium (a 31 KiB archive took 512 MiB each time it was listed; a crafted one up to 2 GiB; then refused) | Should fix (V23 B02) | **Remediated `325aa63`; verified** (E-B02-A1) |
+| I60 | The AppImage's runtime was whatever type2-runtime's "continuous" release held when the package was built, unchecked | Medium (supply chain: the first code to run when FileCat's AppImage starts, taken unverified from a moving release) | Must fix (V23 B09, part of I03) | **Remediated `84b847a`; verified** (packaging run 36855265633) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
@@ -925,6 +926,27 @@ level the plan already states; exploit-level detail is not recorded here.
   24 skipped (gated), none failed.
 - **Severity:** Low: a renamed key can disable what reads it, but the setup needs an account with write and link rights
   under the key's parent and an administrator's approval of that very rename.
+
+### I60 — The AppImage's runtime came unchecked from a moving release
+
+- **Found by:** the V23 review of B09. `eng/package-linux.sh` pins appimagetool 1.9.1 by SHA-256, but appimagetool, given
+  no `--runtime-file`, downloads the runtime it puts at the front of every AppImage: the manual packaging run of
+  2026-09-30 (CI run 36759624490) logged "Downloading runtime file from
+  https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64". That release is rebuilt on
+  every change upstream, and nothing checked what came.
+- **Remediation (`84b847a`):** the runtime is the build of type2-runtime commit `8f39b89` (2026-09-28; the one change
+  since the dated release `20251108` makes extraction directories with mode 0700), 944,632 bytes, SHA-256
+  `156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074` (GitHub's own digest of the asset agrees), checked
+  before use and passed with `--runtime-file`. When the continuous release moves on, packaging stops with a message
+  until the new runtime is reviewed and pinned; `APPIMAGE_RUNTIME` takes a reviewed file instead. The notices name the
+  pinned build.
+- **Verification:** the manual packaging run 36855265633 (`84b847a`): `runtime-x86_64: OK` beside
+  `appimagetool: OK`, no runtime downloaded by appimagetool, and the AppImage, the `.deb` and the tarball each print
+  their version.
+- **Residual (I03):** a rebuild of this commit needs that exact file; once the continuous release moves on, it has to
+  come from a copy kept by the release owner (DEC-10's store) or a release asset of FileCat's own.
+- **Severity:** Medium for supply chain: no compromise is known; the gap was that a compromised or merely changed
+  upstream build would have shipped in FileCat's AppImage unnoticed.
 
 ## New detail on open issues
 

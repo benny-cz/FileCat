@@ -17,7 +17,7 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 | DEC-06 | Shared content-cache budget (I06): keep the 64 MiB target or approve an evidence-backed change | Performance/resource gate | §3.2 item 3, §9 |
 | DEC-07 | The unsigned public preview release (D-40's first step): approve publishing a clearly labelled prerelease | SignPath Foundation requires an existing release before signing | §10.4 step 1 |
 | DEC-08 | GitHub private vulnerability reporting (I01): enable it as SECURITY.md already promises, and name who answers within 7 / 14 days | The advertised private route does not exist | §7 I01, V22 |
-| DEC-09 | Release branch and protection model (I18): a `release/1.0` branch with required checks, protected `v1.0.0-rc.*`/`v1.0.0` tags, immutable releases, a human-gated publisher | Freezes are not enforceable today; agents push to `main` directly | §12.1 |
+| DEC-09 | Release branch and protection model (I18): a `release/1.0` branch with required checks, protected `v1.0.0-rc.*`/`v1.0.0` tags, immutable releases, a human-gated publisher | Freezes are not enforceable today; agents push to `main` directly. Read 2026-10-01 (E-DPI B09): no rulesets, `main` unprotected, `v*` tags unprotected, immutable releases off, any action allowed without SHA pinning | §12.1 |
 | DEC-10 | A release-owner-controlled, read-only store for raw evidence and packages | REP sealing needs retained raw evidence | §12.5 |
 | DEC-11 | ~~Markdown rendering for 1.0 (I25): whether, and whether through a new dependency~~ **Decided 2026-10-01:** required for 1.0.0, low priority; built-in renderer (no new dependency) | — | I25 |
 

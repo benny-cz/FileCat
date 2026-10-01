@@ -157,6 +157,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `325aa63` | Archives: a TAR member's metadata header is checked before .NET's TarReader takes it whole; RAR 4's budget | I58 | E-B02-A1 |
 | `c5f7387` | Test: the usual FileCat's pipe is asked until it stops answering (CI red on Linux and macOS since `d39c402`) | I09 | CI |
 | `b02a01f` | Registry: a key is renamed through the handle it was checked by, never by name through a link | I59 | E-DPI (B07) |
+| `9fe6cea` | Test: the late-naming device answers from threads of its own (CI red on ARM64 at `c5f7387`) | I23 | CI |
+| `84b847a` | Packaging: the AppImage runtime pinned by checksum; the release action by commit | I60 | E-DPI (B09) |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
