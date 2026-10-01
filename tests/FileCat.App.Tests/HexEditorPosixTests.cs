@@ -69,4 +69,48 @@ public sealed class HexEditorPosixTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    private sealed class Now<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
+
+    [Fact]
+    public void Save_as_keeps_no_copy_of_a_file_another_program_wrote_meanwhile()
+    {
+        // Release plan DPI P05: Save As read the whole file while other programs could write it; the new file could mix
+        // old and new bytes.
+        if (OperatingSystem.IsWindows()) Assert.Skip("Windows keeps other writers out while the file is open here.");
+        string root = Path.Combine(Path.GetTempPath(), "filecat-hexsaveas-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string file = Path.Combine(root, "big.bin");
+        var bytes = new byte[3 * 1024 * 1024];
+        new Random(3).NextBytes(bytes);
+        File.WriteAllBytes(file, bytes);
+        File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddHours(-1));
+        try
+        {
+            using var source = new FileCat.Platform.Windows.ProtectedHexFile(file);
+            using var overlay = new FileCat.Core.Content.HexPatchOverlay(source);
+            overlay.Write(0, [(byte)~bytes[0]]);
+            bool wrote = false;
+            var progress = new Now<(long Done, long Total)>(_ =>
+            {
+                if (wrote) return;
+                wrote = true;
+                // After the first megabyte was read: a byte in it changes.
+                using var other = new FileStream(file, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+                other.Position = 10;
+                other.WriteByte((byte)~bytes[10]);
+            });
+            string copy = Path.Combine(root, "copy.bin");
+            var error = Assert.Throws<IOException>(() =>
+                FileCat.Platform.Windows.HexSaveAs.CreateNew(source, overlay, copy, TestContext.Current.CancellationToken, progress));
+            Assert.True(wrote);
+            Assert.Contains("was not kept", error.Message, StringComparison.Ordinal);
+            Assert.False(File.Exists(copy));
+            Assert.Empty(Directory.GetFiles(root, ".filecat-hex-*"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
 }

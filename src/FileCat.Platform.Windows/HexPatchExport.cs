@@ -78,8 +78,10 @@ public static class HexPatchExport
     }
 
     /// <summary>
-    /// Stages a patch in the overlay (unsaved) only if the file has the same length and every range currently holds
-    /// its expected original bytes. Ranges that already hold the replacement are skipped. Returns the staged count.
+    /// Stages a patch in the overlay (unsaved) only if the file has the same length, every range currently holds its
+    /// expected original bytes, and all of it fits within the touched-byte limit beside the edits already made. Ranges
+    /// that already hold the replacement are skipped. Returns the staged count. Should reading the file fail part way, the
+    /// ranges staged by then are named (<see cref="HexPatchPartlyAppliedException"/>).
     /// </summary>
     public static (int Staged, int AlreadyApplied) Apply(HexPatchFile patch, HexPatchOverlay overlay)
     {
@@ -96,10 +98,33 @@ public static class HexPatchExport
                 throw new InvalidDataException($"The bytes at 0x{range.Offset:X} differ from what the patch expects, so nothing was applied.");
             pending.Add(range);
         }
+        if (overlay.TouchedBytes + overlay.NewlyTouched(pending) > HexPatchOverlay.MaxTouchedBytes)
+            throw new IOException($"Beside the edits already made here, the patch would go over the {HexPatchOverlay.MaxTouchedBytes / (1024 * 1024)} MiB " +
+                                  "limit of changed bytes, so nothing was applied. Save or export the edits first, then apply it.");
         const int MaxAction = 1024 * 1024;
-        foreach (var range in pending)
-            for (int at = 0; at < range.Replacement.Length; at += MaxAction)
-                overlay.Write(range.Offset + at, range.Replacement.AsSpan(at, Math.Min(MaxAction, range.Replacement.Length - at)));
+        int staged = 0;
+        bool partOfNext = false;
+        try
+        {
+            foreach (var range in pending)
+            {
+                for (int at = 0; at < range.Replacement.Length; at += MaxAction)
+                {
+                    overlay.Write(range.Offset + at, range.Replacement.AsSpan(at, Math.Min(MaxAction, range.Replacement.Length - at)));
+                    partOfNext = true;
+                }
+                staged++;
+                partOfNext = false;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException && (staged > 0 || partOfNext))
+        {
+            throw new HexPatchPartlyAppliedException(staged, partOfNext, pending.Count, ex);
+        }
         return (pending.Count, already);
     }
 }
+
+/// <summary>A patch stopped part way: what was staged before the error stays as unsaved edits, which Undo removes.</summary>
+public sealed class HexPatchPartlyAppliedException(int staged, bool partOfNext, int total, Exception inner)
+    : IOException($"Only {staged} of {total} ranges of the patch{(partOfNext ? ", and part of the next," : "")} were applied, as unsaved edits, before this error: {inner.Message}", inner);

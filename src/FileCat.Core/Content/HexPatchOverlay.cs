@@ -48,6 +48,19 @@ public sealed class HexPatchOverlay : IContentSource
     public bool CanRedo { get { lock (_gate) return _redo.Count > 0; } }
     public bool IsModified(long offset) { lock (_gate) return _patch.ContainsKey(offset); }
 
+    /// <summary>Bytes of these ranges no edit has touched yet: what writing them all would add to <see cref="TouchedBytes"/>.</summary>
+    public int NewlyTouched(IEnumerable<HexPatchRange> ranges)
+    {
+        lock (_gate)
+        {
+            int count = 0;
+            foreach (var range in ranges)
+                for (int i = 0; i < range.Original.Length; i++)
+                    if (!_original.ContainsKey(range.Offset + i)) count++;
+            return count;
+        }
+    }
+
     /// <summary>Raised outside the lock on the thread that changed the overlay.</summary>
     public event Action<HexOverlayChange>? Changed;
 

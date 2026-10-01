@@ -846,6 +846,11 @@ public sealed class HexEditorWindow : Window
             _hex.GoTo(patch.Ranges[0].Offset);
             Status($"Applied {Formatters.Plural(staged, "range", "ranges")} as unsaved edits" + (already > 0 ? $"; {already} already had the new bytes." : "."));
         }
+        catch (HexPatchPartlyAppliedException ex)
+        {
+            await _dialogs.AlertAsync("Patch applied only in part", ex.Message +
+                "\n\nThe file itself was not changed. Undo removes the applied ranges; review them before saving.");
+        }
         catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentOutOfRangeException or InvalidOperationException)
         {
             await _dialogs.AlertAsync("Patch not applied", ex.Message + "\n\nNothing was changed.");

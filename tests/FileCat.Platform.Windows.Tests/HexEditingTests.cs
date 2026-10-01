@@ -94,6 +94,34 @@ public sealed partial class HexEditingTests
     }
 
     [Fact]
+    public void A_patch_that_does_not_fit_beside_the_edits_made_is_not_applied_in_part()
+    {
+        // Release plan DPI P05: the patch's ranges were staged one by one until the touched-byte limit stopped one, and
+        // the editor said nothing was applied while the first ranges stayed as unsaved edits, for a later save to write.
+        if (!OperatingSystem.IsWindows()) return;
+        string directory = NewDirectory("filecat-hexlimit-");
+        string target = Path.Combine(directory, "big.bin");
+        const int MiB = 1024 * 1024;
+        var bytes = new byte[9 * MiB];
+        new Random(7).NextBytes(bytes);
+        File.WriteAllBytes(target, bytes);
+        try
+        {
+            using var file = new ProtectedHexFile(target);
+            using var overlay = new HexPatchOverlay(file);
+            for (int i = 0; i < 7; i++) overlay.Write(i * (long)MiB, Inverted(bytes, i * MiB, MiB)); // 7 MiB of edits already made
+            var ranges = new[] { 7, 8 }.Select(i => new HexPatchRange(i * (long)MiB, bytes[(i * MiB)..((i + 1) * MiB)], Inverted(bytes, i * MiB, MiB))).ToList();
+            var patch = new HexPatchFile(target, file.FileIdentity.ToString(), bytes.Length, ranges);
+            var error = Assert.ThrowsAny<IOException>(() => HexPatchExport.Apply(patch, overlay));
+            Assert.Equal(7 * MiB, overlay.DirtyBytes);
+            Assert.Contains("nothing was applied", error.Message, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+
+        static byte[] Inverted(byte[] source, int start, int length) => source[start..(start + length)].Select(b => (byte)~b).ToArray();
+    }
+
+    [Fact]
     public void Sparse_save_as_keeps_holes_and_the_download_mark()
     {
         if (!OperatingSystem.IsWindows()) return;

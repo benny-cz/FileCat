@@ -35,6 +35,9 @@ public static partial class HexSaveAs
         try
         {
             source.ValidateForSave(ranges);
+            // Linux and macOS cannot keep other programs from writing the file meanwhile: a copy taken while one did would
+            // mix its old and new bytes, so its length and time must be the same at the end.
+            var before = source.GetRevision();
             var allocated = source.IsSparse ? AllocatedRanges(source.Handle, source.Length) : null;
             var regions = allocated is null ? [(0L, source.Length)] : Merge(allocated, ranges);
             long needed = regions.Sum(r => r.Length);
@@ -80,6 +83,8 @@ public static partial class HexSaveAs
             }
             var mark = CopyOriginMark(source.LocalPath!, temp);
             source.ValidateForSave(ranges);
+            if (before is null || source.GetRevision() != before)
+                throw new IOException("Another program wrote the file while it was being copied, so the new file was not kept: it could mix old and new bytes. Save As again.");
             File.Move(temp, full, overwrite: false);
             return new HexSaveAsResult(written, sparse, mark);
         }
