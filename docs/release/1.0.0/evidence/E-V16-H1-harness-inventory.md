@@ -20,7 +20,7 @@ Insider build), Debug builds of the test projects, other sessions' work running 
 | Command feedback and cancel acknowledgement (≤100 ms) | none for the window; workers: below | — | — | no harness for the window's acknowledgement |
 | Scrolling (p95 ≤16.7 ms) | `NativeBenchmark` | frame intervals under continuous paging | no | each shipping theme and dynamic columns not run |
 | Listing storage (512 MiB shared index) | `eng/ListingScale` | peak private and managed memory, index budget given | no | mappings and spill not reported separately |
-| Content caches (64 MiB shared) | none | — | — | no aggregate accounting harness |
+| Content caches (64 MiB shared) | `PageCacheBudgetTests` (`61b028f`, added with the budget, I06) | the page caches of the views open together: thirteen readers as five viewers, three hex editors, two comparisons and the quick view, read past their limits | **yes**: 64 MiB together (148 MiB before) | not measured in a running window; other memory that grows with what is open (V12) |
 | Huge hex (first page ≤250 ms, seek p95 ≤100 ms) | `HexBenchmark` (`FILECAT_HEX_BENCH`, `6df923b`, added here) | a 4 TiB sparse file with data islands and a 2 GiB file of real data, through the viewer's and the editor's readers: first page on a first and a second open, 300 random seeks (anywhere, inside the data, dense) by nearest rank | **yes**, both budgets | cold cache (after a reboot or a cache reset) not done: the dense file was just written |
 | Large copy (≤10% over CopyFile2) | `LargeFileCopyBenchmark` (`FILECAT_LARGECOPY_BENCH=<GiB per file>`, `_DIR`, `5abf5b2`, added here) | four files copied by CopyFile2 alone and by a copy job in five pairs of alternating order, the baseline with the job's profile (unbuffered over 256 MiB); the job's copy and rename calls timed, so its time outside the copy engine is reported; a strict (read-back) copy reported | **yes**, the median against 10% | ReFS block cloning and SMB server-side copy (§9: account for them) not covered; on a busy disk the pairs spread wider than the budget either way |
 | Small copy (100,000 × 4 KiB, ≤25%) | `SmallFileCopyBenchmark` (`FILECAT_COPY_BENCH`, `_ROUNDS`) | job time against CopyFile2 alone on the same files, median overhead over rounds | no: prints; asserts only that the copy completed | ungraded; the default is 500 files, not 100,000 |
@@ -67,7 +67,7 @@ graded.
    negative control, and a launcher for warm and cold launches with a documented cold-start method.
 2. Input latency from the OS input event to the presented frame (or a documented equivalent the owner accepts), and
    physical autorepeat, per §9's definition.
-3. A harness for the content-cache row (huge hex and large copies have one now); grading for the rows that only
-   print; a cold-cache method for the hex and first-rows rows; the large-copy row's ReFS block cloning and SMB
-   server-side copy cases.
+3. Grading for the rows that only print; a cold-cache method for the hex and first-rows rows; the large-copy row's
+   ReFS block cloning and SMB server-side copy cases (written, waiting on the Windows VM, ENV-05). Huge hex, large
+   copies and the content caches have harnesses now.
 4. The reference machine of §21.2, isolated from other work.

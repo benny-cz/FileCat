@@ -58,7 +58,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 2 Owners, resources, provider/licence preflight | **Open (people)** | DEC-01, DEC-07, EXT-01, EXT-02; resource status in the blockers file |
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
 | 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
-| 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
+| 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-05, EXT-02; I06's page caches meet the planned shared budget (`61b028f`), so DEC-06 is closed |
 | 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B05 (I56, I57), B06, B07 (I59), B08 (I09), B09 (I60), B10 (I16), B11, B12 (I61, I62), B13 (I63) and B14 (I64) reviewed; B01 (I68) and B03 source passes; B02 by the damage campaigns (I58, I65); P14 corrected to I09; P07's loader audit (V06) and P13 remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
@@ -471,7 +471,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     at most 1.33 ms here (budgets 250 and 100 ms). Large copies got one (`5abf5b2`): against CopyFile2 with the job's
     own profile (a first run against a buffered CopyFile2 measured the write cache and is not a comparison), the
     median of five pairs was −0.3% to 19.6% over three runs on the 990 PRO; the job's own work outside the copy engine
-    is 12–18 ms per 4 GiB job, and the spread is the disk's. ReFS cloning and SMB server-side copy are not covered.
+    is 12–18 ms per 4 GiB job, and the spread is the disk's. ReFS cloning and SMB server-side copy are not covered:
+    the check is written (`CloneCopyTests`, gated; a VM script making a ReFS volume and a share of it), but the lent
+    Windows VM no longer starts from cold (ENV-05) and reverting it waits for the owner.
+116. I06 (E-I06-P1, `61b028f`): every view's page cache was bounded by its own limit only, so the views open together
+    were not: five viewers, three hex editors, two comparisons and the quick view held 148 MiB. Now one budget, 64 MiB
+    by default (`ContentCacheMiB` in the settings file), shared by every reader: the least recently used page of all
+    goes first, and each reader keeps its four most recent pages. Measured at 64 MiB for the same views; tests for the
+    order across readers, the floor, disposal, collection and concurrent use, with three negative controls. This meets
+    the plan's target, so DEC-06 (keep it or approve a change) is closed; the owner can still set another limit. I06
+    stays open for other memory that grows with what is open (V12).
 
 ## Evidence invalidated by the campaign's own changes
 

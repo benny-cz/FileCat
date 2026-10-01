@@ -217,6 +217,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | — (benchmarks) | V16: the harness inventory; comparison, search and archive benchmarks run on the regression profile | — | E-V16-H1 |
 | `6df923b` | Benchmark: huge-file hex access, first page and random seeks (§9's huge-hex row) | — | E-V16-H1 |
 | `5abf5b2` | Benchmark: large-file copies against CopyFile2 with the same profile (§9's large-copy row) | — | E-V16-H1 |
+| `61b028f` | Content pages: one 64 MiB budget shared by every view | I06 | E-I06-P1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
