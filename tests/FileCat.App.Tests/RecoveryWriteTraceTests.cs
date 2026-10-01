@@ -118,6 +118,13 @@ public sealed class RecoveryWriteTraceTests
                 await Complete();
                 Log($"volume: {scan.Listing.VisibleCount} rows at {services.Recovery.GetDisplayPath(scan.Location!)}");
             }
+            // FILECAT_V09_RECOVER=0: the scan only (a source that may hold no deleted file, such as a system's EFI partition).
+            if (Environment.GetEnvironmentVariable("FILECAT_V09_RECOVER") == "0")
+            {
+                Log($"scan only; waiting {wait} s with it open");
+                await Task.Delay(TimeSpan.FromSeconds(wait), ct);
+                return;
+            }
             // A deleted file whose content is there: viewed (F3), then recovered (F5's job) to the output folder.
             int file = -1;
             for (int depth = 0; depth < 4 && file < 0; depth++)
