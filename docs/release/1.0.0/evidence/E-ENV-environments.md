@@ -20,7 +20,7 @@ configuration (networking off, nothing mapped). The feature `Containers-Disposab
 
 | VM (`.vmx`) | Guest | Access | Snapshot |
 |---|---|---|---|
-| `V:\Virtual Machines\Jamf\Windows 10 x64` (encrypted VM) | Windows 11 Pro **Insider Preview** 10.0.26300.8068 (25H2), x64, 92 GB free; .NET runtimes incl. 10.0.6; WebView2 154.0.4258.37; UAC on, admins elevate without prompting; SAC off; Defender on | `vmrun` guest operations as local administrator (commands run at High integrity) | `filecat-before` (2026-09-30), to be reverted after the campaign's use |
+| `V:\Virtual Machines\Jamf\Windows 10 x64` (encrypted VM) | Windows 11 Pro **Insider Preview** 10.0.26300.8068 (25H2), x64, 92 GB free; .NET runtimes incl. 10.0.6; WebView2 154.0.4258.37; UAC on, admins elevate without prompting; SAC off; Defender on | `vmrun` guest operations as local administrator (commands run at High integrity) | **None was taken** (found 2026-10-01: the VM lists only the owner's three snapshots, and its snapshot database was last written in June). The owner had started the VM by reverting it to its own newest snapshot, `updated #38` (VMware log, 2026-09-30 18:03 UTC), so that snapshot is the state it was lent in; the VM was reverted to it on 2026-10-01 (E-ENV-05) |
 | `V:\Virtual Machines\Barebit\Ubuntu 64-bit` | Ubuntu **22.04.5 LTS** (jammy), kernel 6.8.0-138, GNOME (gdm) with the user logged in, 162 GB free; `libicu70`, `libwebkit2gtk-4.0-37`, `libsecret-1-0`, `fuse3` (no `libfuse2`); sshd active; no network interface up when lent (the campaign connected its adapter to VMware NAT, host-private: `192.168.58.129/24`) | `vmrun` guest operations as a sudo user | `filecat-before` (2026-09-30), to be reverted |
 
 Neither guest is a GA release of the plan's target versions (GA Windows 11; Ubuntu 24.04 and 26.04), and neither is
@@ -79,6 +79,16 @@ updates disabled.
   were lost and its lab services came back. Since then the adapter's segmentation and receive offloads are off
   (`ethtool -K ens33 tso off gso off gro off`, re-applied at boot by a unit), the usual remedy for that e1000 hang. Lab
   results taken from 06:00:49 until the reset are void: the Windows VM's first client run and two host runs of one case.
+- **The host's V: drive full; the Windows VM frozen (2026-10-01, 06:48–07:35 local time):** both VMs keep their
+  snapshot disks on V: (1.86 TB, the owner's). Since it was lent, the Windows VM's snapshot disk had grown to 87.7 GB
+  (fuzz runs, test runs, the recovery images, and the guest's own activity over about 11 hours; the fuzz rounds
+  themselves write nothing). That filled V:, and the VM stopped on VMware's "disk full: Retry / Cancel" question; its
+  guest operations hung. The question was answered Cancel and the VM reverted to `updated #38` (above). The revert
+  itself needs some free space, so one file not made by the campaign — `V:\rtr4D81.tmp`, hidden, 1 GiB, untouched
+  since 2024-11-07 — was moved to E: for the revert and put back afterwards. Its content (the same SHA-256 before and
+  after), attributes and three times are as they were. V: then had 87.7 GB free. The Windows VM's unfinished fuzz runs
+  were lost (E-I28-C1). The Ubuntu VM's fuzz processes were paused meanwhile (SIGSTOP) and resumed afterwards. A watchdog (`artifacts/vm/v-space-watch.ps1`) now
+  pauses them if V: has less than 25 GB free. Long runs no longer go to the Windows VM.
 - **The Windows VM as a client (V08):** reaches the Ubuntu VM directly on the NAT network (192.168.58.128 →
   .129); .NET 10.0.6 runtime installed. The lab helpers there run in Windows PowerShell 5.1, which drops quotes inside
   arguments to native programs; the VM's helpers send their commands base64-encoded (`artifacts/vm/vm-lab-ssh.ps1`,
