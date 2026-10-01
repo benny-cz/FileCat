@@ -87,7 +87,9 @@ updates disabled.
   itself needs some free space, so one file not made by the campaign — `V:\rtr4D81.tmp`, hidden, 1 GiB, untouched
   since 2024-11-07 — was moved to E: for the revert and put back afterwards. Its content (the same SHA-256 before and
   after), attributes and three times are as they were. V: then had 87.7 GB free. The Windows VM's unfinished fuzz runs
-  were lost (E-I28-C1). The Ubuntu VM's fuzz processes were paused meanwhile (SIGSTOP) and resumed afterwards. A watchdog (`artifacts/vm/v-space-watch.ps1`) now
+  were lost (E-I28-C1). The Ubuntu VM's fuzz processes were paused meanwhile (SIGSTOP) and resumed afterwards. Right
+  after the revert the VM's .NET 10 runtime is 10.0.5 (the snapshot's); the 10.0.6 recorded in E-ENV-02 was seen on
+  2026-09-30, some time after the VM had started. A watchdog (`artifacts/vm/v-space-watch.ps1`) now
   pauses them if V: has less than 25 GB free. Long runs no longer go to the Windows VM.
 - **The Windows VM as a client (V08):** reaches the Ubuntu VM directly on the NAT network (192.168.58.128 →
   .129); .NET 10.0.6 runtime installed. The lab helpers there run in Windows PowerShell 5.1, which drops quotes inside

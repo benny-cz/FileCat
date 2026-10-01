@@ -232,7 +232,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remaining before closure:** re-audit (the replace path is safety-relevant: review the fallback's conditions and its
   write-through semantics); V03 replace cases on the candidate, including SMB and FAT destinations where the fallback
   must not apply. SMB (Samba) done in E-V08-S1: the fallback does not apply there, and the message was still wrong —
-  I34; FAT remains.
+  I34. FAT32 and exFAT done in E-I22-F1 (Windows 11 VM): the fallback does not apply, the question says "in use", and
+  Retry replaces the file once it is closed.
 
 ### I23 — Network discovery listed a device by its address when its name arrived late
 
@@ -417,7 +418,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Revalidation:** SMB lab 7 of 7 at `6585024` (E-V08-S1 run 2); Core 556 (37 skipped) and Platform.Windows 118
   (22 skipped) pass on the host.
 - **Limitation:** on a share, the replace still cannot happen while the file is open (the server refuses); closing it
-  and choosing Retry replaces it. FAT destinations (no POSIX rename either) take the same path but were not run yet.
+  and choosing Retry replaces it. FAT32 and exFAT destinations (no POSIX rename either) take the same path and were
+  run with that result (E-I22-F1).
 
 ### I35 — "Read back and compare content" was silently ignored outside copies between folders on disk
 

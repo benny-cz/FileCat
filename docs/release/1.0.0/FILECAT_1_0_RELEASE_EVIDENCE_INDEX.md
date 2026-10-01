@@ -25,6 +25,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | E-I17-V1…V3 | Consent fix; runtime checks of the installed helper | `33b7de2`, `5c54181` | Host; lent Windows 11 VM (UI Automation) | First runtime check found 2 defects in the fix; after `5c54181` all 130 steps shown, Cancel ran nothing | Preliminary runtime | [E-I17](evidence/E-I17-consent.md) | I17 |
 | E-I21-R1/V1 | Registry explicit views without administrator rights | `be6ca25` → `47c27b9` | VM (unelevated); host (restricted token); CI | Reproduced; fixed; views match Windows' own listings | Preliminary automated | [E-I21](evidence/E-I21-registry-views.md) | I21 |
 | E-I22-D1/M1/R1 | Replace refused while a file is open; comparison released files late | `be6ca25`, `552aa62`, `5c54181` | VM, CI ARM64, host probe | Mechanism established; 3 reproductions fail on the unchanged code | Preliminary automated | [E-I22](evidence/E-I22-replace-open-file.md) | I22 |
+| E-I22-F1 | Replacing an open file on FAT32 and exFAT destinations | `1cb395e` (gated test) | Lent Windows 11 VM; Windows-formatted virtual disks | 1/1 on each: "in use", target kept, nothing staged left, Retry replaces once closed | Preliminary automated | [E-I22](evidence/E-I22-replace-open-file.md) | I22, I34 |
 | E-I22-V1 | The I22 fix | `63d5fc4` | Host; unelevated VM; CI 36773433835 | New tests fail before, pass after; all suites green; 15 more App-suite runs green | Preliminary automated | [E-I22](evidence/E-I22-replace-open-file.md) | I22 |
 | E-I23-D1/M1/R1 | Discovery lost a device's name when it came late | `5c54181` | Ubuntu VM | Mechanism established from source; not reproduced by in-guest load | Preliminary automated | [E-I23](evidence/E-I23-discovery-naming.md) | I23 |
 | E-I23-V1 | The I23 fix | `d40e510` | Host worktree; Ubuntu VM; CI 36773433835 | Deterministic test fails before (the U2 message), passes after; suites and 20 discovery runs green | Preliminary automated | [E-I23](evidence/E-I23-discovery-naming.md) | I23 |
@@ -118,3 +119,5 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `07e6833` | Release records: DPI P05 reviewed | — | — |
 | `155bb3e` | Release records: the host's VM drive filled; the Windows VM reverted to its lent state; fuzz ranges re-run | — | E-ENV-05, E-I28-C1 |
 | `cf92679` | Registry: a .reg file FileCat exported from one view is not imported into another | I55 | E-DPI |
+| `dd1e326` | Release records: DPI P06 reviewed; P07 in part | — | — |
+| `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |

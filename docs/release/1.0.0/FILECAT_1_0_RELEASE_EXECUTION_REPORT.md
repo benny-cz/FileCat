@@ -203,6 +203,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     again on the host; a watchdog pauses the Ubuntu VM's runs should V: run low again (E-ENV-05, E-I28-C1).
 59. DPI P06 (Registry): a .reg backup from the 32-bit view could be imported into the default view (I55, fixed
     `cf92679`). DPI P07 in part: consent, scope and path handling held; the loader audit stays with V06.
+60. I22/I34's last case: replacing an open file on FAT32 and exFAT, in the Windows VM on Windows-formatted virtual
+    disks: "in use", kept, replaced on Retry once closed (E-I22-F1); the VM reverted to its lent state afterwards.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -227,8 +229,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 ## Next actions (unblocked)
 
 1. Collect the fuzz campaign's results (E-I28-C1).
-2. DPI P13 (needs the phone); P07's loader audit with V06 on installed candidates; I22/I34 replace on a FAT
-   destination.
+2. DPI P13 (needs the phone); P07's loader audit with V06 on installed candidates.
 3. I42's options for the owner (fewer requests per file; several files in flight).
 4. The queued Low issues: I27, I31.
 5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;

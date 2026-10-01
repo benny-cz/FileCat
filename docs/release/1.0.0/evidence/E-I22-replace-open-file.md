@@ -73,9 +73,23 @@ with the whole suite running in parallel.
 - **Note on the flaky test itself:** the baseline did not fail in 195 isolated runs or 15 whole-suite runs at `5c54181`
   (E-X01 W2, W3, W5), so repeated runs cannot show the race gone; the deterministic tests above carry the verification.
 
+## E-I22-F1 — FAT32 and exFAT destinations (V03; the gated test of `1cb395e`)
+
+`OpenTargetReplaceTests.On_a_FAT_drive_an_open_file_is_reported_in_use_and_replaced_once_closed`, which runs where
+`FILECAT_FAT_FOLDER` names a folder on a FAT32 or exFAT drive, ran in the lent Windows 11 VM (build 26300, at the state
+it was lent in) on a 64 MB virtual disk Windows formatted, once FAT32 and once exFAT (`win-fat-replace.ps1`
+`88a51032788c070e1b1770b925f350e2868b44cc3609466733f594924a133a41`; the disks were detached and deleted, and the VM
+reverted afterwards). On both, I22's fallback did not apply. With a viewer holding the target open, the copy asked once,
+class `sharing`, saying the file is in use; the target kept its content, and nothing staged was left. After the viewer
+had closed it, Retry replaced it. **1 of 1 passed on each** (`v03-fat-replace/fat32.txt`
+`65f8432e508eb4b057913126781b4f447ad535c1d7c6f5023bf2756a4be288e7`, `exfat.txt`
+`112620d42075fd7b5679992deacb0b8fa4a1f59f495da00ffae240c611f3eae9`, `log.txt`
+`59000c0637fb984e0224f63f5ea336dbdd166f11e843a1e019244f613967169b`). The guest operations ran elevated; sharing does not
+depend on it.
+
 ## Limitations
 
 - The two CI/VM failures were not captured with job diagnostics (added in `64ed037`, after both); the mechanism is
   established by the reproductions above, and consistent with the failures (the replace step alone missing; 23 s).
-- The probe covers NTFS on one Windows build. Other file systems (FAT, exFAT, ReFS, SMB shares) may not support
-  POSIX-semantics renames; the remediation must keep the classic behavior there.
+- The probe covers NTFS on one Windows build. Of the file systems without POSIX-semantics renames, SMB shares (E-V08-S1)
+  and FAT32 and exFAT (E-I22-F1) were run and keep the classic behavior with the right message; ReFS was not run.
