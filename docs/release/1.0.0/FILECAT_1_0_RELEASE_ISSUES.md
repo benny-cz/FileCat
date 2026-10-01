@@ -40,7 +40,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
 | I29 | A shell picture asked for while the helper already worked on it was asked again (CI red on ARM64) | Low (duplicate work; nondeterministic required test) | Must fix | **Remediated `7175a41`; verified; CI green** |
 | I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **Remediated `67f70f9`; verified** (taskbar states seen on a real Windows 11 desktop) — closure pending V17 |
-| I31 | Viewer windows are only partly themed (no theme effects, e.g. Psychedelic) | Low (cosmetic consistency) | Owner-reported; assessed | **Queued** |
+| I31 | Viewer windows are only partly themed (no theme effects, e.g. Psychedelic) | Low (cosmetic consistency) | Owner-reported; assessed | **Remediated `99a6ae4`; checked in pictures** |
 | I32 | A folder's counted size vanished when the listing refreshed right after | Low (UX); made a required test fail 9 in 10 on a busy host | Must fix | **Remediated `6e9ee75`; verified** |
 | I33 | A cancelled upload left its partial copy on the server | Medium (junk under a hidden name on the user's server; V08 interruption requirement) | Must fix | **Remediated `3ec60cc`; verified against real servers** |
 | I34 | On a network share, replacing an open file still failed with the Controlled Folder Access message, and a share was named by the file system it claims | Low–Medium (misleading causes; I22's symptom on SMB) | Must fix (PI-07) | **Remediated `6585024`; verified against Samba** |
@@ -363,6 +363,18 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Assessment:** worth doing as polish, not for release safety: a shared helper that puts the backdrop behind a
   window's tool and status strips (the main window's "glass bands"), keeping text, bytes and pictures on an opaque
   surface for legibility. Moderate effort (four to six windows). Queued.
+- **Remediation (`99a6ae4`):** `ThemeLayers` puts the viewer, comparison, directory comparison, Find, hex editor,
+  report and synchronize windows over the theme's backdrop and glitches; their strips show it, and their text, bytes,
+  lists and pictures sit on the theme's card color. Pictures before and after (`i31/`): the viewer in Psychedelic
+  (`viewer-before-Psychedelic.png` `c8940d59d015df56a5c6d16600529be9b9aeb160d80e8321a571e4ff040c4adb`,
+  `viewer-after-Psychedelic.png` `3e4c72e0da997655024eb1336c49763ac96ca815dd63ae0c1d403470fba94044`) and Steampunk
+  (`viewer-before-Steampunk.png` `ce2b2c30fabbbab7603a2e5dfe1621f5d5fd9be173c912aea3efef2fea9c6d6a`,
+  `viewer-after-Steampunk.png` `ae8923d2bddcfc689fb043ba43f5b60ea6a37380375b67c12018101a61ea14af`); Classic Dark
+  unchanged but for the card color under the text (`viewer-after-ClassicDark.png`
+  `679017c6b0955450cd6182513a9eab4373a1b64e2c6e05a0103e351a8d19c287`); Find in Steampunk (`find-after-Steampunk.png`
+  `c5ce70bd3219efa0d544ca508bd22d289f9934e386d7994b0044b684a85465f5`) and the hex editor in Psychedelic
+  (`hex-after-Psychedelic.png` `c74d1e50b73e7d902278b65cdbd02d1f1792a7b7774897fed98fbd1e40abff7a`). App tests pass
+  (184, 0 failed). Not yet seen on a real desktop or by the owner.
 
 ### I32 — A folder's counted size vanished when the listing refreshed right after
 
