@@ -226,9 +226,10 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         var index = ArchiveIndex.Build(reader, fi.Length, ct);
         _cache[key] = index;
         // Archives opened before are kept for going back into them: eight at most, and their indexes together within
-        // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The one just opened
-        // stays whatever its size. An index that still feeds a viewer closes when the viewer is done with it.
-        while (_cache.Count > 1 && (_cache.Count > 8 || RetainedIndexBytes > RetainedIndexLimitBytes))
+        // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The two used last
+        // stay whatever their size, as two panels may be showing them. An index that still feeds a viewer closes when the
+        // viewer is done with it.
+        while (_cache.Count > 2 && (_cache.Count > 8 || RetainedIndexBytes > RetainedIndexLimitBytes))
         {
             var oldest = _cache.Where(kv => !ReferenceEquals(kv.Value, index)).MinBy(kv => kv.Value.LastUsed);
             if (oldest.Key is null) break;

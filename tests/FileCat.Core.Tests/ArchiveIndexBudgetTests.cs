@@ -10,8 +10,8 @@ namespace FileCat.Core.Tests;
 /// <summary>
 /// I06 (aggregate memory): the archive providers keep the indexes of archives opened before for going back into them,
 /// eight at most and only while their estimated sizes together stay within a limit (an index of a million members holds
-/// about 560 MiB, ArchiveIndexScaleTests); the least recently used go first, the one just opened stays, and an index that
-/// still feeds a viewer closes only when the viewer is done.
+/// about 560 MiB, ArchiveIndexScaleTests); the least recently used go first, the two used last stay (two panels may be
+/// showing them), and an index that still feeds a viewer closes only when the viewer is done.
 /// </summary>
 public sealed class ArchiveIndexBudgetTests : IDisposable
 {
@@ -107,11 +107,11 @@ public sealed class ArchiveIndexBudgetTests : IDisposable
         Assert.Equal(2, kept(provider));
         Assert.Equal(sa + sd, held(provider));
 
-        // An archive larger than the limit on its own is still kept while it is the one in use; the others go.
+        // The two used last stay whatever the limit, as the two panels may be showing them; the one before goes.
         limit(provider, sa - 1);
         Assert.Equal(100, List(provider, b));
-        Assert.Equal(1, kept(provider));
-        Assert.Equal(sb, held(provider));
+        Assert.Equal(2, kept(provider));
+        Assert.Equal(sd + sb, held(provider));
         (provider as IDisposable)?.Dispose();
     }
 
@@ -130,10 +130,11 @@ public sealed class ArchiveIndexBudgetTests : IDisposable
         Assert.Equal(1, List(provider, big));
         using var content = provider.OpenContent(new ItemRef(big, "big.bin", EntryKind.File, data.Length, 0))!;
 
-        // Another archive opened with no room left: the big archive's index is let go while its member is open.
+        // Two other archives opened with no room left: the big archive's index is let go while its member is open.
         provider.RetainedIndexLimitBytes = 1;
         List(provider, ZipProvider.ForFile(Zip("other.zip", 10)));
-        Assert.Equal(1, provider.RetainedIndexes);
+        List(provider, ZipProvider.ForFile(Zip("third.zip", 10)));
+        Assert.Equal(2, provider.RetainedIndexes);
 
         var read = new byte[data.Length];
         int total = 0;
