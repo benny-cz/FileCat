@@ -142,6 +142,50 @@ public sealed class SftpJobTests : IDisposable
     }
 
     [Fact]
+    public async Task A_move_from_the_server_deletes_only_what_it_copied_as_it_was_copied()
+    {
+        // Release plan DPI P09: the move deleted each folder whole once it was copied, with whatever had appeared in it
+        // on the server meanwhile, or changed there after it was copied.
+        var original = new Dictionary<string, string> { ["/src/m/a.txt"] = "a", ["/src/m/b.txt"] = "b", ["/src/m/sub/c.txt"] = "c" };
+        foreach (var (path, content) in original) _server.File(path, content);
+        // When the second file is read, the first is already copied: it changes on the server, and a new file appears.
+        var read = new List<string>();
+        _server.OnRead = path =>
+        {
+            read.Add(path);
+            if (read.Count != 2) return;
+            _server.OnRead = null;
+            _server.File("/src/m/late.txt", "appeared during the move");
+            _server.File(read[0], "changed after it was copied");
+        };
+        string dest = Directory.CreateDirectory(Path.Combine(_dir, "moved")).FullName;
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [RemoteItem("/src", "m", EntryKind.Directory)], Destination = Location.FileSystem(dest) });
+        Assert.True(job.State.IsFinished());
+        foreach (var (path, content) in original) Assert.Equal(content, File.ReadAllText(Path.Combine(dest, path["/src/".Length..])));
+        // What was copied and is unchanged went; what appeared or changed stays, with its folder.
+        foreach (var path in original.Keys.Where(p => p != read[0])) Assert.Null(_server.Lookup(path, false));
+        Assert.Equal("appeared during the move", _server.Read("/src/m/late.txt"));
+        Assert.Equal("changed after it was copied", _server.Read(read[0]));
+        Assert.NotNull(_server.Lookup("/src/m", false));
+        Assert.Contains(job.Issues, i => i.Message.Contains("it appeared there during the move", StringComparison.Ordinal));
+        Assert.Contains(job.Issues, i => i.Message.Contains("it changed there after it was copied", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_move_to_the_server_keeps_a_source_that_changed_during_the_upload()
+    {
+        // Release plan DPI P01: the local source went once its copy was published, even if it changed meanwhile.
+        string file = LocalFile("draft.txt", "first version");
+        _server.Dir("/up");
+        _server.DuringUpload = () => File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddMinutes(5)); // saved again meanwhile
+        var job = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)], Destination = Remote("/up") });
+        Assert.True(job.State.IsFinished());
+        Assert.True(File.Exists(file));
+        Assert.Equal("first version", _server.Read("/up/draft.txt"));
+        Assert.Contains(job.Issues, i => i.Message.Contains("changed here during the copy, so it was not deleted", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_dropped_upload_starts_again_where_the_server_will_not_continue_it()
     {
         // Release issue I47: ProFTPD refused APPE after a break, and every Retry was refused the same way.

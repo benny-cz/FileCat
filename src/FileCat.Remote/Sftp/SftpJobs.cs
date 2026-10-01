@@ -391,7 +391,13 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             info, local, destFolder, name, unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc);
         if (ok && Moving)
         {
-            // The copy is published and its size checked: only now may the source go.
+            // The copy is published and its size checked: only now may the source go, and only if it is still the file that
+            // was read — an edit made during the upload would go with it (release plan DPI P01, as local moves do).
+            if (Fs.TryGetInfo(local) is not { } now || now.Size != info.Size || now.ModifiedUtc != info.ModifiedUtc)
+            {
+                Issue(IssueSeverity.Warning, local, "Copied to the server, but the file changed here during the copy, so it was not deleted. Both versions now exist.", StepOutcome.PartiallyApplied);
+                return ok;
+            }
             try { Fs.DeleteFile(local); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -957,7 +963,12 @@ internal sealed class SftpDownloadMoveExecutor(Job job, IFileSystemOperations fs
 
     protected override void Run()
     {
-        new StreamTransferExecutor(Job, Fs, Journal, providers).Execute();
+        // What arrived, as its source stated it when it was read (keyed by its path on the server).
+        var copied = new Dictionary<string, ContentRevision?>(StringComparer.Ordinal);
+        new StreamTransferExecutor(Job, Fs, Journal, providers)
+        {
+            Copied = (item, revision) => copied[RemotePath.Combine(Sftp.Resolve(item.Parent, Channel), item.Name)] = revision,
+        }.Execute();
         foreach (int i in Job.CompletedRootIndices.ToList())
         {
             Job.Checkpoint();
@@ -966,10 +977,51 @@ internal sealed class SftpDownloadMoveExecutor(Job job, IFileSystemOperations fs
             string path = RemotePath.Combine(folder, item.Name);
             int step = Journal.Intent("delete-moved-source", path);
             IRemoteEntry? entry = null;
-            bool ok = Remote(path, "read the folder", () => entry = FreshEntry(folder, item.Name)) && entry is not null && DeleteTree(entry, count: false);
+            bool ok = Remote(path, "read the folder", () => entry = FreshEntry(folder, item.Name)) && entry is not null && DeleteCopied(entry, copied);
             Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.PartiallyApplied);
             if (!ok) Issue(IssueSeverity.Warning, path, "It was copied here, but not (completely) deleted on the server, so it exists in both places.", StepOutcome.PartiallyApplied);
         }
+    }
+
+    /// <summary>
+    /// Deletes on the server what this move copied, as it was copied (release plan DPI P09): a file only while it is still
+    /// the version that was read (stat'ed again just before), a folder only once it is empty. A file that appeared on the
+    /// server during the move, or changed there after it was copied, stays and is named — the move deleted folders
+    /// whole before, these with them, though they had never been copied.
+    /// </summary>
+    private bool DeleteCopied(IRemoteEntry entry, IReadOnlyDictionary<string, ContentRevision?> copied)
+    {
+        Job.SetCurrent(entry.FullPath);
+        if (entry.IsDirectory && !entry.IsLink)
+        {
+            IReadOnlyList<IRemoteEntry> children = [];
+            if (!Remote(entry.FullPath, "read the folder", () => children = Channel.List(entry.FullPath, Job.Token))) return false;
+            bool all = true;
+            foreach (var child in children)
+            {
+                Job.Checkpoint();
+                all &= DeleteCopied(child, copied);
+            }
+            if (!all)
+            {
+                Issue(IssueSeverity.Warning, entry.FullPath, "The folder was kept on the server because something in it stays there.", StepOutcome.PartiallyApplied);
+                return false;
+            }
+            return Remote(entry.FullPath, "delete the emptied folder", entry.Delete);
+        }
+        if (!copied.TryGetValue(entry.FullPath, out var revision))
+        {
+            Issue(IssueSeverity.Warning, entry.FullPath, "Kept on the server: it was not copied here (it appeared there during the move).", StepOutcome.PartiallyApplied);
+            return false;
+        }
+        RemoteStat? now = null;
+        if (!Remote(entry.FullPath, "check the item before deleting it", () => now = Channel.Stat(entry.FullPath))) return false;
+        if (revision is { } read && (now is not { } s || s.Size != read.Length || read.ModifiedTicks > 0 && s.ModifiedUtc.Ticks != read.ModifiedTicks))
+        {
+            Issue(IssueSeverity.Warning, entry.FullPath, "Kept on the server: it changed there after it was copied, so the copy here is the older version.", StepOutcome.PartiallyApplied);
+            return false;
+        }
+        return Remote(entry.FullPath, "delete the moved item", entry.Delete);
     }
 }
 

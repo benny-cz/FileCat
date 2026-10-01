@@ -40,6 +40,12 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private int _staged;
     private string? _originMark;
 
+    /// <summary>
+    /// Told of every file that arrived, with the version its source stated when it was read: a move from a server deletes
+    /// exactly those, and only while they are still that version (release plan DPI P09).
+    /// </summary>
+    public Action<ItemRef, ContentRevision?>? Copied { get; init; }
+
     public static bool CanHandle(JobRequest r, ProviderRegistry providers) =>
         r.Sources.Count > 0 && Listing.ItemSources.Parents(r.Sources)!.All(p => providers.IsRegistered(p.Scheme) &&
             (providers.Get(p.Scheme).GetCapabilities(p) & LocationCapabilities.ReadContent) != 0);
@@ -337,6 +343,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             return false;
         }
         Job.ItemDone();
+        Copied?.Invoke(item, revision);
         // A recovered file with lost parts is still worth having, but never passed off as complete (plan §17.1).
         if (caveat is not null)
             Issue(IssueSeverity.Warning, item.Name, caveat + (lost is { Count: > 0 } ? " " + PartialContent.Describe(lost, written) : ""), StepOutcome.Committed);

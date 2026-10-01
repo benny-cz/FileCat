@@ -225,6 +225,39 @@ public sealed class TruthfulOutcomeTests : IDisposable
         Assert.DoesNotContain(warnings, m => m.Contains("NTFS", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// The destination acts as its own volume (a move copies, then deletes the source), and the copy is taken away just
+    /// after it was published — as an antivirus quarantine or a sync client can take a new file.
+    /// </summary>
+    private sealed class CopyTakenAway(string source, string destination) : PortableFileOperations
+    {
+        public override string GetVolumeRoot(string path) =>
+            path.StartsWith(destination, StringComparison.OrdinalIgnoreCase) ? destination : base.GetVolumeRoot(path);
+
+        // The source is checked again just before it goes: by then its copy has been taken away.
+        public override FileSystemItemInfo? TryGetInfo(string path)
+        {
+            string copy = Path.Combine(destination, Path.GetFileName(path));
+            if (string.Equals(path, source, StringComparison.OrdinalIgnoreCase) && File.Exists(copy)) File.Delete(copy);
+            return base.TryGetInfo(path);
+        }
+    }
+
+    [Fact]
+    public async Task A_move_keeps_its_source_when_the_copy_is_gone_before_the_source_would_go()
+    {
+        // Release plan DPI P01: the source of a move was deleted without checking that its copy was still there.
+        var src = _dir.Dir("src");
+        var dst = _dir.Dir("dst");
+        var file = Path.Combine(src, "report.txt");
+        File.WriteAllText(file, "the only copy");
+        var (job, _) = await RunAsync(JobKind.Move, new CopyTakenAway(file, dst), [file], dst, DecisionAction.Skip);
+        Assert.True(job.State.IsFinished());
+        Assert.False(File.Exists(Path.Combine(dst, "report.txt")));
+        Assert.Equal("the only copy", File.ReadAllText(file));
+        Assert.Contains(job.Issues, i => i.Message.Contains("is no longer at the destination", StringComparison.Ordinal));
+    }
+
     /// <summary>An EFS-encrypted source: the native engine refuses a non-encrypting destination until allowed.</summary>
     private sealed class EncryptedSource : PortableFileOperations
     {

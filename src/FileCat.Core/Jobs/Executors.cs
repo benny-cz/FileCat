@@ -995,6 +995,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Job.ItemDone();
             return Result.Failed;
         }
+        // The copy must still be there, whole, when its source goes: an antivirus quarantine or a sync client can take a
+        // new file away at once, and the source would then be the only copy (release plan DPI P01).
+        if (Fs.TryGetInfo(target) is not { IsDirectory: false } copy || copy.Size != now.Size)
+        {
+            Issue(IssueSeverity.Warning, src, "Not deleted: the copy is no longer at the destination as it was written (another program may have moved or removed it), so the source stays.", StepOutcome.PartiallyApplied);
+            Job.ItemDone();
+            return Result.Failed;
+        }
         int step = Journal.Intent("delete-source", src);
         bool ok = TryIo(src, "delete the moved source", () =>
         {

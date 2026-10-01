@@ -50,6 +50,12 @@ internal sealed class FakeSftpServer
     /// <summary>False: a server that refuses to continue a file (ProFTPD's FTP without AllowStoreRestart, I47).</summary>
     public bool ContinuesUploads { get; set; } = true;
 
+    /// <summary>Called with a file's path as it is opened for reading (outside the server's lock): others' changes meanwhile.</summary>
+    public Action<string>? OnRead { get; set; }
+
+    /// <summary>Called once, on the first write of an upload (outside the server's lock), then cleared.</summary>
+    public Action? DuringUpload { get; set; }
+
     public FakeSftpServer() => Dir(Home);
 
     public static byte[] KeyBlob(string type, byte seed)
@@ -197,6 +203,7 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
     public Stream OpenRead(string path)
     {
         Check();
+        server.OnRead?.Invoke(path);
         lock (server.Lock)
         {
             var node = server.Lookup(path, followFinal: true) ?? throw new FileNotFoundException("No such file: " + path);
@@ -335,6 +342,11 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
         public override void Write(byte[] buffer, int offset, int count)
         {
             channel.Check();
+            if (channel.Server.DuringUpload is { } meanwhile)
+            {
+                channel.Server.DuringUpload = null;
+                meanwhile();
+            }
             // A scripted drop: the server keeps what arrived before the connection went.
             if (channel.Server.DropAfterBytes is { } limit && Length + count > limit)
             {

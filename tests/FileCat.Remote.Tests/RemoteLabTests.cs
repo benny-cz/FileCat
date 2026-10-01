@@ -330,6 +330,40 @@ public sealed class RemoteLabTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(RemoteProtocols.Sftp, 22)]
+    [InlineData(RemoteProtocols.FtpExplicitTls, 21)]
+    public async Task A_tree_moved_off_the_server_arrives_and_only_then_leaves_it(string protocol, int port)
+    {
+        // Release plan DPI P09: the server's copy goes file by file, each only while it is still the version that was
+        // read (stat'ed again on the real server), and its folders once empty.
+        var lab = Lab();
+        var ct = TestContext.Current.CancellationToken;
+        var profile = Profile(protocol, port, lab);
+        using var stack = Open(profile, new Interaction(lab.Password), Path.Combine(_dir, "move-" + protocol));
+        string remoteRoot = "filecat-lab-" + Guid.NewGuid().ToString("N")[..8];
+        string local = Directory.CreateDirectory(Path.Combine(_dir, "move-src-" + protocol, "Moved tree", "inner")).FullName;
+        File.WriteAllText(Path.Combine(local, "deep.txt"), "deep");
+        File.WriteAllText(Path.Combine(local, "..", "top.txt"), "top");
+        using (var lease = stack.Connections.Lease(profile.Id, ct)) lease.Channel.CreateDirectory(remoteRoot);
+        try
+        {
+            var up = await RunAsync(stack, new JobRequest { Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(Path.GetDirectoryName(local)!, EntryKind.Directory)], Destination = SftpProvider.At(profile, remoteRoot) });
+            Assert.Equal(JobState.Completed, up.State);
+            string back = Directory.CreateDirectory(Path.Combine(_dir, "move-back-" + protocol)).FullName;
+            var moved = await RunAsync(stack, new JobRequest { Kind = JobKind.Move, Sources = [new ItemRef(SftpProvider.At(profile, remoteRoot), "Moved tree", EntryKind.Directory)], Destination = Location.FileSystem(back) });
+            Assert.True(moved.State == JobState.Completed, $"{moved.State}: {string.Join("; ", moved.Issues.Select(i => i.Message))}");
+            Assert.Equal("top", File.ReadAllText(Path.Combine(back, "Moved tree", "top.txt")));
+            Assert.Equal("deep", File.ReadAllText(Path.Combine(back, "Moved tree", "inner", "deep.txt")));
+            using var check = stack.Connections.Lease(profile.Id, ct);
+            Assert.Empty(check.Channel.List(remoteRoot, ct));
+        }
+        finally
+        {
+            await RunAsync(stack, new JobRequest { Kind = JobKind.Delete, Sources = [new ItemRef(SftpProvider.At(profile, "."), remoteRoot, EntryKind.Directory)] });
+        }
+    }
+
     [Fact]
     public void An_sftp_connection_gets_socket_buffers_for_long_links()
     {
