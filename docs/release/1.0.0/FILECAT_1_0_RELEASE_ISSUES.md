@@ -36,7 +36,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I24 | The panels' Modified column shows no seconds by default | Low (UI) | Fix before release if time allows; owner-reported | **Remediated `2197074`** (seconds by default; screenshot checked) |
 | I25 | Markdown files open as plain text; they should be shown rendered | Low (viewer) | **Required for 1.0.0** (owner, 2026-10-01), low priority | **Implemented `7abd0fe`; verified in WebView2** (E-I25) |
 | I26 | Progress at 100% while an operation still works, and a time left that was not honest | Medium (confirmed: 100% for 63% of a verified copy) | Must fix; owner-reported | **Remediated `d40fda0`; verified** — closure pending re-audit |
-| I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Queued** |
+| I27 | Linux: under the Adwaita 41 icon theme FileCat finds no file-type icons | Low (cosmetic; built-in icons shown) | Fix if time allows | **Remediated `4a4349f`; verified on the Ubuntu VM (Adwaita 41)** |
 | I28 | A damaged NTFS size or data run made the whole volume unreadable to recovery; a damaged root record made the scan throw | Medium (recovery completeness; potential hang; a scan that throws) | Must fix (§17.3 robustness) | **Remediated `98fb594` + `bb977d0`; verified; fuzz campaign running** |
 | I29 | A shell picture asked for while the helper already worked on it was asked again (CI red on ARM64) | Low (duplicate work; nondeterministic required test) | Must fix | **Remediated `7175a41`; verified; CI green** |
 | I30 | Running operations should show what happens in the best possible way | Medium (UX of data-moving operations) | Owner priority: middle | **Remediated `67f70f9`; verified** (taskbar states seen on a real Windows 11 desktop) — closure pending V17 |
@@ -305,6 +305,13 @@ level the plan already states; exploit-level detail is not recorded here.
   built-in icons. GTK falls back to the `-symbolic` variant in that case.
 - **Severity / disposition:** Low (cosmetic); queued. A fix would add the `-symbolic` names as the last fallback and draw
   them in the text color.
+- **Remediation (`4a4349f`):** that fix: the symbolic variants are looked for last (after the theme chain, hicolor and
+  the pixmaps), drawn in the theme's text color, and drawn again when the theme changes.
+- **Tests:** `FreedesktopIconsTests.A_theme_with_only_symbolic_icons_still_gives_types_their_icons` (a theme built in a
+  temporary folder; every platform), `FreedesktopIconSourceTests.A_symbolic_icon_takes_the_text_color_and_keeps_its_shape`.
+  On the Ubuntu VM (adwaita-icon-theme 41.0-1ubuntu1, theme Adwaita) the icon test that skipped for want of a text
+  icon passes, the symbolic icon drawn by gdk-pixbuf (`i27-ubuntu-adwaita41.txt`
+  `adbbb876643fe61eb3c7efc46c38d8097dddf3988d04bfd8076c70ad68d8faf6`). Not yet seen on its desktop.
 
 ### I28 — A damaged NTFS size or data run made the whole volume unreadable to recovery
 

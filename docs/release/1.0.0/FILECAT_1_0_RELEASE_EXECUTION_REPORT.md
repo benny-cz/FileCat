@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `99a6ae4` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `4a4349f` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -25,7 +25,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   since the comparison, a link's read-only set through it, FAT32 recovery guessing where an entry was whole: I52, the
   hex editor's patch and Save As: I53, I54, a .reg backup restorable into the wrong Registry view: I55)
   and I25 (Markdown drawn as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
-  **Queued:** I27 (Linux icons under Adwaita 41). I31 (viewer windows only partly themed) done (`99a6ae4`).
+  The queued Low issues are done: I31 (viewer windows only partly themed, `99a6ae4`) and I27 (Linux icons under
+  Adwaita 41, `4a4349f`).
   **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the Mac (E-I28-C1).
 
 ## Execution baseline
@@ -219,6 +220,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 65. Step 4, first pass (E-R04): the plan's code anchors all exist; each of C01–C29 has a menu or place route.
 66. I31: the viewer, comparison, Find, hex editor, report and synchronize windows now have the theme's backdrop under
     their strips, their content on the card color (`99a6ae4`; pictures before and after).
+67. I27: under Adwaita 41, whose type icons are symbolic only, files get those icons in the text color (`4a4349f`;
+    the icon test passes on the Ubuntu VM where it skipped).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -242,12 +245,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the fuzz campaign's results (E-I28-C1).
-2. DPI P13 (needs the phone); P07's loader audit with V06 on installed candidates.
-3. I42's options for the owner (fewer requests per file; several files in flight).
-4. The queued Low issue I27.
-5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
-   I09 topology), as the owner permitted.
-6. Continue the V23/DPI source review in risk order: the rest of B04 (I17), B10 (I16), B08 (I09).
-7. I04 on Ubuntu 26.04 (needs that system).
-8. Keep the records current after each change.
+1. Collect the fuzz campaign's results (E-I28-C1): the host's re-run of the lost ranges, the Mac's 8.1–9.1 M, Ubuntu's
+   queue.
+2. Continue the V23/DPI source review in risk order: the rest of B04 (I17), B10, B08 (I09); I16's independent file,
+   network and process evidence.
+3. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
+4. Keep the records current after each change.
+
+Waiting on people, hardware or a candidate: DPI P13 (the phone, PPL-03); P07's loader audit (V06, installed
+candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); I04 on Ubuntu 26.04
+(that system); steps 2, 5, 7 and 11–26 of the plan.

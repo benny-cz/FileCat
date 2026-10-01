@@ -130,6 +130,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `906f1e9` | Release records: I12's two historical failures covered | — | — |
 | `f81c0b9` | Release records: step 4's first pass (E-R04) | — | E-R04 |
 | `99a6ae4` | Themes: the other windows over the theme's backdrop | I31 | issue record |
+| `98e718f` | Release records: I31 done | — | — |
+| `4a4349f` | Linux icons: symbolic variants as the last fallback, drawn in the text color | I27 | issue record |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
 | `2f35a6b` | Git badges, icon resources and program lookups touch no path before it is known to be local, and never search the current directory | I16 | issue record |
 | `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |
