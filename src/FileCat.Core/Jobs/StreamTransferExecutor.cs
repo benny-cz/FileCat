@@ -30,7 +30,7 @@ public interface IOriginMarkSource
 /// filter left out keeps its folder on the server.
 /// </summary>
 internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal, ProviderRegistry providers)
-    : ExecutorBase(job, fs, journal), IHonorsTransferFilter
+    : ExecutorBase(job, fs, journal), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private const int BufferSize = 1024 * 1024;
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
@@ -246,7 +246,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         // A source that can be read at any offset and describes its version can resume after a dropped connection or a
         // phone that locked part way; any other source fails the item as before.
         var revision = content.GetRevision();
-        bool resumable = content.CanSeek && revision is not null && content is not IPartialContent;
+        bool partial = content is IPartialContent;
+        bool resumable = content.CanSeek && revision is not null && !partial;
         int failures = 0;
         try
         {
@@ -286,6 +287,23 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             }
             if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
                 Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);
+            // "Read back and compare content", before the copy takes its name. Recovered content with lost parts reads the
+            // same guesses again, so it is not read back; its caveat says what it is.
+            if (Job.Request.Options.Verify == VerifyMode.ReadBack && !partial)
+            {
+                content?.Dispose();
+                content = null;
+                if (VerifyCopy(provider, item, staged, written) is not true and var verified)
+                {
+                    Job.AddBytes(-written);
+                    try { File.Delete(staged); } catch (IOException) { }
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, item.Name, verified is false
+                        ? "Read-back verification found different content; the copy was discarded."
+                        : "Not copied: the source could not be read again to verify the copy, so the copy was discarded.", verified is false ? StepOutcome.Failed : StepOutcome.Skipped);
+                    return false;
+                }
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
@@ -319,6 +337,62 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         else if (lost is { Count: > 0 })
             Issue(IssueSeverity.Warning, item.Name, PartialContent.Describe(lost, written) + " Check the file before relying on it.", StepOutcome.Committed);
         return true;
+    }
+
+    /// <summary>
+    /// "Read back and compare content" (plan §9.2): the source is read again from its provider — downloaded again from a
+    /// server, decompressed again from an archive — and compared with the copy on disk by SHA-256. False: they differ;
+    /// null: the source could not be read again and the user skipped.
+    /// </summary>
+    private bool? VerifyCopy(ResourceProvider provider, ItemRef item, string staged, long length)
+    {
+        Job.SetCurrent(item.Name + " (verifying)");
+        Job.AddVerifyTotal(2 * length);
+        while (true)
+        {
+            long verified = 0, streamDone = 0;
+            void Progress(long done)
+            {
+                Job.AddVerified(done - streamDone);
+                verified += done - streamDone;
+                streamDone = done;
+            }
+            try
+            {
+                byte[] theirs;
+                using (var again = Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("The item has no readable content any more."))
+                    theirs = HashContent(again, Progress);
+                streamDone = 0;
+                var ours = PortableFileOperations.HashFile(staged, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+                return theirs.AsSpan().SequenceEqual(ours);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+            {
+                // A second attempt reads both again: this one's reading does not count.
+                Job.AddVerified(-verified);
+                var d = Job.Ask(new ErrorRequest("Could not verify the copy", $"{item.Name}: {ErrorText.Describe(ex)}", item.Name, CanRetry: true, ErrorText.Classify(ex)));
+                if (d.Action == DecisionAction.Retry) continue;
+                Job.AddVerifyTotal(-2 * length);
+                if (d.Action == DecisionAction.Skip) return null;
+                throw new OperationCanceledException();
+            }
+        }
+    }
+
+    private byte[] HashContent(IContentSource source, Action<long> progress)
+    {
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        var buffer = new byte[BufferSize];
+        long offset = 0;
+        int n;
+        while ((n = source.Read(offset, buffer)) > 0)
+        {
+            Job.Checkpoint();
+            hash.AppendData(buffer, 0, n);
+            offset += n;
+            progress(offset);
+        }
+        return hash.GetHashAndReset();
     }
 
     private const int ResumeCheckBytes = 64 * 1024;

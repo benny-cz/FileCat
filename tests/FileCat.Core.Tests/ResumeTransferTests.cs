@@ -85,13 +85,14 @@ public sealed class ResumeTransferTests : IDisposable
         return data;
     }
 
-    private async Task<Job> Download(JobManager jobs, Func<PendingDecision, Decision>? answer = null)
+    private async Task<Job> Download(JobManager jobs, Func<PendingDecision, Decision>? answer = null, TransferOptions? options = null)
     {
         var job = jobs.Submit(new JobRequest
         {
             Kind = JobKind.Copy,
             Sources = [new ItemRef(new Location("flaky", "/"), "big.bin", EntryKind.File)],
             Destination = Location.FileSystem(_dir.Dir("down")),
+            Options = options ?? new TransferOptions(),
         });
         var deadline = DateTime.UtcNow.AddSeconds(30);
         while (!job.State.IsFinished())
@@ -173,4 +174,64 @@ public sealed class ResumeTransferTests : IDisposable
         Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_dir.Path, "down")));
         Assert.Contains(job.Issues, i => i.Outcome == StepOutcome.Skipped);
     }
+
+    [Fact]
+    public async Task Read_back_verification_reads_the_source_again_and_counts_both_readings()
+    {
+        // Release V08: "read back and compare content" was ignored for downloads and extraction.
+        var data = Data(3 * 1024 * 1024 + 5, 6);
+        var (jobs, server) = Rig(data);
+        var job = await Download(jobs, options: new TransferOptions { Verify = VerifyMode.ReadBack });
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(data, File.ReadAllBytes(Path.Combine(_dir.Path, "down", "big.bin")));
+        Assert.Equal(2, server.Opens); // the copy, then the reading for comparison
+        Assert.Equal(2L * data.Length, job.VerifyBytesTotal);
+        Assert.Equal(2L * data.Length, job.VerifyBytesDone);
+    }
+
+    [Fact]
+    public async Task A_copy_that_reads_back_differently_is_discarded()
+    {
+        var data = Data(2 * 1024 * 1024, 7);
+        var (jobs, server) = Rig(data);
+        var tampered = (byte[])data.Clone();
+        tampered[12345] ^= 0xFF; // same size and time: only the bytes tell
+        server.BeforeReopen = () => server.Content = tampered;
+        var job = await Download(jobs, options: new TransferOptions { Verify = VerifyMode.ReadBack });
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, i => i.Severity == IssueSeverity.Error && i.Message.Contains("Read-back verification found different content", StringComparison.Ordinal));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_dir.Path, "down")));
+        Assert.Equal(0, job.BytesDone);
+    }
+
+    /// <summary>A copy to a place whose executor cannot read copies back (in the product: a phone).</summary>
+    private sealed class UnverifiableExecutor(Job job) : IJobExecutor
+    {
+        public void Execute()
+        {
+            job.AddTotals(1, 0);
+            job.ItemDone();
+        }
+    }
+
+    [Fact]
+    public async Task A_copy_that_cannot_be_read_back_says_it_was_checked_by_size_only()
+    {
+        JobExecutors.RegisterModule(UnverifiableModule);
+        var (jobs, _) = Rig([1, 2, 3]);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(_dir.File("a.txt"), EntryKind.File)],
+            Destination = new Location("unverifiable", "/phone"),
+            Options = new TransferOptions { Verify = VerifyMode.ReadBack },
+        });
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        var warning = Assert.Single(job.Issues);
+        Assert.Equal(IssueSeverity.Warning, warning.Severity);
+        Assert.Contains("checked by their size only", warning.Message);
+    }
+
+    private static IJobExecutor? UnverifiableModule(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal) =>
+        job.Request.Destination?.Scheme == "unverifiable" ? new UnverifiableExecutor(job) : null;
 }

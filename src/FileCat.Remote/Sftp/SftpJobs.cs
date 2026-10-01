@@ -217,7 +217,7 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
 /// the old file just before. A move deletes a local source only after its copy is published and checked.
 /// </summary>
 internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp, ProviderRegistry providers)
-    : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter
+    : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private const int BufferSize = 256 * 1024;
     private byte[]? _buffer;
@@ -473,6 +473,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         int step = Journal.Intent(Moving ? "upload-move" : "upload", sourceDisplay, dst, null, durable: Moving || replace);
         string? temp = null;
         long written = 0;
+        bool differs = false;
         bool ok;
         try
         {
@@ -511,6 +512,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 var stat = Channel.Stat(temp!);
                 if (stat is not { } s || s.Size != written)
                     throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
+                // "Read back and compare content": the server's copy, before it takes the name.
+                if (Options.Verify == VerifyMode.ReadBack && !ServerCopyMatches(openSource, temp!, written, sourceDisplay))
+                {
+                    differs = true;
+                    return;
+                }
                 Publish(destFolder, name, temp!, replace);
                 temp = null;
             });
@@ -523,16 +530,50 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             Journal.Done(step, StepOutcome.CanceledBeforeChange);
             throw;
         }
-        if (!ok)
+        if (!ok || differs)
         {
             DiscardTemp(destFolder, temp);
             Journal.Done(step, StepOutcome.Failed);
             Job.ItemFailed();
+            if (differs) Issue(IssueSeverity.Error, dst, "Read-back verification found different content on the server; the copy was discarded, and nothing was published under this name.", StepOutcome.Failed);
             return false;
         }
         Journal.Done(step, StepOutcome.Committed);
         Job.ItemDone();
         return true;
+    }
+
+    /// <summary>
+    /// "Read back and compare content": the server's copy, read back through the connection, has the source's bytes
+    /// (SHA-256 of both). Reading all of it also catches what a resume's check of the last 64 KiB cannot: bytes before
+    /// that tail that changed on the server during a break.
+    /// </summary>
+    private bool ServerCopyMatches(Func<Stream> openSource, string temp, long length, string sourceDisplay)
+    {
+        Job.SetCurrent(sourceDisplay + " (verifying)");
+        Job.AddVerifyTotal(2 * length);
+        long verified = 0, streamDone = 0;
+        void Progress(long done)
+        {
+            Job.AddVerified(done - streamDone);
+            verified += done - streamDone;
+            streamDone = done;
+        }
+        try
+        {
+            byte[] ours, theirs;
+            using (var source = openSource()) ours = PortableFileOperations.HashStream(source, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+            streamDone = 0;
+            using (var copy = Channel.OpenRead(temp)) theirs = PortableFileOperations.HashStream(copy, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+            return ours.AsSpan().SequenceEqual(theirs);
+        }
+        catch
+        {
+            // A retry reads both again: this attempt's reading does not count.
+            Job.AddVerified(-verified);
+            Job.AddVerifyTotal(-2 * length);
+            throw;
+        }
     }
 
     private void Publish(string folder, string name, string temp, bool replace)
@@ -685,8 +726,12 @@ internal sealed class ContentStream(IContentSource source) : Stream
     }
 }
 
-/// <summary>Moves within one server by renaming: nothing is copied, and a folder moves with everything in it.</summary>
-internal sealed class SftpMoveExecutor(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp) : SftpExecutorBase(job, fs, journal, sftp)
+/// <summary>
+/// Moves within one server by renaming: nothing is copied (so there is no copy to read back), and a folder moves with
+/// everything in it.
+/// </summary>
+internal sealed class SftpMoveExecutor(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp)
+    : SftpExecutorBase(job, fs, journal, sftp), IHonorsReadBackVerification
 {
     protected override Location ConnectionLocation => Job.Request.Destination!;
 
@@ -795,7 +840,7 @@ internal sealed class SftpDeleteExecutor(Job job, IFileSystemOperations fs, JobJ
 /// completely, whole folders included, are then deleted on the server.
 /// </summary>
 internal sealed class SftpDownloadMoveExecutor(Job job, IFileSystemOperations fs, JobJournal journal, SftpProvider sftp, ProviderRegistry providers)
-    : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter
+    : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     protected override Location ConnectionLocation => Job.Request.Sources[0].Parent;
 

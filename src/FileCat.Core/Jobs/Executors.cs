@@ -17,15 +17,25 @@ public interface IJobExecutor
 /// </summary>
 public interface IHonorsTransferFilter;
 
+/// <summary>
+/// An executor that performs <see cref="VerifyMode.ReadBack"/> ("read back and compare content") on the copies it makes,
+/// or makes none (a move within one server renames there). A copy or move with that choice whose executor does neither
+/// runs as usual and says that its copies were checked by size only: the choice never passes silently (plan PI-06).
+/// </summary>
+public interface IHonorsReadBackVerification;
+
 public static class JobExecutors
 {
     /// <summary>Typed dispatch per operation (plan §7.1): no Cartesian product of provider methods.</summary>
     public static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
     {
         var executor = CreateFor(job, fs, providers, journal);
-        if (job.Request.Options.Filter is not null && job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract && executor is not IHonorsTransferFilter)
+        bool transfer = job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract;
+        if (transfer && job.Request.Options.Filter is not null && executor is not IHonorsTransferFilter)
             return new RefusedExecutor(job, fs, journal,
                 "\"Only files matching\" is not available for this copy or move (it works between folders on disk, from archives, servers, and phones to disk, and from disk to servers and phones). Nothing was copied or moved.");
+        if (transfer && job.Request.Options.Verify == VerifyMode.ReadBack && executor is not IHonorsReadBackVerification)
+            return new UnverifiedExecutor(executor, job, fs, journal);
         return executor;
     }
 
@@ -108,6 +118,21 @@ internal sealed class RefusedExecutor(Job job, IFileSystemOperations fs, JobJour
             Job.RootFailed(i);
         }
         if (sources.Count == 0) Job.ItemFailed();
+    }
+}
+
+/// <summary>
+/// A copy or move with "read back and compare content" whose executor cannot read its copies back (release V08 found the
+/// choice ignored silently): it runs as usual, then says what the copies were checked by.
+/// </summary>
+internal sealed class UnverifiedExecutor(IJobExecutor inner, Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
+{
+    public override void Execute()
+    {
+        inner.Execute();
+        if (Job.ItemsDone > 0)
+            Issue(IssueSeverity.Warning, Job.Request.Destination?.Path ?? string.Empty,
+                "Not read back: this kind of copy cannot read its copies back to compare them, so they were checked by their size only.", StepOutcome.Committed);
     }
 }
 
@@ -267,7 +292,7 @@ public static class ErrorText
 /// source only after the copy is published and the source is revalidated; directories are removed only when
 /// empty, never recursively.
 /// </summary>
-internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal), IHonorsTransferFilter
+internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private static readonly EnumerationOptions ChildOptions = new() { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false };
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);

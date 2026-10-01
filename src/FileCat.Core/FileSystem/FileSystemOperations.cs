@@ -557,12 +557,18 @@ public class PortableFileOperations : IFileSystemOperations
     /// <summary>Streaming content hash for verification and checksum features.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)
     {
-        using var hash = IncrementalHash.CreateHash(algorithm);
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+        return HashStream(fs, algorithm, ct, progress);
+    }
+
+    /// <summary>The hash of a stream read to its end; <paramref name="progress"/> gets the bytes read so far.</summary>
+    public static byte[] HashStream(Stream stream, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)
+    {
+        using var hash = IncrementalHash.CreateHash(algorithm);
         var buffer = new byte[BufferSize];
         long done = 0;
         int n;
-        while ((n = fs.Read(buffer, 0, buffer.Length)) > 0)
+        while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
             ct.ThrowIfCancellationRequested();
             hash.AppendData(buffer, 0, n);

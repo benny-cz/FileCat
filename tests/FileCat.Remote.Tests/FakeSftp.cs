@@ -38,6 +38,9 @@ internal sealed class FakeSftpServer
     /// <summary>The offsets uploads were continued at.</summary>
     public List<long> WritesAt { get; } = [];
 
+    /// <summary>A faulty server or disk: the next written file keeps the byte at this offset inverted.</summary>
+    public long? CorruptAt { get; set; }
+
     public FakeSftpServer() => Dir(Home);
 
     public static byte[] KeyBlob(string type, byte seed)
@@ -330,13 +333,23 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
                 throw new RemoteDisconnectedException("The connection to the server was lost.");
             }
             base.Write(buffer, offset, count);
-            node.Data = ToArray();
+            Stored();
         }
 
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             channel.Check();
             base.Write(buffer);
+            Stored();
+        }
+
+        private void Stored()
+        {
+            if (channel.Server.CorruptAt is { } at && at < Length)
+            {
+                GetBuffer()[at] ^= 0xFF;
+                channel.Server.CorruptAt = null;
+            }
             node.Data = ToArray();
         }
     }

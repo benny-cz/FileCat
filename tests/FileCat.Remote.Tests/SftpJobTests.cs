@@ -141,6 +141,108 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(["big.bin"], Names("/up"));
     }
 
+    private string BigFile(int length, int seed, out byte[] data)
+    {
+        data = new byte[length];
+        new Random(seed).NextBytes(data);
+        string big = Path.Combine(_local, "big.bin");
+        File.WriteAllBytes(big, data);
+        return big;
+    }
+
+    /// <summary>The upload's partial copy on the server (its hidden temporary name).</summary>
+    private FakeSftpServer.Node Partial(string folder) => _server.Lookup(folder, true)!.Children.Values.Single(n => n.Name.StartsWith(".fc-", StringComparison.Ordinal));
+
+    /// <summary>Drops the upload part way; while it is down, <paramref name="meanwhile"/> runs, then the user retries.</summary>
+    private async Task<Job> DroppedUploadAsync(string big, Action meanwhile, VerifyMode verify)
+    {
+        _server.Dir("/up");
+        _server.DropAfterBytes = 2 * 1024 * 1024 + 17;
+        var job = _jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)],
+            Destination = Remote("/up"),
+            Options = new TransferOptions { Verify = verify },
+        });
+        bool once = false;
+        while (!job.State.IsFinished())
+        {
+            if (job.Decision is { Task.IsCompleted: false } d)
+            {
+                if (!once) meanwhile();
+                once = true;
+                _server.Down = false;
+                d.Resolve(new Decision(DecisionAction.Retry));
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        return job;
+    }
+
+    [Fact]
+    public async Task A_dropped_upload_whose_partial_copy_changed_at_its_end_starts_again()
+    {
+        // Release plan V08: "alter resume tails". The check of the last 64 KiB sees it, and the whole file goes again.
+        string big = BigFile(5 * 1024 * 1024, 10, out var data);
+        var job = await DroppedUploadAsync(big, () => Partial("/up").Data[^1] ^= 0xFF, VerifyMode.Native);
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Empty(_server.WritesAt);
+        Assert.Equal(data, _server.Lookup("/up/big.bin", true)!.Data);
+        Assert.Equal(["big.bin"], Names("/up"));
+    }
+
+    [Fact]
+    public async Task A_resumed_upload_whose_partial_copy_changed_earlier_is_caught_by_read_back()
+    {
+        // "…and earlier content": a byte before the checked tail cannot be seen by the resume's check, so the upload
+        // continues; reading the copy back before it is published catches it, and nothing takes the name.
+        string big = BigFile(5 * 1024 * 1024, 11, out _);
+        var job = await DroppedUploadAsync(big, () => Partial("/up").Data[100] ^= 0xFF, VerifyMode.ReadBack);
+        Assert.Equal([2L * 1024 * 1024 + 17], _server.WritesAt);
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, i => i.Message.Contains("Read-back verification found different content on the server", StringComparison.Ordinal));
+        Assert.Empty(Names("/up"));
+    }
+
+    [Fact]
+    public async Task Read_back_verification_catches_bytes_the_server_stored_differently()
+    {
+        // Release V08: "read back and compare content" was ignored for uploads, so a copy the server stored wrongly
+        // passed its size check and was published.
+        string big = BigFile(3 * 1024 * 1024, 12, out _);
+        _server.Dir("/up");
+        _server.CorruptAt = 1_000_000;
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)],
+            Destination = Remote("/up"),
+            Options = new TransferOptions { Verify = VerifyMode.ReadBack },
+        });
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, i => i.Severity == IssueSeverity.Error && i.Message.Contains("Read-back verification found different content on the server", StringComparison.Ordinal));
+        Assert.Empty(Names("/up")); // nothing published, and the temporary copy is gone
+    }
+
+    [Fact]
+    public async Task Read_back_verification_passes_a_faithful_upload_and_counts_both_readings()
+    {
+        string big = BigFile(3 * 1024 * 1024 + 3, 13, out var data);
+        _server.Dir("/up");
+        var job = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [ItemRef.ForFileSystemPath(big, EntryKind.File)],
+            Destination = Remote("/up"),
+            Options = new TransferOptions { Verify = VerifyMode.ReadBack },
+        });
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(data, _server.Lookup("/up/big.bin", true)!.Data);
+        Assert.Equal(2L * data.Length, job.VerifyBytesDone);
+        Assert.Equal(job.VerifyBytesTotal, job.VerifyBytesDone);
+    }
+
     [Fact]
     public async Task Uploads_publish_files_and_folders_through_temporary_names()
     {
