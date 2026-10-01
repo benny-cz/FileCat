@@ -537,12 +537,83 @@ public static unsafe partial class DeviceTopology
         if (Locate(folder) is not { } place) return null;
         if (place.Server is { } server) return ThisComputer.Is(server, TimeSpan.FromSeconds(2)) ? null : false;
         var source = DisksOf(device);
-        var target = DisksOf(place.Volume!);
-        if (source is null || target is null) return null;
-        if (source.Intersect(target).Any()) return true;
-        // A disk Windows makes from a file (VHD, VHDX) or from other disks (a storage space) is written where those
-        // lie, which is not known here.
-        return target.Any(IsComposite) ? null : false;
+        if (source is null || DisksOf(place.Volume!) is not { } volume || WrittenDisks(volume, 0) is not { } target) return null;
+        return source.Intersect(target).Any();
+    }
+
+    /// <summary>
+    /// The disks writing to <paramref name="disks"/> writes to. A disk Windows makes from a file (VHD, VHDX) is itself and
+    /// the disks its file lies on (a VHD in a VHD too); read, it stays a disk of its own, since writing next to its file
+    /// never changes what it holds. Null when that cannot be told: a storage space (made from other disks), a VHD whose
+    /// file the system does not name.
+    /// </summary>
+    private static List<int>? WrittenDisks(IReadOnlyList<int> disks, int depth)
+    {
+        var all = new List<int>();
+        foreach (int disk in disks)
+        {
+            all.Add(disk);
+            string? bus = BusOf(disk);
+            if (bus is null or "Storage Spaces") return null;
+            if (bus != "virtual") continue;
+            if (depth > 4 || HostVolumesOf(disk) is not { Count: > 0 } hosts) return null;
+            foreach (var host in hosts)
+            {
+                if (DisksOf(host) is not { } under || WrittenDisks(under, depth + 1) is not { } deeper) return null;
+                all.AddRange(deeper);
+            }
+        }
+        return all.Distinct().ToList();
+    }
+
+    /// <summary>The bus a physical disk names (virtual for a VHD, Storage Spaces for a space), or null when it cannot be opened.</summary>
+    private static string? BusOf(int disk)
+    {
+        using var handle = CreateFile(@"\\.\PhysicalDrive" + disk.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, 3, 0, 3, 0, 0);
+        return handle.IsInvalid ? null : Describe(handle).Bus;
+    }
+
+    /// <summary>
+    /// The volumes (\\?\Volume{…}) holding the file a VHD or VHDX disk is made from, as the virtual disk service names
+    /// them (GetStorageDependencyInformation); null when it names none.
+    /// </summary>
+    internal static IReadOnlyList<string>? HostVolumesOf(int disk)
+    {
+        using var handle = CreateFile(@"\\.\PhysicalDrive" + disk.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, 3, 0, 3, 0, 0);
+        if (handle.IsInvalid) return null;
+        uint size = 4096;
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            nint buffer = Marshal.AllocHGlobal((int)size);
+            try
+            {
+                new Span<byte>((void*)buffer, (int)size).Clear();
+                Marshal.WriteInt32(buffer, 2); // STORAGE_DEPENDENCY_INFO_VERSION_2
+                uint used;
+                uint error = GetStorageDependencyInformation(handle, 1 | 2 /* HOST_VOLUMES | DISK_HANDLE */, size, buffer, &used);
+                if (error == 122 /* ERROR_INSUFFICIENT_BUFFER */)
+                {
+                    size = Math.Max(used, size * 2);
+                    continue;
+                }
+                if (error != 0) return null;
+                int count = Marshal.ReadInt32(buffer, 4);
+                var volumes = new List<string>();
+                for (int i = 0; i < count && 8 + (i + 1) * 64 <= size; i++)
+                {
+                    // STORAGE_DEPENDENCY_INFO_TYPE_2: flags, provider flags, storage type (20), ancestor level, then four names.
+                    nint host = Marshal.ReadIntPtr(buffer, 8 + i * 64 + 40);
+                    if (host != 0 && Marshal.PtrToStringUni(host) is { Length: > 0 } name && name.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase))
+                        volumes.Add(name.TrimEnd('\\'));
+                }
+                return volumes;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
+        }
+        return null;
     }
 
     /// <summary>
@@ -574,12 +645,6 @@ public static unsafe partial class DeviceTopology
         return share is { Length: > 0 } ? (null, share.Split('@')[0]) : null;
     }
 
-    /// <summary>A disk Windows makes from a file or from other disks: a VHD or VHDX, a storage space.</summary>
-    private static bool IsComposite(int disk)
-    {
-        using var handle = CreateFile(@"\\.\PhysicalDrive" + disk.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, 3, 0, 3, 0, 0);
-        return handle.IsInvalid || Describe(handle).Bus is "virtual" or "Storage Spaces";
-    }
 
     internal static long Length(SafeFileHandle device)
     {
@@ -607,4 +672,7 @@ public static unsafe partial class DeviceTopology
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DeviceIoControl(SafeFileHandle device, uint code, void* input, uint inputSize, void* output, uint outputSize, uint* returned, nint overlapped);
+
+    [LibraryImport("virtdisk.dll")]
+    private static partial uint GetStorageDependencyInformation(SafeFileHandle handle, uint flags, uint size, nint info, uint* used);
 }
