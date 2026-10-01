@@ -25,6 +25,8 @@ public sealed partial class WindowsFileRecordsTests
 
     private static string Field(InspectionSection section, string name) => section.Fields.Single(f => f.Name == name).Value;
 
+    private static bool TwoSigns(InspectionReport report) => report.Warnings.Any(w => w.StartsWith("Timestamp checks: 2 signs", StringComparison.Ordinal));
+
     /// <summary>The report's warnings and the named sections as it prints them: what a failure needs to be understood.</summary>
     private static string Excerpt(InspectionReport report, params string[] titles) =>
         string.Join("\n", report.Warnings) + "\n" +
@@ -112,11 +114,13 @@ public sealed partial class WindowsFileRecordsTests
             File.SetCreationTimeUtc(file, new DateTime(2019, 5, 1, 12, 0, 0, DateTimeKind.Utc));
             // Flushed, so NTFS has written the change's log records to $LogFile on disk before it is read.
             using (var flush = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) flush.Flush(flushToDisk: true);
+            // Two signs: $FILE_NAME's creation time, and $LogFile's before and after images of the change. The report
+            // shows what is on disk when it is read, and on a busy CI runner the change had not reached the record and its
+            // log yet (runs 36797153928, ARM64, and 36806933971, x64: one sign, no time change among the record's
+            // operations), so it is read again for a while, as a user would press F5.
             var report = Read(file);
-            // Two signs: $FILE_NAME's creation time, and $LogFile's before and after images of the change. (A failure
-            // prints what the report saw: CI run 36797153928 on Windows ARM64 had one sign, in a second.)
-            Assert.True(report.Warnings.Any(w => w.StartsWith("Timestamp checks: 2 signs", StringComparison.Ordinal)),
-                "Expected two signs; the report:\n" + Excerpt(report, "Timestamp checks", "NTFS log ($LogFile)", "MFT record"));
+            for (var until = DateTime.UtcNow.AddSeconds(15); !TwoSigns(report) && DateTime.UtcNow < until; report = Read(file)) Thread.Sleep(1000);
+            Assert.True(TwoSigns(report), "Expected two signs; the report:\n" + Excerpt(report, "Timestamp checks", "NTFS log ($LogFile)", "MFT record"));
             // The lines as one text (wrapped lines continue indented).
             var checks = System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
             Assert.Contains("⚠ Its creation time (2019-05-01 12:00:00.0000000 UTC)", checks, StringComparison.Ordinal);
