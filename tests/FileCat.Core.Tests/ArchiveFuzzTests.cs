@@ -183,11 +183,13 @@ public sealed class ArchiveFuzzTests : IDisposable
             listing = reading.Result;
             long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
             if (failure is not null) throw new Xunit.Sdk.XunitException($"{_format}, round {round}: {failure}");
-            if (allocated > MostAllocated) (MostAllocated, MostAllocatedRound) = (allocated, round);
+            if (onThread > MostAllocated) (MostAllocated, MostAllocatedRound) = (onThread, round);
             if (clock.Elapsed > Slowest) (Slowest, SlowestRound) = (clock.Elapsed, round);
-            // The process's count takes in whatever else ran meanwhile; the reading thread's count is this round's alone.
-            Assert.True(allocated <= Budget, $"{_format}, round {round} allocated {allocated >> 20} MiB for a {_original.Length >> 10} KiB archive " +
-                                             $"({onThread >> 20} MiB on the thread that read it).");
+            // The thread that read the archive does the listing and the reading: its count is this round's alone. The
+            // process's count takes in whatever else ran meanwhile (on CI's ARM64 runner 1.1 GiB within 9 ms of a round
+            // over a 1 KiB archive), so it is only told.
+            Assert.True(onThread <= Budget, $"{_format}, round {round} allocated {onThread >> 20} MiB on the thread that read a {_original.Length >> 10} KiB archive " +
+                                            $"({allocated >> 20} MiB in the whole process meanwhile).");
             return listing is null ? "refused" : listing == _baseline ? "same" : "changed";
         }
 
