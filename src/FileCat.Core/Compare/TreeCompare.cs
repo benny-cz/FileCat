@@ -57,7 +57,6 @@ public static class TreeCompare
         var entries = new List<TreeDiffEntry>();
         int folders = 0;
         bool complete = true;
-        var comparer = caseInsensitiveNames ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var lp = providers.For(left);
         var rp = providers.For(right);
 
@@ -81,19 +80,22 @@ public static class TreeCompare
             }
             // Both folders are recorded, also for one-sided items: synchronization copies into the other side's folder.
             void Add(TreeDiffEntry e) => entries.Add(e with { LeftFolder = l, RightFolder = r });
-            var rightByName = new Dictionary<string, EntryData>(comparer);
-            foreach (var e in rightItems) rightByName.TryAdd(e.Name, e);
-            var seen = new HashSet<string>(comparer);
-            foreach (var le in leftItems.OrderBy(e => e.Name, StringComparer.Ordinal))
+            var pairs = NamePairing.Pair([.. leftItems.OrderBy(e => e.Name, StringComparer.Ordinal)], [.. rightItems.OrderBy(e => e.Name, StringComparer.Ordinal)], caseInsensitiveNames);
+            foreach (var (left0, right0) in pairs)
             {
                 ct.ThrowIfCancellationRequested();
+                if (left0 is not { } le)
+                {
+                    var only = right0!.Value;
+                    Add(OneSided(new TreeDiffEntry(relative.Length == 0 ? only.Name : relative + "/" + only.Name, TreeDiffKind.RightOnly, null, only), rp, r, only));
+                    continue;
+                }
                 string path = relative.Length == 0 ? le.Name : relative + "/" + le.Name;
-                if (!rightByName.TryGetValue(le.Name, out var re))
+                if (right0 is not { } re)
                 {
                     Add(OneSided(new TreeDiffEntry(path, TreeDiffKind.LeftOnly, le, null), lp, l, le));
                     continue;
                 }
-                seen.Add(re.Name);
                 if (le.IsContainer != re.IsContainer)
                 {
                     Add(new TreeDiffEntry(path, TreeDiffKind.TypeMismatch, le, re, le.IsContainer ? "A folder on the left, a file on the right" : "A file on the left, a folder on the right"));
@@ -118,10 +120,6 @@ public static class TreeCompare
                 }
                 Add(CompareFiles(path, l, le, r, re));
             }
-            foreach (var re in rightItems.OrderBy(e => e.Name, StringComparer.Ordinal))
-            {
-                if (!seen.Contains(re.Name)) Add(OneSided(new TreeDiffEntry(relative.Length == 0 ? re.Name : relative + "/" + re.Name, TreeDiffKind.RightOnly, null, re), rp, r, re));
-            }
         }
 
         // A folder on one side only, on a disk or share: all it holds, for a plan to state and a removal to check.
@@ -136,10 +134,14 @@ public static class TreeCompare
 
         TreeDiffEntry CompareFiles(string path, Location l, EntryData le, Location r, EntryData re)
         {
-            bool sizeDiffers = (criteria & (CompareCriteria.Size | CompareCriteria.Content)) != 0 && le.Size >= 0 && re.Size >= 0 && le.Size != re.Size;
+            bool sizesKnown = le.Size >= 0 && re.Size >= 0;
+            bool sizeDiffers = (criteria & (CompareCriteria.Size | CompareCriteria.Content)) != 0 && sizesKnown && le.Size != re.Size;
             // A time a listing states only to the minute or the day stands for all of it (an FTP server's LIST, I45).
-            int newer = (criteria & CompareCriteria.Time) != 0 ? EntryTimes.Compare(le, re, tolerance) ?? 0 : 0;
+            int? compared = (criteria & CompareCriteria.Time) != 0 ? EntryTimes.Compare(le, re, tolerance) : 0;
+            int newer = compared ?? 0;
             bool timeDiffers = newer != 0;
+            // A size or time a listing does not give decides nothing (V13: undecided never counts as the same).
+            bool sizeOpen = (criteria & CompareCriteria.Size) != 0 && !sizesKnown, timeOpen = compared is null;
             string? detail = null;
             bool contentDiffers = false;
             if (!sizeDiffers && (criteria & CompareCriteria.Content) != 0)
@@ -151,13 +153,18 @@ public static class TreeCompare
                     bool? equal = a is null || b is null ? null : DirectoryCompare.ContentEqual(a, b, ct);
                     if (equal is null) return new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, "The content could not be read");
                     contentDiffers = !equal.Value;
+                    if (equal.Value) sizeOpen = false; // the same content is the same size
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
                 {
                     return new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, "The content could not be read: " + ex.Message);
                 }
             }
-            if (!sizeDiffers && !timeDiffers && !contentDiffers) return new TreeDiffEntry(path, TreeDiffKind.Same, le, re);
+            if (!sizeDiffers && !timeDiffers && !contentDiffers)
+                return sizeOpen || timeOpen
+                    ? new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, sizeOpen && timeOpen ? "Neither the size nor the time is known on both sides"
+                        : sizeOpen ? "The size is not known on both sides" : "The time is not known on both sides")
+                    : new TreeDiffEntry(path, TreeDiffKind.Same, le, re);
             if (sizeDiffers) detail = $"Sizes {le.Size:N0} and {re.Size:N0} bytes";
             else if (contentDiffers) detail = "Same size, different content";
             if (timeDiffers) return new TreeDiffEntry(path, newer > 0 ? TreeDiffKind.LeftNewer : TreeDiffKind.RightNewer, le, re, detail);

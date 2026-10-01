@@ -288,7 +288,7 @@ public sealed partial class MainViewModel
             using var sa = lp.OpenContent(lp.GetItemRef(lloc, leftEntries.First(e => e.Name == ln)));
             using var sb = rp.OpenContent(rp.GetItemRef(rloc, rightEntries.First(e => e.Name == rn)));
             return sa is null || sb is null ? null : DirectoryCompare.ContentEqual(sa, sb, CancellationToken.None);
-        }, CancellationToken.None, caseInsensitiveNames: OperatingSystem.IsWindows()));
+        }, CancellationToken.None, caseInsensitiveNames: OperatingSystem.IsWindows() && lloc.IsFileSystem && rloc.IsFileSystem));
         left.Listing.UnmarkEverything();
         right.Listing.UnmarkEverything();
         left.Listing.MarkNames(result.LeftMarks, true);

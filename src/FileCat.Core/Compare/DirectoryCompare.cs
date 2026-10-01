@@ -18,7 +18,7 @@ public sealed record DirectoryCompareResult(
     int Different,
     int LeftOnly,
     int RightOnly,
-    int ContentUnknown)
+    int Unknown)
 {
     public string Describe(CompareCriteria criteria, TimeSpan tolerance)
     {
@@ -27,7 +27,7 @@ public sealed record DirectoryCompareResult(
         if ((criteria & CompareCriteria.Time) != 0) how.Add(tolerance > TimeSpan.Zero ? $"time ±{tolerance.TotalSeconds:0.#} s" : "time");
         if ((criteria & CompareCriteria.Content) != 0) how.Add("content");
         var s = $"Comparison ({string.Join(", ", how)}): {Different} differ · {LeftOnly} only left · {RightOnly} only right · {Same} same";
-        if (ContentUnknown > 0) s += $" · {ContentUnknown} could not be read (marked)";
+        if (Unknown > 0) s += $" · {Unknown} could not be compared (marked)";
         return s;
     }
 }
@@ -35,7 +35,9 @@ public sealed record DirectoryCompareResult(
 /// <summary>
 /// Two-panel compare-and-mark (plan §16.2, OPS-008): non-recursive; folders compare by presence; files by
 /// name plus the chosen criteria with timestamp tolerance at the coarser filesystem's known precision.
-/// A content check hashes both files; unreadable items count as different so they are never hidden.
+/// A content check hashes both files. A pair the criteria cannot decide (content that cannot be read, a size or time a
+/// listing does not give) is marked and counted as not compared, never as the same; names pair as
+/// <see cref="NamePairing"/> says.
 /// </summary>
 public static class DirectoryCompare
 {
@@ -48,66 +50,86 @@ public static class DirectoryCompare
         CancellationToken ct,
         bool caseInsensitiveNames = true)
     {
-        var comparer = caseInsensitiveNames ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        var rightByName = new Dictionary<string, EntryData>(comparer);
-        foreach (var r in right)
-        {
-            if (r.Kind == EntryKind.Parent) continue;
-            rightByName.TryAdd(r.Name, r);
-        }
         var leftMarks = new HashSet<string>(StringComparer.Ordinal);
         var rightMarks = new HashSet<string>(StringComparer.Ordinal);
-        var matchedRight = new HashSet<string>(comparer);
-        int same = 0, diff = 0, leftOnly = 0, unknown = 0;
-        foreach (var l in left)
+        int same = 0, diff = 0, leftOnly = 0, rightOnly = 0, unknown = 0;
+        foreach (var (l, r) in NamePairing.Pair(left, right, caseInsensitiveNames))
         {
             ct.ThrowIfCancellationRequested();
-            if (l.Kind == EntryKind.Parent) continue;
-            if (!rightByName.TryGetValue(l.Name, out var r) || r.IsContainer != l.IsContainer)
+            if (r is not { } re)
             {
-                leftMarks.Add(l.Name);
+                leftMarks.Add(l!.Value.Name);
                 leftOnly++;
                 continue;
             }
-            matchedRight.Add(r.Name);
-            if (l.IsContainer)
+            if (l is not { } le)
+            {
+                rightMarks.Add(re.Name);
+                rightOnly++;
+                continue;
+            }
+            if (le.IsContainer != re.IsContainer)
+            {
+                // A file on one side and a folder on the other: neither has its match.
+                leftMarks.Add(le.Name);
+                leftOnly++;
+                rightMarks.Add(re.Name);
+                rightOnly++;
+                continue;
+            }
+            if (le.IsContainer)
             {
                 same++;
                 continue;
             }
-            bool differs = false;
-            if ((criteria & CompareCriteria.Size) != 0 && l.Size != r.Size) differs = true;
-            if (!differs && (criteria & CompareCriteria.Time) != 0 && EntryTimes.Compare(l, r, tolerance) is not (0 or null)) differs = true;
-            if (!differs && (criteria & CompareCriteria.Content) != 0 && contentEqual is not null)
+            switch (Decide(le, re, criteria, tolerance, contentEqual))
             {
-                if (l.Size != r.Size) differs = true;
-                else
-                {
-                    var eq = contentEqual(l.Name, r.Name);
-                    if (eq is null)
-                    {
-                        unknown++;
-                        differs = true;
-                    }
-                    else differs = !eq.Value;
-                }
+                case true:
+                    same++;
+                    break;
+                case false:
+                    diff++;
+                    leftMarks.Add(le.Name);
+                    rightMarks.Add(re.Name);
+                    break;
+                default:
+                    unknown++;
+                    leftMarks.Add(le.Name);
+                    rightMarks.Add(re.Name);
+                    break;
             }
-            if (differs)
-            {
-                diff++;
-                leftMarks.Add(l.Name);
-                rightMarks.Add(r.Name);
-            }
-            else same++;
-        }
-        int rightOnly = 0;
-        foreach (var r in rightByName.Values)
-        {
-            if (matchedRight.Contains(r.Name)) continue;
-            rightOnly++;
-            rightMarks.Add(r.Name);
         }
         return new DirectoryCompareResult(leftMarks, rightMarks, same, diff, leftOnly, rightOnly, unknown);
+    }
+
+    /// <summary>
+    /// Two files by the chosen criteria: the same (true), different (false), or undecided (null), when a criterion the
+    /// listings cannot answer (a size or time a listing does not give, content that cannot be read) is left and nothing
+    /// else told them apart. Undecided used to count as the same (V13: no false equality).
+    /// </summary>
+    internal static bool? Decide(EntryData l, EntryData r, CompareCriteria criteria, TimeSpan tolerance, Func<string, string, bool?>? contentEqual)
+    {
+        bool sizesKnown = l.Size >= 0 && r.Size >= 0;
+        bool sizeOpen = false, timeOpen = false;
+        if ((criteria & CompareCriteria.Size) != 0)
+        {
+            if (!sizesKnown) sizeOpen = true;
+            else if (l.Size != r.Size) return false;
+        }
+        if ((criteria & CompareCriteria.Time) != 0)
+        {
+            int? newer = EntryTimes.Compare(l, r, tolerance);
+            if (newer is null) timeOpen = true;
+            else if (newer != 0) return false;
+        }
+        if ((criteria & CompareCriteria.Content) != 0 && contentEqual is not null)
+        {
+            if (sizesKnown && l.Size != r.Size) return false;
+            if (contentEqual(l.Name, r.Name) is not { } equal) return null;
+            if (!equal) return false;
+            sizeOpen = false; // the same content is the same size
+        }
+        return sizeOpen || timeOpen ? null : true;
     }
 
     /// <summary>Streams two contents and compares bytes; null when either cannot be read.</summary>
