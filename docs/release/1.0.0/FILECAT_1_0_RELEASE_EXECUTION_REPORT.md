@@ -334,6 +334,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     processes. While the folder was shown, eight processes ran — two `git` runs (the ordinary repository's; the one
     naming a program is not read at all) with their console hosts, and one Shell helper — and **not** the program the
     three fixtures named.
+89. V11 secrets (E-V11-S1): sentinel passwords through FileCat's remote stack as the app builds it on Windows, against
+    the lab's OpenSSH and vsftpd — wrong three times, then right and saved, then a closed port — with diagnostic
+    logging on and every failure logged with its whole exception chain. Saved passwords went to Credential Manager;
+    none of the three secrets is in any file FileCat wrote, as UTF-8, UTF-16 or Base64. Observation for a decision:
+    a password answered "save" is stored before the server accepts it, so a mistyped one is retried on every
+    reconnect.
 
 ## Evidence invalidated by the campaign's own changes
 
