@@ -303,6 +303,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     differ between runs and machines (the writing process's ID in PAX headers, native deflate's architecture-dependent
     bytes): made identical everywhere (`c4d81d7`), a failing round keeps its bytes (`cddce72`); one TAR+gzip round on the
     Mac over budget could not be rebuilt and stays open (E-B02-A1). Two recurring CI flakes fixed (`9b734da`).
+84. V09 on macOS without administrator rights (E-V09-T3): a disk image the user attached, scanned directly, a deleted
+    3 MiB file recovered identical to its original (hash), the image unchanged (hash). Every write of the processes
+    (`fs_usage`) and authopen's paths need the owner's administrator rights.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -328,7 +331,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 1. Collect the fuzz campaigns' results: E-I28-C1 (Ubuntu's NTFS and both disks, the Windows VM's 3.1–4.1 M again) and
    E-B02-A1 (a million rounds of every archive format on `325aa63`).
-2. V09 on macOS (`fs_usage` with a disk image as the source; needs the owner's administrator rights), the installed
+2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
