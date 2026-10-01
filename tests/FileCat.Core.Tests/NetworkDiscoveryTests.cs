@@ -219,25 +219,27 @@ public sealed class NetworkDiscoveryTests
     public async Task A_device_that_names_another_address_is_not_followed_there()
     {
         var ct = TestContext.Current.CancellationToken;
-        // The answer points its metadata at a different machine: FileCat never asks there, and lists the device by
-        // the address it answered from.
+        // The answer points its metadata at a different address, where something listens: FileCat never connects
+        // there, and lists the device by the address it answered from. (Once judged by how long discovery took, which a
+        // busy CI runner stretched past its bound.)
+        using var elsewhere = new TcpListener(IPAddress.IPv6Loopback, 0);
+        elsewhere.Start();
+        int port = ((IPEndPoint)elsewhere.LocalEndpoint).Port;
         using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var answering = Task.Run(async () =>
         {
             while (!ct.IsCancellationRequested)
             {
                 var probe = await wsd.ReceiveAsync(ct);
-                await wsd.SendAsync(Encoding.UTF8.GetBytes(ProbeMatches("http://203.0.113.9:5357/elsewhere/")), probe.RemoteEndPoint, ct);
+                await wsd.SendAsync(Encoding.UTF8.GetBytes(ProbeMatches($"http://[::1]:{port}/elsewhere/")), probe.RemoteEndPoint, ct);
             }
         }, ct);
         using var silent = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var found = new List<NetworkHost>();
-        var clock = System.Diagnostics.Stopwatch.StartNew();
         await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, TimeSpan.FromSeconds(1), ct,
             (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)silent.Client.LocalEndPoint!, [IPAddress.Loopback]);
         var host = Assert.Single(found);
         Assert.Equal("127.0.0.1", host.Server);
-        // No wait on an HTTP request to the other address.
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(3), clock.Elapsed.ToString());
+        Assert.False(elsewhere.Pending(), "Discovery connected to the address the device named instead of its own.");
     }
 }
