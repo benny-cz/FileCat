@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I68 | Linux/macOS: a permanent delete reached into a file system mounted inside the deleted folder | High (deleting a folder that holds a mounted drive, share or bind mount emptied that volume too) | Must fix (V23 B01, DPI) | **Remediated `e5b4e3b`; verified** (unit test; live on the Ubuntu VM) |
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
@@ -1009,6 +1010,24 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I68 — A permanent delete reached into a file system mounted inside the folder
+
+- **Found by:** the V23 review of B01 (names → file-system changes). The permanent delete (Shift+F8) recurses into every
+  child folder that is not a link. On Linux and macOS the folder a drive, a share or a bind mount is mounted at is an
+  ordinary directory, so deleting `~/work` with a USB stick mounted at `~/work/usb` deleted every file on the stick
+  before failing to remove the mount point itself (as `rm -r` does without `--one-file-system`). On Windows the folder a
+  volume is mounted at is a reparse point with a target (.NET reads both junctions and volume mount points), so it was
+  already treated as a link and only the mount point removed.
+- **Remediation (`e5b4e3b`):** `IFileSystemOperations.IsMountPoint` (the system's mount table on Linux and macOS, bind
+  mounts included); the delete stops at such a folder, says "Another file system is mounted here … FileCat does not
+  delete into it. Unmount it first.", deletes the rest, and leaves the mount point and the folders above it. A folder
+  the user chooses is deleted as chosen. Moves that cross volumes copy before they delete, as `mv` does, and lose
+  nothing.
+- **Verification:** `JobEngineTests.A_permanent_delete_never_reaches_into_a_file_system_mounted_inside` (a mount point
+  stood in for) and, live on the Ubuntu VM, `A_permanent_delete_stops_at_a_real_mount_inside`: a tmpfs owned by the
+  test user mounted inside the folder, so its file could have been deleted; it was left, the folder's own file deleted.
+- **Severity:** High: an ordinary action destroys data on another volume the user did not choose.
 
 ### I60 — The AppImage's runtime came unchecked from a moving release
 
