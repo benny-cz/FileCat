@@ -47,7 +47,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 3 Collect CI/validation evidence and skip inventory | **Partial** | E-A01 (explicit skips on TRX lanes); early-return audit done (E-S01, `be6ca25`: 28 tests now skip with reasons). Still to do: portable-lane and ARM64 skip lists from logs |
 | 4 Reconcile manifest and registers against source | Not started | Plan §§3–5 registers stand as the starting point |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P04, P08–P11, P14–P16 reviewed (I15, I19, I40, I44, I48–I51; E-DPI); B04 consent display audited (I17); DPI P05–P07, P12, P13 and the other B rows remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P04, P08–P12, P14–P16 reviewed (I15, I19, I40, I44, I48–I51; E-DPI); B04 consent display audited (I17); DPI P05–P07, P13 and the other B rows remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
