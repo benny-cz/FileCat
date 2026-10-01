@@ -136,7 +136,8 @@ public sealed class RecoveryWriteTraceTests
                 scan.Navigate(services.Recovery.GetChildLocation(scan.Location!, scan.Listing.GetVisible(folder))!);
                 await Complete();
             }
-            Assert.True(file >= 0, "No deleted file with its content was found.");
+            Assert.True(file >= 0, "No deleted file with its content was found: " + string.Join("; ", Enumerable.Range(0, scan.Listing.VisibleCount)
+                .Select(scan.Listing.GetVisible).Select(e => $"{e.Name} {e.Kind} {e.Size} {e.Flags}")));
             scan.Listing.SetFocus(file);
             var item = scan.Listing.GetItemRef(scan.Listing.FocusedStoreIndex);
             Log($"recovering {item.Name} ({scan.Listing.GetVisible(file).Size:N0} bytes)");
