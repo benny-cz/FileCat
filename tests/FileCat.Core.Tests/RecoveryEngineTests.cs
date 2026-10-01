@@ -165,6 +165,67 @@ public sealed class RecoveryEngineTests
 
     private static IEnumerable<RecoveryItem> All(RecoveryItem node) => node.Children.SelectMany(c => c.IsDirectory ? All(c).Prepend(c) : [c]);
 
+    /// <summary>
+    /// Release plan V09/V11: the fixture's files on images Windows' own file systems made (the repository's fixtures come
+    /// from mkfs.vfat, mkfs.exfat and ntfs-3g), from FILECAT_RECOVERY_IMAGES: a folder holding ntfs.vhd, exfat.vhd and
+    /// fat32.vhd made by artifacts/vm/win-recovery-images.ps1. Windows writes files of its own when it mounts a volume,
+    /// which may take space just freed: whatever FileCat calls recoverable must be the file's own bytes, and what is lost
+    /// must be said to be.
+    /// </summary>
+    [Theory]
+    [InlineData("ntfs", "NTFS")]
+    [InlineData("exfat", "exFAT")]
+    [InlineData("fat32", "FAT32")]
+    public void Deleted_files_on_images_Windows_made_come_back_as_they_were(string image, string fileSystem)
+    {
+        string? folder = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_IMAGES");
+        if (string.IsNullOrEmpty(folder)) Assert.Skip("Set FILECAT_RECOVERY_IMAGES to a folder of disk images Windows made (artifacts/vm/win-recovery-images.ps1).");
+        using var source = new ImageFileSource(Path.Combine(folder, image + ".vhd"));
+        var volume = Assert.Single(RecoveryScanner.Scan(source, TestContext.Current.CancellationToken));
+        Assert.Equal(fileSystem, volume.FileSystem);
+        Assert.Equal("FIXTURE", volume.Label?.Trim());
+        string tree = RecoveryFixtures.Dump(volume.Root);
+        var states = new List<string>();
+        int recoverable = 0;
+        // FAT overwrites a deleted entry's first letter, and an all-lowercase 8.3 name has no long name to restore it from.
+        static RecoveryItem? Named(RecoveryItem folder, string name) =>
+            folder.Children.FirstOrDefault(c => c.Name == name) ?? folder.Children.FirstOrDefault(c => c.Name == "_" + name[1..]);
+        foreach (var (path, size) in new[]
+        {
+            ("docs/report.txt", 10000), ("docs/Long file name with spaces.txt", 5000), ("docs/Příliš žluťoučký kůň.txt", 3000),
+            ("tiny.txt", 60), ("photos/a.jpg", 70000), ("photos/b.jpg", 12345),
+        })
+        {
+            var parts = path.Split('/');
+            var parent = parts.Length == 1 ? volume.Root : Named(volume.Root, parts[0]);
+            var item = parent is null ? null : Named(parent, parts[^1]);
+            if (item is null)
+            {
+                // Only where FileCat says the folder's own list of contents is lost (space reused since) may its files be missing.
+                Assert.True(parent is { State: RecoveryState.NameOnly }, $"{path} was not found, and its folder's listing is not said to be lost:\n{tree}");
+                states.Add($"{path}: not listed (its folder: {parent!.State})");
+                continue;
+            }
+            Assert.True(item.IsDeleted, path);
+            Assert.Equal(size, item.Size);
+            var original = RecoveryFixtures.Content(Path.GetFileName(path), size);
+            var recovered = Recover(source, volume, item);
+            states.Add($"{path} as \"{item.Name}\": {item.State}{(item.State == RecoveryState.Uncertain ? original.AsSpan().SequenceEqual(recovered) ? " (FileCat's guess was right)" : " (the guess was wrong)" : "")}");
+            if (item.State is not (RecoveryState.Recoverable or RecoveryState.Partial)) continue;
+            using var content = new RecoveryContent(new WindowSource(source, volume.Offset, volume.Length, "volume"), item);
+            var lost = content.MissingRanges;
+            Assert.Equal(item.State == RecoveryState.Partial, lost.Count > 0);
+            for (long at = 0; at < size; at++)
+                if (!lost.Any(m => at >= m.Offset && at < m.Offset + m.Length))
+                    Assert.True(original[at] == recovered[at], $"{path}: byte {at} is handed out as recovered but differs.\n{tree}");
+            if (item.State == RecoveryState.Recoverable) recoverable++;
+        }
+        TestContext.Current.TestOutputHelper?.WriteLine(string.Join("\n", states) + "\n" + tree);
+        Assert.Null(RecoveryFixtures.Find(volume.Root, "keep.txt")); // existing files are not listed
+        // The four files deleted from a folder that stays come back whole on every one of them.
+        Assert.True(recoverable >= 4, string.Join("\n", states));
+    }
+
     [Theory]
     [InlineData("disk-mbr")]
     [InlineData("disk-gpt")]

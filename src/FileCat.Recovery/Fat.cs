@@ -234,7 +234,9 @@ internal sealed class FatScanner
             if (uncertain) item.Evidence.Add("The first letter of the name is lost (FAT overwrites it when a file is deleted); it is shown as _.");
             folder.Children.Add(item);
             // Windows erases the upper half of a deleted FAT32 entry's first cluster number (it keeps it apart from the lower).
-            bool erased = _bits == 32 && start <= 0xFFFF;
+            // An entry not marked itself, in a deleted folder's listing, was never deleted on its own: Windows writes a
+            // listing back lazily, and a folder deleted right after its files may keep their entries as they were.
+            bool erased = _bits == 32 && start <= 0xFFFF && e[0] == 0xE5;
             if (isDirectory) DeletedDirectory(item, start, erased, listing.Folder, depth, ct);
             else if (erased && size > 0 && Starts(start, erased: true).Count > 1) PlaceErased(item, start, size);
             else Locate(item, start, size);
@@ -735,7 +737,9 @@ internal sealed class FatScanner
     /// well-formed long-name piece or short entry, and at least one short entry carries a valid date. File data almost
     /// never passes: that takes 32-byte records with the fixed fields right, all through the cluster. Searching all free
     /// space asks more (<paramref name="deletedOnly"/>), as a volume's worth of data holds rare lookalikes (machine code
-    /// can spell a name): every entry marked deleted, as Windows leaves a deleted folder's, and every short entry dated.
+    /// can spell a name): every entry marked deleted, as a deleted folder's are once their deletions reached the disk, and
+    /// every short entry dated. (A folder Windows deleted right after its files may keep their entries unmarked; such a
+    /// piece of its listing is not found this way.)
     /// </summary>
     internal static bool LooksLikeMoreEntries(ReadOnlySpan<byte> cluster, bool deletedOnly = false)
     {

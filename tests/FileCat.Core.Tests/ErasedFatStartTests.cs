@@ -284,6 +284,37 @@ public sealed class ErasedFatStartTests
     }
 
     [Fact]
+    public void Entries_a_deleted_folder_kept_unmarked_start_where_they_say()
+    {
+        // Windows writes a folder's listing back lazily: in a folder deleted right after its files, their entries may stay
+        // as they were, not marked and with both halves of each first cluster number (seen on a FAT32 volume Windows
+        // made). Such an entry says where its file starts; only the one marked lost a half, and the file before places it.
+        var image = new Fat32Image();
+        uint folder = 6;
+        var text = Fat32Image.Text(1_500, "not a photo"); // where the entry points, not a .jpg's data
+        var blob = Fat32Image.Data(700, 21);
+        var last = Fat32Image.Data(300, 22);
+        image.Put(2, [.. Fat32Image.Entry("PHOTOS     ", 0x10, folder, 0, deleted: true)]);
+        image.Folder(folder, 0,
+            Fat32Image.Entry("A       JPG", 0x20, 53, (uint)text.Length),
+            Fat32Image.Entry("B       BIN", 0x20, 190, (uint)blob.Length),
+            Fat32Image.Deleted("C       BIN", 192, last));
+        image.Put(53, text);
+        image.Put(190, blob);
+        image.Put(192, last);
+
+        var volume = Scan(image);
+        var photos = Assert.Single(volume.Root.Children);
+        Assert.Equal(["A.JPG", "B.BIN", "_.BIN"], photos.Children.Select(c => c.Name));
+        foreach (var (item, content) in photos.Children.Zip([text, blob, last]))
+        {
+            Assert.True(item.State == RecoveryState.Recoverable, Explain(item));
+            Assert.False(item.StartGuessed, Explain(item));
+            Assert.Equal(content, Recover(image, volume, item));
+        }
+    }
+
+    [Fact]
     public void A_deleted_folder_listing_goes_on_where_the_files_written_meanwhile_end()
     {
         var image = new Fat32Image();
@@ -430,8 +461,8 @@ public sealed class ErasedFatStartTests
         Assert.False(FatScanner.LooksLikeMoreEntries(new byte[512]));
         Assert.False(FatScanner.LooksLikeMoreEntries([.. Fat32Image.Entry(".          ", 0x10, 5, 0), .. new byte[480]])); // a folder's start
         Assert.True(FatScanner.LooksLikeMoreEntries([.. Fat32Image.Entry("SETUP   EXE", 0x20, 5, 10, deleted: true), .. new byte[480]]));
-        // Machine code can spell a name ("WATAVAWH": push rdi, push r12, …); searching all free space wants what Windows
-        // leaves of a deleted folder: every entry marked deleted.
+        // Machine code can spell a name ("WATAVAWH": push rdi, push r12, …); searching all free space wants every entry
+        // marked deleted.
         byte[] lookalike = [.. Fat32Image.Entry("WATAVAWH___", 0x20, 5, 10), .. new byte[480]];
         Assert.True(FatScanner.LooksLikeMoreEntries(lookalike));
         Assert.False(FatScanner.LooksLikeMoreEntries(lookalike, deletedOnly: true));
