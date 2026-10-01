@@ -87,7 +87,12 @@ That does not answer the question, since a PNG is never converted. The listings 
 as JPEG (transferring with "Automatic", which converts HEIC as it goes, or shooting JPEG). Whether such a JPEG's bytes
 are the size it lists is what one JPEG read would show; that needs the owner's leave for one more photo.
 
+**Answered (E-V21-U1):** with the owner's leave for up to 50 photos, copied into a scratch folder, compared by size and
+hash only and deleted afterwards, the phone sent exactly the listed size for all 50 JPEGs, and FileCat's copies were
+byte for byte what it sent. After a physical reconnect it sends seven of them with other bytes at the same sizes.
+
 ## Not done here
 
 - **Deleting:** offered, as the device allows it, and not tried on anything of the owner's.
-- **Locked and untrusted states, and unplugging part way:** these need the owner at the phone.
+- **Locked and untrusted states:** these need the owner at the phone. Unplugging part way: done, E-V21-U1 (it found I78
+  and I79).

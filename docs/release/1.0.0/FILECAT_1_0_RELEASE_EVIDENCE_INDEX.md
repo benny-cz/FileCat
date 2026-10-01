@@ -204,6 +204,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `5a4161b` | Recycle Bin: FileCat's own read-only view of it — both record formats read as untrusted input, deleted folders entered, items viewed and copied out | — | E-BIN-1 |
 | `f95e4cd` | Undo of a recycle: the bin's record of the restored item goes too; the test removes its own items from the bin (its comment's claim about Explorer corrected in the next records commit) | I77 | E-BIN-1 |
 | — (VM run) | I77: what Windows' own Restore, its undelete command and emptying the bin do with an item's record | I77 | E-BIN-1 |
+| — (device runs) | The cable pulled seven times while FileCat copied to and from the owner's iPhone and Motorola | I78, I79 | E-V21-U1 |
+| `7ee8e92` | Phones: an unplugged phone is said to be disconnected, a listing is never cut short silently; a resume checks the file's start | I78, I79 | E-V21-U1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

@@ -34,9 +34,8 @@ Seven cases, 0 failed. Afterwards the phone's storage root, looked at read-only 
 
 ## What V21 asks that this does not cover
 
-- **Disconnecting, locking or unplugging the phone mid-transfer**, and reconnecting: these need the owner's hands at
-  the moment a transfer runs (the cases exist to be run with them: no false success, partial output visible, the
-  source kept while completion is uncertain, no hang).
+- **Locking the phone mid-transfer.** Unplugging it mid-transfer, copying onto it and off it, and reconnecting: done
+  with the owner, E-V21-U1 (no false success, nothing half-written left on the phone, no hang; it found I78).
 - A full device, and the temporary-name fallback a device without renames forces.
 - A read-oriented device (the iPhone class) and its read-only capability shown as such: done on the owner's iPhone,
   E-V21-I1 (it found I72).

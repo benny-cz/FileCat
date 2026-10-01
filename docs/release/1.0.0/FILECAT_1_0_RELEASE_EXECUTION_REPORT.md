@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `f95e4cd` and a comment-only correction after it (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `7ee8e92` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -420,6 +420,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     and the leftovers were removed from the owner's bin, only those. Checked afterwards on the lent VM: Windows' own
     Restore leaves that record too (three runs), as does emptying the bin with such records in it; the fix's comment and
     commit message had said otherwise, unchecked, and the records and comment are corrected.
+107. V21, the cable pulled mid-transfer, with the owner at the phones (E-V21-U1): seven pulls, two on the iPhone copying
+    photos off it (with the owner's leave for up to 50, deleted afterwards), five on the Motorola inside `FileCat-test`
+    (one copying onto it, four off it). Nothing half-written was published or left on a phone, nothing hung, and Retry
+    finished every copy whole. **I78** (Medium, `7ee8e92`): every pull during a copy off a phone was reported as the file
+    "no longer exists": .NET raises the phone's "not found" as `FileNotFoundException`, which FileCat's device handlers,
+    catching `COMException` only, let through; listings also passed a cut answer off as the folder. A trace of each step
+    on the fourth pull found it; the fifth, after the fix, said "disconnected" and passed. **I79** (Low–Medium, same
+    commit): after a reconnect the iPhone sends seven of the 50 photos with other bytes at the same size, which the check
+    before resuming (the 64 KiB before the break) could not tell; the file's start is compared too now. The JPEG question
+    of item 102 is answered: the iPhone sends its converted JPEGs at exactly their listed sizes. Locking a phone
+    mid-transfer is not done. Suites: Core 719, Windows 159, App 206, Remote 116; 0 failed.
+108. The owner's request, queued (low priority): tooltips over icons styled by the selected theme (**I80**).
 
 ## Evidence invalidated by the campaign's own changes
 

@@ -76,6 +76,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I80 | Tooltips over icons are not styled by the selected theme | Low (looks; the owner's request) | Should fix (owner's request, 2026-10-01) | **Queued** |
+| I79 | Resuming checked only the 64 KiB before the break: an iPhone, reconnected, sends some photos with other bytes at their start, and the resumed copy kept the old start with the new rest | Low–Medium (a resumed copy can mix two versions of a file whose start changed at the same size and time; on the owner's iPhone it happened to equal one version) | Must fix (V21, plan §14) | **Remediated `7ee8e92`; verified** (unit test with a negative control; the Motorola) |
+| I78 | Phones: an unplugged phone was reported as the file being copied "no longer exists"; a folder listed as it was unplugged came back shorter or empty, without an error | Medium (a false statement about the user's file; a listing cut short passed off as the folder's contents) | Must fix (V21) | **Remediated `7ee8e92`; verified** (unit tests with a negative control; the owner's Motorola, cable pulled) |
 | I77 | Windows: a FileCat test left 163 records of its deleted files in the owner's Recycle Bin; FileCat's undo of a recycle leaves the item's record behind, as Explorer's own Restore does | Low (records Windows neither shows nor counts, a few hundred bytes each, without bound; no user data affected) | Should fix (E-BIN-1, test hygiene) | **Remediated `f95e4cd`; verified** (unit test with a negative control; the owner's bin; Windows' own Restore observed on the lent VM) |
 | I76 | Delete: FileCat could not delete a folder OneDrive keeps in sync, nor any customized folder (their read-only mark), and blamed Controlled Folder Access | Medium (a common folder could not be deleted, nor moved off its drive whole; the message pointed elsewhere) | Must fix (E-CLOUD-1, V02) | **Remediated `edd950a`; verified** (unit tests with a negative control; the owner's OneDrive) |
 | I75 | Taskbar: the pinned icon read small on a dark taskbar; the 24-pixel frame fixed earlier is not what a pinned item draws | Low (looks; the owner's report) | Should fix (owner's request, E-ICON-1) | **Remediated `a9f48cf`; verified** (the lent VM's real taskbar, dark and light) |
@@ -1021,6 +1024,51 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I80 — Tooltips over icons are not styled by the selected theme
+
+- **Found by:** the owner (2026-10-01): "improve tooltips for icons, style them better according to the selected theme".
+- **Status:** queued, low priority, after V21's records.
+
+### I79 — Resuming checked only the bytes before the break
+
+- **Found by:** E-V21-U1, the owner's iPhone, its cable pulled while FileCat copied photos off it.
+- **What was wrong:** a copy that stops part way resumes only when the source is provably the same file. The check was
+  the same size and time, and the last 64 KiB before the break reading the same. After a physical reconnect the
+  iPhone sends seven of 50 photos with other bytes at the same size (a conversion's metadata, most likely); a photo cut
+  at 4 MiB passed the check, and the copy kept its old first 4 MiB and appended the new rest. Here the result equalled
+  the version sent before the pull, since the two versions differed only before the break; where they differ on both
+  sides, the copy would have mixed them.
+- **Remediation (`7ee8e92`):** the file's first 64 KiB must read the same too, or the copy starts again from the
+  beginning and the job says so. The start is read first, so a source that reads forward only (a phone) reads nothing
+  more than before.
+- **Verification:** `ResumeTransferTests` (one byte at the start differs: copied again from the start; it fails without
+  the change; the other seven unchanged); the Motorola resumed at 8,388,608 bytes after the new check, every file
+  whole (E-V21-U1). Not rerun on the iPhone.
+- **Severity:** Low–Medium: no copy was wrong here, but the check's promise ("provably the same file") did not hold for a
+  device that regenerates what it sends.
+
+### I78 — Phones: an unplugged phone was reported as the file "no longer exists"
+
+- **Found by:** E-V21-U1: the owner pulled the cable seven times while FileCat copied to and from the iPhone and the
+  Motorola.
+- **What was wrong:** each pull during a copy off a phone ended in FileCat's question saying "The item no longer exists or
+  its folder was removed." An unplugged phone answers "not found" (0x80070002) to opening it and to much else, and .NET
+  raises that code as `FileNotFoundException`, not as `COMException`; every handler in `WpdSession` caught
+  `COMException` only, so the device's answer reached the copy unexplained. Folder listings also took an error from
+  the device's enumerator for the end of the folder, and dropped items they could not describe: a phone unplugged while
+  a folder was listed gave a shorter or empty folder without an error.
+- **Remediation (`7ee8e92`):** every device call's failure is handled in one place, which takes those exceptions too.
+  A failure from a device that Windows no longer lists, or that does not answer a request for its own description, is
+  "the device was disconnected. Connect it again and unlock it, then try again.", whatever the code, and the session is
+  opened anew; a connected device's "not found" is still "not found". A listing fails on an enumerator error, and an
+  empty or cut answer from a device that is gone is "disconnected".
+- **Verification:** `MtpDisconnectTests` (5; the case of a device Windows no longer lists fails without the device-list
+  check). On the Motorola, the same pull before the fix (three times) and after it: "Could not open the device: the
+  device was disconnected...", resumed after Retry, all files whole; a trace of each step showed the cause. The MTP
+  device tests on the Motorola after each change: 19, 0 failed.
+- **Severity:** Medium: telling the user their file no longer exists, when the phone was unplugged, is a false
+  statement about their data; a cut listing shown as the folder's contents is worse.
 
 ### I77 — Windows: a FileCat test littered the owner's Recycle Bin with records
 
