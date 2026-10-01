@@ -55,6 +55,17 @@ public interface ISftpChannel : IDisposable
     Stream CreateNew(string path);
 
     /// <summary>
+    /// Writes <paramref name="input"/>, from its position to its end, into a new file (failing when the name exists), with
+    /// as many requests in flight as the protocol allows: SFTP's one-at-a-time stream writes managed 0.29 MB/s at a 100 ms
+    /// round trip (release issue I39). Reading <paramref name="input"/> may block or throw, to pace, pause or cancel.
+    /// </summary>
+    void UploadNew(Stream input, string path)
+    {
+        using var output = CreateNew(path);
+        input.CopyTo(output, 256 * 1024);
+    }
+
+    /// <summary>
     /// Continues writing a file this job created, from <paramref name="offset"/> (an interrupted upload). Throws
     /// <see cref="NotSupportedException"/> where the server cannot, and the upload then starts again.
     /// </summary>

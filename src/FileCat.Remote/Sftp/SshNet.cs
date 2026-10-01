@@ -173,6 +173,14 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
 
     public Stream CreateNew(string path) => Wrap<Stream>(() => new ChannelStream(client.Open(path, FileMode.CreateNew, FileAccess.Write)));
 
+    /// <summary>SSH.NET's upload keeps many write requests in flight (5.7 MB/s where stream writes made 0.29 at 100 ms).</summary>
+    public void UploadNew(Stream input, string path) => Wrap(() =>
+    {
+        // canOverride false: opened with create-exclusive, as CreateNew is.
+        client.UploadFile(input, path, canOverride: false);
+        return true;
+    });
+
     public Stream OpenWriteAt(string path, long offset) => Wrap<Stream>(() =>
     {
         var stream = client.Open(path, FileMode.Open, FileAccess.Write); // never truncates

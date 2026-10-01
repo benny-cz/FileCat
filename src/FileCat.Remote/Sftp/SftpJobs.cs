@@ -220,7 +220,6 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     : SftpExecutorBase(job, fs, journal, sftp), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private const int BufferSize = 256 * 1024;
-    private byte[]? _buffer;
     private int _temp;
     private bool _notedNonAtomic;
 
@@ -493,19 +492,24 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 Job.AddBytes(start - written);
                 written = start;
                 using (var input = openSource())
-                using (var output = start == 0 ? Channel.CreateNew(temp!) : Channel.OpenWriteAt(temp!, start))
                 {
                     if (start > 0) input.Seek(start, SeekOrigin.Begin);
-                    var buffer = _buffer ??= new byte[BufferSize];
+                    // Each stretch read is counted and paced to the speed limit (from this attempt's start), and a pause or
+                    // a cancel takes effect at the next read.
                     var clock = Stopwatch.StartNew();
-                    int n;
-                    while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+                    var paced = new PacedRead(input, n =>
                     {
-                        Job.Checkpoint();
-                        output.Write(buffer, 0, n);
                         written += n;
                         Job.AddBytes(n);
-                        Job.Throttle(written, clock);
+                        Job.Throttle(written - start, clock);
+                        Job.Checkpoint();
+                    });
+                    // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
+                    if (start == 0) Channel.UploadNew(paced, temp!);
+                    else
+                    {
+                        using var output = Channel.OpenWriteAt(temp!, start);
+                        paced.CopyTo(output, BufferSize);
                     }
                 }
                 if (incoming.ModifiedUtc > DateTime.MinValue) Channel.SetModified(temp!, incoming.ModifiedUtc);
@@ -689,6 +693,36 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         public void AddBatch(ReadOnlySpan<EntryData> entries) => into.AddRange(entries.ToArray());
         public void ReportIssue(string message) { }
     }
+}
+
+/// <summary>
+/// A source as an upload reads it: after each stretch, <paramref name="read"/> counts it, paces the job and lets a pause
+/// or a cancel take effect, so an upload that reads at its own pace (SSH.NET's) stays under the job's control.
+/// </summary>
+internal sealed class PacedRead(Stream inner, Action<int> read) : Stream
+{
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        int n = inner.Read(buffer, offset, count);
+        if (n > 0) read(n);
+        return n;
+    }
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
 /// <summary>A sequential stream over provider content (an archive member, a file on another server).</summary>

@@ -107,11 +107,22 @@ public sealed class RemoteLabTests : IDisposable
         return new Stack { Connections = connections, Profile = profile, Files = files, Jobs = new JobManager(files, providers, Path.Combine(state, "journal")) };
     }
 
+    /// <summary>
+    /// The lab's port for a protocol: the case's own (OpenSSH, vsftpd), or one FILECAT_REMOTE_LAB_PORTS names, so the same
+    /// cases run against a second implementation ("sftp=2222,ftpes=2121,ftps=2990,ftp=2121" for the lab's ProFTPD).
+    /// </summary>
+    private static int LabPort(string protocol, int port)
+    {
+        foreach (string pair in (Environment.GetEnvironmentVariable("FILECAT_REMOTE_LAB_PORTS") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+            if (pair.Split('=') is [var name, var value] && name.Trim() == protocol && int.TryParse(value, out int p)) return p;
+        return port;
+    }
+
     private static RemoteProfile Profile(string protocol, int port, (string Host, string User, string Password) lab) => new()
     {
         Name = "lab " + protocol,
         Host = lab.Host,
-        Port = port,
+        Port = LabPort(protocol, port),
         User = lab.User,
         Protocol = protocol,
         Temporary = true,
