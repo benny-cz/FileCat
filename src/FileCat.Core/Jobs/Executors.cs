@@ -1351,6 +1351,15 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
             var info = Fs.TryGetInfo(child);
             if (info is null) continue;
             Job.SetCurrent(child);
+            if (info.IsDirectory && !info.IsLink && Fs.IsMountPoint(child))
+            {
+                // On Linux and macOS a folder a drive, a share or a bind mount is mounted at is an ordinary directory:
+                // deleting the folder above it must not empty another volume (as rm -r would without --one-file-system).
+                Job.ItemSkipped();
+                Issue(IssueSeverity.Warning, child, "Another file system is mounted here (a drive, a share, or a bind mount): FileCat does not delete into it. Unmount it first.", StepOutcome.Skipped);
+                all = false;
+                continue;
+            }
             all &= info.IsDirectory && !info.IsLink ? DeleteTree(child) : DeleteOne(child, info);
         }
         if (!all) return false;

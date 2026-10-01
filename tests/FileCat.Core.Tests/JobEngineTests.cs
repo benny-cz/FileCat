@@ -263,6 +263,53 @@ public sealed class JobEngineTests : IDisposable
         Assert.True(File.Exists(Path.Combine(target, "keep.txt")));
     }
 
+    /// <summary>File operations that call one folder a mount point, as a drive mounted inside a folder is on Linux and macOS.</summary>
+    private sealed class MountedAt(string mountPoint) : PortableFileOperations, IFileSystemOperations
+    {
+        bool IFileSystemOperations.IsMountPoint(string path) => string.Equals(Path.GetFullPath(path), mountPoint, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A permanent delete of a folder stops at a folder inside it where another file system is mounted (a drive, a share,
+    /// a bind mount, which on Linux and macOS is an ordinary directory): it says so, deletes the rest, and leaves the
+    /// mounted volume and the folders above it (found reviewing V23 B01; rm -r would empty the volume).
+    /// </summary>
+    [Fact]
+    public async Task A_permanent_delete_never_reaches_into_a_file_system_mounted_inside()
+    {
+        string doomed = Path.Combine(_src, "doomed"), mount = Path.Combine(doomed, "usb");
+        Directory.CreateDirectory(Path.Combine(doomed, "sub"));
+        Directory.CreateDirectory(mount);
+        File.WriteAllText(Path.Combine(doomed, "a.txt"), "a");
+        File.WriteAllText(Path.Combine(doomed, "sub", "b.txt"), "b");
+        File.WriteAllText(Path.Combine(mount, "on-the-stick.txt"), "keep");
+        var jobs = new JobManager(new MountedAt(Path.GetFullPath(mount)), _providers, Path.Combine(_dir.Path, "journal-mounted"));
+        var job = await WaitAsync(jobs.Submit(new JobRequest { Kind = JobKind.Delete, Sources = [Item(doomed)] }));
+        Assert.True(File.Exists(Path.Combine(mount, "on-the-stick.txt")));
+        Assert.False(File.Exists(Path.Combine(doomed, "a.txt")) || Directory.Exists(Path.Combine(doomed, "sub")));
+        Assert.True(Directory.Exists(doomed));
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.Contains(job.Issues, i => i.Path == mount && i.Message.StartsWith("Another file system is mounted here", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The same with a real mount (gated): FILECAT_TEST_MOUNT_INSIDE names a folder whose "mnt" folder has a file system
+    /// mounted on it, holding a file "on-the-mount.txt" (Linux as root: mount -t tmpfs none folder/mnt).
+    /// </summary>
+    [Fact]
+    public async Task A_permanent_delete_stops_at_a_real_mount_inside()
+    {
+        string folder = Environment.GetEnvironmentVariable("FILECAT_TEST_MOUNT_INSIDE") ?? "";
+        if (folder.Length == 0) Assert.Skip("Set FILECAT_TEST_MOUNT_INSIDE to a folder with a file system mounted at its \"mnt\" folder.");
+        string mount = Path.Combine(folder, "mnt");
+        Assert.True(File.Exists(Path.Combine(mount, "on-the-mount.txt")), "Put on-the-mount.txt on the mounted file system.");
+        File.WriteAllText(Path.Combine(folder, "beside.txt"), "x");
+        var job = await WaitAsync(Submit(JobKind.Delete, [folder]));
+        Assert.True(File.Exists(Path.Combine(mount, "on-the-mount.txt")));
+        Assert.False(File.Exists(Path.Combine(folder, "beside.txt")));
+        Assert.Contains(job.Issues, i => i.Path == mount && i.Message.StartsWith("Another file system is mounted here", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Cancel_leaves_no_partial_destination()
     {

@@ -173,6 +173,13 @@ public interface IFileSystemOperations
     /// path does not exist.
     /// </summary>
     string? GetFinalPath(string path);
+
+    /// <summary>
+    /// Whether another file system is mounted at this folder (a drive, a share, a bind mount). On Linux and macOS such a
+    /// folder is an ordinary directory, so a permanent delete of a folder above it stops there rather than reach into
+    /// another volume; on Windows a folder a volume is mounted at is a reparse point, never followed anyway.
+    /// </summary>
+    bool IsMountPoint(string path) => !OperatingSystem.IsWindows() && PortableFileOperations.IsUnixMountPoint(path);
 }
 
 public enum LinkKind
@@ -251,6 +258,15 @@ public class PortableFileOperations : IFileSystemOperations
                 best = mount;
         }
         return best;
+    }
+
+    /// <summary>Unix: whether a folder is itself one of the mount points (the system's mount table; bind mounts included).</summary>
+    public static bool IsUnixMountPoint(string fullPath)
+    {
+        string path = fullPath.Length > 1 ? fullPath.TrimEnd('/') : fullPath;
+        foreach (var mount in MountPoints())
+            if ((mount.Length > 1 ? mount.TrimEnd('/') : mount) == path) return true;
+        return false;
     }
 
     private static string[] _mounts = [];
