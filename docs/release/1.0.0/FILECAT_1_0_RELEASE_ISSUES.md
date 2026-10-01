@@ -59,8 +59,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I47 | FTP: an upload cut off on a server that will not continue it (ProFTPD) never finished; a dropped session stalled a minute | Medium (an interrupted upload could not complete; each retry refused; a 60 s stall) | Must fix | **Remediated `111ebcd`; verified against ProFTPD and vsftpd** (E-V08-L2) |
 | I48 | A move across volumes deleted its source without checking that the copy was still at the destination | Medium (data loss when another program takes the new copy away at once: antivirus quarantine, sync clients) | Must fix (DPI P01) | **Remediated `e72e3fc`; verified** (E-DPI) |
 | I49 | Moves to and from servers could delete what was never copied: a folder moved off a server went whole (with files that appeared or changed meanwhile); a moved local file went though it changed during the upload | High (silent data loss under concurrent change) | Must fix (DPI P09) | **Remediated `e72e3fc`; verified against OpenSSH, vsftpd and ProFTPD** (E-DPI) |
-| I50 | Synchronize removed or replaced target items that changed after the comparison (while the plan was reviewed) | High (an edited file deleted, permanently where chosen, or overwritten by an older version) | Must fix (DPI P10) | **Remediated `99145cf`; verified** (E-DPI) |
+| I50 | Synchronize removed or replaced target items that changed after the comparison (while the plan was reviewed) | High (an edited file deleted, permanently where chosen, or overwritten by an older version) | Must fix (DPI P10) | **Remediated `99145cf`, folders again `efc128f`; verified** (E-DPI) |
 | I51 | Linux/macOS: setting a link's read-only changed the item it points to | Low–Medium (metadata of an item outside the selection; links must not be followed) | Must fix (DPI P11) | **Remediated `65a76f8`; verified on macOS** (E-DPI) |
+| I52 | FAT32: the files of a deleted folder were placed by a guess, wrongly, though their entries said where they start | Low–Medium (recovery quality: exactly recoverable files offered only as stated guesses) | Should fix (V09) | **Remediated `78a48ce`; verified on images Windows made** (E-V09-W1) |
 
 ## Records of issues worked in this campaign
 
@@ -642,6 +643,18 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Tests:** `SyncTests.Mirror_removes_a_target_item_only_while_it_is_as_compared` and
   `SyncTests.Mirror_replaces_a_target_file_only_while_it_is_as_compared` fail before (the edited file deleted;
   overwritten by "left d") and pass after.
+- **Follow-up (`efc128f`):** the check of a folder by its own modified time failed both ways on NTFS, which CI showed
+  as two flaky tests from `99145cf` on. The time a listing shows for a folder lags its own time by up to a few
+  milliseconds after something is created in it (61–83 of 200 probes on the host's E: drive), so an untouched folder
+  was refused. An item added within the same clock tick leaves the folder's time as it was (22–53 of 200), so a folder
+  holding a file added after the comparison was removed with it (CI, Windows ARM64). Nor does a folder's time ever
+  tell of changes deeper in. Now the comparison reads all a one-sided folder holds (files, folders, sizes, times: counts
+  and one fingerprint) and the plan says it; a folder goes only while a fresh reading is the same, and one that could
+  not be read in full is not offered. On E:, `SyncTests` failed 10 and 5 of 40 runs before, 0 of 40 after (probe
+  `i50-dir-times-probe.txt` `23e5fe5a4293cc05655b5726fd6a8a6ebd06bfc7774e199a2ff6d20831e7c340`, runs
+  `i50-folder-check-stress.txt` `7dd4394666637dcf2f3872e8053292b4fc6c66323dad7e11743f0c728eeacc64`). New tests:
+  `SyncTests.Mirror_removes_a_folder_only_while_all_it_holds_is_as_compared` (a change two levels down keeps the
+  folder), `TreeCompareTests.What_a_folder_holds_reads_the_same_until_something_in_it_changes`.
 
 ### I51 — Linux/macOS: setting a link's read-only changed the item it points to
 
@@ -652,6 +665,21 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remediation (`65a76f8`):** on Linux and macOS a link's attributes are left as they are, with a note.
 - **Tests:** `AttributeLinkTests.Changing_a_links_time_or_read_only_never_changes_what_it_points_to` fails on macOS before
   and passes after; passes on Windows throughout.
+
+### I52 — FAT32: the files of a deleted folder were placed by a guess though their entries said where they start
+
+- **Discovered:** V09 check on disk images made by Windows' own drivers (E-V09-W1): on FAT32, the two files of the
+  deleted folder `photos` came back "Uncertain", read from blank space.
+- **Mechanism:** Windows erases the upper half of a deleted FAT32 entry's first cluster number, so FileCat weighs every
+  place the lower half allows. The entries in `photos` were never marked deleted on disk: the folder was deleted right
+  after its files, and its listing, which Windows writes back lazily, was freed before those marks were written. Their
+  numbers were whole, but FileCat took every entry inside a deleted folder for a half-erased one. It weighed 53 and
+  65,589 for `a.jpg`, and since the fixture's ".jpg" files hold text, the blank place ranked first.
+- **Severity / disposition:** Low–Medium. Files that could be recovered exactly were offered only as guesses, here
+  from the wrong place. FileCat always said so, so it never made a false claim of recovery. Should fix (V09).
+- **Remediation (`78a48ce`):** only an entry marked deleted itself counts as half-erased.
+- **Tests:** `ErasedFatStartTests.Entries_a_deleted_folder_kept_unmarked_start_where_they_say` fails before (`A.JPG`
+  Uncertain) and passes after; on the Windows-made FAT32 image 6 of 6 files come back byte for byte after (4 before).
 
 ## New detail on open issues
 

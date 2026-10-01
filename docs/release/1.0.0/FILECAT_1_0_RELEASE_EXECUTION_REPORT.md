@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `65a76f8` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `7791bda` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -22,7 +22,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   folder's counted size vanishing at a refresh, `6e9ee75`), I33–I41 and I43–I51 (remote transfers against real
   servers of two implementations, recovery allocation, state-folder permissions, a second FileCat seeing a running job,
   moves deleting a source whose copy was gone or deleting what was never copied, Synchronize acting on targets changed
-  since the comparison, a link's read-only set through it)
+  since the comparison, a link's read-only set through it, FAT32 recovery guessing where an entry was whole: I52)
   and I25 (Markdown drawn as a page). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
   **Queued:** I27 (Linux icons under Adwaita 41), I31 (viewer windows only partly themed; assessed).
   **Running:** a fuzz campaign of the recovery scanner over millions of rounds on both VMs and the Mac (E-I28-C1).
@@ -186,6 +186,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     was reset, its offloads turned off; its fuzz runs restarted as one queue, four at a time (E-ENV-05, E-I28-C1).
 54. V08 from the Windows VM as a client (E-V08-L2): 21/21 against OpenSSH and vsftpd, 21/21 against ProFTPD, 7/7 against
     Samba, after the lab's cut-off case was made independent of the drop command's speed (`d228632`).
+55. V09 on disk images made by Windows' own drivers (E-V09-W1): NTFS 6/6 byte for byte; exFAT 4/4, the two files of a
+    folder whose listing Windows reused rightly declared lost; FAT32 4/6, two files placed by a wrong guess though
+    their entries were whole (I52, fixed `78a48ce`; 6/6 after). The raw bytes were read independently.
+56. CI red from `99145cf` on: I50's folder check by the folder's own time failed both ways on NTFS (a folder's listed
+    time lags its own; a second item within one clock tick leaves it unchanged). Reproduced on the host (10 and 5 of
+    40 runs fail), redone by what the folder holds (`efc128f`; 0 of 40). Three test flakes fixed or made to explain
+    themselves (`7791bda`): the move test's hook raced the copy job's counting thread on macOS.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -203,16 +210,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   them; the lab's runs must be repeated on the candidate.
 - `8b0dafd` (state folders), `e399276` (journal recovery): V11/V23 state evidence and V03 interruption evidence.
 - `2a6f882` (Shell helper): the helper binary changed; V16 Shell-preview evidence must use the candidate.
+- `78a48ce` (FAT recovery): V09/V11 FAT recovery evidence before it.
+- `efc128f` (comparison, Synchronize): V13 comparison and synchronization evidence before it; a one-sided folder is now
+  read in full when compared.
 
 ## Next actions (unblocked)
 
 1. Collect the fuzz campaign's results (E-I28-C1).
-2. DPI P05–P07, P12, P13; I22/I34 replace on a FAT destination.
+2. DPI P05–P07, P13; I22/I34 replace on a FAT destination.
 3. I42's options for the owner (fewer requests per file; several files in flight).
 4. The queued Low issues: I27, I31.
 5. Recovery and device-read cases on disposable virtual disks attached to the VMs (FAT/exFAT/NTFS images, block devices;
    I09 topology), as the owner permitted.
-6. Continue the V23/DPI source review in risk order: DPI P01/P02/P04/P08/P14/P16, the rest of B04 (I17), B10 (I16),
-   B08 (I09).
+6. Continue the V23/DPI source review in risk order: the rest of B04 (I17), B10 (I16), B08 (I09).
 7. Finish step 3's skip lists for the portable and ARM64 lanes; I04 on Ubuntu 26.04.
 8. Keep the records current after each change.
