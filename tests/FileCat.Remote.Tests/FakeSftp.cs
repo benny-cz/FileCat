@@ -44,6 +44,9 @@ internal sealed class FakeSftpServer
     /// <summary>False: a server that does not set times when asked (vsftpd without MFMT, before I43), and says nothing.</summary>
     public bool KeepsTimes { get; set; } = true;
 
+    /// <summary>False: a server not known to rename links themselves (ProFTPD's SFTP renames the target, I46).</summary>
+    public bool RenamesLinksThemselves { get; set; } = true;
+
     public FakeSftpServer() => Dir(Home);
 
     public static byte[] KeyBlob(string type, byte seed)
@@ -156,6 +159,8 @@ internal sealed class FakeChannel(FakeSftpServer server) : ISftpChannel
     private bool _closed;
 
     public bool IsConnected => !_closed && !server.Down;
+
+    public bool RenamesLinksThemselves => server.RenamesLinksThemselves;
 
     public string HomeDirectory => server.Home;
 

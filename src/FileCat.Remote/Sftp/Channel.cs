@@ -72,6 +72,12 @@ public interface ISftpChannel : IDisposable
     bool AppendsOneRequestAtATime => false;
 
     /// <summary>
+    /// Whether the server renames a link itself when asked to rename it. ProFTPD's SFTP renames (and moves) the link's
+    /// target instead, wherever it is (release issue I46); FTP servers and OpenSSH rename the link.
+    /// </summary>
+    bool RenamesLinksThemselves => true;
+
+    /// <summary>
     /// Continues writing a file this job created, from <paramref name="offset"/> (an interrupted upload). Throws
     /// <see cref="NotSupportedException"/> where the server cannot, and the upload then starts again.
     /// </summary>
@@ -97,6 +103,9 @@ public interface ISftpChannel : IDisposable
 
 /// <summary>The connection broke; the work can continue after reconnecting only where it is provably safe.</summary>
 public sealed class RemoteDisconnectedException(string message, Exception? inner = null) : IOException(message, inner);
+
+/// <summary>FileCat will not do this on this server, whatever is tried again: the item fails with the reason.</summary>
+public sealed class RefusedOperationException(string message) : IOException(message);
 
 internal static class RemoteErrorText
 {

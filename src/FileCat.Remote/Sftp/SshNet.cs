@@ -214,6 +214,12 @@ internal sealed class SshNetChannel(SftpClient client, IDisposable? key) : ISftp
 
     public bool AppendsOneRequestAtATime => true;
 
+    /// <summary>
+    /// OpenSSH renames a link itself; ProFTPD's mod_sftp renames its target (I46, the lab: its own banner is
+    /// "SSH-2.0-mod_sftp"), and other servers are not known. SSH.NET offers no way to read a link before renaming it.
+    /// </summary>
+    public bool RenamesLinksThemselves { get; } = client.ConnectionInfo.ServerVersion?.StartsWith("SSH-2.0-OpenSSH", StringComparison.Ordinal) == true;
+
     /// <summary>SSH.NET's upload keeps many write requests in flight (5.7 MB/s where stream writes made 0.29 at 100 ms).</summary>
     public void UploadNew(Stream input, string path) => Wrap(() =>
     {

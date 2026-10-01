@@ -433,6 +433,34 @@ public sealed class SftpJobTests : IDisposable
         Assert.Equal(JobState.Failed, (await RunAsync(new JobRequest { Kind = JobKind.CreateDirectory, Destination = Remote("/r"), NewName = "made" })).State);
     }
 
+    [Fact]
+    public async Task Links_are_not_renamed_moved_or_set_aside_where_the_server_may_rename_their_targets()
+    {
+        // Release issue I46: ProFTPD's SFTP renamed and moved a link's target instead of the link.
+        _server.RenamesLinksThemselves = false;
+        _server.File("/r/target.txt", "keep");
+        _server.Link("/r/link.txt", "/r/target.txt");
+        _server.Dir("/r/into");
+        var rename = await RunAsync(new JobRequest { Kind = JobKind.Rename, Sources = [RemoteItem("/r", "link.txt")], NewName = "renamed.txt" });
+        var move = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [RemoteItem("/r", "link.txt")], Destination = Remote("/r/into") });
+        string b = LocalFile("link.txt", "uploaded");
+        var aside = await RunAsync(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [ItemRef.ForFileSystemPath(b, EntryKind.File)], Destination = Remote("/r"),
+            Options = new TransferOptions { Conflicts = ConflictPolicy.KeepBothRenameExisting },
+        });
+        Assert.All(new[] { rename, move, aside }, j => Assert.Contains(j.Issues, i => i.Message.Contains("it is a link", StringComparison.Ordinal)));
+        Assert.Equal(JobState.Failed, rename.State);
+        Assert.Equal(JobState.Failed, move.State);
+        // Nothing moved: the link and its target are where they were.
+        Assert.Equal("/r/target.txt", _server.Lookup("/r/link.txt", followFinal: false)!.LinkTarget);
+        Assert.Equal("keep", _server.Read("/r/target.txt"));
+        Assert.Null(_server.Lookup("/r/renamed.txt", false));
+        Assert.Null(_server.Lookup("/r/into/link.txt", false));
+        // A file is renamed as before.
+        Assert.Equal(JobState.Completed, (await RunAsync(new JobRequest { Kind = JobKind.Rename, Sources = [RemoteItem("/r", "target.txt")], NewName = "t2.txt" })).State);
+    }
+
     /// <summary>
     /// "Only files matching" moves only those: the others stay where they were, with their folders, in both directions;
     /// a move the executor cannot filter (a rename on the server) is refused before anything changes.

@@ -394,21 +394,38 @@ public sealed class RemoteLabTests : IDisposable
             string story = string.Join(" | ", jobs.Select(j => $"{j.Request.Kind} {j.State}: {string.Join("; ", j.Issues.Select(i => i.Message))}"));
             // What the server holds: type, path, and where a link points.
             string tree = Shell($"cd ~/{root} && find . -mindepth 1 -printf '%y %p>%l\\n' | LC_ALL=C sort");
-            string contents = Shell($"cd ~/{root} && cat target.txt real/inside.txt up/a.txt up/b.txt");
+            string contents = Shell($"cd ~/{root} && for f in target.txt real/inside.txt up/a.txt up/b.txt; do cat \"$f\" 2>/dev/null || echo \"($f is missing)\"; done");
             TestContext.Current.TestOutputHelper?.WriteLine(story + "\n" + tree + contents);
-            Assert.All(jobs, j => Assert.True(j.State == JobState.Completed, story));
             string[] lines = tree.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            Assert.Contains("f ./target.txt>", lines); // the targets stay where they were, as they were
+            // On every server: the targets stay where they were, as they were; a replaced link is now the uploaded file,
+            // and a deleted folder's link took nothing with it.
+            Assert.Contains("f ./target.txt>", lines);
             Assert.Contains("d ./real>", lines);
             Assert.Contains("f ./real/inside.txt>", lines);
+            Assert.Contains("f ./up/a.txt>", lines);
+            Assert.DoesNotContain(lines, l => l.StartsWith("d ./doomed", StringComparison.Ordinal) || l.Contains("to-real", StringComparison.Ordinal));
+            Assert.Equal(JobState.Completed, jobs[2].State);
+            Assert.Equal(JobState.Completed, jobs[4].State);
+            bool renames;
+            using (var lease = stack.Connections.Lease(profile.Id, TestContext.Current.CancellationToken)) renames = lease.Channel.RenamesLinksThemselves;
+            if (!renames)
+            {
+                // A server that may rename a link's target instead (ProFTPD's SFTP, I46): links are left as they are, and
+                // each job says why.
+                Assert.All(new[] { jobs[0], jobs[1], jobs[3] }, j => Assert.Contains(j.Issues, i => i.Message.Contains("it is a link", StringComparison.Ordinal)));
+                Assert.Contains("l ./file link>target.txt", lines);
+                Assert.Contains("l ./dir link>real", lines);
+                Assert.Contains("l ./up/b.txt>../target.txt", lines);
+                Assert.Equal("target\nkept\nuploaded a\ntarget\n", contents);
+                return;
+            }
+            Assert.All(jobs, j => Assert.True(j.State == JobState.Completed, story));
             Assert.Contains("l ./renamed link>target.txt", lines); // the renamed link is the link, pointing where it did
             Assert.DoesNotContain(lines, l => l.StartsWith("l ./file link>", StringComparison.Ordinal));
             Assert.Contains("l ./into/dir link>real", lines); // the moved link moved, unchanged
             Assert.DoesNotContain(lines, l => l.StartsWith("l ./dir link>", StringComparison.Ordinal));
-            Assert.Contains("f ./up/a.txt>", lines); // the link that was replaced is now the uploaded file
             Assert.Contains("f ./up/b.txt>", lines); // the link set aside keeps pointing at the target under its new name
             Assert.Single(lines, l => l.StartsWith("l ./up/b", StringComparison.Ordinal) && l.EndsWith(">../target.txt", StringComparison.Ordinal));
-            Assert.DoesNotContain(lines, l => l.StartsWith("d ./doomed", StringComparison.Ordinal) || l.Contains("to-real", StringComparison.Ordinal));
             Assert.Equal("target\nkept\nuploaded a\nuploaded b\n", contents);
         }
         finally
@@ -671,7 +688,8 @@ public sealed class RemoteLabTests : IDisposable
             Assert.All(times, t => Assert.True(Near(File.GetLastWriteTimeUtc(Path.Combine(back, "Lab tree", t.Key)), t.Value), t.Key));
             Assert.True(Directory.Exists(Path.Combine(back, "Lab tree", "Žluťoučký kůň", "empty")));
             // Every downloaded file carries its origin: the Internet zone and the server it came from.
-            string host = $"HostUrl={protocol}://{lab.Host}/";
+            // A server on another port than the protocol's own is named with it (FILECAT_REMOTE_LAB_PORTS).
+            string host = $"HostUrl={protocol}://{lab.Host}{(profile.Port == port ? "" : $":{profile.Port}")}/";
             Assert.Equal(expected.Count, stack.Files.Marks.Count);
             Assert.All(stack.Files.Marks, m => Assert.True(m.Contains("ZoneId=3", StringComparison.Ordinal) && m.Contains(host, StringComparison.Ordinal), m));
         }

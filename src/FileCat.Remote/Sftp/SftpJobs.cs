@@ -141,6 +141,12 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
             {
                 throw;
             }
+            catch (RefusedOperationException ex)
+            {
+                // Trying again would be refused again: the item fails with the reason, without a question.
+                Issue(IssueSeverity.Error, path, $"Could not {what}: {ex.Message}", StepOutcome.Failed, "refused");
+                return false;
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 bool lost = ex is RemoteDisconnectedException;
@@ -160,6 +166,17 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Renames or moves exactly this entry. A link only where the server renames links themselves: ProFTPD's SFTP renamed
+    /// and moved a link's target instead (release issue I46), and SSH.NET cannot read a link to check or undo it.
+    /// </summary>
+    protected void MoveEntry(IRemoteEntry entry, string newPath)
+    {
+        if (entry.IsLink && !Channel.RenamesLinksThemselves)
+            throw new RefusedOperationException("it is a link, and FileCat renames and moves links over SFTP only on OpenSSH servers: others may rename the link's target instead (ProFTPD's SFTP does).");
+        entry.MoveTo(newPath);
     }
 
     /// <summary>
@@ -460,7 +477,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                     break;
                 case DecisionAction.KeepBothRenameExisting:
                     string aside = RemotePath.Combine(destFolder, UniqueName(destFolder, name, existing.IsDirectory));
-                    if (!Remote(dst, "rename the existing item", () => (FreshEntry(destFolder, name) ?? throw new FileNotFoundException("The existing item is gone.")).MoveTo(aside)))
+                    if (!Remote(dst, "rename the existing item", () => MoveEntry(FreshEntry(destFolder, name) ?? throw new FileNotFoundException("The existing item is gone."), aside)))
                     {
                         Job.ItemFailed();
                         return false;
@@ -853,7 +870,7 @@ internal sealed class SftpMoveExecutor(Job job, IFileSystemOperations fs, JobJou
                 if (FreshEntry(destFolder, name) is not null)
                     throw new IOException($"\"{name}\" exists in the destination folder; nothing was moved. Rename one of them first.");
                 var entry = FreshEntry(folder, item.Name) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
-                entry.MoveTo(dst);
+                MoveEntry(entry, dst);
                 Changed(folder);
                 Changed(destFolder);
             });
@@ -969,7 +986,7 @@ internal sealed class SftpRenameExecutor(Job job, IFileSystemOperations fs, JobJ
         bool ok = Remote(path, "rename the item", () =>
         {
             if (FreshEntry(folder, newName) is not null) throw new IOException($"An item named \"{newName}\" exists; nothing was renamed.");
-            (FreshEntry(folder, item.Name) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.")).MoveTo(target);
+            MoveEntry(FreshEntry(folder, item.Name) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server."), target);
         });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (ok)
