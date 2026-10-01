@@ -170,4 +170,19 @@ public class PathAndStateTests
         Assert.Equal(Location.FileSystem(dir.Path), back.Panels[0].Tabs[0].Location);
         Assert.True(back.Panels[0].Tabs[0].Locked);
     }
+
+    [Fact]
+    public void FileCats_own_folders_are_its_users_alone_on_Linux_and_macOS()
+    {
+        // Release plan P16: history, journals, previews and hex originals are file names and contents; under the usual
+        // umask other local accounts could read them. A folder made before (0755) is tightened when FileCat starts.
+        if (OperatingSystem.IsWindows()) Assert.Skip("Windows keeps the user's application data private by its ACLs.");
+        using var dir = new TempDir();
+        string root = Path.Combine(dir.Path, "state");
+        Directory.CreateDirectory(root);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1ED); // 0755, as an earlier start left it
+        var paths = FileCat.Core.State.AppPaths.Resolve(overrideRoot: root);
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(root));
+        Assert.True(Directory.Exists(paths.JournalDirectory) && Directory.Exists(paths.TempDirectory));
+    }
 }

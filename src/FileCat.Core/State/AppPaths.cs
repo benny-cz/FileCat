@@ -9,7 +9,7 @@ public sealed class AppPaths
 {
     public const string PortableMarker = "FileCat.portable";
 
-    private AppPaths(string settingsDir, string localDir, bool portable, string profile)
+    private AppPaths(string settingsDir, string localDir, bool portable, string profile, IReadOnlyList<string> ownRoots)
     {
         SettingsDirectory = settingsDir;
         LocalDirectory = localDir;
@@ -19,7 +19,11 @@ public sealed class AppPaths
         if (string.IsNullOrWhiteSpace(privateRoot)) privateRoot = Path.GetTempPath();
         ListingScratchDirectory = Path.Combine(privateRoot, "FileCat", "scratch", profile);
         HexRecoveryDirectory = Path.Combine(privateRoot, "FileCat", "hex-recovery", profile);
+        OwnRoots = [.. ownRoots, Path.Combine(privateRoot, "FileCat")];
     }
+
+    /// <summary>The folders FileCat owns whole: all its state lives below them.</summary>
+    private IReadOnlyList<string> OwnRoots { get; }
 
     public string SettingsDirectory { get; }
     public string LocalDirectory { get; }
@@ -52,7 +56,7 @@ public sealed class AppPaths
         if (!string.IsNullOrEmpty(overrideRoot))
         {
             var root = Path.Combine(overrideRoot, suffix);
-            return new AppPaths(root, Path.Combine(root, "local"), true, profile).Ensure();
+            return new AppPaths(root, Path.Combine(root, "local"), true, profile, [overrideRoot]).Ensure();
         }
         baseDirectory ??= AppContext.BaseDirectory;
         string? portableProblem = null;
@@ -60,12 +64,13 @@ public sealed class AppPaths
         {
             var root = Path.Combine(baseDirectory, "Data", suffix);
             // A marker in a folder the user cannot write to (for example under Program Files) must not stop startup.
-            if (IsWritable(root)) return new AppPaths(root, Path.Combine(root, "local"), true, profile).Ensure();
+            if (IsWritable(root)) return new AppPaths(root, Path.Combine(root, "local"), true, profile, [Path.Combine(baseDirectory, "Data")]).Ensure();
             portableProblem = $"The portable data folder \"{root}\" is not writable, so FileCat keeps its settings in your user profile instead.";
         }
         var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create);
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create);
-        return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile) { PortableUnavailableReason = portableProblem }.Ensure();
+        return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile,
+            [Path.Combine(roaming, "FileCat"), Path.Combine(local, "FileCat")]) { PortableUnavailableReason = portableProblem }.Ensure();
     }
 
     private static bool IsWritable(string directory)
@@ -89,7 +94,19 @@ public sealed class AppPaths
         foreach (var d in new[] { SettingsDirectory, LocalDirectory, JournalDirectory, LogDirectory, CacheDirectory, TempDirectory, WorkspacesDirectory, ListingScratchDirectory, HexRecoveryDirectory })
             Directory.CreateDirectory(d);
         if (!OperatingSystem.IsWindows())
+        {
+            // Linux and macOS: FileCat's folders are its user's alone (release plan P16). They hold file names (history,
+            // journals, diagnostics) and file contents (previews of archive members and remote files, hex originals), and
+            // a folder made under the usual umask (0755) is readable by every local account wherever the home folder does
+            // not stop them (Debian's homes are 0755). Folders made before are tightened at the next start; where the mode
+            // cannot be set (a FAT stick holding a portable copy), nothing is lost but the setting.
+            foreach (var root in OwnRoots)
+            {
+                try { File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { }
+            }
             File.SetUnixFileMode(ListingScratchDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
         return this;
     }
 
