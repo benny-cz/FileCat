@@ -1713,6 +1713,13 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
             var info = Fs.TryGetInfo(path) ?? throw new FileNotFoundException("The item no longer exists.", path);
             var current = info.Attributes;
             var wanted = (current & ~change.Clear & Editable | change.Set & Editable) | current & ~Editable;
+            // On Linux and macOS read-only is the item's permissions, which a link does not have of its own: setting it is a
+            // chmod, which changes what the link points to, wherever that is (seen on macOS; release plan DPI P11).
+            if (!OperatingSystem.IsWindows() && info.IsLink && wanted != current)
+            {
+                Issue(IssueSeverity.Info, path, "Attributes were not changed for a link: on this system it has none of its own, and FileCat leaves what it points to unchanged.", StepOutcome.Skipped);
+                wanted = current;
+            }
             bool times = change.ModifiedUtc is not null || change.CreatedUtc is not null;
             // Windows: times first, as a read-only file refuses time changes on some file systems. On Linux and macOS the
             // owner sets times whatever the permissions, and read-only there is derived from them.
