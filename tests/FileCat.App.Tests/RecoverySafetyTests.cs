@@ -85,7 +85,15 @@ public sealed class RecoverySafetyTests
         {
             SingleInstance.Release();
         }
-        Assert.False(SingleInstance.UsualInstanceRunning(profile));
+        // The server stops when its task sees the release: until then its pipe still takes connections (CI on Linux and
+        // macOS asked at once and was answered).
+        bool stopped = false;
+        for (int i = 0; i < 50 && !stopped; i++)
+        {
+            stopped = !SingleInstance.UsualInstanceRunning(profile);
+            if (!stopped) Thread.Sleep(20);
+        }
+        Assert.True(stopped);
     }
 
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
