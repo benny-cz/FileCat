@@ -541,7 +541,7 @@ public sealed partial class MainViewModel
     /// at its files; with <paramref name="folder"/>, at that folder or as close as the scan goes). The drive is read
     /// directly when this user may, otherwise the system asks for approval first.
     /// </summary>
-    private async Task FindDeletedOnUnixDeviceAsync(PanelViewModel panel, UnixBlockDevice device, string? folder)
+    internal async Task FindDeletedOnUnixDeviceAsync(PanelViewModel panel, UnixBlockDevice device, string? folder)
     {
         bool disk = device.Disk is null;
         string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";

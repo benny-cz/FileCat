@@ -28,11 +28,15 @@ public sealed class RecoveryWriteTraceTests
     {
         string? disk = Environment.GetEnvironmentVariable("FILECAT_V09_DISK");
         string? drive = Environment.GetEnvironmentVariable("FILECAT_V09_DRIVE");
+        // Linux and macOS: a device as UnixDisks lists it (/dev/loop5, /dev/sda, /dev/rdisk4), read directly (root, or
+        // a device this user may read).
+        string? unix = Environment.GetEnvironmentVariable("FILECAT_V09_UNIX_DEVICE");
         string? expect = Environment.GetEnvironmentVariable("FILECAT_V09_EXPECT");
         string? output = Environment.GetEnvironmentVariable("FILECAT_V09_OUT");
-        if (!OperatingSystem.IsWindows() || disk is null && drive is null || expect is not ("scan" or "refuse") || output is null)
-            Assert.Skip("Set FILECAT_V09_DISK or FILECAT_V09_DRIVE, FILECAT_V09_OUT and FILECAT_V09_EXPECT (scan, refuse); FILECAT_V09_DATA and FILECAT_V09_WAIT as needed.");
-        if (!Environment.IsPrivilegedProcess) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
+        bool windows = OperatingSystem.IsWindows() && (disk is not null || drive is not null);
+        if (!windows && (unix is null || OperatingSystem.IsWindows()) || expect is not ("scan" or "refuse") || output is null)
+            Assert.Skip("Set FILECAT_V09_DISK or FILECAT_V09_DRIVE (Windows) or FILECAT_V09_UNIX_DEVICE, FILECAT_V09_OUT and FILECAT_V09_EXPECT (scan, refuse); FILECAT_V09_DATA and FILECAT_V09_WAIT as needed.");
+        if (windows && !Environment.IsPrivilegedProcess) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
         string? data = Environment.GetEnvironmentVariable("FILECAT_V09_DATA");
         int wait = int.TryParse(Environment.GetEnvironmentVariable("FILECAT_V09_WAIT"), out int w) ? w : 70;
         var log = TestContext.Current.TestOutputHelper;
@@ -60,7 +64,13 @@ public sealed class RecoveryWriteTraceTests
         try
         {
             Task flow;
-            if (disk is not null)
+            if (!windows)
+            {
+                var device = FileCat.Recovery.Unix.UnixDisks.List().Single(d => d.Device == unix);
+                Log($"{device.Device}: {device.Model}, {device.Bus}, {device.Length:N0} bytes; mounted at {string.Join(", ", device.MountPoints)}");
+                flow = vm.FindDeletedOnUnixDeviceAsync(panel, device, null);
+            }
+            else if (disk is not null)
             {
                 var chosen = FileCat.Platform.Windows.Recovery.DeviceTopology.Disks().Single(d => d.Number == int.Parse(disk, System.Globalization.CultureInfo.InvariantCulture));
                 Log($"disk {chosen.Number}: {chosen.Model}, {chosen.Bus}, {chosen.Length:N0} bytes");
