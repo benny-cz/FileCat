@@ -54,6 +54,7 @@ public static class RegistryImport
                 joined.Append(line);
                 line = joined.ToString();
             }
+            if (line.StartsWith(ViewMarker, StringComparison.Ordinal)) RequireSameView(line[ViewMarker.Length..], scope);
             if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#')) continue;
             if (line[0] == '[')
             {
@@ -136,6 +137,24 @@ public static class RegistryImport
             if (changes.Count > MaxChanges) throw new IOException("Import exceeds 250,000 changes.");
         }
         return new RegistryImportPlan(changes, addedKeys, addedValues, overwritten, deletedValues, deletedTrees, dataBytes);
+    }
+
+    /// <summary>The comment FileCat's export writes first (<see cref="RegistryInterchange"/>): the view the keys were read in.</summary>
+    internal const string ViewMarker = "; FileCat source view: ";
+
+    /// <summary>
+    /// A file FileCat exported from the 32-bit view names its keys as that view shows them, so imported into another
+    /// view it would write other keys (the 64-bit ones under the same path). The default view is the 64-bit one here.
+    /// </summary>
+    private static void RequireSameView(string rest, Location scope)
+    {
+        string label = rest.Split('.')[0].Trim();
+        bool file32 = label == WindowsRegistryProvider.ViewLabel("32");
+        bool scope32 = scope.Session == "32";
+        if (file32 == scope32) return;
+        string View(bool is32) => is32 ? "32-bit view" : "64-bit (default) view";
+        throw new FormatException($"FileCat exported this file from the Registry's {View(file32)}, but the import would go to the " +
+                                  $"{View(scope32)}, where the same paths are other keys. Open the key in the {View(file32)} and import it there.");
     }
 
     private static bool Exists(Location location)

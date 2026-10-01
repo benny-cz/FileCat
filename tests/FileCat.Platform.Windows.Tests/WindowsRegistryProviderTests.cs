@@ -117,6 +117,33 @@ public sealed class WindowsRegistryProviderTests
     }
 
     [Fact]
+    public void A_reg_file_FileCat_exported_from_one_view_is_not_imported_into_another()
+    {
+        // Release plan DPI P06: FileCat's .reg backups name their view only in a comment, and a backup of a 32-bit-view
+        // key restored in the default view would write to the 64-bit keys instead (the paths are the same text).
+        if (!OperatingSystem.IsWindows()) return;
+        string path = @"Software\FileCat-Tests\" + Guid.NewGuid().ToString("N");
+        string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
+        using var fixture = Registry.CurrentUser.CreateSubKey(path);
+        try
+        {
+            File.WriteAllText(file, "Windows Registry Editor Version 5.00\r\n\r\n" +
+                "; FileCat source view: 32-bit. Choose the same view when importing.\r\n\r\n" +
+                "[HKEY_CURRENT_USER\\" + path + "]\r\n\"restored\"=dword:00000001\r\n", System.Text.Encoding.Unicode);
+            var ct = TestContext.Current.CancellationToken;
+            var wrong = Assert.Throws<FormatException>(() => RegistryImport.Preview(file, new Location(Schemes.Registry, "HKCU\\" + path, session: "default"), ct));
+            Assert.Contains("32-bit view", wrong.Message, StringComparison.Ordinal);
+            Assert.Throws<FormatException>(() => RegistryImport.Preview(file, new Location(Schemes.Registry, "HKCU\\" + path, session: "64"), ct));
+            Assert.Single(RegistryImport.Preview(file, new Location(Schemes.Registry, "HKCU\\" + path, session: "32"), ct).Changes);
+        }
+        finally
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
+    [Fact]
     public async Task Reg_import_previews_and_runs_guarded_batch_with_deletions()
     {
         if (!OperatingSystem.IsWindows()) return;

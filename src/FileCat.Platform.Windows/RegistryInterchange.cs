@@ -55,7 +55,7 @@ public static class RegistryInterchange
             {
                 writer.WriteLine("Windows Registry Editor Version 5.00");
                 writer.WriteLine();
-                writer.WriteLine($"; FileCat source view: {WindowsRegistryProvider.ViewLabel(items[0].Key.Session)}. Choose the same view when importing.");
+                writer.WriteLine($"{RegistryImport.ViewMarker}{WindowsRegistryProvider.ViewLabel(items[0].Key.Session)}. Choose the same view when importing.");
                 writer.WriteLine("; Security descriptors are not included.");
                 writer.WriteLine();
 
