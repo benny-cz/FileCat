@@ -156,8 +156,9 @@ public sealed class JobRequest
     public bool IndependentSteps { get; init; }
     /// <summary>
     /// For <see cref="JobKind.Delete"/> and <see cref="JobKind.Recycle"/>: each source goes only while it is as the
-    /// comparison that planned it saw it (its size and modified time, as its <see cref="ItemRef"/> carries them); one
-    /// that changed since stays (Synchronize's removals: the target can change while the plan is reviewed).
+    /// comparison that planned it saw it (a file or link: its size and modified time, as its <see cref="ItemRef"/> carries
+    /// them; a folder: all it holds, <see cref="ExpectedContents"/>); one that changed since stays (Synchronize's
+    /// removals: the target can change while the plan is reviewed).
     /// </summary>
     public bool OnlyAsCompared { get; init; }
     /// <summary>
@@ -165,6 +166,11 @@ public sealed class JobRequest
     /// it (size, modified UTC ticks), keyed by the source. A target that changed since is not replaced.
     /// </summary>
     public IReadOnlyDictionary<ItemRef, (long Size, long ModifiedTicks)>? ExpectedTargets { get; init; }
+    /// <summary>
+    /// With <see cref="OnlyAsCompared"/>: all each folder held when compared, keyed by the source. A folder goes only while
+    /// it still holds just that; one without an entry here is not removed.
+    /// </summary>
+    public IReadOnlyDictionary<ItemRef, FileSystem.FolderContents>? ExpectedContents { get; init; }
     /// <summary>
     /// For a bulk <see cref="JobKind.Rename"/>: the new name of each source (same order and count). For
     /// <see cref="JobKind.CreateLink"/>: the name of each link, when it differs from the source's name.

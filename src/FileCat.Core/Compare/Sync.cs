@@ -62,12 +62,17 @@ public static class SyncPlanner
             }
             var (sourceOnly, targetOnly) = sourceIsLeft ? (TreeDiffKind.LeftOnly, TreeDiffKind.RightOnly) : (TreeDiffKind.RightOnly, TreeDiffKind.LeftOnly);
             var (sourceNewer, targetNewer) = sourceIsLeft ? (TreeDiffKind.LeftNewer, TreeDiffKind.RightNewer) : (TreeDiffKind.RightNewer, TreeDiffKind.LeftNewer);
+            // A folder only in the target goes only with all it held when compared, so that must be known (a disk's or share's).
+            bool unread = e.Contents is null && (e.Left ?? e.Right) is { Kind: EntryKind.Directory } folder && !folder.Has(EntryFlags.Link);
+            string holds = e.Contents is { } contents ? $" ({contents.Describe()})" : "";
             SyncItem item = e.Kind switch
             {
-                var k when k == sourceOnly => new(e, SyncAction.Copy, true, e.IsFolder ? "Only in the source: the folder is copied with its contents" : "Only in the source"),
+                var k when k == sourceOnly => new(e, SyncAction.Copy, true, e.IsFolder ? "Only in the source: the folder is copied with its contents" + holds : "Only in the source"),
                 var k when k == sourceNewer => new(e, SyncAction.ReplaceOlder, true, "Newer in the source"),
+                var k when k == targetOnly && mode == SyncMode.Mirror && unread =>
+                    new(e, SyncAction.None, false, "Only in the target, but the comparison did not read all it holds: Mirror leaves it"),
                 var k when k == targetOnly => mode == SyncMode.Mirror
-                    ? new(e, SyncAction.Remove, true, "Only in the target: Mirror removes it")
+                    ? new(e, SyncAction.Remove, true, "Only in the target: Mirror removes it" + (e.IsFolder ? " with all it holds" + holds : ""))
                     : new(e, SyncAction.None, false, "Only in the target: Update keeps it"),
                 var k when k == targetNewer => new(e, SyncAction.Replace, false, "Newer in the target: kept unless you choose to overwrite it"),
                 TreeDiffKind.Different => mode == SyncMode.Mirror
@@ -109,6 +114,8 @@ public static class SyncPlanner
         var remove = new List<ItemRef>();
         // The target each replacement replaces, as compared: one edited meanwhile is not overwritten.
         var expected = new Dictionary<ItemRef, (long Size, long ModifiedTicks)>();
+        // What each folder to remove held when compared: one changed since stays.
+        var held = new Dictionary<ItemRef, FileSystem.FolderContents>();
         foreach (var item in items.Where(i => i.Include && i.CanInclude))
         {
             var e = item.Entry;
@@ -118,7 +125,9 @@ public static class SyncPlanner
             {
                 var (folder, data) = sourceIsLeft ? (e.RightFolder, e.Right) : (e.LeftFolder, e.Left);
                 if (folder is null || data is not { } d) continue;
-                remove.Add(providers.For(folder).GetItemRef(folder, d));
+                var gone = providers.For(folder).GetItemRef(folder, d);
+                remove.Add(gone);
+                if (e.Contents is { } contents) held[gone] = contents;
                 continue;
             }
             var (sourceFolder, sourceData) = sourceIsLeft ? (e.LeftFolder, e.Left) : (e.RightFolder, e.Right);
@@ -161,6 +170,7 @@ public static class SyncPlanner
                 Mode = QueueMode.Queue,
                 Description = "Synchronize: remove items only in the target",
                 OnlyAsCompared = true,
+                ExpectedContents = held,
             });
         }
         return requests;

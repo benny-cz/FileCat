@@ -146,18 +146,32 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
     public abstract void Execute();
 
     /// <summary>
-    /// Whether an item planned by a comparison changed since (<see cref="JobRequest.OnlyAsCompared"/>): a file's size or
-    /// modified time, a folder's modified time (which changes when items are added to it, removed or renamed in it;
-    /// changes deeper inside are not seen). Such an item stays, and the job says why.
+    /// Whether an item planned by a comparison changed since (<see cref="JobRequest.OnlyAsCompared"/>): a file's or link's
+    /// size or modified time; for a folder, all it holds, read again (its own time tells nothing of changes deeper in, and
+    /// on NTFS it is listed late and stays the same within a clock tick). Such an item stays, and the job says why.
     /// </summary>
-    protected bool ChangedSinceCompared(ItemRef source, FileSystemItemInfo now)
+    protected bool ChangedSinceCompared(ItemRef source, FileSystemItemInfo now, string path)
     {
-        if (!Job.Request.OnlyAsCompared || source.Modified <= 0) return false;
-        bool changed = now.ModifiedUtc.Ticks != source.Modified || !now.IsDirectory && source.Size >= 0 && now.Size != source.Size;
-        if (changed)
-            Issue(IssueSeverity.Warning, source.FileSystemPath ?? source.Name,
-                "Not removed: it changed after the comparison that planned this, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
-        return changed;
+        if (!Job.Request.OnlyAsCompared) return false;
+        string? why;
+        if (now.IsDirectory && !now.IsLink)
+        {
+            var then = Job.Request.ExpectedContents?.GetValueOrDefault(source);
+            var contents = then is null ? null : FolderContents.Read(path, Job.Token);
+            why = then is null ? "the comparison that planned this did not read all it holds"
+                : contents is null ? "all it holds could not be read again to see that it is as compared"
+                : contents != then ? $"what it holds changed after the comparison that planned this ({then.Describe()} then, {contents.Describe()} now)"
+                : null;
+        }
+        else
+        {
+            why = source.Modified > 0 && (now.ModifiedUtc.Ticks != source.Modified || !now.IsDirectory && source.Size >= 0 && now.Size != source.Size)
+                ? "it changed after the comparison that planned this"
+                : null;
+        }
+        if (why is null) return false;
+        Issue(IssueSeverity.Warning, path, $"Not removed: {why}, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
+        return true;
     }
 
     protected void Issue(IssueSeverity severity, string path, string message, StepOutcome outcome, string? cause = null) =>
@@ -1303,7 +1317,7 @@ internal sealed class DeleteExecutor(Job job, IFileSystemOperations fs, JobJourn
                 Job.RootCompleted(index);
                 continue;
             }
-            if (index < Job.Request.Sources.Count && ChangedSinceCompared(Job.Request.Sources[index], info))
+            if (index < Job.Request.Sources.Count && ChangedSinceCompared(Job.Request.Sources[index], info, path))
             {
                 Job.ItemSkipped();
                 Job.RootFailed(index);
@@ -1402,7 +1416,7 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.RootCompleted(i);
                     continue;
                 }
-                if (ChangedSinceCompared(sources[i], info))
+                if (ChangedSinceCompared(sources[i], info, p))
                 {
                     Job.AddTotals(1, 0);
                     Job.ItemSkipped();

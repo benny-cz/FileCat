@@ -24,6 +24,12 @@ public sealed record TreeDiffEntry(string RelativePath, TreeDiffKind Kind, Entry
     public Location? LeftFolder { get; init; }
     public Location? RightFolder { get; init; }
 
+    /// <summary>
+    /// For a folder on one side only, on a disk or share: all it held when compared (what a synchronization would copy or
+    /// remove, and the check that it is still so when that runs). Null elsewhere, and when it could not be read in full.
+    /// </summary>
+    public FileSystem.FolderContents? Contents { get; init; }
+
     public bool IsDifference => Kind != TreeDiffKind.Same;
     public bool IsFolder => (Left ?? Right)?.IsContainer == true;
 }
@@ -37,8 +43,9 @@ public sealed record TreeCompareResult(IReadOnlyList<TreeDiffEntry> Entries, boo
 /// <summary>
 /// Recursive directory comparison (plan §16.2, P7): both trees are walked through their providers (disk, archives,
 /// servers) in step. It is a preview: it never copies, synchronizes, or deletes. Folders present on one side are
-/// reported once (not descended); links to folders are never followed; times compare at a tolerance (the coarser
-/// file system's precision); a content check reads both files. Anything that could not be decided is Unknown, never Same.
+/// reported once (not compared inside; on a disk or share, what they hold is read and stated); links to folders are never
+/// followed; times compare at a tolerance (the coarser file system's precision); a content check reads both files.
+/// Anything that could not be decided is Unknown, never Same.
 /// </summary>
 public static class TreeCompare
 {
@@ -83,7 +90,7 @@ public static class TreeCompare
                 string path = relative.Length == 0 ? le.Name : relative + "/" + le.Name;
                 if (!rightByName.TryGetValue(le.Name, out var re))
                 {
-                    Add(new TreeDiffEntry(path, TreeDiffKind.LeftOnly, le, null));
+                    Add(OneSided(new TreeDiffEntry(path, TreeDiffKind.LeftOnly, le, null), lp, l, le));
                     continue;
                 }
                 seen.Add(re.Name);
@@ -113,8 +120,18 @@ public static class TreeCompare
             }
             foreach (var re in rightItems.OrderBy(e => e.Name, StringComparer.Ordinal))
             {
-                if (!seen.Contains(re.Name)) Add(new TreeDiffEntry(relative.Length == 0 ? re.Name : relative + "/" + re.Name, TreeDiffKind.RightOnly, null, re));
+                if (!seen.Contains(re.Name)) Add(OneSided(new TreeDiffEntry(relative.Length == 0 ? re.Name : relative + "/" + re.Name, TreeDiffKind.RightOnly, null, re), rp, r, re));
             }
+        }
+
+        // A folder on one side only, on a disk or share: all it holds, for a plan to state and a removal to check.
+        TreeDiffEntry OneSided(TreeDiffEntry entry, ResourceProvider provider, Location folder, EntryData data)
+        {
+            if (data.Kind != EntryKind.Directory || data.Has(EntryFlags.Link) || provider.GetChildLocation(folder, data) is not { IsFileSystem: true } inside)
+                return entry;
+            progress?.Invoke(entry.RelativePath);
+            var contents = FileSystem.FolderContents.Read(inside.Path, ct);
+            return entry with { Contents = contents, Detail = contents is null ? "What it holds could not be read in full" : "Holds " + contents.Describe() };
         }
 
         TreeDiffEntry CompareFiles(string path, Location l, EntryData le, Location r, EntryData re)

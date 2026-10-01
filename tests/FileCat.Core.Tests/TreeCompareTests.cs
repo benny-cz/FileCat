@@ -54,13 +54,34 @@ public sealed class TreeCompareTests : IDisposable
         Assert.Equal(TreeDiffKind.Same, byName["sub/deep/tolerance.txt"].Kind);
         Assert.Equal(TreeDiffKind.LeftOnly, byName["folderonly"].Kind);
         Assert.True(byName["folderonly"].IsFolder);
-        Assert.False(byName.ContainsKey("folderonly/inside.txt")); // a one-sided folder is reported once
+        Assert.False(byName.ContainsKey("folderonly/inside.txt")); // a one-sided folder is reported once, with what it holds
+        Assert.Equal("Holds 1 file, 1 byte", byName["folderonly"].Detail);
+        Assert.Equal((1L, 0L, 1L), (byName["folderonly"].Contents!.Files, byName["folderonly"].Contents!.Folders, byName["folderonly"].Contents!.Bytes));
         Assert.Equal(TreeDiffKind.TypeMismatch, byName["kind"].Kind);
 
         var withContent = Compare(CompareCriteria.Size | CompareCriteria.Time | CompareCriteria.Content).Entries.ToDictionary(e => e.RelativePath);
         Assert.Equal(TreeDiffKind.Different, withContent["sub/content.txt"].Kind);
         Assert.Equal("Same size, different content", withContent["sub/content.txt"].Detail);
         Assert.Equal(TreeDiffKind.Same, withContent["same.txt"].Kind);
+    }
+
+    [Fact]
+    public void What_a_folder_holds_reads_the_same_until_something_in_it_changes()
+    {
+        File("F/a.txt", "aaa");
+        File("F/sub/b.txt", "bb");
+        string folder = Path.Combine(_dir.Path, "F");
+        var ct = TestContext.Current.CancellationToken;
+        var first = FolderContents.Read(folder, ct)!;
+        Assert.Equal(first, FolderContents.Read(folder, ct));
+        Assert.Equal("2 files and 1 folder, 5 bytes", first.Describe());
+        System.IO.File.Move(Path.Combine(folder, "sub", "b.txt"), Path.Combine(folder, "sub", "c.txt")); // same size and time, another name
+        var renamed = FolderContents.Read(folder, ct)!;
+        Assert.NotEqual(first, renamed);
+        _dir.Dir("F/sub/empty");
+        Assert.NotEqual(renamed, FolderContents.Read(folder, ct));
+        Assert.Null(FolderContents.Read(folder, ct, limit: 3)); // it holds four items: a reading that stops vouches for nothing
+        Assert.Null(FolderContents.Read(Path.Combine(folder, "missing"), ct));
     }
 
     [Fact]

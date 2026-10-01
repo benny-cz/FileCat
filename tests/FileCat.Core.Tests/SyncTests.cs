@@ -119,7 +119,35 @@ public sealed class SyncTests : IDisposable
         while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Equal("x, edited after the comparison", File.ReadAllText(Path.Combine(right, "x.txt")));
         Assert.True(File.Exists(Path.Combine(right, "olddir", "z.txt")));
-        Assert.Equal(2, job.Issues.Count(i => i.Message.StartsWith("Not removed: it changed after the comparison", StringComparison.Ordinal)));
+        Assert.Contains(job.Issues, i => i.Message.StartsWith("Not removed: it changed after the comparison", StringComparison.Ordinal));
+        Assert.Contains(job.Issues, i => i.Message.StartsWith("Not removed: what it holds changed after the comparison that planned this (1 file, 1 byte then, 2 files, 27 bytes now)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Mirror_removes_a_folder_only_while_all_it_holds_is_as_compared()
+    {
+        // A folder's own time changes only for its direct items, and on NTFS it is listed late and stays the same within a
+        // clock tick: a change deeper in, or one at once, must still keep the folder (I50).
+        Put("L/keep.txt", "k", Old);
+        Put("R/keep.txt", "k", Old);
+        Put("R/old/deep/w.txt", "written", Old);
+        Put("R/gone/v.txt", "v", Old);
+        var left = Path.Combine(_dir.Path, "L");
+        var right = Path.Combine(_dir.Path, "R");
+        var providers = Providers();
+        var plan = SyncPlanner.Propose(Compare(providers, left, right), sourceIsLeft: true, SyncMode.Mirror, targetIgnoresCase: OperatingSystem.IsWindows());
+        var by = ByPath(plan);
+        Assert.Equal("Only in the target: Mirror removes it with all it holds (1 file and 1 folder, 7 bytes)", by["old"].Reason);
+        Assert.Equal("Only in the target: Mirror removes it with all it holds (1 file, 1 byte)", by["gone"].Reason);
+        Put("R/old/deep/w.txt", "WRITTEN", New); // the same size, another time, two levels down
+        await Run(providers, [.. SyncPlanner.BuildRequests(plan.Where(i => i.Entry.RelativePath == "gone"), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true)]);
+        Assert.False(Directory.Exists(Path.Combine(right, "gone"))); // unchanged: removed
+        var requests = SyncPlanner.BuildRequests(plan.Where(i => i.Entry.RelativePath == "old"), sourceIsLeft: true, Location.FileSystem(right), providers, deletePermanently: true);
+        var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "journal"));
+        var job = manager.Submit(Assert.Single(requests));
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.Equal("WRITTEN", File.ReadAllText(Path.Combine(right, "old", "deep", "w.txt")));
+        Assert.Contains(job.Issues, i => i.Message.StartsWith("Not removed: what it holds changed after the comparison", StringComparison.Ordinal));
     }
 
     [Fact]
