@@ -343,8 +343,13 @@ public sealed partial class MainViewModel
                       (system ? "Windows runs from this drive and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the drive from another computer. " : "") +
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
-        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
         HoldOff(safety);
+        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan"))
+        {
+            ReleaseHoldOff();
+            return;
+        }
+        _deviceScanned = true;
         var root = Services.Recovery.ForDevice(device, name, 1);
         var scan = panel.OpenTab(root);
         if (folder is not null && folder.Length > drive.RootPath.Length)
@@ -377,8 +382,13 @@ public sealed partial class MainViewModel
                       (system ? "Windows runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. " : "") +
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
-        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
         HoldOff(safety);
+        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan"))
+        {
+            ReleaseHoldOff();
+            return;
+        }
+        _deviceScanned = true;
         // The disk's size when it was chosen: a disk plugged in meanwhile under the same number is refused.
         panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name, length: disk.Length));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
@@ -465,11 +475,25 @@ public sealed partial class MainViewModel
         }
     }
 
-    /// <summary>Once a device's scan is confirmed: what writes into folders on its disk is held off until FileCat closes.</summary>
+    /// <summary>Set once a device's scan was confirmed: what was held off for it stays held off until FileCat closes.</summary>
+    private bool _deviceScanned;
+
+    /// <summary>
+    /// From the moment a device is chosen, before its question is shown: what writes into folders on its disk (the
+    /// Shell's picture caches, GnuPG's folder) is held off, for good once the scan is confirmed.
+    /// </summary>
     private void HoldOff(DiskSafety safety)
     {
         if (safety.PauseShellPictures && Services.ShellPictures is { } shell) shell.Paused = true;
         if (safety.PauseSignatures && Core.Verification.VerificationService.Current is { } verification) verification.SignatureToolsPaused = true;
+    }
+
+    /// <summary>The question was declined: what was held off for it goes on, unless a device was scanned earlier.</summary>
+    private void ReleaseHoldOff()
+    {
+        if (_deviceScanned) return;
+        if (Services.ShellPictures is { } shell) shell.Paused = false;
+        if (Core.Verification.VerificationService.Current is { } verification) verification.SignatureToolsPaused = false;
     }
 
     /// <summary>The command that starts this FileCat with everything it writes in <paramref name="folder"/>.</summary>
@@ -534,8 +558,13 @@ public sealed partial class MainViewModel
                        : mounts.Count > 0 ? $"It is mounted ({string.Join(", ", mounts)}), so programs can write to it while FileCat reads: unmounting it first keeps it unchanged (its disk stays in this list). " : "") +
                       safety.HeldOff +
                       "The scan opens in a new tab. Recover files to another disk, and write nothing to this one meanwhile.";
-        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan")) return;
         HoldOff(safety);
+        if (!await Dialogs.ConfirmAsync("Recover deleted files", text, "Scan"))
+        {
+            ReleaseHoldOff();
+            return;
+        }
+        _deviceScanned = true;
         // Its size when it was chosen: a disk plugged in meanwhile under the same name is refused.
         var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1, device.Length);
         var scan = panel.OpenTab(root);
