@@ -11,6 +11,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | ID | What | Source | Environment | Result | Class | Record | Issues |
 |---|---|---|---|---|---|---|---|
 | E-A01 | CI run 36722039034: per-lane outcomes and explicit skips | `4f6b062` | GitHub-hosted: `windows-latest`, `windows-11-arm`, `ubuntu-latest`, `macos-latest` | Green; the three package jobs **skipped** | Preliminary automated | [E-A01](evidence/E-A01-ci-36722039034-skip-inventory.md) | — |
+| E-R04 | Step 4, first pass: the plan's code anchors and C01–C29 routes against the source | `906f1e9` | Static | 137 cited names in 421 rows all present (8 rows name non-code or renamed items, each explained); every capability has a route | Static | [E-R04](evidence/E-R04-anchor-reconciliation.md) | — |
 | E-A02 | CI run 36821398706: every lane's skips with their reasons from source; tests no lane runs | `dd1e326` | GitHub-hosted: all four test lanes | 37 tests run on no lane (all gated on labs, devices, a phone, benchmarks); the ARM64 lane ran no Remote tests (added `98bc539`) | Preliminary automated | [E-A02](evidence/E-A02-ci-36821398706-skips-all-lanes.md) | — |
 | E-L01 | The S10 Windows lane run locally (Release) | `4f6b062` | Physical host, Windows 11 Insider 26220 | 0 failed: Core 500/32 skipped, Windows 87/15, Remote 38/5, App 154/4 | Preliminary automated | [E-L01](evidence/E-L01-local-run-4f6b062.md) | — |
 | E-I19-R1 | Interrupted-copy cleanup deletes the wrong files | `4f6b062` | Physical host; git worktree at `4f6b062` | Defect reproduced: 4 Core tests fail; Run again deletes a user's edit | Preliminary automated | [E-I19](evidence/E-I19-interrupted-copy.md) | I19 |
@@ -126,6 +127,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `98bc539` | CI: the Windows ARM64 lane runs the Remote tests too (run 36822797898: 81 passed, 33 skipped, 0 failed) | — | E-A02 |
 | `3c487e4` | Release records: the Mac's 7.1–8.1 M fuzz range; 8.1–9.1 M started | — | E-I28-C1 |
 | `85d512d` | Test: the macOS page engine through twelve lifecycles, each title observed, nothing raised after disposal | I12 | issue record |
+| `906f1e9` | Release records: I12's two historical failures covered | — | — |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
 | `2f35a6b` | Git badges, icon resources and program lookups touch no path before it is known to be local, and never search the current directory | I16 | issue record |
 | `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |

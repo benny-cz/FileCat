@@ -46,7 +46,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 1 Refresh baseline | **Done** | E-ENV-04; no delta from the plan's baseline at start |
 | 2 Owners, resources, provider/licence preflight | **Open (people)** | DEC-01, DEC-07, EXT-01, EXT-02; resource status in the blockers file |
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
-| 4 Reconcile manifest and registers against source | Not started | Plan §§3–5 registers stand as the starting point |
+| 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
 | 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); P07's loader audit (V06), P13 and the other B rows remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
@@ -216,6 +216,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 64. I12: the `$Secure` failure is held by `62bd88f`'s unit and live tests (Windows' own report as the oracle); the macOS
     page title by twelve lifecycles in the page engine smoke (`85d512d`; 12 of 12 on the Mac, none raising events after
     disposal).
+65. Step 4, first pass (E-R04): the plan's code anchors all exist; each of C01–C29 has a menu or place route.
 
 ## Evidence invalidated by the campaign's own changes
 
