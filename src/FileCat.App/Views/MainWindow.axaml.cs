@@ -72,7 +72,7 @@ public partial class MainWindow : Window, IViewActions
                     if (button.Tag is string id && CheckedState(id) is { } on)
                     {
                         button.Classes.Set("checked", on);
-                        ToolTip.SetTip(button, ToolbarTip(id));
+                        SetToolbarTip(button, id);
                         Avalonia.Automation.AutomationProperties.SetName(button, TitleOf(id, _vm.Services.Commands.Get(id)?.Title ?? id));
                     }
         };
@@ -742,11 +742,19 @@ public partial class MainWindow : Window, IViewActions
     };
 
     /// <summary>A toolbar button's tooltip: what it does now and its key, then what it takes and where its result goes.</summary>
-    private string ToolbarTip(string id)
+    private Controls.RichTip ToolbarTip(string id)
     {
         var def = _vm.Services.Commands.Get(id);
         var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
-        return TitleOf(id, def?.Title ?? id) + (chord.Key is null ? "" : $" ({chord})") + (def?.Description is { Length: > 0 } d ? "\n" + d : "");
+        return new Controls.RichTip(TitleOf(id, def?.Title ?? id), chord.Key is null ? null : chord.ToString(), def?.Description);
+    }
+
+    /// <summary>A toolbar button's tooltip, and the same in words for screen readers.</summary>
+    private void SetToolbarTip(Button button, string id)
+    {
+        var tip = ToolbarTip(id);
+        ToolTip.SetTip(button, tip);
+        Avalonia.Automation.AutomationProperties.SetHelpText(button, tip.Text);
     }
 
     /// <summary>Commands that switch something on and off: their toolbar buttons show the state, and their titles say what choosing them does.</summary>
@@ -774,7 +782,7 @@ public partial class MainWindow : Window, IViewActions
             }
             if (_vm.Services.Commands.Get(id) is not { } def || CommandIcons.Get(id) is not { } icon) continue;
             var button = new Button { Classes = { "toolbar" }, Content = new Image { Source = icon, Width = 16, Height = 16 }, Tag = id };
-            ToolTip.SetTip(button, ToolbarTip(id));
+            SetToolbarTip(button, id);
             Avalonia.Automation.AutomationProperties.SetName(button, TitleOf(id, def.Title));
             if (CheckedState(id) == true) button.Classes.Add("checked");
             button.Click += (_, _) =>

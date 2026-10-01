@@ -214,6 +214,27 @@ public static class ThemeManager
     }
 
     /// <summary>The theme <paramref name="step"/> places on in the list (1: next, -1: previous), round the end.</summary>
+    /// <summary>WCAG's contrast ratio between two solid colors, from 1 to 21.</summary>
+    internal static double Contrast(Color a, Color b)
+    {
+        static double Linear(byte v)
+        {
+            double s = v / 255.0;
+            return s <= 0.04045 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+        }
+        static double Luminance(Color c) => 0.2126 * Linear(c.R) + 0.7152 * Linear(c.G) + 0.0722 * Linear(c.B);
+        double la = Luminance(a), lb = Luminance(b);
+        return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+    }
+
+    /// <summary>A color laid over another as it would be drawn: a see-through color made solid.</summary>
+    internal static Color Opaque(Color over, Color under)
+    {
+        double a = over.A / 255.0;
+        byte Mix(byte top, byte bottom) => (byte)Math.Round(top * a + bottom * (1 - a));
+        return Color.FromRgb(Mix(over.R, under.R), Mix(over.G, under.G), Mix(over.B, under.B));
+    }
+
     public static string CycleThemeName(string current, int step)
     {
         int i = Names.ToList().FindIndex(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));
@@ -288,6 +309,13 @@ public static class ThemeManager
         Add("Success", p.Success);
         Add("Progress", p.Progress);
         Add("Card", p.Card);
+        // Tooltips float over anything: the card's color laid over the window's, never see-through (I80).
+        var tip = Opaque(Color.Parse(p.Card), Color.Parse(p.Window));
+        d["FcTipBackgroundColor"] = tip;
+        d["FcTipBackground"] = new SolidColorBrush(tip);
+        // A tooltip's key in the accent color where that reads as text does (WCAG's 4.5:1), else in the text color.
+        var key = Opaque(Color.Parse(p.ActiveAccent), tip);
+        d["FcTipKey"] = new SolidColorBrush(Contrast(key, tip) >= 4.5 ? key : Color.Parse(p.Text));
         Add("Border", p.Border, edge: true);
         Add("Backdrop", p.Backdrop);
         Add("FolderIcon", p.FolderIcon);

@@ -229,13 +229,15 @@ public partial class PanelView : UserControl
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             });
         var button = new Button { Classes = { "drive" }, Content = content, Tag = place };
-        var tip = new List<string> { place.Title };
-        if (place.Detail is { Length: > 0 } detail) tip.Add(detail);
-        if (place.BarTip is { } more) tip.Add(more);
-        if (place.OpensInPanel) tip.Add("a middle click opens it in a new tab");
-        if (place.Variants.Count > 0) tip.Add("the right button offers " + string.Join(" and ", place.Variants.Select(v => v.Title)));
-        ToolTip.SetTip(button, string.Join(" · ", tip));
+        var tip = new Controls.RichTip(place.Title, detail: place.Detail, hints:
+        [
+            place.BarTip,
+            place.OpensInPanel ? "Middle-click opens it in a new tab" : null,
+            place.Variants.Count > 0 ? "Right-click offers: " + string.Join(", ", place.Variants.Select(v => v.Title)) : null,
+        ]);
+        ToolTip.SetTip(button, tip);
         Avalonia.Automation.AutomationProperties.SetName(button, place.Title);
+        Avalonia.Automation.AutomationProperties.SetHelpText(button, tip.Text);
         button.Click += (_, _) => OpenPlace(place, newTab: false);
         button.PointerReleased += (_, e) =>
         {

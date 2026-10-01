@@ -158,9 +158,11 @@ public sealed class PanelKeysTests
             Assert.All(buttons, b => Assert.False(string.IsNullOrEmpty(Avalonia.Automation.AutomationProperties.GetName(b))));
             foreach (var b in buttons) TestContext.Current.TestOutputHelper?.WriteLine($"{b.Tag}: {Avalonia.Controls.ToolTip.GetTip(b)}");
             // Every tooltip starts with what the button does; one with a key names it.
-            Assert.All(buttons, b => Assert.StartsWith(Avalonia.Automation.AutomationProperties.GetName(b)!, Avalonia.Controls.ToolTip.GetTip(b) as string ?? ""));
+            Assert.All(buttons, b => Assert.StartsWith(Avalonia.Automation.AutomationProperties.GetName(b)!, Avalonia.Controls.ToolTip.GetTip(b)?.ToString() ?? ""));
             var copy = buttons.Single(b => (string?)b.Tag == CommandIds.Copy);
-            Assert.Contains("(F5)", Avalonia.Controls.ToolTip.GetTip(copy) as string);
+            Assert.Contains("(F5)", Avalonia.Controls.ToolTip.GetTip(copy)?.ToString());
+            // Screen readers get the tooltip's words.
+            Assert.Equal(Avalonia.Controls.ToolTip.GetTip(copy)?.ToString(), Avalonia.Automation.AutomationProperties.GetHelpText(copy));
 
             // A switch: a click flips it, and so does its key, and the button shows the state either way.
             var hidden = buttons.Single(b => (string?)b.Tag == CommandIds.ToggleHidden);

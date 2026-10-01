@@ -19,7 +19,8 @@ using Location = FileCat.Core.Resources.Location;
 //   FileCat.Screenshots <out> window <left> [right] [theme ...]      the main window with these locations in its panels
 //   FileCat.Screenshots <out> command <left>[|right] <id>[@tab] [theme ...]  the main window after a command (its dialog
 //                                                                    open), on the dialog's tab of that number (from 0) if given;
-//                                                                    menu:<name> (menu:View) pictures that menu open instead
+//                                                                    menu:<name> (menu:View) pictures that menu open instead;
+//                                                                    tip:toolbar:<id> or tip:place:<title> a button's tooltip
 // A location is a folder or file path, journal:<drive root> for a drive's change journal, or what the path box reads
 // ("This PC", "HKEY_CURRENT_USER\Software").
 if (args.Length < 3 || args[1] is not ("record" or "window" or "command") || args[1] == "command" && args.Length < 4)
@@ -142,6 +143,13 @@ int MainWindowShot(string[] a, string? command = null)
                 // A dialog that reads the clipboard (Calculate checksums) finds this there.
                 if (Environment.GetEnvironmentVariable("FILECAT_SHOT_CLIPBOARD") is { Length: > 0 } copied && window.Clipboard is { } clipboard)
                     Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, copied).GetAwaiter().GetResult();
+                if (parts[0].StartsWith("tip:", StringComparison.Ordinal))
+                {
+                    ShowTip(window, parts[0]["tip:".Length..], theme);
+                    window.Close();
+                    foreach (var open in panels.SelectMany(p => p.Tabs).ToList()) open.Dispose();
+                    continue;
+                }
                 if (parts[0].StartsWith("menu:", StringComparison.Ordinal))
                 {
                     ShowMenu(window, parts[0]["menu:".Length..], theme);
@@ -212,6 +220,29 @@ void ShowMenu(Window window, string name, string theme)
     if (top.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Popup>().FirstOrDefault()?.Child is { } content && TopLevel.GetTopLevel(content) is { } popup)
         Save(popup, $"menu-{name}-popup-{theme}.png");
     top.Close();
+}
+
+// A button's tooltip open (I80): tip:toolbar:<command id> or tip:place:<title>; the tooltip's popup is pictured.
+void ShowTip(Window window, string which, string theme)
+{
+    string[] what = which.Split(':', 2);
+    var button = window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => what[0] switch
+    {
+        "toolbar" => b.Classes.Contains("toolbar") && (string?)b.Tag == what[1],
+        "place" => b.Classes.Contains("drive") && b.Tag is Place place && place.Title == what[1],
+        _ => false,
+    });
+    if (button is null)
+    {
+        Console.WriteLine($"no button for {which}");
+        return;
+    }
+    ToolTip.SetIsOpen(button, true);
+    Pump(() => false, 800);
+    string name = string.Concat(which.Split(Path.GetInvalidFileNameChars().Append(':').Append(' ').ToArray()));
+    if (ToolTip.GetTip(button) is Control content && TopLevel.GetTopLevel(content) is { } popup) Save(popup, $"tip-{name}-{theme}.png");
+    else Console.WriteLine($"no tooltip popup for {which}");
+    ToolTip.SetIsOpen(button, false);
 }
 
 void Save(TopLevel window, string name)

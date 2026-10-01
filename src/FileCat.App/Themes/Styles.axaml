@@ -447,4 +447,28 @@
   <Style Selector="ContextMenu Separator">
     <Setter Property="Background" Value="{DynamicResource FcBorder}" />
   </Style>
+
+  <!-- Tooltips: the theme's own surface, as its menus and notifications have, not the platform's (I80). -->
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="{DynamicResource FcTipBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource FcText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FcBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,7" />
+    <Setter Property="MaxWidth" Value="420" />
+    <Setter Property="FontFamily" Value="{DynamicResource FcFontFamily}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="ToolTip TextBlock.tipTitle">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="ToolTip TextBlock.tipKey">
+    <Setter Property="Foreground" Value="{DynamicResource FcTipKey}" />
+    <Setter Property="FontSize" Value="11.5" />
+  </Style>
+  <Style Selector="ToolTip TextBlock.tipHint">
+    <Setter Property="Foreground" Value="{DynamicResource FcTextMuted}" />
+    <Setter Property="FontSize" Value="11.5" />
+  </Style>
 </Styles>
