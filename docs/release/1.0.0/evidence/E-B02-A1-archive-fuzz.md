@@ -35,7 +35,7 @@ the suite takes 100 rounds of each.
 | Host | `b0b2329` (Debug) | 5,000–104,999 of ZIP, TAR, TAR+gzip, gzip, TAR+xz, TAR+zstd | ZIP, TAR+gzip, gzip, TAR+xz, TAR+zstd **passed** (188–343 s); TAR **stopped at round 97053** (I58) (`fuzz-host/archive-b0b2329/out-5000/`) |
 | Owner's Mac | `6bbbb21` | 205,000–304,999 of all eleven, copies on a 1 GiB RAM disk | nine **passed** (134–171 s); TAR stopped at round 230427 (512 MiB; that build's TAR archives carried the run's time, so the round is not today's; I58's class) and RAR 4 at round 248010 (516 MiB, the PPMd model above) |
 | Host; owner's Mac | `c22c793` | TAR from 0, RAR 4 from 240,000 | stopped at TAR 97053 and RAR 4 248010 on both machines alike: the rounds replay |
-| Owner's Mac | `325aa63` | 0–999,999 of all eleven (RAM disk) | started 2026-10-01 10:57 UTC; running |
+| Owner's Mac | `325aa63` | 0–999,999 of all eleven (RAM disk) | **all eleven passed** (1,830–2,345 s each, 10:57–11:36 UTC). Most allocated by one round: ZIP 48 MB, TAR 16 MB (was 512 MiB before I58's fix), TAR+gzip 18 MB, gzip 0 MB, 7z LZMA2 24 MB, 7z solid 24 MB, RAR 4 516 MB (round 536421, the PPMd model above), RAR 5 1 MB, RAR 5 solid 5 MB, TAR+xz 25 MB, TAR+zstd 29 MB; slowest round 158 ms (`fuzz-c1/mac-af7/`, `SHA256SUMS.txt` `0543acb9d93110414fa0492c49adbdb87d05a95b36ed865096bfb49d0596de74`) |
 | Ubuntu VM | `325aa63` (Debug) | 1,000,000–1,999,999 of both 7z, the three RAR, TAR, TAR+xz, TAR+zstd (`/dev/shm`) | started 10:57 UTC; running |
 | Host | `325aa63` (Debug) | 1,000,000–1,999,999 of ZIP, TAR+gzip, gzip | started 10:58 UTC; running (`fuzz-host/archive-325aa63/`) |
 
