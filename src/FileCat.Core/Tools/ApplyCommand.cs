@@ -154,7 +154,9 @@ public static class ApplyCommandPlanner
                     ?? (OperatingSystem.IsWindows() ? Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe") : null);
                 return (exe ?? shell, ["-NoProfile", "-NonInteractive", "-Command", line], exe is null ? "PowerShell was not found on this computer." : null);
             case "cmd" or "cmd.exe":
-                return (Path.Combine(Environment.SystemDirectory, "cmd.exe"), ["/d", "/s", "/c", line], null);
+                // No AutoRun commands (/d), and no delayed expansion (/v:off) even where the Registry turns it on: "!" in a
+                // quoted name stays a "!" (release plan B11).
+                return (Path.Combine(Environment.SystemDirectory, "cmd.exe"), ["/d", "/v:off", "/s", "/c", line], null);
             default:
                 return ("/bin/sh", ["-c", line], null);
         }

@@ -59,6 +59,8 @@ public sealed class ApplyCommandTests : IDisposable
         var cmd = ApplyCommandPlanner.Plan(new ApplyCommandSpec("type {name} > {stem}.out", ShellMode: true, Shell: "cmd"), [Item("a&b.txt")], null, Resolve)[0];
         Assert.Null(cmd.Problem);
         Assert.Equal("type \"a&b.txt\" > \"a&b\".out", cmd.Display);
+        // No AutoRun commands and no delayed expansion, whatever the Registry says (release plan B11).
+        Assert.Equal(["/d", "/v:off", "/s", "/c", "type \"a&b.txt\" > \"a&b\".out"], cmd.Arguments);
         var sh = ApplyCommandPlanner.Plan(new ApplyCommandSpec("cat {name}", ShellMode: true, Shell: "sh"), [Item("a&b.txt")], null, Resolve)[0];
         Assert.Equal("cat 'a&b.txt'", sh.Display);
         Assert.Equal(["-c", "cat 'a&b.txt'"], sh.Arguments);
