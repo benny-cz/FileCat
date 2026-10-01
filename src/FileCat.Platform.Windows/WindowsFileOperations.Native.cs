@@ -326,7 +326,28 @@ public partial class WindowsFileOperations
     public override void DeleteDirectory(string path)
     {
         // RemoveDirectory on a junction or directory symlink removes only the link.
-        if (!RemoveDirectoryW(Long(path))) throw ToException(Marshal.GetLastPInvokeError(), path);
+        string target = Long(path);
+        if (RemoveDirectoryW(target)) return;
+        int error = Marshal.GetLastPInvokeError();
+        // A folder's read-only attribute does not protect it: the Shell marks a customized folder so (one with a
+        // desktop.ini), and OneDrive every folder it keeps in sync, and Explorer deletes them all. RemoveDirectory refuses
+        // such a folder until the mark is cleared; it goes back if the folder still cannot be removed.
+        if (error == 5 && TryGetAttributes(target) is { } attributes && (attributes & FileAttributes.ReadOnly) != 0)
+        {
+            try { File.SetAttributes(target, attributes & ~FileAttributes.ReadOnly); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { throw ToException(error, path); }
+            if (RemoveDirectoryW(target)) return;
+            error = Marshal.GetLastPInvokeError();
+            try { File.SetAttributes(target, attributes); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        throw ToException(error, path);
+    }
+
+    private static FileAttributes? TryGetAttributes(string path)
+    {
+        try { return File.GetAttributes(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
 
     public override void CreateDirectory(string path)
