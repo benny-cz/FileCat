@@ -62,6 +62,18 @@ public interface IShellServices
     /// registers them; none where it registers none. Read once and kept: cheap to ask while drawing.
     /// </summary>
     IReadOnlyList<FileSystem.CloudSyncRoot> CloudSyncRoots { get; }
+
+    /// <summary>
+    /// Whether the system's own recycle bin window can be opened: Windows' Recycle Bin, where deleted items are restored or
+    /// removed for good (only it knows how to put them back where they were).
+    /// </summary>
+    bool CanOpenRecycleBin { get; }
+
+    /// <summary>Whether the recycle bin holds anything, as far as the system says without reaching removable or network drives; null where unknown.</summary>
+    bool? RecycleBinHasItems();
+
+    /// <summary>Opens the system's own recycle bin window.</summary>
+    void OpenRecycleBin();
 }
 
 /// <summary>Portable fallback using xdg-open / open.</summary>
@@ -184,6 +196,12 @@ public class PortableShellServices : IShellServices
     public virtual string ToUncPath(string path) => path;
 
     public virtual IReadOnlyList<FileSystem.CloudSyncRoot> CloudSyncRoots => [];
+
+    public virtual bool CanOpenRecycleBin => false;
+
+    public virtual bool? RecycleBinHasItems() => null;
+
+    public virtual void OpenRecycleBin() => throw new PlatformNotSupportedException("This system has no recycle bin window FileCat can open.");
 
     public virtual string? ConnectNetworkDrive(nint owner) => "Mount network shares with your desktop's tools; they then appear under Computer.";
 

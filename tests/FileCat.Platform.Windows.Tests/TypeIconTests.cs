@@ -66,3 +66,19 @@ public sealed class TypeIconTests
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern nint SHGetFileInfoW(string path, uint attributes, ref ShFileInfo info, uint size, uint flags);
 }
+
+/// <summary>Windows' Recycle Bin as a place: the Shell answers the count it is asked for (a wrong structure size is refused).</summary>
+public sealed class RecycleBinShellTests
+{
+    [Fact]
+    public void The_system_drives_bin_is_counted_and_no_window_is_needed_for_it()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows' Recycle Bin."); return; }
+        string system = Path.GetPathRoot(Environment.SystemDirectory)!;
+        Assert.Equal(0, WindowsShellServices.QueryRecycleBin(system, out long items));
+        Assert.True(items >= 0);
+        var shell = new WindowsShellServices();
+        Assert.True(shell.CanOpenRecycleBin);
+        Assert.NotNull(shell.RecycleBinHasItems());
+    }
+}

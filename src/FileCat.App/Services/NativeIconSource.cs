@@ -115,6 +115,8 @@ public sealed class NativeIconSource : INativeIconSource
         IconKind.Collection => Shared("stock:" + WindowsIcons.StockStack),
         IconKind.Server => Shared("stock:" + WindowsIcons.StockServer),
         IconKind.Network => Shared("stock:" + WindowsIcons.StockNetwork),
+        IconKind.RecycleBin => Shared("stock:" + WindowsIcons.StockRecycler),
+        IconKind.RecycleBinFull => Shared("stock:" + WindowsIcons.StockRecyclerFull),
         IconKind.Share => Shared("stock:" + WindowsIcons.StockServerShare),
         IconKind.RegistryKey => RegistryEditorIcon(),
         _ => null,

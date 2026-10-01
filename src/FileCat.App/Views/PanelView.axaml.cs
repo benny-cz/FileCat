@@ -232,18 +232,18 @@ public partial class PanelView : UserControl
         var tip = new List<string> { place.Title };
         if (place.Detail is { Length: > 0 } detail) tip.Add(detail);
         if (place.BarTip is { } more) tip.Add(more);
-        if (!place.Connects) tip.Add("a middle click opens it in a new tab");
+        if (place.OpensInPanel) tip.Add("a middle click opens it in a new tab");
         if (place.Variants.Count > 0) tip.Add("the right button offers " + string.Join(" and ", place.Variants.Select(v => v.Title)));
         ToolTip.SetTip(button, string.Join(" · ", tip));
         Avalonia.Automation.AutomationProperties.SetName(button, place.Title);
         button.Click += (_, _) => OpenPlace(place, newTab: false);
         button.PointerReleased += (_, e) =>
         {
-            if (e.InitialPressMouseButton != MouseButton.Middle || place.Connects) return;
+            if (e.InitialPressMouseButton != MouseButton.Middle || !place.OpensInPanel) return;
             OpenPlace(place, newTab: true);
             e.Handled = true;
         };
-        if (!place.Connects)
+        if (place.OpensInPanel)
             button.ContextRequested += (_, e) =>
             {
                 e.Handled = true;

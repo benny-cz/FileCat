@@ -82,6 +82,8 @@ public sealed class FreedesktopIconSource : INativeIconSource
         IconKind.Collection => Get("names:folder-saved-search,edit-find"),
         IconKind.Server or IconKind.Share => Get("names:network-server,folder-remote"),
         IconKind.Network => Get("names:network-workgroup,network-server,folder-remote"),
+        IconKind.RecycleBin => Get("names:user-trash"),
+        IconKind.RecycleBinFull => Get("names:user-trash-full,user-trash"),
         _ => null,
     };
 

@@ -34,6 +34,10 @@ public enum IconKind
     Network,
     /// <summary>A stream or attribute beside a file (D-55): not a file of any type, so no type's icon.</summary>
     Stream,
+    /// <summary>The Recycle Bin, empty.</summary>
+    RecycleBin,
+    /// <summary>The Recycle Bin with something in it.</summary>
+    RecycleBinFull,
 }
 
 /// <summary>
@@ -224,6 +228,7 @@ public static class VectorIcons
     private const string PhonePath = "M5,1.5 L11,1.5 C11.6,1.5 12,1.9 12,2.5 L12,13.5 C12,14.1 11.6,14.5 11,14.5 L5,14.5 C4.4,14.5 4,14.1 4,13.5 L4,2.5 C4,1.9 4.4,1.5 5,1.5 Z";
     private const string CollectionPath = "M2.5,4.5 L10,4.5 L10,14.5 L2.5,14.5 Z";
     private const string NetworkPath = "M1.5,1.5 L7.5,1.5 L7.5,6 L1.5,6 Z M8.5,9 L14.5,9 L14.5,13.5 L8.5,13.5 Z";
+    private const string BinPath = "M3.5,4.5 L12.5,4.5 L11.5,14.5 L4.5,14.5 Z";
 
     public static IImage Create(IconKind kind)
     {
@@ -248,6 +253,8 @@ public static class VectorIcons
             IconKind.Collection => (CollectionPath, "FcFileIcon", "M5,4.5 L5,2 L12.5,2 L12.5,12 L10,12 M4.5,8 L8,8 M4.5,10.5 L8,10.5"),
             IconKind.Network => (NetworkPath, "FcDriveIcon", "M4.5,6 L4.5,11.25 L8.5,11.25 M2.5,14.5 L6.5,14.5"),
             IconKind.Stream => (FilePath, "FcCodeIcon", "M5.5,7 L10.5,7 M5.5,9.5 L10.5,9.5 M5.5,12 L8,12 M1,9.5 L3,9.5"),
+            IconKind.RecycleBin => (BinPath, "FcDriveIcon", "M2,3 L14,3 M6.5,3 L6.5,1.5 L9.5,1.5 L9.5,3 M6.5,7 L6.5,12 M9.5,7 L9.5,12"),
+            IconKind.RecycleBinFull => (BinPath, "FcDriveIcon", "M2,3 L14,3 M6.5,3 L6.5,1.5 L9.5,1.5 L9.5,3 M5.5,8 L10.5,8 M5.5,10 L10.5,10 M5.5,12 L10.5,12"),
             _ => (FilePath, "FcFileIcon", null),
         };
         var color = Resolve(colorKey);

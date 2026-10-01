@@ -53,6 +53,11 @@ public sealed partial class MainViewModel
             await ConnectSftpAsync(panel);
             return;
         }
+        if (place.Opens is { } open)
+        {
+            open();
+            return;
+        }
         if (place.Location is not { } chosen) return;
         if (place.Drive is not null && FolderOnDrive(panel, chosen) is { } there) chosen = there;
         if (newTab) panel.OpenTab(chosen);
@@ -143,6 +148,14 @@ public sealed partial class MainViewModel
         }
         var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
         if (Directory.Exists(downloads)) places.Add(new Place("Downloads", downloads, Location.FileSystem(downloads), FolderIcon(Location.FileSystem(downloads))) { Group = PlaceGroup.Folders });
+        // Windows' Recycle Bin, beside Downloads (the owner's choice), opens in its own window: only it restores what it
+        // holds to where it was.
+        if (Services.Shell.CanOpenRecycleBin)
+        {
+            var bin = Services.Shell.RecycleBinHasItems() == true ? IconKind.RecycleBinFull : IconKind.RecycleBin;
+            places.Add(new Place("Recycle Bin", "Opens Windows' Recycle Bin, where deleted items are restored or removed for good", null,
+                () => icons.GetPlaceIcon(bin)) { Group = PlaceGroup.Folders, Opens = Services.Shell.OpenRecycleBin });
+        }
         // The cloud providers' folders (OneDrive, Dropbox, iCloud Drive, …) by the names they give them, with the icon
         // their folder carries (OneDrive's is a known folder's; the others name theirs in desktop.ini, which is read only
         // for a folder marked read-only or system, so the folder's real attributes go with it).
@@ -507,7 +520,7 @@ public enum PlaceGroup { Drives, Devices, Collections, Folders, Bookmarks, Serve
 
 /// <summary>
 /// A place the location menu (Alt+F1, Alt+F2) offers and the place buttons above each panel show (D-52, D-53).
-/// <see cref="Location"/> is null only for a new connection.
+/// <see cref="Location"/> is null only for a new connection and for a place that opens outside FileCat (<see cref="Opens"/>).
 /// </summary>
 public sealed record Place(string Title, string? Detail, Location? Location, Func<Avalonia.Media.IImage?> Icon)
 {
@@ -530,4 +543,10 @@ public sealed record Place(string Title, string? Detail, Location? Location, Fun
 
     /// <summary>Opens the connection dialog instead of a place.</summary>
     public bool Connects { get; init; }
+
+    /// <summary>Opens outside FileCat instead of in a panel: Windows' Recycle Bin, whose items only it can restore.</summary>
+    public Action? Opens { get; init; }
+
+    /// <summary>Opens in a panel (not a dialog or a window of its own), so also in a new tab.</summary>
+    public bool OpensInPanel => !Connects && Opens is null;
 }

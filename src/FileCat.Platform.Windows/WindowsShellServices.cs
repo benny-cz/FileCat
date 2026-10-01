@@ -185,6 +185,54 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         return roots;
     }
 
+    public override bool CanOpenRecycleBin => true;
+
+    /// <summary>Each fixed drive's bin, as the Shell counts it: removable and network drives are not asked, so nothing spins up or connects.</summary>
+    public override bool? RecycleBinHasItems()
+    {
+        try
+        {
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                if (drive.DriveType != DriveType.Fixed) continue;
+                if (QueryRecycleBin(drive.RootDirectory.FullName, out long items) == 0 && items > 0) return true;
+            }
+            return false;
+        }
+        catch (IOException) { return null; }
+    }
+
+    /// <summary>One drive's bin as the Shell counts it: its HRESULT, and the items in it.</summary>
+    internal static int QueryRecycleBin(string root, out long items)
+    {
+        var info = new SHQUERYRBINFO { cbSize = sizeof(SHQUERYRBINFO) };
+        int hr = SHQueryRecycleBinW(root, ref info);
+        items = info.i64NumItems;
+        return hr;
+    }
+
+    /// <summary>Explorer's Recycle Bin, Explorer started by its full path (never a bare name, I16).</summary>
+    public override void OpenRecycleBin()
+    {
+        var psi = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"))
+        {
+            UseShellExecute = false,
+            Arguments = "shell:RecycleBinFolder",
+        };
+        Process.Start(psi)?.Dispose();
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SHQUERYRBINFO
+    {
+        public int cbSize;
+        public long i64Size;
+        public long i64NumItems;
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHQueryRecycleBinW(string rootPath, ref SHQUERYRBINFO info);
+
     public override void OpenTerminal(string directory, string shell)
     {
         ProcessStartInfo psi;
