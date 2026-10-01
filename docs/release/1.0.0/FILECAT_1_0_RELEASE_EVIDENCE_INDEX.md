@@ -11,6 +11,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | ID | What | Source | Environment | Result | Class | Record | Issues |
 |---|---|---|---|---|---|---|---|
 | E-A01 | CI run 36722039034: per-lane outcomes and explicit skips | `4f6b062` | GitHub-hosted: `windows-latest`, `windows-11-arm`, `ubuntu-latest`, `macos-latest` | Green; the three package jobs **skipped** | Preliminary automated | [E-A01](evidence/E-A01-ci-36722039034-skip-inventory.md) | — |
+| E-A02 | CI run 36821398706: every lane's skips with their reasons from source; tests no lane runs | `dd1e326` | GitHub-hosted: all four test lanes | 37 tests run on no lane (all gated on labs, devices, a phone, benchmarks); the ARM64 lane ran no Remote tests (added `98bc539`) | Preliminary automated | [E-A02](evidence/E-A02-ci-36821398706-skips-all-lanes.md) | — |
 | E-L01 | The S10 Windows lane run locally (Release) | `4f6b062` | Physical host, Windows 11 Insider 26220 | 0 failed: Core 500/32 skipped, Windows 87/15, Remote 38/5, App 154/4 | Preliminary automated | [E-L01](evidence/E-L01-local-run-4f6b062.md) | — |
 | E-I19-R1 | Interrupted-copy cleanup deletes the wrong files | `4f6b062` | Physical host; git worktree at `4f6b062` | Defect reproduced: 4 Core tests fail; Run again deletes a user's edit | Preliminary automated | [E-I19](evidence/E-I19-interrupted-copy.md) | I19 |
 | E-I19-V1 | The I19 fix | `f87ad32` | Physical host; CI 36754000317, 36756346845 | Targeted and full suites pass; CI green on Windows x64, Ubuntu, macOS (ARM64 red on I20), then all green | Preliminary automated | [E-I19](evidence/E-I19-interrupted-copy.md) | I19 |
@@ -120,4 +121,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `155bb3e` | Release records: the host's VM drive filled; the Windows VM reverted to its lent state; fuzz ranges re-run | — | E-ENV-05, E-I28-C1 |
 | `cf92679` | Registry: a .reg file FileCat exported from one view is not imported into another | I55 | E-DPI |
 | `dd1e326` | Release records: DPI P06 reviewed; P07 in part | — | — |
+| `cc33b5d` | Release records: I22/I34 on FAT32 and exFAT destinations; the Windows VM's lent .NET runtime | — | E-I22-F1 |
+| `783c1b4` | Test: a device that names another address is checked by where FileCat connects, not by time (CI run 36821096985) | — | E-X01 |
+| `98bc539` | CI: the Windows ARM64 lane runs the Remote tests too | — | E-A02 |
 | `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |
