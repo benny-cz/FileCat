@@ -1,5 +1,4 @@
 using System.Formats.Tar;
-using System.IO.Compression;
 using FileCat.Archives;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
@@ -50,11 +49,13 @@ public sealed class ArchiveFuzzTests : IDisposable
             ? Directory.CreateDirectory(Path.Combine(dir, "filecat-archive-fuzz-" + Guid.NewGuid().ToString("N")[..8])).FullName : _dir.Dir("fuzz");
         try
         {
-            var fuzz = new Fuzz(format, Original(format), folder);
+            var original = Original(format);
+            var fuzz = new Fuzz(format, original, folder);
             var outcomes = new Dictionary<string, int> { ["refused"] = 0, ["changed"] = 0, ["same"] = 0 };
             for (int round = first; round < first + rounds; round++) outcomes[fuzz.Round(round)]++;
             TestContext.Current.TestOutputHelper?.WriteLine($"{format}: " + string.Join(", ", outcomes.Select(o => $"{o.Key} {o.Value}")) +
-                $"; most allocated by one round: {fuzz.MostAllocated >> 20} MB (round {fuzz.MostAllocatedRound}); slowest {fuzz.Slowest.TotalMilliseconds:N0} ms (round {fuzz.SlowestRound})");
+                $"; most allocated by one round: {fuzz.MostAllocated >> 20} MB (round {fuzz.MostAllocatedRound}); slowest {fuzz.Slowest.TotalMilliseconds:N0} ms (round {fuzz.SlowestRound})" +
+                $"; original sha256 {Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(original))}");
             Assert.True(outcomes["refused"] + outcomes["changed"] > 0, "No round changed what the archive gave: the damage misses its structures.");
         }
         finally
@@ -80,46 +81,71 @@ public sealed class ArchiveFuzzTests : IDisposable
     /// </summary>
     private static readonly DateTimeOffset Stamp = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    /// <summary>The undamaged archive: a fixture, or one made here with members of known content.</summary>
-    private byte[] Original(string format)
+    /// <summary>
+    /// The undamaged archive: a fixture, or one made here with members of known content, the same bytes in every run and on
+    /// every machine (its SHA-256 is in the summary line). Two things had kept them apart: .NET names each PAX header after
+    /// the process writing it ("./PaxHeaders.&lt;id&gt;/…"), and its own deflate (zlib-ng) gives other bytes on x64 and
+    /// ARM64, so a ZIP's, a TAR+gzip's or a gzip's round did not replay elsewhere, or in another run (a TAR+gzip round
+    /// that took 512 MiB on the Mac could not be found again). SharpCompress's managed deflate makes them here.
+    /// </summary>
+    internal static byte[] Original(string format)
     {
         if (format.Contains('.') && format != "tar.gz") return File.ReadAllBytes(Path.Combine(Fixtures, format));
         var members = Enumerable.Range(0, 12).Select(i => ($"dir{i % 3}/file{i}.txt", System.Text.Encoding.ASCII.GetBytes(new string((char)('a' + i), 300 + 97 * i)))).ToList();
-        using var output = new MemoryStream();
-        switch (format)
+        return format switch
         {
-            case "zip":
-                using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
-                    foreach (var (name, data) in members)
-                    {
-                        var entry = zip.CreateEntry(name);
-                        entry.LastWriteTime = Stamp;
-                        using var stream = entry.Open();
-                        stream.Write(data);
-                    }
-                break;
-            case "tar":
-                WriteTar(output, members);
-                break;
-            case "tar.gz":
-                using (var gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true)) WriteTar(gzip, members);
-                break;
-            case "gz":
-                using (var gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true)) gzip.Write(members[5].Item2);
-                break;
-        }
+            "zip" => Zip(members),
+            "tar" => Tar(members),
+            "tar.gz" => Gzip(Tar(members)),
+            "gz" => Gzip(members[5].Item2),
+            _ => throw new ArgumentOutOfRangeException(nameof(format)),
+        };
+    }
+
+    private static byte[] Zip(List<(string Name, byte[] Data)> members)
+    {
+        using var output = new MemoryStream();
+        using (var zip = new SharpCompress.Writers.Zip.ZipWriter(output, new SharpCompress.Writers.Zip.ZipWriterOptions(SharpCompress.Common.CompressionType.Deflate) { LeaveStreamOpen = true }))
+            foreach (var (name, data) in members)
+                zip.Write(name, new MemoryStream(data), Stamp.UtcDateTime);
         return output.ToArray();
     }
 
-    private static void WriteTar(Stream output, List<(string Name, byte[] Data)> members)
+    private static byte[] Gzip(byte[] data)
     {
-        using var tar = new TarWriter(output, TarEntryFormat.Pax, leaveOpen: true);
-        foreach (var (name, data) in members)
-            tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name, new Dictionary<string, string> { ["mtime"] = "1767225600" })
-            {
-                DataStream = new MemoryStream(data),
-                ModificationTime = Stamp,
-            });
+        using var output = new MemoryStream();
+        using (var gzip = new SharpCompress.Compressors.Deflate.GZipStream(output, SharpCompress.Compressors.CompressionMode.Compress,
+                   SharpCompress.Compressors.Deflate.CompressionLevel.BestCompression, System.Text.Encoding.UTF8, leaveOpen: true) { LastModified = Stamp.UtcDateTime })
+            gzip.Write(data, 0, data.Length);
+        return output.ToArray();
+    }
+
+    /// <summary>A PAX TAR of the members, each PAX header named for process 0 (its checksum made right again).</summary>
+    private static byte[] Tar(List<(string Name, byte[] Data)> members)
+    {
+        using var output = new MemoryStream();
+        using (var writer = new TarWriter(output, TarEntryFormat.Pax, leaveOpen: true))
+            foreach (var (name, data) in members)
+                writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name, new Dictionary<string, string> { ["mtime"] = "1767225600" })
+                {
+                    DataStream = new MemoryStream(data),
+                    ModificationTime = Stamp,
+                });
+        var tar = output.ToArray();
+        string own = $"PaxHeaders.{Environment.ProcessId}/";
+        for (int at = 0; at + 512 <= tar.Length; at += 512)
+        {
+            string name = System.Text.Encoding.ASCII.GetString(tar, at, 100).TrimEnd('\0');
+            if (tar[at + 156] != (byte)'x' || !name.Contains(own, StringComparison.Ordinal)) continue;
+            var field = new byte[100];
+            System.Text.Encoding.ASCII.GetBytes(name.Replace(own, "PaxHeaders.0/", StringComparison.Ordinal)).CopyTo(field, 0);
+            field.CopyTo(tar, at);
+            tar.AsSpan(at + 148, 8).Fill((byte)' ');
+            int sum = 0;
+            foreach (byte b in tar.AsSpan(at, 512)) sum += b;
+            System.Text.Encoding.ASCII.GetBytes(Convert.ToString(sum, 8).PadLeft(6, '0') + "\0 ").CopyTo(tar, at + 148);
+        }
+        return tar;
     }
 
     private sealed class Sink(List<EntryData> list) : IEnumerationSink
