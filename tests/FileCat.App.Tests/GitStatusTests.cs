@@ -87,7 +87,9 @@ public sealed class GitStatusTests
     /// reads them while it compares — core.excludesFile and core.attributesFile for the rules, core.worktree for the
     /// work tree, objects/info/alternates for the objects. Naming a share there makes Windows connect to it while the
     /// folder is merely shown (measured: 21.2 s each against a documentation address, which never answers), so such a
-    /// repository gets no badges, decided from the text of the setting.
+    /// repository gets no badges, decided from the text of the setting. A share is a Windows notion: on Linux and
+    /// macOS "//host/share" names an ordinary local directory and reaches no server, so those cases are asked there
+    /// only on Windows.
     /// </summary>
     [Fact]
     public void Repositories_whose_configuration_sends_Git_off_this_computer_get_no_badges()
@@ -103,29 +105,35 @@ public sealed class GitStatusTests
             File.WriteAllText(config, benign);
             Assert.Equal(work, GitStatusReader.SafeRepository(sub));
 
-            // Settings whose value Git opens, in the spellings Git accepts (names are case-insensitive, values may be
-            // quoted, a comment may follow). 203.0.113.9 is a documentation address.
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            foreach (var setting in new[]
+            if (OperatingSystem.IsWindows())
             {
-                @"excludesFile = \\203.0.113.9\share\ignore",
-                @"excludesFile = \\\\203.0.113.9\\share\\ignore", // as "git config" writes that same path
-                @"excludesfile = //203.0.113.9/share/ignore",
-                "excludesFile = \"//203.0.113.9/share/ignore\" # mine",
-                @"attributesFile = \\203.0.113.9\share\attributes",
-                @"worktree = \\203.0.113.9\share\work",
-                @"hooksPath = \\203.0.113.9\share\hooks",
-            })
-            {
-                File.WriteAllText(config, benign + "\t" + setting + "\n");
+                // Settings whose value Git opens, in the spellings Git accepts (names are case-insensitive, values may
+                // be quoted, a comment may follow). 203.0.113.9 is a documentation address.
+                foreach (var setting in new[]
+                {
+                    @"excludesFile = \\203.0.113.9\share\ignore",
+                    @"excludesFile = \\\\203.0.113.9\\share\\ignore", // as "git config" writes that same path
+                    @"excludesfile = //203.0.113.9/share/ignore",
+                    "excludesFile = \"//203.0.113.9/share/ignore\" # mine",
+                    @"attributesFile = \\203.0.113.9\share\attributes",
+                    @"worktree = \\203.0.113.9\share\work",
+                    @"hooksPath = \\203.0.113.9\share\hooks",
+                })
+                {
+                    File.WriteAllText(config, benign + "\t" + setting + "\n");
+                    Assert.Null(GitStatusReader.SafeRepository(sub));
+                }
+
+                // The objects of another repository, which Git reads as its own; one path per line.
+                File.WriteAllText(config, benign);
+                Assert.Equal(work, GitStatusReader.SafeRepository(sub));
+                File.WriteAllText(alternates, "../../../other/.git/objects\n" + @"\\203.0.113.9\share\repo.git\objects" + "\n");
                 Assert.Null(GitStatusReader.SafeRepository(sub));
             }
 
-            // The objects of another repository, which Git reads as its own; one path per line.
+            // Everywhere: an alternates file that stays on this computer is no reason to refuse a repository.
             File.WriteAllText(config, benign);
-            Assert.Equal(work, GitStatusReader.SafeRepository(sub));
-            File.WriteAllText(alternates, "../../../other/.git/objects\n" + @"\\203.0.113.9\share\repo.git\objects" + "\n");
-            Assert.Null(GitStatusReader.SafeRepository(sub));
             File.WriteAllText(alternates, "../../../other/.git/objects\n");
             Assert.Equal(work, GitStatusReader.SafeRepository(sub));
 
