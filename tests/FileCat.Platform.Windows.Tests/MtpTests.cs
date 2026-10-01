@@ -220,6 +220,63 @@ public sealed class MtpTests
         mtp.CloseAll();
     }
 
+    /// <summary>
+    /// Read-only (FILECAT_MTP_READTEST=1, optionally FILECAT_MTP_DEVICE): inside each storage FileCat offers what the device's
+    /// driver lists as supported, as far as the storage allows — an iPhone's lists deleting only — and explains the rest,
+    /// also when a storage is opened directly rather than from the device's list. Nothing is written.
+    /// </summary>
+    [Fact]
+    public async Task What_FileCat_offers_in_a_storage_is_what_the_device_allows_there()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_MTP_READTEST") != "1")
+            Assert.Skip("Set FILECAT_MTP_READTEST=1 with an unlocked device to run the read-only check.");
+        string? wanted = Environment.GetEnvironmentVariable("FILECAT_MTP_DEVICE");
+        var device = WpdSession.ListDevices().FirstOrDefault(d => wanted is null || d.Name.Contains(wanted, StringComparison.OrdinalIgnoreCase));
+        if (device is null) Assert.Skip("No portable device is connected.");
+        var log = TestContext.Current.TestOutputHelper;
+        var ct = TestContext.Current.CancellationToken;
+        var root = new Core.Resources.Location(Core.Resources.Schemes.Mtp, string.Empty, session: device.Id);
+        // From the device's list of storages, and opened directly (a tab restored after a restart): the same answer.
+        foreach (bool direct in new[] { false, true })
+        {
+            var mtp = new MtpProvider();
+            try
+            {
+                List<PortableObject> storages;
+                DeviceAbilities abilities;
+                using (var session = WpdSession.Open(device.Id))
+                {
+                    abilities = session.Abilities;
+                    storages = [.. session.Children("DEVICE", ct).Where(o => o.IsStorage)];
+                }
+                if (storages.Count == 0) Assert.Skip("The device shows no storage: unlock it (an iPhone also asks to trust this computer).");
+                if (!direct) await mtp.EnumerateAsync(root, new ListSink([]), ct);
+                foreach (var storage in storages)
+                {
+                    var inside = root.WithPath(storage.Name);
+                    if (direct) await mtp.EnumerateAsync(inside, new ListSink([]), ct);
+                    var offered = mtp.GetCapabilities(inside);
+                    log?.WriteLine($"{device.Name} ({(direct ? "opened directly" : "from the device's list")}): the driver lists {abilities}; the storage says {storage.Access}; FileCat offers {offered}");
+                    Assert.Equal(MtpProvider.Offered(abilities, storage.Access), offered);
+                    if (device.Manufacturer.Contains("Apple", StringComparison.OrdinalIgnoreCase))
+                        Assert.Equal(Core.Resources.LocationCapabilities.Enumerate | Core.Resources.LocationCapabilities.ReadContent | Core.Resources.LocationCapabilities.Delete, offered);
+                    foreach (var change in new[] { Core.Resources.LocationCapabilities.CreateDirectory, Core.Resources.LocationCapabilities.TransferTarget,
+                                 Core.Resources.LocationCapabilities.Rename, Core.Resources.LocationCapabilities.Delete })
+                        if ((offered & change) == 0)
+                        {
+                            string why = mtp.ExplainUnavailable(inside, change);
+                            log?.WriteLine($"  {change}: {why}");
+                            Assert.StartsWith("The device", why);
+                        }
+                }
+            }
+            finally
+            {
+                mtp.CloseAll();
+            }
+        }
+    }
+
     private sealed class ListSink(List<Core.Resources.EntryData> list) : Core.Resources.IEnumerationSink
     {
         public void AddBatch(ReadOnlySpan<Core.Resources.EntryData> entries)

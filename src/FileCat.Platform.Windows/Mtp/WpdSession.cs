@@ -6,9 +6,26 @@ namespace FileCat.Platform.Windows.Mtp;
 
 public sealed record PortableDeviceInfo(string Id, string Name, string Manufacturer);
 
+/// <summary>
+/// What a storage lets a computer do (WPD_STORAGE_ACCESS_CAPABILITY): read-write as a rule; read-only for a write-protected
+/// card, or read-only apart from deleting, as some cameras offer their pictures.
+/// </summary>
+public enum StorageAccess { ReadWrite = 0, ReadOnly = 1, ReadOnlyWithDeletion = 2 }
+
+/// <summary>
+/// What a device can do to its objects, from the commands its driver lists as supported: a phone in file-transfer mode
+/// lists them all; an iPhone lists deleting only (its storage still says read-write), so nothing can be added to it or
+/// renamed.
+/// </summary>
+public sealed record DeviceAbilities(bool CreateFolders, bool CreateFiles, bool Rename, bool Delete)
+{
+    /// <summary>Assumed when the driver lists nothing: everything, and the device decides each time.</summary>
+    public static readonly DeviceAbilities Unknown = new(true, true, true, true);
+}
+
 /// <summary>One object on a device: a storage (internal memory, SD card), a folder, or a file.</summary>
 public sealed record PortableObject(string Id, string Name, bool IsFolder, bool IsStorage, long Size, DateTime ModifiedUtc, bool CanDelete, bool IsHidden,
-    string? ParentId = null);
+    string? ParentId = null, StorageAccess Access = StorageAccess.ReadWrite);
 
 /// <summary>A device write stream, once disposed: the ID of the object it created, when the device says (null otherwise).</summary>
 public interface ICreatedObject
@@ -29,6 +46,7 @@ public sealed class WpdSession : IDisposable
     private readonly IPortableDeviceProperties _properties;
     private readonly IPortableDeviceResources _resources;
     private readonly IPortableDeviceKeyCollection _keys;
+    private readonly IPortableDeviceKeyCollection _storageKeys;
     private bool _disposed;
 
     private WpdSession(string id, IPortableDevice device)
@@ -44,9 +62,44 @@ public sealed class WpdSession : IDisposable
             var k = key;
             _keys.Add(ref k);
         }
+        _storageKeys = Wpd.Create<IPortableDeviceKeyCollection>(Wpd.CLSID_PortableDeviceKeyCollection);
+        var access = Wpd.StorageAccessCapability;
+        _storageKeys.Add(ref access);
+        Abilities = AbilitiesOf(device);
     }
 
     public string Id { get; }
+
+    public DeviceAbilities Abilities { get; }
+
+    private static DeviceAbilities AbilitiesOf(IPortableDevice device)
+    {
+        IPortableDeviceCapabilities? capabilities = null;
+        IPortableDeviceKeyCollection? commands = null;
+        try
+        {
+            device.Capabilities(out capabilities);
+            capabilities.GetSupportedCommands(out commands);
+            uint count = 0;
+            commands.GetCount(ref count);
+            var supported = new HashSet<PropertyKey>();
+            for (uint i = 0; i < count; i++)
+            {
+                var key = default(PropertyKey);
+                commands.GetAt(i, ref key);
+                supported.Add(key);
+            }
+            return supported.Count == 0 ? DeviceAbilities.Unknown
+                : new DeviceAbilities(supported.Contains(Wpd.CommandCreateWithPropertiesOnly), supported.Contains(Wpd.CommandCreateWithPropertiesAndData),
+                    supported.Contains(Wpd.CommandSetProperties), supported.Contains(Wpd.CommandDeleteObjects));
+        }
+        catch (Exception ex) when (ex is COMException or InvalidCastException) { return DeviceAbilities.Unknown; }
+        finally
+        {
+            if (commands is not null) Marshal.ReleaseComObject(commands);
+            if (capabilities is not null) Marshal.ReleaseComObject(capabilities);
+        }
+    }
 
     public bool IsBroken { get; private set; }
 
@@ -137,7 +190,7 @@ public sealed class WpdSession : IDisposable
     }
 
     private static UnauthorizedAccessException Refused(Exception inner) =>
-        new("The device refused access. Unlock it and choose File transfer (MTP) in its USB options, then try again.", inner);
+        new("The device refused access. Unlock it and allow this computer (Trust on an iPhone, File transfer in an Android phone's USB options), then try again.", inner);
 
     private Exception Translate(COMException ex, string what)
     {
@@ -149,7 +202,9 @@ public sealed class WpdSession : IDisposable
     private static Exception Explain(COMException ex, string what, out bool broken)
     {
         const int DeviceNotConnected = unchecked((int)0x8007048F), NotFound = unchecked((int)0x80070002), Busy = unchecked((int)0x800700AA),
-            GenFailure = unchecked((int)0x8007001F), Disconnected = unchecked((int)0x80042009);
+            GenFailure = unchecked((int)0x8007001F), Disconnected = unchecked((int)0x80042009), NotSupported = unchecked((int)0x80070032);
+        // COM's own message usually ends with the code already ("The request is not supported. (0x80070032)").
+        string message = ex.Message.Trim(), code = $"0x{ex.HResult:X8}";
         broken = ex.HResult is DeviceNotConnected or GenFailure or Disconnected;
         return ex.HResult switch
         {
@@ -157,7 +212,8 @@ public sealed class WpdSession : IDisposable
             NotFound => new FileNotFoundException($"Could not {what}: the item is no longer on the device.", ex),
             Busy => new IOException($"Could not {what}: the device is busy with another transfer.", ex),
             DeviceNotConnected or Disconnected => new IOException($"Could not {what}: the device was disconnected.", ex),
-            _ => new IOException($"Could not {what}: {ex.Message.Trim()} (0x{ex.HResult:X8})", ex),
+            NotSupported => new IOException($"Could not {what}: the device does not support it.", ex),
+            _ => new IOException($"Could not {what}: {message}" + (message.Contains(code, StringComparison.OrdinalIgnoreCase) ? "" : $" ({code})"), ex),
         };
     }
 
@@ -222,7 +278,24 @@ public sealed class WpdSession : IDisposable
             string name = (storage ? Str(values, Wpd.Name) : null) ?? Str(values, Wpd.OriginalFileName) ?? Str(values, Wpd.Name) ?? id;
             long size = folder ? -1 : (long)Math.Min(ULong(values, Wpd.Size) ?? 0, long.MaxValue);
             return new PortableObject(id, name, folder, storage, size, Date(values, Wpd.DateModified), Bool(values, Wpd.CanDelete) ?? true, Bool(values, Wpd.IsHidden) ?? false,
-                Str(values, Wpd.ParentId));
+                Str(values, Wpd.ParentId), storage ? AccessOf(id) : StorageAccess.ReadWrite);
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(values);
+        }
+    }
+
+    /// <summary>A storage's access; read-write when the device does not say, so the device decides as before.</summary>
+    private StorageAccess AccessOf(string storageId)
+    {
+        IPortableDeviceValues values;
+        try { _properties.GetValues(storageId, _storageKeys, out values); }
+        catch (COMException) { return StorageAccess.ReadWrite; }
+        try
+        {
+            var key = Wpd.StorageAccessCapability;
+            return values.GetUnsignedIntegerValue(ref key, out uint access) == 0 && access is 1 or 2 ? (StorageAccess)access : StorageAccess.ReadWrite;
         }
         finally
         {
@@ -382,7 +455,7 @@ public sealed class WpdSession : IDisposable
             if (_disposed) return;
             _disposed = true;
             try { _device.Close(); } catch (COMException) { }
-            foreach (var o in new object[] { _keys, _resources, _properties, _content, _device })
+            foreach (var o in new object[] { _storageKeys, _keys, _resources, _properties, _content, _device })
             {
                 try { Marshal.ReleaseComObject(o); } catch (ArgumentException) { }
             }

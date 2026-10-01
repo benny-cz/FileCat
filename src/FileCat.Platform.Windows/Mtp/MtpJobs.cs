@@ -126,6 +126,13 @@ internal sealed class MtpUploadExecutor(Job job, IFileSystemOperations fs, JobJo
             Issue(IssueSeverity.Error, target, "Not copied: " + bad, StepOutcome.Failed);
             return false;
         }
+        // Nothing is sent to a device whose driver lists no way to add files: it would refuse every one.
+        if (Mtp.Refusal(folder, LocationCapabilities.TransferTarget) is { } refused)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, target, "Not copied: " + refused, StepOutcome.Failed);
+            return false;
+        }
         var info = Fs.TryGetInfo(source);
         if (info is null)
         {
@@ -372,6 +379,13 @@ internal sealed class MtpDeleteExecutor(Job job, IFileSystemOperations fs, JobJo
             Job.Checkpoint();
             var item = sources[i];
             string target = Display(item.Parent, item.Name);
+            if (Mtp.Refusal(item.Parent, LocationCapabilities.Delete) is { } refused)
+            {
+                Issue(IssueSeverity.Error, target, "Not deleted: " + refused, StepOutcome.Failed);
+                Job.ItemFailed();
+                Job.RootFailed(i);
+                continue;
+            }
             int step = Journal.Intent("device-delete", target);
             PortableObject? obj = null;
             bool found = TryIo(target, "find the item", () => obj = Mtp.Find(item.Parent, item.Name));
@@ -413,6 +427,12 @@ internal sealed class MtpRenameExecutor(Job job, IFileSystemOperations fs, JobJo
         {
             Job.ItemFailed();
             Issue(IssueSeverity.Error, target, "Not renamed: " + bad, StepOutcome.Failed);
+            return;
+        }
+        if (Mtp.Refusal(item.Parent, LocationCapabilities.Rename) is { } refused)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, target, "Not renamed: " + refused, StepOutcome.Failed);
             return;
         }
         PortableObject? obj = null, clash = null;
@@ -461,6 +481,12 @@ internal sealed class MtpCreateDirectoryExecutor(Job job, IFileSystemOperations 
         {
             Job.ItemFailed();
             Issue(IssueSeverity.Error, target, "Not created: " + bad, StepOutcome.Failed);
+            return;
+        }
+        if (Mtp.Refusal(folder, LocationCapabilities.CreateDirectory) is { } refused)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, target, "Not created: " + refused, StepOutcome.Failed);
             return;
         }
         PortableObject? clash = null;

@@ -120,7 +120,7 @@ public sealed partial class MainViewModel
             places.Add(new Place("Network", "Computers and file servers on this network, and their shares", new Location(Schemes.Network, string.Empty),
                 () => icons.GetPlaceIcon(IconKind.Network)) { Group = PlaceGroup.Devices });
         if (Services.Providers.IsRegistered(Schemes.Mtp))
-            places.Add(new Place("Phones and cameras", "Portable devices over MTP (unlock a phone and choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices,
+            places.Add(new Place("Phones and cameras", "Portable devices over MTP (unlock a phone; on an iPhone trust this computer, on an Android phone choose File transfer)", FileCat.Platform.Windows.Mtp.MtpProvider.Devices,
                 () => icons.GetPlaceIcon(IconKind.Phone)) { Group = PlaceGroup.Devices });
         int workingSets = Services.WorkingSets.All.Count;
         places.Add(new Place("Working sets", workingSets == 0 ? "Collect items from many folders (references, never copies)" : $"{Formatters.Plural(workingSets, "set", "sets")} of items collected from many folders",

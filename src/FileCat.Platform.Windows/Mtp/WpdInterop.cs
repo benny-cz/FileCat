@@ -35,8 +35,16 @@ internal static class Wpd
     private static readonly Guid StorageProperties = new("01A3057A-74D6-4E80-BEA7-DC4C212CE50A");
     public static readonly PropertyKey StorageCapacity = new(StorageProperties, 4);
     public static readonly PropertyKey StorageFreeSpace = new(StorageProperties, 5);
+    public static readonly PropertyKey StorageAccessCapability = new(StorageProperties, 11);
 
     public static readonly PropertyKey ResourceDefault = new(new Guid("E81E79BE-34F0-41BF-B53F-F1A06AE87842"), 0);
+
+    // Commands a driver lists as supported (an iPhone's lists deleting, and none of creating or setting properties).
+    private static readonly Guid ObjectManagementCommands = new("EF1E43DD-A9ED-4341-8BCC-186192AEA089");
+    public static readonly PropertyKey CommandCreateWithPropertiesOnly = new(ObjectManagementCommands, 2);
+    public static readonly PropertyKey CommandCreateWithPropertiesAndData = new(ObjectManagementCommands, 3);
+    public static readonly PropertyKey CommandDeleteObjects = new(ObjectManagementCommands, 7);
+    public static readonly PropertyKey CommandSetProperties = new(new Guid("9E5582E4-0814-44E6-981A-B2998D583804"), 5);
 
     private static readonly Guid ClientInfo = new("204D9F0C-2292-4080-9F42-40664E70F859");
     public static readonly PropertyKey ClientName = new(ClientInfo, 2);
@@ -93,12 +101,28 @@ internal interface IPortableDevice
     void Open([MarshalAs(UnmanagedType.LPWStr)] string pnpDeviceId, IPortableDeviceValues clientInfo);
     void SendCommand(uint flags, IntPtr parameters, IntPtr results);
     void Content(out IPortableDeviceContent content);
-    void Capabilities(out IntPtr capabilities);
+    void Capabilities(out IPortableDeviceCapabilities capabilities);
     void Cancel();
     void Close();
     void Advise(IntPtr slot0, IntPtr slot1, IntPtr slot2, IntPtr slot3);
     void Unadvise(IntPtr cookie);
     void GetPnPDeviceID(out IntPtr id);
+}
+
+[ComImport, Guid("2c8c6dbf-e3dc-4061-becc-8542e810d126"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IPortableDeviceCapabilities
+{
+    void GetSupportedCommands(out IPortableDeviceKeyCollection commands);
+    void GetCommandOptions(IntPtr slot0, IntPtr slot1);
+    void GetFunctionalCategories(IntPtr slot0);
+    void GetFunctionalObjects(IntPtr slot0, IntPtr slot1);
+    void GetSupportedContentTypes(IntPtr slot0, IntPtr slot1);
+    void GetSupportedFormats(IntPtr slot0, IntPtr slot1);
+    void GetSupportedFormatProperties(IntPtr slot0, IntPtr slot1);
+    void GetFixedPropertyAttributes(IntPtr slot0, IntPtr slot1, IntPtr slot2);
+    void Cancel();
+    void GetSupportedEvents(IntPtr slot0);
+    void GetEventOptions(IntPtr slot0, IntPtr slot1);
 }
 
 /// <summary>
