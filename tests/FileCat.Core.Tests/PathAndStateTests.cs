@@ -75,6 +75,34 @@ public class PathAndStateTests
         Assert.False(Directory.Exists(Path.Combine(program, "Data")));
     }
 
+    /// <summary>
+    /// Release plan V11 ("portable unwritable directories"): a portable copy on something FileCat cannot write to — a
+    /// write-protected stick, a folder under Program Files — still starts, keeps its settings in the user's profile
+    /// instead, and says why. A writable one stays portable.
+    /// </summary>
+    [Fact]
+    public void A_portable_copy_that_cannot_write_beside_itself_starts_from_the_profile_and_says_why()
+    {
+        using var dir = new TempDir();
+        string writable = dir.Dir("portable here");
+        File.WriteAllText(Path.Combine(writable, AppPaths.PortableMarker), "");
+        var portable = AppPaths.Resolve(baseDirectory: writable);
+        Assert.True(portable.IsPortable);
+        Assert.Null(portable.PortableUnavailableReason);
+        Assert.Equal(Path.Combine(writable, "Data"), portable.SettingsDirectory);
+
+        // A file where its data folder would be: nothing can be made there, as on a medium that takes no writes.
+        string stuck = dir.Dir("portable stuck");
+        File.WriteAllText(Path.Combine(stuck, AppPaths.PortableMarker), "");
+        File.WriteAllText(Path.Combine(stuck, "Data"), "not a folder");
+        var fallback = AppPaths.Resolve(baseDirectory: stuck);
+        Assert.False(fallback.IsPortable);
+        Assert.NotNull(fallback.PortableUnavailableReason);
+        Assert.Contains("not writable", fallback.PortableUnavailableReason, StringComparison.Ordinal);
+        Assert.False(PathUtil.IsSameOrUnder(fallback.SettingsDirectory, stuck), fallback.SettingsDirectory);
+        Assert.Equal("not a folder", File.ReadAllText(Path.Combine(stuck, "Data")));
+    }
+
     [Fact]
     public void Containment_is_segment_aware()
     {

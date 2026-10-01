@@ -88,6 +88,9 @@ public sealed class WorkingSets : IDisposable
     /// <summary>Raised after a set is created, renamed, or deleted, or its members change.</summary>
     public event Action? Changed;
 
+    /// <summary>Raised when the sets could not be saved (on the saving thread); they are tried again at the next change.</summary>
+    public event Action<Exception>? SaveFailed;
+
     /// <summary>The sets by name.</summary>
     public IReadOnlyList<ResultSet> All
     {
@@ -219,6 +222,7 @@ public sealed class WorkingSets : IDisposable
             {
                 lock (_lock) _dirty = true; // kept for the next change or exit
                 AppLog.Error("Saving working sets failed", ex);
+                SaveFailed?.Invoke(ex);
             }
         }
     }

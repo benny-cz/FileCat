@@ -49,6 +49,7 @@ public sealed class AppServices : IDisposable
         ResultSets = new Core.Search.ResultSetProvider(Providers, Platform.FileOperations);
         Providers.Register(ResultSets);
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
+        WorkingSets.SaveFailed += ex => ReportSaveFailure("working sets", ex);
         Zip = new Core.Archives.ZipProvider(paths.TempDirectory);
         Providers.Register(Zip);
         // Read-only TAR, 7z, RAR, compressed files, and disc images (P8); archives of either kind nest in the other.
@@ -266,12 +267,30 @@ public sealed class AppServices : IDisposable
     /// <summary>Settings or history were saved (or would have been): bookmarks, saved servers, and other places may have changed.</summary>
     public event Action? Saved;
 
+    /// <summary>
+    /// A state file could not be saved: what the user should be told, once per file per session (the layout is saved
+    /// every minute, and a full disk or a folder made read-only would otherwise say so every minute). Raised on the
+    /// thread that tried; FileCat keeps trying at the next change.
+    /// </summary>
+    public event Action<string>? StateSaveFailed;
+
+    private readonly HashSet<string> _saveFailuresReported = [];
+
+    /// <summary>Logs a failed save of <paramref name="what"/> and tells the user the first time it happens.</summary>
+    public void ReportSaveFailure(string what, Exception ex)
+    {
+        AppLog.Error($"Saving {what} failed", ex);
+        lock (_saveFailuresReported)
+            if (!_saveFailuresReported.Add(what)) return;
+        StateSaveFailed?.Invoke($"FileCat could not save its {what}: {ex.Message} It keeps trying; until it can, changes to them will not survive a restart.");
+    }
+
     public void SaveSettings()
     {
         if (!SettingsReadOnly)
         {
             try { JsonFileStore.Save(Paths.SettingsFile, Settings, StateJsonContext.Default.AppSettings); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving settings failed", ex); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ReportSaveFailure("settings", ex); }
         }
         Saved?.Invoke();
     }
@@ -285,7 +304,7 @@ public sealed class AppServices : IDisposable
         if (HistoryStatus != StateLoadStatus.NewerSchemaReadOnly)
         {
             try { JsonFileStore.Save(Paths.HistoryFile, History, StateJsonContext.Default.HistoryState); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Saving history failed", ex); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ReportSaveFailure("history", ex); }
         }
         Saved?.Invoke();
     }

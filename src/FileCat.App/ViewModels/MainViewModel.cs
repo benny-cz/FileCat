@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ObservableObject
         AttachRemoteInteraction();
         _drives = services.Drives.Listen(change => services.Ui.Post(() => OnDrivesChanged(change)));
         services.Saved += OnStateSaved;
+        services.StateSaveFailed += message => services.Ui.Post(() => Notify(message, true));
         for (int i = 1; i <= 12; i++) KeyBar.Add(new KeyBarItem(i));
         UpdateKeyBar(KeyMods.None);
         Workspace.PropertyChanged += (_, e) =>
@@ -226,7 +227,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            AppLog.Error("Saving workspace failed", ex);
+            Services.ReportSaveFailure("window layout", ex);
         }
         Services.SaveHistory();
         Services.SaveSettings();
