@@ -197,6 +197,8 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `71bfd99` | Test: RAR 4 round 3655801, once still reading after 60 s, repeated in every run | — | E-B02-A1 |
 | `b0a2313` | Search: a read's edges are not the file's; UTF-16 files are read as UTF-8 too; V13's differential corpus test | I74 | E-V13-S1 |
 | `a9f48cf` | Icon: the frames the taskbar shrinks get an edge that reads on a dark taskbar; small frames in the artwork's proportions | I75 | E-ICON-1 |
+| `edd950a` | Delete: a folder's read-only mark on Windows refuses nothing; writing in a cloud folder (gated test, run on OneDrive) | I76 | E-CLOUD-1 |
+| — (device run) | The iPhone: one photo read into memory with the owner's leave (a PNG; sizes agree); the phone's photos are listed as JPEG | — | E-V21-I1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

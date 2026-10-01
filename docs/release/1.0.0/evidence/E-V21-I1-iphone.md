@@ -74,11 +74,20 @@ switches). Commit CI: run 36894133967 on `2e93339`, all four lanes passed (Windo
 - The advice for a device that refuses access or shows no storage named only an Android phone's USB options; it now
   also names the iPhone's question to trust the computer.
 
+## Reading off the iPhone (the owner's leave for one photo)
+
+FileCat's copy reads a device file until its reader gives no more, and its reader stops at the size the device listed:
+an iPhone that hands over more bytes than it lists would leave a shorter copy without an error. With the owner's leave
+("you are allowed to do it"), one photo was read into memory, never saved or shown (a temporary probe; only sizes,
+counts and a hash prefix printed): the newest month folder's only picture, a PNG. Listed 496,690 bytes; its stream
+gave 496,690; FileCat's reader gave the same 496,690 bytes, byte for byte.
+
+That does not answer the question, since a PNG is never converted. The listings of all 80 folders (names only) hold
+263 `.JPG`, 33 `.MOV`, 16 `.PNG`, 2 `.AAE`, one `.MP4` and one `.GIF`, and no `.HEIC`: the phone hands its photos over
+as JPEG (transferring with "Automatic", which converts HEIC as it goes, or shooting JPEG). Whether such a JPEG's bytes
+are the size it lists is what one JPEG read would show; that needs the owner's leave for one more photo.
+
 ## Not done here
 
-- **Reading or copying a photo off the iPhone.** The read check (`A_device_file_reads_completely_and_again_from_an_earlier_offset`)
-  reads the first file it finds completely, in memory, and compares it with the size the device reported — on an
-  iPhone that is one of the owner's photos. It waits for the owner's leave. It matters: an iPhone set to convert
-  photos when transferring them ("Automatic") may hand over other bytes than it lists.
 - **Deleting:** offered, as the device allows it, and not tried on anything of the owner's.
 - **Locked and untrusted states, and unplugging part way:** these need the owner at the phone.

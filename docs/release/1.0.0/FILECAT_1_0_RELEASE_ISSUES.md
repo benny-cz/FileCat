@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I76 | Delete: FileCat could not delete a folder OneDrive keeps in sync, nor any customized folder (their read-only mark), and blamed Controlled Folder Access | Medium (a common folder could not be deleted, nor moved off its drive whole; the message pointed elsewhere) | Must fix (E-CLOUD-1, V02) | **Remediated `edd950a`; verified** (unit tests with a negative control; the owner's OneDrive) |
 | I75 | Taskbar: the pinned icon read small on a dark taskbar; the 24-pixel frame fixed earlier is not what a pinned item draws | Low (looks; the owner's report) | Should fix (owner's request, E-ICON-1) | **Remediated `a9f48cf`; verified** (the lent VM's real taskbar, dark and light) |
 | I74 | Content search answered otherwise than the files at 1 MiB read boundaries, and missed UTF-8 inside UTF-16 files | Low–Medium (false positives for anchored or look-around regular expressions and accents at read boundaries; a documented reading left out) | Must fix (V13) | **Remediated `b0a2313`; verified** (a differential corpus test, before and after) |
 | I73 | Type icons: a placeholder name made the Shell try to open `C:\file.url` from FileCat's own process | Low (a constant, local, nonexistent path at the system drive's root, where standard users can make only folders; nothing was read) | Should fix (V24, I16's file half) | **Remediated `f1b48de`; verified** (file trace with and without the change; unit test) |
@@ -1019,6 +1020,24 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I76 — Delete: a folder's read-only mark stopped FileCat's delete
+
+- **Found by:** E-CLOUD-1's writing test in a test folder of the owner's OneDrive: the test's own folders could not be
+  removed by FileCat's permanent delete.
+- **What was wrong:** on Windows a folder's read-only attribute is the Shell's mark of a customized folder (one with a
+  desktop.ini), and OneDrive sets it on every folder it keeps in sync; it protects nothing, and Explorer deletes such
+  folders. `RemoveDirectory` refuses a folder while it is set, and FileCat removed folders with it as they were, so its
+  delete stopped at each one with "Access is denied. If the destination is a protected folder, Windows Controlled
+  Folder Access may be blocking FileCat" — advice about something else. The same stopped a move of such a folder to
+  another drive from removing its source.
+- **Remediation (`edd950a`):** removing a folder on Windows clears the mark when it is the reason for a refusal, and
+  puts it back when the folder still cannot be removed. Read-only files are asked about, as before; Linux and macOS,
+  where the permission means what it says, are unchanged.
+- **Verification:** `ReadOnlyFolderTests` (a read-only folder goes; a tree of them is deleted without a question; a
+  non-empty one keeps its mark, which walks the put-back path) — all three fail without the change. On the owner's
+  OneDrive, FileCat's delete removed the read-only folders and the test folder; Windows platform suite 143, 0 failed.
+- **Severity:** Medium: deleting a folder in OneDrive is everyday work, and the message sent the user to the wrong place.
 
 ### I75 — Taskbar: the pinned icon read small on a dark taskbar
 

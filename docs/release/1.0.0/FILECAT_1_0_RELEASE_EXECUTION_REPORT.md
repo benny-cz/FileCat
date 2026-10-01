@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `a9f48cf` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `edd950a` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -394,6 +394,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     is the 32-pixel frame shrunk to 24, so `ecaa254`'s redrawn 24-pixel frame never showed; the artwork's dark edge melts
     on a dark taskbar. The frames the taskbar shrinks get a cyan edge, the small frames the artwork's proportions
     (`a9f48cf`); on the VM's dark taskbar it now reads as large as Salamander's.
+101. Writing in a cloud folder, with the owner's leave for one test folder (E-CLOUD-1): FileCat's jobs in OneDrive —
+    copy in, rename, move, free up space, copy out a file only in the cloud (it downloads), delete, recycle — all as
+    on a plain disk. **I76** (Medium): FileCat could not delete the folders OneDrive keeps in sync (their read-only mark,
+    which the Shell also sets on customized folders) and blamed Controlled Folder Access; fixed (`edd950a`). The test
+    folder and its one recycled file were removed; nothing else touched.
+102. The iPhone, reading (E-V21-I1): one photo read into memory with the owner's leave — a PNG, so sizes agree but
+    nothing was converted; the phone lists its photos as JPEG (no HEIC), so one JPEG read would show whether converted
+    photos come off whole. Asked.
 
 ## Evidence invalidated by the campaign's own changes
 

@@ -64,9 +64,38 @@ underneath, **all 42 only in the cloud before and all 42 still only in the cloud
 placeholders in the listing; the search found nothing (it reads no cloud file's content); the size counted
 7,012,811 bytes in 42 files from the listing alone.
 
-**Not yet checked, for want of a place to do it:** copying from, moving, renaming and deleting files in a provider's
-folder, and the Recycle Bin there. Every such test writes to the owner's cloud account (what is made in OneDrive
-uploads), so it waits for the owner to name a folder for it, as with the phone's `FileCat-test`.
+## Writing in a provider's folder (`edd950a`; I76)
+
+The owner's leave (2026-10-01): "create some testing directory, and then delete it, but only this one".
+`CloudWriteTests.Files_in_a_cloud_folder_are_copied_renamed_moved_deleted_and_downloaded_like_any_others` (gated on
+`FILECAT_CLOUD_WRITE_ROOT`; run on the owner's OneDrive) makes a folder `FileCat-test-<random>` there with FileCat's
+own job, works only inside it with FileCat's jobs, and removes it; from the Recycle Bin it removes only the entries
+whose original place was inside it (read from the bin's own `$I` records); it checks that the provider folder's
+top-level entries are the same before and after.
+
+| Step | On OneDrive |
+|---|---|
+| Copy in a text file, 4 MiB of random bytes and a small tree | the same bytes |
+| Rename, move inside the folder | the same bytes, the old names gone |
+| "Free up space" (the `UNPINNED` attribute) | FileCat shows it bound for the cloud at once; OneDrive made it a placeholder 8–11 s later (`RECALL_ON_DATA_ACCESS`), and FileCat's listing marks it |
+| Copy that file out while it is only in the cloud | it downloads as it is read: the same 4 MiB in 0.8–1.0 s, the file then on this device |
+| Delete a file permanently; send one to the Recycle Bin | gone; the recycled one found in the bin (and removed from it afterwards) |
+| Delete the folders OneDrive keeps in sync, then the test folder | **first run: refused** (I76); after the fix: deleted |
+
+**I76 (Medium, fixed `edd950a`):** OneDrive marks the folders it syncs read-only (here `0x31`, and `0x431` once they
+are placeholders), and so does the Shell every customized folder. That mark protects nothing — Explorer deletes such
+folders — but `RemoveDirectory` refuses a folder while it is set, and FileCat's permanent delete stopped at each one
+with "Access is denied. If the destination is a protected folder, Windows Controlled Folder Access may be blocking
+FileCat", which was not the cause. Removing a folder on Windows now clears the mark when it is the reason for a
+refusal and puts it back when the folder still cannot be removed (`ReadOnlyFolderTests`, three tests, all failing
+without the change). The first run's test folder, left behind by that refusal, was then removed by FileCat's fixed
+delete, and its one recycled file purged from the bin; nothing else in OneDrive or in the bin was touched.
+
+OneDrive keeps what was deleted in its own online recycle bin for a while, as it does with anything deleted in its
+folder; that is the provider's, not FileCat's.
+
+**Not done here:** Dropbox and iCloud Drive (one test folder was allowed; OneDrive was chosen), and "Always keep on this
+device" or "Free up space" as FileCat commands of their own.
 
 ## Not done (possible next steps)
 
