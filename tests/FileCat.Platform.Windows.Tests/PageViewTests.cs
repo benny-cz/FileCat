@@ -77,6 +77,79 @@ public sealed class PageViewTests : IDisposable
         Assert.Contains(blocked, b => b.StartsWith("https://example.com/", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void A_markdown_file_is_drawn_with_its_pictures_and_asks_the_web_for_nothing()
+    {
+        // Release issue I25 in the real engine: the file drawn (its title is the file's name, its script is text), the
+        // picture beside it served, and the picture on the web never requested. FILECAT_PAGE_CAPTURE keeps a picture of it.
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        string site = Directory.CreateDirectory(Path.Combine(_dir, "notes")).FullName;
+        string readme = Path.Combine(site, "README.md");
+        File.WriteAllText(readme, """
+            # FileCat notes
+
+            Some *emphasis*, **strong** text, `code`, and a [link](https://example.com "Example").
+
+            - [x] done
+            - [ ] to do
+              1. nested
+              2. list
+
+            > A quote with **bold**.
+
+            | Name | Size |
+            |:-----|-----:|
+            | a.txt | 1 KB |
+            | Žluťoučký kůň.txt | 12 MB |
+
+            ```cs
+            var x = "<tag>"; // highlighted as code
+            ```
+
+            ![local](pic.png) ![remote](https://tracker.example/pixel.gif)
+
+            <script>document.title = 'the script ran';</script>
+            """);
+        File.WriteAllBytes(Path.Combine(site, "pic.png"), Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="));
+
+        var served = new ConcurrentQueue<(string Path, bool Found)>();
+        var blocked = new ConcurrentQueue<string>();
+        string? title = null;
+        (bool Ok, string? Why)? loaded = null;
+        string? capture = Environment.GetEnvironmentVariable("FILECAT_PAGE_CAPTURE");
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var source = new FileContentSource(readme);
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview"));
+            var done = new TaskCompletionSource();
+            view.Served += (path, found) => served.Enqueue((path, found));
+            view.Blocked += blocked.Enqueue;
+            view.Loaded += (ok, why) =>
+            {
+                loaded = (ok, why);
+                done.TrySetResult();
+            };
+            view.SetSize(900, 1000);
+            view.Show(HtmlPage.ForMarkdown(source, readme));
+            await done.Task;
+            for (int i = 0; i < 100 && !served.Any(s => s.Path == "/pic.png"); i++) await Task.Delay(50);
+            await Task.Delay(500); // anything else the page would ask for
+            title = view.Title;
+            if (!string.IsNullOrEmpty(capture))
+                await using (var png = File.Create(capture)) await view.CaptureAsync(png);
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(60));
+
+        Assert.True(loaded is { Ok: true }, $"The page did not load: {loaded?.Why}");
+        Assert.Equal("README.md", title);
+        Assert.Contains(served, s => s.Path == "/README.md" && s.Found);
+        Assert.Contains(served, s => s.Path == "/pic.png" && s.Found);
+        Assert.Empty(blocked);
+        Assert.DoesNotContain(served, s => s.Path.Contains("pixel", StringComparison.Ordinal));
+    }
+
     /// <summary>A single-threaded apartment with a message pump and a synchronization context, as a UI thread has.</summary>
     private static class StaPump
     {

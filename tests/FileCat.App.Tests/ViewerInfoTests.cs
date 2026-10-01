@@ -103,4 +103,32 @@ public sealed class ViewerInfoTests
             try { Directory.Delete(root, recursive: true); } catch (IOException) { }
         }
     }
+
+    [AvaloniaFact]
+    public async Task A_markdown_file_opens_drawn_and_without_an_engine_as_its_text()
+    {
+        // Release issue I25: Markdown opened as raw text; it opens drawn, as a page does.
+        var ct = TestContext.Current.CancellationToken;
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+        var markdown = System.Text.Encoding.UTF8.GetBytes("# Notes\n\n- one\n- two\n");
+        var viewer = new ViewerWindow(services, new MemoryContentSource("NOTES.md", markdown), "NOTES.md", hex: false);
+        viewer.Show();
+        try
+        {
+            for (int i = 0; i < 250 && !viewer.IsPageShown; i++) await Task.Delay(20, ct);
+            Assert.True(viewer.IsPageShown);
+            Assert.Contains("Markdown drawn as a page", viewer.StatusLine);
+            // This test display draws no native views: the viewer says so and shows the text.
+            for (int i = 0; i < 400 && viewer.IsPageShown; i++) await Task.Delay(20, ct);
+            Assert.False(viewer.IsPageShown);
+            Assert.Contains("is shown instead", viewer.StatusLine);
+        }
+        finally
+        {
+            viewer.Close();
+            services.Dispose();
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
 }

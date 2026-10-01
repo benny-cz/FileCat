@@ -19,9 +19,18 @@ public sealed class HtmlPage
 
     private readonly IContentSource _source;
     private readonly string? _folder;
+    private readonly bool _markdown;
 
-    public HtmlPage(IContentSource source, string displayName)
+    /// <summary>A Markdown file drawn as a page (release issue I25): its pictures load from its folder, as a page's do.</summary>
+    public static HtmlPage ForMarkdown(IContentSource source, string displayName) => new(source, displayName, markdown: true);
+
+    public HtmlPage(IContentSource source, string displayName) : this(source, displayName, markdown: false)
     {
+    }
+
+    private HtmlPage(IContentSource source, string displayName, bool markdown)
+    {
+        _markdown = markdown;
         _source = source;
         string name = Path.GetFileName(displayName.TrimEnd('/', '\\'));
         Name = name.Length == 0 ? "page.html" : name;
@@ -50,7 +59,7 @@ public sealed class HtmlPage
         string relative;
         try { relative = Uri.UnescapeDataString(path.Split('?', '#')[0]).TrimStart('/'); }
         catch (UriFormatException) { return null; }
-        if (relative.Length == 0 || relative == Name) return Read(_source, MimeType(Name));
+        if (relative.Length == 0 || relative == Name) return _markdown ? Render() : Read(_source, MimeType(Name));
         if (_folder is null || relative.Contains('\0') || relative.Contains(':') && OperatingSystem.IsWindows()) return null;
         string full;
         try { full = Path.GetFullPath(Path.Combine(_folder, relative.Replace('/', Path.DirectorySeparatorChar))); }
@@ -73,6 +82,16 @@ public sealed class HtmlPage
         var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         string folder = _folder!.EndsWith(Path.DirectorySeparatorChar) ? _folder : _folder + Path.DirectorySeparatorChar;
         return full.StartsWith(folder, comparison);
+    }
+
+    /// <summary>The Markdown file as a page: its text decoded as the viewer decodes it, drawn, and served as HTML.</summary>
+    private (byte[], string)? Render()
+    {
+        if (Read(_source, "text/markdown") is not { } file) return null;
+        var bytes = file.Item1;
+        var guess = TextDecoding.Detect(bytes.AsSpan(0, Math.Min(bytes.Length, 64 * 1024)));
+        string text = guess.Encoding.GetString(bytes, guess.PreambleLength, bytes.Length - guess.PreambleLength);
+        return (Encoding.UTF8.GetBytes(Markdown.ToPage(text, Name)), "text/html");
     }
 
     private static (byte[], string)? Read(IContentSource source, string mime)

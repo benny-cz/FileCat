@@ -122,6 +122,10 @@ public sealed class WebView2Page : IDisposable
         }
     }
 
+    /// <summary>A picture of the page as drawn, as PNG (tests and diagnostics: what a reader would see).</summary>
+    internal Task CaptureAsync(Stream png) =>
+        _controller?.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, png) ?? Task.CompletedTask;
+
     /// <summary>Shows a page (at once, or once the view is ready).</summary>
     public void Show(HtmlPage page)
     {

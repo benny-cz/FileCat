@@ -257,7 +257,9 @@ public sealed class ViewerWindow : Window
         _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
         // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
         _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
-        _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix);
+        // A Markdown file opens drawn, as a page does (release issue I25); its text is an F4 away.
+        _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
+        if (Markdown.IsMarkdown(_displayName)) ToolTip.SetTip(_modePage, "The Markdown drawn as a page: its HTML shown as text, pictures only from its folder, nothing fetched from the web");
         // A web page opens as the page, as a browser shows it (its scripts and the web off); its source is an F4 away.
         if (_modePage.IsVisible && forceHexIfBinary) ShowPage();
         else if (_modePicture.IsVisible && forceHexIfBinary) ShowPicture();
@@ -341,7 +343,7 @@ public sealed class ViewerWindow : Window
         foreach (var part in _textOnly) part.IsVisible = false;
         if (_htmlPage is null)
         {
-            _htmlPage = new HtmlPage(_source, _displayName);
+            _htmlPage = Markdown.IsMarkdown(_displayName) ? HtmlPage.ForMarkdown(_source, _displayName) : new HtmlPage(_source, _displayName);
             _pageView.Show(_htmlPage);
         }
         _pageView.FocusPage();
@@ -510,10 +512,12 @@ public sealed class ViewerWindow : Window
         if (_isPage)
         {
             int blocked = _pageView.BlockedCount;
-            _status.Text = (_pageView.Title is { Length: > 0 } title ? title + " · " : "") +
-                           "Web page: its scripts do not run and nothing is fetched from the web" +
+            bool markdown = Markdown.IsMarkdown(_displayName);
+            _status.Text = (!markdown && _pageView.Title is { Length: > 0 } title ? title + " · " : "") +
+                           (markdown ? "Markdown drawn as a page: its HTML is shown as text, scripts do not run and nothing is fetched from the web"
+                               : "Web page: its scripts do not run and nothing is fetched from the web") +
                            (blocked > 0 ? $" ({blocked.ToString("N0", CultureInfo.CurrentCulture)} {(blocked == 1 ? "request" : "requests")} refused)" : "") +
-                           $" · F4 shows its source · {Formatters.ExactSize(_reader.Length)}";
+                           $" · F4 shows its {(markdown ? "text" : "source")} · {Formatters.ExactSize(_reader.Length)}";
             return;
         }
         long len = _reader.Length;
