@@ -645,6 +645,9 @@ public sealed class ListingModel : IDisposable
 
     public static string DescribeError(Exception ex) => ex switch
     {
+        // The reason a refusal gives is kept ("Reading /dev/sdb was not authorized: …", "Access to the path … is denied."):
+        // only .NET's bare default says nothing.
+        UnauthorizedAccessException { Message: var m } when m.Length > 0 && m != new UnauthorizedAccessException().Message => m,
         UnauthorizedAccessException => "Access is denied.",
         DirectoryNotFoundException => "The location does not exist or is no longer available.",
         FileNotFoundException => "The location does not exist.",

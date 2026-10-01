@@ -37,6 +37,19 @@ public sealed class ListingModelTests : IDisposable
     private Task<string[]> VisibleNames(ListingModel m) =>
         _ui.InvokeAsync(() => Enumerable.Range(0, m.VisibleCount).Select(i => m.GetVisible(i).Name).ToArray());
 
+    /// <summary>
+    /// A refusal's own reason is what a failed listing says (release plan V09's L6: polkit refusing UDisks2 showed only
+    /// "Access is denied."); only .NET's bare default is put in plain words.
+    /// </summary>
+    [Fact]
+    public void A_refused_listing_says_why_it_was_refused()
+    {
+        const string reason = "Reading /dev/loop21 was not authorized: Not authorized to perform operation";
+        Assert.Equal(reason, ListingModel.DescribeError(new UnauthorizedAccessException(reason)));
+        Assert.Equal("Access is denied.", ListingModel.DescribeError(new UnauthorizedAccessException()));
+        Assert.Equal("The location does not exist.", ListingModel.DescribeError(new FileNotFoundException("x")));
+    }
+
     [Fact]
     public async Task Refresh_preserves_only_the_marked_kind_when_names_overlap()
     {
