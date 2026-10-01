@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I72 | Phones: creating folders, renaming and copying onto an iPhone were offered, and every one failed | Low–Medium (V21's read-only capability was not shown; F7 there ended in "The request is not supported. (0x80070032) (0x80070032)") | Must fix (V21) | **Remediated `2e93339`; verified** (on the owner's iPhone, and unit tests with a negative control) |
 | I71 | An older FileCat saved over a newer FileCat's window layout within two minutes | Medium (the newer layout and its backup were both gone) | Must fix (V11, plan §19.1) | **Remediated `b70be07`; verified** (unit test with a negative control) |
 | I70 | A Shell picture that got no answer was remembered as the file having none | Medium (after a helper died, quick view showed no picture for those files for the rest of the session) | Must fix (V24, CI flake) | **Remediated `3f647bd`; verified** (unit test with a negative control) |
 | I69 | A repository's own configuration sent Git to a server while the folder was merely shown | High (an unasked connection to an attacker-named server during ordinary browsing; 21 s per repository where it does not answer) | Must fix (V24, V23 B10) | **Remediated `aaee133`; verified** (E-V24-G1, with a packet capture) |
@@ -1015,6 +1016,34 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I72 — Phones: creating folders, renaming and copying onto an iPhone were offered, and every one failed
+
+- **Found by:** V21 on the owner's iPhone (E-V21-I1): the plan asks that a read-oriented device of the iPhone class
+  shows its read-only capability as such.
+- **What was wrong:** `MtpProvider.GetCapabilities` offered the same changes inside every device's storage — new
+  folders, renaming, copying onto it and deleting — whatever the device. The iPhone's storage even says read-write
+  (`WPD_STORAGE_ACCESS_CAPABILITY` 0); what says otherwise is its driver's list of commands, which has deleting and
+  no command to create an object or set a property. So F7, F2 and copying onto the iPhone were all offered, and the
+  one attempt made (a folder named `FileCat-test`, which the owner's rule allows) ended in "Could not create the
+  folder: The request is not supported. (0x80070032) (0x80070032)" — the code twice, since COM's message already
+  carries it. Nothing on the phone changed.
+- **Remediation (`2e93339`):** the session reads the commands the driver lists when the device is opened, and each
+  storage's access when the storages are listed (for a write-protected card, or a camera that offers its pictures
+  read-only apart from deleting). FileCat offers what both allow and explains the rest — on an iPhone, "The device
+  does not let a computer create folders on it; it offers its files to copy off and to delete, as iPhones do." The
+  device jobs refuse with the same reason before sending anything, so a drop, a typed destination or a resumed job
+  ends the same way. While unknown (a device not opened yet), everything is offered and the device decides, as before.
+  Also: a COM message that ends with its code no longer gets it twice; "not supported" is said plainly; the advice for
+  a locked or untrusted device names the iPhone's question to trust the computer.
+- **Verification:** on the iPhone, `MtpTests.What_FileCat_offers_in_a_storage_is_what_the_device_allows_there`: the
+  driver's answers, and FileCat offering listing, reading and deleting only, from the device's list and with the
+  storage opened directly. Without a device, `MtpCapabilityTests` (five): every combination of commands and storage
+  access, the explanations, and the jobs refused before reaching the device; with the upload's guard taken out, its
+  case fails. Windows platform suite: 137 total, 0 failed. A positive control for the commands read: a USB drive's
+  WPD view on the same computer lists every create, write and set command.
+- **Severity:** Low–Medium: nothing could be harmed (the device refused each time), but the plan's V21 requirement
+  failed and every offered change ended in an error that did not say why.
 
 ### I71 — An older FileCat saved over a newer FileCat's window layout
 

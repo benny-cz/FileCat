@@ -50,4 +50,11 @@ gradient band, its outline and ears clear, in the dark theme and the light one. 
 
 ## Packaging run
 
-PENDING — run 36890213308 (`ecaa254`).
+Run 36890213308 on `ecaa254` (a manual run, 2026-10-01): **every lane passed** — Windows, Windows ARM64, Ubuntu and
+macOS builds and tests, and both packaging jobs.
+
+- **Package Linux:** the `.deb` installed on a clean runner, and the step that looks for the icon at every size —
+  `/usr/share/icons/hicolor/{16,24,32,48,64,128,256}x…/apps/filecat.png`, each present and not empty, the step failing
+  at the first that is not — passed. The AppImage was built from the same frames.
+- **Package macOS:** `iconutil` unpacked the app's `FileCat.icns` into an iconset of **seven** images, as the check
+  requires.

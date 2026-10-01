@@ -38,6 +38,7 @@ Seven cases, 0 failed. Afterwards the phone's storage root, looked at read-only 
   the moment a transfer runs (the cases exist to be run with them: no false success, partial output visible, the
   source kept while completion is uncertain, no hang).
 - A full device, and the temporary-name fallback a device without renames forces.
-- A read-oriented device (the iPhone class) and its read-only capability shown as such.
+- A read-oriented device (the iPhone class) and its read-only capability shown as such: done on the owner's iPhone,
+  E-V21-I1 (it found I72).
 - Physical Windows ARM64 coverage (ENV-02), which the plan requires for the native WPD feature.
 - The run on the final candidate's own build.

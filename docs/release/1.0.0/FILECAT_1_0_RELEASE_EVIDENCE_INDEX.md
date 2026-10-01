@@ -191,6 +191,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `b2d96ea` | Cloud files: OneDrive, Dropbox and iCloud Drive states drawn on their icons; their folders among the places | — | E-CLOUD-1 |
 | `ecaa254` | Icon: legible on a dark taskbar; every platform takes the frames drawn for small sizes | — | E-ICON-1 |
 | — (device run) | MTP on the owner's Android phone, inside FileCat-test: seven device cases, a thousand-file benchmark | P13 (in part) | E-V21-M1 |
+| `2e93339` | Phones: only what the device's driver and storage allow is offered; an iPhone is offered for copying off and deleting | I72 | E-V21-I1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

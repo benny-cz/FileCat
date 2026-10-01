@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `0ade5a1` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `2e93339` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -366,6 +366,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 95. MTP on the owner's Android phone (E-V21-M1): seven device cases inside `FileCat-test` passed, and a thousand small
     files went up in 31 s and back in 8.3 s; the folder is gone afterwards. The disconnect and lock cases wait for the
     owner at the phone.
+96. MTP on the owner's iPhone (E-V21-I1): **I72** (Low–Medium) — FileCat offered F7, renaming and copying onto the
+    iPhone, which takes none of them: its storage says read-write, but its driver lists deleting as the only object
+    command. FileCat now offers what the driver's commands and the storage's access allow, explains the rest, and the
+    device jobs refuse before sending anything (`2e93339`). Checked on the iPhone without changing anything on it;
+    reading a photo off it waits for the owner's leave.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -402,6 +407,6 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 5. Keep the records current after each change.
 
-Waiting on people, hardware or a candidate: DPI P13's remaining cases (mid-transfer disconnect and lock on the phone, with the owner; E-V21-M1); P07's loader audit (V06, installed
+Waiting on people, hardware or a candidate: DPI P13's remaining cases (mid-transfer disconnect and lock on the phone, with the owner; E-V21-M1); reading a photo off the iPhone (the owner's leave; E-V21-I1); P07's loader audit (V06, installed
 candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); I04 on Ubuntu 26.04
 (that system); steps 2, 5, 7 and 11–26 of the plan.
