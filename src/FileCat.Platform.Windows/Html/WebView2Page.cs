@@ -108,6 +108,13 @@ public sealed class WebView2Page : IDisposable
                 Refuse(e.Uri);
             };
             core.DownloadStarting += (_, e) => e.Cancel = true;
+            // A link to a scheme a program registered (mailto:, ms-settings:, search-ms:) never reaches that program
+            // (release plan B11), whatever the navigation checks above saw of it.
+            core.LaunchingExternalUriScheme += (_, e) =>
+            {
+                e.Cancel = true;
+                Refuse(e.Uri);
+            };
             core.PermissionRequested += (_, e) => e.State = CoreWebView2PermissionState.Deny;
             core.DocumentTitleChanged += (_, _) => TitleChanged?.Invoke(core.DocumentTitle);
             core.NavigationCompleted += (_, e) => Loaded?.Invoke(e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
