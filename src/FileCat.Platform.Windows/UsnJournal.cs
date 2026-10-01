@@ -49,16 +49,26 @@ internal static unsafe partial class UsnJournalReader
         return error == 0 ? UsnJournalInfo.Parse(info.AsSpan(0, got)) : null;
     }
 
+    /// <summary>A device control call on the volume (tests stand in for the file system with one).</summary>
+    internal delegate int DeviceControl(uint code, ReadOnlySpan<byte> input, Span<byte> output, out int returned);
+
     /// <summary>
     /// The entries from <paramref name="start"/> to the journal's end as it was when asked, in batches as the file system
-    /// hands them out (about a megabyte each).
+    /// hands them out (about a megabyte each). Entries overwritten while it reads (a busy volume wraps its journal faster
+    /// than it is read) are skipped: reading goes on from the new oldest entry, as often as that happens, and
+    /// <paramref name="overwritten"/> hears from where.
     /// </summary>
-    public static void Read(SafeFileHandle volume, UsnJournalInfo journal, long start, CancellationToken ct, Action<List<UsnRecord>> batch)
+    public static void Read(SafeFileHandle volume, UsnJournalInfo journal, long start, CancellationToken ct, Action<List<UsnRecord>> batch,
+        Action<long>? overwritten = null) =>
+        Read((uint code, ReadOnlySpan<byte> input, Span<byte> output, out int returned) => Ioctl(volume, code, input, output, out returned),
+            journal, start, ct, batch, overwritten);
+
+    internal static void Read(DeviceControl device, UsnJournalInfo journal, long start, CancellationToken ct, Action<List<UsnRecord>> batch,
+        Action<long>? overwritten)
     {
         var input = new byte[48];
         var output = new byte[1 << 20];
         var info = new byte[80];
-        bool restarted = false;
         while (start < journal.NextUsn)
         {
             ct.ThrowIfCancellationRequested();
@@ -67,13 +77,16 @@ internal static unsafe partial class UsnJournalReader
             BinaryPrimitives.WriteUInt64LittleEndian(input.AsSpan(32), journal.JournalId);
             BinaryPrimitives.WriteUInt16LittleEndian(input.AsSpan(40), 2);
             BinaryPrimitives.WriteUInt16LittleEndian(input.AsSpan(42), 3);
-            int error = Ioctl(volume, FsctlReadUsnJournal, input, output, out int got);
-            if (error == ErrorJournalEntryDeleted && !restarted)
+            int error = device(FsctlReadUsnJournal, input, output, out int got);
+            if (error == ErrorJournalEntryDeleted)
             {
-                // The oldest entries were overwritten while this read: go on from the new oldest.
-                restarted = true;
-                if (Ioctl(volume, FsctlQueryUsnJournal, [], info, out int length) != 0 || UsnJournalInfo.Parse(info.AsSpan(0, length)) is not { } again) break;
+                // The oldest entries were overwritten while this read: go on from the new oldest. It is always past the
+                // entry asked for, so a journal that keeps wrapping only moves the start on, towards the end read to; going
+                // on once only, a busy CI runner's journal wrapped a second time and the whole read failed (run 36941532909).
+                if (device(FsctlQueryUsnJournal, [], info, out int length) != 0 || UsnJournalInfo.Parse(info.AsSpan(0, length)) is not { } again ||
+                    again.FirstUsn <= start) break;
                 start = again.FirstUsn;
+                overwritten?.Invoke(start);
                 continue;
             }
             if (error != 0) throw new IOException(new Win32Exception(error).Message) { HResult = error };
@@ -390,6 +403,7 @@ public sealed class UsnJournalProvider : ResourceProvider
                 Tag = new JournalEntryTag(steps, change.Count, stillOpen, folders.Path(last.ParentId), renamedFrom, folders.Hint, refs),
             };
         }
+        bool overwritten = false;
         UsnJournalReader.Read(volume, journal, journal.FirstUsn, ct, records =>
         {
             var batch = new List<EntryData>(records.Count / 2 + 1);
@@ -403,9 +417,11 @@ public sealed class UsnJournalProvider : ResourceProvider
                 batch.Add(Row(change, stillOpen: false));
             }
             sink.AddBatch(batch.ToArray());
-        });
+        }, _ => overwritten = true);
         // Changes whose items are still open: as far as they went.
         sink.AddBatch(open.Values.Select(c => Row(c, stillOpen: true)).ToArray());
+        if (overwritten)
+            sink.ReportIssue("The volume changed faster than its journal was read: its oldest entries were overwritten meanwhile, so this list begins later than the journal did.");
     }, ct);
 
     /// <summary>An item's records since its last close: the first, the latest ones, and the one naming it before a rename.</summary>
