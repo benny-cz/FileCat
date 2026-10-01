@@ -161,7 +161,7 @@ public sealed class ViewerWindow : Window
         if (lostNotice is not null) root.Children.Add(lostNotice);
         root.Children.Add(statusBar);
         root.Children.Add(content);
-        Content = root;
+        Content = ThemeLayers.Over(root, content);
 
         _modeText.Click += (_, _) => SetMode(false);
         _modeHex.Click += (_, _) => SetMode(true);

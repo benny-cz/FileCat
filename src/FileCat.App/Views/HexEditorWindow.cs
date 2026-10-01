@@ -117,9 +117,10 @@ public sealed class HexEditorWindow : Window
         main.Children.Add(_recoveryBar);
         main.Children.Add(hint);
         main.Children.Add(footer);
-        main.Children.Add(_hex);
+        var hexSurface = new Border { Child = _hex };
+        main.Children.Add(hexSurface);
         var overlayHost = new Panel { IsVisible = false };
-        Content = new Grid { Children = { main, overlayHost } };
+        Content = ThemeLayers.Over(new Grid { Children = { main, overlayHost } }, hexSurface);
         _dialogs = new OverlayDialogService(overlayHost, () => _hex);
 
         _save.Click += async (_, _) => await SaveAsync();

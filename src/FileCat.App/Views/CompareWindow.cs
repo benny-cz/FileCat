@@ -167,8 +167,9 @@ public sealed class CompareWindow : Window
         root.Children.Add(_changedBanner);
         root.Children.Add(header);
         root.Children.Add(_statusBar);
-        root.Children.Add(new Panel { Children = { _rows, _hex } });
-        Content = root;
+        var body = new Panel { Children = { _rows, _hex } };
+        root.Children.Add(body);
+        Content = ThemeLayers.Over(root, body);
 
         _again.Click += (_, _) => CompareAgain();
         foreach (var box in new[] { _ignoreWhitespace, _ignoreCase, _binary, _collapse, _align }) box.IsCheckedChanged += (_, _) => Recompute();

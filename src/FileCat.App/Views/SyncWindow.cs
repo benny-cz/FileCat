@@ -94,7 +94,7 @@ public sealed class SyncWindow : Window
         root.Children.Add(info);
         root.Children.Add(buttons);
         root.Children.Add(_list);
-        Content = root;
+        Content = Controls.ThemeLayers.Over(root, _list);
         KeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape)

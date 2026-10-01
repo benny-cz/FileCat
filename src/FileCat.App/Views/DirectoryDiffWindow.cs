@@ -152,7 +152,7 @@ public sealed class DirectoryDiffWindow : Window
         root.Children.Add(bar);
         root.Children.Add(info);
         root.Children.Add(_list);
-        Content = root;
+        Content = Controls.ThemeLayers.Over(root, _list);
         KeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape)

@@ -188,7 +188,7 @@ public sealed class FindWindow : Window, IViewActions
         dock.Children.Add(results);
         root_.Children.Add(dock);
         root_.Children.Add(_overlay);
-        Content = root_;
+        Content = ThemeLayers.Over(root_, results);
         if (_services.Settings.SavedSearches.FirstOrDefault(s => s.LoadOnOpen) is { } preset) Apply(preset.Criteria);
 
         _find.Click += (_, _) => StartSearch(RefineMode.Replace);

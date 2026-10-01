@@ -86,6 +86,31 @@ public sealed class ThemeBackdrop : Control
 }
 
 /// <summary>
+/// The theme's backdrop under a window that is not the main one (release issue I31: viewers, comparisons, Find, and the
+/// others took the theme's colors but none of its effects). As in the main window, the tool and status strips show the
+/// backdrop through their translucent colors, and the glitches pass over everything; text, bytes, lists, and pictures
+/// sit on the theme's card color, which stays readable over any backdrop.
+/// </summary>
+public static class ThemeLayers
+{
+    /// <summary><paramref name="content"/> over the backdrop; each of <paramref name="surfaces"/> gets the card color.</summary>
+    public static Control Over(Control content, params Control[] surfaces)
+    {
+        foreach (var surface in surfaces)
+        {
+            var card = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("FcCard");
+            switch (surface)
+            {
+                case Panel panel: panel[!Panel.BackgroundProperty] = card; break;
+                case Border border: border[!Border.BackgroundProperty] = card; break;
+                case Avalonia.Controls.Primitives.TemplatedControl templated: templated[!Avalonia.Controls.Primitives.TemplatedControl.BackgroundProperty] = card; break;
+            }
+        }
+        return new Grid { Children = { new ThemeBackdrop(), content, new ThemeGlitchOverlay() } };
+    }
+}
+
+/// <summary>
 /// Glitches over the content (psychedelic theme): occasional short, translucent slices and small color flecks.
 /// Nothing is drawn between glitches.
 /// </summary>

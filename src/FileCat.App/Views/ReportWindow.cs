@@ -71,8 +71,9 @@ public sealed class ReportWindow : Window
         DockPanel.SetDock(statusBar, Dock.Bottom);
         root.Children.Add(toolbar);
         root.Children.Add(statusBar);
-        root.Children.Add(_view);
-        Content = root;
+        var surface = new Border { Child = _view };
+        root.Children.Add(surface);
+        Content = ThemeLayers.Over(root, surface);
 
         _refresh.Click += async (_, _) => await ReadAsync();
         copy.Click += async (_, _) => await CopyAsync(all: true);
