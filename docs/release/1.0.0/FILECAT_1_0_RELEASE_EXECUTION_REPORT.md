@@ -356,7 +356,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     FileCat now draws the states itself from the attributes a listing has — only in the cloud, on this computer, kept
     here always — for every Cloud Files provider, without running their Shell code or downloading anything, and lists
     the providers' folders with their icons. The owner's own folders showed an "excluded" state (both pin attributes)
-    that a first version drew wrongly. A validation pass of operations on cloud files is queued.
+    that a first version drew wrongly. Validated: looking at a cloud folder downloads nothing (42 online-only files on
+    the owner's OneDrive, all still online-only after listing, icons, metadata, checksum checks, a content search and
+    a size count); writing tests in a provider's folder wait for the owner to name one.
+94. The application icon, at the owner's request (E-ICON-1): on the owner's dark taskbar at 100% (24 pixels) the new
+    artwork's small frames all but disappeared; the 16- and 24-pixel frames are now drawn as pixel art in the
+    artwork's own terms (`ecaa254`, with the owner's leave), 32 to 256 untouched. The About box needed nothing. Linux
+    and macOS packages now take every size from the icon's frames instead of shrinking the 256-pixel PNG.
+95. MTP on the owner's Android phone (E-V21-M1): seven device cases inside `FileCat-test` passed, and a thousand small
+    files went up in 31 s and back in 8.3 s; the folder is gone afterwards. The disconnect and lock cases wait for the
+    owner at the phone.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -393,6 +402,6 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 5. Keep the records current after each change.
 
-Waiting on people, hardware or a candidate: DPI P13 (the phone, PPL-03); P07's loader audit (V06, installed
+Waiting on people, hardware or a candidate: DPI P13's remaining cases (mid-transfer disconnect and lock on the phone, with the owner; E-V21-M1); P07's loader audit (V06, installed
 candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); I04 on Ubuntu 26.04
 (that system); steps 2, 5, 7 and 11–26 of the plan.

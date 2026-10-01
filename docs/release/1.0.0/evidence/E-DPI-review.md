@@ -76,4 +76,4 @@ executing agent, not the independent re-audit the plan requires before closure.
 
 ## Not reviewed in this pass
 
-P07's loader audit (V06, on installed candidates) and P13 (MTP: its checks need the phone, PPL-03).
+P07's loader audit (V06, on installed candidates) and P13 (MTP: its device cases ran on the owner's Android phone, E-V21-M1; the mid-transfer disconnect and lock cases need the owner at the phone).
