@@ -341,6 +341,10 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public void UpdateSummary()
     {
+        // A job ends on its own thread and its row learns of it from a refresh queued here; rows that lag catch up first,
+        // so what is counted below and what the rows show are the same.
+        foreach (var vm in Jobs)
+            if (vm.IsFinished != vm.Job.State.IsFinished()) vm.Refresh();
         var active = Jobs.Where(j => !j.Job.State.IsFinished()).ToList();
         ActiveCount = active.Count;
         Primary = active.FirstOrDefault(j => j.NeedsDecision) ?? active.FirstOrDefault(j => j.IsActive) ?? active.FirstOrDefault()
@@ -375,7 +379,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     public void RemoveFinished()
     {
-        foreach (var vm in Jobs.Where(j => j.IsFinished).ToList())
+        // By the job's own state, as HasFinished counts them: a row whose refresh is still queued is finished too.
+        foreach (var vm in Jobs.Where(j => j.Job.State.IsFinished()).ToList())
         {
             Jobs.Remove(vm);
             _map.Remove(vm.Job);
