@@ -296,6 +296,9 @@ public sealed class ListingModel : IDisposable
     /// <summary>Navigates to a location. Marks are cleared; <paramref name="focusName"/> is focused when it arrives.</summary>
     public void Load(Location location, string? focusName = null)
     {
+        // A closed tab's listing stays closed: work that finishes after it (a connection, a search) must not start reading
+        // a folder for nobody (release issue I88's kind).
+        if (_disposed) return;
         // First: a location nothing can list leaves the listing as it was, not its store released under it.
         var provider = _providers.For(location);
         CancelPipelines();

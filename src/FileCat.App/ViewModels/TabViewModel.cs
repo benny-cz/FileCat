@@ -377,7 +377,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             return;
         }
         string resolved = Services.SftpProvider.Resolve(location);
-        if (!resolved.StartsWith('~')) Navigate(location.WithPath(resolved), focusName, record);
+        // The tab may have been closed while it connected.
+        if (!_disposed && !resolved.StartsWith('~')) Navigate(location.WithPath(resolved), focusName, record);
     }
 
     public bool CanGoBack => _back.Count > 0;
@@ -455,6 +456,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void Refresh()
     {
+        if (_disposed) return;
         ComparisonLabel = null;
         if (Listing.State == ListingState.Failed && Location is not null) Listing.Load(Location);
         else Listing.Refresh();

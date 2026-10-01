@@ -110,6 +110,27 @@ public sealed class EntryStoreTests
     }
 
     [Fact]
+    public async Task A_disposed_listing_does_not_load_again()
+    {
+        using var folder = new TempDir();
+        using var scratch = new TempDir();
+        folder.File("one.txt");
+        using var ui = new TestDispatcher();
+        using var io = new FileCat.Core.Threading.DeviceIoScheduler();
+        var providers = new ProviderRegistry();
+        providers.Register(new LocalFileSystemProvider());
+        var listing = await ui.InvokeAsync(() => new ListingModel(providers, io, ui, scratch.Path, 1024));
+        await ui.InvokeAsync(() => listing.Load(Location.FileSystem(folder.Path)));
+        await ui.WaitUntilAsync(() => listing.State == ListingState.Complete);
+        await ui.InvokeAsync(listing.Dispose);
+        // A closed tab's late work (a connection made, a search's results) asks it to load: nothing is read.
+        string other = Directory.CreateDirectory(Path.Combine(folder.Path, "other")).FullName;
+        await ui.InvokeAsync(() => listing.Load(Location.FileSystem(other)));
+        Assert.Equal(Location.FileSystem(folder.Path), await ui.InvokeAsync(() => listing.Location));
+        Assert.Equal(ListingState.Complete, await ui.InvokeAsync(() => listing.State));
+    }
+
+    [Fact]
     public async Task A_location_nothing_can_list_leaves_the_listing_as_it_was()
     {
         using var folder = new TempDir();
