@@ -168,6 +168,9 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `5e5f4ab` | Test: damaged files of every inspected format give reports with warnings, never exceptions | — | E-B02-I1 |
 | `8cb0737` | Inspector: a PE whose optional header is shorter than its fields gives a report | I65 | E-B02-I1 |
 | `3f42531` | Test: the traced recovery session names what it listed when it finds no deleted file to read | I09 | E-V09-T2 |
+| `c4d81d7` | Test: archive damage rounds replay on every machine and in every run (PAX headers named for process 0; managed deflate) | — | E-B02-A1 |
+| `cddce72` | Test: a failing archive damage round keeps its damaged copy | — | E-B02-A1 |
+| `9b734da` | Test: two CI flakes (NTFS's late time-change log record; a job's journal closed just after it finished) | — | CI |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |
 | `5b786a9` | Apply command: cmd.exe with `/v:off` | — | E-DPI (B11) |

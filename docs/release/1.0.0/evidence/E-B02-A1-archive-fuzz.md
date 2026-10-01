@@ -6,8 +6,13 @@ sometimes cut short — and goes through it as FileCat browses: listed three fol
 each. A round fails on an exception that is not a refusal (not an archive, damaged data, encrypted, unsupported), on 60
 seconds without an answer, or on more than 512 MiB allocated by the thread that read the archive (`e85b86a`; 640 MiB
 for RAR 4 since `325aa63`, below). Every round's damage depends only on the format and its number, so a failing round
-is replayed alone (`FILECAT_ARCHIVE_FUZZ_START`) — since `c22c793`: before it, the archives the test makes (ZIP, TAR,
-TAR+gzip, gzip) carried the time of the run, and their rounds did not replay.
+is replayed alone (`FILECAT_ARCHIVE_FUZZ_START`). For the archives the test makes (ZIP, TAR, TAR+gzip, gzip) that holds
+only since `c4d81d7`: before `c22c793` they carried the time of the run; until `c4d81d7` they still carried the writing
+process's ID (.NET names each PAX header `./PaxHeaders.<id>/…`), and .NET's native deflate gives other bytes on x64 than
+on ARM64, so their rounds replayed neither in another run nor on another machine. The test now names the PAX headers
+for process 0 and deflates with SharpCompress's managed code; each summary line gives the original's SHA-256, and the
+host and the Mac give the same four (`3882e0ea…` ZIP, `4743b809…` TAR, `0276a758…` TAR+gzip, `b7537f04…` gzip). Since
+`cddce72` a failing round also keeps its damaged copy (`FILECAT_ARCHIVE_FUZZ_KEEP`).
 
 Formats: ZIP through FileCat's own ZIP provider; TAR, TAR+gzip, gzip (archives made by the test), 7z LZMA2, 7z solid,
 RAR 4, RAR 5, RAR 5 solid, TAR+xz, TAR+zstd (fixtures) through the archive provider over SharpCompress. Every run of
@@ -24,6 +29,11 @@ the suite takes 100 rounds of each.
   pool, which hands out the next power of two, 512 MiB (`SubAllocator.StartSubAllocator` from `ModelPPM.DecodeInit`,
   seen with a 256 MiB heap cap). It is taken only when such a member is read, at most once at a time. The budget for RAR 4
   rounds is 640 MiB, and the round is replayed in every run (`325aa63`).
+- **A TAR+gzip round over budget that could not be rebuilt:** on the Mac (`325aa63`, rounds 2,000,000–2,999,999),
+  TAR+gzip round 2294974 allocated 512 MiB on the reading thread. It passes alone on the Mac and on the host: that
+  run's archive held its process's ID, so its damaged bytes are gone; candidate IDs near the logged one did not rebuild
+  them, and FileCat's TAR, gzip and member-reading paths hold no allocation that size behind the I58 guard. Open; the
+  generated formats run again with replayable rounds and kept copies (`cddce72`).
 
 ## Runs
 
@@ -36,8 +46,10 @@ the suite takes 100 rounds of each.
 | Owner's Mac | `6bbbb21` | 205,000–304,999 of all eleven, copies on a 1 GiB RAM disk | nine **passed** (134–171 s); TAR stopped at round 230427 (512 MiB; that build's TAR archives carried the run's time, so the round is not today's; I58's class) and RAR 4 at round 248010 (516 MiB, the PPMd model above) |
 | Host; owner's Mac | `c22c793` | TAR from 0, RAR 4 from 240,000 | stopped at TAR 97053 and RAR 4 248010 on both machines alike: the rounds replay |
 | Owner's Mac | `325aa63` | 0–999,999 of all eleven (RAM disk) | **all eleven passed** (1,830–2,345 s each, 10:57–11:36 UTC). Most allocated by one round: ZIP 48 MB, TAR 16 MB (was 512 MiB before I58's fix), TAR+gzip 18 MB, gzip 0 MB, 7z LZMA2 24 MB, 7z solid 24 MB, RAR 4 516 MB (round 536421, the PPMd model above), RAR 5 1 MB, RAR 5 solid 5 MB, TAR+xz 25 MB, TAR+zstd 29 MB; slowest round 158 ms (`fuzz-c1/mac-af7/`, `SHA256SUMS.txt` `0543acb9d93110414fa0492c49adbdb87d05a95b36ed865096bfb49d0596de74`) |
-| Ubuntu VM | `325aa63` (Debug) | 1,000,000–1,999,999 of both 7z, the three RAR, TAR, TAR+xz, TAR+zstd (`/dev/shm`) | started 10:57 UTC; running |
-| Host | `325aa63` (Debug) | 1,000,000–1,999,999 of ZIP, TAR+gzip, gzip | started 10:58 UTC; running (`fuzz-host/archive-325aa63/`) |
+| Ubuntu VM | `325aa63` (Debug) | 1,000,000–1,999,999 of both 7z, the three RAR, TAR, TAR+xz, TAR+zstd (`/dev/shm`) | both 7z, RAR 5, TAR, TAR+xz, TAR+zstd **passed** (3,056–5,777 s); RAR 4 and RAR 5 solid running |
+| Host | `325aa63` (Debug) | 1,000,000–1,999,999 of ZIP, TAR+gzip, gzip | **all three passed** (2,093–3,313 s; at most 48 MB in a round, ZIP) (`fuzz-host/archive-325aa63/`) |
+| Owner's Mac | `325aa63` | 2,000,000–2,999,999 of all eleven (RAM disk) | ten **passed** (RAR 4 at most 516 MB, the PPMd model; the rest at most 48 MB); TAR+gzip **stopped at round 2294974** (512 MiB; not rebuildable, above) |
+| Host | `cddce72` (Debug) | 2,000,000–2,999,999 of ZIP, TAR, TAR+gzip, gzip, replayable, failing rounds kept | started 12:31 UTC; running (`fuzz-host/archive-cddce72/`) |
 
 Host round outputs (`out-0/`): 7z LZMA2 `8ffb9731b073a590ffe486875c00380e44320f507f6a6107aecc0475cbd4fe0e`, 7z solid
 `9da80a10d139829c1bef9d4bf96b6053080f6c31670abba6574a8cdfbf967012`, RAR `39630aac2125110305f4a4af1bf09d02caad9fbf2d73687356ef3c9d5069c208`,
