@@ -138,6 +138,11 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `d6cdd34` | Tests: where writing goes on a real system, checked by hand | I09 | E-I09-T1 |
 | `7418c04` | Recovery topology: an image written into is itself as well; folders under /dev are folders | I09 | E-I09-T1 |
 | `0a52b7b` | Recovery topology, macOS: diskutil's answers kept for 20 seconds | I09 | E-I09-T1 |
+| `200954f` | Test: a whole recovery session for a write trace (gated) | I09 | V09 trace |
+| `f241897` | Recovery: the Shell's pictures and gpg held off from the moment a disk is chosen | I09 | issue record |
+| `1df5a21` | Recovery topology, Windows: a VHD written into lies on itself and on its file's disk | I09 | V09 trace |
+| `ee476f0` | FTP: data connections go to the server itself, whatever its PASV reply names | I56 | issue record |
+| `a5c25d1` | Network discovery: no redirects from a device's metadata address | I57 | issue record |
 | `0ba8a65` | Release records: step 3's skip inventory of every lane | — | E-A02 |
 | `2f35a6b` | Git badges, icon resources and program lookups touch no path before it is known to be local, and never search the current directory | I16 | issue record |
 | `1cb395e` | Test: replacing an open file on a FAT32 or exFAT drive (gated) | I22, I34 | E-I22-F1 |

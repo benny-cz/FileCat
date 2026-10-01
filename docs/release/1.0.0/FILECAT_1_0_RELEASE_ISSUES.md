@@ -65,6 +65,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I53 | Hex editor: a patch that went over the limit of changed bytes was applied in part while the editor said nothing was applied | Medium (a later save writes a half-applied patch the user believes was refused) | Must fix (DPI P05) | **Remediated `7a99f9d`; verified** (E-DPI) |
 | I54 | Hex editor, Linux/macOS: Save As kept a new file that could mix old and new bytes when another program wrote the file during the copy | Low–Medium (a silently inconsistent copy; Windows keeps other writers out) | Must fix (DPI P05) | **Remediated `7a99f9d`; verified on macOS** (E-DPI) |
 | I55 | Registry: a .reg file FileCat exported from the 32-bit view could be imported into the default view, writing other keys | Medium (a restore from FileCat's own backup misses and overwrites values at the same paths in the other view) | Must fix (DPI P06) | **Remediated `cf92679`; verified** (E-DPI) |
+| I56 | FTP: data connections followed the address a server's PASV reply named | Low (a server could aim uploads and downloads at another host; curl's CVE-2020-8284 is the same class, rated Low there) | Should fix (V23 B05) | **Remediated `ee476f0`; verified** (test server and the remote lab) |
+| I57 | Network discovery followed HTTP redirects from a device's metadata address | Low–Medium (any device answering discovery could make FileCat send a request to another address, a service on this computer included) | Should fix (V23 B05) | **Remediated `a5c25d1`; verified** (fake device) |
 
 ## Records of issues worked in this campaign
 
@@ -836,6 +838,31 @@ level the plan already states; exploit-level detail is not recorded here.
   it was started normally under the same profile. A VHD destination is refused as unknown rather than placed.
 - **Severity / disposition:** Potential Critical where it happens (the deleted files being recovered can be
   overwritten); remediated preliminarily; closure needs V09's write trace and the final-candidate evidence.
+
+### I56 — FTP data connections followed the address a server's PASV reply named
+
+- **Found by:** the V23 review of B05 (remote server → local work). FileCat used FluentFTP's AutoPassive: EPSV, then
+  PASV, whose reply names an address; FluentFTP's own log strings show it replaces only unroutable addresses
+  ("PASV advertised a non-routable IPAD. Using original connect dnsname/IPAD").
+- **Reproduction:** `FtpIntegrationTests.Data_connections_go_to_the_server_whatever_address_its_PASV_reply_names`
+  (pyftpdlib without EPSV, naming 203.0.113.7): before, the upload timed out connecting there (22 s,
+  `RemoteDisconnectedException: Timed out trying to connect to IP #1`).
+- **Remediation (`ee476f0`):** once connected, the named address is ignored: PASV with the server's own address on
+  IPv4 (PASVEX), EPSV (a port only) on IPv6.
+- **Verification:** the FTP suites (45 tests, 1 skipped) and the remote lab against the Ubuntu VM's OpenSSH, vsftpd
+  (explicit and implicit FTPS) and ProFTPD: 21/21 (`v08-b05pasv-remote.trx` `e93daa3475287fedeea9519006eb714a311dd0b3c681406207c23960b0e625c9`).
+- **Severity:** Low, as curl rated the same class (CVE-2020-8284): the server already receives the data; what it gains is
+  another host's position on the user's network.
+
+### I57 — Network discovery followed redirects from a device's metadata address
+
+- **Found by:** the V23 review of B05. FileCat asks each WS-Discovery answer's own address for the device's name (the
+  I23 work made sure of the address), but its HTTP client kept .NET's default of following redirects.
+- **Reproduction:** `NetworkDiscoveryTests.A_device_whose_metadata_redirects_elsewhere_is_not_followed_there`: a fake
+  device whose metadata answers 302 to another port of this computer; before, discovery connected there.
+- **Remediation (`a5c25d1`):** redirects are not followed; the device is then listed by its address.
+- **Severity:** Low–Medium: a request (no credentials, no cookies) to an address of a network neighbour's choosing,
+  services that trust requests from this computer included.
 
 ## New detail on open issues
 
