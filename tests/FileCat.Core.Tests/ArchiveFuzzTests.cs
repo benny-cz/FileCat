@@ -64,6 +64,12 @@ public sealed class ArchiveFuzzTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// The time the archives made here carry: always the same, so a round's damage falls on the same bytes in every run
+    /// (with the time of the run in them, a failing round did not fail again on its own).
+    /// </summary>
+    private static readonly DateTimeOffset Stamp = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
     /// <summary>The undamaged archive: a fixture, or one made here with members of known content.</summary>
     private byte[] Original(string format)
     {
@@ -75,7 +81,12 @@ public sealed class ArchiveFuzzTests : IDisposable
             case "zip":
                 using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
                     foreach (var (name, data) in members)
-                        using (var stream = zip.CreateEntry(name).Open()) stream.Write(data);
+                    {
+                        var entry = zip.CreateEntry(name);
+                        entry.LastWriteTime = Stamp;
+                        using var stream = entry.Open();
+                        stream.Write(data);
+                    }
                 break;
             case "tar":
                 WriteTar(output, members);
@@ -94,7 +105,11 @@ public sealed class ArchiveFuzzTests : IDisposable
     {
         using var tar = new TarWriter(output, TarEntryFormat.Pax, leaveOpen: true);
         foreach (var (name, data) in members)
-            tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name) { DataStream = new MemoryStream(data) });
+            tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name, new Dictionary<string, string> { ["mtime"] = "1767225600" })
+            {
+                DataStream = new MemoryStream(data),
+                ModificationTime = Stamp,
+            });
     }
 
     private sealed class Sink(List<EntryData> list) : IEnumerationSink
@@ -155,10 +170,13 @@ public sealed class ArchiveFuzzTests : IDisposable
             long before = GC.GetTotalAllocatedBytes(precise: true);
             string? listing;
             Exception? failure = null;
+            long onThread = 0;
             var reading = Task.Run(() =>
             {
+                long start = GC.GetAllocatedBytesForCurrentThread();
                 try { return Read(out failure); }
                 catch (Exception ex) { failure = ex; return null; }
+                finally { onThread = GC.GetAllocatedBytesForCurrentThread() - start; }
             });
             if (!reading.Wait(TimeSpan.FromSeconds(60)))
                 throw new Xunit.Sdk.XunitException($"{_format}, round {round}: still reading after 60 s (a loop on damaged data?).");
@@ -167,7 +185,9 @@ public sealed class ArchiveFuzzTests : IDisposable
             if (failure is not null) throw new Xunit.Sdk.XunitException($"{_format}, round {round}: {failure}");
             if (allocated > MostAllocated) (MostAllocated, MostAllocatedRound) = (allocated, round);
             if (clock.Elapsed > Slowest) (Slowest, SlowestRound) = (clock.Elapsed, round);
-            Assert.True(allocated <= Budget, $"{_format}, round {round} allocated {allocated >> 20} MiB for a {_original.Length >> 10} KiB archive.");
+            // The process's count takes in whatever else ran meanwhile; the reading thread's count is this round's alone.
+            Assert.True(allocated <= Budget, $"{_format}, round {round} allocated {allocated >> 20} MiB for a {_original.Length >> 10} KiB archive " +
+                                             $"({onThread >> 20} MiB on the thread that read it).");
             return listing is null ? "refused" : listing == _baseline ? "same" : "changed";
         }
 
