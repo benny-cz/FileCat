@@ -25,6 +25,11 @@ public sealed partial class WindowsFileRecordsTests
 
     private static string Field(InspectionSection section, string name) => section.Fields.Single(f => f.Name == name).Value;
 
+    /// <summary>The report's warnings and the named sections as it prints them: what a failure needs to be understood.</summary>
+    private static string Excerpt(InspectionReport report, params string[] titles) =>
+        string.Join("\n", report.Warnings) + "\n" +
+        new InspectionReport(report.Format, report.Sections.Where(s => titles.Any(t => s.Title.StartsWith(t, StringComparison.Ordinal))).ToList(), []).ToText();
+
     [Fact]
     public void A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions()
     {
@@ -108,8 +113,10 @@ public sealed partial class WindowsFileRecordsTests
             // Flushed, so NTFS has written the change's log records to $LogFile on disk before it is read.
             using (var flush = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) flush.Flush(flushToDisk: true);
             var report = Read(file);
-            // Two signs: $FILE_NAME's creation time, and $LogFile's before and after images of the change.
-            Assert.Contains(report.Warnings, w => w.StartsWith("Timestamp checks: 2 signs", StringComparison.Ordinal));
+            // Two signs: $FILE_NAME's creation time, and $LogFile's before and after images of the change. (A failure
+            // prints what the report saw: CI run 36797153928 on Windows ARM64 had one sign, in a second.)
+            Assert.True(report.Warnings.Any(w => w.StartsWith("Timestamp checks: 2 signs", StringComparison.Ordinal)),
+                "Expected two signs; the report:\n" + Excerpt(report, "Timestamp checks", "NTFS log ($LogFile)", "MFT record"));
             // The lines as one text (wrapped lines continue indented).
             var checks = System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
             Assert.Contains("⚠ Its creation time (2019-05-01 12:00:00.0000000 UTC)", checks, StringComparison.Ordinal);
