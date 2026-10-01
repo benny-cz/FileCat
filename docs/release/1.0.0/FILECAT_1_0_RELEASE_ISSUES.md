@@ -76,6 +76,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I82 | Compare: the window said "1 difference" over a list of two (changed lines, then lines only on one side) | Low (the summary's count disagreed with the list and with next and previous) | Should fix (V13) | **Remediated `db2e9b4`; verified** (E-V13-C1) |
+| I81 | Compare: the text comparison anchored on a line that occurs once on each side even where it was far from its place, and presented the result as exact | Low–Medium (an 11-line edit shown as 84 lines only left or only right, unlabelled; no false equality) | Must fix (V13: labels correct) | **Remediated `db2e9b4`; verified** (E-V13-C1, with a negative control) |
 | I80 | Tooltips over icons are not styled by the selected theme, and an icon button's tip ran its parts together on one line | Low (looks; the owner's request) | Should fix (owner's request, 2026-10-01) | **Remediated `fab03b8`; verified** (unit tests with negative controls; all seven themes pictured) |
 | I79 | Resuming checked only the 64 KiB before the break: an iPhone, reconnected, sends some photos with other bytes at their start, and the resumed copy kept the old start with the new rest | Low–Medium (a resumed copy can mix two versions of a file whose start changed at the same size and time; on the owner's iPhone it happened to equal one version) | Must fix (V21, plan §14) | **Remediated `7ee8e92`; verified** (unit test with a negative control; the Motorola) |
 | I78 | Phones: an unplugged phone was reported as the file being copied "no longer exists"; a folder listed as it was unplugged came back shorter or empty, without an error | Medium (a false statement about the user's file; a listing cut short passed off as the folder's contents) | Must fix (V21) | **Remediated `7ee8e92`; verified** (unit tests with a negative control; the owner's Motorola, cable pulled) |
@@ -1024,6 +1026,36 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I82 — Compare: the count of differences disagreed with the list
+
+- **Found by:** E-V13-C1's corpus: two unrelated files gave a changed block followed by a right-only block, and one
+  difference.
+- **What was wrong:** the text comparison counted one difference per run of changes, while the compare window lists and
+  steps through one per block (changed lines; lines only left; lines only right), as the result type documented: the
+  summary said "1 difference" over a list of two.
+- **Remediation (`db2e9b4`):** one difference per block.
+- **Verification:** the corpus checks the count against the blocks in every pair; the existing tests' counts unchanged.
+- **Severity:** Low: the list and the steps were right; the number above them was not.
+
+### I81 — Compare: one coincidental unique line misaligned a text comparison, unlabelled
+
+- **Found by:** E-V13-C1's corpus, case 6295 of seed 1309.
+- **What was wrong:** the text comparison split a region on the lines that occur once on each side (patience) whenever
+  there were any, and aligned exactly (Myers) only where there were none. With few unique lines, one that happened to
+  occur once on each side 42 lines apart became an anchor: an edit of 11 lines (`git diff --no-index`: 5 insertions and
+  6 deletions, with each of its algorithms) showed as 84 lines only left or only right, and the result was presented as
+  exact. No line was called equal that was not; 40 of 20,000 generated pairs were short of the fewest differences, none
+  labelled.
+- **Remediation (`db2e9b4`):** a region of up to 20,000 lines (both sides) is aligned exactly when the work budget
+  allows; larger regions are split on unique lines as before, which keeps million-line comparisons fast, and such a
+  result is labelled heuristic in the window ("can show more differences than the fewest possible") unless it pairs as
+  many lines as the two sides could share at all, which proves it the best.
+- **Verification:** `CompareCorpusTests`: over 20,000 pairs no unlabelled result short of the fewest differences; the old
+  alignment, without its label, fails. The million-line benchmark at the same speed; its shifted and scattered-edit
+  results provably the best and unlabelled. Core 722, App 209; 0 failed.
+- **Severity:** Low–Medium: nothing false was claimed equal, but the comparison exaggerated what changed, in exactly the
+  kind of file (repeated values, few unique lines) where a user relies on it, and said nothing.
 
 ### I80 — Tooltips over icons are not styled by the selected theme
 
