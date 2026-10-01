@@ -10,7 +10,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
 - **Candidate identity:** none.
-- **Source:** `main` at `c5f7387` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
+- **Source:** `main` at `b02a01f` (plan baseline `4f6b062` plus the campaign's commits listed in the evidence index).
 - **Defects found and fixed so far:** I19 (High, data loss), I15 (Critical where it happens, data loss), I20 (Medium,
   false forensic finding), I17's consent display (potential High, privileged boundary), I21 (Medium, Registry views
   without administrator rights), I22 (Medium, replacing an open file on Windows), I23 (Low, discovery naming), I28
@@ -24,8 +24,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   moves deleting a source whose copy was gone or deleting what was never copied, Synchronize acting on targets changed
   since the comparison, a link's read-only set through it, FAT32 recovery guessing where an entry was whole: I52, the
   hex editor's patch and Save As: I53, I54, a .reg backup restorable into the wrong Registry view: I55)
-  and I25 (Markdown drawn as a page); I56, I57 (V23 B05) and I58 (a damaged TAR header made .NET's TAR reader take up
-  to 2 GiB, found by the archive damage campaign, `325aa63`). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
+  and I25 (Markdown drawn as a page); I56, I57 (V23 B05), I58 (a damaged TAR header made .NET's TAR reader take up
+  to 2 GiB, found by the archive damage campaign, `325aa63`) and I59 (a Registry key's rename could be redirected
+  through a link put in its place, V23 B07, `b02a01f`). **Open, measured:** I42 (per-file round trips of remote copies; owner decision).
   The queued Low issues are done: I31 (viewer windows only partly themed, `99a6ae4`) and I27 (Linux icons under
   Adwaita 41, `4a4349f`).
   **I09** (recovery scanned a disk FileCat itself writes to; destinations behind loop devices, disk images, VHDs and
@@ -53,7 +54,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
 | 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-06, EXT-02 |
-| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B05 (I56, I57), B06, B08 (I09), B10 (I16) and B11 reviewed; P14 corrected to I09; P07's loader audit (V06), P13 and B01–B03, B07, B09 remain |
+| 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B05 (I56, I57), B06, B07 (I59), B08 (I09), B10 (I16) and B11 reviewed; P14 corrected to I09; P07's loader audit (V06), P13 and B01–B03, B09, B12–B14 remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
 | 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
@@ -263,6 +264,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 76. V: fell to 10.4 GB again: Windows Update in the Windows VM (a Visual Studio update among it) grew its change disk to
     74.7 GB and restarted the guest. The VM was reverted to its lent state (and once more by the owner); its updates and
     network are now off. Its unfinished fuzz ranges run again (E-ENV-05, E-I28-C1).
+77. B07 reviewed (E-DPI): **I59** — a key's rename checked by name that the key was no link and renamed it by name;
+    `RegRenameKey` follows a link and renames its target (an experiment on this Windows 11), so a link swapped in
+    between could have had an elevated rename applied elsewhere. The key is now renamed through the handle it was
+    checked by (`b02a01f`). The rest held: links refused on every open, values changed only while as seen, subtrees
+    only while their digest matches, HKCU mapped to the requester's hive before elevation.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -291,7 +297,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 2. V09 on macOS (`fs_usage` with a disk image as the source), UDisks2, the installed helper path, approval refusal and
    device removal.
 3. Continue the V23 source review in risk order: B01–B03 (largely covered by the DPI rows, the fuzz campaign and V07/V10),
-   B07, B09; I16's independent file, network and process evidence.
+   B09, B12–B14; I16's independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 5. Keep the records current after each change.
 

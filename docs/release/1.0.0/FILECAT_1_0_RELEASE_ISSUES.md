@@ -68,6 +68,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I56 | FTP: data connections followed the address a server's PASV reply named | Low (a server could aim uploads and downloads at another host; curl's CVE-2020-8284 is the same class, rated Low there) | Should fix (V23 B05) | **Remediated `ee476f0`; verified** (test server and the remote lab) |
 | I57 | Network discovery followed HTTP redirects from a device's metadata address | Low–Medium (any device answering discovery could make FileCat send a request to another address, a service on this computer included) | Should fix (V23 B05) | **Remediated `a5c25d1`; verified** (fake device) |
 | I58 | A damaged TAR header made .NET's TAR reader take up to 2 GiB before finding the data missing | Low–Medium (a 31 KiB archive took 512 MiB each time it was listed; a crafted one up to 2 GiB; then refused) | Should fix (V23 B02) | **Remediated `325aa63`; verified** (E-B02-A1) |
+| I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
 
@@ -900,6 +901,30 @@ level the plan already states; exploit-level detail is not recorded here.
   with the fixed build (E-B02-A1).
 - **Severity:** Low–Medium: memory taken for a moment each time the archive is listed, then refused; nothing written,
   no data at risk.
+
+### I59 — Registry: a key's rename could be redirected through a link put in its place
+
+- **Found by:** the V23 review of B07 (typed Registry references → native hives). Every other change opens its key
+  component by component as the key itself and refuses links (`OpenNoLink`), and deletions remove each key through the
+  handle that was checked; a rename checked by name that the key was no link (`LinkTarget`) and then called
+  `RegRenameKey` with the name.
+- **Cause, seen on this Windows 11 (26220):** `RegRenameKey(parent, "link", "renamed")` on a Registry link renamed the
+  link's **target**, a key under another parent, and left the link (an experiment in a throwaway HKCU key; the
+  same rename through a handle opened with `REG_OPTION_OPEN_LINK` and `NtRenameKey` renamed the link itself). A process
+  able to write the key's parent could put a link in its place between the check and the rename.
+- **Exposure:** the elevated helper renames keys of HKLM and of other users' hives; where such a key's parent is writable
+  by another account, that account could have an approved rename applied to a key of its choosing that the link can
+  reach. It needs the right to create Registry links there, a plan the administrator approves, and a won race. In the
+  user's own hive the writer is the user already.
+- **Remediation (`b02a01f`):** the key is opened as itself (`REG_OPTION_OPEN_LINK`), checked through that handle, and
+  renamed through it with `NtRenameKey`, which renames that object only; a key swapped away meanwhile is not renamed at
+  all. Links are still not renamed.
+- **Reproduction and verification:** `RegistryHardeningTests.A_key_is_renamed_through_the_handle_it_was_checked_by_never_through_a_link_put_in_its_place`
+  swaps the key for a link to another key between the check and the rename: the rename fails and the link's target
+  keeps its name; the plan step refuses a link and renames a plain key, with its undo. The Windows platform suite: 127,
+  24 skipped (gated), none failed.
+- **Severity:** Low: a renamed key can disable what reads it, but the setup needs an account with write and link rights
+  under the key's parent and an administrator's approval of that very rename.
 
 ## New detail on open issues
 
