@@ -46,7 +46,7 @@ public sealed class FluentFtpConnector : ISftpConnector
         config.SocketKeepAlive = true;
         config.RetryAttempts = 1;
         config.TimeConversion = FtpDate.UTC;
-        config.DataConnectionType = FtpDataConnectionType.AutoPassive;
+        config.DataConnectionType = FtpDataConnectionType.AutoPassive; // until connected: see below
         // Names as they are (release issue I36): FluentFTP's heuristics refuse legitimate names (";", "|", tabs, "%",
         // "..", bidirectional marks), and its "rename" mode would change names silently. What FTP cannot carry exactly
         // is refused by the channel itself (Safe); line breaks stay refused by the library too.
@@ -70,6 +70,12 @@ public sealed class FluentFtpConnector : ISftpConnector
                 client.Connect();
             }
             ct.ThrowIfCancellationRequested();
+            // Data connections go to the server itself (release plan B05). A PASV reply names an address, and FluentFTP
+            // follows any routable one, so a server could aim uploads and downloads at another host. Its address is
+            // ignored, as curl does: on IPv4 PASV with the server's own address (PASVEX); on IPv6, where PASV does not
+            // exist, EPSV, which names only a port.
+            config.DataConnectionType = client.SocketRemoteEndPoint?.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+                ? FtpDataConnectionType.EPSV : FtpDataConnectionType.PASVEX;
             return new FtpChannel(client);
         }
         catch (Exception ex) when (Unwrap(ex) is ConnectCanceledException or PromptDeferredException)

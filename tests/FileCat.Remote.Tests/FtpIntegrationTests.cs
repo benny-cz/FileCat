@@ -43,6 +43,12 @@ internal sealed class TestFtpServer : IDisposable
             from pyftpdlib.handlers import FTPHandler as Handler
         Handler.authorizer = auth
         Handler.use_gmt_times = True
+        # FILECAT_FTP_ADVERTISE: the address PASV replies name (a server pointing data connections elsewhere);
+        # FILECAT_FTP_NO_EPSV: EPSV refused, so a client falls back to PASV.
+        if os.environ.get("FILECAT_FTP_ADVERTISE"):
+            Handler.masquerade_address = os.environ["FILECAT_FTP_ADVERTISE"]
+        if os.environ.get("FILECAT_FTP_NO_EPSV"):
+            Handler.proto_cmds = {k: v for k, v in Handler.proto_cmds.items() if k != "EPSV"}
         server = FTPServer(("127.0.0.1", 0), Handler)
         print("READY", server.socket.getsockname()[1], flush=True)
         server.serve_forever()
@@ -66,7 +72,8 @@ internal sealed class TestFtpServer : IDisposable
     }
 
     /// <param name="certificatePem">A PEM certificate with its key: explicit TLS (AUTH TLS) is then required.</param>
-    public static TestFtpServer? TryStart(string? certificatePem = null)
+    /// <param name="advertise">The address PASV replies name instead of the server's own, with EPSV refused.</param>
+    public static TestFtpServer? TryStart(string? certificatePem = null, string? advertise = null)
     {
         if (Python() is not { } python) return null;
         var dir = Path.Combine(Path.GetTempPath(), "filecat-ftp-tests", Guid.NewGuid().ToString("N")[..8]);
@@ -80,7 +87,13 @@ internal sealed class TestFtpServer : IDisposable
             File.WriteAllText(cert, certificatePem);
             args += $" \"{cert}\"";
         }
-        var process = Process.Start(new ProcessStartInfo(python, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false })!;
+        var start = new ProcessStartInfo(python, args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        if (advertise is not null)
+        {
+            start.Environment["FILECAT_FTP_ADVERTISE"] = advertise;
+            start.Environment["FILECAT_FTP_NO_EPSV"] = "1";
+        }
+        var process = Process.Start(start)!;
         var ready = process.StandardOutput.ReadLineAsync();
         if (!ready.Wait(TimeSpan.FromSeconds(30)) || ready.Result is not { } line || !line.StartsWith("READY ", StringComparison.Ordinal))
         {
@@ -258,6 +271,26 @@ public sealed class FtpIntegrationTests : IDisposable
             Assert.Throws<CertificateRejectedException>(() => connections.Lease(profile.Id, ct).Dispose());
             Assert.Equal((CertificateStatus.Changed, sha), (interaction.CertificateQuestions[0].Status, interaction.CertificateQuestions[0].PinnedSha256));
         }
+    }
+
+    [Fact]
+    public void Data_connections_go_to_the_server_whatever_address_its_PASV_reply_names()
+    {
+        // Release plan B05: a PASV reply names the address of the data connection. FluentFTP replaced only unroutable
+        // ones, so a server could aim FileCat's uploads and downloads at any public host. This one has no EPSV and names a
+        // documentation address no host answers on.
+        using var server = TestFtpServer.TryStart(advertise: "203.0.113.7");
+        if (server is null) Assert.Skip("No FTP test server here (pip install pyftpdlib, or set FILECAT_PYTHON).");
+        var ct = TestContext.Current.CancellationToken;
+        var profile = server.Profile(RemoteProtocols.Ftp);
+        using var connections = Connections(profile, new FtpInteraction { AllowPlain = true });
+        using var lease = connections.Lease(profile.Id, ct);
+        var clock = Stopwatch.StartNew();
+        using (var s = lease.Channel.CreateNew("/up.txt")) s.Write("to the server only"u8);
+        Assert.Equal("to the server only", File.ReadAllText(Path.Combine(server.Root, "up.txt")));
+        Assert.Equal("up.txt", Assert.Single(lease.Channel.List("/", ct)).Name);
+        using (var reader = new StreamReader(lease.Channel.OpenRead("/up.txt"))) Assert.Equal("to the server only", reader.ReadToEnd());
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(15), $"took {clock.Elapsed}: a data connection waited on the named address");
     }
 
     [Fact]
