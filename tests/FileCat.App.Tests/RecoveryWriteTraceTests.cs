@@ -123,11 +123,15 @@ public sealed class RecoveryWriteTraceTests
             scan.Listing.SetFocus(file);
             var item = scan.Listing.GetItemRef(scan.Listing.FocusedStoreIndex);
             Log($"recovering {item.Name} ({scan.Listing.GetVisible(file).Size:N0} bytes)");
-            vm.Execute(CommandIds.View);
-            for (int i = 0; i < 250 && ViewerWindow.OpenWindows.Count == 0; i++) await Task.Delay(20, ct);
-            await Task.Delay(2000, ct);
-            Log($"viewer windows: {ViewerWindow.OpenWindows.Count}");
-            foreach (var viewer in ViewerWindow.OpenWindows.ToList()) viewer.Close();
+            // Its content read as the viewer reads it (F3's window itself is not drawn here: headless Avalonia's stand-in
+            // text layout never ends on some text with empty lines, which a recovered file may well be).
+            using (var content = services.Recovery.OpenContent(item))
+            {
+                long total = 0;
+                var buffer = new byte[64 * 1024];
+                for (int n; content is not null && total < 1 << 20 && (n = content.Read(total, buffer)) > 0;) total += n;
+                Log($"read {total:N0} bytes as the viewer would");
+            }
             Directory.CreateDirectory(output);
             var job = services.Jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [item], Destination = FileCat.Core.Resources.Location.FileSystem(output) });
             for (int i = 0; i < 6000 && job.State is not (JobState.Completed or JobState.Failed or JobState.Canceled or JobState.Interrupted or JobState.AwaitingDecision); i++) await Task.Delay(20, ct);
