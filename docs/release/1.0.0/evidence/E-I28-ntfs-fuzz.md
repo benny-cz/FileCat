@@ -67,17 +67,17 @@ Rounds are split between machines so none repeats another's work; results are ad
 | Owner's M1 Mac | `2ba114e` | 7,100,000–8,099,999 (all images) | **all seven passed** (2,081–9,271 s per image; `fuzz-c1/mac-v5/`) |
 | Owner's M1 Mac | `07e6833` | 8,100,000–9,099,999 (all images) | started 2026-10-01 06:17 UTC on the build with I52's FAT change (`fuzz-07e6833.zip` `4e3979c9947884d55289182b09653df92a703b0423a0a7e38556c6b908b92f3e`); **all seven passed** (2,080–9,309 s per image; `done.txt` on the Mac) |
 | Owner's M1 Mac | `325aa63` | 9,100,000–10,099,999 (all images) | **all seven passed** (3,474–9,938 s per image; `fuzz-c1/mac-q8-recovery-9100000/`) |
-| Windows 11 VM | `5394c71` | 4,100,000–5,099,999 of FAT12, FAT16, FAT32, exFAT and both disks, the one range no machine had run for them | started 2026-10-01 16:58 UTC on the newest decoders (I66's FAT change among them; zip `08888eb6…948d`), six processes at below-normal priority, heap cap 1 GiB (`artifacts/vm/win-fuzz9.ps1`). FAT12 (5,693 s), FAT16 (9,441 s), exFAT (8,206 s), the MBR disk (12,652 s) and the GPT disk (12,866 s) **passed**, each a million rounds (most allocated by one round: exFAT 56 MB, both disks 36 MB, FAT16 5 MB, FAT12 2 MB; `fuzz-c1/win-fuzz9/`); FAT32 running at 20:44 UTC |
+| Windows 11 VM | `5394c71` | 4,100,000–5,099,999 of FAT12, FAT16, FAT32, exFAT and both disks, the one range no machine had run for them | started 2026-10-01 16:58 UTC on the newest decoders (I66's FAT change among them; zip `08888eb6…948d`), six processes at below-normal priority, heap cap 1 GiB (`artifacts/vm/win-fuzz9.ps1`). FAT12 (5,693 s), FAT16 (9,441 s), exFAT (8,206 s), the MBR disk (12,652 s) and the GPT disk (12,866 s) **passed**, each a million rounds (most allocated by one round: exFAT 56 MB, both disks 36 MB, FAT16 5 MB, FAT12 2 MB); FAT32 **passed** too (14,011 s, at most 6 MB in a round, round 4124165): **all six passed** (`fuzz-c1/win-fuzz9/`). The VM was then shut down, the owner's leave ("when you do not need VMs anymore, you are allowed to shut them down") |
 | Owner's M1 Mac | `5394c71` | 10,100,000–11,099,999 (all images) | after the archive lanes (`artifacts/vm/mac-queue-v9.sh`), from 17:13 UTC: **all seven passed** (3,451–9,989 s per image, by 20:00 UTC), each a million rounds (most allocated by one round: exFAT 56 MB, both disks 36 MB, FAT16 12 MB, FAT32 6 MB, NTFS 4 MB, FAT12 2 MB; `fuzz-c1/mac-q9-recovery-10100000/`) |
 
 Outputs of the finished runs, fetched from the Mac, the VMs and the host, are kept under `fuzz-c1/` with a hash
-manifest (`fuzz-c1/SHA256SUMS.txt` `9143b36be8e5b037843578ed5906259ebe83cdf89e8baa7f1714e6847ddd0f03`, 80 files; it
-replaces `ce688dc3…0730`, whose 64 entries it holds unchanged but one: `ubu-r2/done.txt`, which the run appends to as
-each image finishes, is now its final copy; the earlier copy is that file without its last two lines, hash for hash). Passed so far, each on the decoders of its run:
+manifest (`fuzz-c1/SHA256SUMS.txt` `fc23b2ce99e0163a86376109bc95bd8d55ea9c60c8bd46a57f9f0c4b12095b11`, 81 files; it
+replaces `9143b36b…0f03`, whose 80 entries it holds unchanged, and that one replaced `ce688dc3…0730`, whose 64 entries
+it held unchanged but one: `ubu-r2/done.txt`, which the run appends to as each image finishes, is its final copy; the
+earlier copy is that file without its last two lines, hash for hash). Passed so far, each on the decoders of its run:
 0–2,099,999 of every image (FAT32's 1,100,000–2,099,999 on the host, after the Windows VM lost it);
-2,100,000–4,099,999 of every image; 4,100,000–5,099,999 of every image but FAT32; 5,100,000–6,099,999 of every image
-but NTFS (not run there); 6,100,000–7,099,999 of NTFS, exFAT and FAT32; 7,100,000–11,099,999 of every image. Running:
-4,100,000–5,099,999 of FAT32 (the Windows VM). The stops since the I37
+2,100,000–5,099,999 of every image; 5,100,000–6,099,999 of every image but NTFS (not run there); 6,100,000–7,099,999
+of NTFS, exFAT and FAT32; 7,100,000–11,099,999 of every image. Nothing is running. The stops since the I37
 fixes were allocation findings of I37, fixed and replayed.
 
 ## E-I28-V2 — second finding and fix `bb977d0`

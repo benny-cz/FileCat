@@ -477,8 +477,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Collect the last fuzz results: E-I28-C1 (FAT32's 4.1–5.1 M on the Windows VM), E-B02-I1 (`pe-managed` on
-   Ubuntu, running since 13:54 UTC). The rest is in (item 109).
+1. Collect the last fuzz result: E-B02-I1 (`pe-managed` on Ubuntu, running since 13:54 UTC), then shut the Ubuntu VM
+   down (the owner's leave). The rest is in (item 109; FAT32's 4.1–5.1 M passed too, and the Windows VM is shut down).
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
