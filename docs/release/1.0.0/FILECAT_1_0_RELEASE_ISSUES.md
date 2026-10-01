@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I86 | Operations: "Clear finished" could leave a job that had just finished, and keep offering to clear it | Low (a click did nothing; a second one worked) | Must fix (CI red; V17: controls do what they say) | **Remediated `506cc75`; verified** (unit test fails on the old code) |
 | I85 | Count: a folder deleted and made again, or replaced, while its size was counted took the first folder's size as counted | Low–Medium (a size shown, as counted, for a folder that was never counted) | Must fix (V12: results never land on replacements) | **Remediated `1ec9d13`; verified** (E-V12-C1; unit test with a negative control) |
 | I84 | Compare directories: of two names differing only in letter case one was dropped unseen; a size or time a listing does not give counted as the same | Medium (items silently missing from a comparison, and pairs called the same that were never compared) | Must fix (V13: no false equality) | **Remediated `bc65646`; verified** (E-V13-C1; unit tests with negative controls) |
 | I83 | Find: a saved time range shown again in the dialog lost the last minute of its end day | Low (an item modified in the end day's last minute missed by a saved search run again) | Should fix (V13) | **Remediated `c67fa85`; verified** (unit test with a negative control) |
@@ -1029,6 +1030,20 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I86 — Operations: "Clear finished" could leave a job that had just finished
+
+- **Found by:** CI run 36931084621 (Windows, a records-only commit): `ApplyCommandDialogTests` saw the panel still
+  offering to clear after "Clear finished".
+- **What was wrong:** the panel counts finished jobs by each job's own state, which the job's thread sets; "Clear
+  finished" removed the rows whose own state said finished, and a row learns that its job ended from a refresh queued
+  on the window's thread. Between the two, the offer was shown and clearing left the job, and the offer, in place.
+- **Remediation (`506cc75`):** the summary brings rows that lag their job up to date before counting, and clearing goes
+  by the job's own state, as the count does.
+- **Verification:** `OperationCenterTests` holds the window's thread while a job (stopped at a name conflict, then
+  skipped) ends on its own: on the old code the job stays listed after clearing; with the fix none is left and nothing
+  is offered. App 220, 0 failed.
+- **Severity:** Low: nothing is lost; a click did nothing, and a second one, after the refresh, worked.
 
 ### I85 — Count: a folder's counted size landed on the folder put in its place
 

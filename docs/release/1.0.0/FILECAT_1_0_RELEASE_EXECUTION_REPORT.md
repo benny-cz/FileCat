@@ -481,6 +481,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     order across readers, the floor, disposal, collection and concurrent use, with three negative controls. This meets
     the plan's target, so DEC-06 (keep it or approve a change) is closed; the owner can still set another limit. I06
     stays open for other memory that grows with what is open (V12).
+117. CI's red runs of the last day, each traced: the Shell-picture failure on ARM64 is I70; the recording-program test
+    (`3a291e6`'s run) and the Registry jobs' wait (run 36904910785) were made robust in `a933ed6` and `f88300d`;
+    the operations panel's "Clear finished" (run 36931084621, a records-only commit) was a real race, **I86** (Low,
+    `506cc75`): clearing went by each row's state, the count by each job's. A test that holds the window's thread while
+    a job ends fails on the old code.
 
 ## Evidence invalidated by the campaign's own changes
 
