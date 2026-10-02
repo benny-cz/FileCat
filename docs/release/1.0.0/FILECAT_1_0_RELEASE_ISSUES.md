@@ -1043,14 +1043,14 @@ level the plan already states; exploit-level detail is not recorded here.
 
 - **Found by:** following I93 to the other place where two names of one folder matter (V13, comparison and
   synchronization).
-- **What was wrong:** comparing a folder with one inside it (`P` and `Packup`, or a folder and a junction leading
+- **What was wrong:** comparing a folder with one inside it (`P` and `P\backup`, or a folder and a junction leading
   into it) offered Synchronize as usual. In Mirror toward the outer folder, its `backup` is an item only in the target,
   and the plan removed it: the source of the synchronization itself. The other way it would copy a folder into itself,
   which the copy job refuses.
 - **Remediation (`65cee78`):** the comparison runs as before, but Synchronize is not offered when one folder is the
   other or lies inside it, by path or, through links and junctions, by final path (as the copy job decides "into
   itself"); the window says why.
-- **Verification:** the plan for `Packup` mirrored onto `P` removes `backup` (what would have happened), and
+- **Verification:** the plan for `P\backup` mirrored onto `P` removes `backup` (what would have happened), and
   `SyncPlanner.Overlap` refuses the pair (also the same folder, and not a folder whose name merely begins alike); on
   NTFS a junction makes two folders that look apart overlap, found only through final paths; the comparison window
   offers no Synchronize for nested folders (the App test fails with the check bypassed). Core 745, Windows 166, App 230.
