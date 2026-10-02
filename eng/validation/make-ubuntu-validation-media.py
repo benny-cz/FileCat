@@ -35,6 +35,8 @@ def main():
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     parser.add_argument("--vm-uuid", required=True)
     parser.add_argument("--disk-serial", required=True)
+    parser.add_argument("--storage-match-serial", required=True,
+                        help="Exact udev ID_SERIAL (not ID_SERIAL_SHORT / lsblk SERIAL)")
     parser.add_argument("--disk-bytes", type=int, required=True)
     parser.add_argument("--hostname", required=True)
     parser.add_argument("--password-hash-file", type=pathlib.Path, required=True)
@@ -45,6 +47,8 @@ def main():
         parser.error("invalid VM UUID")
     if not re.fullmatch(r"[0-9a-f]{32}", args.disk_serial):
         parser.error("expected a VMware disk serial")
+    if not re.fullmatch(r"[a-zA-Z0-9_.-]{1,128}", args.storage_match_serial) or not args.storage_match_serial.endswith(args.disk_serial):
+        parser.error("storage ID_SERIAL must include the bound disk serial")
     if not re.fullmatch(r"[a-z][a-z0-9-]{0,62}", args.hostname):
         parser.error("invalid hostname")
     if args.disk_bytes <= 0:
@@ -63,6 +67,12 @@ def main():
         "-extract", "/boot/grub/grub.cfg", str(grub),
         "-extract", "/casper/install-sources.yaml", str(sources))
     catalog = yaml.safe_load(sources.read_text())
+    if isinstance(catalog, dict):
+        if catalog.get("version") != 2 or not isinstance(catalog.get("sources"), list):
+            raise RuntimeError("unknown installer source catalog format")
+        catalog = catalog["sources"]
+    if not isinstance(catalog, list):
+        raise RuntimeError("unknown installer source catalog format")
     desktop = [entry for entry in catalog if entry["id"] == "ubuntu-desktop"]
     if len(desktop) != 1:
         raise RuntimeError("official media lacks the expected full desktop source")
@@ -84,7 +94,9 @@ def main():
         "d=json.loads(subprocess.check_output(['lsblk','-dnbo','NAME,SIZE,TYPE,SERIAL,RM','--json']))['blockdevices']; "
         "d=[x for x in d if x['type']=='disk' and not x['rm'] and not x['name'].startswith('fd')]; "
         f"assert u=={args.vm_uuid!r} and m=='VMware, Inc.', 'wrong VM'; "
-        f"assert len(d)==1 and d[0]['serial']=={args.disk_serial!r} and int(d[0]['size'])=={args.disk_bytes}, 'wrong disk'"
+        f"assert len(d)==1 and d[0]['serial']=={args.disk_serial!r} and int(d[0]['size'])=={args.disk_bytes}, 'wrong disk'; "
+        "p=subprocess.check_output(['udevadm','info','--query=property','--name=/dev/'+d[0]['name']],text=True).splitlines(); "
+        f"assert 'ID_SERIAL='+{args.storage_match_serial!r} in p, 'wrong storage match identity'"
     )
     config = {"autoinstall": {
         "version": 1,
@@ -99,7 +111,7 @@ def main():
         "codecs": {"install": False},
         "drivers": {"install": False},
         "packages": ["open-vm-tools-desktop"],
-        "storage": {"layout": {"name": "direct", "match": {"serial": args.disk_serial}}},
+        "storage": {"layout": {"name": "direct", "match": {"serial": args.storage_match_serial}}},
         "early-commands": [["python3", "-c", guard]],
         "late-commands": [
             "printf '[daemon]\\nAutomaticLoginEnable=true\\nAutomaticLogin=benny\\n' > /target/etc/gdm3/custom.conf"
@@ -122,6 +134,7 @@ def main():
         "grub_sha256": digest(grub), "generator_sha256": digest(pathlib.Path(__file__)),
         "source_id": desktop[0]["id"], "vm_uuid": args.vm_uuid,
         "disk_serial": args.disk_serial, "disk_bytes": args.disk_bytes,
+        "storage_match_serial": args.storage_match_serial,
         "hostname": args.hostname, "kernel_entries_patched": count,
         "test_user_autologin": True, "installer_shutdown": "poweroff",
     }

@@ -18,7 +18,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   these results do not qualify release packages or replace the candidate's skip inventory.
 - **VMs:** both VMware guests are running and guest access works after owner clarification (E-ENV-06). Ubuntu is
   22.04.5; Windows is Insider 26300 with .NET 10.0.5. The historical cold-boot failure has not been reproduced again.
-  GA/fresh qualification environments and reference hardware remain unavailable.
+  Fresh Ubuntu 24.04/26.04 desktop provisioning is now authorized and in progress (E-ENV-07); the network is restored,
+  original ISO signatures/hashes verified, and identity-guarded media built. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -573,6 +574,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     be used sequentially, with OS snapshots for repeatable tests. Canonical checksum signatures have been verified
     against the documented CD-image signing fingerprint; ISO downloads/provisioning and Linux package checks remain
     in progress, not qualification evidence yet.
+129. ENV-04 provisioning begun (E-ENV-07): Ubuntu NAT restores internet access; exact VMware UUID and sole 200 GiB
+    SCSI disk identities recorded. Canonical desktop ISO signatures and hashes verified on host/guest. Guarded media
+    built for 24.04/26.04; positive identity check and four negative controls pass. Installer selection corrected to
+    use udev ID_SERIAL before any boot. Manual CI `36994087185` at `d14199b` passes all four lanes and Linux/macOS
+    packaging; no tag/publication. Fresh installations and package/native validation remain in progress.
 
 ## Evidence invalidated by the campaign's own changes
 
