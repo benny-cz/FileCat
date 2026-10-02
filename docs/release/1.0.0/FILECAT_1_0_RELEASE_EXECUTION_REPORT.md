@@ -507,6 +507,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     sees I88's exceptions with the old count code). The same mistake in View → Analyze folder: **I91** (Medium,
     `800cd52`): an analysis outlived its folder, labelled and re-sorted the next one, or failed reading a closed tab's
     listing; now it ends with the tab's stay.
+123. V12, large listings (E-V12-L1): a million synthetic entries list their first rows in 71 ms (names of 29
+    characters) and 72 ms (240 characters), complete in 1.5–1.7 s; four such listings at once show rows at 621 ms.
+    Long names cost spill space: 503.5 MiB of temporary disk for a million 240-character names. Regression profile.
 121. CI run 36941532909 (red on a records-only commit): **I89** (Low–Medium, `2ad2cfa`): the change journal reader went
     on from the new oldest entry only once when the journal wrapped during a read; a busy runner wrapped it twice and
     the read failed. Now as often as needed, said in the view; tests with a stand-in journal fail under the old rule.
