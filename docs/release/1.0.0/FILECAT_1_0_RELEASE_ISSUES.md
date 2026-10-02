@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I91 | Analyze folder: an analysis went on after its tab left the folder (then labelled and re-sorted the next folder) or closed (then failed reading the released listing) | Medium (a false "every value computed" on another folder; an exception where the analysis is awaited) | Must fix (V12: expensive sorting asked for and cancelled; navigating away) | **Remediated `800cd52`; verified** (E-V12-C2; tests fail on the old code) |
 | I90 | Find: appending a search from a root typed in another letter case listed each common file twice | Low–Medium (a set listing files twice; copying or deleting it acts on each twice) | Must fix (V13: result sets keep exactly their items) | **Remediated `54c33de`; verified** (E-V13-R1; the test lists 4 items for 2 on the old code) |
 | I89 | Change journal: a journal that wrapped twice while it was read failed the whole read; entries skipped once were skipped silently | Low–Medium (the journal view of a busy volume could not be shown) | Must fix (CI red; V14: records shown as they are) | **Remediated `2ad2cfa`; verified** (unit tests with a stand-in journal fail on the old rule with CI's error) |
 | I88 | Count: a folder's count went on after its tab closed and threw on every progress post, enough for the crash guard to end FileCat; leaving the folder kept the tab "counting" | High (FileCat ends about 1.6 s after closing a tab during a count with that much left: 24 exceptions in five seconds measured) | Must fix (V12: navigating away and closing while counting) | **Remediated `a9a9dcf`; verified** (E-V12-C2; tests fail on the old code; the experiment: 24 exceptions before, 0 after) |
@@ -1034,6 +1035,20 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I91 — Analyze folder: an analysis outlived its folder
+
+- **Found by:** V12's "expensive sorting asked for and cancelled", following I88 (E-V12-C2).
+- **What was wrong:** View → Analyze folder computes a column's value for every item, then sorts. Nothing tied it to
+  the folder: when the tab moved on, it finished and wrote "Sorted by … with every value computed (20,000 items)" on the
+  next folder's tab and re-sorted that folder; when the tab closed, it read the released listing and failed with
+  `ObjectDisposedException`, which reached whoever awaited the analysis.
+- **Remediation (`800cd52`):** leaving the folder or closing the tab cancels it; a listing let go meanwhile counts as
+  cancelled; nothing it reports or sorts lands on the next folder.
+- **Verification:** `AnalysisLeaveTests` (20,000 files, the "hidden" column, the folder left or the tab closed 0.1 s in)
+  fail on the old code (the next folder's banner said "Sorted by"; the analysis failed with the exception) and pass
+  twice now. App 225.
+- **Severity:** Medium: a false statement about a folder that was never analyzed, and an error from a closed tab.
 
 ### I90 — Find: appending a search from a differently spelled root listed files twice
 

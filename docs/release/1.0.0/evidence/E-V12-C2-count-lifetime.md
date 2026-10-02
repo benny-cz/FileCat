@@ -51,6 +51,13 @@ closes it; and closes a tab while its folder is counted. The window's thread is 
 last of them. **None raised anything** (two runs; App suite 223, 0 failed). With the count code from before I88's fix
 the same test saw two `ObjectDisposedException`s (the commit message says six seconds of watching; it is three).
 
+## Analyze folder (I91, `800cd52`)
+
+The same mistake in View → Analyze folder: an analysis went on when its tab left the folder, then labelled ("Sorted by
+… with every value computed") and re-sorted the next folder; when the tab closed, it read the released listing and
+failed with `ObjectDisposedException`. `AnalysisLeaveTests` (20,000 files, the folder left or the tab closed 0.1 s into
+the analysis): both fail on the old code, pass twice on the fix; App 225, 0 failed.
+
 ## Not covered here
 
 - A tab moved to another panel while counting.
