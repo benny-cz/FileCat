@@ -201,11 +201,14 @@ public static class OpenPgp
         : OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "gnupg")
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gnupg");
 
-    /// <summary>The user's keyring and trust database (GNUPGHOME, or gpg's default home), which a result depends on.</summary>
+    /// <summary>
+    /// The user's keyring, trust database and gpg.conf (GNUPGHOME, or gpg's default home), which a result depends on: the
+    /// configuration chooses the trust model, which decides whether gpg vouches for a key at all.
+    /// </summary>
     public static IEnumerable<FileInfo> KeyringFiles()
     {
         string home = Home();
-        foreach (string name in new[] { "pubring.kbx", "pubring.gpg", "trustdb.gpg" })
+        foreach (string name in new[] { "pubring.kbx", "pubring.gpg", "trustdb.gpg", "gpg.conf" })
         {
             var file = new FileInfo(Path.Combine(home, name));
             if (file.Exists) yield return file;
@@ -284,11 +287,14 @@ public static class OpenPgp
         if (good is not null || expired is not null)
         {
             string who = good ?? expired!;
+            // No trust line at all: gpg did not judge the key (with trust-model "always" in gpg.conf it never does), so the
+            // signature proves the key signed the file, not that the key is the publisher's: never a shield (V15, I95).
             string text = $"good OpenPGP signature by {who}" + (fingerprint is not null ? $" (key {fingerprint})" : "") +
-                          (expired is not null ? "; the key has expired since" : "") + (trust is not null ? $"; the key is {trust}" : "");
+                          (expired is not null ? "; the key has expired since" : "") +
+                          (trust is not null ? $"; the key is {trust}" : "; gpg did not say whether the key is valid (gpg.conf may set trust-model always)");
             bool trusted = trust is "ultimately trusted" or "fully trusted";
-            return new SignatureResult(trusted || trust is null ? VerificationState.SignatureGood : VerificationState.SignatureUnknownKey, text,
-                trusted || trust is null ? who : null, trusted || trust is null ? null : "? signed by a key you have not certified");
+            return new SignatureResult(trusted ? VerificationState.SignatureGood : VerificationState.SignatureUnknownKey, text,
+                trusted ? who : null, trusted ? null : trust is null ? "? signed by a key gpg did not vouch for" : "? signed by a key you have not certified");
         }
         if (missing is not null) return new SignatureResult(VerificationState.SignatureUnknownKey, $"made with OpenPGP key {missing}, which is not in your keyring");
         return new SignatureResult(VerificationState.SignatureUnchecked, "gpg gave no answer about it");

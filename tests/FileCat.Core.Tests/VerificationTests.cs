@@ -224,6 +224,11 @@ public sealed class VerificationTests : IDisposable
         Assert.Equal(VerificationState.SignatureBad, OpenPgp.Interpret("[GNUPG:] BADSIG 0123 Someone\n").State);
         Assert.Equal(VerificationState.SignatureUnknownKey, OpenPgp.Interpret("[GNUPG:] ERRSIG 0123456789ABCDEF 1 10 00 1700000000 9 -\n[GNUPG:] NO_PUBKEY 0123456789ABCDEF\n").State);
         Assert.Equal(VerificationState.SignatureBad, OpenPgp.Interpret("[GNUPG:] REVKEYSIG 0123 Someone\n").State);
+        // I95: no trust line (gpg.conf's trust-model always): gpg vouched for nothing, so neither does FileCat.
+        var unjudged = OpenPgp.Interpret("[GNUPG:] GOODSIG 0123 Someone\n[GNUPG:] VALIDSIG 1111222233334444555566667777888899990000 2024-01-01\n");
+        Assert.Equal(VerificationState.SignatureUnknownKey, unjudged.State);
+        Assert.Null(unjudged.Signer);
+        Assert.Contains("did not say whether the key is valid", unjudged.Text, StringComparison.Ordinal);
     }
 
     [Fact]
