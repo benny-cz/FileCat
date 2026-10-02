@@ -65,7 +65,7 @@ function Get-FixtureDisk {
     if ($disks.Count -ne 1) { throw 'Refusing: ambiguous VHDX disk mapping.' }
     $disk = $disks[0]
     # STORAGE_BUS_TYPE.BusTypeFileBackedVirtual == 15. A physical or system disk cannot pass.
-    if ($disk.IsBoot -or $disk.IsSystem -or [int]$disk.BusType -ne 15 -or $disk.Size -ne $fixtureBytes) {
+    if ($disk.IsBoot -or $disk.IsSystem -or [int]$disk.CimInstanceProperties['BusType'].Value -ne 15 -or $disk.Size -ne $fixtureBytes) {
         throw 'Refusing: the mapped disk is not the new disposable file-backed disk.'
     }
     if ($ownedDiskId -and $disk.UniqueId -ne $ownedDiskId) {
