@@ -24,7 +24,7 @@ public sealed class RecoverySafetyTests
         {
             // Only the scratch of large listings lies on the scanned disk: refused, saying so, with the command that is safe.
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, paths.ListingScratchDirectory);
-            var safety = vm.CheckDiskSafety(@"\\.\PhysicalDrive9", "disk 9");
+            var safety = StorageSafety(vm, @"\\.\PhysicalDrive9", "disk 9");
             Assert.NotNull(safety.Refusal);
             Assert.Contains("FileCat does not scan disk 9", safety.Refusal, StringComparison.Ordinal);
             Assert.Contains("the scratch of large listings (" + paths.ListingScratchDirectory + ")", safety.Refusal, StringComparison.Ordinal);
@@ -34,21 +34,21 @@ public sealed class RecoverySafetyTests
 
             // A folder that cannot be placed counts as on the disk: refused as well.
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, paths.JournalDirectory) ? null : false;
-            safety = vm.CheckDiskSafety(@"\\.\PhysicalDrive9", "disk 9");
+            safety = StorageSafety(vm, @"\\.\PhysicalDrive9", "disk 9");
             Assert.Contains("cannot tell", safety.Refusal, StringComparison.Ordinal);
             Assert.Contains("logs, journals, caches and temporary files", safety.Refusal, StringComparison.Ordinal);
 
             // All of FileCat's folders elsewhere: scanned. GnuPG's folder on that disk: gpg is held off while the scan is open.
             string gpg = Core.Verification.OpenPgp.Home();
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, gpg);
-            safety = vm.CheckDiskSafety(@"\\.\PhysicalDrive9", "disk 9");
+            safety = StorageSafety(vm, @"\\.\PhysicalDrive9", "disk 9");
             Assert.Null(safety.Refusal);
             Assert.True(safety.PauseSignatures);
             Assert.Contains("GnuPG", safety.HeldOff, StringComparison.Ordinal);
 
             // Nothing on that disk: nothing held off.
             services.Recovery.SharesDisk = (_, _) => false;
-            safety = vm.CheckDiskSafety(@"\\.\PhysicalDrive9", "disk 9");
+            safety = StorageSafety(vm, @"\\.\PhysicalDrive9", "disk 9");
             Assert.Equal((null, false, false), (safety.Refusal, safety.PauseShellPictures, safety.PauseSignatures));
         }
         finally
@@ -134,6 +134,72 @@ public sealed class RecoverySafetyTests
 
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
 
+    // Storage cases control the process inventory separately; the census has its own live/unknown-inventory cases.
+    private static MainViewModel.DiskSafety StorageSafety(MainViewModel vm, string device, string name, string? baseDirectory = null) =>
+        vm.CheckDiskSafety(device, name, baseDirectory, () => false);
+
+    [Fact]
+    public void The_process_census_ignores_itself_detects_a_live_process_and_refuses_an_unavailable_inventory()
+    {
+        Assert.False(SingleInstance.OtherFileCatRunning(() => []));
+        Assert.False(SingleInstance.OtherFileCatRunning(() => [System.Diagnostics.Process.GetCurrentProcess()]));
+        Assert.Null(SingleInstance.OtherFileCatRunning(() => throw new System.ComponentModel.Win32Exception(5)));
+        var start = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable("ComSpec")! : "/bin/sh",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        if (OperatingSystem.IsWindows())
+        {
+            start.ArgumentList.Add("/d");
+            start.ArgumentList.Add("/c");
+            start.ArgumentList.Add("set /p filecat_test_wait=");
+        }
+        else
+        {
+            start.ArgumentList.Add("-c");
+            start.ArgumentList.Add("read filecat_test_wait");
+        }
+        using var child = System.Diagnostics.Process.Start(start)!;
+        try
+        {
+            Assert.True(SingleInstance.OtherFileCatRunning(() => [System.Diagnostics.Process.GetProcessById(child.Id)]));
+        }
+        finally
+        {
+            child.StandardInput.Close();
+            if (!child.WaitForExit(5000)) { child.Kill(); child.WaitForExit(); }
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(null)]
+    [InlineData(false)]
+    public void Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere(bool? otherRunning)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-other-process-" + Guid.NewGuid().ToString("N"));
+        using var services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: root));
+        var vm = new MainViewModel(services);
+        services.Recovery.SharesDisk = (_, _) => false;
+        try
+        {
+            var safety = vm.CheckDiskSafety("test-device", "test disk", otherProcesses: () => otherRunning);
+            if (otherRunning == false) Assert.Null(safety.Refusal);
+            else
+            {
+                Assert.NotNull(safety.Refusal);
+                Assert.Contains("other FileCat", safety.Refusal);
+                Assert.Null(safety.Command);
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -159,13 +225,13 @@ public sealed class RecoverySafetyTests
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(profile, dataRoot: data));
             var vm = new MainViewModel(services);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.SettingsDirectory);
-            Assert.Contains("still running", vm.CheckDiskSafety("test-device", "test disk", root).Refusal);
+            Assert.Contains("still running", StorageSafety(vm, "test-device", "test disk", root).Refusal);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.SettingsDirectory) ? null : false;
-            Assert.NotNull(vm.CheckDiskSafety("test-device", "test disk", root).Refusal);
+            Assert.NotNull(StorageSafety(vm, "test-device", "test disk", root).Refusal);
             services.Recovery.SharesDisk = (_, _) => false;
-            Assert.Null(vm.CheckDiskSafety("test-device", "test disk", root).Refusal);
+            Assert.Null(StorageSafety(vm, "test-device", "test disk", root).Refusal);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, Path.Combine(root, "Data"));
-            Assert.Null(vm.CheckDiskSafety("test-device", "test disk", root).Refusal); // Inactive portable state is not a writer.
+            Assert.Null(StorageSafety(vm, "test-device", "test disk", root).Refusal); // Inactive portable state is not a writer.
             SingleInstance.Release();
             Assert.False(SingleInstance.UsualInstanceRunning(profile, root));
         }
@@ -281,12 +347,12 @@ public sealed class RecoverySafetyTests
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(recoveringProfile, dataRoot: root));
             var vm = new MainViewModel(services);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.LocalDirectory);
-            Assert.Contains("still running", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("still running", StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.LocalDirectory) ? null : false;
-            Assert.NotNull(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.NotNull(StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, _) => false;
             // Unix metadata may still be publishing at first; wait for the actual locations before this control.
-            Assert.True(SpinWait.SpinUntil(() => vm.CheckDiskSafety("test-device", "test disk").Refusal is null, 5000));
+            Assert.True(SpinWait.SpinUntil(() => StorageSafety(vm, "test-device", "test disk").Refusal is null, 5000));
         }
         finally
         {
@@ -313,13 +379,13 @@ public sealed class RecoverySafetyTests
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
             var vm = new MainViewModel(services);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, ipc);
-            var sameDisk = vm.CheckDiskSafety("test-device", "test disk");
+            var sameDisk = StorageSafety(vm, "test-device", "test disk");
             Assert.Contains("the instance connection", sameDisk.Refusal);
             Assert.Contains(ipc, sameDisk.Refusal);
             services.Recovery.SharesDisk = (_, folder) => PathIn(folder, ipc) ? null : false;
-            Assert.Contains("cannot tell", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("cannot tell", StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, _) => false;
-            Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Null(StorageSafety(vm, "test-device", "test disk").Refusal);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -354,23 +420,23 @@ public sealed class RecoverySafetyTests
                 Pipe = connection + "/FileCat-0000000000000000", TemporaryFolder = temporary,
             }));
             services.Recovery.SharesDisk = (_, folder) => folder == connection;
-            var safety = vm.CheckDiskSafety("test-device", "test disk");
+            var safety = StorageSafety(vm, "test-device", "test disk");
             Assert.Contains("the running FileCat's instance connection", safety.Refusal);
             services.Recovery.SharesDisk = (_, folder) => folder == connection ? null : false;
-            Assert.Contains("may be on that disk", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("may be on that disk", StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, folder) => folder == temporary;
-            Assert.Contains("the running FileCat's runtime temporary files", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("the running FileCat's runtime temporary files", StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, folder) => folder == temporary ? null : false;
-            Assert.Contains("may be on that disk", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("may be on that disk", StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, _) => false;
-            Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Null(StorageSafety(vm, "test-device", "test disk").Refusal);
             foreach (string invalid in new[] { "old plain metadata", "{}", "{\"Pipe\":\"/tmp/FileCat-0000000000000000\",\"TemporaryFolder\":\"relative\"}", new string('a', 32769) })
             {
                 File.WriteAllText(metadata, invalid);
-                Assert.Contains("cannot tell where", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+                Assert.Contains("cannot tell where", StorageSafety(vm, "test-device", "test disk").Refusal);
             }
             File.Delete(metadata);
-            Assert.Contains("cannot tell where its instance connection and temporary files are kept", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("cannot tell where its instance connection and temporary files are kept", StorageSafety(vm, "test-device", "test disk").Refusal);
         }
         finally
         {
@@ -397,12 +463,12 @@ public sealed class RecoverySafetyTests
             var vm = new MainViewModel(services);
             bool IsRuntimeFolder(string folder) => Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar) == temporary;
             services.Recovery.SharesDisk = (_, folder) => IsRuntimeFolder(folder);
-            var safety = vm.CheckDiskSafety("test-device", "test disk");
+            var safety = StorageSafety(vm, "test-device", "test disk");
             Assert.Contains("runtime temporary files", safety.Refusal);
             services.Recovery.SharesDisk = (_, folder) => IsRuntimeFolder(folder) ? null : false;
-            Assert.Contains("cannot tell", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("cannot tell", StorageSafety(vm, "test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, _) => false;
-            Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Null(StorageSafety(vm, "test-device", "test disk").Refusal);
         }
         finally
         {

@@ -38,9 +38,11 @@ def main():
                 'An_independent_instance_is_visible_until_release_and_stale_files_are_ignored',
                 'A_usual_instance_with_another_profile_is_guarded_before_scanning',
                 'Case_aliases_of_one_Windows_profile_find_the_running_instance',
+                'The_process_census_ignores_itself_detects_a_live_process_and_refuses_an_unavailable_inventory',
+                'Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere',
                 'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
                 'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'}
-    expected_cases = {method: (2 if method in {
+    expected_cases = {method: (3 if method == 'Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere' else 2 if method in {
         'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
         'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'} else 1)
         for method in required}

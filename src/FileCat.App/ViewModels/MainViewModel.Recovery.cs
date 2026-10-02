@@ -422,7 +422,7 @@ public sealed partial class MainViewModel
     /// A FileCat started with its files elsewhere (--data) also waits for the usual one to be closed when that one's files
     /// are on the disk.
     /// </summary>
-    internal DiskSafety CheckDiskSafety(string device, string name, string? baseDirectory = null)
+    internal DiskSafety CheckDiskSafety(string device, string name, string? baseDirectory = null, Func<bool?>? otherProcesses = null)
     {
         var shares = Services.Recovery.SharesDisk;
         bool? Shares(string folder) => shares?.Invoke(device, folder);
@@ -457,6 +457,10 @@ public sealed partial class MainViewModel
             return new DiskSafety(refusal, command, false, false);
         }
         string? profile = App.StartupOptions.Profile;
+        if ((otherProcesses ?? SingleInstance.OtherFileCatRunning)() != false)
+            return new DiskSafety($"FileCat does not scan {name} yet: other FileCat processes may still write to this disk. " +
+                                  "Close other FileCat windows, wait for their helpers to finish, then ask for the scan again. " +
+                                  "If none are open, check that process information is accessible.", null, false, false);
         if (Services.Paths.DataRoot is not null)
         {
             if (SingleInstance.UsualProfiles(profile, baseDirectory) is not { } profiles)

@@ -17,6 +17,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   lanes. Manual run 36994087185 at d14199b passes all four lanes and Linux/macOS package jobs; development packages
   are under native validation (E-V19-P2). Later CI through fa3a02a passes all four lanes. Manual run 37036698071 at
   exact fa3a02a also passes Linux/macOS packaging; dev.539 bytes/hash provenance retained for both clean baselines.
+  I105 at 1cd803c also passes all four lanes and manual development packaging (37055272672); dev.545 retained,
+  strict Unix inventory independently verifies 35 pass/four skips per lane. I106 changes need successor evidence.
   These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
@@ -30,8 +32,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   owned Samba/loop fixtures cleaned before restoration. Dev.539 package/desktop/lifecycle, long temporary-path and
   session-forwarding checks pass on both restored clean SDK-free baselines; both raw archives independently verified.
   Continued audit exposes I105: a portable probe misses per-user fallback owners and portable profile roots.
-  Hash-bound working fix passes ordinary/independent native GUI and Windows affected checks (E-I105); CI/rebuild
-  pending. Full recovery write-location audit continues. GA Windows/reference hardware remain open.
+  Hash-bound working fix passes ordinary/independent native GUI and Windows affected checks (E-I105), then all CI
+  lanes. Separate portable installation exposes I106; read-only process guard passes Windows affected checks,
+  native after/CI/rebuild pending. Owner declares menu failure I107 a must-fix blocker, reporting both host and
+  the restarted Windows VM. Codex restart does not clear it; JavaScript runtime crashes even without the UI helper
+  import. Headless menu click checks pass, native cause unresolved; diagnostic and older builds prepared (E-I107).
+  Full recovery write-location audit continues. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -681,6 +687,21 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     pass/3 Unix skips and paths 13 pass/1 Unix skip. Full before/after archives independently verified (E-I105).
     CI/rebuilt packages, wider discovery and candidate/device tracing pending; NO-GO remains.
 
+150. I105 all four lanes and development Linux/macOS packaging pass at exact 1cd803c (37055272672); raw dev.545
+    packages/CI artifacts retained, each strict Unix result independently confirms 35 pass/four skips. Broader
+    audit reproduces I106: second portable GUI PID 12176/lease busy, own-base probe true, other-base probe false.
+    Native before bundle retained. Device gate gains read-only process census: Windows baseline guards 1/3,
+    working guards 14/17 and final App 229/244 with explicit skips; native after/CI/rebuild still pending (E-I106).
+151. Owner's Windows host menu failure persists after host tests finish (I107). Copied Program Files App DLL matches
+    current working-build bytes; version stamp 1cd803c includes I106 working inputs, not proof of a clean tree.
+    Live host test authorized, but Windows Computer Use initialization crashes twice and after reset/retry;
+    no window selected or input sent. Cause unproved; preserve this as a UI-connection gate (E-I107).
+152. I107 raised to High/must-fix at the owner's instruction. Same symptom reported in the running Windows VM and
+    after Codex restart/compatibility launches. Headless menu press/release checks pass 1/1 with/without opt-in trace.
+    Initial isolated diagnostic GUI execution is not established: state/log absent, although both version probes
+    return 0. Startup capture and native diagnostic payload in preparation. Exact earlier fa3a02a/08c2e2d archives
+    publish successfully for the owner's requested comparison; no native menu result or fix claimed (E-I107).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -711,11 +732,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - I103 (Windows instance names/state identity): prior Windows election/forwarding/probe and portable/installed
   state-isolation evidence; preliminary process/guard/CI checks pass. Windows release package/candidate evidence pending.
 - I105 (portable/per-user candidate and profile discovery): earlier recovery lookup/profile inventory evidence;
-  affected native working-overlay and Windows checks pass. CI/rebuilt artifact checks and candidate tracing pending.
+  affected native working-overlay, Windows and CI checks pass. Rebuilt native checks and candidate tracing pending.
+- I106 (device process census): prior device admission evidence; Windows affected checks pass. Native process/GUI
+  after cases, successor CI/rebuilt packages, wider census audit and candidate tracing pending.
 
 ## Next actions (unblocked)
 
-1. Validate I105 in all affected CI lanes and rebuilt Linux packages, then continue the recovery write-location/
+1. Prioritize I107: establish diagnostic GUI execution, collect the native menu close path and compare exact older
+   builds. Windows Computer Use remains unavailable; owner/manual interaction is needed for direct clicks.
+   Then validate I106's native process/GUI guard, all affected CI lanes and rebuilt Linux packages, and continue the recovery write-location/
    instance-discovery audit. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

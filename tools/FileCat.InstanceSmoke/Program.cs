@@ -11,6 +11,9 @@ try
 {
     switch (args[0])
     {
+        case "other-processes":
+            Console.WriteLine(JsonSerializer.Serialize(new { running = SingleInstance.OtherFileCatRunning() }));
+            return 0;
         case "probe":
             Console.WriteLine(JsonSerializer.Serialize(new { running = SingleInstance.UsualInstanceRunning(options.Profile) }));
             return 0;

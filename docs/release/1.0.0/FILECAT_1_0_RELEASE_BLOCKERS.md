@@ -30,6 +30,11 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+Current execution priority: I107 is an owner-declared must-fix blocker, reported on both the Windows host and
+the running Windows VM, persisting after Codex restart. The requested direct click is blocked by JavaScript
+runtime startup failure even without importing Computer Use (E-I107). Host and guest testing are authorized;
+no host input was sent. The cause of the reported menu failure and any tool/focus connection are unproved.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

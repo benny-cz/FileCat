@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -27,6 +28,39 @@ public static partial class SingleInstance
     private const string UnixEndpointFile = "instance.pipe";
 
     public static event Action<string[]>? ArgumentsReceived;
+
+    /// <summary>
+    /// A read-only process census for device recovery. State-root probes cannot inventory a different portable copy
+    /// or arbitrary --data root. Require other FileCat processes to finish; null means the census was unavailable.
+    /// </summary>
+    public static bool? OtherFileCatRunning() => OtherFileCatRunning(null);
+
+    internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate)
+    {
+        var snapshot = new List<Process>();
+        try
+        {
+            if (enumerate is not null) snapshot.AddRange(enumerate());
+            else
+            {
+                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FileCat" };
+                // Also cover a renamed apphost, or the runtime host used for this FileCat's direct DLL invocation.
+                // A shared host name can be ambiguous; the recovery message does not claim a known state location.
+                if (System.Reflection.Assembly.GetEntryAssembly() == typeof(SingleInstance).Assembly)
+                {
+                    using var current = Process.GetCurrentProcess();
+                    names.Add(current.ProcessName);
+                }
+                foreach (string name in names) snapshot.AddRange(Process.GetProcessesByName(name));
+            }
+            return snapshot.Any(process => process.Id != Environment.ProcessId && !process.HasExited);
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
+        {
+            return null;
+        }
+        finally { foreach (var process in snapshot) process.Dispose(); }
+    }
 
     private static string BaseName(string? profile, string? dataRoot)
     {

@@ -76,7 +76,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I105 | Portable recovery misses per-user owners and portable profiles | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and verified preliminarily** (E-I105): exact dev.539 native GUI miss; three baseline regressions fail; fixed ordinary/independent GUI 2/2, Windows App 225/240 and final guards 10/13 pass with explicit skips. CI/rebuilt packages/wider discovery/candidate pending |
+| I107 | Windows host menus appear and immediately disappear | High (reported loss of core mouse command access; owner-declared blocker) | Must fix; current execution priority (V17/I13) | Open — owner reports both host and Win11 VM, persisting after Codex restart; copied DLL provenance verified. Direct click blocked by JavaScript runtime startup failure; cause unproved (E-I107) |
+| I106 | Recovery discovery misses a separate portable installation | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and Windows-verified preliminarily** (E-I106): baseline guards 1/3, fixed subset 14/17 and App 229/244 with explicit skips. Native after/CI/packages/wider census/candidate pending |
+| I105 | Portable recovery misses per-user owners and portable profiles | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and verified preliminarily** (E-I105): exact dev.539 native GUI miss; three baseline regressions fail; fixed ordinary/independent GUI 2/2, Windows App 225/240 and final guards 10/13 pass with explicit skips. CI/development packaging pass at 1cd803c; native rebuilt packages/wider discovery/candidate pending |
 | I104 | Windows window title should start with FileCat, then the selected path and account/elevation | Low (owner-requested title ordering) | Low-priority queue | Queued 2026-10-02; repeated FileCat is valid when the selected directory has that name |
 | I103 | Windows profile case aliases miss the running instance; portable/usual roots collide | Medium (instance contract; V09 safety impact) | Must fix (A-07, V09/I09, V23 B12) | **Remediated and verified preliminarily** (E-I103): Windows baseline 1/4, fixed 4/4 and guards 6/9 pass; Unix boundary 23 pass/4 explicit skips; all four CI lanes pass at fa3a02a; native packages/candidate pending |
 | I102 | Recovery misses independent windows and usual instances using another profile | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 5b69fba and natively verified** (E-I102): actual GUI before/after, two-owner/crash/forwarding controls, 8/8 process cases and App 208/235 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
@@ -1050,6 +1052,25 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
 
+### I107 — Windows host menus appear and immediately disappear
+
+- Owner report persists after automated host tests complete; host live test authorized. Copied Program Files DLL
+  matches current working build. Direct live click cannot proceed because Windows Computer Use initialization
+  crashes even after reset. No input sent; no independent reproduction or causal conclusion ([E-I107](evidence/E-I107-host-menu-report.md)).
+- Owner declares this a blocker and reports the same symptom in the running Windows VM. Codex restart does not
+  clear it. Automation JavaScript still crashes, including a basic health check without the UI helper import.
+- Must fix; current execution priority. No speculative menu change. Restore the UI connection, observe the menu/focus behavior,
+  reproduce and remediate a real defect if found, then revalidate the affected interaction.
+
+### I106 — Recovery discovery misses a separate portable installation
+
+- [E-I106](evidence/E-I106-other-process-recovery.md): actual second portable GUI holds a busy lease but the first
+  installation's production probe misses it. Baseline presence/unknown guard regressions fail; absent control passes.
+- Device safety now also takes a read-only process census and requires other FileCat processes/helpers to finish;
+  unavailable census refuses. No global disk registry added. Storage tests isolate the inventory from owner activity.
+- Windows subset 14 pass/3 Unix skips and final App 229 pass/15 skips. Remediated preliminarily, not Closed;
+  native after, affected CI/rebuilt packages, wider visibility/alias/race audit and candidate tracing pending.
+
 ### I105 — Portable recovery misses per-user owners and portable profiles
 
 - [E-I105](evidence/E-I105-portable-fallback-discovery.md): an exact dev.539 GUI with unwritable portable Data falls
@@ -1059,7 +1080,8 @@ level the plan already states; exploit-level detail is not recorded here.
   the actual live candidate. The literal default and profiles/DEFAULT roots remain distinct. Probes write nothing.
 - Before regressions fail 3/3. Working-overlay ordinary/independent native GUI cases pass 2/2; final Windows guards
   pass 10 with three Unix skips, full App 225 with 15 skips, paths 13 with one Unix skip. No unsafe disk scan.
-- Potential Critical, V09/I09 must fix. Remediated/verified preliminarily; affected CI, rebuilt packages, wider
+- Potential Critical, V09/I09 must fix. All four CI lanes and development packaging pass at 1cd803c (37055272672).
+  Remediated/verified preliminarily; rebuilt native packages, wider
   installation/process discovery and exact-candidate tracing remain pending. Previous lookup evidence is stale.
 
 ### I104 — Windows title should put FileCat before the selected path and account/elevation

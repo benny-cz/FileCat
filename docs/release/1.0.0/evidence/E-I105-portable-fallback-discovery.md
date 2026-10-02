@@ -96,7 +96,21 @@ An initial profile-catalog test used Resolve and was corrected to a read-only Us
 owned LocalDirectory. No preexisting DEFAULT scratch state was deleted without ownership evidence. Earlier
 targeted/source/test-payload snapshots remain retained alongside the final inputs; they are not relabelled.
 
-Status: remediated and verified preliminarily; **not Closed**. All affected CI lanes, rebuilt package cases,
-wider installation/process discovery and exact-candidate recovery tracing remain pending. Earlier instance/
+All four CI lanes pass at `1cd803c5b2a764572d806313228b0331c19159d0`, including manual
+[37055272672](https://github.com/benny-cz/FileCat/actions/runs/37055272672). Linux and macOS development packaging
+also pass; Windows tag-only packaging is skipped. Raw artifacts/metadata retained under ci-37055272672.
+Each strict Unix boundary archive independently confirms 35 pass/four explicit skips across three scenarios:
+Linux result JSON `897305004ad8e954d3eb53b10e91ca50758414ad3dec17c453069f08300e492b`, macOS
+`dfd8c36ef6ca79e7f2c8aebd8c191412201a072695121580ad97d6a8cfa99c63`.
+
+| Retained development package (dev.545) | Bytes | SHA-256 |
+|---|---:|---|
+| filecat_0.1.0~dev.545_amd64.deb | 56,038,804 | `167cfb3f308bb730f596d9a032bb63deb96d217bc3b3be2cfc7b1a6bc46bfadc` |
+| FileCat-0.1.0-dev.545-linux-x64.tar.gz | 68,606,718 | `8f238efd0c359706626ec938cdd1062f3d9598f6fdde515c21aa8627dbf9dbf0` |
+| FileCat-0.1.0-dev.545-x86_64.AppImage | 63,810,040 | `15e3ce17a0fb8e7438b712340a471c35052012912fd6d042e47e586f053ed7de` |
+| FileCat-0.1.0-dev.545-osx-arm64.zip | 67,182,916 | `a1cb05b00ebdcf467877c821407a561c9c5742d0e5d714f6dac21e36a80482c0` |
+
+Status: remediated and verified preliminarily; **not Closed**. Rebuilt native package cases,
+wider installation/process discovery (now concrete I106) and exact-candidate recovery tracing remain pending. Earlier instance/
 recovery lookup evidence does not describe the changed source. The immutable dev.539 package results remain
 historical evidence for their exact bytes; they do not transfer to the rebuild. No signing, tag or publication.
