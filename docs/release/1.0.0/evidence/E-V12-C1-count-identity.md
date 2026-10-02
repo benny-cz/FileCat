@@ -44,7 +44,7 @@ partial size on a marked folder, so labelled, and clears it from an unmarked one
 
 ## Not covered here
 
-V12's other parts: slow parsers, rapidly changing viewports, many tabs,
+V12's other parts: slow parsers, rapidly changing viewports,
 disconnected devices, expensive sorting asked for and cancelled, visible-row
 verification beside a copy or search, and many folders counted and the count cancelled by a test. Navigating away,
 closing the tab and moving it to the other panel while counting: E-V12-C2 (I88).

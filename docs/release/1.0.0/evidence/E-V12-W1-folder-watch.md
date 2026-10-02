@@ -45,6 +45,12 @@ reread; now it can be seen.
   four times in each of three runs, and the folder was asked to be read again after the churn.
 - `FolderChurnTests` (12,000 changes through the window) reports 0 overflows here.
 
+## Many tabs (`1cf3af5`)
+
+Only each panel's active tab watches its folder (plan §8.2). `ManyTabsTests`: forty tabs over two panels hold two
+watches; a background tab whose folder gained a file meanwhile lists it once it is active again, from comparing the
+folder's time with the one at its last read (the test fails with that comparison removed). App 227, 0 failed.
+
 ## Checks
 
 Core 740, App 220, 0 failed.

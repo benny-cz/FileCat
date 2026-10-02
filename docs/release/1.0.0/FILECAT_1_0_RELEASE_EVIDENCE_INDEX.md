@@ -228,6 +228,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `f2b850b` | Test: views closed while they work raise nothing on the window's thread | — | E-V12-C2 |
 | `800cd52` | Analyze folder: an analysis stops when its tab leaves the folder or closes | I91 | E-V12-C2 |
 | `782a3e9` | ListingScale: optional name length; million-entry and long-name listings measured | — | E-V12-L1 |
+| `1cf3af5` | Test: forty tabs hold two watches; a tab catches up when active again | — | E-V12-W1 |
 | `2ad2cfa` | Change journal: a journal that wraps while it is read is read on, and says so (CI run 36941532909) | I89 | issue record |
 | `54c33de` | Search: roots spelled as the disk spells them, so appended finds list each file once | I90 | E-V13-R1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |

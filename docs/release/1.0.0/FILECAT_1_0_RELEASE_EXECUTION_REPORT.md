@@ -511,7 +511,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     characters) and 72 ms (240 characters), complete in 1.5–1.7 s; four such listings at once show rows at 621 ms.
     Long names cost spill space: 503.5 MiB of temporary disk for a million 240-character names. Regression profile.
     Type-to-find walks the names on the window's thread at each key: a miss over a million names holds the window
-    43 ms to about 0.6 s (**I92**, Low, open).
+    43 ms to about 0.6 s (**I92**, Low, open). Many tabs (`1cf3af5`): forty tabs hold two watches (the active tab of
+    each panel); a background tab catches up with its folder when it is active again.
 121. CI run 36941532909 (red on a records-only commit): **I89** (Low–Medium, `2ad2cfa`): the change journal reader went
     on from the new oldest entry only once when the journal wrapped during a read; a busy runner wrapped it twice and
     the read failed. Now as often as needed, said in the view; tests with a stand-in journal fail under the old rule.
