@@ -137,6 +137,9 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>How often the shown folder's change notifications overflowed (tests, diagnostics).</summary>
     internal int WatcherOverflows => _monitor?.Overflows ?? 0;
+
+    /// <summary>Whether this tab watches its location now (only the active tab of a panel does; tests).</summary>
+    internal bool IsWatching => _monitor is not null || _poller is not null || _registryMonitor is not null;
     private FolderPoller? _poller;
     private RegistryChangeMonitor? _registryMonitor;
     private bool _registryDirty;
