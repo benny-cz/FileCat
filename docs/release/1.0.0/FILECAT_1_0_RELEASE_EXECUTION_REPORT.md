@@ -15,7 +15,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **CI:** all four lanes passed at `08c2e2d` and `a5a3c0c`; the intervening documentation commit's ARM64 lane failed
   on a transient native Recycle Bin query (I96). Its bounded test remedy `5503262` and UNC fix `ca1afe0` pass all four
   lanes. Manual run 36994087185 at d14199b passes all four lanes and Linux/macOS package jobs; development packages
-  are under native validation (E-V19-P2). CI at 407fd63 passes. These results do not qualify release packages or replace
+  are under native validation (E-V19-P2). Later CI through fa3a02a passes all four lanes. Manual run 37036698071 at
+  exact fa3a02a also passes Linux/macOS packaging; dev.539 bytes/hash provenance retained for both clean baselines.
+  These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
   after completed copy cases, as authorized. Fresh Ubuntu 24.04.5 and 26.04.1 full desktops each have a powered-off clean
@@ -24,7 +26,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   ICU dependency choices (E-I04); producer corrected and rebuilt 26.04 install/desktop/lifecycle pass. 26.04 native suites
   pass with recorded skips after native setup correction and I99's socket-path remedy. Separate-session GUI launch
   reproduces I100; profile-local lock/actual endpoint remedy passes native process, GUI, FAT/exFAT and affected App
-  checks. CI/rebuilt 24.04 compatibility and full recovery write-location audit continue. GA Windows/reference hardware remain open.
+  checks. I101–I103 affected native/process checks and CI pass. Final 26.04 raw archive independently hash-verified,
+  owned Samba/loop fixtures cleaned before restoration. Dev.539 native compatibility on both clean baselines and
+  full recovery write-location audit continue. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -642,6 +646,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     boundary guards 23 pass/4 explicit skips. CI process harness/records added. Source/payload/results retained (E-I103).
 143. Owner's Windows title report queued as Low-priority I104: FileCat first and exactly once, then remaining context,
     account/elevation information. Both reported titles retained; no title code changed during safety validation.
+144. I103 pushed fa3a02a: all four push CI lanes pass (37036329081). Manual run 37036698071 binds that same source,
+    passes all four lanes and Linux/macOS package jobs; dev.539 Linux bytes downloaded/hashed (E-V19-P2).
+    Windows tag-only packaging skipped; no publication or release controls changed.
+145. Final Ubuntu 26.04 raw/native archive retained on host with matching guest SHA-256, 1,093,581,374 bytes and
+    7,705 members. Independent streaming verifier checks 14 required TRXs/payloads/immutable fixture hashes,
+    passes without missing/mismatched files. All failures/nonpasses retained; SDK download/source/selected built
+    payloads retained separately from excluded extracted build/runtime trees. Identity-checked test-owned Samba
+    stopped and three owned loop devices detached; immutable FAT16 bytes unchanged (E-X02). Snapshot restoration
+    can now proceed without losing this evidence.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -675,8 +688,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Continue Unix recovery write-location audit, retain I100 CI/package evidence, preserve 26.04 native evidence and
-   validate rebuilt packages on both fresh Ubuntu baselines (ENV-04/I04/I99). ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
+1. Validate dev.539 packages on both fresh Ubuntu baselines (ENV-04/I04/I99–I103) and continue the Unix recovery
+   write-location audit. Final 26.04 native evidence is retained and verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.

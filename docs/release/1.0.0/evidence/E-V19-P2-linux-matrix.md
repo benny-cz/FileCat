@@ -35,6 +35,18 @@ Windows tag-only package skips, no tag/release publication. Host/guest hashes ag
 | FileCat-0.1.0-dev.531-linux-x64.tar.gz | `d686db4baf4c4aec849f089a0020836a5bf861746a8aafb46727eefee704803f` |
 | FileCat-0.1.0-dev.531-x86_64.AppImage | `98d494e00d07c687bd540382d28fe114bedb54f638d60259e40462b1d35defec` |
 
+I99–I103 rebuild: manual CI [37036698071](https://github.com/benny-cz/FileCat/actions/runs/37036698071), source
+`fa3a02ad4a0d9b5323f5316504efa842c120d099`, 0.1.0-dev.539. All four test lanes and Linux/macOS packaging pass;
+Windows tag-only packaging and release attachment steps skip. No tag, release or publication. Linux artifact
+11241366611, archive digest `sha256:8a5af9b579f888f345b17cf25109ea741791c4e7e779d2ea3a4766a0dd744edb`.
+Downloaded bytes hashed on host; fresh-baseline native package execution still pending for this rebuild.
+
+| Rebuilt artifact | Bytes | SHA-256 |
+|---|---:|---|
+| filecat_0.1.0~dev.539_amd64.deb | 56,035,608 | `993f522958497da3c3a8c4da463bfc90e4bcf9044ff85a781e5775f832481b67` |
+| FileCat-0.1.0-dev.539-linux-x64.tar.gz | 68,611,061 | `7e89a5f80157360b0073d47c9e6d42e2b0b5ef8014b35b1bf713235e0f467f6b` |
+| FileCat-0.1.0-dev.539-x86_64.AppImage | 63,810,040 | `33af2f5579b426302ccf323357be2287a9415634825c0a0dbb3a73361ad6d99c` |
+
 ## Ubuntu 24.04 completed cases
 
 - Fresh full Desktop 24.04.5 LTS, kernel 7.0.0-38-generic; GNOME Shell 46.0, actual Wayland login / XWayland 23.2.6.
@@ -134,6 +146,7 @@ specific security authorization. Owner then explicitly approved them for this di
 lock-enabled=false and unlock applied; LockedHint subsequently no. Recorded test setup, not a FileCat security claim.
 Windows computer-use helper could not initialize; no Windows UI actions used.
 
-26.04 native suites, rebuilt 24.04 compatibility and final-candidate full lifecycle/transition checks remain pending.
+26.04 native suites are retained with explicit skips (E-X02). Dev.539 package execution on both clean baselines,
+rebuilt 24.04 compatibility and final-candidate full lifecycle/transition checks remain pending.
 No human reader/input attestation, polkit safety evidence, support decision,
 final signature or stable GO supplied by these automated preliminary checks.

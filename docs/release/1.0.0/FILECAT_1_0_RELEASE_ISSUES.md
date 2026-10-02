@@ -77,7 +77,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
 | I104 | Windows window title repeats FileCat and starts with Administrator when elevated | Low (owner-reported title formatting) | Low-priority queue | Queued 2026-10-02; owner requires FileCat first and exactly once |
-| I103 | Windows profile case aliases miss the running instance; portable/usual roots collide | Medium (instance contract; V09 safety impact) | Must fix (A-07, V09/I09, V23 B12) | **Remediated and verified preliminarily** (E-I103): Windows baseline 1/4, fixed 4/4 and guards 6/9 pass; Unix boundary 23 pass/4 explicit skips; CI/packages/candidate pending |
+| I103 | Windows profile case aliases miss the running instance; portable/usual roots collide | Medium (instance contract; V09 safety impact) | Must fix (A-07, V09/I09, V23 B12) | **Remediated and verified preliminarily** (E-I103): Windows baseline 1/4, fixed 4/4 and guards 6/9 pass; Unix boundary 23 pass/4 explicit skips; all four CI lanes pass at fa3a02a; native packages/candidate pending |
 | I102 | Recovery misses independent windows and usual instances using another profile | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 5b69fba and natively verified** (E-I102): actual GUI before/after, two-owner/crash/forwarding controls, 8/8 process cases and App 208/235 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
 | I101 | Recovery omits the Unix runtime temporary folder, including another instance's different TMPDIR | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 369f55f and natively verified** (E-I101): baseline fails 1/1; guards, boundary/process harnesses and App 206/233 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
 | I100 | Unix session-local mutex allows separate launches to run on one profile and replace its live socket | Medium (instance/state contract; V09 safety impact) | Must fix (A-07, V23 B12, V09) | **Remediated 4746592 and natively verified** (E-I100): 1/5 before, 6/6 after; actual GUI/FAT/exFAT and affected App pass; all four CI lanes pass, rebuilt packages and candidate closure pending |
@@ -1066,7 +1066,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - Actual selected state directory now identifies the Windows mutex/pipe. Case aliases share it; genuinely different
   state roots remain separate. The read-only usual-owner probe retains an older-name compatibility check.
 - Windows targeted guards 6 pass/3 Unix skips and production process cases 4/4 pass. Unix boundary guards 23 pass/4
-  explicit skips. Remediated/verified preliminarily; CI, rebuilt packages and candidate qualification pending.
+  explicit skips. All four CI lanes pass at fa3a02a (37036329081 and manual 37036698071); Linux/macOS development
+  packaging passes. Remediated/verified preliminarily; native rebuilt packages and candidate qualification pending.
 
 ### I102 — Recovery misses independent instances and other profiles
 

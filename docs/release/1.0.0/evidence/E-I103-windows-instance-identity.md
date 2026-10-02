@@ -48,8 +48,11 @@ are not claimed qualified by these cases.
 Original Windows DLL/test inputs, full before/after fixture bundles, owned profile state snapshots, logs and payload
 hashes retained privately. Ubuntu record copied to host and hash-verified. Unix protocol is unchanged; its strict
 boundary/guard harness passes after rebuilding, with the new Windows-only test explicitly skipped. Full affected
-Windows suites and macOS boundary cases will run in CI; the Windows process harness now runs there and retains
-case logs and JSON records. This is preliminary Windows Insider host evidence; no GA release qualification claim.
+Windows suites and macOS boundary cases pass in push CI 37036329081 at
+`fa3a02ad4a0d9b5323f5316504efa842c120d099`; all four lanes succeed. Manual run
+[37036698071](https://github.com/benny-cz/FileCat/actions/runs/37036698071) at that exact commit also passes all four
+lanes plus Linux/macOS development packaging. The Windows process harness runs in CI and retains case logs/JSON.
+Rebuilt native package execution is tracked in E-V19-P2. This is preliminary evidence; no GA release qualification claim.
 
-Status Remediated and verified preliminarily, not Closed. CI, rebuilt packages, wider alias/session/installation
+Status Remediated and verified preliminarily, not Closed. Rebuilt native packages, wider alias/session/installation
 discovery, re-audit and exact candidate evidence remain pending. Nothing was signed or published.

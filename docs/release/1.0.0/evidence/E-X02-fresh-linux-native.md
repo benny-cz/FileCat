@@ -94,6 +94,8 @@ as above. SDK/build prerequisites follow all clean package checks. Build: zero e
 | Remote | 116 / 94 / 0 / 22 | `ea03141a0eb68e29541ba8b4a3ad06e3c205d16d2237888ad8d66f8569f0a55f` |
 | App, I99 hash-bound working inputs (E-I99) | 231 / 204 / 0 / 27 | `7afee55795f8f8183d24b8b5ca55c9294b4bbd7c71f70eb72df8fac4203542a2` |
 | App, later I100 hash-bound working inputs (E-I100) | 232 / 205 / 0 / 27 | `5337aeec2ee61d41d355e49c5d8c17cf7a274302caa3f551a5bb44ed4ecd7b45` |
+| App, I101 hash-bound working inputs (E-I101) | 233 / 206 / 0 / 27 | `e541fdc37085a38dc49e2c8c1ed64748f4569ab3f10548cf571d856e6d9d8757` |
+| App, I102 hash-bound working inputs (E-I102) | 235 / 208 / 0 / 27 | `0d10b89c73ad851a0eafeb8ad1cec8df20358774101602c97a7e714e8ed997c7` |
 | Root native FAT32/exFAT records | 1 / 1 / 0 / 0 | `4e61a7574bd066928a4942031a20f6ebba5dcb34cc0448b70ac408327d1e3e8d` |
 | Windows-formatted recovery corpus | 3 / 3 / 0 / 0 | `4fdf5514cf310512efa3a19266f1639e433cff903005a41099046887ffa228af` |
 
@@ -114,6 +116,24 @@ Private TRX summary (full runs/corpus, complete nonpasses/native branch names):
 `5a2d03dde2dab0e558cc25ecfb156d07beaf5ed4b398ae44165e1bb48de94b2d`; root FAT TRX separately retained.
 Resolved-assets archive `8f530c7e67b67f7f4d982ac5d9d525358e853f3616ca3401ffcbaf8724f758f2` and pip freeze
 `0e63a944360e69e0e9806d8edce2ec0a070fba13fbaa44eead30f5fa3a832123`. Raw host root ends in 26.04/.
-Final private archive/identity-checked fixture teardown still pending; do not restore the VM until retained.
-I100's native remedy/regression is recorded separately; CI/package/candidate closure pending. macOS, physical Windows/ARM, human consent/accessibility,
-live media cases and exact-candidate qualification remain required.
+Final private archive **retained and independently verified before snapshot restoration**:
+`26.04/FileCat-native26-retained-r1.tar.gz`, 1,093,581,374 bytes, 7,705 members, SHA-256
+`bad2972f643be22824ad37bdd4cb6e0739a0b36ca133855e3ae219fd5800c0db`. Guest and host hashes agree.
+Streaming verification checks 14 required TRXs/payloads/immutable fixture hashes: no missing or mismatched input,
+no accidentally retained extracted SDK or source build directories. Verification JSON
+`c35b44b42a8a195fa75b670b574e21745e206d55e9cc0b349b182cbba6d5730f` and UTF-8 member list retained.
+Archive includes original failures, source/normalized inputs, resolved dependencies, SDK download, test-created
+user state, and selected exact assemblies plus the latest runnable App test bundle. Extracted SDK, Python environment,
+ephemeral native temporary files and two stale Samba socket objects are excluded; tar diagnostics retained.
+
+Environment record `05162ca157da419c7fd64e6005ea810d47b9bb811610352a65599f59bfa8bbd5` binds the guest UUID and
+disk identity at 2026-10-02T16:58:16Z. Native build servers stopped. Samba cleanup
+`c82180827158e8beef41b064b067b1ab5f2b0f9a7e3b6e43049f16acc9d88e97` verifies/stops the exact test-owned
+loopback server; the other recorded test server had already exited. Loop cleanup
+`691962097b9d75599c1a1f71fcf4724d05d30f16314018dff672ae1d3ae33ff9` checks each backing file/mount identity,
+unmounts the two owned filesystems and detaches only the three owned loops. Immutable FAT16 hash above remains
+unchanged; no claim that the loop device itself was attached read-only. Complete TRX/nonpass inventory
+`4bac84db9f52a4d08f9a4067a433556963597843fd017bd1bc30b6f6c179f870` retained inside and separately on host.
+
+I99–I103 remedies/regressions are recorded separately; rebuilt packages and candidate closure remain pending.
+macOS, physical Windows/ARM, human consent/accessibility, live media cases and exact-candidate qualification remain required.
