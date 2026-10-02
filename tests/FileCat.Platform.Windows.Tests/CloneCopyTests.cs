@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -26,9 +27,13 @@ public sealed partial class CloneCopyTests
         var ct = TestContext.Current.CancellationToken;
         var log = TestContext.Current.TestOutputHelper;
         string volume = Path.GetPathRoot(Path.GetFullPath(where))!;
-        Assert.True(GetVolumeInformation(volume, null, 0, out _, out _, out uint flags, null, 0));
+        Assert.True(GetVolumeInformation(volume, null, 0, out uint serial, out _, out uint flags, null, 0));
         if ((flags & FILE_SUPPORTS_BLOCK_REFCOUNTING) == 0) Assert.Skip($"{volume} does not clone blocks.");
-        string root = Directory.CreateDirectory(Path.Combine(where, "fc-clone-" + Guid.NewGuid().ToString("N")[..8])).FullName;
+        log?.WriteLine($"Volume {volume}: serial={serial:X8}, flags={flags:X8}");
+        string root = Path.Combine(where, "fc-clone-" + Guid.NewGuid().ToString("N"));
+        Assert.False(Path.Exists(root));
+        Directory.CreateDirectory(root);
+        bool passed = false;
         try
         {
             const long Size = 1L << 30;
@@ -44,6 +49,9 @@ public sealed partial class CloneCopyTests
                 }
                 stream.Flush(flushToDisk: true);
             }
+            byte[] sourceHash;
+            using (var stream = File.OpenRead(src)) sourceHash = SHA256.HashData(stream);
+            log?.WriteLine($"Fixture: seed=1603, size={Size}, SHA256={Convert.ToHexString(sourceHash)}");
             var ops = new WindowsFileOperations();
             var providers = new ProviderRegistry();
             providers.Register(new LocalFileSystemProvider());
@@ -85,14 +93,26 @@ public sealed partial class CloneCopyTests
                     Assert.True(FlushFileBuffers(handle.DangerousGetHandle()));
                 long used = before - Free(volume);
                 Assert.Equal(Size, new FileInfo(copied).Length);
+                using (var stream = File.OpenRead(copied)) Assert.Equal(sourceHash, SHA256.HashData(stream));
+                // A clone must remain independent when its copy is edited (copy on write).
+                using (var stream = new FileStream(copied, FileMode.Open, FileAccess.ReadWrite))
+                {
+                    int first = stream.ReadByte();
+                    stream.Position = 0;
+                    stream.WriteByte((byte)(first ^ 0xff));
+                    stream.Flush(flushToDisk: true);
+                }
+                using (var stream = File.OpenRead(src)) Assert.Equal(sourceHash, SHA256.HashData(stream));
                 log?.WriteLine($"{name}: {took.TotalMilliseconds:F0} ms, free space down by {used / (1 << 20):N0} MiB");
                 if (used > Size / 4) failures.Add($"{name} took {used / (1 << 20):N0} MiB of space: its copy was not a clone");
             }
             Assert.True(failures.Count == 0, string.Join("; ", failures));
+            passed = true;
         }
         finally
         {
-            for (int i = 0; i < 5 && Directory.Exists(root); i++)
+            if (!passed) log?.WriteLine($"Failed fixture retained at {root}");
+            for (int i = 0; passed && i < 5 && Directory.Exists(root); i++)
             {
                 try { Directory.Delete(root, true); }
                 catch (IOException) { Thread.Sleep(300); }
