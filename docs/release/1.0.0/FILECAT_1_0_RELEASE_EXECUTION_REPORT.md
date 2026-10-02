@@ -5,7 +5,32 @@ Operational plan: [FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md](../../d
 [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), [open blockers and decisions](FILECAT_1_0_RELEASE_BLOCKERS.md).
 Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` once a candidate exists.
 
-## Current state (updated 2026-10-01)
+## Current state (updated 2026-10-02)
+
+- **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
+  Work remains in preliminary validation and remediation; the historical source baseline is retained below.
+- **Resumption input:** clean `main` at `08c2e2dee4e04c936a34cd867770d05d758af686`, with prior work through I95.
+  The seven existing planning documents were preserved and pushed unchanged as `3316f15` with owner authorization.
+  Current validation changes and exact build/harness identities are in E-ENV-06, E-I96 and E-V03-CLONE-1.
+- **CI:** all four lanes passed at `08c2e2d` and `a5a3c0c`; the intervening documentation commit's ARM64 lane failed
+  on a transient native Recycle Bin query (I96). Its bounded test remedy `5503262` and UNC fix `ca1afe0` pass all four
+  lanes. Package jobs skipped;
+  these results do not qualify release packages or replace the candidate's skip inventory.
+- **VMs:** both VMware guests are running and guest access works after owner clarification (E-ENV-06). Ubuntu is
+  22.04.5; Windows is Insider 26300 with .NET 10.0.5. The historical cold-boot failure has not been reproduced again.
+  GA/fresh qualification environments and reference hardware remain unavailable.
+- **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
+  `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
+  before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
+  and SMB cases each pass 1/1 without skips; all three copy paths pass bytes/copy-on-write and use 0 reported MiB.
+  Successful VHDX/share cleanup independently checked. Candidate reruns remain mandatory.
+- **Prior campaign status:** fuzz campaigns collected (work log item 109); Windows and Linux recovery write traces
+  are recorded (E-V09-T1/T2). macOS/installed-helper/device and candidate cases remain open. The issue register,
+  rather than the historical checkpoint below, controls current defect disposition; non-Closed issues still block GO.
+- **Controls and people:** private reporting, release protections, signing, retained REP storage, support decisions
+  and human validation/GO gates remain open. No release controls were changed and nothing was published.
+
+## Historical checkpoint (2026-10-01; superseded by the current state above)
 
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
   package exists. Phase: A–F (baseline, reconciliation and preliminary validation with remediation).
@@ -54,14 +79,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 | Step | State | Notes |
 |---|---|---|
-| 1 Refresh baseline | **Done** | E-ENV-04; no delta from the plan's baseline at start |
+| 1 Refresh baseline | **Done** | Historical E-ENV-04; resumption at the progressed campaign source, CI and guest access refreshed in E-ENV-06 |
 | 2 Owners, resources, provider/licence preflight | **Open (people)** | DEC-01, DEC-07, EXT-01, EXT-02; resource status in the blockers file |
 | 3 Collect CI/validation evidence and skip inventory | **Done (preliminary)** | E-A01 (TRX lanes), E-A02 (every lane from the log, reasons from source; 37 tests run on no lane, all gated; the ARM64 lane's missing Remote tests added, `98bc539`); early-return audit (E-S01, `be6ca25`). To repeat on the candidate's run |
 | 4 Reconcile manifest and registers against source | **Partial** | E-R04: every code name the plan's rows cite exists (137 in 421 rows; 8 rows explained), every capability has a route; whether each claim holds is left to the V cases |
 | 5 Contract questions (I05, I06, PSD, Mac, FDD, I14) | **Open (owner)** | DEC-02…DEC-05, EXT-02; I06's page caches meet the planned shared budget (`61b028f`), so DEC-06 is closed |
 | 6 V23 source review, test-guard audit, case catalog | **Partial** | DPI P01–P06, P08–P12, P14–P16 reviewed, P07 in part (I15, I19, I40, I44, I48–I51, I53–I55; E-DPI); B04 consent display audited (I17); B05 (I56, I57), B06, B07 (I59), B08 (I09), B09 (I60), B10 (I16), B11, B12 (I61, I62), B13 (I63) and B14 (I64) reviewed; B01 (I68) and B03 source passes; B02 by the damage campaigns (I58, I65); P14 corrected to I09; P07's loader audit (V06) and P13 remain |
 | 7 Reporting, signing, dependency approach, preview preparation | Not started | I01/I02/I03/I14/I18 |
-| 8 Fixtures and harnesses | Partial | VMware VMs lent and snapshotted (E-ENV-02); the owner's M1 Mac (E-ENV-05); SFTP, FTP/FTPS and SMB servers on the Ubuntu VM (E-ENV-05, one implementation each); consent UI Automation harness (E-I17); Windows Sandbox unusable (E-ENV-01) |
+| 8 Fixtures and harnesses | Partial | VMware VMs lent (E-ENV-02/05/06); the owner's M1 Mac (E-ENV-05); two SFTP/FTPS implementations and Samba on the Ubuntu VM (E-V08-L2; current server availability not revalidated); consent UI Automation harness (E-I17); new guarded ReFS/SMB clone harness (E-V03-CLONE-1); Windows Sandbox unusable (E-ENV-01) |
 | 9 S10 suites with native setup | **Partial** | E-L01 (Windows lane locally); E-X01 (unelevated Windows 11 VM, Ubuntu 22.04 VM, M1 Mac; CI for every commit) — preliminary |
 | 10 High-risk preliminary cases and remediation | **In progress** | V03-PARTIAL (I19), V19-UNINSTALL (I15), V06-CONSENT display (I17) done preliminarily; I20, I21, I22, I23 from test runs; preliminary V19 package checks on Ubuntu 22.04 and macOS (E-V19-P1) |
 | 11–13 V01/V12/V13/V16, human V17/V18, remediation loop | **Started** (V13's content search and file comparison) / blocked | V13: content search against an independent corpus (E-V13-S1, I74); file comparison against a generated corpus (E-V13-C1, I81, I82); Find's criteria against a generated tree (E-V13-F1, I83); V01's operation scope (E-V01-S1); V12's counted sizes and churn (E-V12-C1, I85); V16's harness inventory (E-V16-H1); V01's and V12's other parts and V16's acceptance runs not started. Human and reference-hardware work blocked (PPL-01…03, ENV-08) |
@@ -528,6 +553,26 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     (Medium–High, `cd37342`): with no trust line from gpg (trust-model always in gpg.conf), a good signature read as
     good for any key in the keyring; now as signed by a key gpg did not vouch for. No key server is contacted even when
     gpg.conf asks (a listener in its place saw nothing). minisign not covered (no independent tool here).
+125. Execution resumed on 2026-10-02 (E-ENV-06): all four authority documents and the launcher-required planning
+    prompt read in full; progressed campaign source verified; the seven planning documents retained unchanged and
+    pushed (`3316f15`). Both VMware guests are running; owner-corrected Windows credentials work. Ubuntu remains
+    22.04.5 and Windows Insider 26300. Reporting/release controls remain disabled/unprotected; no settings changed.
+126. **I96:** documentation-only CI `3316f15` failed on ARM64's first Recycle Bin query (`0x800700B7`); the same
+    test passed in CI at `a5a3c0c`. `5503262` retries only that response up to four times, 50 ms apart; persistent and
+    other errors still fail, no new skip. Targeted test and full four-lane CI pass (E-I96); native cause unconfirmed.
+127. ReFS/SMB preliminary copy validation resumed (E-V03-CLONE-1). The old fixed-Q:/fixed-share script was not run.
+    New harness binds a unique VHDX to its disk/partition, rejects wrong guest/bundle controls, retains failed
+    fixtures, and checks identity for format/cleanup. Windows PowerShell CIM bus-type handling and Storage cmdlet
+    error propagation were corrected after safe setup failures. The local Dev Drive case passes all three copies,
+    byte hashes and copy-on-write checks. **I97:** SMB's native query failed before copying because its UNC root
+    lacked the required trailing separator; independently reproduced (123 without, success with it), fixed
+    `ca1afe0`; corrected local/SMB runs each pass 1/1 with byte/copy-on-write checks and 0 reported MiB extra space
+    for all three paths. Cleanup independently checked. No product copying defect demonstrated by the setup failures.
+128. Owner authorizes updating/reinstalling the lent Ubuntu VM for the required 24.04/26.04 desktop matrix; its
+    existing rollback snapshot is sufficient and its current contents need not be preserved. Fresh installs will
+    be used sequentially, with OS snapshots for repeatable tests. Canonical checksum signatures have been verified
+    against the documented CD-image signing fingerprint; ISO downloads/provisioning and Linux package checks remain
+    in progress, not qualification evidence yet.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -551,9 +596,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. The fuzz campaigns are collected (item 109). Both VMs are powered off, their snapshots kept. The Windows VM no
-   longer starts from cold (ENV-05): reverting it to "updated #38" waits for the owner, and with it the ReFS cloning
-   and same-server SMB copy check (`CloneCopyTests`, `artifacts/vm/win-refs-clone.ps1`).
+1. Provision the owner-authorized fresh Ubuntu 24.04/26.04 desktop matrix in the lent VM and run Linux package and
+   native checks (ENV-04/I04). ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
+   including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
