@@ -35,31 +35,76 @@ public static partial class SingleInstance
     /// </summary>
     public static bool? OtherFileCatRunning() => OtherFileCatRunning(null);
 
-    internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate)
+    internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate, Func<Process, bool?>? identify = null)
     {
         var snapshot = new List<Process>();
         try
         {
-            if (enumerate is not null) snapshot.AddRange(enumerate());
-            else
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FileCat", "dotnet" };
+            if (System.Reflection.Assembly.GetEntryAssembly() == typeof(SingleInstance).Assembly)
             {
-                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FileCat" };
-                // Also cover a renamed apphost, or the runtime host used for this FileCat's direct DLL invocation.
-                // A shared host name can be ambiguous; the recovery message does not claim a known state location.
-                if (System.Reflection.Assembly.GetEntryAssembly() == typeof(SingleInstance).Assembly)
-                {
-                    using var current = Process.GetCurrentProcess();
-                    names.Add(current.ProcessName);
-                }
-                foreach (string name in names) snapshot.AddRange(Process.GetProcessesByName(name));
+                using var current = Process.GetCurrentProcess();
+                names.Add(current.ProcessName);
             }
-            return snapshot.Any(process => process.Id != Environment.ProcessId && !process.HasExited);
+            snapshot.AddRange((enumerate ?? Process.GetProcesses)());
+            bool unknown = false;
+            foreach (var process in snapshot)
+            {
+                if (process.Id == Environment.ProcessId) continue;
+                try
+                {
+                    if (process.HasExited) continue;
+                    // The existing test seam supplies an already selected candidate inventory. Production also
+                    // inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
+                    bool? match = identify is not null ? identify(process) : enumerate is not null ? true :
+                        names.Contains(process.ProcessName) ? true : IsFileCatAppHost(process.MainModule?.FileName);
+                    if (match == true) return true;
+                    unknown |= match is null;
+                }
+                catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException
+                                           or IOException or UnauthorizedAccessException)
+                {
+                    // An inaccessible or disappearing executable is not evidence that no FileCat is running.
+                    unknown = true;
+                }
+            }
+            return unknown ? null : false;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
         {
             return null;
         }
         finally { foreach (var process in snapshot) process.Dispose(); }
+    }
+
+    private static bool? IsFileCatAppHost(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        return IsFileCatAppHost(input);
+    }
+
+    internal static bool? IsFileCatAppHost(Stream input)
+    {
+        // Published apphosts bind this NUL-terminated relative assembly path even when the executable is renamed.
+        // Bound reads of other executables; an incomplete inspection remains unknown, never an absent process.
+        ReadOnlySpan<byte> binding = "FileCat.dll\0"u8;
+        const int limit = 4 * 1024 * 1024;
+        byte[] buffer = new byte[8192 + binding.Length];
+        int carry = 0, total = 0;
+        while (total < limit)
+        {
+            int count = input.Read(buffer, carry, Math.Min(8192, limit - total));
+            if (count == 0) return false;
+            total += count;
+            var data = buffer.AsSpan(0, carry + count);
+            for (int offset = 0; offset <= data.Length - binding.Length; offset++)
+                if (data[offset..].StartsWith(binding) && (offset == 0 && total == count ||
+                    offset > 0 && data[offset - 1] is 0 or (byte)'/' or (byte)'\\')) return true;
+            carry = Math.Min(binding.Length, data.Length);
+            data[^carry..].CopyTo(buffer);
+        }
+        return null;
     }
 
     private static string BaseName(string? profile, string? dataRoot)

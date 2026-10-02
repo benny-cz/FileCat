@@ -39,6 +39,8 @@ def main():
                 'A_usual_instance_with_another_profile_is_guarded_before_scanning',
                 'Case_aliases_of_one_Windows_profile_find_the_running_instance',
                 'The_process_census_ignores_itself_detects_a_live_process_and_refuses_an_unavailable_inventory',
+                'Renamed_apphosts_are_identified_by_their_bound_entry_assembly_and_incomplete_reads_are_unknown',
+                'An_unreadable_process_identity_is_unknown_but_a_known_FileCat_still_takes_precedence',
                 'Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere',
                 'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
                 'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'}

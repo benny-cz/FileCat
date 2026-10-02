@@ -200,6 +200,46 @@ public sealed class RecoverySafetyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Fact]
+    public void Renamed_apphosts_are_identified_by_their_bound_entry_assembly_and_incomplete_reads_are_unknown()
+    {
+        string apphost = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "FileCat.exe" : "FileCat");
+        using (var input = File.OpenRead(apphost)) Assert.True(SingleInstance.IsFileCatAppHost(input));
+        // Exercise a binding split across two reads, including its preceding path separator.
+        var bytes = new byte[8300];
+        System.Text.Encoding.UTF8.GetBytes("/FileCat.dll\0").CopyTo(bytes, 8187);
+        using (var input = new MemoryStream(bytes)) Assert.True(SingleInstance.IsFileCatAppHost(input));
+        using (var input = new MemoryStream("OtherFileCat.dll\0"u8.ToArray())) Assert.False(SingleInstance.IsFileCatAppHost(input));
+        using (var input = new MemoryStream(new byte[4 * 1024 * 1024 + 1])) Assert.Null(SingleInstance.IsFileCatAppHost(input));
+    }
+
+    [Fact]
+    public void An_unreadable_process_identity_is_unknown_but_a_known_FileCat_still_takes_precedence()
+    {
+        using var child = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable("ComSpec")! : "/bin/sh",
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true,
+            ArgumentList = { OperatingSystem.IsWindows() ? "/c" : "-c", OperatingSystem.IsWindows() ? "set /p filecat_wait=" : "read filecat_wait" },
+        })!;
+        try
+        {
+            System.Diagnostics.Process[] Inventory() => [System.Diagnostics.Process.GetProcessById(child.Id)];
+            Assert.Null(SingleInstance.OtherFileCatRunning(Inventory, _ => null));
+            Assert.Null(SingleInstance.OtherFileCatRunning(Inventory, _ => throw new UnauthorizedAccessException()));
+            Assert.False(SingleInstance.OtherFileCatRunning(Inventory, _ => false));
+            Assert.True(SingleInstance.OtherFileCatRunning(Inventory, _ => true));
+            int calls = 0;
+            Assert.True(SingleInstance.OtherFileCatRunning(() => [System.Diagnostics.Process.GetProcessById(child.Id),
+                System.Diagnostics.Process.GetProcessById(child.Id)], _ => ++calls == 1 ? null : true));
+        }
+        finally
+        {
+            child.StandardInput.Close();
+            if (!child.WaitForExit(5000)) { child.Kill(); child.WaitForExit(); }
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
