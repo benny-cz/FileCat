@@ -51,6 +51,12 @@ closes it; and closes a tab while its folder is counted. The window's thread is 
 last of them. **None raised anything** (two runs; App suite 223, 0 failed). With the count code from before I88's fix
 the same test saw two `ObjectDisposedException`s (the commit message says six seconds of watching; it is three).
 
+## A tab moved to the other panel (`d8349dd`)
+
+Moving a tab between panels moves the same tab, still in its folder, so its count is not stopped: held at its start,
+the count goes on after the move and the folder's size (1,000 bytes) lands on its row in the other panel
+(`FolderCountLeaveTests.A_tab_moved_to_the_other_panel_while_counting_gets_its_size_there`).
+
 ## Analyze folder (I91, `800cd52`)
 
 The same mistake in View → Analyze folder: an analysis went on when its tab left the folder, then labelled ("Sorted by
@@ -60,5 +66,4 @@ the analysis): both fail on the old code, pass twice on the fix; App 225, 0 fail
 
 ## Not covered here
 
-- A tab moved to another panel while counting.
 - Many folders counted and the count cancelled by Esc (partial sizes labelled, E-V12-C1, read in the code).
