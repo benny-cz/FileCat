@@ -135,6 +135,33 @@ public sealed class RecoverySafetyTests
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
 
     [Fact]
+    public void Case_aliases_of_one_Windows_profile_find_the_running_instance()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Windows case-insensitive profile directories and instance names.");
+            return;
+        }
+        string profile = "profile-case-" + Guid.NewGuid().ToString("N")[..16];
+        var usual = AppPaths.Resolve(profile);
+        try
+        {
+            var alias = AppPaths.Resolve(profile.ToUpperInvariant());
+            Assert.True(PathIn(usual.LocalDirectory, alias.LocalDirectory) && PathIn(alias.LocalDirectory, usual.LocalDirectory));
+            Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile }));
+            SingleInstance.StartServer(profile, null);
+            Assert.True(SingleInstance.UsualInstanceRunning(profile));
+            Assert.True(SingleInstance.UsualInstanceRunning(profile.ToUpperInvariant()));
+        }
+        finally
+        {
+            SingleInstance.Release();
+            foreach (string folder in new[] { usual.SettingsDirectory, usual.LocalDirectory }.Distinct())
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public void An_independent_instance_is_visible_until_release_and_stale_files_are_ignored()
     {
         string profile = "independent-" + Guid.NewGuid().ToString("N")[..16];

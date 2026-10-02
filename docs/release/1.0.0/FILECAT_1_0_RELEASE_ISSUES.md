@@ -76,7 +76,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I102 | Recovery misses independent windows and usual instances using another profile | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and natively verified** (E-I102): actual GUI before/after, two-owner/crash/forwarding controls, 8/8 process cases and App 208/235 pass with explicit skips; CI/packages/candidate pending |
+| I104 | Windows window title repeats FileCat and starts with Administrator when elevated | Low (owner-reported title formatting) | Low-priority queue | Queued 2026-10-02; owner requires FileCat first and exactly once |
+| I103 | Windows profile case aliases miss the running instance; portable/usual roots collide | Medium (instance contract; V09 safety impact) | Must fix (A-07, V09/I09, V23 B12) | **Remediated and verified preliminarily** (E-I103): Windows baseline 1/4, fixed 4/4 and guards 6/9 pass; Unix boundary 23 pass/4 explicit skips; CI/packages/candidate pending |
+| I102 | Recovery misses independent windows and usual instances using another profile | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 5b69fba and natively verified** (E-I102): actual GUI before/after, two-owner/crash/forwarding controls, 8/8 process cases and App 208/235 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
 | I101 | Recovery omits the Unix runtime temporary folder, including another instance's different TMPDIR | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 369f55f and natively verified** (E-I101): baseline fails 1/1; guards, boundary/process harnesses and App 206/233 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
 | I100 | Unix session-local mutex allows separate launches to run on one profile and replace its live socket | Medium (instance/state contract; V09 safety impact) | Must fix (A-07, V23 B12, V09) | **Remediated 4746592 and natively verified** (E-I100): 1/5 before, 6/6 after; actual GUI/FAT/exFAT and affected App pass; all four CI lanes pass, rebuilt packages and candidate closure pending |
 | I99 | Unix instance socket throws under valid long temporary paths | Medium (instance startup and recovery safety check) | Must fix (A-07, V23 B12, V09) | **Remediated d38f915; native cases, affected App and all four CI lanes pass** (E-I99); rebuilt packages and candidate closure pending |
@@ -1046,6 +1048,25 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I104 — Windows title repeats FileCat and orders the prefix incorrectly
+
+- Owner report, 2026-10-02; Low priority, queued. No independent desktop reproduction yet.
+- Reported administrator title: `Administrator: FileCat - FileCat - marek (elevated)`.
+- Reported user title: `FileCat - FileCat - marek (elevated)`.
+- Requested behavior: the first word is `FileCat`, the product name occurs exactly once, then the remaining context,
+  account and elevation information. Preserve this requirement for administrator and ordinary-user launches.
+- This entry records the title formatting request; the reported elevation text has not been independently verified.
+  No title code changed during the current release-safety validation.
+
+### I103 — Windows instance identity disagrees with its state folders
+
+- [E-I103](evidence/E-I103-windows-instance-identity.md): same-folder case alias is missed; portable and usual roots
+  share a namespace despite distinct state. Baseline regression fails 1/1 and process cases pass only 1/4.
+- Actual selected state directory now identifies the Windows mutex/pipe. Case aliases share it; genuinely different
+  state roots remain separate. The read-only usual-owner probe retains an older-name compatibility check.
+- Windows targeted guards 6 pass/3 Unix skips and production process cases 4/4 pass. Unix boundary guards 23 pass/4
+  explicit skips. Remediated/verified preliminarily; CI, rebuilt packages and candidate qualification pending.
 
 ### I102 — Recovery misses independent instances and other profiles
 

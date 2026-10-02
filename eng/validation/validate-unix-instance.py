@@ -35,7 +35,8 @@ def main():
                 'A_running_usual_instances_connection_is_guarded_and_an_unknown_location_is_refused',
                 'The_runtime_temporary_folder_is_guarded_before_scanning',
                 'An_independent_instance_is_visible_until_release_and_stale_files_are_ignored',
-                'A_usual_instance_with_another_profile_is_guarded_before_scanning'}
+                'A_usual_instance_with_another_profile_is_guarded_before_scanning',
+                'Case_aliases_of_one_Windows_profile_find_the_running_instance'}
     for label, temp in [('edge', edge), ('long', deep), ('unicode', unicode)]:
         temp.mkdir(mode=0o700)
         xml = args.evidence_dir / f'{label}.xml'
@@ -54,7 +55,7 @@ def main():
                                 'output': ' '.join(test.itertext()).strip()} for test in tests]
             if {test.get('method') for test in tests} != required:
                 raise RuntimeError('Required instance/recovery tests were not all executed')
-            expected_skips = 1 if label == 'edge' else 0
+            expected_skips = 1 + (1 if label == 'edge' else 0) # Windows identity case plus the optional Unix fallback.
             if run.returncode or any(test.get('result') == 'Fail' for test in tests):
                 raise RuntimeError('Native instance/recovery tests failed')
             if sum(test.get('result') == 'Skip' for test in tests) != expected_skips:

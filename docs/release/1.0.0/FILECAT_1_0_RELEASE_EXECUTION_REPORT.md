@@ -636,6 +636,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     with 27 explicit skips, native paths 13 pass/1 skip. Windows guards 5/8, paths 13/14 with platform skips.
     Intermediate native/Windows failures retained and remedied (E-I102). CI/rebuilt packages/write tracing pending.
 
+142. I102 pushed 5b69fba; all four CI lanes pass (37034741307). Windows profile case aliases reproduce a missed
+    owner and portable/usual states collide (I103): regression 1/1 fails, process baseline only 1/4 passes. Actual
+    state-directory identity remedy passes 4/4 process cases and Windows guards 6 pass/3 Unix skips; Ubuntu native
+    boundary guards 23 pass/4 explicit skips. CI process harness/records added. Source/payload/results retained (E-I103).
+143. Owner's Windows title report queued as Low-priority I104: FileCat first and exactly once, then remaining context,
+    account/elevation information. Both reported titles retained; no title code changed during safety validation.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -663,6 +670,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   affected native suites/harnesses revalidated, CI/rebuilt package and candidate write tracing still required.
 - I102 (independent instance lifetime/profiles and guarded instance directory): prior recovery probe, independent
   startup/forwarding and write-location evidence; affected native checks rerun, CI/packages/candidate tracing pending.
+- I103 (Windows instance names/state identity): prior Windows election/forwarding/probe and portable/installed
+  state-isolation evidence; preliminary process/guard checks rerun, CI/packages/candidate evidence pending.
 
 ## Next actions (unblocked)
 

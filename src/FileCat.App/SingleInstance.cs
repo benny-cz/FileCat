@@ -14,6 +14,7 @@ namespace FileCat.App;
 public static partial class SingleInstance
 {
     private static Mutex? _mutex;
+    private static string? _windowsName;
     private static CancellationTokenSource? _cts;
     private static FileStream? _unixLock;
     private static string? _unixEndpointFile;
@@ -36,6 +37,10 @@ public static partial class SingleInstance
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id)))[..16];
         return "FileCat-" + hash;
     }
+
+    // Windows profile names can differ in case while their folders are the same. Use the actual selected state
+    // directory, which also distinguishes portable state from usual state and default from profiles/DEFAULT.
+    private static string WindowsName(string localDirectory) => BaseName(null, Path.GetFullPath(localDirectory));
 
     private static int UnixSocketPathLimit => OperatingSystem.IsMacOS() ? 104 : 108;
 
@@ -353,8 +358,15 @@ public static partial class SingleInstance
         }
         try
         {
-            if (!Mutex.TryOpenExisting("Local\\" + name, out var usual)) return false;
-            usual.Dispose();
+            string current = WindowsName(Core.State.AppPaths.Usual(profile).LocalDirectory);
+            if (Mutex.TryOpenExisting("Local\\" + current, out var usual))
+            {
+                usual.Dispose();
+                return true;
+            }
+            // Read-only compatibility probe for a running build using the older profile-only name.
+            if (!Mutex.TryOpenExisting("Local\\" + name, out var legacy)) return false;
+            legacy.Dispose();
             return true;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or WaitHandleCannotBeOpenedException)
@@ -374,6 +386,8 @@ public static partial class SingleInstance
         var name = BaseName(options.Profile, options.DataRoot);
         if (OperatingSystem.IsWindows())
         {
+            var paths = Core.State.AppPaths.Resolve(options.Profile, dataRoot: options.DataRoot);
+            name = _windowsName = WindowsName(paths.LocalDirectory);
             _mutex = new Mutex(initiallyOwned: true, "Local\\" + name, out bool created);
             if (created) return false;
         }
@@ -440,7 +454,7 @@ public static partial class SingleInstance
     {
         if (_mutex is null && _unixLock is null) return;
         _cts = new CancellationTokenSource();
-        var name = OperatingSystem.IsWindows() ? BaseName(profile, dataRoot) : _unixPipeName!;
+        var name = OperatingSystem.IsWindows() ? _windowsName! : _unixPipeName!;
         string? endpointFile = _unixEndpointFile;
         var ct = _cts.Token;
         _serverTask = Task.Run(async () =>
@@ -490,6 +504,7 @@ public static partial class SingleInstance
         try { _mutex?.ReleaseMutex(); } catch (ApplicationException) { }
         _mutex?.Dispose();
         _mutex = null;
+        _windowsName = null;
         _unixLock?.Dispose();
         _unixLock = null;
         _unixEndpointFile = null;
