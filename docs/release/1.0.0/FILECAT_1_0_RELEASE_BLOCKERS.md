@@ -30,15 +30,16 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I107's blocking host symptom is cleared preliminarily: the owner confirms success and authorizes remaining work.
+I107 is closed for preliminary remediation: the owner confirms corrected host and 1a9f1ba guest success.
 Native VM trace identifies unchanged theme application removing the open menu; a palette guard fixes two
 baseline regressions. Complete App inventory passes 233/248 with 15 platform skips; copied host App DLL matches
-the working fix. All four affected CI/manual lanes pass; guest after and candidate interaction remain pending (E-I107). Agent Windows UI
+the working fix. All four affected CI/manual lanes pass. Guest input/module are reverified; native trace has 13
+pointer-driven closes, no logical detach and a menu open for 47.6 seconds. Exact-candidate interaction remains pending (E-I107). Agent Windows UI
 automation is independently unavailable: JavaScript health fails with Windows sandbox setup refresh errors.
 No agent-driven Windows input was sent. Owner restored the Windows snapshot; guest access works and VM must
 remain running. I106's wider native audit reproduces a renamed-apphost false absence; identity correction under
 validation. Refined root census/ordinary and root positive cases pass; ordinary-account absent cases remain
-unknown. Prepared corrected Windows guest menu launcher awaits owner input; no installation needed. Continue
+unknown. Corrected Windows guest menus are now verified preliminarily. Continue
 unblocked recovery visibility/race work; latest affected d8c6f3b CI passes all four lanes.
 
 | ID | Needed | Status |

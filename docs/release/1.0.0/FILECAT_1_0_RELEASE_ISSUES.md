@@ -76,7 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I107 | Windows host menus appear and immediately disappear | High (loss of core mouse command access; owner-declared blocker) | Must fix (V17/I13); host symptom cleared, owner authorizes remaining work | Remediated preliminarily — native trace identifies unchanged theme rebuild detaching the popup. Complete App inventory 233/248 with 15 skips; owner host success with matching DLL, all four CI/manual lanes pass. Guest after/candidate interaction pending (E-I107) |
+| I107 | Windows host menus appear and immediately disappear | High (loss of core mouse command access; owner-declared blocker) | Must fix (V17/I13) | **Closed for preliminary remediation** — native failure and baseline reproduced; complete App inventory 233/248 with 15 skips, affected CI pass. Owner confirms corrected host and clean 1a9f1ba guest success; verified guest trace has no logical-detach closes and a menu open for 47.6 seconds. Exact-candidate interaction pending (E-I107) |
 | I106 | Recovery discovery misses a separate portable installation | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Open, broader qualification pending** (E-I106): renamed gap corrected; refined census detects portable/--data/renamed native GUIs, root absence established, ordinary visibility remains unknown. App 236/251 with 15 skips; d8c6f3b all four CI pass, strict Unix 56 pass/four skips each. Earlier dev.553 retained; broader privilege/runtime-alias/race and candidate tracing pending |
 | I105 | Portable recovery misses per-user owners and portable profiles | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and verified preliminarily** (E-I105): exact dev.539 native GUI miss; three baseline regressions fail; fixed ordinary/independent GUI 2/2, Windows App 225/240 and final guards 10/13 pass with explicit skips. CI/development packaging pass at 1cd803c; native rebuilt packages/wider discovery/candidate pending |
 | I104 | Windows window title should start with FileCat, then the selected path and account/elevation | Low (owner-requested title ordering) | Low-priority queue | Queued 2026-10-02; repeated FileCat is valid when the selected directory has that name |
@@ -1064,8 +1064,11 @@ level the plan already states; exploit-level detail is not recorded here.
   the window stays active. Two new regressions reproduce this; ordinary mouse-click control passes.
 - Theme application now skips an unchanged installed palette while preserving the requested preference. Targeted
   menu/theme/tooltip checks pass 14/14; remainder 219/234, 15 skips. Owner confirms host success, copied DLL matches
-  working fix and remaining work is authorized. Remediated preliminarily; guest after/CI and exact-candidate
-  interaction remain pending. Automation still fails after Claude closes; no-import health
+  working fix and remaining work is authorized. All affected CI/manual lanes subsequently pass. Owner confirms
+  clean 1a9f1ba guest success; all 256 input hashes and native trace module are reverified. Thirteen recorded menu
+  episodes close through pointer input, none through logical detachment; one stays open for 47.6 seconds.
+  **Closed for preliminary remediation**; exact-candidate interaction remains pending. Automation still fails
+  after Claude closes; no-import health
   reports Windows sandbox setup refresh errors. This gate is independent of the traced FileCat defect.
 
 ### I106 — Recovery discovery misses a separate portable installation

@@ -185,3 +185,37 @@ The failed staging attempts are infrastructure evidence, not native product fail
 Computer Use reset/import still exits unexpectedly on 2026-10-03 local, with no app/window selection or input.
 Owner requested to launch the prepared desktop check, click File/View twice and close, reporting whether menus
 stay open and accept clicks. Result pending. Independent Linux work continues; no candidate qualification claimed.
+
+## Corrected native guest result — 2026-10-03 local
+
+Owner reports: "1a9f1ba works inside VM". Read-only collection at 23:24 UTC on 2026-10-02 binds this result to the
+same VMware UUID, build 26300 and fixture above. All 256 payload hashes are reverified after interaction. Native
+PID 1668 uses the fixture's FileCat.exe; its trace module `c92c7ded-f00c-4e02-9477-c085d8730828` independently
+matches the PE metadata of the retained App DLL `0a87d12b6b682dac1c882b9b731fa37e71c00f7b7ffb0fbc9dd0a3c4bc217e96`.
+Compatibility rendering is false. Native input was supplied by the owner.
+
+The complete trace records 13 matched menu-open/close episodes. One menu remains open for 47.578 seconds,
+then closes through PointerEntered; the remaining recorded close stacks also follow PointerEntered or
+PointerPressed. There are zero logical-detach close stacks, zero ThemeChanged trace events and only the initial
+menu-items-changed event. Short episodes caused by pointer input are not classified as the former failure.
+This supports the owner's success report and the corrected regression's failure-path conclusion.
+
+The app remains running at collection. Invocation exists; stdout/stderr snapshots are empty; no crash log exists.
+No exit or graceful-shutdown result is claimed. An initial collector could not read the active launcher's stdout
+with its default sharing mode; the retained error is infrastructure evidence. The corrected collector opens
+read-only shared handles, makes owned immutable record snapshots and verifies every retrieved export against
+the guest snapshot hash/size. It neither supplies UI input nor terminates the app.
+
+| Corrected guest result retained privately | SHA-256 |
+|---|---|
+| raw identity/input/process/log collection JSON | `0024537769f15c3c51e53b3f391c61237694d23310710b881413ee86e061749f` |
+| complete native diagnostic log, 53,175 bytes | `c8c3ed569eddc897939fe8357507d0f70f5db001aec5306676cd154faf9714c8` |
+| invocation marker, 36 bytes | `2f1f60b966d115db58f49d84e260b90761ab5b33ffd9ba0b4981721564bfcb7b` |
+| owner-operated desktop launcher, 898 bytes | `e24bf2c719ae1ca22d0a675d56b62f8e418b8e01e61e94ce675b339dce6beb95` |
+
+Raw snapshots, verified export inventory and independently parsed episode/module analysis are retained in
+`artifacts/release-evidence/i107-host-menu-20261002/corrected-owner-after-20261003/`.
+Status: **Closed for preliminary remediation**. Reproduced native cause, failing baseline, targeted/affected
+regression, affected CI and owner-operated corrected host/guest results support closure. Exact-candidate menu
+qualification remains mandatory when that candidate exists. Agent Windows UI automation remains independently
+unavailable; the Windows VM remains running as requested.

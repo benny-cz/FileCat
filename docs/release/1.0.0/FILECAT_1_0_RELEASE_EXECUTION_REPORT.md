@@ -749,6 +749,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     pass/four skips each, 60 outcomes. Raw run/results retained; no tag/release. Both VMs remain running, corrected
     guest menu check awaits owner input. I106 broader privilege/runtime-alias/race and candidate tracing open.
 
+164. Owner confirms clean 1a9f1ba guest menus work. All 256 inputs and trace module reverified; 13 menu episodes
+    close through pointer input, none through logical detachment; one remains open 47.6 seconds. Complete raw
+    log/export collection retained and independently parsed (E-I107). App still running at collection; no exit
+    result claimed. I107 closed for preliminary remediation; exact-candidate interaction remains mandatory.
+    Windows Computer Use remains independently unavailable. Continue unblocked recovery safety work.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -786,13 +792,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. I107's host symptom is cleared, failure path reproduced and corrected, affected App/CI pass; native corrected
-   guest click remains pending. Windows Computer Use is independently unavailable. I106 native process/GUI guard
+1. I107 is closed for preliminary remediation: failure path/baseline reproduced, affected App/CI pass and corrected
+   host/clean guest success supported by retained native trace. Windows Computer Use is independently unavailable. I106 native process/GUI guard
    and affected CI pass at their identities. Dev.549 formats pass successor checks on 26.04 (E-V19-P3); wider
    audit reproduces a renamed-apphost gap. Identity correction passes native positive cases and affected App
    checks; refined root census now establishes absence while ordinary-account visibility remains unknown.
    D8c6f3b successor CI passes; continue visibility/runtime-alias/race and write-location audits. Prepared
-   Windows guest menu input awaits the owner because Computer Use is unavailable. Exact dev.539 Linux packages pass on both fresh
+   Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
