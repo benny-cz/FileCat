@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I95 | Signatures: a good OpenPGP signature without a trust line (gpg.conf trust-model always) read as good, for any key in the keyring | Medium–High (a file signed by an arbitrary, uncertified key shown as signed by its publisher) | Must fix (V15: an unknown signature never becomes a shield) | **Remediated `cd37342`; verified** (E-V15-G1; independent GnuPG test fails under the old reading) |
 | I94 | Synchronize: folders inside each other (also through a junction) were offered for synchronizing; Mirror toward the outer one removed the source as an item only in the target | Medium–High (the source removed: to the Recycle Bin, or for good when deleting permanently was chosen) | Must fix (V13/V02: no removal of what is being copied; S3 data safety) | **Remediated `65cee78`; verified** (Core, NTFS junction and App tests; the App test fails with the check bypassed) |
 | I93 | Duplicates: two names of one file (a hard link, a path through a junction) were grouped as copies, so "all but one" could mark the file itself for deletion; a link to a file was grouped with its target | Medium–High (deleting the marked "copy" through a junction deletes the only copy; recoverable from the Recycle Bin unless deleted permanently) | Must fix (V13; S3 data safety) | **Remediated `bf395c6`; verified** (E-V13-R1; NTFS test: 4 names in one group before, 1 group of 2 after) |
 | I92 | Quick search: a key press that matches nothing walks every name on the window's thread; in a million-entry listing that holds the window up to about 0.6 s | Low (extreme listings only; 100,000 entries should cost about a tenth, by the walk being linear) | V16 limit: record or remediate (§9 command feedback ≤100 ms) | Open: measured (E-V12-L1); remedy candidates: walk misses off the window's thread past a size, or narrow from the last match |
@@ -1038,6 +1039,19 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I95 — Signatures: no trust line read as a good signature
+
+- **Found by:** V15 with an independent GnuPG (E-V15-G1).
+- **What was wrong:** FileCat read gpg's status lines and took a good signature with no `TRUST_*` line as good, signer
+  named. GnuPG gives no trust line under `trust-model always` in gpg.conf (observed with 2.4.9), so any key in the
+  keyring, imported from anywhere and certified by no one, made a file read as signed by its publisher.
+- **Remediation (`cd37342`):** no trust line reads like an uncertified key, and says gpg did not vouch for it; gpg.conf
+  joins the files a cached result depends on.
+- **Verification:** `GnuPgVerificationTests` (keys and signatures made by gpg 2.4.9): own key good; imported uncertified,
+  trust-model always, missing key unknown; changed file bad; no key server contacted although gpg.conf asks. The
+  trust-model always case reads good under the old reading. Core 746.
+- **Severity:** Medium–High: a false assurance of origin, the very thing a signature check exists to give.
 
 ### I94 — Synchronize: folders inside each other were offered for synchronizing
 

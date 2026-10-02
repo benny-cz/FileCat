@@ -234,6 +234,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `54c33de` | Search: roots spelled as the disk spells them, so appended finds list each file once | I90 | E-V13-R1 |
 | `bf395c6` | Duplicates: names of one file count once; links to files are left out | I93 | E-V13-R1 |
 | `65cee78` | Synchronize: not offered for folders inside each other, also through a link | I94 | E-V13-R1 |
+| `cd37342` | Signatures: a good OpenPGP signature without gpg's word on the key is not good | I95 | E-V15-G1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

@@ -524,6 +524,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     file itself for deletion; now names of one file count once, by file identity, and links are left out.
     Synchronize: **I94** (Medium–High, `65cee78`): folders inside each other (also through a junction) were offered,
     and Mirror toward the outer one removed the source; now not offered for them.
+124. V15 begun (E-V15-G1): OpenPGP checked against keys and signatures an independent GnuPG made. **I95**
+    (Medium–High, `cd37342`): with no trust line from gpg (trust-model always in gpg.conf), a good signature read as
+    good for any key in the keyring; now as signed by a key gpg did not vouch for. No key server is contacted even when
+    gpg.conf asks (a listener in its place saw nothing). minisign not covered (no independent tool here).
 
 ## Evidence invalidated by the campaign's own changes
 
