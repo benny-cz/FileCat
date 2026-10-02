@@ -5,7 +5,7 @@ Operational plan: [FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md](../../d
 [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), [open blockers and decisions](FILECAT_1_0_RELEASE_BLOCKERS.md).
 Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` once a candidate exists.
 
-## Current state (updated 2026-10-02)
+## Current state (updated 2026-10-03)
 
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
@@ -18,7 +18,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   are under native validation (E-V19-P2). Later CI through fa3a02a passes all four lanes. Manual run 37036698071 at
   exact fa3a02a also passes Linux/macOS packaging; dev.539 bytes/hash provenance retained for both clean baselines.
   I105 at 1cd803c also passes all four lanes and manual development packaging (37055272672); dev.545 retained,
-  strict Unix inventory independently verifies 35 pass/four skips per lane. I106 changes need successor evidence.
+  strict Unix inventory independently verifies 35 pass/four skips per lane. I106 ecd61f3 and successor ea4a2ac
+  pass all four lanes; ea4a2ac manual 37068909015 also packages dev.549. Strict Unix 47 pass/four skips per lane.
   These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
@@ -33,10 +34,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   session-forwarding checks pass on both restored clean SDK-free baselines; both raw archives independently verified.
   Continued audit exposes I105: a portable probe misses per-user fallback owners and portable profile roots.
   Hash-bound working fix passes ordinary/independent native GUI and Windows affected checks (E-I105), then all CI
-  lanes. Separate portable installation exposes I106; read-only process guard passes Windows affected checks,
-  native after/CI/rebuild pending. Owner declares menu failure I107 a must-fix blocker, reporting both host and
-  the restarted Windows VM. Codex restart does not clear it; JavaScript runtime crashes even without the UI helper
-  import. Headless menu click checks pass, native cause unresolved; diagnostic and older builds prepared (E-I107).
+  lanes. Separate portable installation exposes I106; corrected process guard passes ordinary/--data native GUI
+  and CI checks. Dev.549 all three Linux formats pass successor checks on SDK-free Ubuntu 26.04 (E-V19-P3).
+  Wider audit reproduces a renamed apphost missed by the name-only census; executable-identity correction under
+  validation (E-I106). I107 native trace identifies unchanged theme rebuilding the open menu; palette guard,
+  affected App/CI and owner host check pass. Corrected guest/candidate click remains pending. Owner restored the
+  Windows snapshot and guest access works; keep Windows VM running. Computer Use runtime remains unavailable
+  with sandbox setup refresh errors, independently of FileCat (E-I107).
   Full recovery write-location audit continues. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
@@ -721,6 +725,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Strict Unix inventories again 47 pass/four skips each; raw artifacts retained. Rebuilt native package checks
     and wider recovery audit remain pending. Windows VM restarted after owner's keep-running instruction, then
     owner reverts snapshot; guest access verified. Preserve earlier evidence on host and keep VM running (E-I107).
+158. Exact dev.549 .deb/tar/FUSE AppImage pass successor native startup, corrupt-state preservation, 209-byte
+    temporary folders, separate-session forwarding and graceful restart on existing SDK-free Ubuntu 26.04.1.
+    Full archive independently stream-verified; this is not another clean-install baseline (E-V19-P3).
+159. I106 renamed-apphost audit reproduces false absence despite actual GUI/independent busy lease. Read-only
+    executable-identity correction detects ordinary portable, --data and renamed native GUIs. Complete App
+    inventory passes 235/250 with 15 explicit skips. Ordinary-account absent cases now return unknown rather
+    than false; safely refused, but process-visibility/availability remains an open qualification issue. Full
+    before/after archives independently verified; successor CI and exact-candidate tracing pending (E-I106).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -753,15 +765,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   state-isolation evidence; preliminary process/guard/CI checks pass. Windows release package/candidate evidence pending.
 - I105 (portable/per-user candidate and profile discovery): earlier recovery lookup/profile inventory evidence;
   affected native working-overlay, Windows and CI checks pass. Rebuilt native checks and candidate tracing pending.
-- I106 (device process census): prior device admission evidence; Windows affected checks pass. Native process/GUI
-  after cases, successor CI/rebuilt packages, wider census audit and candidate tracing pending.
+- I106 (device process census): prior device admission evidence; ordinary-name native after and CI pass at their
+  recorded identities. Renamed-apphost audit invalidates broader absence conclusions; executable-identity
+  correction under validation. Wider visibility/race/availability audit and candidate tracing pending.
 
 ## Next actions (unblocked)
 
 1. I107's host symptom is cleared, failure path reproduced and corrected, affected App/CI pass; native corrected
    guest click remains pending. Windows Computer Use is independently unavailable. I106 native process/GUI guard
-   and affected CI pass. Validate rebuilt dev.549 Linux packages and continue the recovery write-location/
-   instance-discovery audit. Exact dev.539 Linux packages pass on both fresh
+   and affected CI pass at their identities. Dev.549 formats pass successor checks on 26.04 (E-V19-P3); wider
+   audit reproduces a renamed-apphost gap. Identity correction passes native positive cases and affected App
+   checks, while absent cases remain unknown under ordinary-account visibility. Complete successor CI and
+   investigate safe process-discovery availability, then continue write-location/race tracing. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly

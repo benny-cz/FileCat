@@ -105,3 +105,73 @@ dev.549 packages retained under artifacts/release-evidence/ci-37068909015. No ta
 
 Native after and CI are complete preliminarily. Rebuilt package native checks, wider alias/visibility/race
 audit and exact-candidate source-device tracing remain pending; I106 is not Closed.
+
+## Renamed-apphost audit, 2026-10-03 local
+
+The wider audit establishes a real remaining gap at exact ea4a2ac. The same hash-bound native bundle is copied
+into another fresh owned installation; its unmodified 78,256-byte apphost is copied to CatAlias. SDK-free Ubuntu
+26.04.1 launches it with a unique portable profile. Actual GUI PID 16935, /proc executable path and process name
+CatAlias are independently observed, and Python fcntl proves its instance lease busy. The production census
+returns false despite the live FileCat. Graceful close returns 0. No source-device scan is performed.
+
+Fixture `27d915b69efc4b86b375a1b1ff43ecaa`, private root artifacts/release-evidence/i106-other-process-20261002.
+Full before archive includes both payloads, renamed apphost, driver, state and logs; guest/host hashes agree and
+all regular members are independently stream-verified. This invalidates any broader absence conclusion from
+the name-only census, while the earlier ordinary-name positive discovery cases remain valid at their identities.
+
+| Renamed native before | SHA-256 |
+|---|---|
+| native-alias-before.py | `87d9b793715c88a5189ad64b359cec1417711e6b40e20ca59f99d3ee6bba57aa` |
+| native-alias-before-results.json | `c5e2865ea041f6dd8193f8e806f9bbd964f991e6ac07579a253ee421e0ae7c0a` |
+| native-alias-before-full.tar.gz, 103,686,338 bytes, 540 members | `889af2325e9b1728b54248aabc52969fabbb7ccefcac63788947c5de9c7f8035` |
+| native-alias-before-full.tar.gz.verified.json | `1cdf90d7f7df57f0d255f1f40bddebfd4cee76b8a05f27e07c7ff61376956bb3` |
+
+Working correction inventories processes and checks executable bindings rather than relying only on names.
+The known FileCat/current runtime names remain conservative positives; dotnet is conservatively ambiguous even
+when this window uses an apphost. Other executables are read only, up to 4 MiB, for the NUL-terminated FileCat.dll
+apphost binding; incomplete or inaccessible inspection is unknown. A known positive takes precedence over an
+unknown identity. The existing device-admission rule refuses unknown; no new state registry or external write
+folder is introduced. .NET's [host design](https://github.com/dotnet/runtime/blob/main/docs/design/features/host-components.md)
+and [HostWriter](https://github.com/dotnet/runtime/blob/main/src/installer/managed/Microsoft.NET.HostModel/AppHost/HostWriter.cs)
+describe the embedded managed application path; local deployed Windows/Linux bindings are also directly observed.
+
+Targeted Windows guards: 16/19 pass, three explicit Unix-only skips. New regressions cover the actual built
+apphost, a binding crossing the read-buffer boundary, a nonmatching assembly, bounded/incomplete reads,
+unreadable identity and positive precedence. Strict Unix inventory now requires 19 outcomes per scenario,
+57 total. Native after, affected App remainder, CI, visibility/availability/race audit and candidate tracing
+remain pending at this working correction; I106 remains open.
+
+### Working identity correction: native after and affected App
+
+Hash-bound working inputs at a318c907abb263d5c04b0ba557264bbd09472f53; raw source copies and manifest retained.
+Correction subsequently committed and pushed as `06c5791fc9a5fc2a51c3daf4749e9fd246dd435c`; the native working
+payload remains identified by its original build/input hashes, not relabelled as a clean-commit build.
+Self-contained Linux bundle `902b07038a10c8bf4b690266bbbb80d97d709bf03eb03238c5068a9a198129e0`, 54,182,314 bytes.
+Native fixture `346699603e14470eae2953933deee938`, same SDK-free Ubuntu 26.04.1. Actual portable/--data/renamed
+GUI PIDs 17535/17653/17750 and independent fcntl leases are observed; all three live census results are true,
+and graceful close returns 0. Renamed executable is CatAlias; the apphost bytes remain unchanged.
+
+**Before launch and after close, the ordinary account's census returns null, not false.** The complete process
+inventory includes identities it cannot inspect. Device admission consequently refuses; no absence pass or
+successful device-recovery availability is claimed. This improves safety over the false-negative census but
+leaves an important availability/visibility audit open. Read-bound exclusions, cross-account visibility and
+startup races need further work before closure. No source-device scan or final qualification.
+
+Disjoint Windows guard/remainder runs cover all 250 App cases: 235 pass, zero failures, 15 explicit platform
+skips. Guards 16/19 (three Unix skips); remainder 219/231 (12 skips). Earlier counts remain tied to earlier inputs.
+Full native after archive independently stream-verified and guest/host hashes agree.
+
+| Identity working input/result | SHA-256 |
+|---|---|
+| raw SingleInstance.cs | `5ee555ad2da198212eb710adcfcca38af7acbf3b3a89d13d43beb3d01cb44c51` |
+| raw RecoverySafetyTests.cs | `c2f9d970e5626034fee665f18b6de4c9809b6d6ff65f725237cda5ba02e36a7a` |
+| raw Unix inventory harness | `e0ef8ce78c6845afbe71375ab142f0ea26d55631b08bf04d7972e4ca9f33db37` |
+| native-identity-after-inputs.json | `35f5059cdb0ad960f214e2f8927910267597f262257427b17306742c582f4c58` |
+| Native App DLL | `c14bc006500fb41ceb7767d99553faaaf5afa2ea1069f504267f56eafc9781ae` |
+| Native Core DLL | `25dbbe2a4d54117d0f914e8944ed7242acf3764dc96645d6f4263a6a5e959e96` |
+| Native smoke DLL | `6f090a57c4b89ca78dcb38796138806206b9d29f8479e146b9273b91c9e0e0b6` |
+| native-identity-after-results.json | `440f93f0cc77f8f32f199a3d86f467a0aa8028eda9b75b2fc434cc15ea5b2242` |
+| native-identity-after-full.tar.gz, 105,061,836 bytes, 598 members | `7c20d9b41b0828bdca404a2b56643f6b9bf3ffc4b3e1604733f25c55e779429a` |
+| native-identity-after-full.tar.gz.verified.json | `f9feae3c0c36b6155046d60a4aef535080f3d9c68795c37bd8980be4e5ce3684` |
+| alias-after-windows/guards.trx | `8cc87d8176d03c1af91462e1bc21e7537dc189be1f1bd073e88b2859e881e9ed` |
+| alias-after-windows-remainder/app-remainder.trx | `56ed78ccfb02f69156249340bd7796e9e64adc439f0416377c656e6ee41520e0` |
