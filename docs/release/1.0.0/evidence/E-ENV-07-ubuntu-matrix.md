@@ -59,7 +59,12 @@ booted with media disconnected. Actual GNOME Wayland session and bound VM/disk v
 filecat-clean-ubuntu2404-20261002 taken before FileCat/testing dependencies; no SDK installed. Preliminary package/native
 results and setup changes in E-V19-P2/E-X02. After 24.04 raw evidence was transferred and hash-verified on the host,
 the guest was gracefully powered off and identity-checked 26.04 media attached/booted at 11:50:59 UTC. Native Linux
-console shows Ubuntu 26.04.1 LTS installer copying files at 12:01 UTC; no completion or installed-OS result yet.
+console shows Ubuntu 26.04.1 LTS installer copying files at 12:01 UTC. Installation completed and powered off;
+boot media disconnected and installed OS booted. Actual Ubuntu 26.04.1, kernel 7.0.0-38-generic, GNOME 50.1 Wayland
+session and exact VM/disk identities verified. Powered-off snapshot `filecat-clean-ubuntu2604-20261002` taken at
+13:43:32 UTC before FileCat/SDK/test dependencies; backing disk then `Ubuntu 64-bit-000005.vmdk`. Private installer
+archive retained on host with SHA-256 `8f20d561edf2ecd8d0f56dbbce318ad8a95bdb6eb62b68d9e0c7d588048ccb5e`.
+The unmodified dev.526 Debian install fails on ICU alternatives (E-I04); remediation and package/native matrix continue.
 Read-only authenticated RFB capture through the previously configured loopback-only VM console avoids unavailable
 live-installer guest operations. Screenshot SHA-256 `784f3a2754e1afb6ad49fdf2250f8f5804627d7e0522efc8b55a3b44e8ba31c7`;
 private capture helper SHA-256 `0749050319a5faa094aea66506509c36c54d0926557d6676386b239e713b2ecf`. No final OS qualification.

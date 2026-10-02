@@ -1604,7 +1604,9 @@ level the plan already states; exploit-level detail is not recorded here.
 - **I03 / I18 (E-V19-P1, E-I15-V1):** packages carry code for other architectures: the macOS arm64 app bundles
   universal (`x86_64 arm64`) `libAvaloniaNative`, `libHarfBuzzSharp` and `libSkiaSharp`; the x64 Windows payload carries
   foreign-architecture WebView2 loaders. The inventory must list them, and the release owner decide whether to thin them.
-- **I04 (E-V19-P1):** the `.deb`'s ICU alternatives end at `libicu76` (Ubuntu 26.04 supplies `libicu78`, plan §4.1);
+- **I04 (E-V19-P1, E-I04-ubuntu26-icu):** fresh Ubuntu 26.04.1 reproduces the `.deb` clean-install failure: its ICU
+  alternatives end at libicu76, none is available and APT exits 100. Producer now adds libicu78; rebuilt 26.04 and
+  24.04 runtime checks pending. Support-contract/other-platform gaps remain open;
   the macOS bundle declares `LSMinimumSystemVersion 13.0`, which the Platform Support Decision must match (DEC-02). On
   Ubuntu 22.04 the `.deb`, tarball and AppImage installed, ran and uninstalled cleanly.
 - **DEC-03 input (E-V19-P1):** Gatekeeper rejects the ad-hoc-signed app, quarantined or not.

@@ -19,8 +19,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
   after completed copy cases, as authorized. Ubuntu now runs a fresh 24.04.5 full desktop with a powered-off clean
-  baseline snapshot and actual GNOME Wayland session (E-ENV-07); initial .deb install, GUI launch and Unicode copy pass.
-  Identity-guarded 26.04 media is ready but not yet booted. GA Windows/reference hardware remain open.
+  baseline snapshot and actual GNOME Wayland session (E-ENV-07); preliminary packages/native suites pass with recorded
+  skips. Fresh 26.04.1 GNOME Wayland also installed with clean snapshot. Unmodified dev.526 Debian install fails on
+  ICU dependency choices (E-I04); producer corrected, rebuilt/native verification pending. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -598,6 +599,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Owned loops detached, test Samba stopped and raw evidence transferred/hash-verified on host before 26.04 overwrite.
 134. I03's Windows inventory filename collision remediated while 26.04 installs (E-I03-RID): per-RID filenames retain
     both native package-list JSON outputs. Full artifact/native/runtime/helper SBOM and source/license gates remain open.
+135. Fresh Ubuntu 26.04.1 full desktop and actual Wayland session verified; private installer evidence retained and
+    clean powered-off baseline snapshotted (E-ENV-07). Existing dev.526 Debian install exits 100 because only ICU78
+    is available. I04 reproduced and producer adds libicu78; rebuilt 26.04/24.04 verification pending (E-I04).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -643,5 +647,5 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 5. Keep the records current after each change.
 
 Waiting on people, hardware or a candidate: DPI P13's remaining case (locking the phone mid-transfer, with the owner; the disconnect cases are done, E-V21-U1); P07's loader audit (V06, installed
-candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); I04 on Ubuntu 26.04
-(that system); steps 2, 5, 7 and 11–26 of the plan.
+candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); steps 2, 5, 7 and
+11–26 of the plan. I04's Ubuntu 26.04 environment is now available and the package remedy is under validation.
