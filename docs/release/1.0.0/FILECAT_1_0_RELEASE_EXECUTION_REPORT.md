@@ -543,9 +543,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. The fuzz campaigns are collected (item 109; FAT32's 4.1–5.1 M and `pe-managed`'s 200,000–1,199,999 passed last).
-   Both VMs are shut down with the owner's leave ("when you do not need VMs anymore, you are allowed to shut them
-   down"), their snapshots kept; the V: free-space watchdog that guarded them is stopped.
+1. The fuzz campaigns are collected (item 109). Both VMs are powered off, their snapshots kept. The Windows VM no
+   longer starts from cold (ENV-05): reverting it to "updated #38" waits for the owner, and with it the ReFS cloning
+   and same-server SMB copy check (`CloneCopyTests`, `artifacts/vm/win-refs-clone.ps1`).
+1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
+   changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.
+   Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
+   (I88, I91), views closed while busy, million-entry listings (I92 open), many tabs.
+1c. V13, what is left: duplicates among a set, result sets of archive members, saved criteria beyond the time fields.
+1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
+   the reference machine; I92's remedy (quick search misses off the window's thread past a size) if wanted.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
