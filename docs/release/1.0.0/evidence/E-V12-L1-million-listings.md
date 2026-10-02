@@ -27,8 +27,11 @@ Whole-listing commands on the first listing (five runs each, ms):
   such listings loading at once show rows in all four at 621 ms (§9's budget is for a listing, not four at once).
 - Names live in the spill file: a million 240-character names take half a gibibyte of temporary disk space, written
   while the listing loads (the private memory stays at 217 MiB). That is the price of keeping such a listing at all.
-- A quick search that misses walks every name: about 0.6 s for a million long names with the culture-aware comparison.
-  Whether the panel's key handling waits for that walk is not measured here.
+- A quick search that misses walks every name, and it does so on the window's thread, at each key press (read in
+  `TabViewModel.FindQuickMatch`: ASCII text compares ordinally, other text linguistically). A miss in a million-entry
+  listing holds the window 43–58 ms (short names) to about 180 ms (240 characters) when the typed text is ASCII, and
+  270–300 ms to about 0.6 s otherwise: past §9's 100 ms for command feedback in this extreme case (**I92**, open). At
+  100,000 entries the same walk is about a tenth.
 
 ## Not covered here
 
