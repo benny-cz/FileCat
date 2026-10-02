@@ -52,4 +52,7 @@ Native helper checks do not qualify a rebuilt FileCat artifact or replace 26.04/
 Manual CI 36999624175's Linux lane independently passes 12/12 with the same helper hash. Raw fixtures retained in
 artifacts/release-evidence/ci-36999624175/linux-desktop-launcher/filecat-desktop-results.tar.gz. All four test lanes and
 Linux/macOS package jobs pass. Rebuilt dev.526 tar passes native validation and actual GUI launch on 24.04 from an
-ampersand/percent/Unicode/space path, with the same packaged helper hash (E-V19-P2). 26.04 and final-candidate closure pending.
+ampersand/percent/Unicode/space path, with the same packaged helper hash (E-V19-P2). Fresh 26.04 native tar GUI launch
+also succeeds from that path class. Manual CI 37015434145 at cc97a8d passes all lanes/package jobs; its dev.531 packaged
+helper passes the native 26.04 argv/icon oracle 12/12, result JSON SHA-256
+`8f35dabfa89573b14f31b30abd65ba4948a648ec8accd5cc8b278c0a17eb25f4`. Final-candidate closure remains pending.

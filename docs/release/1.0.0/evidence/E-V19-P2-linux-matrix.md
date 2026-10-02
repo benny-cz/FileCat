@@ -25,6 +25,16 @@ pass. Windows tag-only package skipped; no release publication. Inputs retained 
 | FileCat-0.1.0-dev.526-linux-x64.tar.gz | `28a13f482e84ef35f5d52fa1935e29a10bd5cc66b0fa8c1778e5fa235c6c3c23` |
 | FileCat-0.1.0-dev.526-x86_64.AppImage | `368606912e87f89a13da811b1aead43093334a0941b848d2030953d25b5530a4` |
 
+I04 rebuild: manual CI [37015434145](https://github.com/benny-cz/FileCat/actions/runs/37015434145), source
+`cc97a8d39eef5a3b20d58b7158efc7bdf1e6d462`, 0.1.0-dev.531. All four test lanes and Linux/macOS packaging pass;
+Windows tag-only package skips, no tag/release publication. Host/guest hashes agree.
+
+| ICU-remediated artifact | SHA-256 |
+|---|---|
+| filecat_0.1.0~dev.531_amd64.deb | `d1b7f1298d090650f716e56425668ea6140e70c5d82235a4cf31a16311e8faf5` |
+| FileCat-0.1.0-dev.531-linux-x64.tar.gz | `d686db4baf4c4aec849f089a0020836a5bf861746a8aafb46727eefee704803f` |
+| FileCat-0.1.0-dev.531-x86_64.AppImage | `98d494e00d07c687bd540382d28fe114bedb54f638d60259e40462b1d35defec` |
+
 ## Ubuntu 24.04 completed cases
 
 - Fresh full Desktop 24.04.5 LTS, kernel 7.0.0-38-generic; GNOME Shell 46.0, actual Wayland login / XWayland 23.2.6.
@@ -78,6 +88,41 @@ Guest root `/home/benny/FileCat-v19-83b12fc1f8604ea2a2405069f4d783ad` not reused
 | Rebuilt tar native executable/entry record | `a844378df209a798b00821cb49e47b7ea34dc2daa9a4a2a97deb6afabe9ad6d2` |
 | Rebuilt tar GUI screenshot | `c2e8a053d84c0878e16da2a6c5f4e48403bc7d8a9dfaed54ce104df74151d798` |
 
+## Ubuntu 26.04 completed cases
+
+- Fresh full Desktop 26.04.1 LTS, kernel 7.0.0-38-generic, GNOME 50.1, actual Wayland/XWayland session and exact
+  VM/disk identities verified. Clean powered-off baseline snapshot retained before FileCat/test dependencies.
+  All package cases below ran with no `dotnet` command/SDK in the environment. Private SDK added only afterward.
+- Unmodified dev.526 Debian install exits 100 because none of its ICU alternatives is available (E-I04).
+  Rebuilt dev.531 resolves dependencies, starts via CLI/installed desktop entry and actually loads ICU78.
+- Dev.526 tar desktop entry launches the exact packaged executable from `tar with & 100% žluťoučký`; real GUI
+  displays the fixture. Native F5 copy to the observed owned target succeeds: 44 bytes, independent cmp and matching
+  SHA-256 `1e815bf502330f78ba1ed8ba334748d2c5a0f1e4d56397ec6f2bd1cfdf95986b`.
+- Normal dev.526 AppImage CLI and GUI run with extraction environment unset; native executable/mountinfo proves
+  read-only FUSE mount. Source/target state reopens; normal close terminates it and unmounts the exact mount.
+- Dev.531 Debian remove → reinstall → purge → reinstall passes: executable, symlink and desktop entry removed;
+  user settings/workspace/history and GUID-bound unrelated install-directory file survive every phase unchanged.
+- All three dev.531 formats open with intentionally corrupt settings/backup in separate owned --data roots,
+  preserve original bytes (`8c0f9e2afc98ee8480abd616f4c98178ff0441937c65201f332b1fb2d7cc5214`), save valid JSON after
+  normal window close and retain the source tab across restart. PID/executable/argv and actual window recorded;
+  AppImage's real FUSE mount separately identified. Default state remains separate.
+- Rebuilt dev.531 packaged desktop helper SHA equals E-I98. Independent native GLib argv/icon oracle passes 12/12
+  unusual paths, including quotes, percent fields, newline and shell metacharacters. Result JSON SHA-256
+  `8f35dabfa89573b14f31b30abd65ba4948a648ec8accd5cc8b278c0a17eb25f4`.
+
+Guest root `/home/benny/FileCat-v19-26-e7fac2cb613344ebb26a0a2b75777a25`; host raw directory
+`artifacts/release-evidence/linux-os-matrix-20261002/26.04/`. Lifecycle logs and package inputs retained separately
+from 24.04. Package-state host log SHA-256 `009826b30cd9a273a5b58db562a63b41cdfd979efdc994290fe521a6ff73a275`;
+GUI copy oracle `cfc3edcfb8e20ca3210d8dfd4cce24756e2eb5f37c3145f6df697232d312b28c`.
+
+Setup failures retained: initial GUI launcher kept its SSH output stream open, causing the wrapper timeout even after
+native executable/maps output completed; later launches detach all standard handles. A Debian observation used the
+wrong process-name case (`FileCat` versus `/usr/bin/filecat`); corrected exact executable observation supplies its result.
+GNOME 50 XWayland uses an input-emulation portal. The observed temporary interaction session was approved through the
+authenticated Linux VM console under owner-authorized disposable VM testing. Queued modifier state was cleared through
+that console before copying. Initial screenshots show no copy, and do not count as success. No new network desktop
+service was enabled; VMware console remains authenticated and bound to 127.0.0.1.
+
 ## Setup and remaining cases
 
 Installer completed/powered off as configured; proposed restart never performed. Temporary VM console authenticated
@@ -89,6 +134,6 @@ specific security authorization. Owner then explicitly approved them for this di
 lock-enabled=false and unlock applied; LockedHint subsequently no. Recorded test setup, not a FileCat security claim.
 Windows computer-use helper could not initialize; no Windows UI actions used.
 
-26.04 cases and final-candidate full lifecycle/transition checks remain pending.
+26.04 native suites, rebuilt 24.04 compatibility and final-candidate full lifecycle/transition checks remain pending.
 No human reader/input attestation, polkit safety evidence, support decision,
 final signature or stable GO supplied by these automated preliminary checks.

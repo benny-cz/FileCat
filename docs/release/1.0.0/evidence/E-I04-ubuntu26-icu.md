@@ -20,8 +20,30 @@ This is a reproduced High clean-install failure for the Ubuntu 26.04 Debian clai
 `d158b2b95deaf70e769e18a2e99506c0204e05d580171035ea5fa783818fea66`.
 [Microsoft's self-contained .NET dependency guidance](https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-decision)
 identifies libicu78 for Ubuntu 26.04; [Ubuntu's package record](https://packages.ubuntu.com/en/resolute/amd64/libicu78)
-matches the guest's actual version. Rebuilt artifact installation/runtime checks on 26.04 and compatibility checks on
-24.04 are pending. I04 also retains its support-contract and other-platform gaps; this change cannot close the issue.
+matches the guest's actual version. Rebuilt 26.04 installation/runtime checks pass below; compatibility check on
+24.04 remains pending. I04 also retains its support-contract and other-platform gaps; this change cannot close the issue.
+
+## Rebuilt package verification
+
+Fix source `cc97a8d39eef5a3b20d58b7158efc7bdf1e6d462`, manual CI
+[37015434145](https://github.com/benny-cz/FileCat/actions/runs/37015434145), development version 0.1.0-dev.531.
+All four test lanes and Linux/macOS package jobs pass; Windows tag-only packaging skips. No tag or release publication.
+Rebuilt Debian SHA-256 `d1b7f1298d090650f716e56425668ea6140e70c5d82235a4cf31a16311e8faf5`, verified on host and guest.
+
+APT installs it normally without an SDK/developer PATH. ICU78 78.2-2ubuntu1, libssl3t64 3.5.5-1ubuntu3.7,
+libsecret 0.21.7-2build1 and WebKitGTK 4.1 2.52.6-0ubuntu0.26.04.1 satisfy the package dependencies/recommendations.
+CLI prints FileCat 0.1.0-dev.531. Installed desktop entry launches `/opt/filecat/FileCat`; `/proc` maps identify the
+actual libicu78 libraries, and the visible Unicode source/target panels reopen. Settings/workspace/history hashes
+remain unchanged by installation. Remove, reinstall, purge and reinstall preserve those files and a GUID-bound
+unrelated `/opt/filecat` sentinel; owned executable/link/desktop entry disappear on removal. Detailed lifecycle and
+other package checks in [E-V19-P2](E-V19-P2-linux-matrix.md). These are preliminary development-artifact results.
+
+| Verification evidence | SHA-256 |
+|---|---|
+| deb-fixed-install26-host.log | `a330ad56240319e3dd2c1e83f392eefd2f479027593d71536585610da9b44cfc` |
+| deb531-desktop-native-r2.txt | `022ae90840e83b65bbb8c5f0e4cd417696f5267419f54084547057336073ae73` |
+| deb531-desktop-gui.png | `d5ca7182ff5500e06dce978506024a99cbff45cd89b72062b5ab0e4e102292b5` |
+| deb-lifecycle26-host.log | `50d5a57183f6b8d4a8450e87e954fc6cce49e63ec94a2149e710d20fdbb67b1a` |
 
 ## Retained raw inputs
 

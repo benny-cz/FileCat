@@ -64,7 +64,8 @@ boot media disconnected and installed OS booted. Actual Ubuntu 26.04.1, kernel 7
 session and exact VM/disk identities verified. Powered-off snapshot `filecat-clean-ubuntu2604-20261002` taken at
 13:43:32 UTC before FileCat/SDK/test dependencies; backing disk then `Ubuntu 64-bit-000005.vmdk`. Private installer
 archive retained on host with SHA-256 `8f20d561edf2ecd8d0f56dbbce318ad8a95bdb6eb62b68d9e0c7d588048ccb5e`.
-The unmodified dev.526 Debian install fails on ICU alternatives (E-I04); remediation and package/native matrix continue.
+The unmodified dev.526 Debian install fails on ICU alternatives (E-I04); cc97a8d's rebuilt dev.531 installs and passes
+desktop/lifecycle checks. Package results in E-V19-P2; native matrix and rebuilt 24.04 compatibility continue.
 Read-only authenticated RFB capture through the previously configured loopback-only VM console avoids unavailable
 live-installer guest operations. Screenshot SHA-256 `784f3a2754e1afb6ad49fdf2250f8f5804627d7e0522efc8b55a3b44e8ba31c7`;
 private capture helper SHA-256 `0749050319a5faa094aea66506509c36c54d0926557d6676386b239e713b2ecf`. No final OS qualification.

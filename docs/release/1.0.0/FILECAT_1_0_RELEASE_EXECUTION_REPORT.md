@@ -21,7 +21,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   after completed copy cases, as authorized. Ubuntu now runs a fresh 24.04.5 full desktop with a powered-off clean
   baseline snapshot and actual GNOME Wayland session (E-ENV-07); preliminary packages/native suites pass with recorded
   skips. Fresh 26.04.1 GNOME Wayland also installed with clean snapshot. Unmodified dev.526 Debian install fails on
-  ICU dependency choices (E-I04); producer corrected, rebuilt/native verification pending. GA Windows/reference hardware remain open.
+  ICU dependency choices (E-I04); producer corrected and rebuilt 26.04 install/desktop/lifecycle pass. 26.04 native suites
+  and rebuilt 24.04 compatibility in progress. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -602,6 +603,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 135. Fresh Ubuntu 26.04.1 full desktop and actual Wayland session verified; private installer evidence retained and
     clean powered-off baseline snapshotted (E-ENV-07). Existing dev.526 Debian install exits 100 because only ICU78
     is available. I04 reproduced and producer adds libicu78; rebuilt 26.04/24.04 verification pending (E-I04).
+136. I04 remedy cc97a8d passes all CI lanes and manual Linux/macOS packaging (37015434145). Exact dev.531 Debian
+    dependency/CLI/desktop/lifecycle cases pass on 26.04. Tar desktop GUI/native Unicode copy and normal FUSE AppImage
+    pass; all rebuilt formats preserve corrupt settings and restart state, and packaged helper passes 12/12 native
+    path cases (E-V19-P2). Private SDK/native prerequisites added only after clean-package cases.
 
 ## Evidence invalidated by the campaign's own changes
 
