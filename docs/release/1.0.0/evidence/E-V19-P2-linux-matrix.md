@@ -55,7 +55,10 @@ pass. Windows tag-only package skipped; no release publication. Inputs retained 
 - Debian update dev.522 → dev.526 succeeds; all three saved-state files and the unrelated install sentinel retain hashes.
 - Rebuilt Debian GUI opens with deliberately corrupt settings and backup in a new --data root. Preserved corrupt bytes
   hash `2f3892553b3c4c1ae0c715f96b568f4a71a6ec4b74d77b154f9c9a8ea640d8a5` equals original; after normal close,
-  settings.json parses as JSON. Default state remains separate. Other forms' corrupt-state cases pending.
+  settings.json parses as JSON. Default state remains separate.
+- Rebuilt tar and normal AppImage likewise preserve corrupt settings bytes, open usable defaults, save valid JSON and
+  restart with the source tab retained, in separate owned --data roots. Actual window PID/executable/argv recorded.
+  Native service/full suite results and complete skip inventory are in [E-X02](E-X02-fresh-linux-native.md).
 
 Guest root `/home/benny/FileCat-v19-83b12fc1f8604ea2a2405069f4d783ad` not reused. Host evidence
 `artifacts/release-evidence/linux-os-matrix-20261002/24.04/`.
@@ -86,6 +89,6 @@ specific security authorization. Owner then explicitly approved them for this di
 lock-enabled=false and unlock applied; LockedHint subsequently no. Recorded test setup, not a FileCat security claim.
 Windows computer-use helper could not initialize; no Windows UI actions used.
 
-Rebuilt tar GUI launch, package update/corrupt-state cases, remaining native services and every 26.04 case are in progress.
+26.04 cases and final-candidate full lifecycle/transition checks remain pending.
 No human reader/input attestation, polkit safety evidence, support decision,
 final signature or stable GO supplied by these automated preliminary checks.

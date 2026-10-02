@@ -591,6 +591,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     package jobs pass; dev.526 hashes retained (E-V19-P2). Rebuilt tar opens normally from ampersand/percent/Unicode path.
     Debian remove/purge/reinstall/update preserves state and unrelated install files; normal AppImage FUSE GUI works.
     Native FAT32/exFAT record test passes 1/1 without skips. Remaining native suites and 26.04 matrix continue.
+133. Fresh 24.04 native suites complete (E-X02): Core 702/741, Remote 94/116 and App 203/230 pass, all remaining cases
+    explicitly skipped. Required native keyring/WebKit/Samba/GVfs/FAT cases pass; readelf and Windows-formatted recovery
+    corpus checks replace prerequisite skips. Initial keyring setup caused an aborted run; corrected isolated native
+    service yields a full Core pass, with all failed inputs retained. Tar/AppImage corrupt-state and restart checks pass.
+    Owned loops detached, test Samba stopped and raw evidence transferred/hash-verified on host before 26.04 overwrite.
 
 ## Evidence invalidated by the campaign's own changes
 
