@@ -42,7 +42,16 @@ The commit message also says the paths a search reported "differed from the ones
 panel keeps the spelling it was navigated with, so before the fix a search from a panel matched it, and now a search
 reports the disk's spelling whatever the panel shows.
 
+## Duplicates (I93, `bf395c6`)
+
+Duplicates grouped by name, size or content without asking whether two paths were one file. With a hard link and a
+path through a junction beside the file and a real copy, the four names made one group: "all but one" would have
+marked the file under three of its names, and a deletion through the junction deletes the only copy. Now names of one
+file count once (by FileCat's file identity), groups need two files, links to files are left out, and Find says so:
+one group (the file and the copy), two names reported (`DuplicateSameFileTests`, NTFS; a portable test with a stand-in
+identity).
+
 ## Not covered here
 
 - Saved criteria round trips (E-V13-F1 covers the time fields; the rest not re-read here).
-- Duplicates found among a set (`DuplicateFinder`), and result sets of archive members.
+- Result sets of archive members.

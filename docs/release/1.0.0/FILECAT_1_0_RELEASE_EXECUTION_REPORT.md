@@ -519,7 +519,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 122. V13, result sets (E-V13-R1): refine and append read in the code (identity leaves size and time out; keep and
     remove matching search within the found items; append adds only new references), and **I90** found (Low–Medium,
     `54c33de`): a root typed in another letter case gave other items for the same files, so appending listed them
-    twice. Searches now walk their roots as the disk spells them.
+    twice. Searches now walk their roots as the disk spells them. Duplicates: **I93** (Medium–High, `bf395c6`): two
+    names of one file (a hard link, a path through a junction) were grouped as copies, so "all but one" could mark the
+    file itself for deletion; now names of one file count once, by file identity, and links are left out.
 
 ## Evidence invalidated by the campaign's own changes
 

@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I93 | Duplicates: two names of one file (a hard link, a path through a junction) were grouped as copies, so "all but one" could mark the file itself for deletion; a link to a file was grouped with its target | Medium–High (deleting the marked "copy" through a junction deletes the only copy; recoverable from the Recycle Bin unless deleted permanently) | Must fix (V13; S3 data safety) | **Remediated `bf395c6`; verified** (E-V13-R1; NTFS test: 4 names in one group before, 1 group of 2 after) |
 | I92 | Quick search: a key press that matches nothing walks every name on the window's thread; in a million-entry listing that holds the window up to about 0.6 s | Low (extreme listings only; 100,000 entries should cost about a tenth, by the walk being linear) | V16 limit: record or remediate (§9 command feedback ≤100 ms) | Open: measured (E-V12-L1); remedy candidates: walk misses off the window's thread past a size, or narrow from the last match |
 | I91 | Analyze folder: an analysis went on after its tab left the folder (then labelled and re-sorted the next folder) or closed (then failed reading the released listing) | Medium (a false "every value computed" on another folder; an exception where the analysis is awaited) | Must fix (V12: expensive sorting asked for and cancelled; navigating away) | **Remediated `800cd52`; verified** (E-V12-C2; tests fail on the old code) |
 | I90 | Find: appending a search from a root typed in another letter case listed each common file twice | Low–Medium (a set listing files twice; copying or deleting it acts on each twice) | Must fix (V13: result sets keep exactly their items) | **Remediated `54c33de`; verified** (E-V13-R1; the test lists 4 items for 2 on the old code) |
@@ -1036,6 +1037,23 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I93 — Duplicates: names of one file were grouped as copies
+
+- **Found by:** reading Find's duplicates for V13 (E-V13-R1).
+- **What was wrong:** duplicates group files by name, size or content, never asking whether two paths are one file. A
+  set holds one file under two names through hard links, or through searches appended from a junction and from the
+  folder it points to (also a substituted drive or a share of a local folder). Both names formed a group, and "Select
+  all but one in each group" marked one of them as the copy: deleting it through a junction deletes the file itself,
+  the only copy. A link to a file was grouped with its target the same way.
+- **Remediation (`bf395c6`):** the finder takes each file's identity (FileCat's `GetFileIdentity`: volume and file ID,
+  device and inode): names of one file count once (the first by path stays, the others are reported), a group needs
+  two files, links to files are left out and reported; Find says what it left out and why.
+- **Verification:** a stand-in identity test (portable); on NTFS, a file, a hard link to it, its path through a
+  junction and a real copy: one group of the file and the copy, two names reported; without identities, one group of
+  all four names. Core 744, Windows 165, App 229. Links to files: the code path is read, not tested (making one needs
+  Developer Mode or administrator rights).
+- **Severity:** Medium–High: data loss on a permanent deletion; it takes aliasing names in one set.
 
 ### I91 — Analyze folder: an analysis outlived its folder
 
