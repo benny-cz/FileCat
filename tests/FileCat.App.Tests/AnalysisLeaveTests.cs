@@ -13,6 +13,42 @@ namespace FileCat.App.Tests;
 public sealed class AnalysisLeaveTests
 {
     [AvaloniaFact]
+    public async Task Esc_cancels_an_analysis_and_says_how_far_it_got()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("The analyzed column (streams beside files) is read file by file on Windows.");
+            return;
+        }
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string many = Directory.CreateDirectory(Path.Combine(root, "many")).FullName;
+            for (int i = 0; i < 20000; i++) File.WriteAllBytes(Path.Combine(many, $"f{i:00000}.txt"), [1]);
+            var tab = vm.Workspace.Panels[0].OpenTab(Location.FileSystem(many));
+            var listing = tab.Listing;
+            for (int i = 0; i < 500 && !(listing.State == ListingState.Complete && listing.VisibleCount >= 20000); i++) await Task.Delay(20, ct);
+            tab.SortByMetadata("hidden", analyzing: true);
+            var analysis = tab.AnalyzeAsync("hidden");
+            for (int i = 0; i < 100 && tab.AnalysisStatus is null; i++) await Task.Delay(5, ct);
+            await Task.Delay(100, ct);
+            Assert.False(analysis.IsCompleted);
+            Assert.True(tab.CancelAnalysis());
+            var ended = await Task.WhenAny(analysis, Task.Delay(TimeSpan.FromSeconds(20), ct));
+            Assert.Same(analysis, ended);
+            Assert.True(analysis.IsCompletedSuccessfully);
+            Assert.Null(tab.AnalysisStatus);
+            Assert.StartsWith("Analysis canceled after ", tab.Banner);
+            Assert.Contains("of 20", tab.Banner);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public Task Leaving_the_folder_stops_its_analysis() => Leave(close: false);
 
     [AvaloniaFact]

@@ -85,6 +85,54 @@ public sealed class FolderCountLeaveTests
     }
 
     [AvaloniaFact]
+    public async Task Esc_ends_a_count_in_its_tab_at_once_even_while_a_call_is_held()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("The test platform stands in for Windows' through its factory.");
+            return;
+        }
+        var held = new Held();
+        var platformBefore = PlatformFactory.WindowsFactory;
+        PlatformFactory.WindowsFactory = () => new TestPlatform(held);
+        try
+        {
+            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+            try
+            {
+                var ct = TestContext.Current.CancellationToken;
+                string files = Path.Combine(root, "files");
+                File.WriteAllBytes(Path.Combine(Directory.CreateDirectory(Path.Combine(files, "counted")).FullName, "one.bin"), new byte[1000]);
+                var tab = vm.ActiveTab!;
+                tab.Refresh();
+                var listing = tab.Listing;
+                for (int i = 0; i < 300 && !(listing.State == ListingState.Complete && listing.FocusName("counted")); i++) await Task.Delay(20, ct);
+                vm.CountFolderSizes(tab);
+                Assert.True(held.Asked.Wait(TimeSpan.FromSeconds(10), ct), "the count did not start");
+                Assert.Equal(1, tab.SizingFolders);
+
+                // Esc, while the count waits on a call that has not returned (a dead share, say): it ends at once.
+                Assert.True(vm.CancelSizing(tab));
+                Assert.Equal(0, tab.SizingFolders);
+                Assert.Contains("Stopped sizing 1 folder", vm.Notification);
+                held.Release.Set();
+                for (int i = 0; i < 50; i++) await Task.Delay(10, ct);
+                Assert.Equal(1, held.Asks); // stopped, not counted through
+                Assert.Equal(0, tab.SizingFolders);
+            }
+            finally
+            {
+                held.Release.Set();
+                AccessibilityTests.Close(services, window, root);
+            }
+        }
+        finally
+        {
+            PlatformFactory.WindowsFactory = platformBefore;
+        }
+    }
+
+    [AvaloniaFact]
     public Task Leaving_the_folder_stops_its_count() => Leave(close: false);
 
     [AvaloniaFact]

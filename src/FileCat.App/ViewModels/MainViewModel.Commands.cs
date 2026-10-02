@@ -748,6 +748,12 @@ public sealed partial class MainViewModel
         }
         listing.Changed += Moved;
         tab.Closed += Closed;
+        // Esc (or unmarking it) ends it in the tab at once too, not when a call held by a slow disk returns.
+        OnSizingStopped(key, token, () =>
+        {
+            Ended();
+            if (!closed) tab.UpdateStatus();
+        });
         var name = e.Name;
         var device = Services.Providers.For(vol).GetDeviceKey(vol);
         var fs = Services.Platform.FileOperations;

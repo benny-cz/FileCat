@@ -21,7 +21,8 @@ public sealed partial class KeyBarItem : ObservableObject
 /// <summary>Root view model: workspace, key bar, command line, and command dispatch (plan §4.4).</summary>
 public sealed partial class MainViewModel : ObservableObject
 {
-    private readonly Dictionary<string, CancellationTokenSource> _sizing = new(StringComparer.Ordinal);
+    /// <summary>Folder counts running, by tab and name, each with what ends it in its tab (status line, Count).</summary>
+    private readonly Dictionary<string, (CancellationTokenSource Cts, Action? Ended)> _sizing = new(StringComparer.Ordinal);
 
     public MainViewModel(AppServices services)
     {
@@ -159,18 +160,25 @@ public sealed partial class MainViewModel : ObservableObject
 
     public void ClearNotification() => Notification = null;
 
+    /// <summary>
+    /// Stops a count. It ends in its tab at once: a call it is waiting on (a slow disk, a dead share) may take a while to
+    /// return, and until then the tab would go on saying it counts and refusing Count.
+    /// </summary>
     internal void CancelSizing(string key)
     {
-        if (_sizing.Remove(key, out var cts)) cts.Cancel();
+        if (!_sizing.Remove(key, out var sizing)) return;
+        sizing.Cts.Cancel();
+        sizing.Ended?.Invoke();
     }
 
     /// <summary>Stops one count, not a count of the same name started since.</summary>
     internal void CancelSizing(string key, CancellationToken token)
     {
-        if (_sizing.TryGetValue(key, out var cts) && cts.Token == token)
+        if (_sizing.TryGetValue(key, out var sizing) && sizing.Cts.Token == token)
         {
             _sizing.Remove(key);
-            cts.Cancel();
+            sizing.Cts.Cancel();
+            sizing.Ended?.Invoke();
         }
     }
 
@@ -186,21 +194,32 @@ public sealed partial class MainViewModel : ObservableObject
 
     internal void CancelAllSizing()
     {
-        foreach (var c in _sizing.Values) c.Cancel();
+        var all = _sizing.Values.ToList();
         _sizing.Clear();
+        foreach (var (cts, ended) in all)
+        {
+            cts.Cancel();
+            ended?.Invoke();
+        }
     }
 
     internal CancellationToken BeginSizing(string key)
     {
         CancelSizing(key);
         var cts = new CancellationTokenSource();
-        _sizing[key] = cts;
+        _sizing[key] = (cts, null);
         return cts.Token;
+    }
+
+    /// <summary>What ends the count of <paramref name="key"/> in its tab, when it is stopped rather than finished.</summary>
+    internal void OnSizingStopped(string key, CancellationToken token, Action ended)
+    {
+        if (_sizing.TryGetValue(key, out var sizing) && sizing.Cts.Token == token) _sizing[key] = (sizing.Cts, ended);
     }
 
     internal void EndSizing(string key, CancellationToken token)
     {
-        if (_sizing.TryGetValue(key, out var cts) && cts.Token == token) _sizing.Remove(key);
+        if (_sizing.TryGetValue(key, out var sizing) && sizing.Cts.Token == token) _sizing.Remove(key);
     }
 
     /// <summary>Last known window placement, reused by autosave.</summary>
