@@ -75,6 +75,9 @@ live-metadata control and final source. All intermediate inputs/binaries, failed
 Seven primary native records copied to the host and hash-verified. Saved GUI workspace after hash
 `97ff7bb212478d7604493f86acfcec89963351b086bf555bb89bbd6d50fe8b7d`.
 
-Status Remediated and natively verified, not Closed. CI/macOS, rebuilt packages, runtime/device write tracing,
-cross-installation/portable-instance discovery and exact candidate qualification remain requirements, with no wider
-all-process discovery claim. No stable release, signing or publication occurred.
+All four CI lanes pass at 5b69fba (37034741307). Later fa3a02a manual run 37036698071 retains 8/8 production process
+cases on both Linux and macOS: result JSON hashes `52600285e457edb01616cdd882a0f22bf3ca4186cdee93529450db3a7dbdd5fd`
+and `07c9d97aaca2af7dc542e36b4fc37cef8cd48c49e3587e9d890cb44d9458b635`. Rebuilt dev.539 Linux package matrix
+passes on both clean Ubuntu desktops (E-V19-P2). Status Remediated and natively verified, not Closed. Runtime/device
+write tracing, cross-installation/portable-instance discovery and exact candidate qualification remain requirements,
+with no wider all-process discovery claim. No stable release, signing or publication occurred.

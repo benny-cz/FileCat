@@ -39,7 +39,7 @@ I99–I103 rebuild: manual CI [37036698071](https://github.com/benny-cz/FileCat/
 `fa3a02ad4a0d9b5323f5316504efa842c120d099`, 0.1.0-dev.539. All four test lanes and Linux/macOS packaging pass;
 Windows tag-only packaging and release attachment steps skip. No tag, release or publication. Linux artifact
 11241366611, archive digest `sha256:8a5af9b579f888f345b17cf25109ea741791c4e7e779d2ea3a4766a0dd744edb`.
-Downloaded bytes hashed on host; fresh 24.04 native execution passes below. Fresh 26.04 repeat still pending.
+Downloaded bytes hashed on host; fresh 24.04 and 26.04 native execution passes below.
 
 | Rebuilt artifact | Bytes | SHA-256 |
 |---|---:|---|
@@ -173,6 +173,33 @@ authenticated Linux VM console under owner-authorized disposable VM testing. Que
 that console before copying. Initial screenshots show no copy, and do not count as success. No new network desktop
 service was enabled; VMware console remains authenticated and bound to 127.0.0.1.
 
+## Dev.539 on restored clean Ubuntu 26.04
+
+Restored `filecat-clean-ubuntu2604-20261002` after the complete dev.539 24.04 archive verification. SSH public keys
+retrieved through the identity-checked VMware guest channel, then pinned; UUID/disk and no FileCat/no SDK preflight
+passes (`22b81315d940fac6feb1cf0455dbe6d97e9e30720cd4957d83ed634457007c85`). Ubuntu 26.04.1, kernel
+7.0.0-38-generic, actual GNOME 50.1 Wayland; .deb resolves ICU78 78.2-2ubuntu1 and GUI maps prove it loaded.
+Exact three guest artifact hashes match the dev.539 table. No SDK added.
+
+Same hash-bound package harness as the 24.04 repeat passes **3/3 formats**: corrupt settings/backup, 203-byte TMPDIR
+GUI startup, separate-session forwarding from Unicode TMPDIR, saved forwarded location, graceful restart and released
+socket/profile lock. Normal read-only FUSE AppImage mount identified and gone after close. Packaged desktop-helper
+oracle passes **12/12**. Actual Debian desktop and unusual-path tar desktop launches match native executable/argv;
+F5/Return copy passes 45-byte cmp/hash with the same fixture digest above. Linux console before/dialog/after screenshots
+retained. Debian remove/reinstall/purge/reinstall preserves all three user-state files and the unrelated sentinel.
+All FileCat windows/processes closed before archive creation.
+
+Raw root `artifacts/release-evidence/linux-os-matrix-20261002/dev539-26/`. Package result
+`97448cdd3f65707f8725feb193aa7e392b8d93d64c796e6c1cb2294aa085eb9e`; GLib result
+`8241499a44aeff285a3dd057a45fcaff8d5d7bc16c0c89adb7c2c6e8e3245a32`; lifecycle log
+`911b68beb5457d9d8df662fe78011d34e1f190fbdf03f37b5877204e52bc6366`; desktop transition
+`f8f80da2d3764ad16fc35c2ce3fee43726a3496d7b26033580a9871affed9e53`.
+Full private archive `c7a42dd68877a95072c5468d606f8a79e0bbed52772ba5130f0a2942862990ae`, 255,953,184 bytes,
+536 members; guest/host hash match. Independent verifier checks all three exact artifacts, both copy files, 3/3 GUI
+format results, 12/12 native launcher cases and retained workspace. Verification JSON
+`dc13097a3a2f72f7d0a1d1cc90b61165a19ef5f110b25173a87a306f79322e83` retained. Initial SSH pin had an incompatible
+display prefix; verification refused the connection, corrected to the VMware-bound fingerprint format. No unpinned trust.
+
 ## Setup and remaining cases
 
 Installer completed/powered off as configured; proposed restart never performed. Temporary VM console authenticated
@@ -184,7 +211,7 @@ specific security authorization. Owner then explicitly approved them for this di
 lock-enabled=false and unlock applied; LockedHint subsequently no. Recorded test setup, not a FileCat security claim.
 Windows computer-use helper could not initialize; no Windows UI actions used.
 
-26.04 native suites are retained with explicit skips (E-X02). Dev.539 fresh 24.04 compatibility passes above;
-fresh 26.04 repeat and final-candidate full lifecycle/transition checks remain pending.
+26.04 native suites are retained with explicit skips (E-X02). Dev.539 fresh 24.04/26.04 package matrix passes above;
+final-candidate full lifecycle/transition checks remain pending. These development results do not close issues or establish GO.
 No human reader/input attestation, polkit safety evidence, support decision,
 final signature or stable GO supplied by these automated preliminary checks.

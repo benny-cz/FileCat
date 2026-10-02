@@ -27,9 +27,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   pass with recorded skips after native setup correction and I99's socket-path remedy. Separate-session GUI launch
   reproduces I100; profile-local lock/actual endpoint remedy passes native process, GUI, FAT/exFAT and affected App
   checks. I101–I103 affected native/process checks and CI pass. Final 26.04 raw archive independently hash-verified,
-  owned Samba/loop fixtures cleaned before restoration. Dev.539 native compatibility on both clean baselines and
-  full recovery write-location audit continue. Dev.539 fresh 24.04 package/desktop/lifecycle checks pass and raw archive
-  verifies before clean 26.04 restoration. GA Windows/reference hardware remain open.
+  owned Samba/loop fixtures cleaned before restoration. Dev.539 package/desktop/lifecycle, long temporary-path and
+  session-forwarding checks pass on both restored clean SDK-free baselines; both raw archives independently verified.
+  Full recovery write-location audit continues. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -663,6 +663,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     the Unicode fixture matches 45-byte independent hash. GLib helper oracle 12/12; Debian remove/reinstall/purge
     preserves user state and unowned sentinel. Setup/oracle failures retained, no product remedy for them. Full
     324,638,274-byte archive copied/hash-verified and independently checked before shutdown/restoration (E-V19-P2).
+147. Clean Ubuntu 26.04 restored via VMware-bound SSH key; identity/no FileCat/no SDK preflight passes. Exact dev.539
+    repeats pass: 3/3 native GUI formats with long TMPDIR/forwarding/corrupt-state/restart, normal FUSE, both native
+    desktop routes, Unicode F5 copy, 12/12 GLib helper cases and Debian lifecycle/state/sentinel preservation. Loaded
+    ICU78 verified. Full 255,953,184-byte archive retained/hash-verified; independent verifier confirms exact inputs,
+    copied bytes and result/state records. Both fresh Ubuntu package matrices now pass preliminarily (E-V19-P2).
+148. Exact fa3a02a manual CI raw process artifacts retained: Windows 4/4, Linux/macOS 8/8 each; strict boundary runs
+    pass all three temporary-path scenarios on each Unix lane. macOS dev.539 archive retained with exact byte/hash
+    provenance; CI startup does not replace signed/native-desktop candidate qualification (E-I102/E-I103).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -684,20 +692,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - `efc128f` (comparison, Synchronize): V13 comparison and synchronization evidence before it; a one-sided folder is now
   read in full when compared.
 - I99 (Unix instance sockets/recovery write folders): previous Unix instance and recovery write-location evidence;
-  rebuilt package identities require affected revalidation. Separate-session behavior remains unresolved as I100.
+  affected boundary/CI and dev.539 native packages revalidated; separate-session remedy tracked as I100. Candidate reruns required.
 - I100 (Unix instance lock/endpoint and usual-instance probe): prior Unix process-election/probe and recovery guard
-  evidence; native working inputs verified, CI/exact rebuilt package and candidate evidence still required.
+  evidence; native working inputs, CI and both rebuilt Linux package baselines pass. Candidate evidence still required.
 - I101 (runtime temporary-folder guard and endpoint metadata): earlier Unix recovery/endpoint metadata evidence;
-  affected native suites/harnesses revalidated, CI/rebuilt package and candidate write tracing still required.
+  affected native suites/harnesses, CI and rebuilt Linux packages revalidated. Candidate write tracing still required.
 - I102 (independent instance lifetime/profiles and guarded instance directory): prior recovery probe, independent
-  startup/forwarding and write-location evidence; affected native checks rerun, CI/packages/candidate tracing pending.
+  startup/forwarding and write-location evidence; affected native/CI and rebuilt Linux checks pass; wider discovery/candidate tracing pending.
 - I103 (Windows instance names/state identity): prior Windows election/forwarding/probe and portable/installed
-  state-isolation evidence; preliminary process/guard checks rerun, CI/packages/candidate evidence pending.
+  state-isolation evidence; preliminary process/guard/CI checks pass. Windows release package/candidate evidence pending.
 
 ## Next actions (unblocked)
 
-1. Validate dev.539 packages on both fresh Ubuntu baselines (ENV-04/I04/I99–I103) and continue the Unix recovery
-   write-location audit. Final 26.04 native evidence is retained and verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
+1. Continue the recovery write-location/instance-discovery audit. Exact dev.539 Linux packages pass on both fresh
+   Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.

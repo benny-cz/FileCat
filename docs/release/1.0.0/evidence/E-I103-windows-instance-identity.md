@@ -54,5 +54,10 @@ Windows suites and macOS boundary cases pass in push CI 37036329081 at
 lanes plus Linux/macOS development packaging. The Windows process harness runs in CI and retains case logs/JSON.
 Rebuilt native package execution is tracked in E-V19-P2. This is preliminary evidence; no GA release qualification claim.
 
-Status Remediated and verified preliminarily, not Closed. Rebuilt native packages, wider alias/session/installation
+Retained Windows CI process result at fa3a02a: 4/4, JSON `9eec1afa892b897f5b7cba90c9518bdeb52464fca6dd15c533699f11c1f16d1a`.
+Linux dev.539 package matrix passes on both restored clean Ubuntu desktops (E-V19-P2). macOS development artifact
+also retained, 67,179,862 bytes, SHA-256 `588a784dc3da02b501ef1e056485aa30df3baed0887b725f37965124d684b17a`;
+CI package startup is not final signed/native-desktop qualification.
+
+Status Remediated and verified preliminarily, not Closed. Windows release packages, wider alias/session/installation
 discovery, re-audit and exact candidate evidence remain pending. Nothing was signed or published.

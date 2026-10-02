@@ -55,5 +55,7 @@ used a missing source-tree script path; it executed no product case and is retai
 successful run. Original failing regression/binaries and all logs/fixtures retained. Host copies of the five primary
 native records were verified against the guest hashes above.
 
-Status Remediated and natively verified, not Closed. CI, rebuilt Ubuntu 24.04/26.04 packages, full write tracing and
-exact candidate evidence remain pending. No stable release or signing/publication action occurred.
+All four CI lanes pass at 369f55f (37032428169). Later exact fa3a02a manual run 37036698071 passes all lanes;
+rebuilt dev.539 packages pass on both restored SDK-free Ubuntu 24.04/26.04 desktops (E-V19-P2), including actual
+long-TMPDIR GUI and separate-session/Unicode-TMPDIR forwarding. Status Remediated and natively verified, not Closed.
+Full write tracing, wider discovery audit and exact candidate evidence remain pending. No signing/publication occurred.
