@@ -28,7 +28,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   reproduces I100; profile-local lock/actual endpoint remedy passes native process, GUI, FAT/exFAT and affected App
   checks. I101–I103 affected native/process checks and CI pass. Final 26.04 raw archive independently hash-verified,
   owned Samba/loop fixtures cleaned before restoration. Dev.539 native compatibility on both clean baselines and
-  full recovery write-location audit continue. GA Windows/reference hardware remain open.
+  full recovery write-location audit continue. Dev.539 fresh 24.04 package/desktop/lifecycle checks pass and raw archive
+  verifies before clean 26.04 restoration. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -655,6 +656,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     payloads retained separately from excluded extracted build/runtime trees. Identity-checked test-owned Samba
     stopped and three owned loop devices detached; immutable FAT16 bytes unchanged (E-X02). Snapshot restoration
     can now proceed without losing this evidence.
+146. Restored clean Ubuntu 24.04 baseline; identity/pinned SSH/no FileCat/no SDK preflight passes. Exact dev.539 .deb,
+    tar and normal FUSE AppImage pass GUI/corrupt state, 203-byte TMPDIR, separate-session Unicode-TMPDIR forwarding,
+    saved workspace/restart and clean socket/lock/mount release. Debian/tar native desktop entries pass; F5 copy of
+    the Unicode fixture matches 45-byte independent hash. GLib helper oracle 12/12; Debian remove/reinstall/purge
+    preserves user state and unowned sentinel. Setup/oracle failures retained, no product remedy for them. Full
+    324,638,274-byte archive copied/hash-verified and independently checked before shutdown/restoration (E-V19-P2).
 
 ## Evidence invalidated by the campaign's own changes
 

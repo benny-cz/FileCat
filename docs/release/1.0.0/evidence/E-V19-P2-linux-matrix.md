@@ -39,7 +39,7 @@ I99–I103 rebuild: manual CI [37036698071](https://github.com/benny-cz/FileCat/
 `fa3a02ad4a0d9b5323f5316504efa842c120d099`, 0.1.0-dev.539. All four test lanes and Linux/macOS packaging pass;
 Windows tag-only packaging and release attachment steps skip. No tag, release or publication. Linux artifact
 11241366611, archive digest `sha256:8a5af9b579f888f345b17cf25109ea741791c4e7e779d2ea3a4766a0dd744edb`.
-Downloaded bytes hashed on host; fresh-baseline native package execution still pending for this rebuild.
+Downloaded bytes hashed on host; fresh 24.04 native execution passes below. Fresh 26.04 repeat still pending.
 
 | Rebuilt artifact | Bytes | SHA-256 |
 |---|---:|---|
@@ -100,6 +100,44 @@ Guest root `/home/benny/FileCat-v19-83b12fc1f8604ea2a2405069f4d783ad` not reused
 | Rebuilt tar native executable/entry record | `a844378df209a798b00821cb49e47b7ea34dc2daa9a4a2a97deb6afabe9ad6d2` |
 | Rebuilt tar GUI screenshot | `c2e8a053d84c0878e16da2a6c5f4e48403bc7d8a9dfaed54ce104df74151d798` |
 
+## Dev.539 on restored clean Ubuntu 24.04
+
+Restored `filecat-clean-ubuntu2404-20261002` only after E-X02's final 26.04 archive verification. Trusted retained SSH
+key matches; UUID/disk identity, Ubuntu 24.04.5, GNOME 46 Wayland and absence of FileCat/SDK verified before setup.
+Preflight `f914d5f40cdc79309a7a3b1f25b1165e7013b030e2c9605856ff440440d8e27b`. Idle/locking changes reapply the
+owner's standing disposable-VM permission. Exact three package hashes above match on guest. No SDK installed.
+
+- Debian install resolves ICU74 (74.2-1ubuntu3.1), CLI reports dev.539; actual GUI maps prove ICU74 loaded.
+- All three formats pass real GUI launch in a 203-byte UTF-8 TMPDIR, corrupt settings/backup preservation,
+  forwarding from a different session and Unicode TMPDIR, saved forwarded location, graceful close and restart.
+  No second window appears; client exits zero, owner retains its PID. Closed socket absent and persistent profile
+  lock independently acquirable; stale endpoint metadata is retained by design. AppImage runs via a read-only FUSE
+  mount with extraction environment unset; its exact mount disappears on close. Per-format explicit state roots remain separate.
+- Installed Debian desktop entry opens the Unicode fixture. Actual F5/Return copy into the observed owned target
+  passes independent cmp: 45 bytes, source/target SHA-256 `6e9791c8779a87b1b44772d102249350b721ae1e0bbdcd9177394c84560e1b4b`.
+  Before/dialog/after Linux console screenshots retained; executable/argv/maps and normal close recorded.
+- Packaged tar helper SHA-256 `cdfa97bb3846c6a4305ea4deca32248779af8a2d79bd922a253f68120abbafc9` equals E-I98.
+  Actual generated desktop entry launches the packaged executable from the ampersand/percent/Unicode directory.
+  Independent GLib argv/icon oracle passes 12/12 unusual paths. Desktop validator emits its existing multiple-main-category hint.
+- Debian remove → reinstall → purge → reinstall passes. Executable, symlink and desktop entry removed; settings,
+  workspace/history and GUID-bound unrelated install-directory sentinel retain identical bytes throughout.
+
+Private raw root `artifacts/release-evidence/linux-os-matrix-20261002/dev539-24/`. Package result JSON
+`3b593ac17a3419980a551b73a5007213680f14a88e65bd10fbe633476bcc1229`; GLib result
+`8a72eceb261c09a5dc1330e58f4fa3cf2be2c50424667e490889d5a69dc692e2`; lifecycle log
+`80f4fe18c85bd1da315fad42d836af8d231554e8b78dc8dec4400ff73d8e6860`; desktop transition log
+`70bb044fc730d3743d6b2591f560b8299f772541edc1fb56d4c251ed61af1cc8`. Harness source
+`d818a8798f8b8b477d2b1d6fc0d1951f2b53f5a6179d5e6d68e260116a4ac9ba` retained.
+Full raw archive `6d8c1f2c3aa65658b2bafaca45b4b86bc685b435904e5ab7b8c79ae6cf348775`, 324,638,274 bytes, 824 members;
+guest/host hashes agree. Independent stream verifier checks all three artifact inputs, source/target bytes, 3/3 package
+results, 12/12 launcher cases and retained workspace before restoring the other clean baseline.
+
+Setup failures retained: root `--help` attempt (unsupported switch starts GUI) lacked a display and aborted after the
+successful package install/version output. First oracle used wrong lock directory and expected endpoint metadata
+deletion; corrected oracle checks local/instance.lock and actual socket removal, with original failure/input retained.
+An activation command quoted awk incorrectly after desktop launch; corrected PID-bound observation supplies its result.
+No product modification for these setup/oracle failures.
+
 ## Ubuntu 26.04 completed cases
 
 - Fresh full Desktop 26.04.1 LTS, kernel 7.0.0-38-generic, GNOME 50.1, actual Wayland/XWayland session and exact
@@ -146,7 +184,7 @@ specific security authorization. Owner then explicitly approved them for this di
 lock-enabled=false and unlock applied; LockedHint subsequently no. Recorded test setup, not a FileCat security claim.
 Windows computer-use helper could not initialize; no Windows UI actions used.
 
-26.04 native suites are retained with explicit skips (E-X02). Dev.539 package execution on both clean baselines,
-rebuilt 24.04 compatibility and final-candidate full lifecycle/transition checks remain pending.
+26.04 native suites are retained with explicit skips (E-X02). Dev.539 fresh 24.04 compatibility passes above;
+fresh 26.04 repeat and final-candidate full lifecycle/transition checks remain pending.
 No human reader/input attestation, polkit safety evidence, support decision,
 final signature or stable GO supplied by these automated preliminary checks.
