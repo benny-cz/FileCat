@@ -57,9 +57,15 @@ in the generator. No install or product test ran during those failed attempts.
 Both corrected media copied to host with matching hashes. Ubuntu 24.04.5 installed, powered off at completion, then
 booted with media disconnected. Actual GNOME Wayland session and bound VM/disk verified. Clean powered-off snapshot
 filecat-clean-ubuntu2404-20261002 taken before FileCat/testing dependencies; no SDK installed. Preliminary package/native
-results and setup changes in E-V19-P2. 26.04 media not yet booted; its install remains pending. No final OS qualification.
+results and setup changes in E-V19-P2/E-X02. After 24.04 raw evidence was transferred and hash-verified on the host,
+the guest was gracefully powered off and identity-checked 26.04 media attached/booted at 11:50:59 UTC. Native Linux
+console shows Ubuntu 26.04.1 LTS installer copying files at 12:01 UTC; no completion or installed-OS result yet.
+Read-only authenticated RFB capture through the previously configured loopback-only VM console avoids unavailable
+live-installer guest operations. Screenshot SHA-256 `784f3a2754e1afb6ad49fdf2250f8f5804627d7e0522efc8b55a3b44e8ba31c7`;
+private capture helper SHA-256 `0749050319a5faa094aea66506509c36c54d0926557d6676386b239e713b2ecf`. No final OS qualification.
 
 Manual CI [36994087185](https://github.com/benny-cz/FileCat/actions/runs/36994087185), source
 `d14199b8b2bc1f6170ceab2b91c3212e80909d0c`, passed all four test lanes and Linux/macOS packaging. Windows tag-only
-packaging skipped. This run produced development artifacts without a release tag or publication; their exact hashes and
-fresh-guest results remain to be recorded. Signing, final candidate reruns and human support decisions remain open.
+packaging skipped. This run and successor 36999624175 at ecf5349 produced development artifacts without a release tag
+or publication; exact hashes and fresh-guest results in E-V19-P2. Signing, final candidate reruns and human support
+decisions remain open.

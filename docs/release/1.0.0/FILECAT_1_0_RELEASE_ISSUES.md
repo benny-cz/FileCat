@@ -76,7 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I98 | Linux tar desktop entry corrupts extraction paths containing special characters | Medium (desktop launch fails) | Must fix for Linux tar claim | **Remediated; native helper 12/12 verified** (E-I98; unchanged 4/12); CI, rebuilt packages, 26.04 and candidate closure pending |
+| I98 | Linux tar desktop entry corrupts extraction paths containing special characters | Medium (desktop launch fails) | Must fix for Linux tar claim | **Remediated ecf5349; native helper and Linux CI 12/12 verified** (E-I98; unchanged 4/12); rebuilt tar GUI passes on 24.04; 26.04 and candidate closure pending |
 | I97 | CloneCopyTests: a UNC volume root lacked the separator required by the native query, so the SMB case failed before copying | Low (validation setup; no product copying defect established) | Must fix (native copy coverage) | **Remediated `ca1afe0`; independent probe and corrected local/SMB cases verified**, 1/1 each without skips (E-V03-CLONE-1); candidate rerun and closure pending |
 | I96 | ARM64 CI: the native Recycle Bin integration test assumed its first query always succeeds; one returned `ERROR_ALREADY_EXISTS` | Low (validation reliability; no product data loss established) | Must fix (required CI lane) | **Remediated `5503262`; targeted test and four-lane CI verified** (E-I96); candidate rerun and closure pending |
 | I95 | Signatures: a good OpenPGP signature without a trust line (gpg.conf trust-model always) read as good, for any key in the keyring | Medium–High (a file signed by an arbitrary, uncertified key shown as signed by its publisher) | Must fix (V15: an unknown signature never becomes a shield) | **Remediated `cd37342`; verified** (E-V15-G1; independent GnuPG test fails under the old reading) |
@@ -1052,7 +1052,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - **Remedy:** separate helper writes values as data with both Desktop Entry escaping layers. /bin/sh passes the helper
   path as an argument; --launch execs FileCat with preserved file arguments, including percent paths.
 - **Verification:** real native launcher/argv/icon checks 12/12 versus unchanged 4/12; exact hashes in
-  [E-I98](evidence/E-I98-linux-desktop-entry.md). Added to Linux CI. CI/rebuilt packages/26.04/candidate closure pending.
+  [E-I98](evidence/E-I98-linux-desktop-entry.md). Linux CI 12/12 and all four lanes pass at ecf5349. Rebuilt dev.526
+  tar GUI opens from ampersand/percent/Unicode/space path on fresh 24.04. 26.04/candidate closure pending.
 
 ### I97 — CloneCopyTests: native UNC volume query received an incomplete root
 
