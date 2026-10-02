@@ -74,6 +74,14 @@ The same mistake in View → Analyze folder: an analysis went on when its tab le
 failed with `ObjectDisposedException`. `AnalysisLeaveTests` (20,000 files, the folder left or the tab closed 0.1 s into
 the analysis): both fail on the old code, pass twice on the fix; App 225, 0 failed.
 
+## The quick view and slow items (read in the code)
+
+The quick view loads the item under the cursor once the cursor has rested 140 ms, tags each load with the item, its
+size and time, and drops any result whose tag is no longer the one shown (content, the Shell's thumbnail and its own
+decoded picture alike), so a slow item's content never lands on another (`ClosedWhileBusyTests` moves it across large
+files and closes it without an exception). A load already started is not cancelled: opening a slow archive member
+goes on after the cursor moved on, its result then discarded. Not measured.
+
 ## Not covered here
 
 - Many folders counted and the count cancelled by Esc (partial sizes labelled, E-V12-C1, read in the code).
