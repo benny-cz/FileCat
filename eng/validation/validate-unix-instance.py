@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run real instance/recovery tests in fresh processes with Unix socket-boundary TMPDIRs."""
 import argparse
+from collections import Counter
 import hashlib
 import json
 import os
@@ -36,7 +37,13 @@ def main():
                 'The_runtime_temporary_folder_is_guarded_before_scanning',
                 'An_independent_instance_is_visible_until_release_and_stale_files_are_ignored',
                 'A_usual_instance_with_another_profile_is_guarded_before_scanning',
-                'Case_aliases_of_one_Windows_profile_find_the_running_instance'}
+                'Case_aliases_of_one_Windows_profile_find_the_running_instance',
+                'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
+                'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'}
+    expected_cases = {method: (2 if method in {
+        'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
+        'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'} else 1)
+        for method in required}
     for label, temp in [('edge', edge), ('long', deep), ('unicode', unicode)]:
         temp.mkdir(mode=0o700)
         xml = args.evidence_dir / f'{label}.xml'
@@ -53,14 +60,14 @@ def main():
             tests = ET.parse(xml).findall('.//test')
             result['tests'] = [{'name': test.get('method'), 'result': test.get('result'),
                                 'output': ' '.join(test.itertext()).strip()} for test in tests]
-            if {test.get('method') for test in tests} != required:
+            if Counter(test.get('method') for test in tests) != expected_cases:
                 raise RuntimeError('Required instance/recovery tests were not all executed')
             expected_skips = 1 + (1 if label == 'edge' else 0) # Windows identity case plus the optional Unix fallback.
             if run.returncode or any(test.get('result') == 'Fail' for test in tests):
                 raise RuntimeError('Native instance/recovery tests failed')
             if sum(test.get('result') == 'Skip' for test in tests) != expected_skips:
                 raise RuntimeError('Unexpected prerequisite skip')
-            if sum(test.get('result') == 'Pass' for test in tests) != len(required) - expected_skips:
+            if sum(test.get('result') == 'Pass' for test in tests) != sum(expected_cases.values()) - expected_skips:
                 raise RuntimeError('Unexpected native test outcomes')
             result['passed'] = True
         except Exception as error:

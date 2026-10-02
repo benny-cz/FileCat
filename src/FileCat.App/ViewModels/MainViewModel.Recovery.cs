@@ -422,7 +422,7 @@ public sealed partial class MainViewModel
     /// A FileCat started with its files elsewhere (--data) also waits for the usual one to be closed when that one's files
     /// are on the disk.
     /// </summary>
-    internal DiskSafety CheckDiskSafety(string device, string name)
+    internal DiskSafety CheckDiskSafety(string device, string name, string? baseDirectory = null)
     {
         var shares = Services.Recovery.SharesDisk;
         bool? Shares(string folder) => shares?.Invoke(device, folder);
@@ -459,15 +459,15 @@ public sealed partial class MainViewModel
         string? profile = App.StartupOptions.Profile;
         if (Services.Paths.DataRoot is not null)
         {
-            if (SingleInstance.UsualProfiles(profile) is not { } profiles)
+            if (SingleInstance.UsualProfiles(profile, baseDirectory) is not { } profiles)
                 return new DiskSafety($"FileCat does not scan {name} yet: it cannot tell whether another FileCat is writing to its usual files. Close other FileCat windows and check access to those folders first.", null, false, false);
             foreach (string usualProfile in profiles)
             {
-                if (!SingleInstance.UsualInstanceRunning(usualProfile)) continue;
-                if (SingleInstance.UsualWriteFolders(usualProfile) is not { } running)
+                if (!SingleInstance.UsualInstanceRunning(usualProfile, baseDirectory)) continue;
+                if (SingleInstance.UsualWriteFolders(usualProfile, baseDirectory) is not { } running)
                     return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, " +
                                           "and FileCat cannot tell where its instance connection and temporary files are kept. Close that FileCat first.", null, false, false);
-                var (usual, usualUnsure) = Check(AppPaths.Usual(usualProfile).WriteFolders.Concat(running));
+                var (usual, usualUnsure) = Check(running);
                 if (usual.Count > 0 || usualUnsure.Count > 0)
                     return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, and it writes to them while it works: " +
                                           string.Join("; ", usual.Concat(usualUnsure)) + (usual.Count > 0 ? " are on that disk." : " may be on that disk.") +

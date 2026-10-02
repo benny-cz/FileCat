@@ -134,6 +134,71 @@ public sealed class RecoverySafetyTests
 
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_portable_recovery_finds_the_per_user_owner_and_independent_windows(bool independent)
+    {
+        string profile = "portable-fallback-" + Guid.NewGuid().ToString("N")[..16];
+        string root = Path.Combine(Path.GetTempPath(), "filecat-portable-probe-" + Guid.NewGuid().ToString("N"));
+        var usual = AppPaths.Usual(profile);
+        var previous = App.StartupOptions;
+        Assert.False(Directory.Exists(usual.LocalDirectory));
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, AppPaths.PortableMarker), "owned test marker");
+        try
+        {
+            Assert.False(SingleInstance.UsualInstanceRunning(profile, root));
+            Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile, NewInstance = independent }));
+            SingleInstance.StartServer(profile, null);
+            Assert.True(SingleInstance.UsualInstanceRunning(profile, root));
+            Assert.True(SpinWait.SpinUntil(() => SingleInstance.UsualWriteFolders(profile, root) is not null, 5000));
+            Assert.False(Directory.Exists(Path.Combine(root, "Data"))); // Discovery is read-only.
+            string data = Path.Combine(root, "recovering-data");
+            App.StartupOptions = new StartupOptions { Profile = profile, DataRoot = data };
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(profile, dataRoot: data));
+            var vm = new MainViewModel(services);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.SettingsDirectory);
+            Assert.Contains("still running", vm.CheckDiskSafety("test-device", "test disk", root).Refusal);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.SettingsDirectory) ? null : false;
+            Assert.NotNull(vm.CheckDiskSafety("test-device", "test disk", root).Refusal);
+            services.Recovery.SharesDisk = (_, _) => false;
+            Assert.Null(vm.CheckDiskSafety("test-device", "test disk", root).Refusal);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, Path.Combine(root, "Data"));
+            Assert.Null(vm.CheckDiskSafety("test-device", "test disk", root).Refusal); // Inactive portable state is not a writer.
+            SingleInstance.Release();
+            Assert.False(SingleInstance.UsualInstanceRunning(profile, root));
+        }
+        finally
+        {
+            SingleInstance.Release();
+            App.StartupOptions = previous;
+            foreach (string folder in new[] { root, usual.SettingsDirectory, usual.LocalDirectory,
+                         usual.ListingScratchDirectory, usual.HexRecoveryDirectory }.Distinct())
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile(bool defaultAlias)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-portable-profiles-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, AppPaths.PortableMarker), "owned test marker");
+        string other = defaultAlias ? "DEFAULT" : "portable-owner-" + Guid.NewGuid().ToString("N")[..16];
+        try
+        {
+            Directory.CreateDirectory(AppPaths.Usual(other, root).LocalDirectory);
+            var profiles = SingleInstance.UsualProfiles("recovering", root);
+            Assert.NotNull(profiles);
+            Assert.Contains(other, profiles);
+            Assert.Contains("default", profiles);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Case_aliases_of_one_Windows_profile_find_the_running_instance()
     {

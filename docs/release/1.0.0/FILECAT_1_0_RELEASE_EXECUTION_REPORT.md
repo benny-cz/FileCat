@@ -29,7 +29,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   checks. I101–I103 affected native/process checks and CI pass. Final 26.04 raw archive independently hash-verified,
   owned Samba/loop fixtures cleaned before restoration. Dev.539 package/desktop/lifecycle, long temporary-path and
   session-forwarding checks pass on both restored clean SDK-free baselines; both raw archives independently verified.
-  Full recovery write-location audit continues. GA Windows/reference hardware remain open.
+  Continued audit exposes I105: a portable probe misses per-user fallback owners and portable profile roots.
+  Hash-bound working fix passes ordinary/independent native GUI and Windows affected checks (E-I105); CI/rebuild
+  pending. Full recovery write-location audit continues. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -672,6 +674,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     pass all three temporary-path scenarios on each Unix lane. macOS dev.539 archive retained with exact byte/hash
     provenance; CI startup does not replace signed/native-desktop candidate qualification (E-I102/E-I103).
 
+149. I105 reproduced on exact dev.539's SDK-free Ubuntu GUI: root-owned unwritable Data makes the window fall back
+    to per-user state; independent lease busy, same-base probe false. Three Windows baseline regressions fail.
+    Read-only portable/per-user candidate and profile-root discovery remediated; only actual live roots guarded.
+    Native working-overlay ordinary/independent windows pass 2/2; Windows App 225 pass/15 skips, final guards 10
+    pass/3 Unix skips and paths 13 pass/1 Unix skip. Full before/after archives independently verified (E-I105).
+    CI/rebuilt packages, wider discovery and candidate/device tracing pending; NO-GO remains.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -701,10 +710,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   startup/forwarding and write-location evidence; affected native/CI and rebuilt Linux checks pass; wider discovery/candidate tracing pending.
 - I103 (Windows instance names/state identity): prior Windows election/forwarding/probe and portable/installed
   state-isolation evidence; preliminary process/guard/CI checks pass. Windows release package/candidate evidence pending.
+- I105 (portable/per-user candidate and profile discovery): earlier recovery lookup/profile inventory evidence;
+  affected native working-overlay and Windows checks pass. CI/rebuilt artifact checks and candidate tracing pending.
 
 ## Next actions (unblocked)
 
-1. Continue the recovery write-location/instance-discovery audit. Exact dev.539 Linux packages pass on both fresh
+1. Validate I105 in all affected CI lanes and rebuilt Linux packages, then continue the recovery write-location/
+   instance-discovery audit. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly

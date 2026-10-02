@@ -226,28 +226,37 @@ public static partial class SingleInstance
         metadata.Flush();
     }
 
-    private static IEnumerable<string> IndependentFiles(string? profile)
+    private static IEnumerable<string> IndependentFiles(Core.State.AppPaths paths)
     {
-        string directory = Core.State.AppPaths.Usual(profile).InstancesDirectory;
+        string directory = paths.InstancesDirectory;
         // Do not treat access errors as absence. A missing directory is the only empty-directory shortcut.
         try { return Directory.GetFiles(directory, "running-*.lock"); }
         catch (DirectoryNotFoundException) { return []; }
     }
 
     /// <summary>All usual profiles, read without creating folders, including profiles other than the recovering one.</summary>
-    internal static IReadOnlyList<string>? UsualProfiles(string? profile)
+    internal static IReadOnlyList<string>? UsualProfiles(string? profile, string? baseDirectory = null)
     {
-        var profiles = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+        // "default" is a special root; "DEFAULT" names profiles/DEFAULT even on a case-insensitive filesystem.
+        var profiles = new HashSet<string>(StringComparer.Ordinal)
         {
             "default", Core.State.AppPaths.ProfileFolderName(profile),
         };
         try
         {
-            string directory = Path.Combine(Core.State.AppPaths.Usual().LocalDirectory, "profiles");
-            foreach (string folder in Directory.GetDirectories(directory))
+            var roots = Core.State.AppPaths.UsualCandidates(baseDirectory: baseDirectory)
+                .SelectMany(paths => new[] { paths.SettingsDirectory, paths.LocalDirectory })
+                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            foreach (string root in roots)
             {
-                string name = Path.GetFileName(folder);
-                if (Core.State.AppPaths.ProfileFolderName(name) == name) profiles.Add(name);
+                string[] folders;
+                try { folders = Directory.GetDirectories(Path.Combine(root, "profiles")); }
+                catch (DirectoryNotFoundException) { continue; }
+                foreach (string folder in folders)
+                {
+                    string name = Path.GetFileName(folder);
+                    if (Core.State.AppPaths.ProfileFolderName(name) == name) profiles.Add(name);
+                }
             }
         }
         catch (DirectoryNotFoundException) { }
@@ -255,35 +264,37 @@ public static partial class SingleInstance
         return profiles.ToArray();
     }
 
-    /// <summary>Additional live-instance write locations. Null means an active instance's locations cannot be known.</summary>
-    internal static IReadOnlyList<(string What, string Folder)>? UsualWriteFolders(string? profile)
+    /// <summary>Known live-instance write locations. Null means an active instance's locations cannot be known.</summary>
+    internal static IReadOnlyList<(string What, string Folder)>? UsualWriteFolders(string? profile, string? baseDirectory = null)
     {
         var folders = new List<(string What, string Folder)>();
         try
         {
-            if (!OperatingSystem.IsWindows() && UsualOwnerRunning(profile))
+            foreach (var paths in Core.State.AppPaths.UsualCandidates(profile, baseDirectory))
             {
-                string file = Path.Combine(Core.State.AppPaths.Usual(profile).LocalDirectory, UnixEndpointFile);
-                if (ReadUnixEndpoint(file) is not { } endpoint || Path.GetDirectoryName(endpoint.Pipe) is not { } socket)
-                    return null;
-                folders.Add(("the running FileCat's instance connection", socket));
-                folders.Add(("the running FileCat's runtime temporary files", endpoint.TemporaryFolder));
-            }
-            foreach (string file in IndependentFiles(profile))
-            {
-                FileStream? inactive;
-                try
+                bool active = UsualOwnerRunning(paths);
+                if (!OperatingSystem.IsWindows() && active)
                 {
-                    inactive = OpenIndependentLock(file, create: false);
+                    string file = Path.Combine(paths.LocalDirectory, UnixEndpointFile);
+                    if (ReadUnixEndpoint(file) is not { } endpoint || Path.GetDirectoryName(endpoint.Pipe) is not { } socket)
+                        return null;
+                    folders.Add(("the running FileCat's instance connection", socket));
+                    folders.Add(("the running FileCat's runtime temporary files", endpoint.TemporaryFolder));
                 }
-                catch (FileNotFoundException) { continue; } // The independent process closed and removed its own file.
-                // A missing active owner's metadata is unknown, even while it is still registering.
-                // Only disappearance of the lifetime file itself means that this owner finished.
-                using (inactive) { if (inactive is not null) continue; }
-                var runtime = ReadInstanceMetadata<InstanceRuntime>(Path.ChangeExtension(file, ".json"));
-                if (runtime?.TemporaryFolder is not { } temp || !Path.IsPathFullyQualified(temp) || temp.Contains('\0'))
-                    return null;
-                if (!OperatingSystem.IsWindows()) folders.Add(("the running FileCat's runtime temporary files", temp));
+                foreach (string file in IndependentFiles(paths))
+                {
+                    FileStream? inactive;
+                    try { inactive = OpenIndependentLock(file, create: false); }
+                    catch (FileNotFoundException) { continue; } // The process closed and removed its own file.
+                    // Missing active metadata is unknown, including while registration is still in progress.
+                    using (inactive) { if (inactive is not null) continue; }
+                    active = true;
+                    var runtime = ReadInstanceMetadata<InstanceRuntime>(Path.ChangeExtension(file, ".json"));
+                    if (runtime?.TemporaryFolder is not { } temp || !Path.IsPathFullyQualified(temp) || temp.Contains('\0'))
+                        return null;
+                    if (!OperatingSystem.IsWindows()) folders.Add(("the running FileCat's runtime temporary files", temp));
+                }
+                if (active) folders.AddRange(paths.WriteFolders);
             }
             return folders;
         }
@@ -308,34 +319,40 @@ public static partial class SingleInstance
     /// Whether a FileCat of this user is running with <paramref name="profile"/> and its usual files (started without
     /// --data). Asked by a FileCat started with --data, never of itself; true when that cannot be told.
     /// </summary>
-    public static bool UsualInstanceRunning(string? profile)
+    public static bool UsualInstanceRunning(string? profile) => UsualInstanceRunning(profile, null);
+
+    internal static bool UsualInstanceRunning(string? profile, string? baseDirectory)
     {
         try
         {
-            foreach (string file in IndependentFiles(profile))
+            foreach (var paths in Core.State.AppPaths.UsualCandidates(profile, baseDirectory))
             {
-                try
+                foreach (string file in IndependentFiles(paths))
                 {
-                    using var inactive = OpenIndependentLock(file, create: false);
-                    if (inactive is null) return true;
+                    try
+                    {
+                        using var inactive = OpenIndependentLock(file, create: false);
+                        if (inactive is null) return true;
+                    }
+                    catch (FileNotFoundException) { }
                 }
-                catch (FileNotFoundException) { }
+                if (UsualOwnerRunning(paths)) return true;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return true; }
-        return UsualOwnerRunning(profile);
+        return false;
     }
 
-    private static bool UsualOwnerRunning(string? profile)
+    private static bool UsualOwnerRunning(Core.State.AppPaths paths)
     {
-        string name = BaseName(profile, null);
+        string name = BaseName(paths.ProfileName, null);
         if (!OperatingSystem.IsWindows())
         {
             // Opening an existing profile lock read-only does not create directories, write metadata or probe a mutex.
             // A busy lock counts as running even before its listener is ready, or when that listener cannot be reached.
             try
             {
-                using var owner = OpenUnixLock(Path.Combine(Core.State.AppPaths.Usual(profile).LocalDirectory, UnixLockFile), create: false);
+                using var owner = OpenUnixLock(Path.Combine(paths.LocalDirectory, UnixLockFile), create: false);
                 return owner is null;
             }
             catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
@@ -358,7 +375,7 @@ public static partial class SingleInstance
         }
         try
         {
-            string current = WindowsName(Core.State.AppPaths.Usual(profile).LocalDirectory);
+            string current = WindowsName(paths.LocalDirectory);
             if (Mutex.TryOpenExisting("Local\\" + current, out var usual))
             {
                 usual.Dispose();

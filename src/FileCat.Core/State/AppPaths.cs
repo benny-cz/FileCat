@@ -139,6 +139,22 @@ public sealed class AppPaths
             var root = Path.Combine(baseDirectory, "Data", suffix);
             return new AppPaths(root, Path.Combine(root, "local"), true, profile, [Path.Combine(baseDirectory, "Data")]);
         }
+        return UsualUser(profile);
+    }
+
+    /// <summary>
+    /// Possible state locations of windows started without --data. A portable recovery must also find installed
+    /// windows and portable windows that fell back to per-user storage. This inventory creates and writes nothing.
+    /// </summary>
+    public static IReadOnlyList<AppPaths> UsualCandidates(string? profile = null, string? baseDirectory = null)
+    {
+        var selected = Usual(profile, baseDirectory);
+        return selected.IsPortable ? [selected, UsualUser(ProfileFolderName(profile))] : [selected];
+    }
+
+    private static AppPaths UsualUser(string profile)
+    {
+        var suffix = profile == "default" ? string.Empty : Path.Combine("profiles", profile);
         var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.DoNotVerify);
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify);
         return new AppPaths(Path.Combine(roaming, "FileCat", suffix), Path.Combine(local, "FileCat", suffix), false, profile,

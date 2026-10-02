@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I105 | Portable recovery misses per-user owners and portable profiles | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and verified preliminarily** (E-I105): exact dev.539 native GUI miss; three baseline regressions fail; fixed ordinary/independent GUI 2/2, Windows App 225/240 and final guards 10/13 pass with explicit skips. CI/rebuilt packages/wider discovery/candidate pending |
 | I104 | Windows window title should start with FileCat, then the selected path and account/elevation | Low (owner-requested title ordering) | Low-priority queue | Queued 2026-10-02; repeated FileCat is valid when the selected directory has that name |
 | I103 | Windows profile case aliases miss the running instance; portable/usual roots collide | Medium (instance contract; V09 safety impact) | Must fix (A-07, V09/I09, V23 B12) | **Remediated and verified preliminarily** (E-I103): Windows baseline 1/4, fixed 4/4 and guards 6/9 pass; Unix boundary 23 pass/4 explicit skips; all four CI lanes pass at fa3a02a; native packages/candidate pending |
 | I102 | Recovery misses independent windows and usual instances using another profile | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 5b69fba and natively verified** (E-I102): actual GUI before/after, two-owner/crash/forwarding controls, 8/8 process cases and App 208/235 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
@@ -1048,6 +1049,18 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I105 — Portable recovery misses per-user owners and portable profiles
+
+- [E-I105](evidence/E-I105-portable-fallback-discovery.md): an exact dev.539 GUI with unwritable portable Data falls
+  back to per-user state but is missed by the production probe; independent fcntl confirms the live lease. Removing
+  only the owned marker makes the same probe see it. Portable profile enumeration also uses the wrong root.
+- Discovery now reads portable and per-user candidates and both profile roots; recovery guards the folders of
+  the actual live candidate. The literal default and profiles/DEFAULT roots remain distinct. Probes write nothing.
+- Before regressions fail 3/3. Working-overlay ordinary/independent native GUI cases pass 2/2; final Windows guards
+  pass 10 with three Unix skips, full App 225 with 15 skips, paths 13 with one Unix skip. No unsafe disk scan.
+- Potential Critical, V09/I09 must fix. Remediated/verified preliminarily; affected CI, rebuilt packages, wider
+  installation/process discovery and exact-candidate tracing remain pending. Previous lookup evidence is stale.
 
 ### I104 — Windows title should put FileCat before the selected path and account/elevation
 
