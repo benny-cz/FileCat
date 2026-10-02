@@ -43,6 +43,14 @@ which the listing ignored unless it had failed, when it loaded again too. A load
 (the control below). A disposed listing now ignores `Load`, and a closed tab ignores `Refresh` and the late navigation. `EntryStoreTests.A_disposed_listing_does_not_load_again` fails without
 the guard. Core 741, App 222.
 
+## Other views closed while busy (`f2b850b`)
+
+`ClosedWhileBusyTests` closes, each while its background work runs: a comparison of two 48 MiB contents, a viewer and
+a hex editor of 24 MiB files, a search through 12,000 files; drives the quick view across three 24 MiB files and
+closes it; and closes a tab while its folder is counted. The window's thread is watched until three seconds after the
+last of them. **None raised anything** (two runs; App suite 223, 0 failed). With the count code from before I88's fix
+the same test saw two `ObjectDisposedException`s (the commit message says six seconds of watching; it is three).
+
 ## Not covered here
 
 - A tab moved to another panel while counting.

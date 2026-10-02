@@ -502,7 +502,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     ends FileCat past five in three seconds (24 in five seconds measured, closing a tab 0.3 s into a 6-second count).
     Leaving the folder kept the tab "counting" in the next one. Now a count ends with the tab's stay in its folder;
     the same experiment raised none. The rest of the window's posted work, read for the same mistake: two paths loaded
-    a closed tab's listing again (no exception); a disposed listing now ignores Load (`34042cc`).
+    a closed tab's listing again (no exception); a disposed listing now ignores Load (`34042cc`). A comparison, a
+    viewer, a hex editor, a search and the quick view closed while they work raise nothing (`f2b850b`; the same test
+    sees I88's exceptions with the old count code).
 121. CI run 36941532909 (red on a records-only commit): **I89** (Low–Medium, `2ad2cfa`): the change journal reader went
     on from the new oldest entry only once when the journal wrapped during a read; a busy runner wrapped it twice and
     the read failed. Now as often as needed, said in the view; tests with a stand-in journal fail under the old rule.

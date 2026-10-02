@@ -225,6 +225,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `3d2bb2e` | Folder watch: a folder that keeps changing is read again every two seconds; overflows counted | I87 | E-V12-W1 |
 | `a9a9dcf` | Count: a folder's count stops when its tab leaves the folder or closes | I88 | E-V12-C2 |
 | `34042cc` | Listing: a closed tab's listing never loads again | I88 | E-V12-C2 |
+| `f2b850b` | Test: views closed while they work raise nothing on the window's thread | — | E-V12-C2 |
 | `2ad2cfa` | Change journal: a journal that wraps while it is read is read on, and says so (CI run 36941532909) | I89 | issue record |
 | `54c33de` | Search: roots spelled as the disk spells them, so appended finds list each file once | I90 | E-V13-R1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
