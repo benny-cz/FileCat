@@ -7,6 +7,8 @@ using FileCat.Core.Threading;
 int count = args.Length > 0 ? int.Parse(args[0]) : 1_000_000;
 int panels = args.Length > 1 ? int.Parse(args[1]) : 1;
 long indexBudget = args.Length > 2 ? long.Parse(args[2]) * 1024 * 1024 : 512L * 1024 * 1024;
+// Optional: each name padded to this many characters (long-name listings, V12); 0 keeps the short names.
+int nameLength = args.Length > 3 ? int.Parse(args[3]) : 0;
 if (count < 1 || panels is < 1 or > 4) throw new ArgumentOutOfRangeException(nameof(args));
 string scratch = Path.Combine(Path.GetTempPath(), "FileCat-listing-scale-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(scratch);
@@ -15,7 +17,7 @@ try
     using var io = new DeviceIoScheduler();
     var ui = new PumpDispatcher();
     var providers = new ProviderRegistry();
-    providers.Register(new SyntheticProvider(count));
+    providers.Register(new SyntheticProvider(count, nameLength));
     var indexes = new IndexMemoryBudget(indexBudget);
     var models = Enumerable.Range(0, panels)
         .Select(_ => new ListingModel(providers, io, ui, scratch, indexBudget: indexes)).ToArray();
@@ -39,7 +41,7 @@ try
     }
     ui.Pump(0);
     process.Refresh();
-    Console.WriteLine($"count={count} panels={panels} complete_ms={clock.ElapsedMilliseconds} first_rows_ms={firstRowsMs}");
+    Console.WriteLine($"count={count} panels={panels} name_length={(nameLength > 0 ? nameLength : 29)} complete_ms={clock.ElapsedMilliseconds} first_rows_ms={firstRowsMs}");
     Console.WriteLine($"visible={string.Join(",", models.Select(m => m.VisibleCount))} spill_mib={models.Sum(m => m.Store.SpillBytes) / 1024.0 / 1024.0:F1} external_index_mib={models.Sum(m => m.ExternalIndexBytes) / 1024.0 / 1024.0:F1} reserved_index_mib={indexes.ReservedBytes / 1024.0 / 1024.0:F1}");
     Console.WriteLine($"managed_mib={GC.GetTotalMemory(true) / 1024.0 / 1024.0:F1} private_mib={process.PrivateMemorySize64 / 1024.0 / 1024.0:F1} peak_managed_mib={peakManaged / 1024.0 / 1024.0:F1} peak_private_mib={peakPrivate / 1024.0 / 1024.0:F1}");
     // Whole-listing commands on the first listing, twice each: the first pass includes mapping the spill files.
@@ -100,7 +102,7 @@ sealed class PumpDispatcher : IUiDispatcher
     }
 }
 
-sealed class SyntheticProvider(int count) : ResourceProvider
+sealed class SyntheticProvider(int count, int nameLength) : ResourceProvider
 {
     public override string Scheme => Schemes.FileSystem;
     public override string GetDisplayPath(Location location) => location.Path;
@@ -117,7 +119,9 @@ sealed class SyntheticProvider(int count) : ResourceProvider
             for (int i = 0; i < n; i++)
             {
                 int sequence = count - from - i;
-                batch[i] = new EntryData($"file-{sequence:0000000}-long-αβγ.txt", EntryKind.File, sequence);
+                string name = $"file-{sequence:0000000}-long-αβγ";
+                if (nameLength > name.Length + 4) name += new string('ω', nameLength - name.Length - 4);
+                batch[i] = new EntryData(name + ".txt", EntryKind.File, sequence);
             }
             sink.AddBatch(batch.AsSpan(0, n));
         }
