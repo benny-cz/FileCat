@@ -68,6 +68,26 @@ public sealed class SyncTests : IDisposable
     }
 
     [Fact]
+    public void Folders_inside_each_other_are_not_offered_for_synchronizing()
+    {
+        // Release issue I94: a folder mirrored onto its parent finds the parent's copy of itself "only in the target",
+        // and would remove it: the source.
+        Put("P/a.txt", "a", Old);
+        Put("P/backup/a.txt", "a", Old);
+        string parent = Path.Combine(_dir.Path, "P"), inner = Path.Combine(parent, "backup");
+        var plan = SyncPlanner.Propose(Compare(Providers(), parent, inner), sourceIsLeft: false, SyncMode.Mirror, targetIgnoresCase: OperatingSystem.IsWindows());
+        var removal = Assert.Single(plan, i => i.Entry.RelativePath == "backup");
+        Assert.Equal(SyncAction.Remove, removal.Action); // what would have happened
+
+        Assert.StartsWith("The two folders overlap: one is inside the other.", SyncPlanner.Overlap(parent, inner, _ => null));
+        Assert.NotNull(SyncPlanner.Overlap(inner, parent, _ => null));
+        Assert.NotNull(SyncPlanner.Overlap(parent, parent, _ => null));
+        Assert.Null(SyncPlanner.Overlap(parent, Path.Combine(_dir.Path, "Q"), _ => null));
+        // Folders whose names only begin alike are apart.
+        Assert.Null(SyncPlanner.Overlap(parent, parent + "-copy", _ => null));
+    }
+
+    [Fact]
     public async Task Mirror_makes_the_target_like_the_source_but_keeps_newer_target_files_unless_chosen()
     {
         var (left, right) = Trees();

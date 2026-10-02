@@ -59,6 +59,44 @@ public sealed class DirectoryDiffTests
     }
 
     [AvaloniaFact]
+    public async Task Folders_inside_each_other_are_compared_but_not_offered_for_synchronizing()
+    {
+        // I94: mirroring backup onto its parent would remove the parent's "backup", the source itself.
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            string parent = Directory.CreateDirectory(Path.Combine(root, "P")).FullName;
+            string inner = Directory.CreateDirectory(Path.Combine(parent, "backup")).FullName;
+            File.WriteAllText(Path.Combine(parent, "a.txt"), "a");
+            File.WriteAllText(Path.Combine(inner, "a.txt"), "a");
+            File.SetLastWriteTimeUtc(Path.Combine(inner, "a.txt"), File.GetLastWriteTimeUtc(Path.Combine(parent, "a.txt")));
+            vm.Workspace.Panels[0].ActiveTab!.Navigate(Location.FileSystem(parent));
+            vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(inner));
+            vm.Workspace.Activate(vm.Workspace.Panels[0]);
+            foreach (var p in vm.Workspace.Panels)
+                for (int i = 0; i < 250 && p.ActiveTab!.Listing.State != Core.Listing.ListingState.Complete; i++) await Task.Delay(20, ct);
+
+            vm.Execute(CommandIds.CompareDirectories);
+            for (int i = 0; i < 250 && !window.GetVisualDescendants().OfType<CheckBox>().Any(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true); i++)
+                await Task.Delay(20, ct);
+            window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true).IsChecked = true;
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            for (int i = 0; i < 250 && DirectoryDiffWindow.OpenWindows.Count == 0; i++) await Task.Delay(20, ct);
+            var diff = Assert.Single(DirectoryDiffWindow.OpenWindows);
+            for (int i = 0; i < 250 && diff.IsComparing; i++) await Task.Delay(20, ct);
+            Assert.False(diff.OffersSync);
+            Assert.Contains("Synchronize is not offered. The two folders overlap: one is inside the other.", diff.CriteriaText);
+            diff.Close();
+        }
+        finally
+        {
+            foreach (var w in DirectoryDiffWindow.OpenWindows.ToList()) w.Close();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Synchronize_previews_every_step_and_runs_only_the_chosen_ones_as_jobs()
     {
         // Other tests may have comparisons open at the same time: this one compares changed.txt.

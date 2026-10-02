@@ -106,6 +106,7 @@ public sealed class DirectoryDiffWindow : Window
 
     private DirectoryDiffWindow(string leftName, string rightName, string criteria, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide)
     {
+        CriteriaText = criteria;
         _openSide = openSide;
         Title = $"Compare folders: {Path.GetFileName(leftName.TrimEnd('\\', '/'))} ↔ {Path.GetFileName(rightName.TrimEnd('\\', '/'))}";
         Width = 1100; Height = 700; MinWidth = 600; MinHeight = 300;
@@ -165,6 +166,12 @@ public sealed class DirectoryDiffWindow : Window
     }
 
     public string Summary => _summary.Text ?? "";
+
+    /// <summary>Whether Synchronize is offered for these folders (tests).</summary>
+    internal bool OffersSync => _sync.IsVisible;
+
+    /// <summary>What the comparison went by, and anything not offered, as the window says it (tests).</summary>
+    internal string CriteriaText { get; private set; } = "";
 
     public IReadOnlyList<TreeDiffEntry> ShownEntries => Shown();
 

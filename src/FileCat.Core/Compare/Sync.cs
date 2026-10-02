@@ -43,6 +43,21 @@ public sealed class SyncItem(TreeDiffEntry entry, SyncAction action, bool includ
 /// </summary>
 public static class SyncPlanner
 {
+    /// <summary>
+    /// Why two folders cannot be synchronized, or null: one is the other or lies inside it, also through a link or a
+    /// junction on the way (their final paths decide, as for a copy into itself). Synchronizing them would copy a folder
+    /// into itself, or remove the source as an item only in the target (release issue I94).
+    /// </summary>
+    public static string? Overlap(string left, string right, Func<string, string?> finalPath)
+    {
+        static bool Nested(string a, string b) => FileSystem.PathUtil.IsSameOrUnder(a, b) || FileSystem.PathUtil.IsSameOrUnder(b, a);
+        const string Why = "Synchronizing them could copy a folder into itself, or remove the source as an item only in the target.";
+        if (Nested(left, right)) return "The two folders overlap: one is inside the other. " + Why;
+        if (finalPath(left) is { } l && finalPath(right) is { } r && Nested(l, r))
+            return "The two folders overlap: one leads inside the other through a link or a junction. " + Why;
+        return null;
+    }
+
     public static List<SyncItem> Propose(TreeCompareResult comparison, bool sourceIsLeft, SyncMode mode, bool targetIgnoresCase)
     {
         var differences = comparison.Entries.Where(e => e.IsDifference).ToList();

@@ -317,11 +317,14 @@ public sealed partial class MainViewModel
         var lcaps = Services.Providers.For(lloc).GetCapabilities(lloc);
         var rcaps = Services.Providers.For(rloc).GetCapabilities(rloc);
         static bool Writable(Location l, LocationCapabilities c) => l.IsFileSystem && (c & LocationCapabilities.TransferTarget) != 0;
-        var sync = new Views.SyncContext(left.DisplayPath, right.DisplayPath, Writable(lloc, lcaps), Writable(rloc, rcaps),
+        // Folders inside each other (also through a link) are compared, but not offered for synchronizing (I94).
+        string? overlap = lloc.IsFileSystem && rloc.IsFileSystem ? SyncPlanner.Overlap(lloc.Path, rloc.Path, Services.Platform.FileOperations.GetFinalPath) : null;
+        var sync = overlap is not null ? null : new Views.SyncContext(left.DisplayPath, right.DisplayPath, Writable(lloc, lcaps), Writable(rloc, rcaps),
             (lcaps & LocationCapabilities.Recycle) != 0, (rcaps & LocationCapabilities.Recycle) != 0, OperatingSystem.IsWindows(),
             (items, sourceIsLeft, permanent) => StartSync(items, sourceIsLeft, permanent, lloc, rloc));
         Views.DirectoryDiffWindow.Start(left.DisplayPath, right.DisplayPath,
-            $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed.",
+            $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed." +
+            (overlap is null ? "" : $" Synchronize is not offered. {overlap}"),
             (progress, ct) => TreeCompare.Compare(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress),
             (entries, leftSide) =>
             {
