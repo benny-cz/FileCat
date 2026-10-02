@@ -645,8 +645,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     owner and portable/usual states collide (I103): regression 1/1 fails, process baseline only 1/4 passes. Actual
     state-directory identity remedy passes 4/4 process cases and Windows guards 6 pass/3 Unix skips; Ubuntu native
     boundary guards 23 pass/4 explicit skips. CI process harness/records added. Source/payload/results retained (E-I103).
-143. Owner's Windows title report queued as Low-priority I104: FileCat first and exactly once, then remaining context,
-    account/elevation information. Both reported titles retained; no title code changed during safety validation.
+143. Owner's Windows title report queued as Low-priority I104. Later clarification: the repeated word comes from the
+    selected directory being named FileCat and is valid. Requested order is FileCat first, then selected path/location,
+    then username/elevation. Both reported titles retained; no title code changed during safety validation.
 144. I103 pushed fa3a02a: all four push CI lanes pass (37036329081). Manual run 37036698071 binds that same source,
     passes all four lanes and Linux/macOS package jobs; dev.539 Linux bytes downloaded/hashed (E-V19-P2).
     Windows tag-only packaging skipped; no publication or release controls changed.
