@@ -12,6 +12,109 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class RecoverySafetyTests
 {
+    [AvaloniaTheory]
+    [InlineData("windows-drive", true)]
+    [InlineData("windows-drive", null)]
+    [InlineData("windows-drive", false)]
+    [InlineData("windows-disk", true)]
+    [InlineData("windows-disk", null)]
+    [InlineData("windows-disk", false)]
+    [InlineData("unix-disk", true)]
+    [InlineData("unix-disk", null)]
+    [InlineData("unix-disk", false)]
+    [InlineData("unix-partition", true)]
+    [InlineData("unix-partition", null)]
+    [InlineData("unix-partition", false)]
+    public async Task Device_admission_rechecks_a_process_inventory_changed_during_confirmation(string route, bool? lateProcess)
+    {
+        if (route == "windows-drive" && !OperatingSystem.IsWindows())
+        {
+            Assert.Skip("The Windows volume-name query needs Windows; its device reader is replaced.");
+            return;
+        }
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        int state = 0, opens = 0, initialChecks = 0;
+        bool? Census()
+        {
+            Interlocked.Increment(ref initialChecks);
+            return Volatile.Read(ref state) switch { 0 => false, 1 => true, _ => null };
+        }
+        var dialogs = new AdmissionDialogs(() =>
+        {
+            Assert.Equal(1, Volatile.Read(ref initialChecks));
+            Volatile.Write(ref state, lateProcess == false ? 0 : lateProcess == true ? 1 : 2);
+        });
+        vm.Dialogs = dialogs;
+        services.Recovery.SharesDisk = (_, _) => false;
+        // Recording admission oracle: no actual device is opened, even by the failing baseline.
+        services.Recovery.OpenDevice = (_, _, _) =>
+        {
+            Interlocked.Increment(ref opens);
+            throw new IOException("Recording fixture reader; no device access.");
+        };
+        var panel = vm.Workspace.Panels[0];
+        var original = panel.ActiveTab;
+        try
+        {
+            if (route.StartsWith("windows-", StringComparison.Ordinal) && OperatingSystem.IsWindows() &&
+                !Environment.IsPrivilegedProcess && Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
+            {
+                Assert.Skip("Windows device admission needs elevation or an installed helper; the recording reader prevents real device access.");
+                return;
+            }
+            if (route == "windows-drive")
+            {
+                string drive = Path.GetPathRoot(root)!;
+                await vm.FindDeletedOnDriveAsync(panel, new Core.FileSystem.DriveTag(drive, "fixture", "Fixed", "NTFS", 0, 0, true), null, Census);
+            }
+            else if (route == "windows-disk")
+                await vm.FindDeletedOnDiskAsync(panel, new Platform.Windows.Recovery.PhysicalDisk(99999, 1024, "fixture", "virtual", false, []), Census);
+            else
+            {
+                string image = Path.Combine(root, "device-reader-fixture.img");
+                File.WriteAllBytes(image, new byte[1024]);
+                var device = new FileCat.Recovery.Unix.UnixBlockDevice(image, 1024, "fixture", "virtual", false,
+                    route == "unix-partition" ? "fixture-disk" : null, [], null);
+                await vm.FindDeletedOnUnixDeviceAsync(panel, device, null, Census);
+            }
+            Assert.Equal(1, dialogs.ScanConfirmations);
+            if (lateProcess == false)
+            {
+                Assert.NotSame(original, panel.ActiveTab);
+                for (int i = 0; i < 250 && Volatile.Read(ref opens) == 0; i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+                Assert.True(Volatile.Read(ref opens) > 0);
+                Assert.Empty(dialogs.Alerts);
+            }
+            else
+            {
+                Assert.Same(original, panel.ActiveTab);
+                Assert.Equal(0, Volatile.Read(ref opens));
+                Assert.Contains(dialogs.Alerts, text => text.Contains("other FileCat", StringComparison.Ordinal));
+            }
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private sealed class AdmissionDialogs(Action confirmed) : IDialogService
+    {
+        public int ScanConfirmations { get; private set; }
+        public List<string> Alerts { get; } = [];
+        public bool IsOpen => false;
+        public Task<bool> ConfirmAsync(string title, string message, string confirmText = "OK", bool danger = false, string cancelText = "Cancel")
+        {
+            Assert.Equal("Scan", confirmText);
+            ScanConfirmations++;
+            confirmed();
+            return Task.FromResult(true);
+        }
+        public Task AlertAsync(string title, string message) { Alerts.Add(message); return Task.CompletedTask; }
+        public Task<PromptResult?> PromptAsync(PromptOptions options) => throw new InvalidOperationException("Unexpected prompt");
+        public Task<ChoiceResult> ChooseAsync(ChoiceOptions options) => throw new InvalidOperationException("Unexpected choice");
+        public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null) => throw new InvalidOperationException("Unexpected keyboard dialog");
+        public Task<object?> ShowCustomAsync(string title, Avalonia.Controls.Control content, IReadOnlyList<DialogButton> buttons,
+            Avalonia.Controls.Control? initialFocus = null, Func<bool>? canConfirm = null, DialogCloser? closer = null) => throw new InvalidOperationException("Unexpected custom dialog");
+    }
+
     [AvaloniaFact]
     public void A_disk_that_holds_FileCats_own_files_is_not_scanned_and_the_safe_way_is_given()
     {

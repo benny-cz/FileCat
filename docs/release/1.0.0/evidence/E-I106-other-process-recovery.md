@@ -239,3 +239,52 @@ Linux JSON `27e5e1ff2deb750b701406aa6142a46c1128353edd4ee2c845517be7ee5774ba`; m
 artifacts/release-evidence/ci-37075680108; verified inventory JSON
 `94b3532c36452ee95285aba4daf9d65c52a903b71a8ec6da4925ffbb2ff8be18`. No tag/package/release job runs on this
 push. Affected CI complete; broader privilege/runtime-alias/race and candidate source-device tracing remain open.
+
+## Confirmation-window admission gap — 2026-10-03 local
+
+Static audit of clean 20e39b0 finds that all three admission methods check safety before the confirmation,
+then authorize/open a recovery device location immediately after acceptance. Another FileCat can start during
+that unbounded dialog interval. Original source, audit and hashes retained before modification. A callback seam
+passes the already-existing controlled census into the three internal admission methods; default production
+behavior remains unchanged. Baseline is 20e39b0 plus that seam and new tests, not a clean candidate.
+
+Twelve cases cover Windows volume, Windows whole disk, Unix whole disk and Unix partition. Each begins with a
+known-absent census, changes it during the confirmation to true/null/false, and observes tab admission and a
+recording device-reader callback. That callback only counts and throws: no actual device is opened. With a late
+true/null, the existing tab must remain and the reader must not be invoked; unchanged false is the control.
+
+Host baseline: four failures/two controls pass, six explicit Windows elevation/helper skips. An initial run's
+six missing-prerequisite failures are retained separately, not counted as product failures. On the identity-bound
+Windows VMware guest (Admin, elevated, build 26300), all twelve run: eight unsafe cases fail and four controls
+pass. This reproduces the gap in every device admission route. All 354 self-contained payload inputs are
+independently verified in the guest. A first staging script misplaced its inputs before execution; the failed
+attempt is retained and a fresh fixture used. No device test result is inferred from that attempt.
+
+Remediation repeats the entire CheckDiskSafety after acceptance, before ForDevice or a reader can run. A refusal
+releases temporary holds and explains the changed safety state; a successful check refreshes the holds. A failed
+check also releases temporary holds. Device-size replacement checks remain in the reader. This closes the
+confirmation interval only: the census is not an atomic reservation against subsequent new processes.
+
+Host after: six pass/six prerequisite skips; disjoint remaining App inventory 236 pass/15 skips. Together these
+cover 263 App cases: 242 pass, 21 explicit skips, no failures. Corrected elevated Windows guest runs the full
+RecoverySafetyTests inventory: 29 pass/three Unix skips, exit 0; all twelve new admission cases pass with no skip.
+Both guest XML inventories are independently checked and all retrieved outputs match guest hashes/sizes.
+The first baseline collector did not retain a numeric process exit code; its complete XML establishes outcomes.
+No baseline exit code is inferred.
+
+| Retained private evidence under i106-confirmation-20261003 | SHA-256 |
+|---|---|
+| before-audit.json (original clean source retained separately) | `f58657dfd22a3de4c06699448b75cf213a19afcff1e447c7c3c7a5453ae7306f` |
+| after-source-inputs.json (20e39b0 plus exact working inputs) | `10b85bd7b863d19edbcac9df4a21406410e43d73268feb621afb42854a325799` |
+| host controlled baseline TRX | `0a32a0bd0b31ca832f2d8139f4a50c3c4802edd63c77fef55641facf5add213c` |
+| host admission after TRX | `7ebd9ccc3674b93c3f89efb003228a699653b0f75951cf0c74b40ef6c1943e26` |
+| host App remainder TRX | `3ee2a8a94370f5a28f930e015d8e9477fb6d2d4b091051947286abff56e09e2b` |
+| guest baseline bundle / native XML | `3357e45419078ba6ed2641310074fa741e5142345890fb813444268bafb1452a` / `c9e08294434fd1c856e725673106a1b17cc6c9548f1d80c74a8bb2de1e5f2fa0` |
+| guest baseline App / test DLL | `749acf84168ce04723ec805bc6528ff6208c66e438b202fc498f9432fd97456f` / `f6e5de2bcaf22f1562da40d6ea9f5574e568d7b5e2c91fc63fc4735564c7ca89` |
+| guest after bundle / native XML | `dc38f9bf15a4f85e4a417e4c33dc164a7e55e9b9ffe947ccfe52995f850b41d4` / `105248abb4b2bda421289321594e1c53ec123849664406752adfb01a478102e8` |
+| guest after App / test DLL | `dec96bc3af3839500ca6b493020f6f2a4ae3ba446718fe0062dc9730b3ee2fe5` / `fa48d69369b21ee28119eead022d66b0c4961caec2de75ca788861e24acb6dc2` |
+
+Strict Unix runner now requires all twelve new cases and explicitly accounts for its three Windows-volume-name
+skips per boundary. Native Linux working inputs and affected CI are being collected. Earlier admission evidence
+does not qualify this correction. I106 stays **Open** for broader visibility/runtime-alias/lifetime races and
+physical source-device tracing; no candidate or source-device zero-write result is claimed.

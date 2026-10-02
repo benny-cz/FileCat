@@ -310,7 +310,7 @@ public sealed partial class MainViewModel
     /// otherwise through the helper, which Windows asks to approve). With <paramref name="folder"/>, the tab then goes to
     /// that folder, or as close to it as the scan goes.
     /// </summary>
-    internal async Task FindDeletedOnDriveAsync(PanelViewModel panel, DriveTag drive, string? folder)
+    internal async Task FindDeletedOnDriveAsync(PanelViewModel panel, DriveTag drive, string? folder, Func<bool?>? otherProcesses = null)
     {
         if (DriveScanProblem() is { } problem)
         {
@@ -330,7 +330,7 @@ public sealed partial class MainViewModel
         }
         string name = $"drive {drive.RootPath.TrimEnd('\\')}" + (string.IsNullOrWhiteSpace(drive.Label) ? "" : $" ({drive.Label})");
         bool system = string.Equals(Path.GetPathRoot(Environment.SystemDirectory), drive.RootPath, StringComparison.OrdinalIgnoreCase);
-        var safety = await Task.Run(() => CheckDiskSafety(device, name));
+        var safety = await Task.Run(() => CheckDiskSafety(device, name, otherProcesses: otherProcesses));
         if (safety.Refusal is not null)
         {
             await RefuseScanAsync(safety);
@@ -352,6 +352,7 @@ public sealed partial class MainViewModel
             ReleaseHoldOff();
             return;
         }
+        if (!await RecheckDeviceSafetyAsync(device, name, otherProcesses)) return;
         _deviceScanned = true;
         var root = Services.Recovery.ForDevice(device, name, 1);
         var scan = panel.OpenTab(root);
@@ -363,7 +364,7 @@ public sealed partial class MainViewModel
     /// A whole disk: after a confirmation, its scan opens in a new tab with the disk's partitions, those found where no
     /// partition is listed (deleted, or a lost table), and those whose first sector is damaged, read from a backup.
     /// </summary>
-    internal async Task FindDeletedOnDiskAsync(PanelViewModel panel, FileCat.Platform.Windows.Recovery.PhysicalDisk disk)
+    internal async Task FindDeletedOnDiskAsync(PanelViewModel panel, FileCat.Platform.Windows.Recovery.PhysicalDisk disk, Func<bool?>? otherProcesses = null)
     {
         if (DriveScanProblem() is { } problem)
         {
@@ -372,7 +373,7 @@ public sealed partial class MainViewModel
         }
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
         bool system = HoldsWindows(disk);
-        var safety = await Task.Run(() => CheckDiskSafety(disk.Device, name));
+        var safety = await Task.Run(() => CheckDiskSafety(disk.Device, name, otherProcesses: otherProcesses));
         if (safety.Refusal is not null)
         {
             await RefuseScanAsync(safety);
@@ -392,6 +393,7 @@ public sealed partial class MainViewModel
             ReleaseHoldOff();
             return;
         }
+        if (!await RecheckDeviceSafetyAsync(disk.Device, name, otherProcesses)) return;
         _deviceScanned = true;
         // The disk's size when it was chosen: a disk plugged in meanwhile under the same number is refused.
         panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name, length: disk.Length));
@@ -498,6 +500,23 @@ public sealed partial class MainViewModel
         }
     }
 
+    private async Task<bool> RecheckDeviceSafetyAsync(string device, string name, Func<bool?>? otherProcesses)
+    {
+        // The confirmation can stay open while another instance starts or a write folder's disk changes.
+        // Revalidate all admission checks before authorizing a device location or invoking its reader.
+        DiskSafety safety;
+        try { safety = await Task.Run(() => CheckDiskSafety(device, name, otherProcesses: otherProcesses)); }
+        catch { ReleaseHoldOff(); throw; }
+        if (safety.Refusal is not null)
+        {
+            ReleaseHoldOff();
+            await RefuseScanAsync(safety);
+            return false;
+        }
+        HoldOff(safety);
+        return true;
+    }
+
     /// <summary>Set once a device's scan was confirmed: what was held off for it stays held off until FileCat closes.</summary>
     private bool _deviceScanned;
 
@@ -564,7 +583,7 @@ public sealed partial class MainViewModel
     /// at its files; with <paramref name="folder"/>, at that folder or as close as the scan goes). The drive is read
     /// directly when this user may, otherwise the system asks for approval first.
     /// </summary>
-    internal async Task FindDeletedOnUnixDeviceAsync(PanelViewModel panel, UnixBlockDevice device, string? folder)
+    internal async Task FindDeletedOnUnixDeviceAsync(PanelViewModel panel, UnixBlockDevice device, string? folder, Func<bool?>? otherProcesses = null)
     {
         bool disk = device.Disk is null;
         string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
@@ -574,7 +593,7 @@ public sealed partial class MainViewModel
             : "Your system asks for an administrator's password, and FileCat then only reads it: FileCat changes nothing on it. ";
         var mounts = disk ? (await Task.Run(UnixDisks.List)).Where(v => v.Disk == device.Device).SelectMany(v => v.MountPoints).ToList() : device.MountPoints.ToList();
         bool system = mounts.Contains("/") || mounts.Contains("/System/Volumes/Data");
-        var safety = await Task.Run(() => CheckDiskSafety(device.Device, name));
+        var safety = await Task.Run(() => CheckDiskSafety(device.Device, name, otherProcesses: otherProcesses));
         if (safety.Refusal is not null)
         {
             await RefuseScanAsync(safety);
@@ -591,6 +610,7 @@ public sealed partial class MainViewModel
             ReleaseHoldOff();
             return;
         }
+        if (!await RecheckDeviceSafetyAsync(device.Device, name, otherProcesses)) return;
         _deviceScanned = true;
         // Its size when it was chosen: a disk plugged in meanwhile under the same name is refused.
         var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1, device.Length);

@@ -755,6 +755,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     result claimed. I107 closed for preliminary remediation; exact-candidate interaction remains mandatory.
     Windows Computer Use remains independently unavailable. Continue unblocked recovery safety work.
 
+165. I106 confirmation-window gap reproduced: original admission checks precede the dialog, allowing a new
+    writer before acceptance. Controlled elevated Windows guest baseline fails eight cases, four controls pass;
+    all four routes covered. Recheck full safety after acceptance, before device authorization. Corrected guest
+    RecoverySafety inventory 29 pass/three skips, all twelve new cases pass. Host complete App inventory 242/263,
+    21 prerequisite/platform skips, no failures. Exact working source/bundles/outputs retained (E-I106). No actual
+    device reader used; broader census/lifetime/physical tracing remains open. Native Unix/affected CI pending.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -789,6 +796,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - I106 (device process census): prior device admission evidence; ordinary-name native after and CI pass at their
   recorded identities. Renamed-apphost audit invalidates broader absence conclusions; executable-identity
   correction under validation. Wider visibility/race/availability audit and candidate tracing pending.
+- I106 confirmation recheck: previous device admission results do not cover changes while confirmation is open;
+  targeted baseline/after and affected App/native Windows inventory retained. Unix and affected CI pending.
 
 ## Next actions (unblocked)
 

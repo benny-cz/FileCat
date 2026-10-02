@@ -43,9 +43,10 @@ def main():
                 'An_unreadable_process_identity_is_unknown_but_a_known_FileCat_still_takes_precedence',
                 'Only_a_known_kernel_thread_is_excluded_from_the_Linux_executable_inventory',
                 'Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere',
+                'Device_admission_rechecks_a_process_inventory_changed_during_confirmation',
                 'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
                 'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'}
-    expected_cases = {method: (3 if method == 'Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere' else 2 if method in {
+    expected_cases = {method: (12 if method == 'Device_admission_rechecks_a_process_inventory_changed_during_confirmation' else 3 if method == 'Device_recovery_waits_for_other_FileCat_processes_even_with_its_own_folders_elsewhere' else 2 if method in {
         'A_portable_recovery_finds_the_per_user_owner_and_independent_windows',
         'The_usual_profile_catalog_includes_portable_profiles_and_the_distinct_DEFAULT_profile'} else 1)
         for method in required}
@@ -67,7 +68,7 @@ def main():
                                 'output': ' '.join(test.itertext()).strip()} for test in tests]
             if Counter(test.get('method') for test in tests) != expected_cases:
                 raise RuntimeError('Required instance/recovery tests were not all executed')
-            expected_skips = 1 + (1 if label == 'edge' else 0) # Windows identity case plus the optional Unix fallback.
+            expected_skips = 4 + (1 if label == 'edge' else 0) # Windows identity/volume-name cases plus the optional Unix fallback.
             if run.returncode or any(test.get('result') == 'Fail' for test in tests):
                 raise RuntimeError('Native instance/recovery tests failed')
             if sum(test.get('result') == 'Skip' for test in tests) != expected_skips:

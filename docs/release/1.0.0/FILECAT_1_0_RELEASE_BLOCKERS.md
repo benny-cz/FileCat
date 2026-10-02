@@ -41,6 +41,10 @@ remain running. I106's wider native audit reproduces a renamed-apphost false abs
 validation. Refined root census/ordinary and root positive cases pass; ordinary-account absent cases remain
 unknown. Corrected Windows guest menus are now verified preliminarily. Continue
 unblocked recovery visibility/race work; latest affected d8c6f3b CI passes all four lanes.
+Confirmation-window audit also reproduces stale admission on all four device routes; repeating full safety after
+acceptance passes all twelve elevated guest admission cases. Host App 242 pass/21 skips; guest full guards 29 pass/
+three skips. New native Unix and affected CI pending. This is a recording-reader check, not source-device tracing;
+broader I106 remains open and no candidate exists.
 
 | ID | Needed | Status |
 |---|---|---|
