@@ -27,7 +27,10 @@ public sealed partial class CloneCopyTests
         var ct = TestContext.Current.CancellationToken;
         var log = TestContext.Current.TestOutputHelper;
         string volume = Path.GetPathRoot(Path.GetFullPath(where))!;
-        Assert.True(GetVolumeInformation(volume, null, 0, out uint serial, out _, out uint flags, null, 0));
+        // Path.GetPathRoot leaves a UNC share without the backslash required by GetVolumeInformationW.
+        if (!Path.EndsInDirectorySeparator(volume)) volume += Path.DirectorySeparatorChar;
+        Assert.True(GetVolumeInformation(volume, null, 0, out uint serial, out _, out uint flags, null, 0),
+            $"GetVolumeInformation({volume}) failed: Win32 {Marshal.GetLastWin32Error()}");
         if ((flags & FILE_SUPPORTS_BLOCK_REFCOUNTING) == 0) Assert.Skip($"{volume} does not clone blocks.");
         log?.WriteLine($"Volume {volume}: serial={serial:X8}, flags={flags:X8}");
         string root = Path.Combine(where, "fc-clone-" + Guid.NewGuid().ToString("N"));
