@@ -8,7 +8,8 @@ namespace FileCat.App.Tests;
 
 /// <summary>
 /// V12: a folder's count stops when its tab leaves the folder or closes. Its size could not land any more, and the tab's
-/// next folder must not say it is counting, nor refuse Count, while the old count goes on. A test platform holds the
+/// next folder must not say it is counting, nor refuse Count, while the old count goes on. A tab moved to the other
+/// panel stays in its folder: its count goes on and lands there. A test platform holds the
 /// count at its start (the folder's identity is read before counting), as a slow disk or a dead share would.
 /// </summary>
 public sealed class FolderCountLeaveTests
@@ -32,6 +33,55 @@ public sealed class FolderCountLeaveTests
     private sealed class TestPlatform : PortablePlatform
     {
         public TestPlatform(Held ops) => FileOperations = ops;
+    }
+
+    [AvaloniaFact]
+    public async Task A_tab_moved_to_the_other_panel_while_counting_gets_its_size_there()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("The test platform stands in for Windows' through its factory.");
+            return;
+        }
+        var held = new Held();
+        var platformBefore = PlatformFactory.WindowsFactory;
+        PlatformFactory.WindowsFactory = () => new TestPlatform(held);
+        try
+        {
+            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+            try
+            {
+                var ct = TestContext.Current.CancellationToken;
+                string files = Path.Combine(root, "files");
+                File.WriteAllBytes(Path.Combine(Directory.CreateDirectory(Path.Combine(files, "counted")).FullName, "one.bin"), new byte[1000]);
+                var from = vm.Workspace.Panels[0];
+                var to = vm.Workspace.Panels[1];
+                var tab = from.OpenTab(Location.FileSystem(files));
+                var listing = tab.Listing;
+                for (int i = 0; i < 300 && !(listing.State == ListingState.Complete && listing.FocusName("counted")); i++) await Task.Delay(20, ct);
+                vm.CountFolderSizes(tab);
+                Assert.True(held.Asked.Wait(TimeSpan.FromSeconds(10), ct), "the count did not start");
+
+                // The same tab, in the other panel: still in its folder, still counting it.
+                vm.Workspace.MoveTabToPanel(tab, to);
+                Assert.Same(to, tab.Panel);
+                Assert.Equal(1, tab.SizingFolders);
+                held.Release.Set();
+                for (int i = 0; i < 300 && tab.SizingFolders > 0; i++) await Task.Delay(20, ct);
+                for (int i = 0; i < 50; i++) await Task.Delay(10, ct);
+                long size = Enumerable.Range(0, listing.VisibleCount).Select(listing.GetVisible).First(e => e.Name == "counted").Size;
+                Assert.Equal(1000, size);
+            }
+            finally
+            {
+                held.Release.Set();
+                AccessibilityTests.Close(services, window, root);
+            }
+        }
+        finally
+        {
+            PlatformFactory.WindowsFactory = platformBefore;
+        }
     }
 
     [AvaloniaFact]
