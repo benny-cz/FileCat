@@ -37,7 +37,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   lanes. Separate portable installation exposes I106; corrected process guard passes ordinary/--data native GUI
   and CI checks. Dev.549 all three Linux formats pass successor checks on SDK-free Ubuntu 26.04 (E-V19-P3).
   Wider audit reproduces a renamed apphost missed by the name-only census; executable-identity correction under
-  validation (E-I106). I107 native trace identifies unchanged theme rebuilding the open menu; palette guard,
+  validation, refined root native census and App checks pass; ordinary-account visibility/races remain open
+  (E-I106). I107 native trace identifies unchanged theme rebuilding the open menu; palette guard,
   affected App/CI and owner host check pass. Corrected guest/candidate click remains pending. Owner restored the
   Windows snapshot and guest access works; keep Windows VM running. Computer Use runtime remains unavailable
   with sandbox setup refresh errors, independently of FileCat (E-I107).
@@ -733,6 +734,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     inventory passes 235/250 with 15 explicit skips. Ordinary-account absent cases now return unknown rather
     than false; safely refused, but process-visibility/availability remains an open qualification issue. Full
     before/after archives independently verified; successor CI and exact-candidate tracing pending (E-I106).
+160. I106 identity source 06c5791 passes all four CI lanes. Exact 1a9f1ba manual run 37073593358 passes all lanes
+    and Linux/macOS dev.553 packaging; strict Unix independently verifies 53 pass/four skips per lane. Packages
+    retained, not native-qualified; later availability change requires successor checks (E-I106).
+161. I106 availability audit identifies kernel tasks/no executable and normal Python/snapd images above the
+    initial bound. PF_KTHREAD-only exclusion and larger bounded/vectorized inspection pass native root absence,
+    all three ordinary/root live cases and root absence on close; ordinary restricted census remains unknown.
+    Complete App inventory 236/251 with 15 skips, no failures; raw archive independently verified. Correction
+    d8c6f3b pushed; affected CI, rebuilt packages, broader visibility/races/candidate tracing pending (E-I106).
+162. I107 clean 1a9f1ba self-contained Windows input staged after owner snapshot restoration. UUID/OS and all
+    256 payload hashes verified, CLI version exits 0; Admin desktop launcher captures isolated menu trace/exit.
+    Computer Use reset/import still fails before input; owner native click result requested and pending (E-I107).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -775,8 +787,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    guest click remains pending. Windows Computer Use is independently unavailable. I106 native process/GUI guard
    and affected CI pass at their identities. Dev.549 formats pass successor checks on 26.04 (E-V19-P3); wider
    audit reproduces a renamed-apphost gap. Identity correction passes native positive cases and affected App
-   checks, while absent cases remain unknown under ordinary-account visibility. Complete successor CI and
-   investigate safe process-discovery availability, then continue write-location/race tracing. Exact dev.539 Linux packages pass on both fresh
+   checks; refined root census now establishes absence while ordinary-account visibility remains unknown.
+   Complete d8c6f3b successor CI, continue visibility/runtime-alias/race and write-location audits. Prepared
+   Windows guest menu input awaits the owner because Computer Use is unavailable. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly

@@ -175,3 +175,59 @@ Full native after archive independently stream-verified and guest/host hashes ag
 | native-identity-after-full.tar.gz.verified.json | `f9feae3c0c36b6155046d60a4aef535080f3d9c68795c37bd8980be4e5ce3684` |
 | alias-after-windows/guards.trx | `8cc87d8176d03c1af91462e1bc21e7537dc189be1f1bd073e88b2859e881e9ed` |
 | alias-after-windows-remainder/app-remainder.trx | `56ed78ccfb02f69156249340bd7796e9e64adc439f0416377c656e6ee41520e0` |
+
+## Visibility/read-bound follow-up
+
+Independent procfs audit at the earlier working identity inputs records 285 permission errors/73 readable
+identities for uid 1000; root records 120 readable/240 missing executable links, including kernel tasks, and
+three executables above the four-MiB bound (Python 7,477,160 bytes twice; snapd 33,654,424 bytes). Production
+census returns null for both callers. Raw audits retained: uid-1000 JSON
+`43acf068ecfb3bf752662a6f131a64e1b2f1386d6bae2b4f42f41192651ca213`; uid-0 JSON
+`98bdea34f46f49b40abd12140372ccdde9cad507aeb6c0e7950dda98634513ee`.
+
+The follow-up excludes only Linux tasks whose OS flags explicitly identify PF_KTHREAD; unparseable task
+metadata stays unknown. The [kernel's flag definition](https://github.com/torvalds/linux/blob/master/include/linux/sched.h)
+confirms this is a kernel thread. Executable reads remain bounded, now at 64 MiB, with vectorized binding search;
+an incomplete or inaccessible read remains unknown. No names of ordinary system services are allowlisted.
+An exact-bound EOF can be established rather than falsely treated as incomplete. Regression covers valid
+kernel/user flags, a command with spaces/parenthesis, malformed flags and a larger nonmatching executable.
+
+Follow-up committed/pushed as `d8c6f3baa4c427199c5e128a04a750a616bdb16e`. Native working payload is separately
+bound to 1a9f1ba plus retained working input hashes, not relabelled as a clean d8c6f3b build. Same SDK-free Ubuntu
+26.04.1, fixture `c27f63cc52044651beb79652435aa6e2`: actual GUI PIDs 18713/18859/18989, independent busy leases,
+ordinary and root census true for portable/--data/renamed cases; all graceful closes return 0. Root census
+returns false before and after each case. Ordinary-account absent cases still return null due to permissions,
+as required for safe refusal. This establishes root process-discovery availability on this guest; it does not
+qualify ordinary-account device recovery, Windows/macOS availability, process-start races or source-device writes.
+
+Disjoint guard/remainder App runs: 236/251 pass, zero failures, 15 platform skips. Guards 17/20 with three Unix
+skips; remainder 219/231 with 12 skips. Strict Unix inventory now requires 60 outcomes (56 pass/four skips).
+Full native archive independently stream-verified, guest/host SHA-256 agrees. No source-device scan.
+
+| Availability working input/result | SHA-256 |
+|---|---|
+| self-contained Linux bundle, 54,182,839 bytes | `1d7072f42a4e8587a69313d8169dc8dc84fa8598b85146aee54bfccfc6233453` |
+| raw SingleInstance.cs | `d8958f13c4f6cf67d7c828d28f9669727256b0afdd8a73ee5298a1a728b2f41a` |
+| raw RecoverySafetyTests.cs | `c3bbc435e5e1d90d9acdf194c1ca945c73cef048dd9d77e16e1744dd5440ecea` |
+| raw strict Unix harness | `0049ea4df38f71d6d18df0ce321eacf9f9b923ab3ee07ede92ebb5eff88964b3` |
+| native-availability-after-inputs.json | `1d03937e30543102cae61f373d66037c2403dd336b81d2eae61521fab5057a3f` |
+| native App DLL | `a0601feceaefbc1f66a9576856a16b105b7a53766aca76e14aa3c8375ea5cad1` |
+| native Core DLL | `9f56ee2b1aa274c10e0ea9560f20101e24e7f2cbe1ffc1e182faaad5ecb6d2c6` |
+| native smoke DLL | `52e3d5d8d72685d3c3224c642ba4216de7a4857c3d382165687d8a7c9f172b35` |
+| native-availability-after-results.json | `43dc81c2417ee5e337a66bcea00714075adf2da02e352b703d1a5dc237dcf314` |
+| native-availability-after-full.tar.gz, 105,077,230 bytes, 607 members | `80f63acda95abd2b73d91be1d56ee342ffce615d6a6a11bb9c52aa8105627d38` |
+| native-availability-after-full.tar.gz.verified.json | `e4dee7a51dd847b233b3e7fbedd9d9352a862d46d19a482b6ff419105745a813` |
+| availability-after-windows/guards.trx | `2a506e469197b0ab5bf52d8688b654d6ae27a35713f4f900ffcb3a537470eb5a` |
+| availability-after-windows-remainder/app-remainder.trx | `7e25aef5cac786131bd10637504f2e48a0d010a82d774c892a97a591bc43acbd` |
+
+Earlier identity correction 06c5791 passes all four CI lanes, run 37073405252. Manual development run
+[37073593358](https://github.com/benny-cz/FileCat/actions/runs/37073593358), exact 1a9f1ba, passes all four lanes
+and Linux/macOS packaging (dev.553); Windows tag-only package correctly skipped. Independently verified strict
+Unix inventory: 53 pass/four skips each, 57 outcomes. Linux result JSON
+`04ca0ce10d2a8e7a66c1420130523004e3b026937208ef6b2c6957799f836fc3`; macOS
+`b80d854863b619befe98ef40bb238d7095384a094ab2e7a0c75b3a9be782686d`. Raw results/packages retained under
+artifacts/release-evidence/ci-37073593358; verified inventory JSON
+`62aeda5589db4253564b3b90995aeda363c604d64645a3fad1a9952bf8d871ce`.
+
+This earlier CI/package success cannot qualify d8c6f3b's later availability correction. Its CI/native rebuilt
+packages, broader visibility/runtime aliases/race audit and exact-candidate tracing remain open; I106 not Closed.

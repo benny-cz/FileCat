@@ -159,3 +159,29 @@ created. Native corrected guest click remains pending. After an owner-authorized
 owner asked to keep the Windows VM running; the same VM was restarted without restoring a snapshot. The owner
 then reverted their snapshot and confirmed availability; guest access succeeds again. Earlier diagnostics and
 native evidence are safely retained on the host. Keep the Windows VM running per the latest instruction.
+
+## Corrected guest input prepared after snapshot restoration
+
+Clean source `1a9f1ba7233b84b04950202cf26866aaf15e8108`, self-contained win-x64/.NET 10.0.12 publish, version
+0.1.0-preview. VMware hostname/UUID/build 26300 verified again. The bundle and all 256 extracted input hashes
+are checked in the guest; native apphost --version exits 0. No runtime installation needed. Isolated fixture
+`5ff09cb5b12d420f84fc1ea14a2814f9`. Admin desktop launcher:
+`C:\Users\Admin\Desktop\FileCat Corrected Check (1a9f1ba).cmd`, trace enabled, ordinary renderer, explicit
+fresh --data/--new-instance, invocation/stdout/stderr/exit capture. The launcher has not been operated by the agent.
+
+Initial invalid-token staging is stopped by its guard before a fixture/GUI launch. A subsequent partial owned
+extraction is retained, then owner token and all extracted hashes are reverified before completing setup.
+The failed staging attempts are infrastructure evidence, not native product failure/success.
+
+| Corrected guest input/setup | SHA-256 |
+|---|---|
+| self-contained bundle, 83,490,368 bytes | `6e477c6402ff738c0129e97ed448f77b0a0a81169e0e87969a4f55e06dc075b7` |
+| full input manifest | `2c7838eee34cdfce0d46506664bb0e8bac75fa301d43b06d03cda4d0bb063494` |
+| FileCat.exe | `f375cf707f5be080841ea26c19ba58dd5e586997c5ea5b7086b90913675c56e2` |
+| FileCat.dll | `0a87d12b6b682dac1c882b9b731fa37e71c00f7b7ffb0fbc9dd0a3c4bc217e96` |
+| Core DLL | `9f56ee2b1aa274c10e0ea9560f20101e24e7f2cbe1ffc1e182faaad5ecb6d2c6` |
+| corrected-stage-result JSON | `721ed29cc15e3dbcd2730d79ee668e8d76d1bf6caf1d771865a3b81961312b93` |
+
+Computer Use reset/import still exits unexpectedly on 2026-10-03 local, with no app/window selection or input.
+Owner requested to launch the prepared desktop check, click File/View twice and close, reporting whether menus
+stay open and accept clicks. Result pending. Independent Linux work continues; no candidate qualification claimed.
