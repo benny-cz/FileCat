@@ -51,6 +51,13 @@ file count once (by FileCat's file identity), groups need two files, links to fi
 one group (the file and the copy), two names reported (`DuplicateSameFileTests`, NTFS; a portable test with a stand-in
 identity).
 
+## Synchronize and nested folders (I94, `65cee78`)
+
+The same question for comparisons: folders inside each other, by path or through a junction, were offered for
+synchronizing, and Mirror toward the outer one removed the source. Synchronize is now not offered for them (the
+comparison still runs), by path or by final path; `SyncTests`, `SyncOverlapTests` (NTFS junction) and
+`DirectoryDiffTests` (the window; fails with the check bypassed).
+
 ## Not covered here
 
 - Saved criteria round trips (E-V13-F1 covers the time fields; the rest not re-read here).

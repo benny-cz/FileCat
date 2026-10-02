@@ -522,6 +522,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     twice. Searches now walk their roots as the disk spells them. Duplicates: **I93** (Medium–High, `bf395c6`): two
     names of one file (a hard link, a path through a junction) were grouped as copies, so "all but one" could mark the
     file itself for deletion; now names of one file count once, by file identity, and links are left out.
+    Synchronize: **I94** (Medium–High, `65cee78`): folders inside each other (also through a junction) were offered,
+    and Mirror toward the outer one removed the source; now not offered for them.
 
 ## Evidence invalidated by the campaign's own changes
 
