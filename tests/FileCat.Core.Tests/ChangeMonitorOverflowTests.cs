@@ -33,12 +33,15 @@ public sealed class ChangeMonitorOverflowTests
         while (monitor.Overflows == 0 && rounds < 5)
         {
             int round = rounds++;
-            await Task.WhenAll(Enumerable.Range(0, 4).Select(t => Task.Run(() =>
+            // When the last change was made, as each thread saw it: the test's own wake-up after them can come seconds
+            // later on a busy machine, after the reread they asked for (CI run 36946911728).
+            var lastChange = await Task.WhenAll(Enumerable.Range(0, 4).Select(t => Task.Run(() =>
             {
                 for (int i = 0; i < 2500; i++) File.WriteAllText(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"), "c");
                 for (int i = 0; i < 2500; i++) File.Delete(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"));
+                return DateTime.UtcNow.Ticks;
             }, ct)));
-            churnEnded = DateTime.UtcNow.Ticks;
+            churnEnded = lastChange.Max();
         }
         monitor.BeforeNotification = null;
         TestContext.Current.TestOutputHelper?.WriteLine($"{rounds} round(s) of 20,000 changes: {monitor.Overflows} overflow(s), {Interlocked.Read(ref reads)} reread(s) asked");
