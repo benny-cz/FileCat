@@ -51,6 +51,16 @@ closes it; and closes a tab while its folder is counted. The window's thread is 
 last of them. **None raised anything** (two runs; App suite 223, 0 failed). With the count code from before I88's fix
 the same test saw two `ObjectDisposedException`s (the commit message says six seconds of watching; it is three).
 
+## Esc, and a call that does not return (`84bb7ed`)
+
+Esc (or unmarking the folder, or unmarking everything) stopped a count, but the tab took it off its running counts only
+when the count's task returned, which a call held by a slow disk or a dead share can put off; meanwhile the status line
+said it was counting and Count was refused. A stopped count now ends in its tab at once, as leaving the folder does.
+`FolderCountLeaveTests.Esc_ends_a_count_in_its_tab_at_once_even_while_a_call_is_held` fails without the change (the
+tab still counting after Esc). Esc on an analysis cancels it and its banner says how far it got
+(`AnalysisLeaveTests.Esc_cancels_an_analysis_and_says_how_far_it_got`). App 229, 0 failed. (The commit message names
+Ctrl+- for unmarking everything; that key was not checked.)
+
 ## A tab moved to the other panel (`d8349dd`)
 
 Moving a tab between panels moves the same tab, still in its folder, so its count is not stopped: held at its start,
