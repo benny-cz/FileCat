@@ -27,9 +27,9 @@ public sealed class RecoverySafetyTests
     [InlineData("unix-partition", false)]
     public async Task Device_admission_rechecks_a_process_inventory_changed_during_confirmation(string route, bool? lateProcess)
     {
-        if (route == "windows-drive" && !OperatingSystem.IsWindows())
+        if (route.StartsWith("windows-", StringComparison.Ordinal) && !OperatingSystem.IsWindows())
         {
-            Assert.Skip("The Windows volume-name query needs Windows; its device reader is replaced.");
+            Assert.Skip("Windows device admission routes need Windows; their device reader is replaced.");
             return;
         }
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();

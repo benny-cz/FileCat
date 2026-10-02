@@ -284,7 +284,10 @@ No baseline exit code is inferred.
 | guest after bundle / native XML | `dc38f9bf15a4f85e4a417e4c33dc164a7e55e9b9ffe947ccfe52995f850b41d4` / `105248abb4b2bda421289321594e1c53ec123849664406752adfb01a478102e8` |
 | guest after App / test DLL | `dec96bc3af3839500ca6b493020f6f2a4ae3ba446718fe0062dc9730b3ee2fe5` / `fa48d69369b21ee28119eead022d66b0c4961caec2de75ca788861e24acb6dc2` |
 
-Strict Unix runner now requires all twelve new cases and explicitly accounts for its three Windows-volume-name
-skips per boundary. Native Linux working inputs and affected CI are being collected. Earlier admission evidence
+Strict Unix runner requires all twelve new cases and accounts for six Windows-admission skips per boundary.
+The first native Linux run caught a test routing error: the Windows whole-disk cases attempted its Windows system
+directory lookup on Linux. This is not a product route offered on Unix. Complete failures are retained; the test
+now declares that route's platform prerequisite, with Windows coverage already established above.
+Native Linux corrected working inputs and affected CI are being collected. Earlier admission evidence
 does not qualify this correction. I106 stays **Open** for broader visibility/runtime-alias/lifetime races and
 physical source-device tracing; no candidate or source-device zero-write result is claimed.

@@ -68,7 +68,7 @@ def main():
                                 'output': ' '.join(test.itertext()).strip()} for test in tests]
             if Counter(test.get('method') for test in tests) != expected_cases:
                 raise RuntimeError('Required instance/recovery tests were not all executed')
-            expected_skips = 4 + (1 if label == 'edge' else 0) # Windows identity/volume-name cases plus the optional Unix fallback.
+            expected_skips = 7 + (1 if label == 'edge' else 0) # Windows identity/admission cases plus the optional Unix fallback.
             if run.returncode or any(test.get('result') == 'Fail' for test in tests):
                 raise RuntimeError('Native instance/recovery tests failed')
             if sum(test.get('result') == 'Skip' for test in tests) != expected_skips:
