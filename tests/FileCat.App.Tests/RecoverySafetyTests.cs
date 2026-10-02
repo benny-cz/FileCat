@@ -210,7 +210,17 @@ public sealed class RecoverySafetyTests
         System.Text.Encoding.UTF8.GetBytes("/FileCat.dll\0").CopyTo(bytes, 8187);
         using (var input = new MemoryStream(bytes)) Assert.True(SingleInstance.IsFileCatAppHost(input));
         using (var input = new MemoryStream("OtherFileCat.dll\0"u8.ToArray())) Assert.False(SingleInstance.IsFileCatAppHost(input));
-        using (var input = new MemoryStream(new byte[4 * 1024 * 1024 + 1])) Assert.Null(SingleInstance.IsFileCatAppHost(input));
+        using (var input = new MemoryStream(new byte[SingleInstance.RecoveryProcessImageReadLimit + 1])) Assert.Null(SingleInstance.IsFileCatAppHost(input));
+        using (var input = new MemoryStream(new byte[8 * 1024 * 1024])) Assert.False(SingleInstance.IsFileCatAppHost(input));
+    }
+
+    [Fact]
+    public void Only_a_known_kernel_thread_is_excluded_from_the_Linux_executable_inventory()
+    {
+        Assert.True(SingleInstance.KernelThreadFromStat("42 (kworker) S 1 2 3 4 5 2097152 0 0"));
+        Assert.False(SingleInstance.KernelThreadFromStat("42 (a name ) with spaces) S 1 2 3 4 5 4194304 0 0"));
+        Assert.Null(SingleInstance.KernelThreadFromStat("42 (missing flags) S 1"));
+        Assert.Null(SingleInstance.KernelThreadFromStat("42 (invalid) S 1 2 3 4 5 unknown"));
     }
 
     [Fact]

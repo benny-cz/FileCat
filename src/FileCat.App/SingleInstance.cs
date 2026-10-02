@@ -54,6 +54,12 @@ public static partial class SingleInstance
                 try
                 {
                     if (process.HasExited) continue;
+                    if (enumerate is null && OperatingSystem.IsLinux())
+                    {
+                        bool? kernel = KernelThreadFromStat(File.ReadAllText($"/proc/{process.Id}/stat"));
+                        if (kernel == true) continue; // A kernel thread cannot host the managed application.
+                        unknown |= kernel is null;
+                    }
                     // The existing test seam supplies an already selected candidate inventory. Production also
                     // inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
                     bool? match = identify is not null ? identify(process) : enumerate is not null ? true :
@@ -84,12 +90,24 @@ public static partial class SingleInstance
         return IsFileCatAppHost(input);
     }
 
+    internal const int RecoveryProcessImageReadLimit = 64 * 1024 * 1024;
+
+    internal static bool? KernelThreadFromStat(string stat)
+    {
+        // proc(5) field 9 is the kernel's task flags; PF_KTHREAD is 0x00200000. The command may contain ')'.
+        int end = stat.LastIndexOf(')');
+        if (stat.Length > 4096 || end < 0) return null;
+        var fields = stat[(end + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return fields.Length > 6 && uint.TryParse(fields[6], System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out uint flags) ? (flags & 0x00200000) != 0 : null;
+    }
+
     internal static bool? IsFileCatAppHost(Stream input)
     {
         // Published apphosts bind this NUL-terminated relative assembly path even when the executable is renamed.
         // Bound reads of other executables; an incomplete inspection remains unknown, never an absent process.
         ReadOnlySpan<byte> binding = "FileCat.dll\0"u8;
-        const int limit = 4 * 1024 * 1024;
+        const int limit = RecoveryProcessImageReadLimit;
         byte[] buffer = new byte[8192 + binding.Length];
         int carry = 0, total = 0;
         while (total < limit)
@@ -98,13 +116,17 @@ public static partial class SingleInstance
             if (count == 0) return false;
             total += count;
             var data = buffer.AsSpan(0, carry + count);
-            for (int offset = 0; offset <= data.Length - binding.Length; offset++)
-                if (data[offset..].StartsWith(binding) && (offset == 0 && total == count ||
-                    offset > 0 && data[offset - 1] is 0 or (byte)'/' or (byte)'\\')) return true;
+            int start = 0, offset;
+            while ((offset = data[start..].IndexOf(binding)) >= 0)
+            {
+                offset += start;
+                if (offset == 0 && total == count || offset > 0 && data[offset - 1] is 0 or (byte)'/' or (byte)'\\') return true;
+                start = offset + 1;
+            }
             carry = Math.Min(binding.Length, data.Length);
             data[^carry..].CopyTo(buffer);
         }
-        return null;
+        return input.ReadByte() < 0 ? false : null;
     }
 
     private static string BaseName(string? profile, string? dataRoot)
