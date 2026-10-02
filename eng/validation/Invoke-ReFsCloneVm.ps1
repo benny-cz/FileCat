@@ -118,25 +118,25 @@ try {
     & "$env:SystemRoot\System32\diskpart.exe" /s $diskpartFile 2>&1 |
         Out-File -LiteralPath (Join-Path $root 'diskpart.txt') -Encoding UTF8
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $vhd -PathType Leaf)) { throw 'VHDX creation failed.' }
-    Mount-DiskImage -ImagePath $vhd -NoDriveLetter | Out-Null
+    Mount-DiskImage -ImagePath $vhd -NoDriveLetter -ErrorAction Stop | Out-Null
     $mounted = $true
     $disk = Get-FixtureDisk
     if ($disk.PartitionStyle -ne 'RAW') { throw 'Refusing: newly created VHDX is not empty.' }
-    $disk | Initialize-Disk -PartitionStyle GPT | Out-Null
+    $disk | Initialize-Disk -PartitionStyle GPT -ErrorAction Stop | Out-Null
     $disk = Get-FixtureDisk
     $ownedDiskId = $disk.UniqueId
     if (-not $ownedDiskId) { throw 'Refusing: virtual disk has no unique identity.' }
-    $partition = $disk | New-Partition -UseMaximumSize -AssignDriveLetter
+    $partition = $disk | New-Partition -UseMaximumSize -AssignDriveLetter -ErrorAction Stop
     $label = "FCCLONE_$($RunId.Substring(0,16))"
     $disk = Get-FixtureDisk
     if ($partition.DiskNumber -ne $disk.Number) { throw 'Refusing: partition is on another disk.' }
     try {
-        $partition | Format-Volume -FileSystem ReFS -NewFileSystemLabel $label -Confirm:$false | Out-Null
+        Format-Volume -Partition $partition -FileSystem ReFS -NewFileSystemLabel $label -Confirm:$false -ErrorAction Stop | Out-Null
     } catch {
         Note "Plain ReFS format refused: $($_.Exception.Message); trying Dev Drive on the same verified partition."
         $disk = Get-FixtureDisk
         if ($partition.DiskNumber -ne $disk.Number) { throw 'Refusing: partition mapping changed.' }
-        $partition | Format-Volume -DevDrive -NewFileSystemLabel $label -Confirm:$false | Out-Null
+        Format-Volume -Partition $partition -DevDrive -NewFileSystemLabel $label -Confirm:$false -ErrorAction Stop | Out-Null
     }
     $volume = $partition | Get-Volume
     if ($volume.FileSystem -ne 'ReFS' -or $volume.FileSystemLabel -ne $label) { throw 'ReFS fixture verification failed.' }
@@ -153,7 +153,7 @@ try {
     $localExit = Run-Case 'local' $local $binary
     $sharePath = (New-Item -ItemType Directory -Path (Join-Path $volumeRoot 'share')).FullName
     Get-FixtureDisk | Out-Null
-    New-SmbShare -Name $shareName -Path $sharePath -FullAccess ([Security.Principal.WindowsIdentity]::GetCurrent().Name) | Out-Null
+    New-SmbShare -Name $shareName -Path $sharePath -FullAccess ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -ErrorAction Stop | Out-Null
     $shareCreated = $true
     $shareExit = Run-Case 'smb' "\\localhost\$shareName" $binary
     # Run-Case also requires the TRX to show an executed, passing case.
@@ -167,11 +167,11 @@ try {
             Assert-OwnedRoot
             $share = Get-SmbShare -Name $shareName
             if ($share.Path -ne $sharePath) { throw 'Refusing share cleanup: its path changed.' }
-            Remove-SmbShare -Name $shareName -Force -Confirm:$false
+            Remove-SmbShare -Name $shareName -Force -Confirm:$false -ErrorAction Stop
         }
         if ($mounted) {
             Get-FixtureDisk | Out-Null
-            Dismount-DiskImage -ImagePath $vhd
+            Dismount-DiskImage -ImagePath $vhd -ErrorAction Stop
             $mounted = $false
         }
         if ($passed -and (Test-Path -LiteralPath $vhd)) {
