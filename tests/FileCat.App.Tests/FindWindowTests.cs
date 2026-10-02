@@ -166,6 +166,8 @@ public sealed class FindWindowTests
             string skipped = Path.Combine(root, "files", "cache");
             Directory.CreateDirectory(skipped);
             File.WriteAllText(Path.Combine(skipped, "x.txt"), "x");
+            // A search reports folders as the disk spells them (the temporary folder may be written otherwise).
+            skipped = Core.FileSystem.PathUtil.WithDiskCase(skipped);
             services.Settings.SearchIgnoredFolders.Add(new IgnoredFolderEntry { Folder = "cache" });
             var find = await OpenFindAsync(vm, ct);
             await SearchAsync(find, "*.txt", ct);

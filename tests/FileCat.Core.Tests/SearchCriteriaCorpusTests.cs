@@ -78,10 +78,11 @@ public sealed class SearchCriteriaCorpusTests : IDisposable
                 if (File.Exists(path) && rng.Next(8) == 0) attributes |= FileAttributes.ReadOnly;
                 File.SetAttributes(path, attributes);
             }
-        // The tree as the system lists it now, for the reference.
+        // The tree as the system lists it now, for the reference: under the folder as the disk spells it, as a search does.
         var items = new List<Item>();
-        foreach (var info in new DirectoryInfo(_dir.Path).EnumerateFileSystemInfos("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 }))
-            items.Add(new Item(info.FullName, Path.GetRelativePath(_dir.Path, info.FullName), info.Name, info is DirectoryInfo, info.Attributes,
+        string top = FileSystem.PathUtil.WithDiskCase(_dir.Path);
+        foreach (var info in new DirectoryInfo(top).EnumerateFileSystemInfos("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = 0 }))
+            items.Add(new Item(info.FullName, Path.GetRelativePath(top, info.FullName), info.Name, info is DirectoryInfo, info.Attributes,
                 info is FileInfo f ? f.Length : 0, info.LastWriteTimeUtc, info.CreationTimeUtc));
         return items;
     }
@@ -138,7 +139,8 @@ public sealed class SearchCriteriaCorpusTests : IDisposable
         var nowUtc = DateTime.UtcNow;
         var rng = new Random(Seed);
         var tree = Build(rng, nowUtc);
-        string root = _dir.Path;
+        // As the disk spells it, as a search reports what it finds (the temporary folder may be written otherwise).
+        string root = FileSystem.PathUtil.WithDiskCase(_dir.Path);
         var dirs = tree.Where(i => i.IsDir).ToList();
         int refused = 0, empty = 0, total = 0;
         for (int index = 0; index < Queries; index++)

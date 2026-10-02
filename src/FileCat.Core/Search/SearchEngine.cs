@@ -223,9 +223,12 @@ public sealed class SearchSession
             }
             else
             {
-                foreach (var root in _query.Roots)
+                foreach (var typed in _query.Roots)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // As the disk spells it: a root typed in another case names the same folders on Windows, and its finds
+                    // must be the same items as through any other spelling (appended searches list each file once).
+                    string root = PathUtil.WithDiskCase(typed);
                     Walk(root, root, 0, ct);
                 }
             }

@@ -76,6 +76,44 @@ public static class PathUtil
         return string.Concat(path.AsSpan(0, at), [char.ToUpperInvariant(path[at])], path.AsSpan(at + 1));
     }
 
+    /// <summary>
+    /// The path spelled as the disk spells it, on Windows: each existing folder or file name in the letter case it was
+    /// created with (a short 8.3 name becomes its long name), so that two spellings of one place give one path. The drive
+    /// letter is upper case; a server and share are kept as written; past the first name that does not exist, the rest is
+    /// kept as written. Elsewhere, and for \\?\ paths, the path is returned unchanged.
+    /// </summary>
+    public static string WithDiskCase(string path)
+    {
+        if (!IsWindows || path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.StartsWith(@"\\.\", StringComparison.Ordinal)) return path;
+        string full;
+        try { full = WithUpperDrive(Path.GetFullPath(path)); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return path; }
+        string? root = Path.GetPathRoot(full);
+        if (string.IsNullOrEmpty(root)) return path;
+        var names = full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        string current = root;
+        for (int i = 0; i < names.Length; i++)
+        {
+            string? found = null;
+            if (names[i].AsSpan().IndexOfAny('*', '?') < 0)
+            {
+                try
+                {
+                    // A name as the search pattern finds that one entry, whatever its case, under the name it has.
+                    foreach (var entry in Directory.EnumerateFileSystemEntries(current, names[i]))
+                    {
+                        found = Path.GetFileName(entry);
+                        break;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+            }
+            if (found is null) return Path.Join([current, .. names[i..]]);
+            current = Path.Join(current, found);
+        }
+        return current;
+    }
+
     /// <summary>"\\server" for any UNC path, otherwise null.</summary>
     public static string? GetUncServer(string path)
     {
