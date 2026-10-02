@@ -33,7 +33,9 @@ def main():
                 'A_disk_that_holds_FileCats_own_files_is_not_scanned_and_the_safe_way_is_given',
                 'An_instance_connection_outside_the_temporary_folder_is_guarded_before_scanning',
                 'A_running_usual_instances_connection_is_guarded_and_an_unknown_location_is_refused',
-                'The_runtime_temporary_folder_is_guarded_before_scanning'}
+                'The_runtime_temporary_folder_is_guarded_before_scanning',
+                'An_independent_instance_is_visible_until_release_and_stale_files_are_ignored',
+                'A_usual_instance_with_another_profile_is_guarded_before_scanning'}
     for label, temp in [('edge', edge), ('long', deep), ('unicode', unicode)]:
         temp.mkdir(mode=0o700)
         xml = args.evidence_dir / f'{label}.xml'

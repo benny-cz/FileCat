@@ -50,6 +50,8 @@ public sealed class AppPaths
     public string JournalDirectory => Path.Combine(LocalDirectory, "journal");
     public string LogDirectory => Path.Combine(LocalDirectory, "diagnostics");
     public string CacheDirectory => Path.Combine(LocalDirectory, "cache");
+    /// <summary>Independent instance lifetime files, inside the same guarded local state root.</summary>
+    public string InstancesDirectory => Path.Combine(LocalDirectory, "instances");
     /// <summary>.reg backups taken before Registry subtrees are deleted (plan §12.2: recoverable original data).</summary>
     public string RegistryBackupDirectory => Path.Combine(LocalDirectory, "registry-backups");
     /// <summary>Portable/local scratch for staged previews and tool argument files.</summary>
@@ -78,6 +80,7 @@ public sealed class AppPaths
         ("settings and history", WorkspacesDirectory),
         ("settings and history", KeysDirectory),
         ("logs, journals, caches and temporary files", LocalDirectory),
+        ("logs, journals, caches and temporary files", InstancesDirectory),
         ("logs, journals, caches and temporary files", JournalDirectory),
         ("logs, journals, caches and temporary files", ElevationExchangeDirectory),
         ("logs, journals, caches and temporary files", LogDirectory),

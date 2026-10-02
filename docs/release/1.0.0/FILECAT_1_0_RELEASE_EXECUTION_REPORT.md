@@ -629,6 +629,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     App 206/233 with 27 explicit skips pass. Both required WebKit cases pass. Windows controls 3 pass/3 Unix skips.
     Exact inputs, failed setup/build attempts and native results retained (E-I101). CI/rebuilt packages remain pending.
 
+141. I101 pushed 369f55f and all four CI lanes pass (37032428169). Actual --new-instance Ubuntu GUI is missed by
+    the recovery probe, and another-profile guard regression fails: I102. Independent lifetime locks/metadata stay
+    in guarded state folders; all usual profiles checked. Fixed actual GUI is detected, then closed/cleaned correctly;
+    8/8 process cases include last-owner/crash and normal-owner forwarding. Boundary 23 pass/1 skip, full App 208/235
+    with 27 explicit skips, native paths 13 pass/1 skip. Windows guards 5/8, paths 13/14 with platform skips.
+    Intermediate native/Windows failures retained and remedied (E-I102). CI/rebuilt packages/write tracing pending.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -654,6 +661,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   evidence; native working inputs verified, CI/exact rebuilt package and candidate evidence still required.
 - I101 (runtime temporary-folder guard and endpoint metadata): earlier Unix recovery/endpoint metadata evidence;
   affected native suites/harnesses revalidated, CI/rebuilt package and candidate write tracing still required.
+- I102 (independent instance lifetime/profiles and guarded instance directory): prior recovery probe, independent
+  startup/forwarding and write-location evidence; affected native checks rerun, CI/packages/candidate tracing pending.
 
 ## Next actions (unblocked)
 

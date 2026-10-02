@@ -457,22 +457,22 @@ public sealed partial class MainViewModel
             return new DiskSafety(refusal, command, false, false);
         }
         string? profile = App.StartupOptions.Profile;
-        if (Services.Paths.DataRoot is not null && SingleInstance.UsualInstanceRunning(profile))
+        if (Services.Paths.DataRoot is not null)
         {
-            IEnumerable<(string What, string Folder)> usualFolders = AppPaths.Usual(profile).WriteFolders;
-            if (!OperatingSystem.IsWindows())
+            if (SingleInstance.UsualProfiles(profile) is not { } profiles)
+                return new DiskSafety($"FileCat does not scan {name} yet: it cannot tell whether another FileCat is writing to its usual files. Close other FileCat windows and check access to those folders first.", null, false, false);
+            foreach (string usualProfile in profiles)
             {
-                if (SingleInstance.UsualWriteFolders(profile) is not { } running)
+                if (!SingleInstance.UsualInstanceRunning(usualProfile)) continue;
+                if (SingleInstance.UsualWriteFolders(usualProfile) is not { } running)
                     return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, " +
                                           "and FileCat cannot tell where its instance connection and temporary files are kept. Close that FileCat first.", null, false, false);
-                usualFolders = usualFolders.Append(("the running FileCat's instance connection", running.PipeFolder))
-                    .Append(("the running FileCat's runtime temporary files", running.TemporaryFolder));
+                var (usual, usualUnsure) = Check(AppPaths.Usual(usualProfile).WriteFolders.Concat(running));
+                if (usual.Count > 0 || usualUnsure.Count > 0)
+                    return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, and it writes to them while it works: " +
+                                          string.Join("; ", usual.Concat(usualUnsure)) + (usual.Count > 0 ? " are on that disk." : " may be on that disk.") +
+                                          " Close it, then ask for the scan again here.", null, false, false);
             }
-            var (usual, usualUnsure) = Check(usualFolders);
-            if (usual.Count > 0 || usualUnsure.Count > 0)
-                return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, and it writes to them while it works: " +
-                                      string.Join("; ", usual.Concat(usualUnsure)) + (usual.Count > 0 ? " are on that disk." : " may be on that disk.") +
-                                      " Close it, then ask for the scan again here.", null, false, false);
         }
         bool shellCache = OperatingSystem.IsWindows() && Services.ShellPictures is not null &&
                           Shares(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer")) != false;

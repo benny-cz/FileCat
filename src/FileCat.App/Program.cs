@@ -20,7 +20,7 @@ internal static class Program
             return 0;
         }
         var options = StartupOptions.Parse(args);
-        if (!options.NewInstance && SingleInstance.TryForward(options))
+        if (SingleInstance.TryForward(options))
             return 0;
         App.StartupOptions = options;
         try

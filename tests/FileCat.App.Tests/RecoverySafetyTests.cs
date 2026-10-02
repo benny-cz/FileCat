@@ -134,6 +134,77 @@ public sealed class RecoverySafetyTests
 
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
 
+    [Fact]
+    public void An_independent_instance_is_visible_until_release_and_stale_files_are_ignored()
+    {
+        string profile = "independent-" + Guid.NewGuid().ToString("N")[..16];
+        var usual = AppPaths.Usual(profile);
+        try
+        {
+            Assert.False(SingleInstance.UsualInstanceRunning(profile));
+            Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile, NewInstance = true }));
+            SingleInstance.StartServer(profile, null); // Independent windows advertise their lifetime, not a listener.
+            Assert.True(SingleInstance.UsualInstanceRunning(profile));
+            Assert.NotNull(SingleInstance.UsualWriteFolders(profile));
+            Assert.False(File.Exists(Path.Combine(usual.LocalDirectory, "instance.pipe")));
+            Assert.Single(Directory.GetFiles(usual.InstancesDirectory, "running-*.lock"));
+            Assert.Single(Directory.GetFiles(usual.InstancesDirectory, "running-*.json"));
+            string metadata = Directory.GetFiles(usual.InstancesDirectory, "running-*.json")[0];
+            string valid = File.ReadAllText(metadata);
+            File.WriteAllText(metadata, "{}");
+            Assert.Null(SingleInstance.UsualWriteFolders(profile));
+            File.Delete(metadata);
+            Assert.Null(SingleInstance.UsualWriteFolders(profile));
+            File.WriteAllText(metadata, valid);
+            Assert.NotNull(SingleInstance.UsualWriteFolders(profile));
+            SingleInstance.Release();
+            Assert.False(SingleInstance.UsualInstanceRunning(profile));
+            Assert.Empty(Directory.GetFiles(usual.InstancesDirectory, "running-*.json"));
+            File.WriteAllText(Path.Combine(usual.InstancesDirectory, "running-stale.lock"), "");
+            File.WriteAllText(Path.Combine(usual.InstancesDirectory, "running-stale.json"), "incomplete metadata from a stopped process");
+            Assert.False(SingleInstance.UsualInstanceRunning(profile));
+        }
+        finally
+        {
+            SingleInstance.Release();
+            foreach (string folder in new[] { usual.SettingsDirectory, usual.LocalDirectory }.Distinct())
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void A_usual_instance_with_another_profile_is_guarded_before_scanning()
+    {
+        string ownerProfile = "guard-owner-" + Guid.NewGuid().ToString("N")[..16];
+        string recoveringProfile = "guard-other-" + Guid.NewGuid().ToString("N")[..16];
+        string root = Path.Combine(Path.GetTempPath(), "filecat-other-profile-" + Guid.NewGuid().ToString("N"));
+        var previous = App.StartupOptions;
+        var usual = AppPaths.Usual(ownerProfile);
+        try
+        {
+            App.StartupOptions = new StartupOptions { Profile = recoveringProfile, DataRoot = root };
+            AppPaths.Resolve(ownerProfile); // The actual window creates its profile state on Windows too.
+            Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = ownerProfile }));
+            SingleInstance.StartServer(ownerProfile, null);
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(recoveringProfile, dataRoot: root));
+            var vm = new MainViewModel(services);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.LocalDirectory);
+            Assert.Contains("still running", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, usual.LocalDirectory) ? null : false;
+            Assert.NotNull(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, _) => false;
+            // Unix metadata may still be publishing at first; wait for the actual locations before this control.
+            Assert.True(SpinWait.SpinUntil(() => vm.CheckDiskSafety("test-device", "test disk").Refusal is null, 5000));
+        }
+        finally
+        {
+            SingleInstance.Release();
+            App.StartupOptions = previous;
+            foreach (string folder in new[] { root, usual.SettingsDirectory, usual.LocalDirectory }.Distinct())
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+    }
+
     [AvaloniaFact]
     public void An_instance_connection_outside_the_temporary_folder_is_guarded_before_scanning()
     {

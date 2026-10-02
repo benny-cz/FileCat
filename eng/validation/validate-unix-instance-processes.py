@@ -175,6 +175,91 @@ def main():
                 result['passed'] = False
     manifest['results'].append(result)
     print(json.dumps(result, ensure_ascii=False), flush=True)
+    # Independent windows must remain visible without taking over the normal owner's endpoint. Two such owners
+    # also exercise last-owner release and stale crash files, from separate sessions and TMPDIRs.
+    for label, normal_first, crash_last in [('two-independent-owners', False, True),
+                                          ('normal-and-independent-owner', True, False)]:
+        root = scratch / label; root.mkdir(mode=0o700)
+        (root / '.filecat-owned').write_text(uuid.uuid4().hex)
+        profile = 'ipc-smoke-' + uuid.uuid4().hex[:24]
+        options = ['--profile', profile]
+        servers = []; result = {'case': label, 'profile': profile, 'passed': False}
+        probe_env = {**os.environ, 'TMPDIR': str(unicode), 'DOTNET_EnableDiagnostics': '0'}
+
+        def probe_running():
+            run = subprocess.run(command + ['probe', str(root)] + options, env=probe_env,
+                                 capture_output=True, timeout=5, start_new_session=True)
+            with (root / 'probes.log').open('ab') as log:
+                log.write(run.stdout + run.stderr)
+            if run.returncode:
+                raise RuntimeError('Independent-instance probe failed')
+            return json.loads(run.stdout)['running']
+
+        try:
+            if probe_running():
+                raise RuntimeError('Absent independent profile reported running')
+            for index in range(2):
+                control = root / str(index); control.mkdir(mode=0o700)
+                (control / '.filecat-owned').write_text(uuid.uuid4().hex)
+                independent = not (normal_first and index == 0)
+                env = {**os.environ, 'TMPDIR': str(short if index == 0 else long), 'DOTNET_EnableDiagnostics': '0'}
+                with (control / 'server.log').open('wb') as log:
+                    server = subprocess.Popen(command + ['serve', str(control)] + options +
+                                              (['--new-instance'] if independent else []),
+                                              env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                servers.append((server, control)); ready = wait_file(control / 'ready.json', server)
+            if normal_first:
+                path = str(root / 'forward-with-independent-window')
+                run = subprocess.run(command + ['forward', str(root)] + options + [path], env=probe_env,
+                                     capture_output=True, timeout=5, start_new_session=True)
+                (root / 'forward-owner.log').write_bytes(run.stdout + run.stderr)
+                if run.returncode or wait_file(servers[0][1] / 'received.json', servers[0][0]) != [path] or \
+                        (servers[1][1] / 'received.json').exists():
+                    raise RuntimeError('Independent window displaced the normal forwarding owner')
+                result['normal_owner_forwarding_preserved'] = True
+            before = sorted((str(p), p.stat().st_size, p.stat().st_mtime_ns)
+                            for d in [ready['LocalDirectory'], ready['SettingsDirectory']]
+                            for p in pathlib.Path(d).rglob('*') if p.is_file())
+            if not probe_running():
+                raise RuntimeError('Two live owners were missed')
+            after = sorted((str(p), p.stat().st_size, p.stat().st_mtime_ns)
+                           for d in [ready['LocalDirectory'], ready['SettingsDirectory']]
+                           for p in pathlib.Path(d).rglob('*') if p.is_file())
+            if before != after:
+                raise RuntimeError('Independent-instance probe changed state')
+            result['probe_profile_unchanged'] = True
+            first, control = servers[0]; (control / 'stop').touch(); first.wait(timeout=5)
+            if first.returncode or not probe_running():
+                raise RuntimeError('Remaining independent owner was missed after first closed')
+            last, control = servers[1]
+            if crash_last:
+                last.kill(); last.wait(timeout=5)
+                result['controlled_crash_exit'] = last.returncode
+                if not list((pathlib.Path(ready['LocalDirectory']) / 'instances').glob('running-*.json')):
+                    raise RuntimeError('Crash did not retain its lifetime file for the stale-file control')
+            else:
+                (control / 'stop').touch(); last.wait(timeout=5)
+                if last.returncode:
+                    raise RuntimeError('Independent owner did not close cleanly')
+            if probe_running():
+                raise RuntimeError('Stopped/crashed owners were reported active')
+            result['passed'] = True
+        except Exception as error:
+            result['error'] = str(error)
+        finally:
+            for server, control in servers:
+                if server.poll() is None:
+                    (control / 'stop').touch()
+                    try:
+                        server.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        server.kill(); server.wait()
+            for key in ['LocalDirectory', 'SettingsDirectory']:
+                if servers and (servers[0][1] / 'ready.json').exists():
+                    ready = json.loads((servers[0][1] / 'ready.json').read_text())
+                    shutil.copytree(ready[key], root / key, dirs_exist_ok=True)
+        manifest['results'].append(result)
+        print(json.dumps(result, ensure_ascii=False), flush=True)
     (args.evidence_dir / 'results.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
     shutil.make_archive(str(args.evidence_dir / 'fixtures'), 'gztar', scratch.parent, scratch.name)
     return 0 if all(r['passed'] for r in manifest['results']) else 1

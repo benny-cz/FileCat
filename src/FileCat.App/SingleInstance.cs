@@ -19,6 +19,8 @@ public static partial class SingleInstance
     private static string? _unixEndpointFile;
     private static string? _unixPipeName;
     private static Task? _serverTask;
+    private static FileStream? _independentLock;
+    private static string? _independentFile;
 
     private const string UnixLockFile = "instance.lock";
     private const string UnixEndpointFile = "instance.pipe";
@@ -66,8 +68,9 @@ public static partial class SingleInstance
         ? pipe : Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + name);
 
     private sealed record UnixEndpoint(string Pipe, string TemporaryFolder);
+    private sealed record InstanceRuntime(string TemporaryFolder);
 
-    private static UnixEndpoint? ReadUnixEndpoint(string file)
+    private static T? ReadInstanceMetadata<T>(string file) where T : class
     {
         using var input = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         // Bound the read as well as the initial length, including a file changed while it is being read.
@@ -75,9 +78,13 @@ public static partial class SingleInstance
         int length = 0, count;
         while (length < bytes.Length && (count = input.Read(bytes, length, bytes.Length - length)) > 0) length += count;
         if (length == bytes.Length) return null;
-        UnixEndpoint? endpoint;
-        try { endpoint = JsonSerializer.Deserialize<UnixEndpoint>(bytes.AsSpan(0, length)); }
-        catch (JsonException) { return null; }
+        try { return JsonSerializer.Deserialize<T>(bytes.AsSpan(0, length)); }
+        catch (JsonException) { return default; }
+    }
+
+    private static UnixEndpoint? ReadUnixEndpoint(string file)
+    {
+        var endpoint = ReadInstanceMetadata<UnixEndpoint>(file);
         if (endpoint is not { Pipe: { } pipe, TemporaryFolder: { } temporary }) return null;
         string name = Path.GetFileName(pipe);
         if (name.StartsWith("CoreFxPipe_", StringComparison.Ordinal)) name = name[11..];
@@ -162,15 +169,118 @@ public static partial class SingleInstance
     [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)]
     private static partial int Flock(int fd, int operation);
 
-    /// <summary>The running usual instance's actual socket and runtime temporary folders, independent of our TMPDIR.</summary>
-    internal static (string PipeFolder, string TemporaryFolder)? UsualWriteFolders(string? profile)
+    private static FileStream? OpenIndependentLock(string file, bool create)
     {
-        if (OperatingSystem.IsWindows()) return null;
-        string file = Path.Combine(Core.State.AppPaths.Usual(profile).LocalDirectory, UnixEndpointFile);
+        if (new FileInfo(file).LinkTarget is not null)
+            throw new UnauthorizedAccessException("The FileCat instance lifetime file is a symbolic link.");
+        FileStream? stream = null;
         try
         {
-            return ReadUnixEndpoint(file) is { } endpoint && Path.GetDirectoryName(endpoint.Pipe) is { } folder
-                ? (folder, endpoint.TemporaryFolder) : null;
+            var options = new FileStreamOptions
+            {
+                Mode = create ? FileMode.CreateNew : FileMode.Open,
+                Access = create ? FileAccess.ReadWrite : FileAccess.Read,
+                Share = FileShare.None,
+            };
+            if (create && !OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            stream = new FileStream(file, options);
+            if (!OperatingSystem.IsWindows())
+            {
+                int error;
+                do
+                {
+                    if (Flock(stream.SafeFileHandle.DangerousGetHandle().ToInt32(), 2 | 4) == 0) return stream;
+                    error = Marshal.GetLastPInvokeError();
+                } while (error == 4);
+                throw new IOException("Cannot lock the FileCat instance lifetime: " + new Win32Exception(error).Message,
+                    unchecked((int)0x80070000) | error);
+            }
+            return stream;
+        }
+        catch (IOException ex) when (!create && (ex.HResult & 0xFFFF) is 11 or 35 or 32 or 33)
+        {
+            stream?.Dispose();
+            return null;
+        }
+        catch { stream?.Dispose(); throw; }
+    }
+
+    private static void RegisterIndependent(StartupOptions options)
+    {
+        var paths = Core.State.AppPaths.Resolve(options.Profile, dataRoot: options.DataRoot);
+        if (OperatingSystem.IsWindows()) Directory.CreateDirectory(paths.InstancesDirectory);
+        else Directory.CreateDirectory(paths.InstancesDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        _independentFile = Path.Combine(paths.InstancesDirectory, "running-" + Guid.NewGuid().ToString("N") + ".lock");
+        _independentLock = OpenIndependentLock(_independentFile, create: true)!;
+        var metadataOptions = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows()) metadataOptions.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        // Metadata has its own inode: Unix FileStream readers also take an advisory lock, conflicting with the live
+        // lifetime lock. An incomplete metadata file conservatively refuses a scan until registration finishes.
+        using var metadata = new FileStream(Path.ChangeExtension(_independentFile, ".json"), metadataOptions);
+        metadata.Write(JsonSerializer.SerializeToUtf8Bytes(new InstanceRuntime(Path.GetTempPath())));
+        metadata.Flush();
+    }
+
+    private static IEnumerable<string> IndependentFiles(string? profile)
+    {
+        string directory = Core.State.AppPaths.Usual(profile).InstancesDirectory;
+        // Do not treat access errors as absence. A missing directory is the only empty-directory shortcut.
+        try { return Directory.GetFiles(directory, "running-*.lock"); }
+        catch (DirectoryNotFoundException) { return []; }
+    }
+
+    /// <summary>All usual profiles, read without creating folders, including profiles other than the recovering one.</summary>
+    internal static IReadOnlyList<string>? UsualProfiles(string? profile)
+    {
+        var profiles = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+        {
+            "default", Core.State.AppPaths.ProfileFolderName(profile),
+        };
+        try
+        {
+            string directory = Path.Combine(Core.State.AppPaths.Usual().LocalDirectory, "profiles");
+            foreach (string folder in Directory.GetDirectories(directory))
+            {
+                string name = Path.GetFileName(folder);
+                if (Core.State.AppPaths.ProfileFolderName(name) == name) profiles.Add(name);
+            }
+        }
+        catch (DirectoryNotFoundException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        return profiles.ToArray();
+    }
+
+    /// <summary>Additional live-instance write locations. Null means an active instance's locations cannot be known.</summary>
+    internal static IReadOnlyList<(string What, string Folder)>? UsualWriteFolders(string? profile)
+    {
+        var folders = new List<(string What, string Folder)>();
+        try
+        {
+            if (!OperatingSystem.IsWindows() && UsualOwnerRunning(profile))
+            {
+                string file = Path.Combine(Core.State.AppPaths.Usual(profile).LocalDirectory, UnixEndpointFile);
+                if (ReadUnixEndpoint(file) is not { } endpoint || Path.GetDirectoryName(endpoint.Pipe) is not { } socket)
+                    return null;
+                folders.Add(("the running FileCat's instance connection", socket));
+                folders.Add(("the running FileCat's runtime temporary files", endpoint.TemporaryFolder));
+            }
+            foreach (string file in IndependentFiles(profile))
+            {
+                FileStream? inactive;
+                try
+                {
+                    inactive = OpenIndependentLock(file, create: false);
+                }
+                catch (FileNotFoundException) { continue; } // The independent process closed and removed its own file.
+                // A missing active owner's metadata is unknown, even while it is still registering.
+                // Only disappearance of the lifetime file itself means that this owner finished.
+                using (inactive) { if (inactive is not null) continue; }
+                var runtime = ReadInstanceMetadata<InstanceRuntime>(Path.ChangeExtension(file, ".json"));
+                if (runtime?.TemporaryFolder is not { } temp || !Path.IsPathFullyQualified(temp) || temp.Contains('\0'))
+                    return null;
+                if (!OperatingSystem.IsWindows()) folders.Add(("the running FileCat's runtime temporary files", temp));
+            }
+            return folders;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
@@ -195,6 +305,24 @@ public static partial class SingleInstance
     /// </summary>
     public static bool UsualInstanceRunning(string? profile)
     {
+        try
+        {
+            foreach (string file in IndependentFiles(profile))
+            {
+                try
+                {
+                    using var inactive = OpenIndependentLock(file, create: false);
+                    if (inactive is null) return true;
+                }
+                catch (FileNotFoundException) { }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return true; }
+        return UsualOwnerRunning(profile);
+    }
+
+    private static bool UsualOwnerRunning(string? profile)
+    {
         string name = BaseName(profile, null);
         if (!OperatingSystem.IsWindows())
         {
@@ -208,6 +336,7 @@ public static partial class SingleInstance
             catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
             {
                 // Compatibility with an already-running build that predates the profile lock.
+                if (!File.Exists(AbsolutePipeName(name))) return false;
                 try
                 {
                     using var client = new NamedPipeClientStream(".", PipeName(name), PipeDirection.Out, PipeOptions.CurrentUserOnly);
@@ -237,6 +366,11 @@ public static partial class SingleInstance
     /// <summary>Returns true when another instance accepted the arguments.</summary>
     public static bool TryForward(StartupOptions options)
     {
+        if (options.NewInstance)
+        {
+            RegisterIndependent(options);
+            return false;
+        }
         var name = BaseName(options.Profile, options.DataRoot);
         if (OperatingSystem.IsWindows())
         {
@@ -272,6 +406,9 @@ public static partial class SingleInstance
         {
             // The owner is not responding (e.g. still starting); run independently rather than lose the request.
             // Without the profile lock, this process never starts a listener or replaces the owner's socket.
+            _mutex?.Dispose();
+            _mutex = null;
+            RegisterIndependent(options);
             return false;
         }
     }
@@ -357,5 +494,13 @@ public static partial class SingleInstance
         _unixLock = null;
         _unixEndpointFile = null;
         _unixPipeName = null;
+        _independentLock?.Dispose();
+        _independentLock = null;
+        if (_independentFile is { } file)
+        {
+            try { File.Delete(file); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try { File.Delete(Path.ChangeExtension(file, ".json")); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            _independentFile = null;
+        }
     }
 }
