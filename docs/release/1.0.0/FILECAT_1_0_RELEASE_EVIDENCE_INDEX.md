@@ -226,6 +226,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 | `a9a9dcf` | Count: a folder's count stops when its tab leaves the folder or closes | I88 | E-V12-C2 |
 | `34042cc` | Listing: a closed tab's listing never loads again | I88 | E-V12-C2 |
 | `2ad2cfa` | Change journal: a journal that wraps while it is read is read on, and says so (CI run 36941532909) | I89 | issue record |
+| `54c33de` | Search: roots spelled as the disk spells them, so appended finds list each file once | I90 | E-V13-R1 |
 | `f9adb51` | Remote connections: a password is kept only once the server has accepted it | — | E-V11-S1 |
 | `1477de3` | Recovery, FAT: a deleted entry with neither size nor start is not called empty | I66 | E-V09-T2 |
 | `bc8e2af` | Page views, Windows: external schemes never handed to their programs | — | E-DPI (B11) |

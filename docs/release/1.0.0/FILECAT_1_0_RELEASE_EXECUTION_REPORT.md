@@ -506,6 +506,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 121. CI run 36941532909 (red on a records-only commit): **I89** (Low–Medium, `2ad2cfa`): the change journal reader went
     on from the new oldest entry only once when the journal wrapped during a read; a busy runner wrapped it twice and
     the read failed. Now as often as needed, said in the view; tests with a stand-in journal fail under the old rule.
+122. V13, result sets (E-V13-R1): refine and append read in the code (identity leaves size and time out; keep and
+    remove matching search within the found items; append adds only new references), and **I90** found (Low–Medium,
+    `54c33de`): a root typed in another letter case gave other items for the same files, so appending listed them
+    twice. Searches now walk their roots as the disk spells them.
 
 ## Evidence invalidated by the campaign's own changes
 
