@@ -44,6 +44,8 @@ reread; now it can be seen.
   overflow in three runs. Held up 2 ms per notification, as a busy machine might hold it, 20,000 changes overflowed it
   four times in each of three runs, and the folder was asked to be read again after the churn.
 - `FolderChurnTests` (12,000 changes through the window) reports 0 overflows here.
+- CI run 36946911728 (Windows runner): 45 overflows in one round; the test then failed on its own timing (it took the
+  churn's end from its wake-up after the threads, late on a busy runner); fixed in `9a03d8b` to use the last change's time.
 
 ## Many tabs (`1cf3af5`)
 
