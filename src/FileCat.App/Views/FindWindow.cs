@@ -702,7 +702,8 @@ public sealed class FindWindow : Window, IViewActions
         DuplicateResult result;
         try
         {
-            result = await Task.Run(() => DuplicateFinder.Find(items, alike, token), token);
+            var fs = _services.Platform.FileOperations;
+            result = await Task.Run(() => DuplicateFinder.Find(items, alike, token, fs.GetFileIdentity), token);
         }
         catch (OperationCanceledException)
         {
@@ -742,6 +743,15 @@ public sealed class FindWindow : Window, IViewActions
             : $"{Formatters.Plural(result.Groups.Count, "group", "groups")} of duplicates · {Formatters.Plural(files, "file", "files")}";
         if (result.Unreadable.Count > 0)
             ShowNotification($"{Formatters.Plural(result.Unreadable.Count, "file", "files")} could not be read and were left out: {string.Join(", ", result.Unreadable.Take(3).Select(Path.GetFileName))}{(result.Unreadable.Count > 3 ? ", …" : "")}", true);
+        else if (result.SameFile.Count > 0 || result.Links.Count > 0)
+        {
+            var notes = new List<string>();
+            if (result.SameFile.Count > 0)
+                notes.Add($"{Formatters.Plural(result.SameFile.Count, "name was", "names were")} left out as other names of a listed file (a hard link, or a path through a junction): not copies");
+            if (result.Links.Count > 0)
+                notes.Add($"{Formatters.Plural(result.Links.Count, "link", "links")} to files left out: a link is not a copy");
+            ShowNotification(string.Join("; ", notes) + ".", false);
+        }
     }
 
     private static string Describe(DuplicateCriteria alike)

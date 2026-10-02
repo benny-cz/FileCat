@@ -259,6 +259,33 @@ public sealed class FindCriteriaTests : IDisposable
     }
 
     [Fact]
+    public void Names_of_one_file_count_once_among_duplicates()
+    {
+        // Release issue I93: a hard link, or a path through a junction, is the same file under another name. Grouped as a
+        // copy, "all but one" would mark the file itself for deletion.
+        Write("a/report.txt", "same text");
+        Write("b/report-link.txt", "same text"); // stands for another name of a/report.txt
+        Write("c/copy.txt", "same text");
+        Write("d/alone.txt", "other text");
+        Write("e/alone-link.txt", "other text"); // another name of d/alone.txt
+        var items = Directory.EnumerateFiles(_dir.Path, "*", SearchOption.AllDirectories).Select(p => ItemRef.ForFileSystemPath(p, EntryKind.File)).ToList();
+        string Rel(string path) => Path.GetRelativePath(_dir.Path, path).Replace('\\', '/');
+        string? Identity(string path) => Rel(path) switch
+        {
+            "a/report.txt" or "b/report-link.txt" => "one",
+            "d/alone.txt" or "e/alone-link.txt" => "two",
+            var other => other,
+        };
+        var result = DuplicateFinder.Find(items, DuplicateCriteria.Content, TestContext.Current.CancellationToken, Identity);
+        var group = Assert.Single(result.Groups);
+        Assert.Equal(["a/report.txt", "c/copy.txt"], group.Select(i => Rel(i.FileSystemPath!)));
+        Assert.Equal(["b/report-link.txt", "e/alone-link.txt"], result.SameFile.Select(Rel).Order());
+        // Without identities, every name is taken for a file of its own.
+        var blind = DuplicateFinder.Find(items, DuplicateCriteria.Content, TestContext.Current.CancellationToken);
+        Assert.Equal(2, blind.Groups.Count);
+    }
+
+    [Fact]
     public void Content_compares_all_bytes_of_large_files_with_equal_starts()
     {
         var start = new byte[200 * 1024];

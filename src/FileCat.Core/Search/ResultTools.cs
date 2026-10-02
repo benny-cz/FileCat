@@ -55,29 +55,53 @@ public enum DuplicateCriteria
 }
 
 /// <summary>Groups of files alike by name, size, and content, and the files that could not be read.</summary>
-public sealed record DuplicateResult(IReadOnlyList<IReadOnlyList<ItemRef>> Groups, IReadOnlyList<string> Unreadable);
+public sealed record DuplicateResult(IReadOnlyList<IReadOnlyList<ItemRef>> Groups, IReadOnlyList<string> Unreadable)
+{
+    /// <summary>Names left out of the groups because they are other names of a file listed there (hard links, a folder
+    /// reached through a junction): deleting one as a copy would delete the file itself.</summary>
+    public IReadOnlyList<string> SameFile { get; init; } = [];
+
+    /// <summary>Links to files, left out: a link is not a copy, and its target must not be taken for one.</summary>
+    public IReadOnlyList<string> Links { get; init; } = [];
+}
 
 /// <summary>
 /// Finds duplicate files among found items (plan §11): the same name, size, content, or any combination. Contents are
 /// compared only among files of equal size: first their first 64 KiB, then, for those still alike, all their bytes by
-/// SHA-256. Names compare as the file system does (without case on Windows).
+/// SHA-256. Names compare as the file system does (without case on Windows). Given each file's identity, names of one
+/// file count once (release issue I93): a hard link or a path through a junction is not a copy, and "all but one" must
+/// never mark the file itself for deletion. Links to files are left out for the same reason.
 /// </summary>
 public static class DuplicateFinder
 {
     private const int HeadBytes = 64 * 1024;
 
-    public static DuplicateResult Find(IEnumerable<ItemRef> items, DuplicateCriteria criteria, CancellationToken ct)
+    public static DuplicateResult Find(IEnumerable<ItemRef> items, DuplicateCriteria criteria, CancellationToken ct, Func<string, string?>? identityOf = null)
     {
         if (criteria == DuplicateCriteria.None) throw new ArgumentException("Choose at least one of name, size, and content.", nameof(criteria));
         bool byName = (criteria & DuplicateCriteria.Name) != 0;
         bool byContent = (criteria & DuplicateCriteria.Content) != 0;
         bool bySize = byContent || (criteria & DuplicateCriteria.Size) != 0;
         var unreadable = new List<string>();
+        var links = new List<string>();
         var files = new List<(ItemRef Item, string Path, long Size)>();
         foreach (var item in items.Distinct())
         {
             ct.ThrowIfCancellationRequested();
             if (item.Kind != EntryKind.File || item.FileSystemPath is not { } path) continue;
+            try
+            {
+                if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                {
+                    links.Add(path);
+                    continue;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                unreadable.Add(path);
+                continue;
+            }
             long size = 0;
             if (bySize)
             {
@@ -112,11 +136,30 @@ public static class DuplicateFinder
                 else groups.AddRange(SplitBy(head, f => Hash(f.Path, long.MaxValue, unreadable, ct)));
             }
         }
+        // Names of one file count once: the first by path stays, the others are reported, and a group needs two files.
+        var sameFile = new List<string>();
+        if (identityOf is not null)
+        {
+            var distinct = new List<List<(ItemRef Item, string Path, long Size)>>();
+            foreach (var group in groups)
+            {
+                ct.ThrowIfCancellationRequested();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var files2 = new List<(ItemRef Item, string Path, long Size)>();
+                foreach (var f in group.OrderBy(f => f.Path, names))
+                {
+                    if (identityOf(f.Path) is { } id && !seen.Add(id)) sameFile.Add(f.Path);
+                    else files2.Add(f);
+                }
+                if (files2.Count > 1) distinct.Add(files2);
+            }
+            groups = distinct;
+        }
         var ordered = groups
             .Select(g => (IReadOnlyList<ItemRef>)g.OrderBy(f => f.Path, names).Select(f => f.Item).ToList())
             .OrderBy(g => g[0].Name, names).ThenByDescending(g => g[0].FileSystemPath is { } p ? SafeLength(p) : 0)
             .ToList();
-        return new DuplicateResult(ordered, unreadable);
+        return new DuplicateResult(ordered, unreadable) { SameFile = sameFile, Links = links };
     }
 
     private static long SafeLength(string path)
