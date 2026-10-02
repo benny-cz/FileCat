@@ -27,7 +27,8 @@ would then act on each file twice.
 ## The fix (`54c33de`)
 
 A search walks each root as the disk spells it (`PathUtil.WithDiskCase`): each existing name in its own letter case,
-one lookup per name (a short 8.3 name becomes its long name); past a name that does not exist, the rest stays as
+one lookup per name (a short 8.3 name should come back as its long name, as the lookup answers with it: not tested
+here); past a name that does not exist, the rest stays as
 written; other systems and `\\?\` paths unchanged.
 
 | Check | Result |
