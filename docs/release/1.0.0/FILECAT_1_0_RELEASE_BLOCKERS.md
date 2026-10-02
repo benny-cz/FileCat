@@ -39,7 +39,7 @@ No agent-driven Windows input was sent. Owner restored the Windows snapshot; gue
 remain running. I106's wider native audit reproduces a renamed-apphost false absence; identity correction under
 validation. Refined root census/ordinary and root positive cases pass; ordinary-account absent cases remain
 unknown. Prepared corrected Windows guest menu launcher awaits owner input; no installation needed. Continue
-unblocked recovery visibility/race work and latest affected CI.
+unblocked recovery visibility/race work; latest affected d8c6f3b CI passes all four lanes.
 
 | ID | Needed | Status |
 |---|---|---|

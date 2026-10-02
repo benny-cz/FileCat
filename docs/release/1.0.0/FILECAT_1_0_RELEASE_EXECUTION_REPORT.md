@@ -745,6 +745,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 162. I107 clean 1a9f1ba self-contained Windows input staged after owner snapshot restoration. UUID/OS and all
     256 payload hashes verified, CLI version exits 0; Admin desktop launcher captures isolated menu trace/exit.
     Computer Use reset/import still fails before input; owner native click result requested and pending (E-I107).
+163. Exact d8c6f3b passes all four CI lanes (37075680108). Strict Unix inventories independently confirm 56
+    pass/four skips each, 60 outcomes. Raw run/results retained; no tag/release. Both VMs remain running, corrected
+    guest menu check awaits owner input. I106 broader privilege/runtime-alias/race and candidate tracing open.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -788,7 +791,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    and affected CI pass at their identities. Dev.549 formats pass successor checks on 26.04 (E-V19-P3); wider
    audit reproduces a renamed-apphost gap. Identity correction passes native positive cases and affected App
    checks; refined root census now establishes absence while ordinary-account visibility remains unknown.
-   Complete d8c6f3b successor CI, continue visibility/runtime-alias/race and write-location audits. Prepared
+   D8c6f3b successor CI passes; continue visibility/runtime-alias/race and write-location audits. Prepared
    Windows guest menu input awaits the owner because Computer Use is unavailable. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

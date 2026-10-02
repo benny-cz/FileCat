@@ -231,3 +231,11 @@ artifacts/release-evidence/ci-37073593358; verified inventory JSON
 
 This earlier CI/package success cannot qualify d8c6f3b's later availability correction. Its CI/native rebuilt
 packages, broader visibility/runtime aliases/race audit and exact-candidate tracing remain open; I106 not Closed.
+
+Latest exact d8c6f3b CI [37075680108](https://github.com/benny-cz/FileCat/actions/runs/37075680108) now passes all
+four lanes. Independently verified strict Unix inventory: 56 pass/four explicit skips per lane, 60 outcomes.
+Linux JSON `27e5e1ff2deb750b701406aa6142a46c1128353edd4ee2c845517be7ee5774ba`; macOS
+`240bed0e2ef5b2781b21c90b4f0896dac27c008db8de2faa954700a36f9d2473`. Raw archives/run retained under
+artifacts/release-evidence/ci-37075680108; verified inventory JSON
+`94b3532c36452ee95285aba4daf9d65c52a903b71a8ec6da4925ffbb2ff8be18`. No tag/package/release job runs on this
+push. Affected CI complete; broader privilege/runtime-alias/race and candidate source-device tracing remain open.
