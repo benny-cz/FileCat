@@ -75,7 +75,17 @@ public sealed class RecycleBinShellTests
     {
         if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows' Recycle Bin."); return; }
         string system = Path.GetPathRoot(Environment.SystemDirectory)!;
-        Assert.Equal(0, WindowsShellServices.QueryRecycleBin(system, out long items));
+        int hr = WindowsShellServices.QueryRecycleBin(system, out long items);
+        // CI's ARM64 Shell once returned ERROR_ALREADY_EXISTS, then succeeded on the next run of unchanged code.
+        // Allow that specific response briefly; persistent failure and every other HRESULT still fail the test.
+        const int AlreadyExists = unchecked((int)0x800700b7);
+        for (int retry = 0; hr == AlreadyExists && retry < 4; retry++)
+        {
+            TestContext.Current.TestOutputHelper?.WriteLine($"SHQueryRecycleBin: {hr:X8}; retry {retry + 1}");
+            Thread.Sleep(50);
+            hr = WindowsShellServices.QueryRecycleBin(system, out items);
+        }
+        Assert.Equal(0, hr);
         Assert.True(items >= 0);
         var shell = new WindowsShellServices();
         Assert.True(shell.CanOpenRecycleBin);
