@@ -31,7 +31,7 @@ Whole-listing commands on the first listing (five runs each, ms):
   `TabViewModel.FindQuickMatch`: ASCII text compares ordinally, other text linguistically). A miss in a million-entry
   listing holds the window 43–58 ms (short names) to about 180 ms (240 characters) when the typed text is ASCII, and
   270–300 ms to about 0.6 s otherwise: past §9's 100 ms for command feedback in this extreme case (**I92**, open). At
-  100,000 entries the same walk is about a tenth.
+  100,000 entries the same walk should take about a tenth (it is linear; not measured).
 
 ## Not covered here
 
