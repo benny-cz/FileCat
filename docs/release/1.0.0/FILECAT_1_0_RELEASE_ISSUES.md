@@ -1075,7 +1075,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - Device safety now also takes a read-only process census and requires other FileCat processes/helpers to finish;
   unavailable census refuses. No global disk registry added. Storage tests isolate the inventory from owner activity.
 - Windows subset 14 pass/3 Unix skips and final App 229 pass/15 skips. Remediated preliminarily, not Closed;
-  native after, affected CI/rebuilt packages, wider visibility/alias/race audit and candidate tracing pending.
+  native after and all affected CI lanes now pass, with independent strict Unix inventory 47 pass/four skips.
+  Rebuilt package native checks, wider visibility/alias/race audit and candidate tracing remain pending.
 
 ### I105 — Portable recovery misses per-user owners and portable profiles
 

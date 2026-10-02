@@ -68,3 +68,40 @@ results across three scenarios (47 pass/four explicit skips); this count has not
 Status: remediated and Windows-verified preliminarily, **not Closed**. Native process/GUI after cases, all four
 affected CI lanes, rebuilt packages, broader census audit and exact-candidate tracing remain pending. I105 CI
 passes at its own source identity; it cannot qualify the new guard. No source-device scan, tag, signing or publication.
+
+## Native after and successor CI
+
+SDK-free Ubuntu 26.04.1/GNOME Wayland, same verified VMware UUID, tests the corrected census against actual GUIs
+from a second installation. Clean source ea4a2acad34bf0641fbc15bc64a64013e8600322, cross-published self-contained
+App/smoke bundle `d3ce2050cd88e3f69a5988bb2402e48b4a1536437247d6ec24e362339f21da6f`, 53,502,159 bytes.
+Owned fixture fedd910d17674086a06a4710d0c947be. Both separate portable state and explicit --data state pass:
+before absent, actual window/process and independent fcntl lease busy, production census true, graceful exit 0,
+then absent. Native PIDs 14599/14674, both executable paths independently resolve to the owned second installation.
+No device recovery scan is performed; this is process discovery plus the earlier device-admission regression.
+
+| Native after input/evidence | SHA-256 |
+|---|---|
+| FileCat apphost | `f21bb97cff44f1450a01bab717f89e447b9740a274d4dfd3a5b97ebcc94d5593` |
+| FileCat.dll | `d04c5dd945e9de3f7ad5d1102ae6ed7125c7f05a4660401f84762d7d56c7de34` |
+| Core DLL | `45728b847eaedf53a88ed2b1dd263a5c163c0a0793ecb011ac7d85407ca57842` |
+| Smoke DLL | `ba3188eec8c56112d40784f39d95ea7d0ed63a05164b91c6c61e2324aca02891` |
+| native-after-results.json | `0c964381c3a70f45c6eee192a1d2dc27f56d3cd802146c8b168ee1d76a071eff` |
+| native-after-full.tar.gz, 103,649,736 bytes, 563 members | `9283f7cbaccd0f4cc9c93502d3d4d94553f2277163387382c8450e6be4e3e66c` |
+| native-after-full.tar.gz.verified.json | `55bcf34b4dd50d83717f5b6677eabada3c0b7e9b7f423eb4b2ecf4bf5db16979` |
+
+Full native before/after archives independently stream-verified, including every regular member's size/hash.
+Before archive retains 289 members and its previously recorded hash. Guest/host after archive hashes also agree.
+
+All four CI lanes pass at exact ecd61f3663f4c0b4c3249b34add5b4e726da0d62, run 37065695677. Independent strict
+Unix inventories now establish the previously pending 51 outcomes per lane: 47 pass/four explicit skips.
+Linux results JSON `0e3b144fc7548399b0e18c70a421b61eb47171d63b48456bdca9f8ef373473b2`; macOS
+`fd4e46d325df0449781fa41a5f83fba5f4adec729f9e2f1294fc926937b55508`.
+
+Successor ea4a2ac, which includes I107's palette guard, passes all four push lanes (37068514790) and all four
+manual lanes plus Linux/macOS development packaging (37068909015, dev.549). Strict Unix inventory independently
+again confirms 47 pass/four skips each: Linux JSON `e38aa7af797f7e65ebe5fbf8251081e4250743c4d62ed550ad907607a9466c7d`,
+macOS `085b24f59144aa36e3a45cab15dfbab4d3d8ec89480b7651775cad54ce2e8293`. Raw run records, result archives and
+dev.549 packages retained under artifacts/release-evidence/ci-37068909015. No tag or release was created.
+
+Native after and CI are complete preliminarily. Rebuilt package native checks, wider alias/visibility/race
+audit and exact-candidate source-device tracing remain pending; I106 is not Closed.

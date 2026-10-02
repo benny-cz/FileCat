@@ -152,3 +152,10 @@ After the owner closes Claude, Computer Use reset/import still fails. The no-imp
 now supplies the more specific runtime error: `windows sandbox failed: helper_unknown_error: setup refresh
 had errors`, kernel exit code 1. No window selection or input occurs. This is an independent automation gate;
 it does not explain away the observed FileCat menu removal.
+
+Affected CI at exact correction ea4a2ac passes all four push lanes (37068514790) and all four manual lanes plus
+Linux/macOS development packaging (37068909015, dev.549). Raw records/results/packages retained; no tag or release
+created. Native corrected guest click remains pending. After an owner-authorized idle hard stop completed, the
+owner asked to keep the Windows VM running; the same VM was restarted without restoring a snapshot. The owner
+then reverted their snapshot and confirmed availability; guest access succeeds again. Earlier diagnostics and
+native evidence are safely retained on the host. Keep the Windows VM running per the latest instruction.

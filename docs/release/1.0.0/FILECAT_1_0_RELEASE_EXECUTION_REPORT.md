@@ -714,6 +714,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     zero failures. Owner confirms the host works and authorizes remaining release work; Program Files App DLL
     independently matches working-fix bytes. Host symptom cleared preliminarily; guest after/affected CI and
     candidate interaction remain pending. Resume I106 native process guard and wider recovery audit (E-I107).
+156. I106 native after passes on SDK-free Ubuntu 26.04.1: separate portable and --data GUIs/independent leases are
+    detected, both absent again after graceful close. Full before/after archives independently stream-verified.
+    Exact ecd61f3 all four CI lanes pass; strict Unix inventory 47 pass/four skips per lane (E-I106).
+157. Exact ea4a2ac passes all four push lanes and manual lanes plus Linux/macOS dev.549 packaging (37068909015).
+    Strict Unix inventories again 47 pass/four skips each; raw artifacts retained. Rebuilt native package checks
+    and wider recovery audit remain pending. Windows VM restarted after owner's keep-running instruction, then
+    owner reverts snapshot; guest access verified. Preserve earlier evidence on host and keep VM running (E-I107).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -751,9 +758,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Next actions (unblocked)
 
-1. Prioritize I107: establish diagnostic GUI execution, collect the native menu close path and compare exact older
-   builds. Windows Computer Use remains unavailable; owner/manual interaction is needed for direct clicks.
-   Then validate I106's native process/GUI guard, all affected CI lanes and rebuilt Linux packages, and continue the recovery write-location/
+1. I107's host symptom is cleared, failure path reproduced and corrected, affected App/CI pass; native corrected
+   guest click remains pending. Windows Computer Use is independently unavailable. I106 native process/GUI guard
+   and affected CI pass. Validate rebuilt dev.549 Linux packages and continue the recovery write-location/
    instance-discovery audit. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
