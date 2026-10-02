@@ -1,5 +1,10 @@
 # E-I100 — Unix launches in separate sessions run independently
 
+Committed remedy 47465920d61c9f0d250bc6eb7b13a6eaa20baa13 passes all four lanes of
+[CI 37030149306](https://github.com/benny-cz/FileCat/actions/runs/37030149306), including both Unix boundary and
+separate-session process harnesses on Linux and macOS. Packages skipped on this push; rebuilt/candidate checks remain.
+The subsequent runtime-temporary-folder omission is recorded independently as E-I101.
+
 Discovered 2026-10-02 during E-I99's actual GUI check, Ubuntu 26.04.1. Same account, profile, data root, TMPDIR and
 hash-bound I99 working FileCat.dll. No candidate.
 

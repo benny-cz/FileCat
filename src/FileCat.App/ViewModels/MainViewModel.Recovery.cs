@@ -439,11 +439,13 @@ public sealed partial class MainViewModel
             }
             return (known, unknown);
         }
-        IEnumerable<(string What, string Folder)> WriteFolders(AppPaths paths) =>
-            SingleInstance.ExtraWriteFolder is { } ipc
-                ? paths.WriteFolders.Append(("the instance connection", ipc))
-                : paths.WriteFolders;
-        var (own, unsure) = Check(WriteFolders(Services.Paths));
+        IEnumerable<(string What, string Folder)> OwnWriteFolders()
+        {
+            foreach (var folder in Services.Paths.WriteFolders) yield return folder;
+            if (!OperatingSystem.IsWindows()) yield return ("runtime temporary files", Path.GetTempPath());
+            if (SingleInstance.ExtraWriteFolder is { } ipc) yield return ("the instance connection", ipc);
+        }
+        var (own, unsure) = Check(OwnWriteFolders());
         if (own.Count > 0 || unsure.Count > 0)
         {
             string command = DataCommand(SuggestedDataFolder(device) ?? (OperatingSystem.IsWindows() ? @"X:\FileCat data" : "/media/USB/FileCat data"));
@@ -457,13 +459,14 @@ public sealed partial class MainViewModel
         string? profile = App.StartupOptions.Profile;
         if (Services.Paths.DataRoot is not null && SingleInstance.UsualInstanceRunning(profile))
         {
-            var usualFolders = WriteFolders(AppPaths.Usual(profile));
+            IEnumerable<(string What, string Folder)> usualFolders = AppPaths.Usual(profile).WriteFolders;
             if (!OperatingSystem.IsWindows())
             {
-                if (SingleInstance.UsualConnectionFolder(profile) is not { } connection)
+                if (SingleInstance.UsualWriteFolders(profile) is not { } running)
                     return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, " +
-                                          "and FileCat cannot tell where its instance connection is kept. Close that FileCat first.", null, false, false);
-                usualFolders = usualFolders.Append(("the running FileCat's instance connection", connection));
+                                          "and FileCat cannot tell where its instance connection and temporary files are kept. Close that FileCat first.", null, false, false);
+                usualFolders = usualFolders.Append(("the running FileCat's instance connection", running.PipeFolder))
+                    .Append(("the running FileCat's runtime temporary files", running.TemporaryFolder));
             }
             var (usual, usualUnsure) = Check(usualFolders);
             if (usual.Count > 0 || usualUnsure.Count > 0)

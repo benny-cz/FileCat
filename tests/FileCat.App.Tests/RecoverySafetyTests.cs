@@ -179,21 +179,35 @@ public sealed class RecoverySafetyTests
             App.StartupOptions = new StartupOptions { Profile = profile, DataRoot = data };
             Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile }));
             SingleInstance.StartServer(profile, null);
-            Assert.True(SpinWait.SpinUntil(() => SingleInstance.UsualConnectionFolder(profile) is not null, 5000));
+            Assert.True(SpinWait.SpinUntil(() => SingleInstance.UsualWriteFolders(profile) is not null, 5000));
             using var services = AppServices.CreateForPaths(AppPaths.Resolve(profile, dataRoot: data));
             var vm = new MainViewModel(services);
             // Model an ordinary instance whose actual socket is on a disk different from this process's TMPDIR.
             string metadata = Path.Combine(usual.LocalDirectory, "instance.pipe");
-            File.WriteAllText(metadata, "/tmp/FileCat-0000000000000000");
-            services.Recovery.SharesDisk = (_, folder) => folder == "/tmp";
+            string connection = "/filecat-test-connection-" + Guid.NewGuid().ToString("N");
+            string temporary = "/filecat-test-temporary-" + Guid.NewGuid().ToString("N");
+            File.WriteAllText(metadata, System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Pipe = connection + "/FileCat-0000000000000000", TemporaryFolder = temporary,
+            }));
+            services.Recovery.SharesDisk = (_, folder) => folder == connection;
             var safety = vm.CheckDiskSafety("test-device", "test disk");
             Assert.Contains("the running FileCat's instance connection", safety.Refusal);
-            services.Recovery.SharesDisk = (_, folder) => folder == "/tmp" ? null : false;
+            services.Recovery.SharesDisk = (_, folder) => folder == connection ? null : false;
+            Assert.Contains("may be on that disk", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, folder) => folder == temporary;
+            Assert.Contains("the running FileCat's runtime temporary files", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, folder) => folder == temporary ? null : false;
             Assert.Contains("may be on that disk", vm.CheckDiskSafety("test-device", "test disk").Refusal);
             services.Recovery.SharesDisk = (_, _) => false;
             Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            foreach (string invalid in new[] { "old plain metadata", "{}", "{\"Pipe\":\"/tmp/FileCat-0000000000000000\",\"TemporaryFolder\":\"relative\"}", new string('a', 32769) })
+            {
+                File.WriteAllText(metadata, invalid);
+                Assert.Contains("cannot tell where", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            }
             File.Delete(metadata);
-            Assert.Contains("cannot tell where its instance connection is kept", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            Assert.Contains("cannot tell where its instance connection and temporary files are kept", vm.CheckDiskSafety("test-device", "test disk").Refusal);
         }
         finally
         {
@@ -201,6 +215,35 @@ public sealed class RecoverySafetyTests
             App.StartupOptions = previous;
             foreach (string folder in new[] { root, usual.SettingsDirectory, usual.LocalDirectory })
                 if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void The_runtime_temporary_folder_is_guarded_before_scanning()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Unix runtime filesystem endpoints.");
+            return;
+        }
+        string temporary = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar);
+        string root = Path.Combine(Path.GetTempPath(), "filecat-runtime-safety-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var vm = new MainViewModel(services);
+            bool IsRuntimeFolder(string folder) => Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar) == temporary;
+            services.Recovery.SharesDisk = (_, folder) => IsRuntimeFolder(folder);
+            var safety = vm.CheckDiskSafety("test-device", "test disk");
+            Assert.Contains("runtime temporary files", safety.Refusal);
+            services.Recovery.SharesDisk = (_, folder) => IsRuntimeFolder(folder) ? null : false;
+            Assert.Contains("cannot tell", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, _) => false;
+            Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
 }

@@ -65,17 +65,26 @@ public static partial class SingleInstance
     private static string AbsolutePipeName(string name) => PipeName(name) is { } pipe && Path.IsPathRooted(pipe)
         ? pipe : Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + name);
 
-    private static string? ReadUnixEndpoint(string file)
+    private sealed record UnixEndpoint(string Pipe, string TemporaryFolder);
+
+    private static UnixEndpoint? ReadUnixEndpoint(string file)
     {
         using var input = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (input.Length > 1024) return null;
-        using var reader = new StreamReader(input, Encoding.UTF8);
-        string pipe = reader.ReadToEnd();
+        // Bound the read as well as the initial length, including a file changed while it is being read.
+        var bytes = new byte[32769];
+        int length = 0, count;
+        while (length < bytes.Length && (count = input.Read(bytes, length, bytes.Length - length)) > 0) length += count;
+        if (length == bytes.Length) return null;
+        UnixEndpoint? endpoint;
+        try { endpoint = JsonSerializer.Deserialize<UnixEndpoint>(bytes.AsSpan(0, length)); }
+        catch (JsonException) { return null; }
+        if (endpoint is not { Pipe: { } pipe, TemporaryFolder: { } temporary }) return null;
         string name = Path.GetFileName(pipe);
         if (name.StartsWith("CoreFxPipe_", StringComparison.Ordinal)) name = name[11..];
-        return Path.IsPathRooted(pipe) && Encoding.UTF8.GetByteCount(pipe) < UnixSocketPathLimit &&
+        return Path.IsPathFullyQualified(temporary) && !temporary.Contains('\0') &&
+               Path.IsPathFullyQualified(pipe) && Encoding.UTF8.GetByteCount(pipe) < UnixSocketPathLimit &&
                !pipe.Contains('\0') && name.Length == 24 && name.StartsWith("FileCat-", StringComparison.Ordinal) &&
-               name.AsSpan(8).IndexOfAnyExcept("0123456789ABCDEF") < 0 ? pipe : null;
+               name.AsSpan(8).IndexOfAnyExcept("0123456789ABCDEF") < 0 ? endpoint : null;
     }
 
     private static FileStream? OpenUnixLock(string path, bool create)
@@ -125,7 +134,7 @@ public static partial class SingleInstance
         do
         {
             string? pipe = null;
-            try { pipe = ReadUnixEndpoint(file); } catch (FileNotFoundException) { }
+            try { pipe = ReadUnixEndpoint(file)?.Pipe; } catch (FileNotFoundException) { }
             if (pipe is not null)
             {
                 var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out, PipeOptions.CurrentUserOnly);
@@ -153,12 +162,16 @@ public static partial class SingleInstance
     [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)]
     private static partial int Flock(int fd, int operation);
 
-    /// <summary>The running usual instance's actual socket folder, even when its TMPDIR differs from this process's.</summary>
-    internal static string? UsualConnectionFolder(string? profile)
+    /// <summary>The running usual instance's actual socket and runtime temporary folders, independent of our TMPDIR.</summary>
+    internal static (string PipeFolder, string TemporaryFolder)? UsualWriteFolders(string? profile)
     {
         if (OperatingSystem.IsWindows()) return null;
         string file = Path.Combine(Core.State.AppPaths.Usual(profile).LocalDirectory, UnixEndpointFile);
-        try { return ReadUnixEndpoint(file) is { } pipe ? Path.GetDirectoryName(pipe) : null; }
+        try
+        {
+            return ReadUnixEndpoint(file) is { } endpoint && Path.GetDirectoryName(endpoint.Pipe) is { } folder
+                ? (folder, endpoint.TemporaryFolder) : null;
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
 
@@ -274,7 +287,7 @@ public static partial class SingleInstance
                 UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
             }))
             {
-                output.Write(Encoding.UTF8.GetBytes(pipe));
+                output.Write(JsonSerializer.SerializeToUtf8Bytes(new UnixEndpoint(pipe, Path.GetTempPath())));
                 output.Flush();
             }
             // Replace the entry, never follow an existing endpoint-file link.

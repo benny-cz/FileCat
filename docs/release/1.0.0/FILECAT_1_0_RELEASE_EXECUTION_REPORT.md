@@ -622,6 +622,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     tests with one expected skip. Affected native App 205/232 passes with 27 skips. Actual GUI across sessions/TMPDIRs,
     FAT32/exFAT state locks and native syscall oracle pass (E-I100). Setup/assertion failures retained separately.
 
+140. I100 pushed 4746592; all four CI lanes pass (37030149306), including native Unix boundary/process harnesses on
+    Linux and macOS. The continuing write-location audit reproduces I101: runtime TMPDIR omitted from recovery.
+    Own runtime folder and published running-instance socket/runtime locations now guarded; invalid metadata refuses.
+    Native before 1/1 fails, fixed guards 5 pass/1 expected skip, boundary 17 pass/1 expected skip, process 6/6 and full
+    App 206/233 with 27 explicit skips pass. Both required WebKit cases pass. Windows controls 3 pass/3 Unix skips.
+    Exact inputs, failed setup/build attempts and native results retained (E-I101). CI/rebuilt packages remain pending.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -645,6 +652,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   rebuilt package identities require affected revalidation. Separate-session behavior remains unresolved as I100.
 - I100 (Unix instance lock/endpoint and usual-instance probe): prior Unix process-election/probe and recovery guard
   evidence; native working inputs verified, CI/exact rebuilt package and candidate evidence still required.
+- I101 (runtime temporary-folder guard and endpoint metadata): earlier Unix recovery/endpoint metadata evidence;
+  affected native suites/harnesses revalidated, CI/rebuilt package and candidate write tracing still required.
 
 ## Next actions (unblocked)
 
