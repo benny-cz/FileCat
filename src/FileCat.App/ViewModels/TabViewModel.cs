@@ -822,6 +822,22 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         var field = Services.Metadata.Field(fieldId);
         AnalysisStatus = $"Analyzing {field?.Title}: 0 of {count:N0}…";
         int done = 0;
+        // The analysis is of this folder: leaving it or closing the tab stops it, and nothing it finds, says or sorts lands
+        // on the next folder (V12; it read the folder's listing after the tab had let it go, release issue I91).
+        bool left = false;
+        void Moved(object? sender, ListingChange change)
+        {
+            if (Equals(Listing.Location, loc)) return;
+            left = true;
+            cts.Cancel();
+        }
+        void Gone()
+        {
+            left = true;
+            cts.Cancel();
+        }
+        Listing.Changed += Moved;
+        Closed += Gone;
         try
         {
             await Services.Io.Run(provider.GetDeviceKey(loc), Core.Threading.IoPriority.Background, ct =>
@@ -831,14 +847,19 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 for (int i = 0; i < count; i++)
                 {
                     linked.Token.ThrowIfCancellationRequested();
-                    var e = store[i];
+                    EntryData e;
+                    try { e = store[i]; }
+                    catch (ObjectDisposedException) { throw new OperationCanceledException(); } // the folder was let go meanwhile
                     if (!e.IsContainer && provider.GetItemRef(loc, e).FileSystemPath is { } path) Services.Metadata.Compute(fieldId, path, e, linked.Token);
                     done = i + 1;
                     if (DateTime.UtcNow - last > TimeSpan.FromMilliseconds(200))
                     {
                         last = DateTime.UtcNow;
                         int d = done;
-                        Services.Ui.Post(() => AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)");
+                        Services.Ui.Post(() =>
+                        {
+                            if (!left) AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)";
+                        });
                     }
                 }
             }, cts.Token);
@@ -849,7 +870,12 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException)
         {
             AnalysisStatus = null;
-            Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
+            if (!left) Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
+        }
+        finally
+        {
+            Listing.Changed -= Moved;
+            Closed -= Gone;
         }
     }
 
