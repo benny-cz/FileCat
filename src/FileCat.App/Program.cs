@@ -20,12 +20,25 @@ internal static class Program
             return 0;
         }
         var options = StartupOptions.Parse(args);
+        bool menuTrace = Environment.GetEnvironmentVariable("FILECAT_MENU_TRACE") == "1" && options.DataRoot is not null;
+        if (menuTrace)
+        {
+            var paths = Core.State.AppPaths.Resolve(options.Profile, dataRoot: options.DataRoot);
+            Core.Diagnostics.AppLog.Initialize(paths.LogDirectory);
+            Core.Diagnostics.AppLog.Info($"MenuTrace entry pid={Environment.ProcessId} module={typeof(Program).Module.ModuleVersionId} compat={CompatibleRendering}");
+        }
         if (SingleInstance.TryForward(options))
             return 0;
         App.StartupOptions = options;
         try
         {
             return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception ex) when (menuTrace)
+        {
+            Core.Diagnostics.AppLog.Error("MenuTrace startup failed", ex);
+            Console.Error.WriteLine(ex);
+            throw;
         }
         finally
         {

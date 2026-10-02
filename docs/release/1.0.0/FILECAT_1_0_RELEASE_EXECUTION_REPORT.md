@@ -701,6 +701,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Initial isolated diagnostic GUI execution is not established: state/log absent, although both version probes
     return 0. Startup capture and native diagnostic payload in preparation. Exact earlier fa3a02a/08c2e2d archives
     publish successfully for the owner's requested comparison; no native menu result or fix claimed (E-I107).
+153. I107 second diagnostic and exact fa3a02a/08c2e2d comparisons staged and hash-verified in the Windows VM.
+    Launchers use isolated state, invocation markers and pinned-runtime stderr capture; owner clicks requested
+    because the Windows automation runtime cannot start. Full affected App regression passes 230/245 with 15
+    explicit platform skips and no failures. Source/payload/test identity retained; native result pending (E-I107).
 
 ## Evidence invalidated by the campaign's own changes
 

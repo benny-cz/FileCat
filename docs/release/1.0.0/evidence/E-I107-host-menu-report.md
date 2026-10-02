@@ -63,3 +63,41 @@ prepared. Initial raw inputs/probe records remain retained and are not relabelle
 Owner requests earlier-commit comparisons as a fallback. Isolated source archives/builds of exact fa3a02a and
 08c2e2d have published successfully; native menu behavior has not yet been tested. Current source/menu remedy is
 not declared verified or fixed. I107 remains the current must-fix blocker.
+
+## Verified second diagnostic staging
+
+The owner's latest observation is that no menu is visible, possibly because it closes too fast. Do not treat
+this as evidence that the initial diagnostic started. A second payload adds early managed entry/error capture
+and uses a Windows x64 publish output, excluding debug-symbol files. All diagnostic changes are opt-in through
+FILECAT_MENU_TRACE=1; the existing diagnostics folder, 250-message budget, numeric menu-item identifiers and
+bounded close stacks avoid recording typed text or file contents. This instrumentation does not remedy I107.
+
+Fixture token f33ba859631d49c3a413e1250398ac9b on the same identity-bound Windows VMware guest. Three independently
+verified bundles are extracted into separate owned directories with separate --data roots. Public desktop
+launchers are `FileCat Menu Check - current.cmd`, `FileCat Menu Check - fa3a02a.cmd` and
+`FileCat Menu Check - 08c2e2d.cmd`. They invoke the explicit installed x64 dotnet host, write an invocation marker,
+capture stdout/stderr and record the exit code after FileCat closes. No agent-driven native click is claimed.
+The guest now reports Microsoft.NETCore.App and Microsoft.WindowsDesktop.App 10.0.12. Prior 10.0.5 probe evidence
+is retained as an earlier observation, not relabelled as the current environment.
+
+| Payload | Source identity | App DLL SHA-256 | Bundle SHA-256 |
+|---|---|---|---|
+| Current diagnostic | 1cd803c stamp plus I106 and opt-in I107 working inputs, built before ecd61f3; not a clean candidate | `f6238313bf0a604812af3862e498621c132f3a838faf9d9d1929e6a59f389f94` | `2c87b1cacf232da2a95f6614c0766d57f7626b85a867ad59d88bb82085d63930` |
+| Earlier source archive | fa3a02ad4a0d9b5323f5316504efa842c120d099 | `fb2915d74d26df1c51162d2944ebd44c56211064904013c5ced60875b565aa85` | `2f8489c2dc06de92e6e5c32ebfed57182207d44a7e6bcd58b62d4007d8309320` |
+| Earlier source archive | 08c2e2dee4e04c936a34cd867770d05d758af686 | `8e698d090b203c4caa9769dd6f7c328263b740a3c13530bdccfce5aeb711fe5e` | `de96a7f57e493aed5b01dbb0d395cc19f9d2e1ce3d6b5ef32beee51865718fbd` |
+
+Private manifest `checks-f33ba859631d49c3a413e1250398ac9b/manifest.json`
+SHA-256 `f6e6eabdd84ae01f2a06d5f26842f584a1950d0b37bab78814954684103b0f13` retains payload sizes, dependencies,
+four exact working-source hashes and source snapshots. Guest staging result
+`55570390a65bd985b35b3e816b196438753455fab176db78db344e54acca93ea` independently checks each extracted input.
+At the 21:27:52 UTC collection, none of the three invocation markers or state folders exists; owner click
+execution is pending. This is not a failed menu test. Collection is retained without overwriting earlier probes.
+
+Affected automated regression after instrumentation: `dotnet test tests/FileCat.App.Tests/FileCat.App.Tests.csproj
+-c Release --no-restore --logger "trx;LogFileName=i107-app.trx" --results-directory
+artifacts/release-evidence/i107-host-menu-20261002/app-after-trace --nologo` passes 230/245 with 15 platform skips,
+zero failures. Independently parsed UnitTestResult outcomes confirm these counts and the new menu test passes.
+TRX `b7d409e67bed96f049921dee85fa7a6f34b85a77759e3f8bae648a2a742f772e`; test DLL
+`5ac982dc1f43b9dacf3b7ec4407aa0557256458e56852bef4b3363d74849470a`.
+This test build's App DLL `61f090cb3ec5be00c07f25925f4eb155d9e0e59295bab5a7430371dd1c680c8e` differs from the
+staged diagnostic build and is not substituted for it. No native menu result or qualified remedy yet.

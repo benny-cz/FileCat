@@ -61,6 +61,7 @@ public partial class MainWindow : Window, IViewActions
         };
         BuildMenu();
         BuildToolbar();
+        MenuInteractionTrace.Install(this, MainMenu);
         // A new theme draws the menus' and the toolbar's icons in its colors.
         ThemeManager.ThemeChanged += OnThemeChanged;
         Closed += (_, _) => ThemeManager.ThemeChanged -= OnThemeChanged;
