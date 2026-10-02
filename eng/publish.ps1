@@ -6,7 +6,7 @@
     publish/<rid>/                      self-contained ReadyToRun build (input for the installer)
     FileCat-<ver>-<rid>-portable.zip    same build plus the FileCat.portable marker (state beside the exe)
     FileCat-<ver>-<rid>-fdd.zip         framework-dependent build (receives .NET servicing independently)
-    sbom-<ver>.json                     package inventory (dotnet list --include-transitive)
+    sbom-<ver>-<rid>.json               package inventory (dotnet list --include-transitive)
   Signing is a release-infrastructure step (SignPath Foundation, ADR-15) applied to these outputs in CI.
 #>
 param(
@@ -75,7 +75,7 @@ Remove-Item $fddZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $fdd "*") -DestinationPath $fddZip
 
 # Package inventory for the release SBOM and license gate (every shipped component must be OSI-licensed).
-$sbom = Join-Path $artifacts "sbom-$Version.json"
+$sbom = Join-Path $artifacts "sbom-$Version-$Runtime.json"
 dotnet list $project package --include-transitive --format json | Out-File -Encoding utf8 $sbom
 
 Write-Host "Done:"

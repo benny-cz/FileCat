@@ -1599,6 +1599,8 @@ level the plan already states; exploit-level detail is not recorded here.
   compiler contributes bytes (setup and uninstaller stubs) and must be pinned and inventoried (plan §10.2).
 - **I03:** `eng/publish.ps1` writes `sbom-<version>.json` for each RID under the same name; running it for win-x64 and
   win-arm64 with one version leaves only the last RID's inventory.
+  Filename collision remediated to sbom-<version>-<rid>.json; actual assignment/native inventory queries retain both
+  documents (E-I03-rid-inventory). This is a package list; complete per-artifact/native/runtime/helper provenance remains open.
 - **I03 / I18 (E-V19-P1, E-I15-V1):** packages carry code for other architectures: the macOS arm64 app bundles
   universal (`x86_64 arm64`) `libAvaloniaNative`, `libHarfBuzzSharp` and `libSkiaSharp`; the x64 Windows payload carries
   foreign-architecture WebView2 loaders. The inventory must list them, and the release owner decide whether to thin them.

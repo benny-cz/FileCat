@@ -596,6 +596,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     corpus checks replace prerequisite skips. Initial keyring setup caused an aborted run; corrected isolated native
     service yields a full Core pass, with all failed inputs retained. Tar/AppImage corrupt-state and restart checks pass.
     Owned loops detached, test Samba stopped and raw evidence transferred/hash-verified on host before 26.04 overwrite.
+134. I03's Windows inventory filename collision remediated while 26.04 installs (E-I03-RID): per-RID filenames retain
+    both native package-list JSON outputs. Full artifact/native/runtime/helper SBOM and source/license gates remain open.
 
 ## Evidence invalidated by the campaign's own changes
 

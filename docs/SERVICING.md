@@ -11,7 +11,7 @@ FileCat has no updater (plan §19.3, ADR-15), so servicing is an explicit mainta
 | `FileCat-<ver>-win-x64-setup.exe` | Per-machine installer (Inno Setup) of the self-contained ReadyToRun build | Only through a new FileCat release |
 | `FileCat-<ver>-win-x64-portable.zip` | The same build plus a `FileCat.portable` marker; state lives in `Data/` next to the exe | Only through a new FileCat release |
 | `FileCat-<ver>-win-x64-fdd.zip` | Framework-dependent build | Yes, through the installed .NET 10 Desktop Runtime |
-| `sbom-<ver>.json` | Package inventory | – |
+| `sbom-<ver>-<rid>.json` | Package inventory per Windows RID (not a complete artifact SBOM) | – |
 
 ## Security releases
 
