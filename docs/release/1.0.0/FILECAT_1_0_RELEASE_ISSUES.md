@@ -76,7 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I107 | Windows host menus appear and immediately disappear | High (reported loss of core mouse command access; owner-declared blocker) | Must fix; current execution priority (V17/I13) | Open — owner reports both host and Win11 VM, persisting after Codex restart; copied DLL provenance verified. Direct click blocked by JavaScript runtime startup failure; cause unproved (E-I107) |
+| I107 | Windows host menus appear and immediately disappear | High (loss of core mouse command access; owner-declared blocker) | Must fix (V17/I13); host symptom cleared, owner authorizes remaining work | Remediated preliminarily — native trace identifies unchanged theme rebuild detaching the popup. Baseline 2 failures; targeted 14/14 and remainder 219/234 with 15 skips. Owner host success, copied DLL matches working fix. Guest after/affected CI pending (E-I107) |
 | I106 | Recovery discovery misses a separate portable installation | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and Windows-verified preliminarily** (E-I106): baseline guards 1/3, fixed subset 14/17 and App 229/244 with explicit skips. Native after/CI/packages/wider census/candidate pending |
 | I105 | Portable recovery misses per-user owners and portable profiles | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and verified preliminarily** (E-I105): exact dev.539 native GUI miss; three baseline regressions fail; fixed ordinary/independent GUI 2/2, Windows App 225/240 and final guards 10/13 pass with explicit skips. CI/development packaging pass at 1cd803c; native rebuilt packages/wider discovery/candidate pending |
 | I104 | Windows window title should start with FileCat, then the selected path and account/elevation | Low (owner-requested title ordering) | Low-priority queue | Queued 2026-10-02; repeated FileCat is valid when the selected directory has that name |
@@ -1059,8 +1059,14 @@ level the plan already states; exploit-level detail is not recorded here.
   crashes even after reset. No input sent; no independent reproduction or causal conclusion ([E-I107](evidence/E-I107-host-menu-report.md)).
 - Owner declares this a blocker and reports the same symptom in the running Windows VM. Codex restart does not
   clear it. Automation JavaScript still crashes, including a basic health check without the UI helper import.
-- Must fix; current execution priority. No speculative menu change. Restore the UI connection, observe the menu/focus behavior,
-  reproduce and remediate a real defect if found, then revalidate the affected interaction.
+- Owner comparison of all three staged builds fails; logs establish all isolated GUIs started and exited normally.
+  Native trace shows an unchanged Classic theme event rebuilding/removing the open menu, closing its popup while
+  the window stays active. Two new regressions reproduce this; ordinary mouse-click control passes.
+- Theme application now skips an unchanged installed palette while preserving the requested preference. Targeted
+  menu/theme/tooltip checks pass 14/14; remainder 219/234, 15 skips. Owner confirms host success, copied DLL matches
+  working fix and remaining work is authorized. Remediated preliminarily; guest after/CI and exact-candidate
+  interaction remain pending. Automation still fails after Claude closes; no-import health
+  reports Windows sandbox setup refresh errors. This gate is independent of the traced FileCat defect.
 
 ### I106 — Recovery discovery misses a separate portable installation
 

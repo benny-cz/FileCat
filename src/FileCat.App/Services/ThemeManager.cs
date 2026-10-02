@@ -204,6 +204,9 @@ public static class ThemeManager
         if (app is null) return;
         RequestedName = name;
         var palette = Resolve(name, app.PlatformSettings);
+        // Windows can repeat color notifications when a popup opens. Rebuilding unchanged resources/chrome
+        // detaches the menu that just opened; keep it, while still remembering "System" versus an explicit theme.
+        if (_current is not null && palette == Current && app.Resources.MergedDictionaries.Contains(_current)) return;
         var dict = Build(palette);
         if (_current is not null) app.Resources.MergedDictionaries.Remove(_current);
         app.Resources.MergedDictionaries.Add(dict);

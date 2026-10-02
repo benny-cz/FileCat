@@ -38,8 +38,8 @@ After the owner's Codex restart, initialization returns the same error. A basic 
 importing the UI helper also fails. This identifies an automation-runtime availability problem, not a proved
 FileCat defect or a proved helper-specific failure. Repeating the Codex restart is not requested.
 
-Status Open. Do not change menu code speculatively or label the helper crash as its cause. Direct live test,
-reproduction, remedy if needed, affected regression and candidate interaction evidence remain pending.
+Initial investigative disposition: Open; no speculative menu correction and no claim that the helper crash
+caused it. Native trace and remediation results are recorded below; exact-candidate interaction remains pending.
 
 ## Diagnostic work in progress
 
@@ -101,3 +101,54 @@ TRX `b7d409e67bed96f049921dee85fa7a6f34b85a77759e3f8bae648a2a742f772e`; test DLL
 `5ac982dc1f43b9dacf3b7ec4407aa0557256458e56852bef4b3363d74849470a`.
 This test build's App DLL `61f090cb3ec5be00c07f25925f4eb155d9e0e59295bab5a7430371dd1c680c8e` differs from the
 staged diagnostic build and is not substituted for it. No native menu result or qualified remedy yet.
+
+## Native failure path and preliminary correction
+
+Owner reports all three comparison builds fail. The next collection establishes execution of each isolated
+GUI: all three state folders, startup logs and invocation markers exist; each exits 0 with empty stderr and
+no crash log. Current diagnostic PID 12892 and module c23b9fd7-4f49-4b28-a0db-3208235b7b8b match its staged
+payload. Native input was supplied by the owner, not by the unavailable agent automation runtime.
+
+The current trace records menu item 3 opening at 21:29:33.7584173 UTC and closing at 21:29:34.1227310 UTC;
+the second attempt opens at 21:29:34.6261089 and closes at 21:29:34.7959121. Repeated ThemeChanged events with
+the same Classic palette precede both closes, followed by menu-items-changed. The close stack includes
+Popup.OnDetachedFromLogicalTree, MenuItem.OnDetachedFromLogicalTree and ItemsControl.RemoveLogicalChild.
+The main window remains active during both failures; native capture loss follows the detach. Together with
+the source and reproduced regression, this identifies unchanged theme application rebuilding/removing the
+open menu. A separate focus-stealing application is not needed to explain this failure path.
+
+Raw collection `collection-20261002-213222-434.json`
+SHA-256 `56ff555dae47d3f9b6642e2e5cd7386790f378e97d77930fc94d6bf89550f8bf`. Log exports independently match
+guest hashes: current `7ee1f1647f7f76632bf25f43068609e9c92b3c034fa28e8a5277d9513e7a2525`, earlier fa3a02a
+`e13e0604414db0c916fef81aebedc10af201b85d23fe9753ee6d489b36f4dd91`, earlier 08c2e2d
+`3fbcea0dd88b7417b4a0395c408f433d024611b6a07b3888bb22dcb23a637950`. The owner observation covers the older
+menus; their startup logs contain no menu trace, so no older-build close path is inferred from them.
+
+Baseline at 459294c plus two new regression cases: a repeated System or Psychedelic theme application closes
+the menu in both cases; ordinary mouse-click control passes. Baseline 1 pass/2 fail/no skips, TRX
+`0f49add692918bd58c97734b8e1c227d3dd5eae57e738dc826604b1786954df9`. ThemeManager.Apply now remembers the
+requested preference and returns when the resolved palette is unchanged and its resource dictionary is still
+installed. Initial application and real palette changes continue to rebuild resources and notify views.
+
+Targeted menu/theme/tooltip regression passes 14/14, no skips, including both failing cases and a control
+that switches between System/its resolved explicit palette while retaining the requested preference, then
+verifies a genuinely different palette still notifies/repaints. TRX
+`d4354a7ccbf60a88cce44d44a5b57540fa8770859553f2ad0edda0f8ac36229c`. ThemeManager raw source
+`5c9fb7c16d5a5ada1475f40e2b3cbd9ca06b493370d7296772e81bc8aa8b5c32`, targeted test DLL
+`5c697bb8ae3d429ff422964f20e632b3da7b72a769a2baa74d8f661c446ffb76`; full input manifest retained privately.
+Remaining App regression passes 219/234 with 15 platform skips, no failures; TRX
+`629027d4e45598112fea05ffb07d088e3b4505041c6dafbde951b75a699a5364`. The disjoint targeted/remainder runs cover
+the complete App inventory: 233/248 pass, 15 skips, zero failures. Status: Remediated preliminarily, not Closed.
+
+Owner subsequently reports the host test works and authorizes proceeding with remaining release tasks.
+Read-only Program Files inspection at 21:40 UTC confirms its App DLL matches the targeted working fix byte for
+byte: `e8bc09e390253a9608c6d8ed7931b980f47bcbffba94793cb45292da7a7aa23a`, stamp 459294c plus working I107
+inputs. Full host runtime inventory is retained in `app-after-theme-fix/verified-host-and-remainder.json`.
+No running PID is established at that later inspection. This is an owner-operated host success bound to the
+matching copied input; it is not clean-candidate qualification. Corrected guest interaction and affected CI
+remain pending; the owner's blocking host symptom is cleared preliminarily.
+
+After the owner closes Claude, Computer Use reset/import still fails. The no-import JavaScript health check
+now supplies the more specific runtime error: `windows sandbox failed: helper_unknown_error: setup refresh
+had errors`, kernel exit code 1. No window selection or input occurs. This is an independent automation gate;
+it does not explain away the observed FileCat menu removal.

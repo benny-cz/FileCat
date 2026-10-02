@@ -30,12 +30,12 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-Current execution priority: I107 is an owner-declared must-fix blocker, reported on both the Windows host and
-the running Windows VM, persisting after Codex restart. The requested direct click is blocked by JavaScript
-runtime startup failure even without importing Computer Use (E-I107). Host and guest testing are authorized;
-no host input was sent. The cause of the reported menu failure and any tool/focus connection are unproved.
-The second diagnostic and two exact earlier builds are staged on the VM desktop with isolated state and
-invocation/error capture; owner clicks are pending. Headless App regression passes with explicit skips (E-I107).
+I107's blocking host symptom is cleared preliminarily: the owner confirms success and authorizes remaining work.
+Native VM trace identifies unchanged theme application removing the open menu; a palette guard fixes two
+baseline regressions. Complete App inventory passes 233/248 with 15 platform skips; copied host App DLL matches
+the working fix. Guest after/affected CI and candidate interaction remain pending (E-I107). Agent Windows UI
+automation is independently unavailable: JavaScript health fails with Windows sandbox setup refresh errors.
+No agent-driven Windows input was sent. Continue unblocked I106 native recovery validation and wider audit.
 
 | ID | Needed | Status |
 |---|---|---|

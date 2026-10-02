@@ -10,6 +10,36 @@ namespace FileCat.App.Tests;
 /// <summary>View → Theme…: every theme tried on FileCat itself, kept with Enter, undone with Esc.</summary>
 public sealed class ThemePickerTests
 {
+    [AvaloniaFact]
+    public void System_and_its_current_palette_keep_the_requested_preference_without_a_visual_change()
+    {
+        string before = ThemeManager.RequestedName;
+        int changes = 0;
+        void Changed() => changes++;
+        try
+        {
+            ThemeManager.Apply("System");
+            string resolved = ThemeManager.Current.Name;
+            ThemeManager.ThemeChanged += Changed;
+            ThemeManager.Apply(resolved);
+            Assert.Equal(resolved, ThemeManager.RequestedName);
+            ThemeManager.Apply("System");
+            Assert.Equal("System", ThemeManager.RequestedName);
+            Assert.Equal(0, changes);
+
+            // A genuinely different palette must still repaint the application.
+            string different = resolved == "ClassicDark" ? "Classic" : "ClassicDark";
+            ThemeManager.Apply(different);
+            Assert.Equal(different, ThemeManager.Current.Name);
+            Assert.Equal(1, changes);
+        }
+        finally
+        {
+            ThemeManager.ThemeChanged -= Changed;
+            ThemeManager.Apply(before);
+        }
+    }
+
     private static async Task Click(Window window, string text)
     {
         var ct = TestContext.Current.CancellationToken;

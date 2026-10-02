@@ -705,6 +705,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Launchers use isolated state, invocation markers and pinned-runtime stderr capture; owner clicks requested
     because the Windows automation runtime cannot start. Full affected App regression passes 230/245 with 15
     explicit platform skips and no failures. Source/payload/test identity retained; native result pending (E-I107).
+154. I107 owner-operated VM trace identifies repeated unchanged theme application removing the open menu;
+    popup detaches/closes while the main window remains active. All three comparison GUIs started/exited 0;
+    earlier failures are owner-observed. Two new regressions fail on baseline, then pass after the palette guard;
+    targeted menu/theme/tooltip checks 14/14, no skips. Remaining App/native after/CI pending. Automation retry
+    after Claude closes still fails, now with specific Windows sandbox setup refresh errors (E-I107).
+155. I107 palette guard's disjoint targeted/remainder runs cover all 248 App cases: 233 pass/15 platform skips,
+    zero failures. Owner confirms the host works and authorizes remaining release work; Program Files App DLL
+    independently matches working-fix bytes. Host symptom cleared preliminarily; guest after/affected CI and
+    candidate interaction remain pending. Resume I106 native process guard and wider recovery audit (E-I107).
 
 ## Evidence invalidated by the campaign's own changes
 
