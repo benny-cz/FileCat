@@ -52,17 +52,7 @@ EOF
 
 # 1) Tarball: runs from wherever it is unpacked; the script adds a menu entry for the current user.
 desktop_entry filecat filecat > "$PUB/filecat.desktop"
-cat > "$PUB/install-desktop-entry.sh" <<'EOF'
-#!/bin/sh
-# Adds FileCat to your application menu (for this user), pointing at this folder.
-set -e
-HERE="$(cd "$(dirname "$0")" && pwd)"
-APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-mkdir -p "$APPS"
-sed -e "s|^Exec=.*|Exec=\"$HERE/FileCat\" %F|" -e "s|^Icon=.*|Icon=$HERE/filecat.png|" "$HERE/filecat.desktop" > "$APPS/filecat.desktop"
-echo "Added $APPS/filecat.desktop"
-EOF
-chmod +x "$PUB/install-desktop-entry.sh"
+install -m 755 "$ROOT/eng/install-linux-desktop-entry.sh" "$PUB/install-desktop-entry.sh"
 TARBALL="$OUT/FileCat-$VERSION-$RID.tar.gz"
 rm -f "$TARBALL"
 tar -C "$OUT/publish" -czf "$TARBALL" --transform "s,^$RID,FileCat-$VERSION," "$RID"

@@ -54,8 +54,10 @@ in the generator. No install or product test ran during those failed attempts.
 
 ## Current execution status
 
-Both corrected media built; host transfers and fresh installations are in progress. Fresh OS facts, clean baseline
-snapshots and FileCat package/native results will be added after actual installation. No OS qualification claimed yet.
+Both corrected media copied to host with matching hashes. Ubuntu 24.04.5 installed, powered off at completion, then
+booted with media disconnected. Actual GNOME Wayland session and bound VM/disk verified. Clean powered-off snapshot
+filecat-clean-ubuntu2404-20261002 taken before FileCat/testing dependencies; no SDK installed. Preliminary package/native
+results and setup changes in E-V19-P2. 26.04 media not yet booted; its install remains pending. No final OS qualification.
 
 Manual CI [36994087185](https://github.com/benny-cz/FileCat/actions/runs/36994087185), source
 `d14199b8b2bc1f6170ceab2b91c3212e80909d0c`, passed all four test lanes and Linux/macOS packaging. Windows tag-only

@@ -176,6 +176,21 @@ jobs:
       # D-51 on macOS: WKWebView on the runner's display, from a program whose main thread runs the run loop.
       - if: runner.os == 'macOS'
         run: dotnet run --project tests/FileCat.PageEngineSmoke -c Release
+      - name: Linux tar desktop launcher paths
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends python3-gi desktop-file-utils
+          evidence="filecat-desktop-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          result=0
+          /usr/bin/python3 eng/validation/validate-linux-desktop-entry.py \
+            --helper "$PWD/eng/install-linux-desktop-entry.sh" --evidence-dir "$RUNNER_TEMP/$evidence" || result=$?
+          tar -czf "$RUNNER_TEMP/filecat-desktop-results.tar.gz" -C "$RUNNER_TEMP" "$evidence"
+          exit "$result"
+      - uses: actions/upload-artifact@v7
+        if: always() && runner.os == 'Linux'
+        with:
+          name: linux-desktop-launcher-results
+          path: ${{ runner.temp }}/filecat-desktop-results.tar.gz
       - uses: actions/upload-artifact@v7
         if: always()
         with:

@@ -11,15 +11,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
 - **Resumption input:** clean `main` at `08c2e2dee4e04c936a34cd867770d05d758af686`, with prior work through I95.
   The seven existing planning documents were preserved and pushed unchanged as `3316f15` with owner authorization.
-  Current validation changes and exact build/harness identities are in E-ENV-06, E-I96 and E-V03-CLONE-1.
+  Current validation changes and exact build/harness identities are in E-ENV-06/07, E-I96/98, E-V03-CLONE-1 and E-V19-P2.
 - **CI:** all four lanes passed at `08c2e2d` and `a5a3c0c`; the intervening documentation commit's ARM64 lane failed
   on a transient native Recycle Bin query (I96). Its bounded test remedy `5503262` and UNC fix `ca1afe0` pass all four
-  lanes. Package jobs skipped;
-  these results do not qualify release packages or replace the candidate's skip inventory.
-- **VMs:** both VMware guests are running and guest access works after owner clarification (E-ENV-06). Ubuntu is
-  22.04.5; Windows is Insider 26300 with .NET 10.0.5. The historical cold-boot failure has not been reproduced again.
-  Fresh Ubuntu 24.04/26.04 desktop provisioning is now authorized and in progress (E-ENV-07); the network is restored,
-  original ISO signatures/hashes verified, and identity-guarded media built. GA Windows/reference hardware remain open.
+  lanes. Manual run 36994087185 at d14199b passes all four lanes and Linux/macOS package jobs; development packages
+  are under native validation (E-V19-P2). CI at 407fd63 passes. These results do not qualify release packages or replace
+  the candidate's skip inventory.
+- **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
+  after completed copy cases, as authorized. Ubuntu now runs a fresh 24.04.5 full desktop with a powered-off clean
+  baseline snapshot and actual GNOME Wayland session (E-ENV-07); initial .deb install, GUI launch and Unicode copy pass.
+  Identity-guarded 26.04 media is ready but not yet booted. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -579,6 +580,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     built for 24.04/26.04; positive identity check and four negative controls pass. Installer selection corrected to
     use udev ID_SERIAL before any boot. Manual CI `36994087185` at `d14199b` passes all four lanes and Linux/macOS
     packaging; no tag/publication. Fresh installations and package/native validation remain in progress.
+130. Fresh Ubuntu 24.04.5 installed and baseline snapshot retained before FileCat or test tools, GNOME Wayland/XWayland
+    confirmed, no SDK present (E-ENV-07/E-V19-P2). Development .deb installs and displays the app; ordinary GUI Unicode
+    copy passes byte/hash checks. Owner explicitly authorizes disabling idle lock/blanking and unlocking this disposable
+    VM after auto-review requested specific security authorization. Completed Windows VM tests retained; guest shut down.
+131. **I98:** actual tar desktop launch fails when its folder contains ampersand; unescaped sed replacement corrupts
+    Exec/Icon. Independent native GLib/argv/icon harness passes 4/12 before and 12/12 after the separate escaped helper,
+    including quotes/percent/newlines/Unicode (E-I98). Linux CI coverage added; rebuilt packages/26.04/candidate pending.
 
 ## Evidence invalidated by the campaign's own changes
 
