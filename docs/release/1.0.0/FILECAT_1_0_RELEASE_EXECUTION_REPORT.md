@@ -18,11 +18,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   are under native validation (E-V19-P2). CI at 407fd63 passes. These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
-  after completed copy cases, as authorized. Ubuntu now runs a fresh 24.04.5 full desktop with a powered-off clean
-  baseline snapshot and actual GNOME Wayland session (E-ENV-07); preliminary packages/native suites pass with recorded
-  skips. Fresh 26.04.1 GNOME Wayland also installed with clean snapshot. Unmodified dev.526 Debian install fails on
+  after completed copy cases, as authorized. Fresh Ubuntu 24.04.5 and 26.04.1 full desktops each have a powered-off clean
+  baseline snapshot and actual GNOME Wayland session (E-ENV-07); current guest is 26.04. Preliminary 24.04 packages/native
+  suites pass with recorded skips. Unmodified dev.526 Debian install on 26.04 fails on
   ICU dependency choices (E-I04); producer corrected and rebuilt 26.04 install/desktop/lifecycle pass. 26.04 native suites
-  and rebuilt 24.04 compatibility in progress. GA Windows/reference hardware remain open.
+  pass with recorded skips after native setup correction and I99's socket-path remedy. Separate-session GUI launch
+  reproduces I100; its fix and rebuilt 24.04 compatibility continue. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -607,6 +608,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     dependency/CLI/desktop/lifecycle cases pass on 26.04. Tar desktop GUI/native Unicode copy and normal FUSE AppImage
     pass; all rebuilt formats preserve corrupt settings and restart state, and packaged helper passes 12/12 native
     path cases (E-V19-P2). Private SDK/native prerequisites added only after clean-package cases.
+137. Fresh 26.04 native Core 703/741 and Remote 94/116 pass with explicit skips; actual Secret Store/Samba/GVfs
+    branches required. Root FAT32/exFAT 1/1 and Windows-formatted recovery corpus 3/3 pass. Initial private-bus GVfs
+    setup failure retained; isolated runtime/keyring rerun passes (E-X02).
+138. Full 26.04 App run reproduces I99 under a valid 73-byte TMPDIR: two socket address exceptions. Hash-bound remedy
+    passes boundary/long/Unicode fresh-process checks and full App rerun 204/231 with 27 skips. Actual same-session
+    GUI forwards/persists tabs. A separate-session launch exposes I100's Local mutex scope and socket replacement;
+    retained independently, not counted as a pass. CI/rebuilt package validation and I100 remediation continue.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -627,11 +635,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - `78a48ce` (FAT recovery): V09/V11 FAT recovery evidence before it.
 - `efc128f` (comparison, Synchronize): V13 comparison and synchronization evidence before it; a one-sided folder is now
   read in full when compared.
+- I99 (Unix instance sockets/recovery write folders): previous Unix instance and recovery write-location evidence;
+  rebuilt package identities require affected revalidation. Separate-session behavior remains unresolved as I100.
 
 ## Next actions (unblocked)
 
-1. Provision the owner-authorized fresh Ubuntu 24.04/26.04 desktop matrix in the lent VM and run Linux package and
-   native checks (ENV-04/I04). ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
+1. Remediate I100's independently reproduced Unix instance/session failure; preserve 26.04 native evidence and
+   validate rebuilt packages on both fresh Ubuntu baselines (ENV-04/I04/I99). ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.

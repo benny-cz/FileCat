@@ -186,6 +186,20 @@ jobs:
             --helper "$PWD/eng/install-linux-desktop-entry.sh" --evidence-dir "$RUNNER_TEMP/$evidence" || result=$?
           tar -czf "$RUNNER_TEMP/filecat-desktop-results.tar.gz" -C "$RUNNER_TEMP" "$evidence"
           exit "$result"
+      - name: Unix instance IPC with unusual temporary paths
+        run: |
+          evidence="filecat-instance-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          result=0
+          python3 eng/validation/validate-unix-instance.py \
+            --test-dll "$PWD/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll" \
+            --evidence-dir "$RUNNER_TEMP/$evidence" || result=$?
+          tar -czf "$RUNNER_TEMP/filecat-instance-results.tar.gz" -C "$RUNNER_TEMP" "$evidence"
+          exit "$result"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unix-instance-results-${{ matrix.os }}
+          path: ${{ runner.temp }}/filecat-instance-results.tar.gz
       - uses: actions/upload-artifact@v7
         if: always() && runner.os == 'Linux'
         with:

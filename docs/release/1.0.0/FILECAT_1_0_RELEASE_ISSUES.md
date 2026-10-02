@@ -76,7 +76,9 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I98 | Linux tar desktop entry corrupts extraction paths containing special characters | Medium (desktop launch fails) | Must fix for Linux tar claim | **Remediated ecf5349; native helper and Linux CI 12/12 verified** (E-I98; unchanged 4/12); rebuilt tar GUI passes on 24.04; 26.04 and candidate closure pending |
+| I100 | Unix session-local mutex allows separate launches to run on one profile and replace its live socket | Medium (instance/state contract) | Must fix (A-07, V23 B12) | Open; native separate-session failure traced, same-session control passes (E-I100) |
+| I99 | Unix instance socket throws under valid long temporary paths | Medium (instance startup and recovery safety check) | Must fix (A-07, V23 B12, V09) | **Remediation prepared; native boundary/long/Unicode cases and affected App suite pass** (E-I99); CI/rebuilt packages and candidate closure pending |
+| I98 | Linux tar desktop entry corrupts extraction paths containing special characters | Medium (desktop launch fails) | Must fix for Linux tar claim | **Remediated ecf5349; native helper and Linux CI 12/12 verified** (E-I98; unchanged 4/12); rebuilt tar GUI/helper pass on 24.04 and 26.04; candidate closure pending |
 | I97 | CloneCopyTests: a UNC volume root lacked the separator required by the native query, so the SMB case failed before copying | Low (validation setup; no product copying defect established) | Must fix (native copy coverage) | **Remediated `ca1afe0`; independent probe and corrected local/SMB cases verified**, 1/1 each without skips (E-V03-CLONE-1); candidate rerun and closure pending |
 | I96 | ARM64 CI: the native Recycle Bin integration test assumed its first query always succeeds; one returned `ERROR_ALREADY_EXISTS` | Low (validation reliability; no product data loss established) | Must fix (required CI lane) | **Remediated `5503262`; targeted test and four-lane CI verified** (E-I96); candidate rerun and closure pending |
 | I95 | Signatures: a good OpenPGP signature without a trust line (gpg.conf trust-model always) read as good, for any key in the keyring | Medium–High (a file signed by an arbitrary, uncertified key shown as signed by its publisher) | Must fix (V15: an unknown signature never becomes a shield) | **Remediated `cd37342`; verified** (E-V15-G1; independent GnuPG test fails under the old reading) |
@@ -1042,6 +1044,25 @@ level the plan already states; exploit-level detail is not recorded here.
   RecoveryUiTests 2). Finding such files' content needs carving by content, which FileCat does not claim for them.
 - **Severity:** Medium: no data is harmed, but a recovery tool telling the user a lost file was empty is a false
   finding (the class of I20).
+
+### I100 — Unix launches in separate sessions run independently
+
+- Native GUI failure and independent syscall trace in [E-I100](evidence/E-I100-unix-instance-session.md).
+  Same user/profile/data/TMPDIR, different Unix sessions: each Local mutex reports its own first instance and the
+  second process replaces the original socket. Same-session control forwards. Medium; A-07/V23 B12 must fix.
+- Open; remediation, cross-process regression, write-location re-audit and final-candidate checks pending.
+
+### I99 — Unix instance sockets under long temporary paths
+
+- Reproduced by two full-suite failures at cc97a8d; native full App TRX and source/payload hashes in
+  [E-I99](evidence/E-I99-unix-instance-path.md). Valid temporary folder plus the pipe prefix exceeds sun_path.
+  Expected: instance probe/start/forward works. Actual: ArgumentOutOfRangeException. Medium; A-07/V23 B12/V09 must fix.
+- Remedy preserves fitting endpoints, uses an absolute short name otherwise, and owner-only UID directory when
+  necessary; UTF-8 bytes and OS limits accounted. That extra write folder participates in recovery safety checks.
+  New native fresh-process harness and recovery guard regression cover boundary, long ASCII, Unicode and unknown disk.
+- Eleven passes/one expected boundary skip; real same-session GUI forwarding/persistence pass; affected App
+  204/231 passes with 27 skips. Separate-session failure tracked as I100. CI/macOS, rebuilt packages, re-audit and
+  final-candidate closure pending. Earlier instance/recovery write-location and rebuilt-artifact evidence invalidated.
 
 ### I98 — Linux tar desktop entry corrupts special extraction paths
 

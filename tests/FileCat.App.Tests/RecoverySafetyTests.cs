@@ -133,4 +133,31 @@ public sealed class RecoverySafetyTests
     }
 
     private static bool PathIn(string folder, string root) => Core.FileSystem.PathUtil.IsSameOrUnder(folder, root);
+
+    [AvaloniaFact]
+    public void An_instance_connection_outside_the_temporary_folder_is_guarded_before_scanning()
+    {
+        string? ipc = SingleInstance.ExtraWriteFolder;
+        if (ipc is null)
+        {
+            Assert.Skip("Run with a Unix TMPDIR too long for a socket to require the private IPC fallback.");
+            return;
+        }
+        string root = Path.Combine(Path.GetTempPath(), "filecat-ipc-safety-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var vm = new MainViewModel(services);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, ipc);
+            var sameDisk = vm.CheckDiskSafety("test-device", "test disk");
+            Assert.Contains("the instance connection", sameDisk.Refusal);
+            Assert.Contains(ipc, sameDisk.Refusal);
+            services.Recovery.SharesDisk = (_, folder) => PathIn(folder, ipc) ? null : false;
+            Assert.Contains("cannot tell", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, _) => false;
+            Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
 }

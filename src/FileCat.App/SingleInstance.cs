@@ -25,6 +25,47 @@ public static class SingleInstance
         return "FileCat-" + hash;
     }
 
+    private static int UnixSocketPathLimit => OperatingSystem.IsMacOS() ? 104 : 108;
+
+    private static string UnixPipeDirectory
+    {
+        get
+        {
+            string temp = Path.GetTempPath();
+            // sun_path includes a terminating NUL; count UTF-8 bytes, not characters. An absolute pipe name avoids
+            // .NET's additional CoreFxPipe_ prefix. If even that cannot fit, use a short, private per-user directory.
+            return Encoding.UTF8.GetByteCount(Path.Combine(temp, "FileCat-0000000000000000")) < UnixSocketPathLimit
+                ? temp
+                : "/tmp/filecat-" + Core.FileSystem.UnixPermissions.CurrentUserId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    /// <summary>An IPC folder outside the configured temporary directory, included in the recovery write guard.</summary>
+    internal static string? ExtraWriteFolder => OperatingSystem.IsWindows() || UnixPipeDirectory == Path.GetTempPath()
+        ? null : UnixPipeDirectory;
+
+    private static string PipeName(string name)
+    {
+        if (OperatingSystem.IsWindows()) return name;
+        // Keep the established endpoint wherever it fits, including communication with an already-running old build.
+        return Encoding.UTF8.GetByteCount(Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + name)) < UnixSocketPathLimit
+            ? name : Path.Combine(UnixPipeDirectory, name);
+    }
+
+    private static void EnsurePipeDirectory()
+    {
+        if (ExtraWriteFolder is not { } folder) return;
+        Directory.CreateDirectory(folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        // /tmp is sticky: another user cannot replace our directory. Reject an existing link, foreign owner or a
+        // directory open to other users, without chmod/chown or removing anything that we do not own.
+        if (new DirectoryInfo(folder).LinkTarget is not null ||
+            Core.FileSystem.UnixPermissions.Stat(folder) is not { } stat ||
+            stat.Uid != Core.FileSystem.UnixPermissions.CurrentUserId ||
+            (File.GetUnixFileMode(folder) & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                                           UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute)) != 0)
+            throw new UnauthorizedAccessException("The FileCat instance connection folder is not private to this account.");
+    }
+
     /// <summary>
     /// Whether a FileCat of this user is running with <paramref name="profile"/> and its usual files (started without
     /// --data). Asked by a FileCat started with --data, never of itself; true when that cannot be told.
@@ -39,7 +80,7 @@ public static class SingleInstance
             // the temporary folder (release plan V09). The usual instance's pipe answers without writing anything.
             try
             {
-                using var client = new NamedPipeClientStream(".", name, PipeDirection.Out, PipeOptions.CurrentUserOnly);
+                using var client = new NamedPipeClientStream(".", PipeName(name), PipeDirection.Out, PipeOptions.CurrentUserOnly);
                 client.Connect(500);
                 return true;
             }
@@ -72,7 +113,7 @@ public static class SingleInstance
         if (created) return false;
         try
         {
-            using var client = new NamedPipeClientStream(".", name, PipeDirection.Out, PipeOptions.CurrentUserOnly);
+            using var client = new NamedPipeClientStream(".", PipeName(name), PipeDirection.Out, PipeOptions.CurrentUserOnly);
             client.Connect(2000);
             var payload = JsonSerializer.SerializeToUtf8Bytes(options.ToForwardArgs());
             client.Write(payload);
@@ -100,7 +141,8 @@ public static class SingleInstance
             {
                 try
                 {
-                    await using var server = new NamedPipeServerStream(name, PipeDirection.In, 1,
+                    EnsurePipeDirectory();
+                    await using var server = new NamedPipeServerStream(PipeName(name), PipeDirection.In, 1,
                         PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
                     await server.WaitForConnectionAsync(ct);
                     using var ms = new MemoryStream();
@@ -115,7 +157,7 @@ public static class SingleInstance
                     ArgumentsReceived?.Invoke(args);
                 }
                 catch (OperationCanceledException) { break; }
-                catch (Exception ex) when (ex is IOException or JsonException)
+                catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
                 {
                     await Task.Delay(200, CancellationToken.None);
                 }

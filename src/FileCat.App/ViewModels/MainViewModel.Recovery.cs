@@ -439,7 +439,11 @@ public sealed partial class MainViewModel
             }
             return (known, unknown);
         }
-        var (own, unsure) = Check(Services.Paths.WriteFolders);
+        IEnumerable<(string What, string Folder)> WriteFolders(AppPaths paths) =>
+            SingleInstance.ExtraWriteFolder is { } ipc
+                ? paths.WriteFolders.Append(("the instance connection", ipc))
+                : paths.WriteFolders;
+        var (own, unsure) = Check(WriteFolders(Services.Paths));
         if (own.Count > 0 || unsure.Count > 0)
         {
             string command = DataCommand(SuggestedDataFolder(device) ?? (OperatingSystem.IsWindows() ? @"X:\FileCat data" : "/media/USB/FileCat data"));
@@ -453,7 +457,7 @@ public sealed partial class MainViewModel
         string? profile = App.StartupOptions.Profile;
         if (Services.Paths.DataRoot is not null && SingleInstance.UsualInstanceRunning(profile))
         {
-            var (usual, usualUnsure) = Check(AppPaths.Usual(profile).WriteFolders);
+            var (usual, usualUnsure) = Check(WriteFolders(AppPaths.Usual(profile)));
             if (usual.Count > 0 || usualUnsure.Count > 0)
                 return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, and it writes to them while it works: " +
                                       string.Join("; ", usual.Concat(usualUnsure)) + (usual.Count > 0 ? " are on that disk." : " may be on that disk.") +

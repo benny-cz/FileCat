@@ -1,6 +1,6 @@
 # E-X02 — native suites on the fresh Linux matrix
 
-Preliminary execution on 2026-10-02. Ubuntu 24.04 results below; 26.04 pending. No frozen candidate or final
+Preliminary execution on 2026-10-02. Ubuntu 24.04 and 26.04 results below. No frozen candidate or final
 qualification. Package-specific checks are in [E-V19-P2](E-V19-P2-linux-matrix.md); OS/disk identity in E-ENV-07.
 
 ## Inputs and setup
@@ -79,3 +79,40 @@ SDK metadata retained. Socket objects skipped by tar (diagnostic log retained); 
 Separate resolved-assets archive `9971883afb205fd74cd749c1e11cf0268c5a145f346beffb2be5ba3f648dc0df`; native supplement
 `91559331e35ba0d19988947f30aa6b04f8b9a310f266e336e828b997407dff33`; JSON TRX summary
 `f4b3b527d6a70191bd9d91ce9abe40da928333488e5130ff20cee8683c88b74a`. Guest/host archive hashes match before OS overwrite.
+
+## Ubuntu 26.04.1 native execution
+
+Exact base source `cc97a8d39eef5a3b20d58b7158efc7bdf1e6d462`, archive
+`6b1675ec8c15770de3b0fc6f6a762e5606b120e6228bb6616157e831ea526dfb`; same SDK/runtime and Python package versions
+as above. SDK/build prerequisites follow all clean package checks. Build: zero errors, nine warnings. Actual GNOME
+50.1 Wayland/XWayland; WebKit 2.52.6-0ubuntu0.26.04.1, libsecret 0.21.7-2build1 and Samba 4.23.6 Ubuntu revision
+1ubuntu2.2. Native Secret Store/WebKit/Samba/GVfs/raw block prerequisites required rather than silently skipped.
+
+| Run | Total / passed / failed / skipped | TRX SHA-256 |
+|---|---|---|
+| Core, corrected isolated native setup | 741 / 703 / 0 / 38 | `f42ca74b2261df9b32a2ad85d8ed9e0a558db6ef9bed63dc1a8d5a3a6d2a15ac` |
+| Remote | 116 / 94 / 0 / 22 | `ea03141a0eb68e29541ba8b4a3ad06e3c205d16d2237888ad8d66f8569f0a55f` |
+| App, I99 hash-bound working inputs (E-I99) | 231 / 204 / 0 / 27 | `7afee55795f8f8183d24b8b5ca55c9294b4bbd7c71f70eb72df8fac4203542a2` |
+| Root native FAT32/exFAT records | 1 / 1 / 0 / 0 | `4e61a7574bd066928a4942031a20f6ebba5dcb34cc0448b70ac408327d1e3e8d` |
+| Windows-formatted recovery corpus | 3 / 3 / 0 / 0 | `4fdf5514cf310512efa3a19266f1639e433cff903005a41099046887ffa228af` |
+
+Core's four SecretStoreTests and five UnixNetworkTests pass, including both native Samba/GVfs branches. Its readelf
+oracle passes with binutils installed; platform-only inspector cases remain skipped. Both actual WebKitGTK cases
+pass in the affected App run. Native FAT outputs match the independent 5,000-byte hash above; immutable raw FAT16
+fixture hash `19f74a085272a8080035ffb5a649b8b53ae8fe1cdcd323555c89037293a10819` unchanged. Windows-formatted image
+inputs match the three hashes above. These controls do not merge away full-suite prerequisite skips.
+
+Initial Core: 741 / 702 / 1 / 38, TRX `b47d255c0cddc53c059e8bdc6369fbccb42ba4af9341f68b47b8ececf8caee25`.
+Private D-Bus with shared desktop XDG_RUNTIME_DIR opens the share but GVfs exposes its FUSE folder on the other bus.
+Corrected run isolates both native runtime and keyring data on one private bus. Foreground GNOME Keyring's actual
+bus owner PID and unlocked collection verified; desktop keyring left intact. No FileCat change for this setup failure.
+Initial App: 230 / 202 / 2 / 26, TRX `160e8757b884d918fdd37eb5ff063106829e2fb45c711220cba643245af186b7`;
+two real socket-path failures corrected in I99. Both failed runs retained.
+
+Private TRX summary (full runs/corpus, complete nonpasses/native branch names):
+`5a2d03dde2dab0e558cc25ecfb156d07beaf5ed4b398ae44165e1bb48de94b2d`; root FAT TRX separately retained.
+Resolved-assets archive `8f530c7e67b67f7f4d982ac5d9d525358e853f3616ca3401ffcbaf8724f758f2` and pip freeze
+`0e63a944360e69e0e9806d8edce2ec0a070fba13fbaa44eead30f5fa3a832123`. Raw host root ends in 26.04/.
+Final private archive/identity-checked fixture teardown still pending; do not restore the VM until retained.
+I100 remains open from separate-session GUI testing. macOS, physical Windows/ARM, human consent/accessibility,
+live media cases and exact-candidate qualification remain required.
