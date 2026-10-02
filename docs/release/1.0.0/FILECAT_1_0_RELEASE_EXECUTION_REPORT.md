@@ -587,6 +587,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 131. **I98:** actual tar desktop launch fails when its folder contains ampersand; unescaped sed replacement corrupts
     Exec/Icon. Independent native GLib/argv/icon harness passes 4/12 before and 12/12 after the separate escaped helper,
     including quotes/percent/newlines/Unicode (E-I98). Linux CI coverage added; rebuilt packages/26.04/candidate pending.
+132. I98 fix pushed as ecf5349; push CI 36999606344 and manual CI 36999624175 pass all four test lanes. Manual Linux/macOS
+    package jobs pass; dev.526 hashes retained (E-V19-P2). Rebuilt tar opens normally from ampersand/percent/Unicode path.
+    Debian remove/purge/reinstall/update preserves state and unrelated install files; normal AppImage FUSE GUI works.
+    Native FAT32/exFAT record test passes 1/1 without skips. Remaining native suites and 26.04 matrix continue.
 
 ## Evidence invalidated by the campaign's own changes
 

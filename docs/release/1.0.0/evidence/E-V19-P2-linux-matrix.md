@@ -15,10 +15,21 @@ and Linux/macOS packaging passed; Windows tag-only package skipped. No publicati
 | FileCat-0.1.0-dev.522-linux-x64.tar.gz | `39b66f51b08647f4e4a20ec5ff76054d478660dd2ca03c87f21ab644b5172ee4` |
 | FileCat-0.1.0-dev.522-x86_64.AppImage | `60d120256aca9c1e7192e0c573c1b25d2e194a3bd193961a7d498cfbc0e1fdc2` |
 
+Rebuilt development packages: manual CI [36999624175](https://github.com/benny-cz/FileCat/actions/runs/36999624175),
+source `ecf5349eb1c81035e44b20c911b3a25955ed9915`, 0.1.0-dev.526. All four test lanes and Linux/macOS package jobs
+pass. Windows tag-only package skipped; no release publication. Inputs retained separately from dev.522.
+
+| Rebuilt artifact | SHA-256 |
+|---|---|
+| filecat_0.1.0~dev.526_amd64.deb | `60e15d29faaba9fbb18ba1773c2e63026d895c843a9c0a14c07b7ffff8ceb4c7` |
+| FileCat-0.1.0-dev.526-linux-x64.tar.gz | `28a13f482e84ef35f5d52fa1935e29a10bd5cc66b0fa8c1778e5fa235c6c3c23` |
+| FileCat-0.1.0-dev.526-x86_64.AppImage | `368606912e87f89a13da811b1aead43093334a0941b848d2030953d25b5530a4` |
+
 ## Ubuntu 24.04 completed cases
 
 - Fresh full Desktop 24.04.5 LTS, kernel 7.0.0-38-generic; GNOME Shell 46.0, actual Wayland login / XWayland 23.2.6.
-  VM/disk identities match E-ENV-07. No dotnet command/SDK before or during package cases.
+  VM/disk identities match E-ENV-07. No dotnet command/SDK during initial dev.522 install/GUI/lifecycle/AppImage cases.
+  A private SDK was added later for native suites; package launches still use the system PATH with no dotnet command.
 - Powered-off baseline snapshot filecat-clean-ubuntu2404-20261002 before FileCat/testing dependencies. Installer logs
   and fresh package inventory retained privately (contain the disposable account's hash).
 - Debian dependencies resolve with libicu74 74.2-1ubuntu3.1, libssl3t64 3.0.13-0ubuntu3.16, WebKitGTK 4.1
@@ -30,6 +41,21 @@ and Linux/macOS packaging passed; Windows tag-only package skipped. No publicati
   both hashes are `0cd110f27a8d5838cb198b950738bed55c1f26a96384c56369e0dd7f7d5e3c20`.
 - Tar executable works from an ampersand/space path, but its desktop entry fails native validation/launch: **I98**,
   reproduced and helper-remediated in [E-I98](E-I98-linux-desktop-entry.md). Rebuilt-package validation pending.
+- Debian remove → reinstall → purge → reinstall succeeds. Package executable, symlink and desktop entry disappear
+  on removal; settings/workspace/history hashes remain identical at every phase. A GUID-bound unrelated file placed
+  in /opt/filecat survives both removal and purge, independently checked by SHA-256. No autoremove or user-data cleanup.
+- Normal AppImage --version and GUI launch succeed with APPIMAGE_EXTRACT_AND_RUN unset and no SDK on the developer
+  PATH. /proc/7452/exe resolves to /tmp/.mount_FileCaEfCDhE/usr/lib/filecat/FileCat; mountinfo proves a read-only FUSE
+  AppImage mount. Saved Unicode source/target panels reopen. Graceful window close terminates FileCat and unmounts it.
+  The first observation command ended on a case-sensitive pgrep mismatch (FileCat versus filecat); native process,
+  executable and mount evidence supplies the result, not that command's exit status.
+- Rebuilt dev.526 tar's unchanged packaged helper hash equals E-I98. It passes desktop-file-validate and native gio
+  launch from `rebuilt tar with & 100% žluťoučký`; /proc/10904/exe/cmdline identify that exact payload and source argument.
+  Actual GUI shows the Unicode file. Normal close terminates it. A Categories hint is informational, not a validation failure.
+- Debian update dev.522 → dev.526 succeeds; all three saved-state files and the unrelated install sentinel retain hashes.
+- Rebuilt Debian GUI opens with deliberately corrupt settings and backup in a new --data root. Preserved corrupt bytes
+  hash `2f3892553b3c4c1ae0c715f96b568f4a71a6ec4b74d77b154f9c9a8ea640d8a5` equals original; after normal close,
+  settings.json parses as JSON. Default state remains separate. Other forms' corrupt-state cases pending.
 
 Guest root `/home/benny/FileCat-v19-83b12fc1f8604ea2a2405069f4d783ad` not reused. Host evidence
 `artifacts/release-evidence/linux-os-matrix-20261002/24.04/`.
@@ -41,6 +67,13 @@ Guest root `/home/benny/FileCat-v19-83b12fc1f8604ea2a2405069f4d783ad` not reused
 | Initial native-session.txt | `221ede9ba13d88031d6331f7afc27a22d64e8a2dda35abdb2b9a814de1742c78` |
 | Clean snapshot listing | `9c3f695be94ec65bdc1e130dad1c92cd3dad5929464e0623c619cc1994d8f035` |
 | Private installer archive | `3098bbef0dc764130a1b103b6002692f71f4e3ef6f3ea9daaa17747bc40b0c6d` |
+| GUI copy byte oracle | `9f0fae800c3baee6355375dd8e84ec15899c5d410b21389aedda57e7c73e9541` |
+| Debian lifecycle log | `c66ad2c0b3b368ce49ca346438f42b85b316a7d1327422367d2b866e33dc2bd9` |
+| Normal AppImage CLI log | `590148e8d53bb7c9313ebe68e877b02b0ea49e878b302af6e7aaec6964181e31` |
+| AppImage executable/mount evidence | `639b88af241bfe4deea948d3dc74ed8c601d65176c057e5fe67aa8f580d1ef71` |
+| Normal AppImage GUI screenshot | `8d68b8c2ba8ad47beb39eaf67d6e42b693454a221e15153488cab4efb01be5f2` |
+| Rebuilt tar native executable/entry record | `a844378df209a798b00821cb49e47b7ea34dc2daa9a4a2a97deb6afabe9ad6d2` |
+| Rebuilt tar GUI screenshot | `c2e8a053d84c0878e16da2a6c5f4e48403bc7d8a9dfaed54ce104df74151d798` |
 
 ## Setup and remaining cases
 
@@ -53,6 +86,6 @@ specific security authorization. Owner then explicitly approved them for this di
 lock-enabled=false and unlock applied; LockedHint subsequently no. Recorded test setup, not a FileCat security claim.
 Windows computer-use helper could not initialize; no Windows UI actions used.
 
-Remove/purge/reinstall and state retention, normal AppImage launch, rebuilt tar GUI launch, remaining native services
-and every 26.04 case are in progress. No human reader/input attestation, polkit safety evidence, support decision,
+Rebuilt tar GUI launch, package update/corrupt-state cases, remaining native services and every 26.04 case are in progress.
+No human reader/input attestation, polkit safety evidence, support decision,
 final signature or stable GO supplied by these automated preliminary checks.

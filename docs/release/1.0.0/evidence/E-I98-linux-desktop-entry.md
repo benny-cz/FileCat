@@ -48,4 +48,8 @@ archives fixtures on failure too.
 | Fixed results JSON | `0799b853d5da3dc3d73ce43ece29cc52e4cc89d258e7c3570c2623dccc5e1695` |
 
 Native helper checks do not qualify a rebuilt FileCat artifact or replace 26.04/final-candidate cases. Source identity is
-the commit containing this remedy; exact working helper/harness hashes above identify the pre-commit test inputs.
+`ecf5349eb1c81035e44b20c911b3a25955ed9915`; exact working helper/harness hashes above identify the pre-commit test inputs.
+Manual CI 36999624175's Linux lane independently passes 12/12 with the same helper hash. Raw fixtures retained in
+artifacts/release-evidence/ci-36999624175/linux-desktop-launcher/filecat-desktop-results.tar.gz. All four test lanes and
+Linux/macOS package jobs pass. Rebuilt dev.526 tar passes native validation and actual GUI launch on 24.04 from an
+ampersand/percent/Unicode/space path, with the same packaged helper hash (E-V19-P2). 26.04 and final-candidate closure pending.
