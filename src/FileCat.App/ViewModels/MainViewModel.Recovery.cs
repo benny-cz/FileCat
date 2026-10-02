@@ -457,7 +457,15 @@ public sealed partial class MainViewModel
         string? profile = App.StartupOptions.Profile;
         if (Services.Paths.DataRoot is not null && SingleInstance.UsualInstanceRunning(profile))
         {
-            var (usual, usualUnsure) = Check(WriteFolders(AppPaths.Usual(profile)));
+            var usualFolders = WriteFolders(AppPaths.Usual(profile));
+            if (!OperatingSystem.IsWindows())
+            {
+                if (SingleInstance.UsualConnectionFolder(profile) is not { } connection)
+                    return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, " +
+                                          "and FileCat cannot tell where its instance connection is kept. Close that FileCat first.", null, false, false);
+                usualFolders = usualFolders.Append(("the running FileCat's instance connection", connection));
+            }
+            var (usual, usualUnsure) = Check(usualFolders);
             if (usual.Count > 0 || usualUnsure.Count > 0)
                 return new DiskSafety($"FileCat does not scan {name} yet: the FileCat that keeps its files in their usual places is still running, and it writes to them while it works: " +
                                       string.Join("; ", usual.Concat(usualUnsure)) + (usual.Count > 0 ? " are on that disk." : " may be on that disk.") +
@@ -511,8 +519,8 @@ public sealed partial class MainViewModel
         string program = Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 } image ? image : Environment.ProcessPath ?? "FileCat";
         static string Quote(string text) => OperatingSystem.IsWindows() ? $"\"{text}\"" : "'" + text.Replace("'", "'\\''") + "'";
         if (OperatingSystem.IsWindows()) return $"{Quote(program)} --data {Quote(folder)}";
-        // Linux and macOS: the .NET runtime keeps files of its own in the temporary folder (its debugger and diagnostics
-        // endpoints, named locks) from start to exit; there too, they go to the data folder (release plan V09's trace).
+        // Linux and macOS: the runtime's debugger/diagnostics endpoints also go to the data folder. FileCat's instance
+        // lock lives in its profile's local directory; the actual socket location is included in the scan's write guard.
         string temp = Quote(Path.Combine(folder, "tmp"));
         return $"mkdir -p {temp} && TMPDIR={temp} {Quote(program)} --data {Quote(folder)}";
     }

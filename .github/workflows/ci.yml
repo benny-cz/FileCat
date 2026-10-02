@@ -200,6 +200,21 @@ jobs:
         with:
           name: unix-instance-results-${{ matrix.os }}
           path: ${{ runner.temp }}/filecat-instance-results.tar.gz
+      - name: Unix instances across sessions and temporary folders
+        run: |
+          dotnet build tools/FileCat.InstanceSmoke -c Release
+          evidence="filecat-instance-processes-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          result=0
+          python3 eng/validation/validate-unix-instance-processes.py \
+            --smoke-dll "$PWD/tools/FileCat.InstanceSmoke/bin/Release/net10.0/FileCat.InstanceSmoke.dll" \
+            --evidence-dir "$RUNNER_TEMP/$evidence" || result=$?
+          tar -czf "$RUNNER_TEMP/filecat-instance-process-results.tar.gz" -C "$RUNNER_TEMP" "$evidence"
+          exit "$result"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unix-instance-process-results-${{ matrix.os }}
+          path: ${{ runner.temp }}/filecat-instance-process-results.tar.gz
       - uses: actions/upload-artifact@v7
         if: always() && runner.os == 'Linux'
         with:

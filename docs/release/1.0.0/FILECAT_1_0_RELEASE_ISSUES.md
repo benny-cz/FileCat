@@ -76,8 +76,8 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I100 | Unix session-local mutex allows separate launches to run on one profile and replace its live socket | Medium (instance/state contract) | Must fix (A-07, V23 B12) | Open; native separate-session failure traced, same-session control passes (E-I100) |
-| I99 | Unix instance socket throws under valid long temporary paths | Medium (instance startup and recovery safety check) | Must fix (A-07, V23 B12, V09) | **Remediation prepared; native boundary/long/Unicode cases and affected App suite pass** (E-I99); CI/rebuilt packages and candidate closure pending |
+| I100 | Unix session-local mutex allows separate launches to run on one profile and replace its live socket | Medium (instance/state contract; V09 safety impact) | Must fix (A-07, V23 B12, V09) | **Remediated and natively verified** (E-I100): 1/5 before, 6/6 after; actual GUI/FAT/exFAT and affected App pass; CI/macOS/rebuilt packages and candidate closure pending |
+| I99 | Unix instance socket throws under valid long temporary paths | Medium (instance startup and recovery safety check) | Must fix (A-07, V23 B12, V09) | **Remediated d38f915; native cases, affected App and all four CI lanes pass** (E-I99); rebuilt packages and candidate closure pending |
 | I98 | Linux tar desktop entry corrupts extraction paths containing special characters | Medium (desktop launch fails) | Must fix for Linux tar claim | **Remediated ecf5349; native helper and Linux CI 12/12 verified** (E-I98; unchanged 4/12); rebuilt tar GUI/helper pass on 24.04 and 26.04; candidate closure pending |
 | I97 | CloneCopyTests: a UNC volume root lacked the separator required by the native query, so the SMB case failed before copying | Low (validation setup; no product copying defect established) | Must fix (native copy coverage) | **Remediated `ca1afe0`; independent probe and corrected local/SMB cases verified**, 1/1 each without skips (E-V03-CLONE-1); candidate rerun and closure pending |
 | I96 | ARM64 CI: the native Recycle Bin integration test assumed its first query always succeeds; one returned `ERROR_ALREADY_EXISTS` | Low (validation reliability; no product data loss established) | Must fix (required CI lane) | **Remediated `5503262`; targeted test and four-lane CI verified** (E-I96); candidate rerun and closure pending |
@@ -1050,7 +1050,13 @@ level the plan already states; exploit-level detail is not recorded here.
 - Native GUI failure and independent syscall trace in [E-I100](evidence/E-I100-unix-instance-session.md).
   Same user/profile/data/TMPDIR, different Unix sessions: each Local mutex reports its own first instance and the
   second process replaces the original socket. Same-session control forwards. Medium; A-07/V23 B12 must fix.
-- Open; remediation, cross-process regression, write-location re-audit and final-candidate checks pending.
+- Remediation replaces Unix named Mutex with a required native profile-local file lock and publishes the actual
+  socket path for cross-TMPDIR discovery. Usual-instance probe is read-only, detects a busy owner before listener
+  readiness, and its socket directory is included in recovery safety. Shutdown orders listener disposal before unlock.
+- Native production API harness 1/5 before, 6/6 after; boundary cases and affected App 205/232 pass with explicit skips.
+  Actual different-session/different-TMP GUI and FAT32/exFAT state cases pass. Independent syscall trace observes
+  native lock/profile writes and no .NET shared mutex mutations. Full runtime write-location audit (I09), CI/macOS,
+  rebuilt packages, re-audit and final-candidate closure pending. Exact working inputs/payloads in E-I100.
 
 ### I99 — Unix instance sockets under long temporary paths
 
@@ -1063,6 +1069,8 @@ level the plan already states; exploit-level detail is not recorded here.
 - Eleven passes/one expected boundary skip; real same-session GUI forwarding/persistence pass; affected App
   204/231 passes with 27 skips. Separate-session failure tracked as I100. CI/macOS, rebuilt packages, re-audit and
   final-candidate closure pending. Earlier instance/recovery write-location and rebuilt-artifact evidence invalidated.
+- d38f915 CI 37024802245 passes all four lanes, including the Unix boundary harness. I100 adds cross-process coverage;
+  its current native boundary run has 14 passes/one expected skip after adding the usual-socket recovery guard case.
 
 ### I98 — Linux tar desktop entry corrupts special extraction paths
 

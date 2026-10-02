@@ -23,7 +23,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   suites pass with recorded skips. Unmodified dev.526 Debian install on 26.04 fails on
   ICU dependency choices (E-I04); producer corrected and rebuilt 26.04 install/desktop/lifecycle pass. 26.04 native suites
   pass with recorded skips after native setup correction and I99's socket-path remedy. Separate-session GUI launch
-  reproduces I100; its fix and rebuilt 24.04 compatibility continue. GA Windows/reference hardware remain open.
+  reproduces I100; profile-local lock/actual endpoint remedy passes native process, GUI, FAT/exFAT and affected App
+  checks. CI/rebuilt 24.04 compatibility and full recovery write-location audit continue. GA Windows/reference hardware remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -615,6 +616,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     passes boundary/long/Unicode fresh-process checks and full App rerun 204/231 with 27 skips. Actual same-session
     GUI forwards/persists tabs. A separate-session launch exposes I100's Local mutex scope and socket replacement;
     retained independently, not counted as a pass. CI/rebuilt package validation and I100 remediation continue.
+139. I99 pushed d38f915; CI 37024802245 passes all four lanes including the native Unix boundary harness. I100's
+    production API harness reproduces distinct-session/cross-TMPDIR failures (1/5). Profile-local native lock and
+    published actual endpoint remedy passes 6/6 cases, including two case-sensitive data folders, and 14 boundary
+    tests with one expected skip. Affected native App 205/232 passes with 27 skips. Actual GUI across sessions/TMPDIRs,
+    FAT32/exFAT state locks and native syscall oracle pass (E-I100). Setup/assertion failures retained separately.
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -637,10 +643,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   read in full when compared.
 - I99 (Unix instance sockets/recovery write folders): previous Unix instance and recovery write-location evidence;
   rebuilt package identities require affected revalidation. Separate-session behavior remains unresolved as I100.
+- I100 (Unix instance lock/endpoint and usual-instance probe): prior Unix process-election/probe and recovery guard
+  evidence; native working inputs verified, CI/exact rebuilt package and candidate evidence still required.
 
 ## Next actions (unblocked)
 
-1. Remediate I100's independently reproduced Unix instance/session failure; preserve 26.04 native evidence and
+1. Continue Unix recovery write-location audit, retain I100 CI/package evidence, preserve 26.04 native evidence and
    validate rebuilt packages on both fresh Ubuntu baselines (ENV-04/I04/I99). ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly

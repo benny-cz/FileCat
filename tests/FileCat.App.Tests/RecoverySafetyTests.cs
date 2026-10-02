@@ -160,4 +160,47 @@ public sealed class RecoverySafetyTests
         }
         finally { Directory.Delete(root, recursive: true); }
     }
+
+    [AvaloniaFact]
+    public void A_running_usual_instances_connection_is_guarded_and_an_unknown_location_is_refused()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Unix profile-local socket metadata and recovery guard.");
+            return;
+        }
+        string profile = "ipc-guard-" + Guid.NewGuid().ToString("N")[..16];
+        string root = Path.Combine(Path.GetTempPath(), "filecat-usual-ipc-" + Guid.NewGuid().ToString("N"));
+        var previous = App.StartupOptions;
+        var usual = AppPaths.Usual(profile);
+        try
+        {
+            string data = Path.Combine(root, "data");
+            App.StartupOptions = new StartupOptions { Profile = profile, DataRoot = data };
+            Assert.False(SingleInstance.TryForward(new StartupOptions { Profile = profile }));
+            SingleInstance.StartServer(profile, null);
+            Assert.True(SpinWait.SpinUntil(() => SingleInstance.UsualConnectionFolder(profile) is not null, 5000));
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(profile, dataRoot: data));
+            var vm = new MainViewModel(services);
+            // Model an ordinary instance whose actual socket is on a disk different from this process's TMPDIR.
+            string metadata = Path.Combine(usual.LocalDirectory, "instance.pipe");
+            File.WriteAllText(metadata, "/tmp/FileCat-0000000000000000");
+            services.Recovery.SharesDisk = (_, folder) => folder == "/tmp";
+            var safety = vm.CheckDiskSafety("test-device", "test disk");
+            Assert.Contains("the running FileCat's instance connection", safety.Refusal);
+            services.Recovery.SharesDisk = (_, folder) => folder == "/tmp" ? null : false;
+            Assert.Contains("may be on that disk", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            services.Recovery.SharesDisk = (_, _) => false;
+            Assert.Null(vm.CheckDiskSafety("test-device", "test disk").Refusal);
+            File.Delete(metadata);
+            Assert.Contains("cannot tell where its instance connection is kept", vm.CheckDiskSafety("test-device", "test disk").Refusal);
+        }
+        finally
+        {
+            SingleInstance.Release();
+            App.StartupOptions = previous;
+            foreach (string folder in new[] { root, usual.SettingsDirectory, usual.LocalDirectory })
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+    }
 }

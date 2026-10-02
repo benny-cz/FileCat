@@ -93,6 +93,7 @@ as above. SDK/build prerequisites follow all clean package checks. Build: zero e
 | Core, corrected isolated native setup | 741 / 703 / 0 / 38 | `f42ca74b2261df9b32a2ad85d8ed9e0a558db6ef9bed63dc1a8d5a3a6d2a15ac` |
 | Remote | 116 / 94 / 0 / 22 | `ea03141a0eb68e29541ba8b4a3ad06e3c205d16d2237888ad8d66f8569f0a55f` |
 | App, I99 hash-bound working inputs (E-I99) | 231 / 204 / 0 / 27 | `7afee55795f8f8183d24b8b5ca55c9294b4bbd7c71f70eb72df8fac4203542a2` |
+| App, later I100 hash-bound working inputs (E-I100) | 232 / 205 / 0 / 27 | `5337aeec2ee61d41d355e49c5d8c17cf7a274302caa3f551a5bb44ed4ecd7b45` |
 | Root native FAT32/exFAT records | 1 / 1 / 0 / 0 | `4e61a7574bd066928a4942031a20f6ebba5dcb34cc0448b70ac408327d1e3e8d` |
 | Windows-formatted recovery corpus | 3 / 3 / 0 / 0 | `4fdf5514cf310512efa3a19266f1639e433cff903005a41099046887ffa228af` |
 
@@ -114,5 +115,5 @@ Private TRX summary (full runs/corpus, complete nonpasses/native branch names):
 Resolved-assets archive `8f530c7e67b67f7f4d982ac5d9d525358e853f3616ca3401ffcbaf8724f758f2` and pip freeze
 `0e63a944360e69e0e9806d8edce2ec0a070fba13fbaa44eead30f5fa3a832123`. Raw host root ends in 26.04/.
 Final private archive/identity-checked fixture teardown still pending; do not restore the VM until retained.
-I100 remains open from separate-session GUI testing. macOS, physical Windows/ARM, human consent/accessibility,
+I100's native remedy/regression is recorded separately; CI/package/candidate closure pending. macOS, physical Windows/ARM, human consent/accessibility,
 live media cases and exact-candidate qualification remain required.
