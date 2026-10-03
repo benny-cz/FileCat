@@ -67,8 +67,9 @@ The owner executed the prepared G5 launcher with clean f2f0141 inputs. Native pr
 physical hashes differ and the PML/CSV end before the positive controls and test. Independent inventory/native
 parsing retains this failed source-write qualification (E-V09-G6). No process attribution or zero-write conclusion
 is available. Hold further USB tests, investigate capture off-source, then address the unexplained source difference.
-Six bounded off-source timing comparisons are prepared; parser/child/actual-command controls and nineteen-file
-inventory pass without capture or USB access. Owner elevated host launch is required (E-V09-G7).
+Six bounded off-source timing comparisons are prepared (E-V09-G7). Owner authorizes agent launch; Windows RunAs
+succeeds and the setup gate clears. Partial native PML/full CSV inventory confirms A fails and B/C pass exact timed
+marker/child controls; remaining comparisons are running (E-V09-G8). No source-change attribution or USB pass.
 
 | ID | Needed | Status |
 |---|---|---|

@@ -1,6 +1,6 @@
 # E-V09-G7 — off-source capture timing preparation
 
-Links: V09/REC-002/TV-09, I09, I106, ENV-07. **Prepared; live captures not executed.**
+Links: V09/REC-002/TV-09, I09, I106, ENV-07. **Preparation record; subsequent execution is [E-V09-G8](E-V09-G8-trace-timing-run.md).**
 [G6](E-V09-G6-incomplete-usb-source-trace.md) retains the differing full physical hashes and incomplete trace.
 Further USB tests remain held. This standalone diagnostic requests no USB I/O, fixture creation, format or FileCat
 launch. It uses marked evidence/temporary directories on E: and the existing accepted host tracer.
@@ -65,6 +65,7 @@ The old LaunchReadOnlyUsbTrace.cmd is now an exit-one hold notice. Its exact exe
 as LaunchReadOnlyUsbTrace.cmd.executed-cd269aa1b4794ad2853adf00fe93db8d with the original G5 SHA-256; the recorded
 runner is unchanged. An actual command control verifies the hold notice exits one without launching a capture or test process.
 
-Next dependency gate: owner elevated host launch. The Windows VM remains running for later validation; its restored
+The owner subsequently authorizes agent launch; Windows RunAs succeeds and the immediate launch gate clears (G8).
+The Windows VM remains running for later validation; its restored
 snapshot currently lacks the tracer/license in known historical locations. I09/I106 and all installed-helper/candidate
 cases remain open; no stable release GO is implied.

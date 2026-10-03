@@ -926,6 +926,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     nineteen preparation files independently verify. Old USB launcher bytes preserved; original path now exits one
     with a hold notice, verified by actual cmd.exe execution. Owner elevated host launch is required. Exact 43e520d CI has
     four passing lanes/three package skips. Live capture qualification remains pending (E-V09-G7).
+190. Owner authorizes agent launch. Tool token is standard but Windows RunAs succeeds; native controller validates
+    administrator token. Off-source A reproduces one-second incomplete capture; B/C sustain exact marker/child
+    controls, independently matching PML/full CSV. Seventy-five completed-case files verify; remaining cases running.
+    Runtime alone cannot explain failure. Initial cross-clock timestamp assertion fails by 91 microseconds and is
+    retained; revised native-clock ordering/coverage checks preserve exact counts/ranges and report offsets.
+    Actual 84615d9 CI passes four lanes/three package skips. No USB access/qualification (E-V09-G8).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -985,7 +991,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
    Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
    Read-only component source-hash/trace run at f2f0141 has differing full hashes and failed capture controls (E-V09-G6).
-   Hold further USB tests; off-source timing diagnostic prepared and awaiting owner elevated host launch (E-V09-G7).
+   Hold further USB tests; off-source timing diagnostic is running after agent elevation succeeds (E-V09-G8).
    Resolve capture/source change before resuming physical work. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
