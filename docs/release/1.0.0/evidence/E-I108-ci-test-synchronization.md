@@ -1,6 +1,7 @@
 # E-I108 — CI helper readiness and verification checkpoint
 
-Preliminary test-harness correction, 2026-10-03. Required successor CI validation is pending. No product recovery
+Preliminary test-harness correction `6cad380915a0f524e495210cc13f2a94fb91da3b`, 2026-10-03. All four successor CI
+lanes pass. No product recovery
 or progress behavior is changed, no live media is touched by these synthetic checks, and this is not candidate qualification.
 
 ## Original failures retained
@@ -44,7 +45,29 @@ boundary by timing. Product estimator, transfer executor and production interloc
 
 Original test sources, local baseline log and repaired build/TRX files are retained in
 `artifacts/release-evidence/ci-reliability-20261003`. Local affected checks pass: 29 lease/guard/oracle and eight
-progress tests, no failures or skips. A full-solution baseline before rebuilding passes the two affected tests but
+progress tests, no failures or skips. The full repaired Core suite passes 700 with 46 explicit skips, 746 total.
+Direct local inventories are independently parsed, SHA-256
+`27a5a63d319cbab8392176612db27f783b44f9ce11ced8c16a061f12aca1be28`; exact 6cad380 input manifest SHA-256
+`6f1567d4c0cde73e37431f04723ba1b9567e64529e223935f58f9f3ef7565026`.
+A full-solution baseline before rebuilding passes the two affected tests but
 fails a separate `WindowsFileRecordsTests.A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions`
 assertion on this host; it is not claimed green. A shared TRX filename caused baseline files to overwrite one another,
 so only the original full log and the last App TRX survive. Repaired affected TRX files have distinct directories.
+
+## Successor CI
+
+[Run 37119313116](https://github.com/benny-cz/FileCat/actions/runs/37119313116), exact
+`6cad380915a0f524e495210cc13f2a94fb91da3b`, completes successfully on Windows x64, Windows ARM64, Ubuntu and
+macOS; the three tag/manual package jobs skip. Windows ARM64's native package startup/screenshot step passes.
+Complete metadata/logs, original Windows archive and independent inventory are retained under
+`artifacts/release-evidence/ci-37119313116`. Direct Windows TRX counts: App 248 pass/15 skip; Core 699/47;
+Windows platform 163/33; Remote 88/28, no failures. All 29 lease/guard/oracle, eight progress, two account-title
+and one window-title cases pass. The Windows child reports readiness after 9.7843344 seconds and empty stderr.
+This establishes the corrected test's successful execution, not the exact cause of the original helper timeout.
+
+| Evidence | SHA-256 |
+|---|---|
+| complete successful run metadata | `ee8ea25c8a032900d1010e6532bc156574c4a6ff3f75221068ef9bbc53e9d36f` |
+| complete log | `a6a443ef843be6426a7ad8c07efd75cb66a7eff826f5f03c24624197daea9c31` |
+| original Windows archive | `1fa2b7a9d1d9eee7565fa7f01adb24cccb96bfb20808d56245367dcef269357e` |
+| independent Windows inventory | `54074e24361a5234d24094ee8c81c663a087ad55179a0457011297490f24d6e2` |

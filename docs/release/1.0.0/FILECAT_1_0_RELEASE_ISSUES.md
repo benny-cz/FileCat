@@ -76,11 +76,11 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
-| I108 | CI helper readiness and verified-copy observer timing | Low (validation reliability) | Must fix (required CI) | Test correction passes local affected checks; successor CI pending (E-I108) |
+| I108 | CI helper readiness and verified-copy observer timing | Low (validation reliability) | Must fix (required CI) | **Remediated 6cad380; affected/local Core and all four CI lanes pass** (E-I108). Original failures retained; candidate rerun pending |
 | I107 | Windows host menus appear and immediately disappear | High (loss of core mouse command access; owner-declared blocker) | Must fix (V17/I13) | **Closed for preliminary remediation** — native failure and baseline reproduced; complete App inventory 233/248 with 15 skips, affected CI pass. Owner confirms corrected host and clean 1a9f1ba guest success; verified guest trace has no logical-detach closes and a menu open for 47.6 seconds. Exact-candidate interaction pending (E-I107) |
 | I106 | Recovery discovery misses a separate portable installation | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Open, broader qualification pending** (E-I106): renamed/confirmation gaps corrected; root absence established, ordinary visibility unknown. Elevated guest admission 12/12, full guards 29 pass/3 skips; host App 242 pass/21 skips. Native Ubuntu and both strict Unix CI inventories 74 pass/22 skips; all cc1acf2 CI lanes pass. Broader privilege/runtime-alias/lifetime race and physical/candidate tracing pending |
 | I105 | Portable recovery misses per-user owners and portable profiles | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated and verified preliminarily** (E-I105): exact dev.539 native GUI miss; three baseline regressions fail; fixed ordinary/independent GUI 2/2, Windows App 225/240 and final guards 10/13 pass with explicit skips. CI/development packaging pass at 1cd803c; native rebuilt packages/wider discovery/candidate pending |
-| I104 | Windows window title should start with FileCat, then the selected path and account/elevation | Low (owner-requested title ordering) | Low-priority queue | Queued 2026-10-02; repeated FileCat is valid when the selected directory has that name |
+| I104 | Windows window title should start with FileCat, then the selected path and account/elevation | Low (owner-requested title ordering) | Low-priority correction | **Remediated a50b3b8; account and headless title checks pass** (E-I104). Selected name retained; live candidate check pending |
 | I103 | Windows profile case aliases miss the running instance; portable/usual roots collide | Medium (instance contract; V09 safety impact) | Must fix (A-07, V09/I09, V23 B12) | **Remediated and verified preliminarily** (E-I103): Windows baseline 1/4, fixed 4/4 and guards 6/9 pass; Unix boundary 23 pass/4 explicit skips; all four CI lanes pass at fa3a02a; native packages/candidate pending |
 | I102 | Recovery misses independent windows and usual instances using another profile | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 5b69fba and natively verified** (E-I102): actual GUI before/after, two-owner/crash/forwarding controls, 8/8 process cases and App 208/235 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
 | I101 | Recovery omits the Unix runtime temporary folder, including another instance's different TMPDIR | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Remediated 369f55f and natively verified** (E-I101): baseline fails 1/1; guards, boundary/process harnesses and App 206/233 pass with explicit skips; all four CI lanes pass, packages/candidate pending |
@@ -129,7 +129,9 @@ level the plan already states; exploit-level detail is not recorded here.
 - Correction: atomic readiness marker after child lease acquisition, bounded startup with process diagnostics;
   deterministic real-copy checkpoint before verification. Immediate contention refusal and five-second post-crash
   availability bounds remain. Product interlocks and estimator are unchanged.
-- Local 29 lease/guard/oracle and eight progress checks pass without skips. Successor CI validation is pending.
+- Local 29 lease/guard/oracle and eight progress checks pass without skips; full Core 700 pass/46 explicit skips.
+  Exact 6cad380 successor CI 37119313116 passes all four lanes, three package jobs skipped. Direct Windows archive
+  independently confirms all affected cases pass. Original failures are retained; candidate rerun remains required.
   See [E-I108](evidence/E-I108-ci-test-synchronization.md).
 
 ### I19 — Interrupted-copy cleanup deleted complete or user-changed files, and missed real partial copies
@@ -1121,15 +1123,18 @@ level the plan already states; exploit-level detail is not recorded here.
 
 ### I104 — Windows title should put FileCat before the selected path and account/elevation
 
-- Owner report, 2026-10-02; Low priority, queued. No independent desktop reproduction yet.
+- Owner report, 2026-10-02; Low priority. Formatting correction a50b3b8 validated preliminarily (E-I104).
 - Reported administrator title: `Administrator: FileCat - FileCat - marek (elevated)`.
 - Reported user title: `FileCat - FileCat - marek (elevated)`.
 - Owner clarification, 2026-10-02: the selected directory itself was named FileCat, so the repeated word is valid.
   There is no requirement to suppress FileCat when it occurs in the selected directory/path.
 - Requested order: `FileCat`, then the selected path/location, then username and elevation information, so the
   application is easy to identify. Apply this order for administrator and ordinary-user launches.
-- This entry records the title formatting request; the reported elevation text has not been independently verified.
-  No title code changed during the current release-safety validation.
+- Windows titles now start with FileCat; selected location and account/elevation follow. Baseline updated assertions
+  fail one case with one passing control; corrected account checks pass 2/2 and the existing headless window title
+  case passes 1/1. Unix ordering and account/elevation detection are unchanged. The reported elevation text has not
+  been independently verified on a desktop. Exact candidate interaction remains pending
+  ([E-I104](evidence/E-I104-windows-title-order.md)).
 
 ### I103 — Windows instance identity disagrees with its state folders
 

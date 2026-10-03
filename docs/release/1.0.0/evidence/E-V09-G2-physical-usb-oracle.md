@@ -1,7 +1,7 @@
 # E-V09-G2 — physical USB recovery and byte-checker correction
 
 2026-10-03. Preliminary component evidence; stronger attempted rerun is invalidated by overlapping campaigns
-(E-V09-G3). A fresh exclusive successor is prepared.
+(E-V09-G3). A fresh exclusive successor has completed successfully; installed-helper/source-write qualification remains open.
 Physical run source: `1df5dffe42bb820d21dd9fae86004a9eccedc02e`.
 Checker correction: `2e6dffef18b93b8d142f17fa17dde549cb856f22`.
 Observation manifests and prepared clean payload: `85bb17d413a299fd6114e5f21d715a062943132f`.
@@ -73,7 +73,7 @@ The owner subsequently starts this launcher while an earlier 1df5dff campaign is
 Both attempts complete Failed; the stronger run's two passing filesystem cases also do not qualify because the
 execution overlaps. Complete failures and partial observation manifests are retained. The shared collection lacks
 interprocess exclusion. [E-V09-G3](E-V09-G3-usb-campaign-serialization.md) records the guard/launcher correction,
-retirement of the old entry points and a clean 090a2b6 successor awaiting one elevated host launch. Original runner
+retirement of the old entry points and a clean 090a2b6 successor passing all three formats. Original runner
 and launcher bytes for the hashes below remain under each root's `retired-original-launchers` directory.
 
 Private evidence is under `artifacts/release-evidence/v09-usb-physical-20261003/host-admin-a686f32ba43c4f0c83b2ae67b118827e`,

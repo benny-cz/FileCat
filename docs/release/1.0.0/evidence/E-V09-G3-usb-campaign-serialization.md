@@ -1,6 +1,6 @@
 # E-V09-G3 — overlapping USB attempts and exclusive successor
 
-2026-10-03. Preliminary harness evidence; no successor physical pass yet.
+2026-10-03. Preliminary harness and physical component evidence; exclusive successor completed successfully.
 Guard correction: `1883eb475633f6a1185885c31ed56ab780154bdd`.
 Cancellation refinement and clean successor payload: `090a2b63e5978b6416c6facfcfd33728de3fec8c`.
 
@@ -52,7 +52,7 @@ Original earlier runner/launcher bytes are retained in `retired-original-launche
 Their old entry points now refuse with the successor path. A distinct name avoids confusing the two old identical
 launcher names. No old executable is silently replaced or attributed to the new source.
 
-## Concrete successor and elevation gate
+## Concrete successor and completed elevated run
 
 The self-contained Release/win-x64 payload is built with the repository clean at exact 090a2b6. All 300 files and
 all 300 original archive member streams are independently size/hash verified. Native checker 13, identity guard 14
@@ -64,10 +64,34 @@ campaign helper hashes. The same exact USB is present on the host, online/writab
 One passing identity/topology preflight is required before the three destructive filesystem cases. Expected and
 observed per-file hashes remain off-source; each native phase is bounded to 45 minutes.
 
-The agent process is unelevated. The remaining interaction for this prepared physical rerun is one launch from the
-owner's elevated host shell, or UAC approval when launched normally. Existing authorization covers formatting the
-disposable stick. No successor physical run has started. Installed helper/broker qualification, production census
-availability, source-write tracing and exact candidate evidence remain open; recommendation stays NO-GO.
+The owner launches the exclusive runner from an elevated shell. Run
+`host-admin-c4d70f463a8141748871d389d31e07c1` starts at 10:42:00 UTC and completes at 10:48:21 UTC, with exact
+clean 090a2b6 payload, 300 verified inputs and privileged execution on Windows 11 Insider 26220. Both native
+phases exit zero: preflight one pass, scenario three passes; no failures, errors or skips. Parent PID 59612 starts
+preflight PID 52644 at 10:42:01.8637106 UTC and scenario PID 5788 at 10:42:07.0641835 UTC. Campaign/guard leases
+cover their respective full scopes. The USB remains exact serial `2F2000129618`, 7,796,162,560 bytes, disk 5, G:,
+USB/nonboot/nonsystem, partition 1 at offset 1,048,576 with size 7,795,113,984, and volume GUID
+`bd052877-2d83-11f1-a457-18c04da6742d` throughout the three formats.
+
+| Filesystem | Native seconds | Generated deleted files recovered exactly | All complete recovery claims independently matched |
+|---|---:|---:|---:|
+| FAT32 | 139.201019 | 325 | 327 |
+| exFAT | 118.5850385 | 325 | 327 |
+| NTFS | 116.1184665 | 325 | 326 |
+
+Each expected manifest has 330 unique entries; each observed manifest covers all 328 non-kept entries. Independent
+verification checks the 300 staged inputs again after execution, all nineteen wrapper-recorded output hashes,
+direct XML class/method/counts, child/phase records, pinned device/partition identity and every Recoverable item's
+full length, no missing ranges and expected SHA-256. FAT32/exFAT also recover the gone and fragmented-role entries;
+their overwritten entry is classified Overwritten and differs. NTFS recovers the fragmented-role entry, with gone
+and overwritten entries not found. No Partial claims occur; observed hashes alone would not independently replay
+their intervals. Fixture roles do not establish actual fragmentation or reuse layout without separate layout evidence.
+
+The live unelevated observer finds only one native testcase process; its post-run census at 10:54 UTC finds no
+remaining recorded/native process. It cannot inspect every elevated command/module, so this is not a whole-system
+process trace. This remains physical generated-fixture component recovery through an in-process raw-read server.
+Installed helper/broker qualification, GUI/consent, production census availability, independent source-write traces,
+full source before/after hashes and exact candidate evidence remain open; recommendation stays NO-GO.
 
 [Guard CI 37116287957](https://github.com/benny-cz/FileCat/actions/runs/37116287957) and
 [successor CI 37116435180](https://github.com/benny-cz/FileCat/actions/runs/37116435180) both pass all four lanes;
@@ -80,8 +104,9 @@ component evidence, with physical cases explicitly skipped.
 Private evidence: `artifacts/release-evidence/v09-usb-exclusive-20261003`, plus the two run directories under
 `v09-usb-physical-20261003` and `v09-usb-physical-strict-20261003`, and `ci-37116287957`/`ci-37116435180`.
 Raw logs, binaries and scripts remain ignored.
-The preparation inventory covers 731 retained files, including both overlapping attempts, successor preparation,
-the intermediate native build and both complete CI evidence sets.
+The unchanged preparation inventory covers 731 retained files, including both overlapping attempts, successor
+preparation, the intermediate native build and both complete CI evidence sets. A separate completed-run inventory
+covers 25 physical outputs, observations and verifier files; the earlier inventory is not rewritten.
 
 | Evidence | SHA-256 |
 |---|---|
@@ -97,3 +122,8 @@ the intermediate native build and both complete CI evidence sets.
 | successor CI run / direct Windows inventory | `7fe6b71a8be5944cd54ca8b3fede8502ae462b89c5251642e36f6c0cd7312aea` / `6e38d03725f0c6a9e140ce4326b836907784926c69a6ddf15e22b29c1040f302` |
 | successor CI original archive / complete log | `b8953f10451695a0fe0ea8d4da42e5b68a8b28fa84996ae6b8236c85e9a5c505` / `23f70b5c8652b58ebed91cfd2355a9b062995231e9ac32f44e0d8953de25430e` |
 | preparation evidence inventory, 731 files | `b96a572370be262b4408704c558eb72365c046c36546552d4fd4d0f57d99f4ef` |
+| privileged successor identity / scenario XML | `325859be8063bf8ab4678faabed12583993a687567bfa0b2900c284d00c242d1` / `abeb504b4e8cdf8a902648c57f75a04bdf3ec247f85e3bb393fd26c163ecef56` |
+| successor wrapper result / independent physical inventory | `3bc267caad0824d4bd77bc01c5b58dc15e624340aad027f227323d3275095b88` / `642640fb4b7c8f6e1ef8d832356444915c4582912053b6877084dbc66d9d026c` |
+| each filesystem's expected 330-entry manifest | `ede86fc54ce1cc7ec8aeebd067a28a3210bbee2979ccfee7071c2f20b562cc5e` |
+| FAT32/exFAT observed manifest / NTFS observed manifest | `5144e092b768d002189235a7b20190ff56a56605881acff3d0770a75b00d61fd` / `5804e412173132a7fdce3fb919f79d80c3e3550268ab139388239f9bf19e32bb` |
+| completed physical evidence inventory, 25 files | `56492a8704b293018b79a4cd4c5ecc2fd82b2f14583fa33b21f29b1dfd38af42` |

@@ -22,6 +22,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   pass all four lanes; ea4a2ac manual 37068909015 also packages dev.549. Strict Unix 47 pass/four skips per lane.
   Checker 2e6dffe and observed-manifest successor 85bb17d both pass all four CI lanes. Direct Windows inventories
   independently verify all thirteen new checker cases; package jobs skip (E-V09-G2).
+  Guard 1883eb4 and successor 090a2b6 also pass all four lanes. Later b5ce744/a50b3b8 documentation/title inputs
+  fail only the Windows synthetic lease helper readiness; an older bb2d748 macOS run exposes a timed progress
+  observer race. I108 synchronization correction 6cad380 passes all four lanes in run 37119313116, with original
+  failures and successful Windows archive/affected-case inventory retained (E-I108).
   These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
@@ -49,8 +53,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - **Physical recovery:** authorized USB host preflight and FAT32/exFAT/NTFS component runs pass at clean 1df5dff,
   325 generated deleted files recovered exactly per filesystem. Byte-checker audit exposes false acceptance beside
   missing ranges; corrected checker passes thirteen controls and both affected CI runs. Clean 85bb17d includes
-  observed-file hash capture; its native checker/guard inventory passes 27/27. Stronger physical rerun awaits
-  owner elevated host launch (E-V09-G2).
+  observed-file hash capture; its native checker/guard inventory passes 27/27. The stronger attempt overlaps an older
+  campaign and is invalidated. Interprocess correction and exclusive clean 090a2b6 successor pass controls and
+  physical preflight 1/1 plus formats 3/3 without skips. Each format recovers 325 generated deleted files exactly;
+  all complete claims and recorded input/output hashes independently verify (E-V09-G3).
   Installed-helper/source-write tracing and I106 production census availability remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
@@ -845,6 +851,24 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Baseline full-solution host run retains a separate Windows records assertion failure; not claimed green.
     Successor CI validation is required before resuming the next physical trace setup (E-I108).
 
+179. Exclusive elevated USB run at exact 090a2b6 completes: preflight 1/1 and FAT32/exFAT/NTFS 3/3, no failures or
+    skips. Independent verification matches all 325 generated deleted files per format and all 327/327/326 complete
+    claims, verifies 300 unchanged staged inputs and nineteen recorded output hashes. Pinned USB/partition identity,
+    native phase/child records and scoped observer retained. Separate 25-file completed-run inventory preserves the
+    original preparation inventory. This clears the earlier owner-launch gate; installed-helper/source-write/full
+    source hash/candidate qualification remains open (E-V09-G3).
+180. I104 formatting correction a50b3b8 puts FileCat first in Windows titles, then selected location and account/
+    elevation. Existing assertions fail one case on baseline b5ce744, pass 2/2 corrected; existing headless window
+    title case passes 1/1. Selected folder named FileCat remains valid. No live desktop or elevation-detection claim;
+    exact candidate interaction remains pending (E-I104). CI failure at a50b3b8 is isolated to I108.
+
+181. CI synchronization correction 6cad380 passes all four lanes (37119313116); three package jobs skip.
+    Exact complete metadata/log and original Windows archive retained, GitHub archive digest/member checks pass.
+    Direct inventories confirm App 248 pass/15 skips, Core 699/47, Windows platform 163/33, Remote 88/28,
+    zero failures. All affected lease/oracle/guard/progress/title cases pass; lease helper readiness takes 9.784 s.
+    Full local repaired Core also passes 700/46 explicit skips. I108 is remediated preliminarily; no candidate
+    qualification or release GO inferred (E-I108). Owner keeps the USB connected; no current test touches it.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -884,7 +908,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   successor CI lanes pass at their recorded identities; wider physical/candidate work pending.
 - Physical fixture checker 2e6dffe/85bb17d: earlier exact positive comparisons remain evidence, but the broader
   truthfulness gate can hide corruption beside missing ranges or truncated claims. Controlled baseline/correction
-  and exact native/CI checks pass; the stronger physical rerun with observed hashes awaits elevated owner launch.
+  and exact native/CI checks pass; the exclusive stronger physical rerun with observed hashes passes (E-V09-G3).
 
 ## Next actions (unblocked)
 
@@ -900,7 +924,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    that availability correction. VMware routing drops before native guest execution; owner elevated host run then
    passes all three filesystem component scenarios. Corrected byte checker passes affected/native checks and all four
    successor CI lanes. Stronger attempt overlaps an older USB campaign and is invalidated. Interprocess correction
-   passes controls; clean exclusive 090a2b6 successor awaits one elevated owner launch (E-V09-G3).
+   passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
    Installed-helper raw-read/source-write tracing still needs separate instrumentation and evidence. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
