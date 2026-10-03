@@ -1001,6 +1001,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     count and macOS's verified-copy totals checkpoint. Full failing run/log retained; I108 reopened for diagnosis.
     No source/candidate result is inferred from that run (E-I106-P2).
 
+202. Clean 36ee824 Windows process-query payload passes both native permission controls in the elevated guest,
+    zero skips. All 300 input pins/301 archive members, exact XML/control output and worker cleanup verify;
+    first missing-marker retrieval refusal retained and corrected. Exact successor CI passes four lanes/three
+    package skips. Broader I106 absence/device/candidate gates stay open (E-I106-P2).
+
+203. Correct I108 observers: copy waits for finalized discovery totals at its held checkpoint; thumbnail case
+    requires its helper answer/UI binding, while native reuse/containment assertions remain separate. Attempted
+    rendered-byte control fails on the existing mock backend and is retained; no rendered-pixel claim. Full Core
+    700 pass/46 skips, corrected full App 242 pass/21 skips, targeted UI 2/2 and native client 9/9 pass. Exact
+    working source/XML/skip inventories independently verify; successor CI pending (E-I108-P1).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer

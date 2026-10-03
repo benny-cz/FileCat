@@ -191,6 +191,13 @@ public sealed class ProgressEstimatorTests
         try
         {
             await fs.Copied.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+            // Discovery counts on a separate worker. Copy completion alone does not finalize its totals.
+            var totalsDeadline = DateTime.UtcNow.AddSeconds(30);
+            while (!job.TotalsFinal)
+            {
+                if (DateTime.UtcNow >= totalsDeadline) throw new TimeoutException("Copy totals were not finalized at the held checkpoint.");
+                await Task.Delay(10, ct);
+            }
             Assert.Equal(4L << 20, job.BytesTotal);
             Assert.Equal(job.BytesTotal, job.BytesDone);
             Assert.Equal(0, job.VerifyBytesDone);

@@ -55,3 +55,29 @@ These results predate this correction and do not qualify it. Complete run/log re
 `ed5f0e9f517c1c5a0dec68c09eca5e80c6286772dc80093f08cb6586a904545e` /
 `b941fe85e49b69027b6c515539e070b9683be41a82a3dd8c4e743dab745f93a5`.
 I108 is reopened for the two observer cases. I106/G6 remain open, FileCat USB validation held, no candidate, **NO-GO**.
+
+## Clean native successor and CI
+
+Correction committed as `36ee8248453ecc91cc11476918b0a3d3ed8ccd5f`. Its clean self-contained Windows x64 test
+payload has 300 independently hashed files. Elevated VMware guest UUID `9D224D56-1161-A849-ABA7-2581A980895C`,
+Windows 11 Insider 26300, passes both exact cases at 20:59:36–20:59:37 UTC on 2026-10-03, zero skips/failures.
+Native XML confirms owned child PID 11816's MainModule error 5, exact limited image and denied-query unknown.
+Controller/test/child PIDs 4604/6428/11816 are independently confirmed absent. All 301 archive file members,
+extracted guest pins, exact XML/output hashes and controls independently verify. A first verification refuses
+because the guest ownership marker has not yet been retrieved; that failure is retained, the exact marker is
+retrieved and the full verification passes without relaxing any check.
+
+Exact 36ee824 CI [37152919224](https://github.com/benny-cz/FileCat/actions/runs/37152919224) passes all four test
+lanes; three package jobs skip. This clears the immediate CI/native prerequisites for this limited-query
+correction. It does not establish complete process absence, source-device admission, installed-helper safety,
+GA Windows qualification or a candidate. I106 remains Open; FileCat USB validation remains held.
+
+| Clean successor evidence | SHA-256 |
+|---|---|
+| Clean 300-file input manifest | `487d74f5e9a0aa1a8ee0b887eb050f648f4696bc773a99bb75ce49250b21550b` |
+| Complete native input ZIP, 301 files | `5a47478bd574f3eea36a1754ecfa617e60720d8f9dc5ce41e6fa099804d96abb` |
+| Native result XML | `28be984e81f33108d6b80bdec880ca476a9699cd27131c2f652aebff12892c0f` |
+| Independent native input/output/control verification | `d3509c61a6479e92aaeb90f21b15a432cead264a2f766ee946d854d1862aa2df` |
+| Independent native cleanup | `55de6b60a3f645128d64c5a7bb9b8a3f832e258c4fd14938398b015bcdce49d4` |
+| Exact CI metadata | `c37cf1d8d49725957b4e90d13c1552162e2e8df4fadff74e50f123f18c376446` |
+| Complete CI log | `f9bee9097b73c09250821500380753cde5febe8b3f7b6c6a0f2e0c70b01dc3bb` |

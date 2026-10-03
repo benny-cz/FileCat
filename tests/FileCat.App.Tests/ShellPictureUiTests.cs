@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using FileCat.Core.Commands;
 using FileCat.Core.Listing;
@@ -8,7 +9,7 @@ using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.App.Tests;
 
-public sealed class ShellPictureUiTests
+public sealed class ShellPictureUiTests(ITestOutputHelper output)
 {
     private static void WriteBitmap(string path, int width, int height)
     {
@@ -64,7 +65,19 @@ public sealed class ShellPictureUiTests
                 if (direct is null) Assert.Skip("This Windows installation has no thumbnail handler for .bmp files.");
                 Assert.Fail($"The helper made a thumbnail, but quick view did not show it: {quickView}; helpers started: {services.ShellPictures.Client.Starts}.");
             }
-            Assert.Equal(1, services.ShellPictures.Client.Starts);
+            // Other Shell requests and contained handler failures may replace a helper. Verify this picture's
+            // actual answer and UI binding; helper reuse/containment has separate native client tests.
+            Assert.True(services.ShellPictures.TryGetCached(ShellImageKind.Thumbnail, picture,
+                File.GetLastWriteTimeUtc(picture).Ticks, 256, out var cached));
+            Assert.NotNull(cached);
+            var shown = Assert.IsType<WriteableBitmap>(Thumbnail()!.Source);
+            Assert.Equal(cached.Width, shown.PixelSize.Width);
+            Assert.Equal(cached.Height, shown.PixelSize.Height);
+            Assert.Equal(cached.Width * cached.Height * 4, cached.Bgra.Length);
+            Assert.True(cached.Bgra.Where((_, i) => i % 4 == 0).Distinct().Count() > 8, "The helper answered with the gradient picture.");
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+                t => t.Text?.Contains("Shell thumbnail", StringComparison.Ordinal) == true);
+            output.WriteLine($"The visible Shell thumbnail binds the {cached.Width} x {cached.Height} helper answer; helpers started: {services.ShellPictures.Client.Starts}.");
             Assert.True(services.ShellPictures.Client.RunsAtLowIntegrity);
         }
         finally

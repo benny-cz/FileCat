@@ -71,3 +71,8 @@ This establishes the corrected test's successful execution, not the exact cause 
 | complete log | `a6a443ef843be6426a7ad8c07efd75cb66a7eff826f5f03c24624197daea9c31` |
 | original Windows archive | `1fa2b7a9d1d9eee7565fa7f01adb24cccb96bfb20808d56245367dcef269357e` |
 | independent Windows inventory | `54074e24361a5234d24094ee8c81c663a087ad55179a0457011297490f24d6e2` |
+
+Later c162481 CI exposes a remaining asynchronous totals race and an over-broad global helper-start assertion.
+Original failures, revised observer scopes and passing affected host evidence are retained in
+[E-I108-P1](E-I108-P1-observer-scope.md). The earlier successful run above remains historical evidence;
+it does not qualify the successor observer change.
