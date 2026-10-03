@@ -63,6 +63,8 @@ Installed-helper tracing and production census remediation remain separate work.
 The elevated Windows tracer's exact read/write and untouched-path controls now pass; full PML/CSV and independent
 configuration restoration are retained (E-V09-G4). This instrumentation control never accesses the USB and does not
 close physical source-write, installed-helper or candidate qualification.
+The concrete read-only physical hash/component trace launcher is now prepared with clean f2f0141 inputs and
+independently verified controls. Owner elevated host launch is the next setup gate (E-V09-G5); no live outcome yet.
 
 | ID | Needed | Status |
 |---|---|---|

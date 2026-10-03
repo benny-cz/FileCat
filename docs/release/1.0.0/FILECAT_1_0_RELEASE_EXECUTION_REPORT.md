@@ -26,6 +26,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   fail only the Windows synthetic lease helper readiness; an older bb2d748 macOS run exposes a timed progress
   observer race. I108 synchronization correction 6cad380 passes all four lanes in run 37119313116, with original
   failures and successful Windows archive/affected-case inventory retained (E-I108).
+  I109 cfcc9e6 and documentation successors 087917d/f2f0141 also pass all four lanes; exact metadata/logs retained.
   These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
@@ -898,6 +899,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Independent registry read confirms all thirty saved values/types restored, no subkeys or remaining tracer.
     The first verifier's wrong expected file count is retained and corrected. USB is not accessed. This clears
     the instrumentation-control launch gate, not physical source-write or installed-helper qualification (E-V09-G4).
+186. Prepare the bounded read-only USB component trace at clean self-contained f2f0141: all 300 native inputs and
+    four embedded source versions independently verify. Selector-only control chooses one explicit prerequisite skip;
+    no raw source access. Windows PowerShell 5.1 parser/hash/truncated-input/duplicate-campaign/available controls pass.
+    Independent preparation inventory retained. The launcher will hash the complete physical disk before/after and
+    retain the native case's full PML/CSV, controls, process/lease handovers and restored configuration. Current USB
+    metadata is safe/present; owner elevated host launch is required. No live result or installed-helper/GUI/candidate
+    qualification inferred. 087917d/f2f0141 CI metadata confirms four green lanes each (E-V09-G5).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -955,7 +963,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passes all three filesystem component scenarios. Corrected byte checker passes affected/native checks and all four
    successor CI lanes. Stronger attempt overlaps an older USB campaign and is invalidated. Interprocess correction
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
-   Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4). Prepared
+   Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
+   Read-only component source-hash/trace launcher is prepared at f2f0141 and awaits owner elevation (E-V09-G5). Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
