@@ -1033,9 +1033,21 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     self-contained Windows VM run passes 20 Core/seven headless App cases with no skips. Independent payload,
     source-content/raw-byte, XML and cleanup checks verify; controller/workers and owned temp files are absent.
     Mixed line-ending observer corrections retained. Native frame/AT/reference/candidate remain open (E-I92–112).
+209. V12 slow quick view exposes I113: six controlled baseline failures cover stale errors/repeated-key readers,
+    failed initialization/empty reset cleanup, abandoned reads and ten concurrent held opens. Immediate request
+    retirement, separate result ownership and existing per-device scheduling pass seven controls; two held opens
+    bound eight canceled queued demands, while another device completes. Full App 256/21 skips passes (E-I113).
+210. Affected full Core has one GnuPG test failure. Two parallel fixtures mutate the shared tool override (I114);
+    a controlled unchanged signature is Good → UnknownKey → Good across tool swap/restore. Original interleaving
+    remains untraced. Override fixture isolated; full Core 714/46 skips passes. Exact three-file overlay, 1,056
+    final inputs and 3,329 retained files independently verify. Clean CI/guest/candidate pending (E-I114/E-I113).
 
 ## Evidence invalidated by the campaign's own changes
 
+- I113: old quick-view evidence does not qualify the new request, scheduler and bitmap lifetimes. Controlled
+  headless/full host suites pass; clean CI/guest, native presentation/AT and candidate reruns remain required.
+- I114: old parallel GnuPG fixture evidence may use another fixture's selected executable. Failure is retained;
+  controlled tool swap and isolated full Core pass. Production GnuPG policy is unchanged.
 - I92/I111: prior quick-search/streaming-first-row execution does not qualify the revised listing/UI bytes.
   Exact working/full affected suites, clean successor CI and Windows guest controls pass (E-I92/E-I111);
   native/reference/candidate input/frame evidence remains required. The pending-search caption needs native AT revalidation.
@@ -1112,10 +1124,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
-1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
+1b. V12, what is left: further viewport/page-load and picture-feed demand, rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
-   (I88, I91), views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
+   (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 working host pass; CI/guest pending),
+   views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13, what is left: duplicates among a set, result sets of archive members, saved criteria beyond the time fields.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
    the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.

@@ -8,6 +8,7 @@ using FileCat.App.ViewModels;
 using FileCat.Core.Content;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.Controls;
 
@@ -36,7 +37,7 @@ public sealed class QuickViewPane : Border
     private string? _pictureKey;
     private bool _binary, _pictureShown, _isPictureFile;
     private string? _pictureCaption; // what the shown picture is: the Shell's thumbnail, or FileCat's own decoding
-    private CancellationTokenSource? _pictureCts;
+    private PreviewRequest? _request;
 
     /// <summary>Pictures larger than this are not decoded just for a glance (F3 still shows them).</summary>
     private const long MaxDecodedBytes = 64L * 1024 * 1024;
@@ -44,6 +45,58 @@ public sealed class QuickViewPane : Border
     private TabViewModel? _source;
     private PagedReader? _reader;
     private string? _shownKey;
+
+    // The scheduler may cancel its task before a synchronous device call returns. Keep ownership separate from
+    // that task: late readers are disposed on the worker, and a completed reader is transferred exactly once.
+    private sealed class PreviewRequest : IDisposable
+    {
+        private readonly CancellationTokenSource _cts = new();
+        private readonly object _lock = new();
+        private bool _disposed;
+        private PagedReader? _reader;
+        public CancellationToken Token { get; }
+        public EncodingGuess? Guess { get; private set; }
+        public bool Picture { get; private set; }
+
+        public PreviewRequest() => Token = _cts.Token;
+
+        public bool Publish(PagedReader reader, EncodingGuess guess, bool picture)
+        {
+            lock (_lock)
+            {
+                if (_disposed) return false;
+                _reader = reader;
+                Guess = guess;
+                Picture = picture;
+                return true;
+            }
+        }
+
+        public PagedReader? TakeReader()
+        {
+            lock (_lock)
+            {
+                var reader = _reader;
+                _reader = null;
+                return reader;
+            }
+        }
+
+        public void Dispose()
+        {
+            PagedReader? reader;
+            lock (_lock)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                reader = _reader;
+                _reader = null;
+            }
+            _cts.Cancel();
+            _cts.Dispose();
+            reader?.Dispose();
+        }
+    }
 
     public QuickViewPane()
     {
@@ -67,34 +120,34 @@ public sealed class QuickViewPane : Border
 
     public void Attach(TabViewModel? source)
     {
+        _debounce.Stop();
+        Close();
         if (_source is not null) _source.Listing.Changed -= OnSourceChanged;
         _source = source;
-        _shownKey = null;
         if (source is not null)
         {
             source.Listing.Changed += OnSourceChanged;
-            _debounce.Stop();
             _debounce.Start();
-        }
-        else
-        {
-            Close();
         }
     }
 
     private void OnSourceChanged(object? sender, ListingChange change)
     {
         if ((change & (ListingChange.Focus | ListingChange.Reset)) == 0) return;
+        Close(); // abandoned demand ends immediately, before the next focus settles through the debounce
         _debounce.Stop();
         _debounce.Start();
     }
 
     private void Close()
     {
-        _pictureCts?.Cancel();
-        _pictureCts = null;
+        _request?.Dispose();
+        _request = null;
+        _shownKey = null;
+        var bitmap = _picture.Source as IDisposable;
         _picture.IsVisible = false;
         _picture.Source = null;
+        bitmap?.Dispose();
         _pictureKey = null;
         _pictureCaption = null;
         _binary = _pictureShown = _isPictureFile = false;
@@ -102,6 +155,8 @@ public sealed class QuickViewPane : Border
         _hex.SetReader(null);
         _reader?.Dispose();
         _reader = null;
+        _text.IsVisible = _hex.IsVisible = _message.IsVisible = false;
+        _title.Text = _info.Text = null;
     }
 
     private async Task LoadAsync()
@@ -111,8 +166,8 @@ public sealed class QuickViewPane : Border
         var item = e.Kind == EntryKind.Parent ? null : tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         var key = item is null ? "parent" : item.ToString() + "|" + e.Modified + "|" + e.Size;
         if (key == _shownKey) return;
-        _shownKey = key;
         Close();
+        _shownKey = key;
         _title.Text = e.Kind == EntryKind.Parent ? ".." : Formatters.SafeName(e.Name);
         if (e.IsContainer || item is null)
         {
@@ -127,37 +182,53 @@ public sealed class QuickViewPane : Border
             return;
         }
         var services = tab.Services;
+        var request = _request = new PreviewRequest();
         bool shellPicture = services.AllowedShellPictures is not null && item.FileSystemPath is not null;
         if (services.AllowedShellPictures is { } pictures && item.FileSystemPath is { } picturePath)
-            _ = LoadPictureAsync(pictures, picturePath, e.Modified, (FileAttributes)e.Attributes, key);
+            _ = LoadPictureAsync(pictures, picturePath, e.Modified, (FileAttributes)e.Attributes, key, request);
         try
         {
-            var result = await Task.Run<(PagedReader? Reader, EncodingGuess? Guess, bool Picture)>(() =>
+            var provider = services.Providers.For(item.Parent);
+            await services.Io.Run(provider.GetDeviceKey(item.Parent), IoPriority.Interactive, ct =>
             {
-                var source = services.Providers.For(item.Parent).OpenContent(item);
-                if (source is null) return (null, null, false);
-                var reader = new PagedReader(source, maxPages: 64);
-                var head = new byte[8192];
-                int n = reader.Read(0, head);
-                return (reader, TextDecoding.Detect(head.AsSpan(0, n)), PictureDecoder.Recognize(head.AsSpan(0, n)) is not null);
-            });
-            if (key != _shownKey)
-            {
-                result.Reader?.Dispose();
-                return;
-            }
-            if (result.Reader is null)
+                IContentSource? source = null;
+                PagedReader? reader = null;
+                try
+                {
+                    ct.ThrowIfCancellationRequested();
+                    source = provider.OpenContent(item);
+                    ct.ThrowIfCancellationRequested();
+                    if (source is null) return;
+                    reader = new PagedReader(source, maxPages: 64);
+                    source = null; // ownership has moved to the reader
+                    ct.ThrowIfCancellationRequested();
+                    var head = new byte[8192];
+                    int n = reader.Read(0, head);
+                    ct.ThrowIfCancellationRequested();
+                    if (reader.ReadError is { } error) throw new IOException(error);
+                    if (request.Publish(reader, TextDecoding.Detect(head.AsSpan(0, n)), PictureDecoder.Recognize(head.AsSpan(0, n)) is not null))
+                        reader = null;
+                }
+                finally
+                {
+                    reader?.Dispose();
+                    source?.Dispose();
+                }
+            }, request.Token);
+            if (!IsCurrent(request)) return;
+            var result = request.TakeReader();
+            if (result is null)
             {
                 ShowMessage("This item has no viewable content (for example an encrypted archive entry).");
                 return;
             }
-            _reader = result.Reader;
+            _reader = result;
             _message.IsVisible = false;
-            _isPictureFile = result.Picture;
+            _isPictureFile = request.Picture;
             // No Shell thumbnail coming (Linux, macOS, archives, servers, or Shell pictures turned off): FileCat decodes
             // the picture itself, in its worker process.
-            if (result.Picture && !shellPicture && e.Size is > 0 and <= MaxDecodedBytes) _ = LoadDecodedPictureAsync(_reader.Source, key);
-            if (result.Guess!.LooksBinary)
+            if (request.Picture && !shellPicture && e.Size is > 0 and <= MaxDecodedBytes) _ = LoadDecodedPictureAsync(_reader.Source, key, request);
+            if (request.Guess!.LooksBinary)
             {
                 _hex.SetReader(_reader);
                 _hex.IsVisible = true;
@@ -168,40 +239,44 @@ public sealed class QuickViewPane : Border
             }
             else
             {
-                _text.SetReader(_reader, result.Guess.Encoding, result.Guess.PreambleLength);
+                _text.SetReader(_reader, request.Guess.Encoding, request.Guess.PreambleLength);
                 _text.IsVisible = true;
                 _hex.IsVisible = false;
-                _info.Text += $" · {result.Guess.Encoding.WebName}";
+                _info.Text += $" · {request.Guess.Encoding.WebName}";
             }
+        }
+        catch (OperationCanceledException) when (request.Token.IsCancellationRequested)
+        {
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            ShowMessage("Cannot preview: " + Core.Jobs.ErrorText.Describe(ex));
+            if (IsCurrent(request)) ShowMessage("Cannot preview: " + Core.Jobs.ErrorText.Describe(ex));
         }
     }
 
+    private bool IsCurrent(PreviewRequest request) => ReferenceEquals(request, _request) && !request.Token.IsCancellationRequested;
+
     /// <summary>The Shell's thumbnail, asked of the helper while the content loads; shown only for binary content.</summary>
-    private async Task LoadPictureAsync(FileCat.Platform.Windows.Shell.ShellPreviews pictures, string path, long modified, FileAttributes attributes, string key)
+    private async Task LoadPictureAsync(FileCat.Platform.Windows.Shell.ShellPreviews pictures, string path, long modified, FileAttributes attributes, string key, PreviewRequest request)
     {
         double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
         int size = (int)Math.Min(FileCat.Platform.Windows.Shell.ShellHostProtocol.MaxPixels, Math.Round(PictureSize * scale));
         // Asked once for what is on screen: a helper that was still starting (or had just died) is given a second go.
-        var image = await pictures.GetForDisplayAsync(FileCat.Platform.Windows.Shell.ShellImageKind.Thumbnail, path, modified, attributes, size, CancellationToken.None);
-        if (image is null || key != _shownKey) return;
+        var image = await pictures.GetForDisplayAsync(FileCat.Platform.Windows.Shell.ShellImageKind.Thumbnail, path, modified, attributes, size, request.Token);
+        if (image is null || !IsCurrent(request)) return;
         _picture.Source = ShellBitmaps.ToBitmap(image, scale);
         _pictureKey = key;
         ShowPictureIfReady();
     }
 
     /// <summary>A picture FileCat decodes itself (<see cref="PictureDecoder"/>), for the glance quick view gives.</summary>
-    private async Task LoadDecodedPictureAsync(IContentSource source, string key)
+    private async Task LoadDecodedPictureAsync(IContentSource source, string key, PreviewRequest request)
     {
-        var cts = _pictureCts = new CancellationTokenSource();
         double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(source, (int)Math.Round(PictureSize * scale), cts.Token);
-            if (key != _shownKey || cts.IsCancellationRequested)
+            var picture = await PictureDecoder.DecodeAsync(source, (int)Math.Round(PictureSize * scale), request.Token);
+            if (!IsCurrent(request))
             {
                 picture.Bitmap.Dispose();
                 return;

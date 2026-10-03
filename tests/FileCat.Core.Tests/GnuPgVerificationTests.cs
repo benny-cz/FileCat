@@ -5,12 +5,18 @@ using FileCat.Core.Verification;
 
 namespace FileCat.Core.Tests;
 
+// This fixture selects Git's MSYS GnuPG through a process-wide test override. Native-GnuPG fixtures use
+// Windows paths/keyrings, so the override must not overlap any other collection's verification calls.
+[CollectionDefinition(nameof(GnuPgToolOverride), DisableParallelization = true)]
+public sealed class GnuPgToolOverride;
+
 /// <summary>
 /// V15 with an independent GnuPG: keys made and files signed by gpg itself, then judged by FileCat's reading of gpg's
 /// status lines. A key gpg vouches for is good; an imported key nobody certified, a missing key, and a key under
 /// trust-model always (gpg vouches for nothing, release issue I95) never read as good; a changed file is bad; and no key
 /// server is asked, even when gpg.conf says to, as a listener in the key server's place witnesses.
 /// </summary>
+[Collection(nameof(GnuPgToolOverride))]
 public sealed class GnuPgVerificationTests : IDisposable
 {
     // Short: gpg-agent's socket lives in the home folder, and its path has a length limit.

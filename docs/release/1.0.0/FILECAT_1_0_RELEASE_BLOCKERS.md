@@ -106,6 +106,13 @@ payload/XML/process/temp cleanup independently verify. Native frame/reference/ca
 again exits before application selection/input with the Windows sandbox setup-refresh error; no native input sent.
 Both VMs remain required; no shutdown requested. USB validation remains held at the historical G6 gate.
 
+V12 slow quick-view controls expose I113's stale result/error and reader/demand lifetime defects. Six baseline
+failures become seven passing controls with request ownership/cancellation and the existing device scheduler;
+ten held opens become two active/eight abandoned queued demands, while a healthy device completes. Full App
+256 pass/21 skips. A separate GnuPG test-override interference control leads to I114's exclusive fixture;
+corrected full Core 714 pass/46 skips. Exact inputs/XML/skip inventories verify (E-I113/E-I114). Clean successor
+CI/guest/candidate and native presentation checks remain open; no change to USB hold or source-safety status.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
