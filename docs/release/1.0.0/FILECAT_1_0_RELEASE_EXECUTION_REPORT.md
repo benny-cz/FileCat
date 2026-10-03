@@ -794,6 +794,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     inventories independently confirm 74 pass/22 declared skips each. USB routing/elevated physical execution is
     the next setup gate; guarded guest phases are ready. No stable release/candidate or source-device pass claimed.
 
+172. USB routing retry identifies the authorized stick on guest disk 1, E:, then VMware disconnects it before the
+    native physical preflight starts. Wrapper refuses absent media; logs/identity snapshots retained (E-V09-G1).
+    Host G: is available again. All 300 clean 1df5dff inputs rehashed unchanged; host launcher prepared with an
+    explicit one-pass/no-skip preflight gate before FAT32/exFAT/NTFS disposable component scenarios. Parser checks
+    pass; launcher not run. Host session lacks administrator rights: owner launch/UAC is the next setup gate.
+    No physical scan/format or zero-source-write result claimed; I106 and candidate qualification remain open.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -843,7 +850,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passing. Continue visibility/runtime-alias/lifetime and write-location audits. Physical source-device checks
    now have the identity-bound USB on host G:, with owner authorization for disposable use. Strengthened guards
    and physical preflight pass; Windows census remains unknown even elevated after owned app teardown. Continue
-   that availability correction; raw-read/trace work needs USB routing into the elevated guest or host elevation. Prepared
+   that availability correction. VMware routing drops before native physical execution; a verified host launcher for
+   disposable component recovery now awaits owner launch/UAC (E-V09-G1). Installed-helper raw-read/source-write tracing
+   still needs separate instrumentation and evidence. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
