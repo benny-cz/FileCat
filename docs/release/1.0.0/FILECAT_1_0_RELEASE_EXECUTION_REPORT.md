@@ -932,6 +932,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Runtime alone cannot explain failure. Initial cross-clock timestamp assertion fails by 91 microseconds and is
     retained; revised native-clock ordering/coverage checks preserve exact counts/ranges and report offsets.
     Actual 84615d9 CI passes four lanes/three package skips. No USB access/qualification (E-V09-G8).
+191. All six timing comparisons finish: B/C/D pass exact marker/child controls; A/E/F fail with only about one second
+    of events. Final independent 158-file/PML/CSV inventory and thirty-value registry/worker census verify. System
+    temp association does not explain G6, and separate WaitForIdle does not correct F. No durable remedy inferred.
+    Local WPR has DiskIO/FileIO profiles and reports no active recording; investigate off-source recorder controls
+    and loss statistics. USB path remains held for unexplained G6 source difference (E-V09-G8).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -991,7 +996,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
    Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
    Read-only component source-hash/trace run at f2f0141 has differing full hashes and failed capture controls (E-V09-G6).
-   Hold further USB tests; off-source timing diagnostic is running after agent elevation succeeds (E-V09-G8).
+   Hold further USB tests; off-source timing matrix is complete with mixed outcomes, no durable fix (E-V09-G8).
    Resolve capture/source change before resuming physical work. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),

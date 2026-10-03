@@ -1,6 +1,6 @@
 # E-V09-G8 — native capture timing execution
 
-Links: V09/REC-002/TV-09, I09, I106, ENV-07. **Partial execution snapshot; physical source qualification remains failed.**
+Links: V09/REC-002/TV-09, I09, I106, ENV-07. **Completed preliminary instrumentation; physical source qualification remains failed.**
 The owner authorizes the agent to launch the [prepared G7 diagnostic](E-V09-G7-trace-timing-preparation.md) itself.
 The tool subprocess still reports a standard token, but a Windows RunAs request succeeds and the runner independently
 checks an administrator token. This clears the immediate owner-launch gate; no manual repeat is requested.
@@ -10,9 +10,9 @@ Private campaign:
 controller PID 51016, started 2026-10-03 16:23:50 UTC on Windows Insider 26220. Runner/child/tracer hashes match G7;
 its standalone preparation source remains exact `43e520de3773aabf27519dd45c861098bf314167`.
 Original TEMP/TMP are C:\\WINDOWS\\Temp. The diagnostic requests no USB I/O or FileCat launch.
-The following three completed cases are independently inventoried: **25 files each**, native PML and complete CSV
+The initial three-case snapshot independently inventories **25 files each**, native PML and complete CSV
 streamed independently, matching event counts and exact successful 4,096-byte marker intervals. D/E/F were still
-running when this snapshot was emitted; no result for them is inferred here.
+running when that snapshot was emitted. Their subsequent final results are added below.
 
 | Case | Independent outcome | PML/CSV event count | Native UTC range |
 |---|---|---|---|
@@ -52,6 +52,34 @@ and complete logs are retained. No direct artifact inventory is inferred.
 | C PML / full CSV | `248cb105acfdad7a1eb3fef5b32ba051094afeeaec4d52a1a3e68292fde1632f` / `6727d5dddc37d13672c682b613889ea1cc82efcd98b815621d7512f3f6c92506` |
 | Initial verifier failure record | `82f73ecd9895a93c158bafcddff32093d8debc630a75a8675e7bac8c1165d1a0` |
 | 84615d9 CI run / jobs / complete log | `19724a1f7574a15e26c59921adaa82c1e2770794cbf9cd887bcbd6ccb502d813` / `91ea51225a8bb8fc66f0204d4575c1f109f0cb81d054e27e24b234ec4915d974` / `f4277ac563e178bd8ced2e10b013d7440f369373befabac19aa7e72b8cb034bb` |
+
+## Completed matrix and independent restoration
+
+All six cases subsequently finish. The final independent inventory checks **154 case files plus four campaign
+files**, including every complete PML/CSV and recorded output hash. B/C/D pass exact parent/child byte controls,
+lifetime, sustained native-clock ordering and untouched-path control; A/E/F fail those positive controls.
+The failed cases retain only about one second, ending before their markers/child. No zero-event pass is credited.
+
+| Additional completed case | Independent outcome | PML/CSV events | Native UTC range |
+|---|---|---|---|
+| D, original working directory, owned temp | PASS | 979,383 | 16:37:14.774746–16:37:29.298885 |
+| E, owned working directory, original temp | FAIL | 100,680 | 16:44:49.714750–16:44:50.690966 |
+| F, owned working/temp directories, separate WaitForIdle command | FAIL | 121,105 | 16:45:51.538419–16:45:52.545873 |
+
+These controlled results associate the original system-temp setting with failure in A/E, while owned-temp B/C/D
+pass. F also fails with owned temp and a separate readiness call. They do not explain every failure: G6 used owned
+temp and still failed, and none establishes that a particular option is a durable remedy. Do not infer a driver,
+other application or user action as the cause. The separate WaitForIdle call is not a qualified correction.
+
+Final independent checks confirm all thirty original registry values/types/data and flat structure restored, with
+no recorded worker/controller or tracer remaining. Local built-in WPR profiles enumerate DiskIO/FileIO and its
+status reports no active WPR recording. Investigate this alternate recorder using off-source positive/negative
+controls and loss statistics before any raw-device/source-write conclusion. No WPR recording is claimed here.
+
+| Final private evidence | SHA-256 |
+|---|---|
+| Complete independent six-case/campaign inventory | `792ec29b8de1d5cb018aece87dd5231f598fe3e39f3d28d04be72d6601176d85` |
+| Independent final registry/worker restoration | `ba344a83d937f9e82358a738b6c869b709a4f9b56c0fd81f3b6edc37d0d4b755` |
 
 The [G6 full source-hash difference](E-V09-G6-incomplete-usb-source-trace.md) remains unexplained. No raw-device
 visibility control, event-loss proof, installed helper, GUI admission, zero-source-write or candidate pass is supplied

@@ -68,8 +68,9 @@ physical hashes differ and the PML/CSV end before the positive controls and test
 parsing retains this failed source-write qualification (E-V09-G6). No process attribution or zero-write conclusion
 is available. Hold further USB tests, investigate capture off-source, then address the unexplained source difference.
 Six bounded off-source timing comparisons are prepared (E-V09-G7). Owner authorizes agent launch; Windows RunAs
-succeeds and the setup gate clears. Partial native PML/full CSV inventory confirms A fails and B/C pass exact timed
-marker/child controls; remaining comparisons are running (E-V09-G8). No source-change attribution or USB pass.
+succeeds and the setup gate clears. All six complete: B/C/D pass exact timed marker/child controls, A/E/F fail;
+158 files/full PML/CSV and final thirty-value restoration/worker census independently verify (E-V09-G8).
+No durable recorder remedy or source-change attribution. Investigate built-in tracing off-source; no USB pass.
 
 | ID | Needed | Status |
 |---|---|---|
