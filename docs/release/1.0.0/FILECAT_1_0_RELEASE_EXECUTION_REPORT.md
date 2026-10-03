@@ -876,6 +876,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     37 hardware/platform skips, 196 total, and a native report probe confirms the explanation. Original sources,
     reports, failures and nineteen-file independent inventory retained. Successor CI remains required (E-I109).
 
+183. Documentation successor c042d91 and I109 correction cfcc9e6 both pass all four CI lanes. Complete exact
+    cfcc9e6 run/log and original Windows archive retained; direct inventory verifies the file-record case and
+    earlier I108/I104 cases, no failures in four Windows project inventories. I109 is remediated preliminarily;
+    native branch is not separately logged, candidate reruns remain required (E-I109).
+184. Prepare the next V09 tracing prerequisite: pinned installed Process Monitor 3.95, existing accepted license,
+    no active capture. A marked private launcher captures a known off-source temporary file's reads/writes and a
+    never-accessed-path negative control, retains native PML/full CSV, and verifies restoration of the existing
+    flat tracer configuration. Parser/preparation controls pass without capture or USB access. Real command-line
+    capture/export remains unverified until the owner launches it elevated. The agent is unelevated; owner action
+    requested with the concrete LaunchProcmonCaptureControl.cmd. This is an instrumentation control, not source-write
+    qualification. Private preparation: artifacts/release-evidence/v09-usb-trace-20261003; runner SHA-256
+    08535ab32b175b24c1d0fd9193dbdfdf1f6dec275a799b7b3b0d2926f44af319, launcher
+    fc81ed7681853f16ffa61d7635f9a104fc00dfeb6534614923e71ba2e75460ce. USB remains idle and Windows VM kept running.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
