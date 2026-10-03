@@ -1,6 +1,7 @@
 # E-V09-G2 — physical USB recovery and byte-checker correction
 
-2026-10-03. Preliminary component evidence; stronger physical rerun is prepared, not executed.
+2026-10-03. Preliminary component evidence; stronger attempted rerun is invalidated by overlapping campaigns
+(E-V09-G3). A fresh exclusive successor is prepared.
 Physical run source: `1df5dffe42bb820d21dd9fae86004a9eccedc02e`.
 Checker correction: `2e6dffef18b93b8d142f17fa17dde549cb856f22`.
 Observation manifests and prepared clean payload: `85bb17d413a299fd6114e5f21d715a062943132f`.
@@ -55,7 +56,7 @@ App 248 pass/15 skips, Core 699/47, Windows platform 161/33, Remote 88/28; no fa
 pass. Run identities, complete logs and original test archives are retained; GitHub archive digests and every
 extracted member's size/hash are verified.
 
-## Ready host rerun and setup gate
+## Prepared 85bb17d rerun and successor
 
 The self-contained Release/win-x64 test payload is built with the repository clean at exact 85bb17d, before
 further documentation edits. All 300 inputs and all 300 original archive member streams are hash-verified.
@@ -68,9 +69,12 @@ three destructive filesystem scenarios, retaining observed hashes and expected m
 is bounded to 45 minutes. Windows PowerShell 5.1 and the preparation shell both parse the runner without errors.
 The earlier expanded PowerShell status metadata is retained; the new runner reads a plain status string.
 
-The agent process is unelevated. The next interaction is an owner launch from the elevated host shell, or normal
-launch with UAC approval. It will format the same disposable USB again under the existing authorization. No rerun
-has started, and no stronger physical pass is claimed. Both VM power states are left as previously authorized.
+The owner subsequently starts this launcher while an earlier 1df5dff campaign is still active on the same USB.
+Both attempts complete Failed; the stronger run's two passing filesystem cases also do not qualify because the
+execution overlaps. Complete failures and partial observation manifests are retained. The shared collection lacks
+interprocess exclusion. [E-V09-G3](E-V09-G3-usb-campaign-serialization.md) records the guard/launcher correction,
+retirement of the old entry points and a clean 090a2b6 successor awaiting one elevated host launch. Original runner
+and launcher bytes for the hashes below remain under each root's `retired-original-launchers` directory.
 
 Private evidence is under `artifacts/release-evidence/v09-usb-physical-20261003/host-admin-a686f32ba43c4f0c83b2ae67b118827e`,
 `v09-usb-oracle-20261003`, `v09-usb-physical-strict-20261003`, `ci-37113482391` and `ci-37113817438` within

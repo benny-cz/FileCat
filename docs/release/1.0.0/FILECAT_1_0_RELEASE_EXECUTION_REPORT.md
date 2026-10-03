@@ -823,6 +823,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     has 300 verified inputs/archive members; native checker 13/13 and guard 14/14. Stronger host launcher parses
     in Windows PowerShell 5.1 and preparation shell, not yet executed. Owner elevated launch is the next setup
     gate. Preliminary evidence inventory retains 378 files; no candidate/tag/publication (E-V09-G2).
+176. Owner launch is followed by two overlapping USB campaigns, 1df5dff and 85bb17d, on the same source. Both
+    finish Failed; the stronger attempt's passing cases are also invalid for qualification. All 28 wrapper-recorded
+    output hashes and direct cases are independently verified; original guard/caller sources retained before fix.
+    1883eb4 adds a fixed per-serial cross-process guard lease; 090a2b6 honors test cancellation. Affected checks pass
+    29 with seven hardware skips; App compiles with one explicit live skip. Clean successor native checker/guard/lease
+    controls pass 29/29; all 300 inputs/archive streams verify. Launcher mutex controls pass duplicate refusal,
+    available success and abandoned-owner recovery. Legacy entry points retired with original bytes retained.
+    Distinct exclusive launcher is ready; one elevated host launch is the setup gate. No successor physical pass or
+    source-write qualification claimed. NO-GO remains (E-V09-G3).
+177. Guard 1883eb4 and successor 090a2b6 CI both pass all four lanes, three package jobs skipped. Complete logs,
+    exact run identities and original Windows test archives retained; archive/member hashes verify. Direct Windows
+    TRX inventories independently confirm App 248 pass/15 skips, Core 699/47, Windows platform 163/33 and
+    Remote 88/28, no failures; all 29 checker/identity/lease controls pass in each. Physical skips remain explicit;
+    no hardware or candidate qualification inferred (E-V09-G3).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -878,8 +892,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    and physical preflight pass; Windows census remains unknown even elevated after owned app teardown. Continue
    that availability correction. VMware routing drops before native guest execution; owner elevated host run then
    passes all three filesystem component scenarios. Corrected byte checker passes affected/native checks and all four
-   successor CI lanes. Stronger clean 85bb17d physical rerun with per-item hashes awaits owner elevated launch
-   (E-V09-G2). Installed-helper raw-read/source-write tracing still needs separate instrumentation and evidence. Prepared
+   successor CI lanes. Stronger attempt overlaps an older USB campaign and is invalidated. Interprocess correction
+   passes controls; clean exclusive 090a2b6 successor awaits one elevated owner launch (E-V09-G3).
+   Installed-helper raw-read/source-write tracing still needs separate instrumentation and evidence. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
