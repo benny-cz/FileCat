@@ -1,7 +1,7 @@
 # E-I108-P1 — finalized copy totals and scoped thumbnail evidence
 
 I108/V03/V16/V24. Preliminary observer corrections, base `36ee8248453ecc91cc11476918b0a3d3ed8ccd5f` plus an
-exact two-test-file working overlay. **Affected host checks pass; successor CI pending.** No production copy,
+exact two-test-file working overlay. **Affected host checks and exact 1bd931b successor CI pass.** No production copy,
 progress, Shell policy, deadline, isolation or helper recovery behavior changes. No USB access or candidate pass.
 
 Documentation c162481 CI [37151556209](https://github.com/benny-cz/FileCat/actions/runs/37151556209) retains two
@@ -44,5 +44,20 @@ The verifier's initial expected-name typo is retained and corrected against the 
 | Retained unsupported pixel-control App TRX | `c176e4accb55d8de1405c3b91c74976a2cfb249a72abc0665ee2a1e223cf8ee5` |
 | Independent accounting/source/inventory | `c5975982f016b69541734ed5d73028bf77d0894ee630a318475f0e28419b604a` |
 
-I108's successor CI remains required. Historical G6 attribution, I106's broader availability and candidate gates
-remain open; recommendation **NO-GO**.
+## Exact successor CI
+
+[Run 37154745934](https://github.com/benny-cz/FileCat/actions/runs/37154745934), source
+`1bd931bbfb523ed11ce701af7b4bece1b7f372f3`, passes Windows x64, native Windows ARM64, Ubuntu and macOS.
+The three tag/manual package jobs skip. Complete run metadata/log and the Windows test-result artifact are
+retained under `artifacts/release-evidence/ci-37154745934`. Independent direct XML accounting finds no failures
+in all four Windows inventories and passes all eight progress, both thumbnail UI and both limited-image cases.
+These are component/headless observations; the thumbnail case does not qualify rendered pixels.
+
+| Private successor evidence | SHA-256 |
+|---|---|
+| Complete CI metadata | `f5988dadcf0f73b4248ff7b84de76e1815404dbff417a631089903642cca8425` |
+| Complete CI log | `617185758ab2bb1072a55b86032beb6a81095eeebc9b1076b0738b207f66d420` |
+| Independent lane/XML/skip/file accounting | `53993f934115c9f2eaf6c9e77b4af420e65629915553ff15b1c769d00e92460a` |
+
+I108's observer correction is verified preliminarily. Historical G6 attribution, I106's broader availability
+and candidate gates remain open; recommendation **NO-GO**.

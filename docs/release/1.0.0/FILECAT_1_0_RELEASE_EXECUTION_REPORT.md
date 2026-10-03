@@ -1011,6 +1011,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     rendered-byte control fails on the existing mock backend and is retained; no rendered-pixel claim. Full Core
     700 pass/46 skips, corrected full App 242 pass/21 skips, targeted UI 2/2 and native client 9/9 pass. Exact
     working source/XML/skip inventories independently verify; successor CI pending (E-I108-P1).
+204. Exact 1bd931b successor CI passes all four required lanes; three tag/manual package jobs skip. Complete
+    metadata/log and Windows artifact retained; direct XML independently verifies all four inventories, eight
+    progress, two thumbnail UI and two limited-image cases. I108 is verified preliminarily; candidate and native
+    rendered-pixel qualification remain open (E-I108-P1).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -1050,8 +1054,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   targeted baseline/after and affected App/native Windows inventory retained. Native Ubuntu and all affected
   successor CI lanes pass at their recorded identities; wider physical/candidate work pending.
 - I106 Windows limited image query: previous Windows executable-lookup evidence does not qualify the changed
-  App/platform bytes. Working native controls and full affected host inventories pass (E-I106-P2); clean guest,
-  successor CI and candidate tracing remain pending. Unavailable identities still refuse admission.
+  App/platform bytes. Working native controls/full affected host inventories and clean 36ee824 guest/CI pass
+  (E-I106-P2); candidate tracing remains pending. Unavailable identities still refuse admission.
 - Physical fixture checker 2e6dffe/85bb17d: earlier exact positive comparisons remain evidence, but the broader
   truthfulness gate can hide corruption beside missing ranges or truncated claims. Controlled baseline/correction
   and exact native/CI checks pass; the exclusive stronger physical rerun with observed hashes passes (E-V09-G3).

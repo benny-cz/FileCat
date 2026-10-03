@@ -89,7 +89,8 @@ Windows production lookup now uses the limited image API, with controlled standa
 full affected host App/platform suites passing (E-I106-P2). Clean 36ee824 guest controls and all four CI lanes also
 pass; complete absence/device/candidate qualification remains open. Preceding c162481 CI fails two I108 observer
 assertions; corrected observer scopes now pass affected host Core/App and native helper controls (E-I108-P1).
-Unsupported mock-pixel attempt retained; no rendered-pixel/source-write conclusion. Observer successor CI pending.
+Unsupported mock-pixel attempt retained; no rendered-pixel/source-write conclusion. Exact 1bd931b successor CI
+passes all four lanes; all affected Windows XML cases independently verify (E-I108-P1). Candidate rerun remains required.
 The physical direct/helper comparison now rejects equal short reads and logs counts/hashes (I110). Off-source
 controls and the existing elevated E: reader pass, while the strict USB body remains held. Host C: native reads
 return error 50 even with aligned direct Win32 controls; cause remains unavailable (E-I110). No C:/USB qualification.
