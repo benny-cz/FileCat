@@ -912,6 +912,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     command with ValidatePreparationOnly exits zero without raw USB access/capture. Final independent inventory
     verifies 300 native inputs and 45 preparation files, including command control. Initial launcher-readiness
     inference is superseded; payload source stays exact f2f0141. Owner launch gate remains (E-V09-G5).
+188. Owner executes the exact G5 elevated launcher. Preflight/native read case each pass once; all 300 inputs and
+    43 run files independently verify. Before/after full 7,796,162,560-byte physical hashes differ. PML and full CSV
+    independently contain only 104,749 events ending before the marker/test, so positive controls fail and no source
+    attribution/zero-write evidence exists. Original verifier failure is retained; separate incomplete inventory
+    explicitly refuses qualification. Thirty original configuration values restored; no workers/tracers remain.
+    Hold further USB tests and investigate timing off-source. Known guest tracer/config paths absent after snapshot
+    restoration; no new license accepted. Exact 81b352e CI has four passing lanes/three package skips (E-V09-G6).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -970,7 +977,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    successor CI lanes. Stronger attempt overlaps an older USB campaign and is invalidated. Interprocess correction
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
    Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
-   Read-only component source-hash/trace launcher is prepared at f2f0141 and awaits owner elevation (E-V09-G5). Prepared
+   Read-only component source-hash/trace run at f2f0141 has differing full hashes and failed capture controls (E-V09-G6).
+   Hold further USB tests; investigate capture timing off-source and resolve the source change. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
@@ -993,5 +1001,5 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 5. Keep the records current after each change.
 
 Waiting on people, hardware or a candidate: DPI P13's remaining case (locking the phone mid-transfer, with the owner; the disconnect cases are done, E-V21-U1); P07's loader audit (V06, installed
-candidates); I09's device-level zero-write cases (USB connected to host; privileged execution/routing pending); steps 2, 5, 7 and
+candidates); I09's device-level zero-write cases (USB connected to host; source-change/capture investigation pending); steps 2, 5, 7 and
 11–26 of the plan. I04's Ubuntu 26.04 environment is now available and the package remedy is under validation.

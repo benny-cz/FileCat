@@ -1,6 +1,6 @@
 # E-V09-G5 — read-only USB source-hash/trace preparation
 
-Links: V09/REC-002/TV-09, I09, I106, ENV-07. **Prepared, not executed.** No physical source-write pass or candidate
+Links: V09/REC-002/TV-09, I09, I106, ENV-07. **Preparation record; subsequently executed in [E-V09-G6](E-V09-G6-incomplete-usb-source-trace.md).** No physical source-write pass or candidate
 qualification is claimed. The completed tracer controls are separate [E-V09-G4](E-V09-G4-tracer-controls.md) evidence.
 
 A clean Release/win-x64 self-contained native Windows test payload is published at exact
@@ -80,7 +80,7 @@ Complete metadata/logs are retained; no direct artifact test inventory is inferr
 | 087917d CI metadata / complete log | `b3f849b9c3667e08332deb830af4fc20622abb2e4e2acfec9605a1baf8e65b19` / `b78688f1add80dbc55663f2cab295b28b7d1f347426c91b03b07cb7205da966f` |
 | f2f0141 CI metadata / complete log | `20f87065fe77aace4bea726eaf10c2a6c4bb7be1608c97b63a9ecb4e90cd891c` / `4379713f6d40a76c3392addf153a701d4e029d06c31f93c9ea8711ebba0a8a64` |
 
-The agent process is unelevated. The next genuine setup gate is an owner launch from the elevated host shell (or
-approval of its UAC request). Raw-device visibility, source/descendant write analysis, source-hash equality, trace
-coverage/loss limitations and every remaining installed-helper/GUI/candidate case require actual subsequent evidence.
+The owner launch gate was subsequently cleared. The actual run has differing full physical hashes and fails its
+positive trace controls; collection completion does not qualify capture. See E-V09-G6 for retained failure evidence
+and the investigation gate. This preparation remains evidence of its recorded inputs/controls only.
 I09/I106 remain open and the release recommendation remains NO-GO.

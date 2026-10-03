@@ -63,8 +63,10 @@ Installed-helper tracing and production census remediation remain separate work.
 The elevated Windows tracer's exact read/write and untouched-path controls now pass; full PML/CSV and independent
 configuration restoration are retained (E-V09-G4). This instrumentation control never accesses the USB and does not
 close physical source-write, installed-helper or candidate qualification.
-The concrete read-only physical hash/component trace launcher is now prepared with clean f2f0141 inputs and
-independently verified controls. Owner elevated host launch is the next setup gate (E-V09-G5); no live outcome yet.
+The owner executed the prepared G5 launcher with clean f2f0141 inputs. Native preflight/read cases pass, but complete
+physical hashes differ and the PML/CSV end before the positive controls and test. Independent inventory/native
+parsing retains this failed source-write qualification (E-V09-G6). No process attribution or zero-write conclusion
+is available. Hold further USB tests, investigate capture off-source, then address the unexplained source difference.
 
 | ID | Needed | Status |
 |---|---|---|
@@ -74,7 +76,7 @@ independently verified controls. Owner elevated host launch is the next setup ga
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |
 | ENV-05 | Disposable Windows VM matrix: standard user, administrator, Administrator Protection, UAC prompts, HKLM/WOW64 roots | Lent Windows 11 Insider 26300 VM (partial): administrator elevated/unelevated runs; UAC without prompts; no standard-user account yet. Historical cold-boot hangs on 2026-10-01 are recorded in E-ENV-05. **2026-10-02: owner restarted the VM; running and guest access verified** (E-ENV-06), so the immediate stopped-VM gate is cleared. ReFS/SMB copies resumed with `eng/validation/Invoke-ReFsCloneVm.ps1` (E-V03-CLONE-1). Remaining account/UAC/Admin Protection matrix and GA qualification still needed |
 | ENV-06 | Controlled SFTP, FTP, FTPS and SMB servers (at least two implementations each where applicable) | Two SFTP/FTPS implementations were set up and exercised: OpenSSH/vsftpd and ProFTPD; Samba supplies one SMB implementation (E-V08-L2). Ubuntu VM is running and guest access verified on 2026-10-02; current server availability not revalidated in this turn. Additional applicable SMB implementation and candidate reruns remain open |
-| ENV-07 | Identity-bound disposable media and devices: USB stick G: (serial 2F2000129618), Android and iOS devices in `FileCat-test` folders | Earlier positive run retained; overlapping attempts invalidated. Exclusive clean 090a2b6 host successor passes preflight 1/1 and formats 3/3 without skips, 325 deleted files exact per format; all complete claims/input/output hashes independently checked (E-V09-G3). Installed-helper/source-write tracing and production census availability remain open. Recheck interlocks before use (§8.2). Phones used in owned fixtures (E-V21-M1/I1/U1); locking mid-transfer still needs owner participation |
+| ENV-07 | Identity-bound disposable media and devices: USB stick G: (serial 2F2000129618), Android and iOS devices in `FileCat-test` folders | Earlier positive run retained; overlapping attempts invalidated. Exclusive clean 090a2b6 component successor passes preflight/formats and independent recovery-byte checks (E-V09-G3). Subsequent G6 complete disk hashes differ and trace controls fail; no attribution. Further USB tests held pending off-source capture investigation/source-change resolution. Installed-helper tracing/census remain open; recheck interlocks before use (§8.2). Phones used in owned fixtures (E-V21-M1/I1/U1); locking mid-transfer needs owner |
 | ENV-08 | The reference performance machine (4 cores, 16 GiB, NVMe, 1080p) exclusive during V16 | Not available; the host is a 12-core 64 GiB developer machine shared with other work |
 
 ## D. People
