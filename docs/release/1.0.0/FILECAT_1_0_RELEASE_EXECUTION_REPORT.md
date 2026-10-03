@@ -937,6 +937,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     temp association does not explain G6, and separate WaitForIdle does not correct F. No durable remedy inferred.
     Local WPR has DiskIO/FileIO profiles and reports no active recording; investigate off-source recorder controls
     and loss statistics. USB path remains held for unexplained G6 source difference (E-V09-G8).
+192. Pinned built-in WPR/tracerpt scripts parse/preparation passes; agent RunAs executes the unique named DiskIO/FileIO
+    control without USB access. Exact parent/child file bytes, typed file events, one corresponding physical disk
+    write per marker and child lifecycle pass; native/summary agree 2,561,544 events, zero reported loss. Independent
+    63-run/23-reader-file inventory and named-session/worker cleanup verify. Full ETL/XML/profile/reports retained;
+    XML schema/timezone limitations disclosed, native cached TraceEvent 3.2.6 reader used. No product dependency or
+    raw-device/source-write pass. Continue owned virtual-device visibility control before physical work (E-V09-G9).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -996,7 +1002,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
    Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
    Read-only component source-hash/trace run at f2f0141 has differing full hashes and failed capture controls (E-V09-G6).
-   Hold further USB tests; off-source timing matrix is complete with mixed outcomes, no durable fix (E-V09-G8).
+   Hold further USB tests; off-source timing matrix has mixed outcomes (E-V09-G8). Built-in WPR file/disk marker
+   controls pass with zero reported loss (E-V09-G9); raw-device visibility needs an owned virtual-device control.
    Resolve capture/source change before resuming physical work. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),

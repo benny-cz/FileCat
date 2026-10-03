@@ -70,7 +70,9 @@ is available. Hold further USB tests, investigate capture off-source, then addre
 Six bounded off-source timing comparisons are prepared (E-V09-G7). Owner authorizes agent launch; Windows RunAs
 succeeds and the setup gate clears. All six complete: B/C/D pass exact timed marker/child controls, A/E/F fail;
 158 files/full PML/CSV and final thirty-value restoration/worker census independently verify (E-V09-G8).
-No durable recorder remedy or source-change attribution. Investigate built-in tracing off-source; no USB pass.
+No durable Procmon remedy or source-change attribution. Built-in WPR ordinary-file/disk marker controls now pass:
+native/summary 2,561,544 events, zero reported loss, exact bytes/lifetime/disk writes and named cleanup independently
+verify (E-V09-G9). Raw-device visibility still needs a controlled positive test; no USB/source-write pass.
 
 | ID | Needed | Status |
 |---|---|---|
