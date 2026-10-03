@@ -47,6 +47,11 @@ three skips. Native Ubuntu and both strict Unix CI inventories pass 74 cases/22 
 cc1acf2 CI lanes pass. These are recording-reader/component checks, not source-device tracing;
 broader I106 remains open and no candidate exists.
 
+The owner has now connected the authorized USB serial 2F2000129618 to the host and permits disposable use.
+Its strengthened identity/backing-disk preflight passes. Clean production census still reports unknown on the host
+and elevated Windows guest after the owned FileCat fixture exits; this reproduces a Windows scan availability limit
+(E-V09-G1). No census bypass. Raw-read/trace work needs the USB routed into the elevated guest or host elevation.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
@@ -55,7 +60,7 @@ broader I106 remains open and no candidate exists.
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |
 | ENV-05 | Disposable Windows VM matrix: standard user, administrator, Administrator Protection, UAC prompts, HKLM/WOW64 roots | Lent Windows 11 Insider 26300 VM (partial): administrator elevated/unelevated runs; UAC without prompts; no standard-user account yet. Historical cold-boot hangs on 2026-10-01 are recorded in E-ENV-05. **2026-10-02: owner restarted the VM; running and guest access verified** (E-ENV-06), so the immediate stopped-VM gate is cleared. ReFS/SMB copies resumed with `eng/validation/Invoke-ReFsCloneVm.ps1` (E-V03-CLONE-1). Remaining account/UAC/Admin Protection matrix and GA qualification still needed |
 | ENV-06 | Controlled SFTP, FTP, FTPS and SMB servers (at least two implementations each where applicable) | Two SFTP/FTPS implementations were set up and exercised: OpenSSH/vsftpd and ProFTPD; Samba supplies one SMB implementation (E-V08-L2). Ubuntu VM is running and guest access verified on 2026-10-02; current server availability not revalidated in this turn. Additional applicable SMB implementation and candidate reruns remain open |
-| ENV-07 | Identity-bound disposable media and devices: USB stick G: (owner's rule: serial 2F2000129618), Android and iOS devices in `FileCat-test` folders | USB absent from host/Windows guest/Ubuntu inventory at 00:08–00:10 UTC on 2026-10-03; owner asked to reconnect it to host for V09. Standing rules remain; serial/interlocks must be reverified before use (§8.2). Phones used in owned fixtures 2026-10-01 (E-V21-M1/I1/U1); unplug cases done, locking mid-transfer still needs owner participation |
+| ENV-07 | Identity-bound disposable media and devices: USB stick G: (serial 2F2000129618), Android and iOS devices in `FileCat-test` folders | USB now verified on host disk 5, Storage capacity 7,796,162,560 bytes; owner authorizes any necessary disposable use. Strengthened physical preflight passes 15/15 (E-V09-G1). Elevated raw-read/trace work needs guest USB routing or host elevation; Windows process-census availability also remains open. Recheck interlocks before use (§8.2). Phones used in owned fixtures 2026-10-01 (E-V21-M1/I1/U1); unplug cases done, locking mid-transfer still needs owner participation |
 | ENV-08 | The reference performance machine (4 cores, 16 GiB, NVMe, 1080p) exclusive during V16 | Not available; the host is a 12-core 64 GiB developer machine shared with other work |
 
 ## D. People

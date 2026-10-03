@@ -1088,6 +1088,12 @@ level the plan already states; exploit-level detail is not recorded here.
   CI lanes subsequently pass, strict Unix 74 pass/22 declared skips in each matrix. Prior test routing failure
   retained; Windows-only admission cases now declare their platform prerequisite.
 
+- Windows availability audit at clean 9257967 reproduces unknown census on the ordinary host and elevated guest
+  after owned menu-fixture teardown, despite no FileCat/dotnet name in the later visibility inventory. Sixteen
+  guest module identities are unreadable; diagnostic limited-information queries still cannot identify four OS
+  processes. No unsafe name-based exemption or guard bypass. USB identity/interlock preflight passes; raw-read,
+  product admission and source-device tracing remain pending ([E-V09-G1](evidence/E-V09-G1-usb-interlocks.md)).
+
 ### I105 — Portable recovery misses per-user owners and portable profiles
 
 - [E-I105](evidence/E-I105-portable-fallback-discovery.md): an exact dev.539 GUI with unwritable portable Data falls

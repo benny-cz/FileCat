@@ -324,3 +324,10 @@ runtime aliases, later process starts, wider privileges and physical/candidate s
 00:10 UTC on 2026-10-03, read-only host/Windows guest CIM and Ubuntu lsblk checks find no attached drive with the
 owner's required serial 2F2000129618. Identity-filtered availability records retained privately; the owner is asked
 to reconnect it to the host for remaining V09 work. Both VMware guests remain running.
+
+The owner subsequently connects the exact serial-bound USB on G: and authorizes all necessary disposable use.
+[E-V09-G1](E-V09-G1-usb-interlocks.md) records its complete identity and strengthened interlock preflight. The clean
+9257967 production census returns null on the host and elevated Windows guest after the owned menu fixture is
+terminated. Independent later guest visibility inventory has no FileCat/dotnet name; protected Windows module
+identities remain unavailable. A limited-information query comparison is diagnostic, not a production exemption.
+This is a reproduced Windows availability limit; broader I106 remains Open and no product scan bypass is introduced.

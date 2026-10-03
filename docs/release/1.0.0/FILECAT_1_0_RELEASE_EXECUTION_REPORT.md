@@ -772,6 +772,28 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     identity must be reverified before use. Both VMs remain running. I107 preliminarily closed; I106 and final
     qualification remain open, release NO-GO, no candidate/tag/publication.
 
+168. Owner connects G: and authorizes necessary disposable USB use. Exact serial 2F2000129618, disk 5, Storage
+    capacity 7,796,162,560 bytes, FAT32 volume GUID and non-boot/system partition verified. Audit before change
+    finds narrow/incomplete physical test guards; 1df5dff pins identity/capacity/GUID/backing disks, rechecks mutation
+    phases and retains expected file hashes off source. Fourteen refusal cases and real preflight pass 15/15;
+    absent-opt-in skips independently verified. First progress-stream harness failure retained. No source mutation.
+169. Clean 9257967 census returns unknown on the host and elevated guest after exact owned menu-fixture teardown;
+    later independent guest inventory has no FileCat/dotnet name. Protected module identities reproduce Windows
+    availability limit. Diagnostic limited-rights comparison retained without weakening production refusal
+    (E-V09-G1). Prepare exact 1df5dff guest payload; raw-read/trace work needs USB guest routing or host elevation.
+    Broader I106/physical/candidate gates remain open; both VMs remain running, no tag/publication.
+
+170. Exact clean 1df5dff self-contained guest payload staged: all 300 input hashes verified, fourteen native guard
+    cases pass, exit 0, direct XML and every output independently verified (E-V09-G1). Defaults to synthetic
+    verification; separate physical phases await routing the authorized USB into this elevated VM. CI 37083622189
+    passes Windows x64/Ubuntu/macOS so far, ARM64 pending, packages skipped. No actual physical scan/format claimed.
+
+171. Final exact 1df5dff CI 37083622189 passes all four lanes, packages skipped. Full run/log retained; direct
+    Windows TRX inventories independently verify App 248 pass/15 skips, Core 699/47, platform 148/33, Remote 88/28,
+    no failures. New guard cases 14/14; hardware preflight explicitly skipped. Both Unix strict direct XML
+    inventories independently confirm 74 pass/22 declared skips each. USB routing/elevated physical execution is
+    the next setup gate; guarded guest phases are ready. No stable release/candidate or source-device pass claimed.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -819,7 +841,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    checks; refined root census now establishes absence while ordinary-account visibility remains unknown.
    D8c6f3b successor CI passes; confirmation gap is also corrected, with Windows/Ubuntu native and all cc1acf2 CI
    passing. Continue visibility/runtime-alias/lifetime and write-location audits. Physical source-device checks
-   require reconnecting the identity-bound USB test drive; latest preflight finds it absent. Prepared
+   now have the identity-bound USB on host G:, with owner authorization for disposable use. Strengthened guards
+   and physical preflight pass; Windows census remains unknown even elevated after owned app teardown. Continue
+   that availability correction; raw-read/trace work needs USB routing into the elevated guest or host elevation. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
@@ -842,5 +866,5 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 5. Keep the records current after each change.
 
 Waiting on people, hardware or a candidate: DPI P13's remaining case (locking the phone mid-transfer, with the owner; the disconnect cases are done, E-V21-U1); P07's loader audit (V06, installed
-candidates); I09's device-level zero-write cases (the USB test drive, which is not plugged in); steps 2, 5, 7 and
+candidates); I09's device-level zero-write cases (USB connected to host; privileged execution/routing pending); steps 2, 5, 7 and
 11–26 of the plan. I04's Ubuntu 26.04 environment is now available and the package remedy is under validation.
