@@ -53,6 +53,9 @@ public sealed class LiveDriveScenarioTests
     }
 
     private sealed record Written(string Path, byte[] Content, string Kind);
+    private sealed record MissingBytes(long Offset, long Length);
+    private sealed record Observed(string Path, string Kind, bool Found, string? State, long Bytes, long ReadBytes,
+        string? SHA256, MissingBytes[] MissingRanges);
 
     [Theory]
     [InlineData("FAT32")]
@@ -143,27 +146,37 @@ public sealed class LiveDriveScenarioTests
             }
             var window = new WindowSource(source, volume.Offset, volume.Length, "volume");
             var tally = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            var observations = new List<Observed>();
             int wrongButClaimed = 0;
             foreach (var w in written.Where(w => w.Kind is not "kept"))
             {
                 var item = Find(volume.Root, w.Path.Split('\\'));
                 string outcome;
-                if (item is null) outcome = "not found";
+                if (item is null)
+                {
+                    outcome = "not found";
+                    observations.Add(new(w.Path, w.Kind, false, null, 0, 0, null, []));
+                }
                 else
                 {
                     using var content = new RecoveryContent(window, item);
                     var data = new byte[content.Length];
-                    for (long at = 0; at < data.Length;)
+                    long readBytes = 0;
+                    while (readBytes < data.Length)
                     {
-                        int n = content.Read(at, data.AsSpan((int)at));
+                        int n = content.Read(readBytes, data.AsSpan((int)readBytes));
                         if (n <= 0) break;
-                        at += n;
+                        readBytes += n;
                     }
                     var lost = content.MissingRanges;
+                    observations.Add(new(w.Path, w.Kind, true, item.State.ToString(), data.LongLength, readBytes,
+                        Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant(),
+                        lost.Select(m => new MissingBytes(m.Offset, m.Length)).ToArray()));
                     bool exact = data.AsSpan().SequenceEqual(w.Content);
                     bool keptBytesRight = RecoveryFixtureOracle.KnownBytesMatch(data, w.Content, lost);
                     outcome = $"{item.State}{(exact ? ", exact" : keptBytesRight ? ", the rest exact" : ", differs")}";
-                    if (!RecoveryFixtureOracle.ClaimIsTruthful(item.State, data, w.Content, lost))
+                    if (item.State is RecoveryState.Recoverable or RecoveryState.Partial && readBytes != data.LongLength ||
+                        !RecoveryFixtureOracle.ClaimIsTruthful(item.State, data, w.Content, lost))
                     {
                         wrongButClaimed++;
                         log?.WriteLine($"  WRONG: {w.Path} ({item.State}): {string.Join(" ", item.Evidence)}");
@@ -172,6 +185,10 @@ public sealed class LiveDriveScenarioTests
                 string key = $"{w.Kind}: {outcome}";
                 tally[key] = tally.GetValueOrDefault(key) + 1;
             }
+            usb.Recheck();
+            string recoveredManifest = Path.Combine(usb.Evidence, $"{fileSystem}-observed-{Guid.NewGuid():N}.json");
+            File.WriteAllText(recoveredManifest, System.Text.Json.JsonSerializer.Serialize(observations));
+            log?.WriteLine("Recovered observations: " + recoveredManifest);
             foreach (var (key, count) in tally) log?.WriteLine($"  {count,4} × {key}");
             // The truthfulness rule on real hardware: nothing FileCat calls recoverable is anything but the file's own bytes.
             Assert.Equal(0, wrongButClaimed);

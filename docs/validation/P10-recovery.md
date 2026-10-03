@@ -111,6 +111,8 @@ range; partial claims must retain the known file length and match every claimed 
 cover adjacent corruption, truncated prefixes, overlapping gaps and invalid ranges. The original checker fails ten
 of these cases; the corrected checker passes all thirteen. Stronger physical rerun evidence is recorded separately
 from the earlier component runs and does not replace installed-helper or zero-source-write qualification.
+The destructive scenarios also retain each observed item's state, read length, SHA-256 and exact missing ranges
+off-source, so complete recoveries can be independently compared with the generated expected-file manifest.
 
 | File system (Windows format) | Scan | Deleted files back exactly | Space reused by a later file |
 |---|---|---|---|
