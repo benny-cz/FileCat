@@ -4,7 +4,7 @@ using FileCat.Tests;
 
 namespace FileCat.Platform.Windows.Tests;
 
-public sealed class LiveUsbLeaseTests : IDisposable
+public sealed class LiveUsbLeaseTests(ITestOutputHelper output) : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "filecat-usb-lease-" + Guid.NewGuid().ToString("N"));
 
@@ -30,24 +30,40 @@ public sealed class LiveUsbLeaseTests : IDisposable
         Directory.CreateDirectory(_directory);
         string path = LiveUsbGuard.LeasePath(_directory, "fixture-serial");
         string encodedPath = Convert.ToBase64String(Encoding.Unicode.GetBytes(path));
+        string readyPath = path + ".ready";
         // The child independently opens the same path with the same sharing rules, then holds its handle until killed.
         string command = $$"""
             $ErrorActionPreference='Stop'
             $path=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('{{encodedPath}}'))
             $lease=[IO.File]::Open($path,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
-            [Console]::Out.WriteLine('held')
-            [Console]::Out.Flush()
+            [IO.File]::WriteAllText($path+'.starting','held')
+            [IO.File]::Move($path+'.starting',$path+'.ready')
             [Console]::In.ReadLine() | Out-Null
             $lease.Dispose()
             """;
-        var start = new ProcessStartInfo("powershell.exe")
-        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = true };
+        var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"))
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardInput = true };
         foreach (string arg in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(command)) })
             start.ArgumentList.Add(arg);
         using var child = Process.Start(start)!;
+        // Keep draining through cancellation/cleanup so a failed helper's diagnostic is still retained.
+        Task<string> errors = child.StandardError.ReadToEndAsync(CancellationToken.None);
+        var startup = Stopwatch.StartNew();
         try
         {
-            Assert.Equal("held", await child.StandardOutput.ReadLineAsync(ct).AsTask().WaitAsync(TimeSpan.FromSeconds(15), ct));
+            // Readiness is independent of PowerShell's redirected console. A loaded CI runner may take longer to
+            // start the shell; the lease assertions only begin after the child has acquired its exclusive handle.
+            while (!File.Exists(readyPath))
+            {
+                if (child.HasExited)
+                    Assert.Fail($"Lease helper exited with code {child.ExitCode} before readiness: {await errors}");
+                if (startup.Elapsed >= TimeSpan.FromSeconds(60))
+                    throw new TimeoutException($"Lease helper PID {child.Id} did not report readiness within {startup.Elapsed}.");
+                await Task.Delay(25, ct);
+            }
+            Assert.Equal("held", File.ReadAllText(readyPath));
+            Assert.False(child.HasExited, "Lease helper exited before the contention check.");
+            output.WriteLine($"Lease helper PID {child.Id} acquired its handle after {startup.Elapsed}.");
             Assert.Throws<IOException>(() => LiveUsbGuard.AcquireLease(_directory, "fixture-serial"));
             child.Kill();
             await child.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
@@ -58,6 +74,7 @@ public sealed class LiveUsbLeaseTests : IDisposable
         {
             if (!child.HasExited) child.Kill();
             await child.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(15), CancellationToken.None);
+            output.WriteLine($"Lease helper exit {child.ExitCode}; stderr: {await errors}");
         }
     }
 

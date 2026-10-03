@@ -838,6 +838,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Remote 88/28, no failures; all 29 checker/identity/lease controls pass in each. Physical skips remain explicit;
     no hardware or candidate qualification inferred (E-V09-G3).
 
+178. Owner reports failing GitHub CI. Exact b5ce744/a50b3b8 runs fail only Windows lease helper readiness at 15 s;
+    complete logs, original archives and direct inventories retained. Older bb2d748 macOS failure is a live-copy
+    observer timing race. I108 corrects readiness synchronization and holds the real copy before verification,
+    preserving all substantive assertions. Affected local 29 USB synthetic and eight progress checks pass.
+    Baseline full-solution host run retains a separate Windows records assertion failure; not claimed green.
+    Successor CI validation is required before resuming the next physical trace setup (E-I108).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer

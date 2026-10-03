@@ -10,6 +10,7 @@ the plan requires (§12.5); choosing one is an open decision (see blockers).
 
 | ID | What | Source | Environment | Result | Class | Record | Issues |
 |---|---|---|---|---|---|---|---|
+| E-I108 | CI helper readiness and verified-copy checkpoint | Failed exact b5ce744/a50b3b8 and bb2d748; correction working inputs | GitHub Windows x64/macOS; host synthetic tests | Original failures retained; 29 lease/guard/oracle and eight progress checks pass locally; successor CI pending | Preliminary automated | [E-I108](evidence/E-I108-ci-test-synchronization.md) | I108 |
 | E-A01 | CI run 36722039034: per-lane outcomes and explicit skips | `4f6b062` | GitHub-hosted: `windows-latest`, `windows-11-arm`, `ubuntu-latest`, `macos-latest` | Green; the three package jobs **skipped** | Preliminary automated | [E-A01](evidence/E-A01-ci-36722039034-skip-inventory.md) | — |
 | E-R04 | Step 4, first pass: the plan's code anchors and C01–C29 routes against the source | `906f1e9` | Static | 137 cited names in 421 rows all present (8 rows name non-code or renamed items, each explained); every capability has a route | Static | [E-R04](evidence/E-R04-anchor-reconciliation.md) | — |
 | E-A02 | CI run 36821398706: every lane's skips with their reasons from source; tests no lane runs | `dd1e326` | GitHub-hosted: all four test lanes | 37 tests run on no lane (all gated on labs, devices, a phone, benchmarks); the ARM64 lane ran no Remote tests (added `98bc539`) | Preliminary automated | [E-A02](evidence/E-A02-ci-36821398706-skips-all-lanes.md) | — |

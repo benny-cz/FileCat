@@ -166,17 +166,19 @@ public sealed class ProgressEstimatorTests
     [Fact]
     public async Task A_verified_copy_counts_its_reading_back_as_work()
     {
-        // The copy's bytes are all written long before the job ends: reading both files back takes as long again.
+        // Hold the real copy at its return boundary, before either read-back hash can advance. Polling a fast job
+        // after a delay can miss this boundary entirely, especially when the CI runner is busy with other tests.
         using var dir = new TempDir();
+        using var fs = new CopyBeforeVerification();
         var providers = new ProviderRegistry();
         providers.Register(new LocalFileSystemProvider());
-        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(dir.Path, "journal"));
+        var jobs = new JobManager(fs, providers, Path.Combine(dir.Path, "journal"));
         string file = Path.Combine(dir.Dir("src"), "big.bin");
-        using (var fs = File.Create(file))
+        using (var written = File.Create(file))
         {
             var block = new byte[1 << 20];
             new Random(1).NextBytes(block);
-            for (int i = 0; i < 256; i++) fs.Write(block);
+            for (int i = 0; i < 4; i++) written.Write(block);
         }
         var job = jobs.Submit(new JobRequest
         {
@@ -185,18 +187,43 @@ public sealed class ProgressEstimatorTests
             Destination = Location.FileSystem(dir.Dir("dst")),
             Options = new TransferOptions { Verify = VerifyMode.ReadBack },
         });
-        // When the last byte is copied (where progress used to show 100%), about a third of the work is done.
-        double? workWhenCopied = null;
-        while (!job.State.IsFinished())
+        var ct = TestContext.Current.CancellationToken;
+        try
         {
-            if (workWhenCopied is null && job.BytesTotal > 0 && job.BytesDone == job.BytesTotal)
-                workWhenCopied = (double)job.WorkBytesDone / job.WorkBytesTotal;
-            await Task.Delay(2, TestContext.Current.CancellationToken);
+            await fs.Copied.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+            Assert.Equal(4L << 20, job.BytesTotal);
+            Assert.Equal(job.BytesTotal, job.BytesDone);
+            Assert.Equal(0, job.VerifyBytesDone);
+            Assert.Equal(3L * 4 << 20, job.WorkBytesTotal);
+            Assert.Equal(1.0 / 3, (double)job.WorkBytesDone / job.WorkBytesTotal);
+        }
+        finally
+        {
+            fs.Continue.Set();
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (!job.State.IsFinished())
+            {
+                if (DateTime.UtcNow >= deadline) throw new TimeoutException($"Verified copy still {job.State}.");
+                await Task.Delay(10, ct);
+            }
         }
         Assert.Equal(JobState.Completed, job.State);
-        Assert.NotNull(workWhenCopied);
-        Assert.InRange(workWhenCopied.Value, 0.3, 0.6);
+        Assert.Equal(2L * 4 << 20, job.VerifyBytesDone);
         Assert.Equal(job.WorkBytesTotal, job.WorkBytesDone);
-        Assert.Equal(3L * 256 << 20, job.WorkBytesTotal);
+    }
+
+    private sealed class CopyBeforeVerification : PortableFileOperations, IDisposable
+    {
+        public TaskCompletionSource Copied { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ManualResetEventSlim Continue { get; } = new();
+
+        public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
+        {
+            base.CopyFile(source, destination, options, progress, ct);
+            Copied.SetResult();
+            if (!Continue.Wait(TimeSpan.FromSeconds(30), ct)) throw new TimeoutException("The copy checkpoint was not released.");
+        }
+
+        public void Dispose() => Continue.Dispose();
     }
 }
