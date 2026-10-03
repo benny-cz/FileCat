@@ -76,6 +76,7 @@ level the plan already states; exploit-level detail is not recorded here.
 | I65 | Inspector: a PE whose optional header is shorter than its fields threw instead of warning | Low (an unexpected exception from the Info view for a damaged program; the inspectors promise warnings only) | Should fix (V23 B02, V24) | **Remediated `8cb0737`; verified** (E-B02-I1) |
 | I66 | Recovery, FAT: a deleted file whose entry Linux cleared was called empty and recoverable | Medium (a 3 MiB deleted file listed as "0 bytes, recoverable: the file was empty", a false finding for the user who looks for it) | Must fix (V09, V11) | **Remediated `1477de3`; verified** (E-V09-T2) |
 | I67 | Listing: every refusal showed only "Access is denied.", dropping the reason FileCat gave | Low (21 places give a reason, such as the system refusing a drive; the user saw none) | Should fix (V09, UX honesty) | **Remediated `134db5e`; verified** (E-V09-T2 L6) |
+| I109 | Native cluster query unavailable but unexplained | Low (inspection/validation reliability) | Should fix (V14) | Corrected report and native-oracle test; full host Windows passes; successor CI pending (E-I109) |
 | I108 | CI helper readiness and verified-copy observer timing | Low (validation reliability) | Must fix (required CI) | **Remediated 6cad380; affected/local Core and all four CI lanes pass** (E-I108). Original failures retained; candidate rerun pending |
 | I107 | Windows host menus appear and immediately disappear | High (loss of core mouse command access; owner-declared blocker) | Must fix (V17/I13) | **Closed for preliminary remediation** — native failure and baseline reproduced; complete App inventory 233/248 with 15 skips, affected CI pass. Owner confirms corrected host and clean 1a9f1ba guest success; verified guest trace has no logical-detach closes and a menu open for 47.6 seconds. Exact-candidate interaction pending (E-I107) |
 | I106 | Recovery discovery misses a separate portable installation | Potential Critical (deleted-data safety) | Must fix (V09/I09) | **Open, broader qualification pending** (E-I106): renamed/confirmation gaps corrected; root absence established, ordinary visibility unknown. Elevated guest admission 12/12, full guards 29 pass/3 skips; host App 242 pass/21 skips. Native Ubuntu and both strict Unix CI inventories 74 pass/22 skips; all cc1acf2 CI lanes pass. Broader privilege/runtime-alias/lifetime race and physical/candidate tracing pending |
@@ -120,6 +121,16 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I109 — unsupported cluster query was silently absent from the file record
+
+- Low severity, honest inspection/validation result (V14). An independent Windows query confirms native error 50
+  on the host NTFS fixture with three access masks; the inspector hides that unsupported result. The test also
+  assumes an allocation map is always available. Original failures and reports retained (E-I109).
+- The report now explains unavailable layout; the existing test checks native support and still asserts all other
+  metadata/security. Updated assertion fails before the product correction; full Windows 159 pass/37 explicit
+  skips afterwards. No privilege/access-right change; successor CI supported branch pending.
+  See [E-I109](evidence/E-I109-unavailable-cluster-layout.md).
 
 ### I108 — CI tests depend on helper output and scheduler timing
 

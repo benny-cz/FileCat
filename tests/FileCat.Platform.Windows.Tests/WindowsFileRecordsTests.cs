@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 using FileCat.Core.Inspect;
 using FileCat.Core.Records;
 using Microsoft.Win32.SafeHandles;
@@ -33,7 +34,7 @@ public sealed partial class WindowsFileRecordsTests
         new InspectionReport(report.Format, report.Sections.Where(s => titles.Any(t => s.Title.StartsWith(t, StringComparison.Ordinal))).ToList(), []).ToText();
 
     [Fact]
-    public void A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions()
+    public unsafe void A_file_reads_with_its_exact_times_IDs_links_layout_and_permissions()
     {
         if (!OperatingSystem.IsWindows()) return;
         string dir = NewFolder();
@@ -53,8 +54,33 @@ public sealed partial class WindowsFileRecordsTests
             Assert.Equal(RecordText.Time(File.GetLastWriteTimeUtc(file).ToFileTimeUtc()), Field(Section(report, "Times ("), "Modified"));
             // Its clusters, and who may do what with it.
             var layout = Section(report, "Layout on disk");
-            Assert.Contains(layout.Fields, f => f.Name == "Fragments");
-            Assert.Equal(["VCN", "LCN", "Clusters", "Where"], layout.Table!.Columns);
+            // Some filesystem drivers decline the cluster query even on NTFS. Check Windows independently;
+            // unavailable layout must be explained, while every other part of this integration case still runs.
+            using (var native = CreateFile(file, 0x00120080 /* attributes, security, synchronize */, 7, 0, 3, 0x02200000, 0))
+            {
+                Assert.False(native.IsInvalid, $"Native file open: {Marshal.GetLastPInvokeError()}");
+                byte[] input = new byte[8], output = new byte[64 * 1024];
+                fixed (byte* i = input)
+                fixed (byte* o = output)
+                {
+                    bool supported = DeviceIoControl(native, 0x00090073 /* FSCTL_GET_RETRIEVAL_POINTERS */, (nint)i, 8,
+                        (nint)o, (uint)output.Length, out _, 0);
+                    int error = supported ? 0 : Marshal.GetLastPInvokeError();
+                    if (error is 1 or 50)
+                    {
+                        Assert.Null(layout.Table);
+                        Assert.DoesNotContain(layout.Fields, f => f.Name == "Fragments");
+                        Assert.Contains(layout.Lines, l => l == "Its clusters could not be listed: " + new Win32Exception(error).Message);
+                    }
+                    else
+                    {
+                        Assert.True(supported, $"Native cluster query: {error} ({new Win32Exception(error).Message})");
+                        Assert.Contains(layout.Fields, f => f.Name == "Fragments");
+                        Assert.Equal(["VCN", "LCN", "Clusters", "Where"], layout.Table!.Columns);
+                        Assert.NotEmpty(layout.Table.Rows);
+                    }
+                }
+            }
             var access = Section(report, "Security").Children.Single(c => c.Title == "Access");
             Assert.Equal(["Type", "Rights", "Inherited", "Who"], access.Table!.Columns);
             Assert.NotEmpty(access.Table.Rows);

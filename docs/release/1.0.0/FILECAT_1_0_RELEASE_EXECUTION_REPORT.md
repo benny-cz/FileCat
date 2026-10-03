@@ -869,6 +869,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Full local repaired Core also passes 700/46 explicit skips. I108 is remediated preliminarily; no candidate
     qualification or release GO inferred (E-I108). Owner keeps the USB connected; no current test touches it.
 
+182. The separately retained host file-record assertion fails again. Independent native probe confirms error 50
+    on a 300,000-byte NTFS fixture with metadata, data and Generic Read handles; the host driver declines the cluster
+    query. I109 makes the unavailable layout explicit and checks native support without skipping the rest of the
+    integration case. Updated assertion fails on the unchanged report; after correction full Windows 159 pass/
+    37 hardware/platform skips, 196 total, and a native report probe confirms the explanation. Original sources,
+    reports, failures and nineteen-file independent inventory retained. Successor CI remains required (E-I109).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer

@@ -544,7 +544,7 @@ public sealed unsafe partial class WindowsFileRecords : IFileRecords
                         fields.Add(("Resident", "probably: no cluster holds it, so its content is kept inside its MFT record"));
                     else if (_size == 0) fields.Add(("Clusters", "none"));
                 }
-                else if (error is not (1 /* not supported */ or 50)) lines.Add("Its clusters could not be listed: " + new Win32Exception(error).Message);
+                else lines.Add("Its clusters could not be listed: " + new Win32Exception(error).Message);
             }
             if (_isFolder && table is not null) lines.AddRange(Wrap("A folder's clusters hold its index of names ($I30)."));
             return new InspectionSection("Layout on disk", fields) { Table = table, Lines = lines };
