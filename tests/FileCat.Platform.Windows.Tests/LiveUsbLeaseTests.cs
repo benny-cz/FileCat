@@ -26,6 +26,7 @@ public sealed class LiveUsbLeaseTests : IDisposable
     public async Task A_second_process_is_refused_and_process_death_releases_the_lease()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows physical-test interprocess control.");
+        var ct = TestContext.Current.CancellationToken;
         Directory.CreateDirectory(_directory);
         string path = LiveUsbGuard.LeasePath(_directory, "fixture-serial");
         string encodedPath = Convert.ToBase64String(Encoding.Unicode.GetBytes(path));
@@ -46,27 +47,27 @@ public sealed class LiveUsbLeaseTests : IDisposable
         using var child = Process.Start(start)!;
         try
         {
-            Assert.Equal("held", await child.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15)));
+            Assert.Equal("held", await child.StandardOutput.ReadLineAsync(ct).AsTask().WaitAsync(TimeSpan.FromSeconds(15), ct));
             Assert.Throws<IOException>(() => LiveUsbGuard.AcquireLease(_directory, "fixture-serial"));
             child.Kill();
-            await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            await child.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
             // Process exit may be signaled just before Windows finishes closing its handles.
-            using var afterCrash = await AcquireAfterExit();
+            using var afterCrash = await AcquireAfterExit(ct);
         }
         finally
         {
             if (!child.HasExited) child.Kill();
-            await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            await child.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(15), CancellationToken.None);
         }
     }
 
-    private async Task<FileStream> AcquireAfterExit()
+    private async Task<FileStream> AcquireAfterExit(CancellationToken ct)
     {
         var deadline = Stopwatch.StartNew();
         while (true)
         {
             try { return LiveUsbGuard.AcquireLease(_directory, "fixture-serial"); }
-            catch (IOException) when (deadline.Elapsed < TimeSpan.FromSeconds(5)) { await Task.Delay(50); }
+            catch (IOException) when (deadline.Elapsed < TimeSpan.FromSeconds(5)) { await Task.Delay(50, ct); }
         }
     }
 
