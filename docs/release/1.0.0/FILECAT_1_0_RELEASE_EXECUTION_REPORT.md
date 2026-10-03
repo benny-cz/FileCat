@@ -20,6 +20,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   I105 at 1cd803c also passes all four lanes and manual development packaging (37055272672); dev.545 retained,
   strict Unix inventory independently verifies 35 pass/four skips per lane. I106 ecd61f3 and successor ea4a2ac
   pass all four lanes; ea4a2ac manual 37068909015 also packages dev.549. Strict Unix 47 pass/four skips per lane.
+  Checker 2e6dffe and observed-manifest successor 85bb17d both pass all four CI lanes. Direct Windows inventories
+  independently verify all thirteen new checker cases; package jobs skip (E-V09-G2).
   These results do not qualify release packages or replace
   the candidate's skip inventory.
 - **VMs:** guest access works after owner clarification (E-ENV-06). Windows Insider 26300 was gracefully shut down
@@ -39,10 +41,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   Wider audit reproduces a renamed apphost missed by the name-only census; executable-identity correction under
   validation, refined root native census and App checks pass; ordinary-account visibility/races remain open
   (E-I106). I107 native trace identifies unchanged theme rebuilding the open menu; palette guard,
-  affected App/CI and owner host check pass. Corrected guest/candidate click remains pending. Owner restored the
+  affected App/CI and owner host check pass. Owner confirms clean 1a9f1ba guest menus; I107 is preliminarily closed,
+  while exact-candidate interaction remains pending. Owner restored the
   Windows snapshot and guest access works; keep Windows VM running. Computer Use runtime remains unavailable
   with sandbox setup refresh errors, independently of FileCat (E-I107).
   Full recovery write-location audit continues. GA Windows/reference hardware remain open.
+- **Physical recovery:** authorized USB host preflight and FAT32/exFAT/NTFS component runs pass at clean 1df5dff,
+  325 generated deleted files recovered exactly per filesystem. Byte-checker audit exposes false acceptance beside
+  missing ranges; corrected checker passes thirteen controls and both affected CI runs. Clean 85bb17d includes
+  observed-file hash capture; its native checker/guard inventory passes 27/27. Stronger physical rerun awaits
+  owner elevated host launch (E-V09-G2).
+  Installed-helper/source-write tracing and I106 production census availability remain open.
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -801,6 +810,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     pass; launcher not run. Host session lacks administrator rights: owner launch/UAC is the next setup gate.
     No physical scan/format or zero-source-write result claimed; I106 and candidate qualification remain open.
 
+173. Owner executes the host launcher in an elevated shell. Native preflight passes one case and FAT32/exFAT/NTFS
+    component recovery passes all three, 325/325 generated deleted files exact per format. All 300 inputs and
+    fifteen recorded output hashes verified; actual XML/expected manifests retained. No installed-helper,
+    independent source-write trace, partial-item or exact-candidate qualification claimed (E-V09-G2).
+174. Physical byte-checker audit reproduces ten controlled false acceptances, three controls pass. 2e6dffe compares
+    exact unmissing intervals, rejects wrong lengths/invalid ranges and requires complete Recoverable bytes.
+    Thirteen cases pass; affected inventory 27 pass/seven explicit hardware skips. Initial empty-opt-in setup
+    refusals retained separately. All four 2e6dffe CI lanes pass; direct Windows cases independently verified.
+175. 85bb17d adds off-source observed per-item lengths/hashes/missing ranges and requires complete reads.
+    Affected inventory again 27 pass/seven skips; all four successor CI lanes pass. Clean self-contained payload
+    has 300 verified inputs/archive members; native checker 13/13 and guard 14/14. Stronger host launcher parses
+    in Windows PowerShell 5.1 and preparation shell, not yet executed. Owner elevated launch is the next setup
+    gate. Preliminary evidence inventory retains 378 files; no candidate/tag/publication (E-V09-G2).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -838,6 +861,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - I106 confirmation recheck: previous device admission results do not cover changes while confirmation is open;
   targeted baseline/after and affected App/native Windows inventory retained. Native Ubuntu and all affected
   successor CI lanes pass at their recorded identities; wider physical/candidate work pending.
+- Physical fixture checker 2e6dffe/85bb17d: earlier exact positive comparisons remain evidence, but the broader
+  truthfulness gate can hide corruption beside missing ranges or truncated claims. Controlled baseline/correction
+  and exact native/CI checks pass; the stronger physical rerun with observed hashes awaits elevated owner launch.
 
 ## Next actions (unblocked)
 
@@ -850,9 +876,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passing. Continue visibility/runtime-alias/lifetime and write-location audits. Physical source-device checks
    now have the identity-bound USB on host G:, with owner authorization for disposable use. Strengthened guards
    and physical preflight pass; Windows census remains unknown even elevated after owned app teardown. Continue
-   that availability correction. VMware routing drops before native physical execution; a verified host launcher for
-   disposable component recovery now awaits owner launch/UAC (E-V09-G1). Installed-helper raw-read/source-write tracing
-   still needs separate instrumentation and evidence. Prepared
+   that availability correction. VMware routing drops before native guest execution; owner elevated host run then
+   passes all three filesystem component scenarios. Corrected byte checker passes affected/native checks and all four
+   successor CI lanes. Stronger clean 85bb17d physical rerun with per-item hashes awaits owner elevated launch
+   (E-V09-G2). Installed-helper raw-read/source-write tracing still needs separate instrumentation and evidence. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

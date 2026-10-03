@@ -117,8 +117,8 @@ exemption is made. Microsoft's [OpenProcess restrictions](https://learn.microsof
 also explain why an inaccessible process cannot simply be assumed absent. I106 remains Open: Windows device scan
 availability and broader runtime/lifetime races require remediation/evidence. The safe refusal is not bypassed.
 
-Remaining physical component scenarios require an elevated host run, or stable USB routing into the running elevated
-Windows VM. Both clean-commit self-contained payloads are ready; the host launcher awaits the owner's UAC interaction.
-Actual raw reads,
-known-ground-truth recovery, installed-helper authorization/refusal/removal, independent write tracing/full source
-hashes and exact-candidate evidence remain pending. Component scans cannot substitute for the product admission route.
+The owner subsequently launches the host component run: preflight and all three filesystem scenarios pass, with
+325 generated deleted files recovered exactly per filesystem. A checker audit and stronger prepared rerun are
+recorded in [E-V09-G2](E-V09-G2-physical-usb-oracle.md). Installed-helper authorization/refusal/removal,
+independent write tracing/full source hashes and exact-candidate evidence remain pending. Component scans cannot
+substitute for the product admission route.
