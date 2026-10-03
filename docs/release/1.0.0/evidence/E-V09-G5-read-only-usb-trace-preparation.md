@@ -82,5 +82,7 @@ Complete metadata/logs are retained; no direct artifact test inventory is inferr
 
 The owner launch gate was subsequently cleared. The actual run has differing full physical hashes and fails its
 positive trace controls; collection completion does not qualify capture. See E-V09-G6 for retained failure evidence
-and the investigation gate. This preparation remains evidence of its recorded inputs/controls only.
+and the investigation gate. This preparation remains evidence of its recorded inputs/controls only. The launcher
+was later replaced with an exit-one hold notice; its executed original bytes/hash are preserved as documented in
+[E-V09-G7](E-V09-G7-trace-timing-preparation.md). The recorded runner remains unchanged.
 I09/I106 remain open and the release recommendation remains NO-GO.

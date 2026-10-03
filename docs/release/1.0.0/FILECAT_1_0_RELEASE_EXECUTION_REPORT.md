@@ -919,6 +919,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     explicitly refuses qualification. Thirty original configuration values restored; no workers/tracers remain.
     Hold further USB tests and investigate timing off-source. Known guest tracer/config paths absent after snapshot
     restoration; no new license accepted. Exact 81b352e CI has four passing lanes/three package skips (E-V09-G6).
+189. Complete scanning of every G6 PML event/CSV row confirms its one-second range and no later events. Prepare six
+    off-source capture comparisons varying runtime, working/temp directories and readiness, with exact early/late
+    read/write markers, child lifetime controls and per-case configuration restoration. No USB/FileCat launch.
+    PS5.1 parser, marked/unmarked child content/ownership controls and actual cmd.exe preparation invocation pass;
+    nineteen preparation files independently verify. Old USB launcher bytes preserved; original path now exits one
+    with a hold notice, verified by actual cmd.exe execution. Owner elevated host launch is required. Exact 43e520d CI has
+    four passing lanes/three package skips. Live capture qualification remains pending (E-V09-G7).
 
 ## Evidence invalidated by the campaign's own changes
 
@@ -978,7 +985,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
    Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
    Read-only component source-hash/trace run at f2f0141 has differing full hashes and failed capture controls (E-V09-G6).
-   Hold further USB tests; investigate capture timing off-source and resolve the source change. Prepared
+   Hold further USB tests; off-source timing diagnostic prepared and awaiting owner elevated host launch (E-V09-G7).
+   Resolve capture/source change before resuming physical work. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).
