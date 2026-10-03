@@ -85,6 +85,10 @@ read-only source observation now passes matching complete images and 5,634,333 n
 3,718 source reads and no source disk/file writes (E-V09-G14). This diagnostic does not resolve G6's historical
 difference; FileCat USB validation remains held. Read-only process-structure snapshots independently verify
 but leave five elevated image identities unavailable; no production exemption or absence pass (E-I106-P1).
+Windows production lookup now uses the limited image API, with controlled standard/elevated permissions and
+full affected host App/platform suites passing (E-I106-P2). This does not establish complete absence; clean guest
+and successor CI remain pending. Preceding c162481 CI fails two I108 observer assertions; failures retained and
+diagnosis underway, without a product/source-write conclusion.
 The physical direct/helper comparison now rejects equal short reads and logs counts/hashes (I110). Off-source
 controls and the existing elevated E: reader pass, while the strict USB body remains held. Host C: native reads
 return error 50 even with aligned direct Win32 controls; cause remains unavailable (E-I110). No C:/USB qualification.

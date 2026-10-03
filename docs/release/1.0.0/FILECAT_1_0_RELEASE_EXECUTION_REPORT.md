@@ -990,6 +990,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Reserved-variable failure retained; corrected pins, accounting and worker cleanup independently verify.
     Continue I106 availability and other unblocked audits; no candidate or source-device pass (E-I106-P1).
 
+200. Windows census now uses a limited read-only image query instead of requiring module/memory access.
+    Owned-child error-5/positive image/negative query controls pass under standard and elevated launches;
+    initial elevated fixture failure retained and repaired within its own impersonation scope. Full host App
+    242 pass/21 skips and corrected Windows platform 161 pass/37 skips, no failures. Exact working source/DLLs,
+    623 files, XML/skip inventories and cleanup independently verify. No exemption/absence/USB pass; native clean
+    guest and successor CI pending (E-I106-P2).
+
+201. Preceding documentation c162481 CI passes Windows x64/Ubuntu but fails ARM64's global thumbnail helper-start
+    count and macOS's verified-copy totals checkpoint. Full failing run/log retained; I108 reopened for diagnosis.
+    No source/candidate result is inferred from that run (E-I106-P2).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -1027,6 +1038,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 - I106 confirmation recheck: previous device admission results do not cover changes while confirmation is open;
   targeted baseline/after and affected App/native Windows inventory retained. Native Ubuntu and all affected
   successor CI lanes pass at their recorded identities; wider physical/candidate work pending.
+- I106 Windows limited image query: previous Windows executable-lookup evidence does not qualify the changed
+  App/platform bytes. Working native controls and full affected host inventories pass (E-I106-P2); clean guest,
+  successor CI and candidate tracing remain pending. Unavailable identities still refuse admission.
 - Physical fixture checker 2e6dffe/85bb17d: earlier exact positive comparisons remain evidence, but the broader
   truthfulness gate can hide corruption beside missing ranges or truncated claims. Controlled baseline/correction
   and exact native/CI checks pass; the exclusive stronger physical rerun with observed hashes passes (E-V09-G3).

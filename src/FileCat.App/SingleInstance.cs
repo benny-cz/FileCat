@@ -63,7 +63,8 @@ public static partial class SingleInstance
                     // The existing test seam supplies an already selected candidate inventory. Production also
                     // inspects other executable names: a renamed apphost still binds the FileCat entry assembly.
                     bool? match = identify is not null ? identify(process) : enumerate is not null ? true :
-                        names.Contains(process.ProcessName) ? true : IsFileCatAppHost(process.MainModule?.FileName);
+                        names.Contains(process.ProcessName) ? true : IsFileCatAppHost(OperatingSystem.IsWindows()
+                            ? Platform.Windows.ProcessIdentity.ImagePath(process.Id) : process.MainModule?.FileName);
                     if (match == true) return true;
                     unknown |= match is null;
                 }
