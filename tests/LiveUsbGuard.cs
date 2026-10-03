@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FileCat.Platform.Windows.Recovery;
@@ -12,7 +13,7 @@ public sealed class LiveUsbCollection;
 
 // Shared by the opt-in physical recovery tests. No source mutation is allowed until the identity and every
 // protected destination have been checked. Recheck before each mutation phase; use the pinned volume GUID.
-internal sealed class LiveUsbGuard
+internal sealed class LiveUsbGuard : IDisposable
 {
     internal sealed record Identity(string Drive, string Serial, long DiskBytes, int DiskNumber, string Bus,
         string Instance, string DiskPath, string Volume, int PartitionNumber, long Offset, long PartitionBytes,
@@ -20,6 +21,9 @@ internal sealed class LiveUsbGuard
 
     private readonly Identity _identity;
     private readonly string _evidence;
+    private FileStream? _lease;
+    private static string LeaseDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "FileCat", "Validation", "LiveUsbLocks");
     internal string Drive => _identity.Drive;
     internal string Root => _identity.Volume;
     internal string Device => Root.TrimEnd('\\');
@@ -44,6 +48,11 @@ internal sealed class LiveUsbGuard
         Validate(identity, canonical, serial, capacity);
         var guard = new LiveUsbGuard(identity, evidence);
         guard.CheckProtectedFolders();
+        // One non-waiting, cross-process lease per physical serial, independent of the drive letter or run folder.
+        // File handles release on process death and can be disposed after an async continuation changes threads.
+        guard._lease = AcquireLease(LeaseDirectory, serial);
+        try { guard.Recheck(); }
+        catch { guard.Dispose(); throw; }
         TestContext.Current.TestOutputHelper?.WriteLine("Pinned USB identity: " + JsonSerializer.Serialize(identity));
         return guard;
     }
@@ -76,6 +85,7 @@ internal sealed class LiveUsbGuard
 
     internal void Recheck()
     {
+        ObjectDisposedException.ThrowIf(_lease is null, this);
         var current = ReadIdentity(Drive);
         Validate(current, Drive, _identity.Serial, _identity.DiskBytes);
         Assert.Equal(_identity, current); // changed disk/instance/volume/bounds: stop before the next phase
@@ -91,10 +101,26 @@ internal sealed class LiveUsbGuard
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            AppContext.BaseDirectory, Environment.CurrentDirectory, Path.GetTempPath(), _evidence];
+            AppContext.BaseDirectory, Environment.CurrentDirectory, Path.GetTempPath(), _evidence, LeaseDirectory];
         foreach (string folder in folders.Distinct(StringComparer.OrdinalIgnoreCase))
             Assert.True(!string.IsNullOrEmpty(folder) && DeviceTopology.SharesDisk(Device, folder) == false,
                 "Refusing a source sharing a protected folder's backing disk, or unknown topology: " + folder);
+    }
+
+    internal static string LeasePath(string directory, string serial) => Path.Combine(directory,
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(serial))) + ".lock");
+
+    internal static FileStream AcquireLease(string directory, string serial)
+    {
+        Directory.CreateDirectory(directory);
+        // Keep the empty file after releasing its handle. Deleting it could let a contender open a new inode.
+        return new FileStream(LeasePath(directory, serial), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+    }
+
+    public void Dispose()
+    {
+        _lease?.Dispose();
+        _lease = null;
     }
 
     private static Identity ReadIdentity(string drive)

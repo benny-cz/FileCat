@@ -50,7 +50,7 @@ public sealed class LiveUsbGuardPreflightTests
     [Fact]
     public void The_owned_USB_identity_and_protected_backing_disks_can_be_rechecked_without_source_reads()
     {
-        var usb = LiveUsbGuard.Capture();
+        using var usb = LiveUsbGuard.Capture();
         usb.Recheck();
     }
 }

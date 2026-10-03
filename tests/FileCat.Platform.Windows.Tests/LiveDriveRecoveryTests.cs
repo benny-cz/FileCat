@@ -38,7 +38,7 @@ public sealed class LiveDriveRecoveryTests : IDisposable
             Check(file, Path.GetFileName(image), searchFreeSpace);
             return;
         }
-        var usb = LiveUsbGuard.Capture();
+        using var usb = LiveUsbGuard.Capture();
         if (!Environment.IsPrivilegedProcess) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
         string drive = usb.Drive;
         var ct = TestContext.Current.CancellationToken;
@@ -72,7 +72,7 @@ public sealed class LiveDriveRecoveryTests : IDisposable
     [Fact]
     public async Task An_elevated_FileCat_reads_the_drive_itself_exactly_as_the_helper_serves_it()
     {
-        var usb = LiveUsbGuard.Capture();
+        using var usb = LiveUsbGuard.Capture();
         string drive = usb.Drive;
         using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
             if (!new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))

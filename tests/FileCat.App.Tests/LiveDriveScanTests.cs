@@ -18,7 +18,7 @@ public sealed class LiveDriveScanTests
     [AvaloniaFact]
     public async Task The_drive_of_the_current_folder_is_scanned_in_a_new_tab()
     {
-        var usb = LiveUsbGuard.Capture();
+        using var usb = LiveUsbGuard.Capture();
         if (!Environment.IsPrivilegedProcess) Assert.Skip("Scanning a drive without the installed helper needs administrator rights.");
         string root = usb.Drive + "\\";
         var (services, vm, window, temp) = AccessibilityTests.OpenMainWindow();

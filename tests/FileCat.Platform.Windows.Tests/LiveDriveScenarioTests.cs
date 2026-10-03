@@ -18,11 +18,10 @@ public sealed class LiveDriveScenarioTests
 {
     private static LiveUsbGuard DestructiveDrive()
     {
-        var usb = LiveUsbGuard.Capture();
         if (Environment.GetEnvironmentVariable("FILECAT_RECOVERY_LIVE_DESTRUCTIVE") != "1")
             Assert.Skip("Formats the drive: set FILECAT_RECOVERY_LIVE_DESTRUCTIVE=1 as well.");
         if (!Environment.IsPrivilegedProcess) Assert.Skip("Formatting the disposable USB fixture requires administrator rights.");
-        return usb;
+        return LiveUsbGuard.Capture();
     }
 
     private static string PowerShell(string command)
@@ -63,7 +62,7 @@ public sealed class LiveDriveScenarioTests
     [InlineData("NTFS")]
     public async Task Files_Windows_deleted_come_back_as_written(string fileSystem)
     {
-        var usb = DestructiveDrive();
+        using var usb = DestructiveDrive();
         var log = TestContext.Current.TestOutputHelper;
         var ct = TestContext.Current.CancellationToken;
         // Recheck before formatting; address the pinned volume GUID throughout, including every file mutation.

@@ -105,6 +105,15 @@ harness retains the generated files' sizes, roles and expected SHA-256 hashes ou
 checks do not qualify an installed helper, native UI, or a source-device zero-write result. The opt-in preflight
 `LiveUsbGuardPreflightTests` checks identity/topology only and opens no raw reader.
 
+Each physical test holds an exclusive cross-process lease keyed by the USB serial in a fixed ProgramData folder,
+independent of its drive letter and evidence directory. The guard verifies that folder is off-source before creating
+the lease and rechecks identity/topology after acquisition. Contention or inaccessible locking fails before source
+mutation/access; disposal releases the handle across async continuations, and process exit releases it after a crash.
+The lock file remains to avoid racing deletion/recreation. Controlled tests cover a competing process, release after
+process death, reuse and an independent serial. The release campaign launcher separately holds a per-serial global
+mutex across preflight and all filesystem cases and refuses active legacy native runs. Earlier unguarded payloads
+must be retired; xUnit's collection alone does not serialize separate processes.
+
 The generated-fixture checker compares every byte outside the exact union of declared missing ranges; a gap no
 longer excludes its whole 4 KiB block. A Recoverable claim requires the complete original bytes with no missing
 range; partial claims must retain the known file length and match every claimed byte. Thirteen controlled cases
