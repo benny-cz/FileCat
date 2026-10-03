@@ -58,6 +58,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   physical preflight 1/1 plus formats 3/3 without skips. Each format recovers 325 generated deleted files exactly;
   all complete claims and recorded input/output hashes independently verify (E-V09-G3).
   Installed-helper/source-write tracing and I106 production census availability remain open.
+  Pinned Windows tracer positive-read/write and untouched-path controls now pass; full PML/CSV and independent
+  file/event/configuration verification retained. This control does not access the USB (E-V09-G4).
 - **Native copy case:** guarded identity-bound ReFS/Dev Drive and same-server SMB harness added (`a5a3c0c`, `2a58fdb`,
   `021a885`). Local 1 GiB copies pass the clone-space, SHA-256 and copy-on-write checks. The first SMB run stopped
   before copying because its UNC volume root lacked the trailing separator (I97, fixed `ca1afe0`). Corrected local
@@ -890,6 +892,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     08535ab32b175b24c1d0fd9193dbdfdf1f6dec275a799b7b3b0d2926f44af319, launcher
     fc81ed7681853f16ffa61d7635f9a104fc00dfeb6534614923e71ba2e75460ce. USB remains idle and Windows VM kept running.
 
+185. Owner launches the prepared tracer control elevated; run control-8a15fbb06c284156873117bfa820f3be succeeds.
+    Independent streaming verification confirms 455,237 CSV events, exact 4,096-byte positive read/write and zero
+    never-accessed-path events; seventeen files size/hash verified. Original native PML/full CSV retained.
+    Independent registry read confirms all thirty saved values/types restored, no subkeys or remaining tracer.
+    The first verifier's wrong expected file count is retained and corrected. USB is not accessed. This clears
+    the instrumentation-control launch gate, not physical source-write or installed-helper qualification (E-V09-G4).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -946,7 +955,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    passes all three filesystem component scenarios. Corrected byte checker passes affected/native checks and all four
    successor CI lanes. Stronger attempt overlaps an older USB campaign and is invalidated. Interprocess correction
    passes controls; clean exclusive 090a2b6 successor passes all three physical formats (E-V09-G3).
-   Installed-helper raw-read/source-write tracing still needs separate instrumentation and evidence. Prepared
+   Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4). Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

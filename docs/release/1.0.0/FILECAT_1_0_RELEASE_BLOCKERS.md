@@ -60,6 +60,9 @@ both complete Failed and neither overlapping attempt qualifies. The interprocess
 and the clean exclusive 090a2b6 host run passes preflight and all three formats, with 325 deleted files exact per
 format and all 327/327/326 complete recovery claims independently matched (E-V09-G3).
 Installed-helper tracing and production census remediation remain separate work.
+The elevated Windows tracer's exact read/write and untouched-path controls now pass; full PML/CSV and independent
+configuration restoration are retained (E-V09-G4). This instrumentation control never accesses the USB and does not
+close physical source-write, installed-helper or candidate qualification.
 
 | ID | Needed | Status |
 |---|---|---|
