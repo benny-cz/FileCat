@@ -76,7 +76,10 @@ verify (E-V09-G9). Owned virtual-device raw read/write controls now pass with ex
 attribution and full 64-MiB fixture oracle; two pre-I/O setup failures remain retained. Native 2,057,617 events,
 zero reported loss and independent 154-run/74-diagnostic-file inventory/cleanup verify (E-V09-G10).
 No protected USB/product/source-write pass. Isolate the unexplained physical source changes before resuming FileCat
-USB validation; its affected path remains held.
+USB validation; its affected path remains held. A pure read-only observation retains two complete images matching
+G6's after hash, but the long trace loses 51,216 events despite zero live counters; zero-write/attribution fails
+(E-V09-G11). G6's before image is unavailable. Custom kernel short raw controls pass with 609,387 events and zero
+reported loss (E-V09-G12); duration qualification and another source observation remain next.
 The physical direct/helper comparison now rejects equal short reads and logs counts/hashes (I110). Off-source
 controls and the existing elevated E: reader pass, while the strict USB body remains held. Host C: native reads
 return error 50 even with aligned direct Win32 controls; cause remains unavailable (E-I110). No C:/USB qualification.

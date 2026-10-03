@@ -960,6 +960,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     succeed. Owned E: temporary fixture then passes the existing elevated reader case, one/no skips. Failed and
     incomplete attempts retained; 32-file inventory and final worker check verify. No C:/USB/candidate pass (E-I110).
 
+195. Pure read-only source-change observation at c92d31a retains two full 7,796,162,560-byte physical images,
+    each with 1,859 exact chunks; independent bytes/hashes match each other and G6's after hash. No FileCat launch
+    or source writes requested. Native trace loses 51,216 events despite zero live counters, so source-write
+    qualification fails; no historical attribution inferred. Sixty-seven run files, exact read events/lifetimes,
+    cleanup/leases and post-compression logical hashes verify. G6 remains unresolved and USB held (E-V09-G11).
+196. Custom single-kernel-collector short raw controls pass: exact four raw operations and full 64-MiB oracle,
+    parent marker/lifetime, 61 run/74 diagnostic files and cleanup independently verify. Native 609,387 events,
+    zero reported loss; initial verifier schema/name failures retained. Continue a duration control before another
+    source observation. Exact c92d31a CI passes four lanes/three package skips; strict USB body remains held (E-V09-G12/E-I110).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -1021,7 +1031,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Hold further USB tests; off-source timing matrix has mixed outcomes (E-V09-G8). Built-in WPR file/disk marker
    controls pass with zero reported loss (E-V09-G9); owned virtual-device raw read/write controls now pass,
    with exact native attribution and full fixture-byte oracle (E-V09-G10). Resolve the unexplained physical source
-   change before resuming FileCat USB validation. Prepared
+   change before resuming FileCat USB validation. Read-only diagnostic images match G6's after hash, but its long
+   trace loses 51,216 events and fails source-write qualification (E-V09-G11). Narrower kernel short controls pass
+   with zero reported loss (E-V09-G12); continue duration controls before another source observation. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

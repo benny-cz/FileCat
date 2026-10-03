@@ -44,5 +44,11 @@ an observation, **not source-write attribution**.
 | Retained elevated C: failure TRX | `b883a7770548c05c3e7074da0dcf94b53508bd3b63efa1879cff9b19c5d72b2a` |
 | Eight native C:/E: controls | `04bb78416f3a708984542abcc39a391a15efff6e9098e6b26215d99b93df6d26` |
 
+Exact correction `c92d31a80849ffb61e92b002a24818c5cf047a28` CI
+[37143264712](https://github.com/benny-cz/FileCat/actions/runs/37143264712) passes all four test lanes; three packaging
+jobs skip. Retained run JSON SHA-256 `bfcdab49f70c1f971331529b5e1f26687e084e02a9a8ec207656af726c4dde15`, full-log
+SHA-256 `6df0c3060c6d90ea9a23e608e65bd1cbcbbbabc5f05e96a01fe1ddcc28ff3df5`.
+CI does not execute the gated strict physical body or qualify a candidate.
+
 I110's assertion correction is implemented; strict physical execution remains pending resolution of G6's source
 change. I09/I106 remain open, no candidate exists and recommendation remains NO-GO.
