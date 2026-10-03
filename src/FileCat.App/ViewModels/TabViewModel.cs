@@ -129,7 +129,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     partial void OnIsLockedChanged(bool value) => OnPropertyChanged(nameof(TabHeader));
 
-    partial void OnQuickSearchChanged(string? value) => OnPropertyChanged(nameof(IsQuickSearchActive));
+    partial void OnQuickSearchChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsQuickSearchActive));
+        OnPropertyChanged(nameof(ShownQuickSearch));
+    }
 
     // ---- Change watching (plan §8.2): only the visible tab of each panel watches its folder ------------------
 
@@ -517,72 +521,6 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         UpdateStatus();
     }
 
-    // ---- Quick search (plan §4.3) ----------------------------------------------------------------------------
-
-    /// <summary>Extends the quick search text; rejects characters that match nothing (focus stays).</summary>
-    public bool QuickSearchType(string text)
-    {
-        var candidate = (QuickSearch ?? string.Empty) + text;
-        int match = FindQuickMatch(candidate, 0, forward: true);
-        if (match < 0)
-        {
-            QuickSearchNoMatch = true;
-            if (QuickSearch is null) QuickSearch = string.Empty;
-            return false;
-        }
-        QuickSearch = candidate;
-        QuickSearchNoMatch = false;
-        Listing.SetFocus(match);
-        return true;
-    }
-
-    public void QuickSearchBackspace()
-    {
-        if (QuickSearch is null) return;
-        if (QuickSearch.Length == 0)
-        {
-            EndQuickSearch();
-            return;
-        }
-        QuickSearch = QuickSearch[..^1];
-        QuickSearchNoMatch = false;
-        if (QuickSearch.Length > 0)
-        {
-            int m = FindQuickMatch(QuickSearch, 0, true);
-            if (m >= 0) Listing.SetFocus(m);
-        }
-    }
-
-    public void QuickSearchCycle(bool forward)
-    {
-        if (string.IsNullOrEmpty(QuickSearch)) return;
-        int start = Listing.FocusedIndex + (forward ? 1 : -1);
-        int m = FindQuickMatch(QuickSearch, start, forward);
-        if (m >= 0) Listing.SetFocus(m);
-    }
-
-    public void EndQuickSearch()
-    {
-        QuickSearch = null;
-        QuickSearchNoMatch = false;
-    }
-
-    private int FindQuickMatch(string text, int start, bool forward)
-    {
-        int count = Listing.VisibleCount;
-        if (count == 0 || text.Length == 0) return -1;
-        bool wildcard = text.Contains('*') || text.Contains('?');
-        bool anywhere = Services.Settings.QuickSearchMatchAnywhere;
-        string pattern = wildcard ? text.TrimEnd('*') + "*" : text;
-        // A keystroke without a match scans the whole listing (bulk reads, spilled listings included). Typed ASCII
-        // compares ordinally, which gives the same answer and is many times faster; other text compares linguistically.
-        var comparison = System.Text.Ascii.IsValid(text) ? StringComparison.OrdinalIgnoreCase : StringComparison.CurrentCultureIgnoreCase;
-        return Listing.FindVisible(start, forward, name =>
-            wildcard ? Wildcard.IsMatch(name, pattern)
-            : anywhere ? name.Contains(text, comparison)
-            : name.StartsWith(text, comparison));
-    }
-
     public void OnUserMovedFocus()
     {
         if (QuickSearch is not null) EndQuickSearch();
@@ -932,6 +870,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        EndQuickSearch();
         _disposed = true;
         Closed?.Invoke();
         Closed = null;

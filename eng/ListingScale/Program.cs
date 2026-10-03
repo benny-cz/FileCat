@@ -61,6 +61,24 @@ try
     Console.WriteLine($"iterate_visible_ms={Time(() => first.FindVisible(0, true, _ => false))}");
     Console.WriteLine($"quick_search_miss_ms={Time(() => first.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.OrdinalIgnoreCase)))}");
     Console.WriteLine($"quick_search_miss_culture_ms={Time(() => first.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.CurrentCultureIgnoreCase)))}");
+    // Captured name scans run on a worker; these are model acknowledgement/completion times, not native frames.
+    foreach (bool culture in new[] { false, true })
+    {
+        var acknowledged = new List<double>();
+        var completed = new List<double>();
+        for (int i = 0; i < 5; i++)
+        {
+            var searchClock = Stopwatch.StartNew();
+            var work = first.FindVisibleAsync(0, true, n => n.StartsWith("zz-none",
+                culture ? StringComparison.CurrentCultureIgnoreCase : StringComparison.OrdinalIgnoreCase));
+            acknowledged.Add(Math.Round(searchClock.Elapsed.TotalMilliseconds, 3));
+            while (!work.IsCompleted) { ui.Pump(0); Thread.Sleep(1); }
+            var result = work.GetAwaiter().GetResult();
+            if (!result.IsCurrent || result.Row != -1) throw new Exception("Background miss oracle failed.");
+            completed.Add(Math.Round(searchClock.Elapsed.TotalMilliseconds, 3));
+        }
+        Console.WriteLine($"background_name_scan_{(culture ? "culture" : "ordinal")}_ack_ms={string.Join("/", acknowledged)} complete_ms={string.Join("/", completed)}");
+    }
     Console.WriteLine($"find_name_miss_ms={Time(() => first.FindStoreIndex("zz-none" + Guid.NewGuid()))}");
     Console.WriteLine($"mark_by_mask_ms={Time(() => first.MarkByMask(FileCat.Core.Selection.Mask.Parse("*7-long*"), true, false))}");
     var sample = Enumerable.Range(0, 1_000_000).Select(i => $"file-{i:0000000}-long-αβγ.txt").ToArray();

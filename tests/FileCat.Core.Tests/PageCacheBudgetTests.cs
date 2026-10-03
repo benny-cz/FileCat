@@ -166,18 +166,69 @@ public sealed class PageCacheBudgetTests
         readers[0].Dispose();
         readers[3].Dispose();
         await Task.WhenAll(workers);
-        // Background loads started by TryRead finish on the thread pool: wait until nothing changes.
-        long last = -1;
-        for (int i = 0; i < 50 && budget.UsedBytes != last; i++)
-        {
-            last = budget.UsedBytes;
-            await Task.Delay(100, ct);
-        }
+        // Workers have stopped requesting pages. An unchanged total is insufficient: loads and evictions can
+        // keep that total constant while individual caches still change. Wait for all their actual completions.
+        await WaitForLoads(readers, ct);
         Assert.Equal(0, readers[0].CachedPages);
         Assert.Equal(0, readers[3].CachedPages);
         Assert.Equal(Cached(readers), budget.UsedBytes);
         Assert.True(budget.UsedBytes <= budget.LimitBytes, $"{budget.UsedBytes / Page} pages cached, limit 32");
         foreach (var reader in readers) reader.Dispose();
         Assert.Equal(0, budget.UsedBytes);
+    }
+
+    private static async Task WaitForLoads(IEnumerable<PagedReader> readers, CancellationToken ct)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (readers.Any(r => r.PendingLoads != 0))
+        {
+            if (clock.Elapsed > TimeSpan.FromSeconds(30)) throw new TimeoutException("Page loads did not finish in thirty seconds.");
+            await Task.Delay(10, ct);
+        }
+    }
+
+    [Fact]
+    public async Task An_unchanged_total_does_not_mean_a_background_load_has_finished()
+    {
+        using var source = new HeldRead();
+        var budget = new PageCacheBudget(Page);
+        using var reader = new PagedReader(source, budget: budget);
+        Assert.False(reader.TryRead(0, new byte[1], out _));
+        try
+        {
+            Assert.True(source.Entered.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            Assert.Equal(1, reader.PendingLoads);
+            long first = budget.UsedBytes;
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            Assert.Equal(first, budget.UsedBytes); // the previous plateau test would infer idle here.
+            var finished = WaitForLoads([reader], TestContext.Current.CancellationToken);
+            Assert.False(finished.IsCompleted, "The completion observer accepted a held source read.");
+            source.Release.Set();
+            await finished.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.Equal(0, reader.PendingLoads);
+            Assert.Equal(Page, budget.UsedBytes);
+            Assert.Equal(budget.UsedBytes, Cached([reader]));
+        }
+        finally { source.Release.Set(); }
+    }
+
+    private sealed class HeldRead : IContentSource
+    {
+        public readonly ManualResetEventSlim Entered = new();
+        public readonly ManualResetEventSlim Release = new();
+        public string DisplayName => "held cache-observer control";
+        public long Length => Page;
+        public bool CanSeek => true;
+        public string? LocalPath => null;
+        public ContentRevision? GetRevision() => new(Page, 0);
+        public int Read(long offset, Span<byte> buffer)
+        {
+            Entered.Set();
+            if (!Release.Wait(TimeSpan.FromSeconds(10))) throw new IOException("The control read was not released.");
+            int count = (int)Math.Clamp(Page - offset, 0, buffer.Length);
+            buffer[..count].Fill(0xA5);
+            return count;
+        }
+        public void Dispose() { Release.Set(); }
     }
 }

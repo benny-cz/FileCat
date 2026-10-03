@@ -1015,9 +1015,27 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     metadata/log and Windows artifact retained; direct XML independently verifies all four inventories, eight
     progress, two thumbnail UI and two limited-image cases. I108 is verified preliminarily; candidate and native
     rendered-pixel qualification remain open (E-I108-P1).
+205. Resume V12/I92: fresh million-long-name baseline reproduces 202–345/737–1,168 ms blocking scans. Large
+    quick search now leases captured rows/indexes and runs off the UI thread, with ordered keys, pending feedback,
+    stale-view retry and immediate UI cancellation. Nine Core/seven new headless App controls pass; serialized
+    model acknowledgement 0.017–0.494 ms. Initial fixture/observer failures retained; native frame/AT/reference
+    and successor CI remain open (E-I92).
+206. Affected full Core exposes I111: publishing an empty/parent-only view can suppress its delayed first file.
+    Four controlled baseline timeouts reproduce it; revised geometric batching passes all four and original
+    cursor/streaming controls. Exact failing/corrected inputs retained (E-I111).
+207. Further full Core exposes I112's cache observer sampling active loads after a constant total. Held-read
+    negative control proves that plateau is insufficient; bounded actual-load wait retains exact sum/ceiling/
+    disposal assertions. Seven cache cases pass. Final full Core 714 pass/46 skips; App 249 pass/21 skips;
+    twelve exact source files, 790 payloads, ten XML inventories and 2,480 files independently verify. Native
+    computer-use initialization still fails before app selection/input; CLI work continues. Candidate/CI pending.
 
 ## Evidence invalidated by the campaign's own changes
 
+- I92/I111: prior quick-search/streaming-first-row execution does not qualify the revised listing/UI bytes.
+  Exact working controls/full affected suites pass (E-I92/E-I111); successor CI and native/reference/candidate
+  input/frame evidence remain required. The pending-search caption also needs appropriate native AT revalidation.
+- I112: the old concurrent cache plateau observer is insufficient for quiescent accounting. Its failed result
+  stays failed; held-read/completion and full corrected host inventories pass (E-I112). Cache policy is unchanged.
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
   paths; V03 interrupted-copy cases and small-file copy throughput must be re-run on the candidate.
 - `5b061cc` (installer script): every earlier installer build; V19 lifecycle evidence must use the final setup.
@@ -1092,10 +1110,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
-   (I88, I91), views closed while busy, million-entry listings (I92 open), many tabs.
+   (I88, I91), views closed while busy, million-entry listings (I92 working remedy/full host pass; CI/native pending), many tabs.
 1c. V13, what is left: duplicates among a set, result sets of archive members, saved criteria beyond the time fields.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
-   the reference machine; I92's remedy (quick search misses off the window's thread past a size) if wanted.
+   the reference machine; I92's worker remedy is implemented/host-verified, with CI and native frame/AT checks pending.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process

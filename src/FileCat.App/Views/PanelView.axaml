@@ -94,12 +94,13 @@
                      ToolTip.ServiceEnabled="{Binding ActiveTab.StatusRight, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           <!-- Typing in the list searches it (plan §4.3). The search shows here, over the status, so it never hides the
                item it found at the bottom of the list. -->
-          <Border Grid.ColumnSpan="2" Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.QuickSearchNoMatch}"
+          <Border Grid.ColumnSpan="2" Classes="quicksearch" Classes.nomatch="{Binding ActiveTab.ShownQuickSearchNoMatch}"
                   IsVisible="{Binding ActiveTab.IsQuickSearchActive}">
             <StackPanel Orientation="Horizontal">
               <TextBlock Classes="small" Text="Quick search: " />
-              <TextBlock Classes="small" Text="{Binding ActiveTab.QuickSearch}" FontWeight="Bold" />
-              <TextBlock Classes="small warning" Text="  · no name matches" IsVisible="{Binding ActiveTab.QuickSearchNoMatch}" />
+              <TextBlock Classes="small" Text="{Binding ActiveTab.ShownQuickSearch}" FontWeight="Bold" />
+              <TextBlock Classes="small" Text="  · searching…" IsVisible="{Binding ActiveTab.IsQuickSearchPending}" />
+              <TextBlock Classes="small warning" Text="  · no name matches" IsVisible="{Binding ActiveTab.ShownQuickSearchNoMatch}" />
             </StackPanel>
           </Border>
         </Grid>

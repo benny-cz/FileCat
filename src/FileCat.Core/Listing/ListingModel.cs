@@ -251,6 +251,73 @@ public sealed class ListingModel : IDisposable
         return -1;
     }
 
+    /// <summary>
+    /// A search in one immutable display order. Check <see cref="IsCurrent"/> on the UI thread immediately before
+    /// using <see cref="Row"/>: a refresh, filter, sort, navigation or disposal makes the answer stale.
+    /// </summary>
+    public sealed class VisibleSearchResult
+    {
+        private readonly ListingModel _owner;
+        private readonly EntryStore _store;
+        private readonly int[] _visible;
+        private readonly DiskView? _external;
+        private readonly int _specVersion;
+
+        internal VisibleSearchResult(ListingModel owner, EntryStore store, int[] visible, DiskView? external,
+            int specVersion, int row)
+        {
+            _owner = owner;
+            _store = store;
+            _visible = visible;
+            _external = external;
+            _specVersion = specVersion;
+            Row = row;
+        }
+
+        public int Row { get; }
+        public bool IsCurrent => !_owner._disposed && ReferenceEquals(_owner._store, _store) &&
+            ReferenceEquals(_owner._visible, _visible) && ReferenceEquals(_owner._diskView, _external) &&
+            _owner._specVersion == _specVersion;
+    }
+
+    /// <summary>
+    /// Starts on the UI thread, then searches captured rows on a worker without copying the listing or building
+    /// strings. Store and external-index leases survive navigation; cancellation is checked every 128 names.
+    /// </summary>
+    public Task<VisibleSearchResult> FindVisibleAsync(int start, bool forward, NameMatch match, CancellationToken ct = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var store = _store;
+        var visible = _visible;
+        var external = _diskView;
+        int applied = _appliedCount, count = VisibleCount, version = _specVersion;
+        var storeLease = store.Lease();
+        IDisposable? viewLease;
+        try { viewLease = external?.Lease(); }
+        catch { storeLease.Dispose(); throw; }
+        return Task.Run(() =>
+        {
+            using (storeLease)
+            using (viewLease)
+            {
+                ct.ThrowIfCancellationRequested();
+                int found = -1;
+                using var scan = new EntryStore.Scan(store, applied);
+                int row = count == 0 ? 0 : start % count;
+                if (row < 0) row += count;
+                for (int n = 0; n < count; n++)
+                {
+                    if ((n & 127) == 0) ct.ThrowIfCancellationRequested();
+                    var e = scan[external?.GetStoreIndex(row) ?? visible[row]];
+                    if (e.Kind != EntryKind.Parent && match(e.Name)) { found = row; break; }
+                    row = forward ? (row + 1 == count ? 0 : row + 1) : (row == 0 ? count - 1 : row - 1);
+                }
+                ct.ThrowIfCancellationRequested();
+                return new VisibleSearchResult(this, store, visible, external, version, found);
+            }
+        });
+    }
+
     // ---- Focus -----------------------------------------------------------------------------------------
 
     public int FocusedIndex => _focusStore >= 0 ? Math.Max(GetVisibleIndex(_focusStore), -1) : -1;
@@ -1169,9 +1236,10 @@ public sealed class ListingModel : IDisposable
                         Publish(new PipelineResult([], n, true, LoadError, LoadCanceled, completion, external));
                         continue;
                     }
-                    // Geometric batches keep streaming merges and position rebuilds near O(n log n).
+                    // Geometric batches keep streaming merges and position rebuilds near O(n log n). The first
+                    // real rows must appear even when an empty/parent-only view was published before they arrived.
                     if (!done && applied is not null && applied.Version == spec.Version &&
-                        n - sortedCount < Math.Max(64, sortedCount / 2)) continue;
+                        (n == sortedCount || sortedCount > firstIndex && n - sortedCount < Math.Max(64, sortedCount / 2))) continue;
                     using var comparer = EntrySorter.CreateComparer(Store, spec.Sort, _owner.MetadataKeys, n);
                     var cmp = comparer.Comparison;
                     bool changed = false;

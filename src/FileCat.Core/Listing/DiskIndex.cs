@@ -72,6 +72,11 @@ internal sealed class DiskIntIndex : IDisposable
 /// <summary>Immutable visible-order and store-to-visible indexes. Position zero means hidden.</summary>
 internal sealed class DiskView(DiskIntIndex visible, DiskIntIndex positions, int count) : IDisposable
 {
+    private readonly object _gate = new();
+    private int _leases;
+    private bool _disposeRequested;
+    private bool _disposed;
+
     public int Count { get; } = count;
     public long Bytes => visible.Bytes + positions.Bytes;
     public int GetStoreIndex(int row) => row >= 0 && row < Count ? visible.Read(row) : throw new ArgumentOutOfRangeException(nameof(row));
@@ -82,7 +87,41 @@ internal sealed class DiskView(DiskIntIndex visible, DiskIntIndex positions, int
     }
     public void Dispose()
     {
+        lock (_gate)
+        {
+            _disposeRequested = true;
+            if (_leases == 0) DisposeIndexes();
+        }
+    }
+
+    /// <summary>Keeps this immutable order readable while a background name search finishes.</summary>
+    public IDisposable Lease()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposeRequested, this);
+            _leases++;
+            return new ViewLease(this);
+        }
+    }
+
+    private void Release()
+    {
+        lock (_gate)
+            if (--_leases == 0 && _disposeRequested) DisposeIndexes();
+    }
+
+    private void DisposeIndexes()
+    {
+        if (_disposed) return;
+        _disposed = true;
         visible.Dispose();
         positions.Dispose();
+    }
+
+    private sealed class ViewLease(DiskView owner) : IDisposable
+    {
+        private DiskView? _owner = owner;
+        public void Dispose() => Interlocked.Exchange(ref _owner, null)?.Release();
     }
 }

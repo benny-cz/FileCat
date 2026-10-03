@@ -134,12 +134,26 @@ internal static class NativeBenchmark
             ["mark_all"] = Time(() => panelOne.MarkAll(true)),
             ["invert"] = Time(() => panelOne.InvertMarks(includeDirectories: true)),
             ["mark_by_mask"] = Time(() => panelOne.MarkByMask(Mask.Parse("*7-long*"), true, includeDirectories: false)),
-            // Quick search compares typed ASCII ordinally.
-            ["quick_search_miss"] = Time(() => panelOne.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.OrdinalIgnoreCase))),
+            // Cost of the synchronous primitive, separate from the actual quick-search keyboard path below.
+            ["name_scan_sync_baseline"] = Time(() => panelOne.FindVisible(0, true, n => n.StartsWith("zz-none", StringComparison.OrdinalIgnoreCase))),
             ["find_name_miss"] = Time(() => panelOne.FindStoreIndex("zz-none")),
             ["unmark_all"] = Time(panelOne.UnmarkEverything),
         };
         await SettleAsync(window);
+
+        tabs[0].EndQuickSearch();
+        clock.Restart();
+        tabs[0].QuickSearchType("zz-none");
+        double searchAcknowledgement = clock.Elapsed.TotalMilliseconds;
+        await tabs[0].QuickSearchWork.WaitAsync(TimeSpan.FromSeconds(30));
+        if (!tabs[0].QuickSearchNoMatch || tabs[0].QuickSearch != string.Empty)
+            throw new InvalidOperationException("The synthetic quick-search miss was not reported.");
+        results["quick_search_miss"] = new JsonObject
+        {
+            ["handler_ms"] = Math.Round(searchAcknowledgement, 3),
+            ["completed_ms"] = Math.Round(clock.Elapsed.TotalMilliseconds, 3),
+        };
+        tabs[0].EndQuickSearch();
 
         // Sort change on panel 1: by size puts the largest synthetic file first.
         workspace.Activate(workspace.Panels[0]);

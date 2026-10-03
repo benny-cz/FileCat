@@ -95,6 +95,16 @@ The physical direct/helper comparison now rejects equal short reads and logs cou
 controls and the existing elevated E: reader pass, while the strict USB body remains held. Host C: native reads
 return error 50 even with aligned direct Win32 controls; cause remains unavailable (E-I110). No C:/USB qualification.
 
+V12/I92's large quick-search worker/leased-view remedy now passes exact working controls and full affected
+host suites; model acknowledgement for one million long names is 0.017–0.494 ms (E-I92). This is not native
+input-to-frame/reference qualification. Its affected regression exposes I111's suppressed delayed first rows;
+four controlled baseline failures and corrected controls verify the batching fix (E-I111). I112's concurrent
+cache observer now waits for actual queued loads, with a held-read negative control; cache policy is unchanged
+(E-I112). Final Core 714 pass/46 skips and App 249 pass/21 skips; source/payload/XML inventories independently
+verify. Successor CI, native/candidate checks and appropriate AT remain required. Computer-use initialization
+again exits before application selection/input with the Windows sandbox setup-refresh error; no native input sent.
+Both VMs remain required; no shutdown requested. USB validation remains held at the historical G6 gate.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

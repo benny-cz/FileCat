@@ -57,6 +57,12 @@ public sealed class PagedReader : IDisposable
         get { lock (_lock) return _pages.Count; }
     }
 
+    /// <summary>Queued or active asynchronous page loads, including their cache insertion and budget trimming.</summary>
+    internal int PendingLoads
+    {
+        get { lock (_lock) return _loading.Count; }
+    }
+
     /// <summary>Whether the page of that number is cached (tests: asking through a read would load it).</summary>
     internal bool HasPage(long index)
     {
