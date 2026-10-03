@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using FileCat.Platform.Windows.Recovery;
 using FileCat.Recovery;
 using FileCat.Tests;
@@ -102,14 +103,24 @@ public sealed class LiveDriveRecoveryTests : IDisposable
             {
                 var a = new byte[length];
                 var b = new byte[length];
-                Assert.Equal(piped.Read(offset, b), direct.Read(offset, a));
+                int pipedRead = piped.Read(offset, b);
+                int directRead = direct.Read(offset, a);
+                TestContext.Current.TestOutputHelper?.WriteLine(
+                    $"Raw comparison: offset={offset}, requested={length}, pipe={pipedRead}, direct={directRead}; " +
+                    $"pipe SHA256={Convert.ToHexString(SHA256.HashData(b.AsSpan(0, pipedRead)))}, " +
+                    $"direct SHA256={Convert.ToHexString(SHA256.HashData(a.AsSpan(0, directRead)))}");
+                Assert.Equal(length, pipedRead);
+                Assert.Equal(length, directRead);
                 Assert.True(a.AsSpan().SequenceEqual(b), $"{offset}+{length}");
             }
             static int Deleted(IBlockSource source, CancellationToken ct) =>
                 All(Assert.Single(RecoveryScanner.Scan(source, ct), v => v.FileSystem != "Unknown").Root).Count(i => i.IsDeleted);
-            Assert.Equal(Deleted(piped, ct), Deleted(direct, ct));
+            int pipedDeleted = Deleted(piped, ct);
+            int directDeleted = Deleted(direct, ct);
+            TestContext.Current.TestOutputHelper?.WriteLine($"Deleted-entry comparison: pipe={pipedDeleted}, direct={directDeleted}.");
+            Assert.Equal(pipedDeleted, directDeleted);
         }
-        await serving;
+        Assert.Equal("FileCat closed the session.", await serving);
     }
 
     /// <summary>Scans a source, recovers every recoverable signed program to another disk, and checks the signatures.</summary>

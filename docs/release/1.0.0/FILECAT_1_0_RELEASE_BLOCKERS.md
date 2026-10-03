@@ -77,6 +77,9 @@ attribution and full 64-MiB fixture oracle; two pre-I/O setup failures remain re
 zero reported loss and independent 154-run/74-diagnostic-file inventory/cleanup verify (E-V09-G10).
 No protected USB/product/source-write pass. Isolate the unexplained physical source changes before resuming FileCat
 USB validation; its affected path remains held.
+The physical direct/helper comparison now rejects equal short reads and logs counts/hashes (I110). Off-source
+controls and the existing elevated E: reader pass, while the strict USB body remains held. Host C: native reads
+return error 50 even with aligned direct Win32 controls; cause remains unavailable (E-I110). No C:/USB qualification.
 
 | ID | Needed | Status |
 |---|---|---|

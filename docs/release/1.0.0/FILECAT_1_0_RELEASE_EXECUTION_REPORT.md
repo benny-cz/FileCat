@@ -953,6 +953,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     No protected USB/product/candidate qualification. Exact c930c8f CI passes four lanes/three package skips.
     Continue source-change isolation while FileCat USB validation remains held (E-V09-G10).
 
+194. Correct the physical comparison's equal-short-read acceptance gap (I110): each returned count must equal the
+    request, counts/hashes and deleted-entry totals are logged, expected session ending required. No production
+    changes. Native off-source controls pass 23/two declared skips; strict physical body remains held. Elevated
+    existing host C: read fails error 50, independently reproduced by four aligned native controls; four E: controls
+    succeed. Owned E: temporary fixture then passes the existing elevated reader case, one/no skips. Failed and
+    incomplete attempts retained; 32-file inventory and final worker check verify. No C:/USB/candidate pass (E-I110).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
