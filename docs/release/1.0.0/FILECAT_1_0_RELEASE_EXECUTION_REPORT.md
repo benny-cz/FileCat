@@ -977,6 +977,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     64 run/98 diagnostic files and independent cleanup. Exact 6267331 CI passes four lanes/three package skips.
     Continue proof-gated read-only source observation; FileCat USB path stays held (E-V09-G13).
 
+198. Proof-gated read-only USB observation passes with the exact G13 profile and short trace scratch. Both full
+    images match G6's after hash; 5,634,333 native events/zero loss contain all 3,718 source reads and no source
+    disk/file writes. Exact images/chunks, positive visibility, lifetimes, 65 run files and independent cleanup
+    verify. Initial profile-byte mismatch refuses before source access and remains retained. No FileCat launched;
+    historical G6 difference remains unresolved and product USB validation held. Exact b477783 CI passes four
+    lanes/three package skips (E-V09-G14).
+
+199. Read-only Windows process-structure audit verifies standard/elevated snapshots and native self controls.
+    Limited image paths remain unavailable for 140/412 standard and five/411 elevated processes. Four elevated
+    rows have null PEB/protection flags; Idle never opens. No structural/name exemptions or absence claim added.
+    Reserved-variable failure retained; corrected pins, accounting and worker cleanup independently verify.
+    Continue I106 availability and other unblocked audits; no candidate or source-device pass (E-I106-P1).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -1041,7 +1054,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    change before resuming FileCat USB validation. Read-only diagnostic images match G6's after hash, but its long
    trace loses 51,216 events and fails source-write qualification (E-V09-G11). Narrower kernel short controls pass
    with zero reported loss (E-V09-G12). Nine-minute duration control now passes after short trace-scratch correction
-   (E-V09-G13); proof-gated read-only source observation is next. Prepared
+   (E-V09-G13). Proof-gated read-only diagnostic now passes complete images, all source reads, zero reported loss
+   and no source writes (E-V09-G14); historical G6 attribution is still unavailable and FileCat USB validation
+   stays held. Windows structural diagnostic accounting passes but does not establish absence (E-I106-P1). Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

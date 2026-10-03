@@ -80,8 +80,11 @@ USB validation; its affected path remains held. A pure read-only observation ret
 G6's after hash, but the long trace loses 51,216 events despite zero live counters; zero-write/attribution fails
 (E-V09-G11). G6's before image is unavailable. Custom kernel short raw controls pass with 609,387 events and zero
 reported loss (E-V09-G12). Nine-minute duration controls now pass after trace-location correction; metadata-only
-failures and matched pilots remain retained, without a claim of exact Windows cause (E-V09-G13). A proof-gated
-read-only source observation is next; FileCat USB validation remains held.
+failures and matched pilots remain retained, without a claim of exact Windows cause (E-V09-G13). Proof-gated
+read-only source observation now passes matching complete images and 5,634,333 native events/zero loss, all
+3,718 source reads and no source disk/file writes (E-V09-G14). This diagnostic does not resolve G6's historical
+difference; FileCat USB validation remains held. Read-only process-structure snapshots independently verify
+but leave five elevated image identities unavailable; no production exemption or absence pass (E-I106-P1).
 The physical direct/helper comparison now rejects equal short reads and logs counts/hashes (I110). Off-source
 controls and the existing elevated E: reader pass, while the strict USB body remains held. Host C: native reads
 return error 50 even with aligned direct Win32 controls; cause remains unavailable (E-I110). No C:/USB qualification.

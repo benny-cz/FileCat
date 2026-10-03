@@ -331,3 +331,9 @@ The owner subsequently connects the exact serial-bound USB on G: and authorizes 
 terminated. Independent later guest visibility inventory has no FileCat/dotnet name; protected Windows module
 identities remain unavailable. A limited-information query comparison is diagnostic, not a production exemption.
 This is a reproduced Windows availability limit; broader I106 remains Open and no product scan bypass is introduced.
+
+A later read-only process-structure audit independently verifies standard/elevated snapshot accounting and native
+self controls. Even limited image queries leave five elevated identities unavailable, including four null-PEB
+protected processes and the unopened Idle PID. These observations do not justify production exclusions or an
+absence pass; original diagnostic failure and successful exact pins/worker cleanup are retained in
+[E-I106-P1](E-I106-P1-windows-process-structure.md). I106 remains Open.
