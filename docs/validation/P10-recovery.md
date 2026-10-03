@@ -57,7 +57,7 @@ Authenticode signature, which verifies only over the exact bytes that were signe
 disk with the serial number given.
 
 ```
-FILECAT_RECOVERY_LIVE=G: FILECAT_RECOVERY_LIVE_SERIAL=<disk serial> dotnet test tests/FileCat.Platform.Windows.Tests --filter LiveDriveRecoveryTests --logger "console;verbosity=detailed"
+FILECAT_RECOVERY_LIVE=G: FILECAT_RECOVERY_LIVE_SERIAL=<disk serial> FILECAT_RECOVERY_LIVE_BYTES=<Get-Disk byte capacity> FILECAT_RECOVERY_LIVE_EVIDENCE=<absolute owned folder on another disk> dotnet test tests/FileCat.Platform.Windows.Tests --filter LiveDriveRecoveryTests --logger "console;verbosity=detailed"
 ```
 
 The first run found a truthfulness bug: of 58 programs FileCat called recoverable, 23 were other data. Windows erases
@@ -90,11 +90,20 @@ An image of the stick in this state (7.8 GB, SHA-256 `42eb936a…52cb00`) keeps 
 
 ## A real drive with known contents (destructive, 2026-09-28)
 
-`LiveDriveScenarioTests` (opt-in: `FILECAT_RECOVERY_LIVE_DESTRUCTIVE=1` on top of the USB-and-serial guard) formats the
+`LiveDriveScenarioTests` (opt-in: `FILECAT_RECOVERY_LIVE_DESTRUCTIVE=1` on top of the shared physical-device guard) formats the
 stick, writes a 300 MiB file that stays (so what follows lies beyond cluster 65,535), a folder of 300 files with long
 names and a subfolder (a listing of many clusters among their data), three large files, and files around a deleted
 gap; Windows deletes them (`Directory.Delete`, `File.Delete`), and the volume's cache is flushed. FileCat scans the
 drive through the helper's read protocol and every recovered byte is compared with what was written.
+
+The physical harnesses now require the exact authorized serial and physical byte capacity, plus an absolute evidence
+folder marked `.filecat-owned` on another backing disk. `LiveUsbGuard` records the device instance, volume GUID,
+partition bounds and disk identity; it rejects boot/system targets, ambiguous extents and source disks backing the
+user profile, application binaries, temporary files or evidence. Identity is rechecked before each format/delete
+phase and before source access. Formatting and file mutations address the pinned volume GUID. The destructive
+harness retains the generated files' sizes, roles and expected SHA-256 hashes outside the source. These guard
+checks do not qualify an installed helper, native UI, or a source-device zero-write result. The opt-in preflight
+`LiveUsbGuardPreflightTests` checks identity/topology only and opens no raw reader.
 
 | File system (Windows format) | Scan | Deleted files back exactly | Space reused by a later file |
 |---|---|---|---|

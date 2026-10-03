@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using FileCat.Platform.Windows.Recovery;
 using FileCat.Recovery;
+using FileCat.Tests;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -13,6 +14,7 @@ namespace FileCat.Platform.Windows.Tests;
 /// the temporary folder on another disk and checked by their Authenticode signatures, which only an exact copy keeps.
 /// FILECAT_RECOVERY_LIVE_IMAGE runs the same checks on an image of such a drive instead (docs/validation/P10-recovery.md).
 /// </summary>
+[Collection("Live USB")]
 public sealed class LiveDriveRecoveryTests : IDisposable
 {
     private readonly string _output = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-live-recovery", Guid.NewGuid().ToString("N")[..8])).FullName;
@@ -21,34 +23,6 @@ public sealed class LiveDriveRecoveryTests : IDisposable
     {
         if (Environment.GetEnvironmentVariable("FILECAT_RECOVERY_LIVE_KEEP") is null)
             try { Directory.Delete(_output, recursive: true); } catch (IOException) { }
-    }
-
-    /// <summary>The bus, serial number, and number of the disk that holds a drive letter.</summary>
-    internal static (string Bus, string Serial, int Number) DiskOf(string drive)
-    {
-        string letter = drive.TrimEnd(':', '\\');
-        var psi = new ProcessStartInfo("powershell", ["-NoProfile", "-Command",
-            $"Get-Partition -DriveLetter {letter} | Get-Disk | ForEach-Object {{ \"$($_.BusType)|$($_.SerialNumber.Trim())|$($_.Number)\" }}"])
-        { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
-        using var p = Process.Start(psi)!;
-        string line = p.StandardOutput.ReadToEnd().Trim();
-        p.WaitForExit();
-        var parts = line.Split('|');
-        return parts.Length == 3 ? (parts[0], parts[1], int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture)) : ("", "", -1);
-    }
-
-    /// <summary>The drive under test, only when it is the USB disk the environment names; otherwise the test is skipped.</summary>
-    internal static string GuardedDrive()
-    {
-        string? drive = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_LIVE");
-        string? serial = Environment.GetEnvironmentVariable("FILECAT_RECOVERY_LIVE_SERIAL");
-        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(drive) || string.IsNullOrEmpty(serial))
-            Assert.Skip("Set FILECAT_RECOVERY_LIVE (a drive such as G:) and FILECAT_RECOVERY_LIVE_SERIAL (its disk's serial number).");
-        var (bus, actualSerial, number) = DiskOf(drive);
-        Assert.True(bus == "USB" && actualSerial == serial,
-            $"Refusing {drive}: it is on disk {number} ({bus}, serial {actualSerial}), not the USB disk with serial {serial}.");
-        Assert.NotEqual(Path.GetPathRoot(Environment.SystemDirectory)!.TrimEnd('\\'), drive.TrimEnd('\\'), StringComparer.OrdinalIgnoreCase);
-        return drive.TrimEnd('\\');
     }
 
     /// <summary>The quick scan, and the one that also searches all free space for listings nothing points to (minutes).</summary>
@@ -64,9 +38,12 @@ public sealed class LiveDriveRecoveryTests : IDisposable
             Check(file, Path.GetFileName(image), searchFreeSpace);
             return;
         }
-        string drive = GuardedDrive();
+        var usb = LiveUsbGuard.Capture();
+        if (!Environment.IsPrivilegedProcess) Assert.Skip("Reading a drive without the installed helper needs administrator rights.");
+        string drive = usb.Drive;
         var ct = TestContext.Current.CancellationToken;
-        string device = DeviceTopology.VolumeDevice(drive + "\\") ?? throw new InvalidOperationException("No volume device for " + drive);
+        usb.Recheck();
+        string device = usb.Device;
         // The recovered files go to another disk than the one read (plan §17.2).
         Assert.False(DeviceTopology.SharesDisk(device, _output) ?? true);
 
@@ -95,12 +72,14 @@ public sealed class LiveDriveRecoveryTests : IDisposable
     [Fact]
     public async Task An_elevated_FileCat_reads_the_drive_itself_exactly_as_the_helper_serves_it()
     {
-        string drive = GuardedDrive();
+        var usb = LiveUsbGuard.Capture();
+        string drive = usb.Drive;
         using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
             if (!new System.Security.Principal.WindowsPrincipal(identity).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
                 Assert.Skip("Reading a drive directly needs the test to run as administrator.");
         var ct = TestContext.Current.CancellationToken;
-        string device = DeviceTopology.VolumeDevice(drive + "\\") ?? throw new InvalidOperationException("No volume device for " + drive);
+        usb.Recheck();
+        string device = usb.Device;
         string pipeName = "FileCat-live-" + Guid.NewGuid().ToString("N");
         var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
         var serving = Task.Run(() =>

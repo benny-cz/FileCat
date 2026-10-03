@@ -18,6 +18,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
     <!-- The in-memory SFTP server of the remote tests, for UI tests of connecting and browsing. -->
     <Compile Include="..\FileCat.Remote.Tests\FakeSftp.cs" Link="Sftp\FakeSftp.cs" />
     <!-- A disk image with deleted files, for the recovery UI (see the Core tests' TestData/Recovery/README.md). -->

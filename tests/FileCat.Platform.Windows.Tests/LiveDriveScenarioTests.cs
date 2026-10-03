@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Security.Cryptography;
 using FileCat.Platform.Windows.Recovery;
 using FileCat.Recovery;
+using FileCat.Tests;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -12,17 +13,16 @@ namespace FileCat.Platform.Windows.Tests;
 /// Windows deletes most of them; FileCat then scans the drive through the helper's read protocol, and every byte it calls
 /// recovered is compared with what was written. One run per file system Windows formats.
 /// </summary>
+[Collection("Live USB")]
 public sealed class LiveDriveScenarioTests
 {
-    private const long MaxDriveBytes = 64L * 1024 * 1024 * 1024; // a stick, never a data disk
-
-    private static string DestructiveDrive()
+    private static LiveUsbGuard DestructiveDrive()
     {
-        string drive = LiveDriveRecoveryTests.GuardedDrive();
+        var usb = LiveUsbGuard.Capture();
         if (Environment.GetEnvironmentVariable("FILECAT_RECOVERY_LIVE_DESTRUCTIVE") != "1")
             Assert.Skip("Formats the drive: set FILECAT_RECOVERY_LIVE_DESTRUCTIVE=1 as well.");
-        Assert.InRange(new DriveInfo(drive + "\\").TotalSize, 1, MaxDriveBytes);
-        return drive;
+        if (!Environment.IsPrivilegedProcess) Assert.Skip("Formatting the disposable USB fixture requires administrator rights.");
+        return usb;
     }
 
     private static string PowerShell(string command)
@@ -60,14 +60,14 @@ public sealed class LiveDriveScenarioTests
     [InlineData("NTFS")]
     public async Task Files_Windows_deleted_come_back_as_written(string fileSystem)
     {
-        string drive = DestructiveDrive();
+        var usb = DestructiveDrive();
         var log = TestContext.Current.TestOutputHelper;
         var ct = TestContext.Current.CancellationToken;
-        string letter = drive.TrimEnd(':');
-        // The guard ran just above; the format names the same letter, and the guard runs again right after.
-        PowerShell($"Format-Volume -DriveLetter {letter} -FileSystem {fileSystem} -NewFileSystemLabel FCTEST -Force -Confirm:$false | Out-Null");
-        Assert.Equal(drive, LiveDriveRecoveryTests.GuardedDrive());
-        string root = drive + "\\";
+        // Recheck before formatting; address the pinned volume GUID throughout, including every file mutation.
+        usb.Recheck();
+        PowerShell($"Format-Volume -Path '{usb.Root}' -FileSystem {fileSystem} -NewFileSystemLabel FCTEST -Force -Confirm:$false | Out-Null");
+        usb.Recheck();
+        string root = usb.Root;
         var written = new List<Written>();
         void Write(string path, int size, string kind)
         {
@@ -89,21 +89,34 @@ public sealed class LiveDriveScenarioTests
         Write("alpha.bin", 1024 * 1024, "deleted");
         Write("bravo.bin", 1024 * 1024, "gone");
         Write("charlie.bin", 1024 * 1024, "deleted");
+        usb.Recheck();
         File.Delete(Path.Combine(root, "bravo.bin"));
-        PowerShell($"Write-VolumeCache -DriveLetter {letter}");
+        PowerShell($"Write-VolumeCache -Path '{usb.Root}'");
+        usb.Recheck();
         Write("delta.bin", 3 * 1024 * 1024, "fragmented");
         // Space reused: old.bin's clusters go to new.bin.
         Write("old.bin", 2 * 1024 * 1024, "overwritten");
+        usb.Recheck();
         File.Delete(Path.Combine(root, "old.bin"));
-        PowerShell($"Write-VolumeCache -DriveLetter {letter}");
+        PowerShell($"Write-VolumeCache -Path '{usb.Root}'");
+        usb.Recheck();
         Write("new.bin", 2 * 1024 * 1024, "kept");
 
+        usb.Recheck();
+        string groundTruth = Path.Combine(usb.Evidence, $"{fileSystem}-written-{Guid.NewGuid():N}.json");
+        File.WriteAllText(groundTruth, System.Text.Json.JsonSerializer.Serialize(written.Select(w => new
+        {
+            w.Path, Bytes = w.Content.Length, w.Kind, SHA256 = Convert.ToHexString(SHA256.HashData(w.Content)).ToLowerInvariant(),
+        })));
+        log?.WriteLine("Written fixture manifest: " + groundTruth);
         Directory.Delete(Path.Combine(root, "set"), recursive: true);
         foreach (var w in written.Where(w => w.Kind is "deleted" or "fragmented" && !w.Path.StartsWith("set\\", StringComparison.Ordinal)))
             File.Delete(Path.Combine(root, w.Path));
-        PowerShell($"Write-VolumeCache -DriveLetter {letter}");
+        PowerShell($"Write-VolumeCache -Path '{usb.Root}'");
 
-        string device = DeviceTopology.VolumeDevice(root) ?? throw new InvalidOperationException("No volume device for " + drive);
+        usb.Recheck();
+        string device = usb.Device;
+        log?.WriteLine($"{DateTime.UtcNow:O} fixture mutations complete; beginning read-only recovery");
         string pipeName = "FileCat-scenario-" + Guid.NewGuid().ToString("N");
         var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
         var serving = Task.Run(() =>
@@ -117,7 +130,7 @@ public sealed class LiveDriveScenarioTests
         }, ct);
         var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
         await client.ConnectAsync(5000, ct);
-        using (var source = new PipeDeviceSource(client, drive))
+        using (var source = new PipeDeviceSource(client, usb.Drive))
         {
             var clock = Stopwatch.StartNew();
             var volume = Assert.Single(RecoveryScanner.Scan(source, ct), v => v.FileSystem != "Unknown");

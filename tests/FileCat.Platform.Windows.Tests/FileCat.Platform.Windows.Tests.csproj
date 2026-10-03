@@ -20,6 +20,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
     <!-- A disk image with deleted files, for reading drives through the helper's protocol (Core tests' TestData/Recovery). -->
     <None Include="..\FileCat.Core.Tests\TestData\Recovery\fat16.img.gz" Link="TestData\fat16.img.gz" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
