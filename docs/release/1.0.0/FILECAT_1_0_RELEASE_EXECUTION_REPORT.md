@@ -944,6 +944,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     XML schema/timezone limitations disclosed, native cached TraceEvent 3.2.6 reader used. No product dependency or
     raw-device/source-write pass. Continue owned virtual-device visibility control before physical work (E-V09-G9).
 
+193. Agent RunAs executes the owned raw virtual-device WPR controls. Two setup attempts stop before raw I/O and are
+    retained with all-zero fixtures and independent detach/session/worker checks. Successor validates numeric CIM
+    bus and empty-safe partition query before exact 64-MiB virtual access. Native FileIO/DiskIO capture all three
+    raw reads and the deliberate 4-KiB write with exact process/thread/offset/count/call boundaries; two System
+    attachment reads are separately disclosed. Full offline data oracle finds only the intended positive block.
+    Native 2,057,617 events, zero reported loss; independent 154-run/74-diagnostic-file inventory and cleanup pass.
+    No protected USB/product/candidate qualification. Exact c930c8f CI passes four lanes/three package skips.
+    Continue source-change isolation while FileCat USB validation remains held (E-V09-G10).
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -1003,8 +1012,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Installed-helper raw-read/source-write tracing still needs separate evidence; tracer controls pass (E-V09-G4).
    Read-only component source-hash/trace run at f2f0141 has differing full hashes and failed capture controls (E-V09-G6).
    Hold further USB tests; off-source timing matrix has mixed outcomes (E-V09-G8). Built-in WPR file/disk marker
-   controls pass with zero reported loss (E-V09-G9); raw-device visibility needs an owned virtual-device control.
-   Resolve capture/source change before resuming physical work. Prepared
+   controls pass with zero reported loss (E-V09-G9); owned virtual-device raw read/write controls now pass,
+   with exact native attribution and full fixture-byte oracle (E-V09-G10). Resolve the unexplained physical source
+   change before resuming FileCat USB validation. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

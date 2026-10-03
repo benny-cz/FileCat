@@ -72,7 +72,11 @@ succeeds and the setup gate clears. All six complete: B/C/D pass exact timed mar
 158 files/full PML/CSV and final thirty-value restoration/worker census independently verify (E-V09-G8).
 No durable Procmon remedy or source-change attribution. Built-in WPR ordinary-file/disk marker controls now pass:
 native/summary 2,561,544 events, zero reported loss, exact bytes/lifetime/disk writes and named cleanup independently
-verify (E-V09-G9). Raw-device visibility still needs a controlled positive test; no USB/source-write pass.
+verify (E-V09-G9). Owned virtual-device raw read/write controls now pass with exact process/thread/device/offset/count
+attribution and full 64-MiB fixture oracle; two pre-I/O setup failures remain retained. Native 2,057,617 events,
+zero reported loss and independent 154-run/74-diagnostic-file inventory/cleanup verify (E-V09-G10).
+No protected USB/product/source-write pass. Isolate the unexplained physical source changes before resuming FileCat
+USB validation; its affected path remains held.
 
 | ID | Needed | Status |
 |---|---|---|
