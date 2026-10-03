@@ -56,5 +56,35 @@ Private root `artifacts/release-evidence/i92-quick-search-20261003` (UTC October
 
 The computer-use skill was reread with its guidance/API/confirmation policy. Initialization exits before
 application selection with the same Windows sandbox setup-refresh error; no agent native app input was sent.
-Successor CI, native/candidate input/frame and appropriate AT checks remain open. No USB access or source-safety
-qualification; G6 quarantine and overall **NO-GO** remain.
+Native/candidate input/frame and appropriate AT checks remain open.
+No USB access or source-safety qualification; G6 quarantine and overall **NO-GO** remain.
+
+Clean successor `b7d2e80422bee5b43debae1ebb28a157ffcf05ee` passes all four required
+[CI lanes](https://github.com/benny-cz/FileCat/actions/runs/37158664701); three tag/manual package jobs skip.
+Retained full metadata/log and direct Windows XML independently verify all four inventories: Core 713 pass/47
+skips, App 255/15, Windows platform 165/33, Remote 88/28. All 39 affected listing/cache/search/progress/thumbnail/
+process-identity cases pass. Different host/CI skip counts remain explicit, not converted to passes.
+
+The clean source's self-contained x64 Core/App test payload also passes in the running Windows VM (Insider
+26300, elevated token, UUID `9D224D56-1161-A849-ABA7-2581A980895C`): **20 Core and seven headless App cases,
+zero failures/skips**, UTC 2026-10-03 22:43. Independent verification checks all 684 payload files, 685 ZIP members,
+the exact raw source copies against the build checkout and canonical source content against the twelve committed
+blobs. Retained hashes preserve the checkout's mixed LF/CRLF bytes; initial line-ending observer failures are
+retained. Controller 8940 and test workers 8944/7980 are absent at 22:50:56 UTC; the owned temp folder is empty.
+This is native OS component execution with headless UI assertions, not native input/frame or reference-machine evidence.
+The initial guest-directory command failed before transfer; the corrected VMware directory API succeeded.
+
+Private roots: `artifacts/release-evidence/ci-37158664701` and this record's root under `clean-b7d2e8`.
+
+| Retained successor evidence | SHA-256 |
+|---|---|
+| CI metadata / complete log | `c80a861d3deb4afe8bb2a086db0085ee90b66c9b0dc8a46e47f53aa3a88158c1` / `3bcd4f9fb9655bd60a09cb12bb5397492e64278cf31747d627115a44a0fe7eb5` |
+| Independent CI inventory | `47d12a441b980710b0dd9384dabe805365ed28a6ef4e3529b6e66f9b441d49bb` |
+| Guest input ZIP / manifest | `856827fafcfd2ca1acd42adb296efb9be75b1fc17e9708a71da579255704e516` / `53934a31f2c3012e8e9c50aac7a878d3afd00a37c193d4f0aa53f70b1ade192c` |
+| Guest runner | `174602b26282033a01b82b360643cd3a3e6c1bea8d849492a7e1dbbb4f4a1d4c` |
+| Guest Core / App XML | `78a83c5c4245d34cd0de1224b99b78ab8cc881df1326c3b52630e278d3f47864` / `30cf202689916add0f279533ec9c9976edc0206ae6177cdb1e5c49f78ca6ca52` |
+| Cleanup observer / result | `7f44f8096edbc272ce23e939d625772ad1b1c28f70623e712227c591772173b5` / `0c7f7143fa5bc857b3777b3cc38644fa9dc74a6ec89b60df173a4a0ca33b6237` |
+| Independent native inventory | `c614dd536aef9e8acd2b2e854cad9713c59adc2f126315e2a528449e8bab757a` |
+
+I92's production blocking cause is remediated and verified preliminarily. Candidate/native frame/AT/reference
+acceptance remains required; neither the CI package skips nor this test payload supplies a candidate identity.

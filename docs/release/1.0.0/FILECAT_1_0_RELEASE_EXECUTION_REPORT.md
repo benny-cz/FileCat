@@ -1028,12 +1028,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     disposal assertions. Seven cache cases pass. Final full Core 714 pass/46 skips; App 249 pass/21 skips;
     twelve exact source files, 790 payloads, ten XML inventories and 2,480 files independently verify. Native
     computer-use initialization still fails before app selection/input; CLI work continues. Candidate/CI pending.
+208. Clean b7d2e8 successor CI passes all four required lanes, three package jobs skip. Direct Windows XML
+    verifies Core 713/47 skips, App 255/15, platform 165/33, Remote 88/28 and all 39 affected cases. Clean
+    self-contained Windows VM run passes 20 Core/seven headless App cases with no skips. Independent payload,
+    source-content/raw-byte, XML and cleanup checks verify; controller/workers and owned temp files are absent.
+    Mixed line-ending observer corrections retained. Native frame/AT/reference/candidate remain open (E-I92–112).
 
 ## Evidence invalidated by the campaign's own changes
 
 - I92/I111: prior quick-search/streaming-first-row execution does not qualify the revised listing/UI bytes.
-  Exact working controls/full affected suites pass (E-I92/E-I111); successor CI and native/reference/candidate
-  input/frame evidence remain required. The pending-search caption also needs appropriate native AT revalidation.
+  Exact working/full affected suites, clean successor CI and Windows guest controls pass (E-I92/E-I111);
+  native/reference/candidate input/frame evidence remains required. The pending-search caption needs native AT revalidation.
 - I112: the old concurrent cache plateau observer is insufficient for quiescent accounting. Its failed result
   stays failed; held-read/completion and full corrected host inventories pass (E-I112). Cache policy is unchanged.
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -1110,10 +1115,10 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 1b. V12, what is left: slow parsers measured (the quick view's in-flight loads are not cancelled, read only), rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
-   (I88, I91), views closed while busy, million-entry listings (I92 working remedy/full host pass; CI/native pending), many tabs.
+   (I88, I91), views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13, what is left: duplicates among a set, result sets of archive members, saved criteria beyond the time fields.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
-   the reference machine; I92's worker remedy is implemented/host-verified, with CI and native frame/AT checks pending.
+   the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process

@@ -23,5 +23,7 @@ and independent inventories. Baseline four-failure XML SHA-256
 `4664328a95f20256161f4478f7ff2af277c045dccbcefb05f177805a6c63df4a`; corrected targeted XML
 `2d63a949a7badf06ac443661929cdd927a154ce7e8b4cfe514b4d056dc172e0f`.
 
-Successor CI and native/candidate performance remain required. No claim of reference-machine or source-device
-qualification, no candidate identity or stable GO.
+Clean successor `b7d2e80422bee5b43debae1ebb28a157ffcf05ee` passes all four CI lanes; all four first-batch
+cases also pass in the elevated Windows 26300 VM's self-contained component run. E-I92 retains exact payload,
+XML, cleanup and independent provenance digests. Remediation is verified preliminarily; native/candidate
+performance remains required. No reference-machine/source-device qualification, candidate identity or stable GO.

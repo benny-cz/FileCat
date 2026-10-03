@@ -101,7 +101,8 @@ input-to-frame/reference qualification. Its affected regression exposes I111's s
 four controlled baseline failures and corrected controls verify the batching fix (E-I111). I112's concurrent
 cache observer now waits for actual queued loads, with a held-read negative control; cache policy is unchanged
 (E-I112). Final Core 714 pass/46 skips and App 249 pass/21 skips; source/payload/XML inventories independently
-verify. Successor CI, native/candidate checks and appropriate AT remain required. Computer-use initialization
+verify. Clean b7d2e8 passes all four CI lanes and 27 Windows guest component/headless cases, without skips;
+payload/XML/process/temp cleanup independently verify. Native frame/reference/candidate and AT remain required. Computer-use initialization
 again exits before application selection/input with the Windows sandbox setup-refresh error; no native input sent.
 Both VMs remain required; no shutdown requested. USB validation remains held at the historical G6 gate.
 

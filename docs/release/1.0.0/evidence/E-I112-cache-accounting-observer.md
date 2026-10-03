@@ -20,5 +20,7 @@ skips; full Core passes 714/760 with 46 declared skips. The original failing ful
 `cache-observer-before`; the failure does not become a passing historical result.
 
 Targeted cache XML SHA-256 `225f3d2af390a6a947596ca3c2455ac5cd8b6c3ff47cd4a23cf69706d082440f`;
-exact source/payload and independent inventory digests are in E-I92. Successor CI and candidate rerun remain open.
+exact source/payload and independent inventory digests are in E-I92. Clean `b7d2e8` passes all four CI lanes and
+the elevated Windows 26300 VM's seven cache cases, without skips; exact XML and cleanup independently verify
+(E-I92). Test remediation is verified preliminarily; candidate rerun remains open.
 I06's decoded-picture/icon/materialized-list budgets remain separate unfinished work.
