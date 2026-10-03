@@ -13,10 +13,9 @@ public sealed class ProcessAccountTests
         var elevated = new ProcessAccount("marek", AccountRights.Elevated);
         if (OperatingSystem.IsWindows())
         {
-            Assert.Equal("Downloads — FileCat — marek (standard user)", standard.WindowTitle("Downloads"));
-            Assert.Equal("Downloads — FileCat — marek (administrator, not elevated)", administrator.WindowTitle("Downloads"));
-            // Elevated, it starts so, as Windows' own consoles do: it shows where titles are cut short.
-            Assert.Equal("Administrator: Downloads — FileCat — marek (elevated)", elevated.WindowTitle("Downloads"));
+            Assert.Equal("FileCat — Downloads — marek (standard user)", standard.WindowTitle("Downloads"));
+            Assert.Equal("FileCat — Downloads — marek (administrator, not elevated)", administrator.WindowTitle("Downloads"));
+            Assert.Equal("FileCat — Downloads — marek (elevated)", elevated.WindowTitle("Downloads"));
             Assert.Equal("FileCat — CORP\\jane (standard user)", new ProcessAccount("CORP\\jane", AccountRights.Standard).WindowTitle(null));
         }
         else

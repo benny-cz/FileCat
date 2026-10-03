@@ -264,8 +264,8 @@ public partial class MainWindow : Window, IViewActions
     private TabViewModel? _titleTab;
 
     /// <summary>
-    /// The active tab's place, FileCat, and the account it runs as with its rights (elevated on Windows it starts with
-    /// "Administrator: "). It follows the tab as it goes elsewhere: before, only another panel's activation changed it.
+    /// The active tab's place and the account it runs as with its rights; Windows puts FileCat first.
+    /// It follows the tab as it goes elsewhere: before, only another panel's activation changed it.
     /// </summary>
     private void UpdateTitle()
     {

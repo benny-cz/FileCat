@@ -20,13 +20,13 @@ public enum AccountRights
 public sealed record ProcessAccount(string Name, AccountRights Rights, string? SudoFrom = null)
 {
     /// <summary>
-    /// The main window's title: the place, FileCat, and the account. Elevated on Windows it starts with
-    /// "Administrator: ", as Windows' own consoles do, so it shows where titles are cut short (Alt+Tab, the taskbar).
+    /// The main window's title names FileCat, the place and the account. Windows puts FileCat first so it remains
+    /// identifiable when the title is cut short; account rights follow the place.
     /// </summary>
     public string WindowTitle(string? place)
     {
-        string app = place is null ? "FileCat" : $"{place} — FileCat";
-        return (Rights == AccountRights.Elevated && OperatingSystem.IsWindows() ? "Administrator: " : string.Empty) + $"{app} — {Describe()}";
+        string app = place is null ? "FileCat" : OperatingSystem.IsWindows() ? $"FileCat — {place}" : $"{place} — FileCat";
+        return $"{app} — {Describe()}";
     }
 
     /// <summary>
