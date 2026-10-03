@@ -35,5 +35,8 @@ that observer and finds no control/home-matching process. This is scoped cleanup
 | Exact final source/payload manifest | `6a31bde070da057ded6a94259f3951def92499d56e6131948852f9d32cd706bb` |
 | Independent combined inventory | `2f04e426759ee46dde8d1237dfa3b3cdf7739001aa5f9f026e6823fe889b51b5` |
 
-Working test remediation verified; clean successor CI and candidate rerun pending. No signature policy exception,
+Clean `7497acf24eb301fcf04f2b2dc2a45dce5e47af0e` passes all four required CI lanes (E-I113).
+Direct Windows XML verifies the isolated Git-GnuPG case passes; native-GnuPG fixture is an explicit environment
+skip there, while it passes on this host. All four inventories and 47 affected cases independently verify.
+Test remediation verified preliminarily; candidate rerun pending. No signature policy exception,
 stable publication, source-device qualification or human GO.

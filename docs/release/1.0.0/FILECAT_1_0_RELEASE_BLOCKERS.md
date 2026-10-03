@@ -110,8 +110,9 @@ V12 slow quick-view controls expose I113's stale result/error and reader/demand 
 failures become seven passing controls with request ownership/cancellation and the existing device scheduler;
 ten held opens become two active/eight abandoned queued demands, while a healthy device completes. Full App
 256 pass/21 skips. A separate GnuPG test-override interference control leads to I114's exclusive fixture;
-corrected full Core 714 pass/46 skips. Exact inputs/XML/skip inventories verify (E-I113/E-I114). Clean successor
-CI/guest/candidate and native presentation checks remain open; no change to USB hold or source-safety status.
+corrected full Core 714 pass/46 skips. Exact inputs/XML/skip inventories verify (E-I113/E-I114). Clean 7497acf
+passes four CI lanes and seven Windows guest controls; exact payload/XML/cleanup verifies. Candidate and native
+presentation checks remain open; no change to USB hold or source-safety status.
 
 | ID | Needed | Status |
 |---|---|---|

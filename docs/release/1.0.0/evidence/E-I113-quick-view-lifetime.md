@@ -40,6 +40,28 @@ Private root `artifacts/release-evidence/i113-quick-view-lifetime-20261004`; UTC
 | Final source/payload manifest | `6a31bde070da057ded6a94259f3951def92499d56e6131948852f9d32cd706bb` |
 | Independent input/XML/skip/control inventory | `2f04e426759ee46dde8d1237dfa3b3cdf7739001aa5f9f026e6823fe889b51b5` |
 
-Successor CI, clean native guest, candidate and appropriate native presentation/AT checks remain required.
+Clean successor `7497acf24eb301fcf04f2b2dc2a45dce5e47af0e` passes all four required
+[CI lanes](https://github.com/benny-cz/FileCat/actions/runs/37161594365); three tag/manual package jobs skip.
+Retained direct Windows XML inventories independently verify Core 713 pass/47 skips, App 262/15, platform
+165/33 and Remote 88/28, including all 47 affected listing/cache/search/thumbnail/process/GnuPG cases.
+
+The exact clean source's self-contained x64 App payload passes all seven quick-view controls without skips
+in the elevated Windows VM (Insider 26300, UUID `9D224D56-1161-A849-ABA7-2581A980895C`), ending
+2026-10-03 23:27:07 UTC. All 364 payload files, 365 ZIP members, ten committed source-content copies and
+retrieved output hashes independently verify. Controller 5024 and test worker 6496 are absent; the owned
+temp folder is empty at 23:28:22 UTC. This is native OS execution of headless controls, not native input or frames.
+
+Private successor roots: this record's `clean-7497acf` and `artifacts/release-evidence/ci-37161594365`.
+
+| Successor evidence | SHA-256 |
+|---|---|
+| CI metadata / complete log | `3ca835f9a81b15d6cef6fb48e6b15062d20b49055b650949c9b53b876915d5f7` / `8619e46acde5c8e36860108dbf4892cf64e225da0836d51806bcc43ffcd93ce2` |
+| Independent CI inventory | `797b11234acb1c773640294bfce3711f7aca41ea928ed497ed03c867864a4ed0` |
+| Guest ZIP / input manifest | `28ce0853120fe497c989f24436235046d23ff633375cfd1456e192c5befff297` / `6022778e17ae36c948f8818fabdf648d8e1cc0ea7f0ee9457f06f24d4878ed02` |
+| Guest runner / cleanup observer | `a657059a4e0f5bf849d3e0524b2322bb00bb0ac40c0b3336b505ebc47b504711` / `080a5aa151c811ed476d54205d3667cf7bf234bde520edca0dbed29d8e874d37` |
+| Guest XML / cleanup result | `00804e82603c9e3600aae82ad639c8a3b626c3461fca6a490dd307a26de9f709` / `dcb259d91ac51cd4f5f98ba81c32cd1b9aa732dba2dc7b60d187a4e06dd3154e` |
+| Independent native inventory | `5735bc71d8d871ec05e62d103ef32f165e02d70082af38eb535f5b512feb4480` |
+
+Remediation verified preliminarily; candidate and appropriate native presentation/AT checks remain required.
 Further viewport/page-load, picture-feed and aggregate-resource work remains open; I06 is not closed by bitmap disposal.
 USB G6 quarantine and overall **NO-GO** remain.

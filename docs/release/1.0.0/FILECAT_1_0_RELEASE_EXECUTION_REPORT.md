@@ -1041,11 +1041,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     a controlled unchanged signature is Good → UnknownKey → Good across tool swap/restore. Original interleaving
     remains untraced. Override fixture isolated; full Core 714/46 skips passes. Exact three-file overlay, 1,056
     final inputs and 3,329 retained files independently verify. Clean CI/guest/candidate pending (E-I114/E-I113).
+211. Clean 7497acf passes all four required CI lanes; three package jobs skip. Windows XML independently verifies
+    all four inventories and 47 affected cases (native GnuPG explicitly skips there; Git-GnuPG passes). Clean
+    Windows guest passes seven quick-view controls without skips; 364 payloads/365 ZIP members/ten source-content
+    files and XML/cleanup verify. Controller/test worker/temp files absent. Native presentation/candidate remain open.
 
 ## Evidence invalidated by the campaign's own changes
 
 - I113: old quick-view evidence does not qualify the new request, scheduler and bitmap lifetimes. Controlled
-  headless/full host suites pass; clean CI/guest, native presentation/AT and candidate reruns remain required.
+  headless/full host suites, clean CI and guest controls pass; native presentation/AT and candidate reruns remain required.
 - I114: old parallel GnuPG fixture evidence may use another fixture's selected executable. Failure is retained;
   controlled tool swap and isolated full Core pass. Production GnuPG policy is unchanged.
 - I92/I111: prior quick-search/streaming-first-row execution does not qualify the revised listing/UI bytes.
@@ -1127,7 +1131,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 1b. V12, what is left: further viewport/page-load and picture-feed demand, rapidly
    changing viewports, visible rows beside a copy or a search, many folders counted and partial sizes after Esc.
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
-   (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 working host pass; CI/guest pending),
+   (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13, what is left: duplicates among a set, result sets of archive members, saved criteria beyond the time fields.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
