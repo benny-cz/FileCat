@@ -906,6 +906,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     retain the native case's full PML/CSV, controls, process/lease handovers and restored configuration. Current USB
     metadata is safe/present; owner elevated host launch is required. No live result or installed-helper/GUI/candidate
     qualification inferred. 087917d/f2f0141 CI metadata confirms four green lanes each (E-V09-G5).
+187. Final owner-launch check catches malformed launcher line generation, then an inherited PowerShell 7 module
+    precedence that makes Get-FileHash unavailable under cmd.exe/Windows PowerShell 5.1. Both failures/inputs are
+    retained. The corrected five-line launcher sets system Windows PowerShell module precedence locally; its exact
+    command with ValidatePreparationOnly exits zero without raw USB access/capture. Final independent inventory
+    verifies 300 native inputs and 45 preparation files, including command control. Initial launcher-readiness
+    inference is superseded; payload source stays exact f2f0141. Owner launch gate remains (E-V09-G5).
 
 ## Evidence invalidated by the campaign's own changes
 

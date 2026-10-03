@@ -49,6 +49,15 @@ refusal, while available validation exits zero. No raw USB access or capture occ
 control inputs/results are preserved before tightening preflight XML count checks; final controls bind the final
 runner. Independent preparation checks verify all inputs, selector counts, controls and embedded source identities.
 
+The final command-file check catches a generated newline inside the launcher hash literal before any owner handoff.
+After fixing it, an actual cmd.exe control exposes an inherited PowerShell 7 module path preceding Windows
+PowerShell 5.1's system modules: Get-FileHash is unavailable in that command context. The launcher now uses setlocal
+and puts Windows PowerShell's system module directory first for its process and children. The exact command with
+ValidatePreparationOnly then exits zero and prints the expected preparation success, without raw source access or
+capture. Earlier launcher bytes, failed command output and module discovery diagnostic are preserved. The initial
+inventory verifies staging/control data but misses executable launcher validity; its launcher-readiness conclusion
+is superseded by the final line-structure, command-execution and independent inventory checks below.
+
 The hasher's native API choices are grounded in Microsoft's
 [disk length query](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_disk_get_length_info)
 and [ReadFile documentation](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile).
@@ -62,10 +71,12 @@ Complete metadata/logs are retained; no direct artifact test inventory is inferr
 | Private preparation evidence | SHA-256 |
 |---|---|
 | 300-file native input manifest | `97d595c25c0022f9b6e2099274eb03fc4f78e65357bea5709e6791336a7aab24` |
-| final runner / launcher | `75a3052ce029270992cbe2a6f97b55133d4c3e91467cf1eeb1a0eaeb9a811af2` / `a4b1ea0804fc1f093b4cc844c31e214fd178c5ff03d08070a738d1c7fad58c2d` |
+| final runner / launcher | `75a3052ce029270992cbe2a6f97b55133d4c3e91467cf1eeb1a0eaeb9a811af2` / `96b9cd3bd002e18d2a4a0d4c619d66633fcb4eafcdbbed22072c59cfe3331318` |
 | independent native hasher / bounded hash helper | `7b9d47a3bfa09057ef32b27f017e83000999e0f239af2a12ed0741e5776c903f` / `e8f1fd58383e54b7e571e24dbfb1deae1bfdfaf90964760b489c495db63af270` |
 | final preparation controls | `668cfcbaf09e1e566da6adefeea7f609d317d857ae1c5c70d5be0518a5e1e3d9` |
-| independent preparation inventory, 300 native inputs and 33 preparation files | `d3729e1e011652730f301654b5aeafebab9cb0222c6022c282082ca09d1ec80c` |
+| final cmd.exe command control | `8e5f31a4a7e5cb172cb436022fcb051b4ce1484c092114a4b7a32063b88c7fa7` |
+| final independent preparation inventory, 300 native inputs and 45 preparation files | `163e2b8a4a89d0f5280c524acd9a5d395bdae38989627364f8c0a35dc3ddf0c8` |
+| initial inventory, superseded for launcher readiness | `d3729e1e011652730f301654b5aeafebab9cb0222c6022c282082ca09d1ec80c` |
 | 087917d CI metadata / complete log | `b3f849b9c3667e08332deb830af4fc20622abb2e4e2acfec9605a1baf8e65b19` / `b78688f1add80dbc55663f2cab295b28b7d1f347426c91b03b07cb7205da966f` |
 | f2f0141 CI metadata / complete log | `20f87065fe77aace4bea726eaf10c2a6c4bb7be1608c97b63a9ecb4e90cd891c` / `4379713f6d40a76c3392addf153a701d4e029d06c31f93c9ea8711ebba0a8a64` |
 
