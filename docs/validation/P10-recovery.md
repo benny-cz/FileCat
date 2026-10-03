@@ -105,6 +105,13 @@ harness retains the generated files' sizes, roles and expected SHA-256 hashes ou
 checks do not qualify an installed helper, native UI, or a source-device zero-write result. The opt-in preflight
 `LiveUsbGuardPreflightTests` checks identity/topology only and opens no raw reader.
 
+The generated-fixture checker compares every byte outside the exact union of declared missing ranges; a gap no
+longer excludes its whole 4 KiB block. A Recoverable claim requires the complete original bytes with no missing
+range; partial claims must retain the known file length and match every claimed byte. Thirteen controlled cases
+cover adjacent corruption, truncated prefixes, overlapping gaps and invalid ranges. The original checker fails ten
+of these cases; the corrected checker passes all thirteen. Stronger physical rerun evidence is recorded separately
+from the earlier component runs and does not replace installed-helper or zero-source-write qualification.
+
 | File system (Windows format) | Scan | Deleted files back exactly | Space reused by a later file |
 |---|---|---|---|
 | FAT32, 4 KiB clusters | 0.9 s | 325 of 325 | *Overwritten*; its bytes not passed off |

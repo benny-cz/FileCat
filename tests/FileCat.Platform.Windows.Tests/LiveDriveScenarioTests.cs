@@ -161,14 +161,9 @@ public sealed class LiveDriveScenarioTests
                     }
                     var lost = content.MissingRanges;
                     bool exact = data.AsSpan().SequenceEqual(w.Content);
-                    bool keptBytesRight = Enumerable.Range(0, data.Length / 4096 + 1).All(block =>
-                    {
-                        long from = block * 4096L, to = Math.Min(data.Length, from + 4096);
-                        return from >= to || lost.Any(m => m.Offset < to && m.Offset + m.Length > from) ||
-                               data.AsSpan((int)from, (int)(to - from)).SequenceEqual(w.Content.AsSpan((int)from, (int)(to - from)));
-                    });
+                    bool keptBytesRight = RecoveryFixtureOracle.KnownBytesMatch(data, w.Content, lost);
                     outcome = $"{item.State}{(exact ? ", exact" : keptBytesRight ? ", the rest exact" : ", differs")}";
-                    if (item.State is RecoveryState.Recoverable or RecoveryState.Partial && !keptBytesRight)
+                    if (!RecoveryFixtureOracle.ClaimIsTruthful(item.State, data, w.Content, lost))
                     {
                         wrongButClaimed++;
                         log?.WriteLine($"  WRONG: {w.Path} ({item.State}): {string.Join(" ", item.Evidence)}");
