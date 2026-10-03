@@ -762,6 +762,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     21 prerequisite/platform skips, no failures. Exact working source/bundles/outputs retained (E-I106). No actual
     device reader used; broader census/lifetime/physical tracing remains open. Native Unix/affected CI pending.
 
+166. Confirmation fix 5388e5c and test prerequisite correction cc1acf2 pushed. Clean cc1acf2 passes all four CI
+    lanes (37079952362). Independently verified strict Unix inventories: 74 pass/22 explicit skips per lane,
+    96 outcomes. SDK-free Ubuntu 26.04.1 native self-contained test input passes the same matrix; all 350 inputs
+    verified. Successful and earlier failed full archives retrieved and every regular member stream-verified.
+    Source/runtime/device race limits remain explicit (E-I106); no source-device scan or candidate claimed.
+167. Read-only serial-filtered media preflight finds no 2F2000129618 drive on the host, Windows VM or Ubuntu VM
+    at 00:08–00:10 UTC. Owner asked to reconnect it to the host for remaining V09 source-device write checks;
+    identity must be reverified before use. Both VMs remain running. I107 preliminarily closed; I106 and final
+    qualification remain open, release NO-GO, no candidate/tag/publication.
+
 ## Evidence invalidated by the campaign's own changes
 
 - `f87ad32` (job engine, interrupted-copy review): E-A01 and E-L01 no longer describe current source for transfer
@@ -797,7 +807,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   recorded identities. Renamed-apphost audit invalidates broader absence conclusions; executable-identity
   correction under validation. Wider visibility/race/availability audit and candidate tracing pending.
 - I106 confirmation recheck: previous device admission results do not cover changes while confirmation is open;
-  targeted baseline/after and affected App/native Windows inventory retained. Unix and affected CI pending.
+  targeted baseline/after and affected App/native Windows inventory retained. Native Ubuntu and all affected
+  successor CI lanes pass at their recorded identities; wider physical/candidate work pending.
 
 ## Next actions (unblocked)
 
@@ -806,7 +817,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    and affected CI pass at their identities. Dev.549 formats pass successor checks on 26.04 (E-V19-P3); wider
    audit reproduces a renamed-apphost gap. Identity correction passes native positive cases and affected App
    checks; refined root census now establishes absence while ordinary-account visibility remains unknown.
-   D8c6f3b successor CI passes; continue visibility/runtime-alias/race and write-location audits. Prepared
+   D8c6f3b successor CI passes; confirmation gap is also corrected, with Windows/Ubuntu native and all cc1acf2 CI
+   passing. Continue visibility/runtime-alias/lifetime and write-location audits. Physical source-device checks
+   require reconnecting the identity-bound USB test drive; latest preflight finds it absent. Prepared
    Windows guest menus pass preliminarily; exact-candidate checks remain. Exact dev.539 Linux packages pass on both fresh
    Ubuntu baselines (ENV-04/I04/I99–I103), with raw evidence retained and independently verified. ReFS/Dev Drive and same-server SMB copy cases are done preliminarily (E-V03-CLONE-1),
    including I97's corrected rerun. Fuzz campaigns are already collected (item 109).

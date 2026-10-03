@@ -291,3 +291,36 @@ now declares that route's platform prerequisite, with Windows coverage already e
 Native Linux corrected working inputs and affected CI are being collected. Earlier admission evidence
 does not qualify this correction. I106 stays **Open** for broader visibility/runtime-alias/lifetime races and
 physical source-device tracing; no candidate or source-device zero-write result is claimed.
+
+Confirmation correction committed as `5388e5cd0f75d31e9a6d6dcee0da9186d2488d3e`; platform prerequisite correction
+as `cc1acf20ceec88a338efe895750370c889e04f67`. Prior 5388e5c CI 37079783271 fails its Linux lane at the new
+Windows-only test setup; Windows x64/ARM64 and macOS pass. Complete prior run identity/log retained. It does not
+qualify the successor. Exact cc1acf2 CI [37079952362](https://github.com/benny-cz/FileCat/actions/runs/37079952362)
+passes all four lanes. Push packaging jobs are skipped; no tag or release. Independent direct XML inventories
+confirm 32 required cases per boundary, 74 pass/22 explicit skips across three boundaries, in both Unix lanes.
+Six new Unix admission cases pass at each boundary; six Windows-only cases are explicitly skipped there.
+
+Clean cc1acf2 self-contained Linux test input passes the same strict boundary runner on SDK-free Ubuntu 26.04.1,
+UID 1000, UUID c13a4d56-88aa-1159-57b9-9cea95bb06e9: 74 pass/22 skips, exit 0. All 350 input hashes checked after
+extraction. An owned exact-DLL-only `dotnet` shim invokes the verified xUnit apphost for the existing runner;
+it installs no SDK/runtime and is retained with its hash. This is native headless component execution, not GUI
+or physical recovery qualification. Complete successful and first failed fixture archives are retrieved;
+guest/host archive hashes match and every regular member's bytes/hash are independently stream-verified.
+
+| Successor evidence | SHA-256 |
+|---|---|
+| native Linux input manifest | `7a287b8664b11a60628cd70102faf862ddf2f28b507194a31b9547cba21a1e9a` |
+| native Linux result JSON | `bf144aefbd708042e0813581bf9cb554ec549780c47835e4e720b9c9162695df` |
+| native Linux App / test DLL | `24f428dfade5553df10f8918a15c4a7688d6ee7df3ff3b2f0c9566eb93f34351` / `a6a93b05ea3e21acca62fd7fcde0d81acf1a20fd9d156d4c4340d7fd705015c9` |
+| successful full archive, 66,331,612 bytes / 403 members | `df1459fe12c137cbe3893c295c6d05c3c063031c7c2719b2838d10c674aa07de` |
+| successful stream verification inventory | `1fb826cbc382d1e35def3865cf08115dc14de7db13dda0e66a20edc07c549c72` |
+| first failed full archive, 66,332,458 bytes / 402 members | `89a9ccbf9e6c3816499c46ef9e1dd2a9f131dd97bed908790e6dbe11831dcf94` |
+| independent native Windows inventory | `68658b0d002810c7e536003afc35e9cabf63d1dcebb6a85d2875c8b2e8cc2f9c` |
+| independent CI strict inventory | `231f0c8bf0665dd8f08138638800fff9b47b4c603969a9352885f9c60b56278c` |
+| CI Linux / macOS result JSON | `86b74eda34716931bab5156f55c169c1b6d803141e5dd1822081a81acfd15078` / `01218eff0a7ea4829fca6288649b44e6e3201a97d0b29b0861fb6ac739a41271` |
+
+This confirmation-interval subcase is verified preliminarily. I106 stays Open for ordinary-account visibility,
+runtime aliases, later process starts, wider privileges and physical/candidate source-device tracing. At 00:08–
+00:10 UTC on 2026-10-03, read-only host/Windows guest CIM and Ubuntu lsblk checks find no attached drive with the
+owner's required serial 2F2000129618. Identity-filtered availability records retained privately; the owner is asked
+to reconnect it to the host for remaining V09 work. Both VMware guests remain running.
