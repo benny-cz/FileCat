@@ -155,8 +155,10 @@ again exits before input with a trusted-Node/kernel-reset error; component and V
 The direct picture-feed audit exposes I121: four held actual-file controls dispose sources during decoder
 reads, and closing a loaded F3 retains its bitmap. Actual feeder borrows and bitmap retirement pass six
 controls/20 affected App cases, full App 269/21 skips/Core 745/46 skips. All 1,809 inputs/fourteen sources
-per stage/active assemblies/direct XML verify (E-I121). Clean-source CI/guest is next; per-device feed bounds,
-other direct Source consumers, native frame/AT and exact candidate remain.
+per stage/active assemblies/direct XML verify (E-I121). Clean a550fcd passes four CI lanes and 34 guest
+cases, zero affected skips; exact payload/source/artifact digests/XML/worker/decoder-child/temp cleanup verify.
+Wrong original harness count is retained, with identical payload passing the corrected inventory.
+Per-device feed bounds, other direct Source consumers, native frame/AT and exact candidate remain.
 
 | ID | Needed | Status |
 |---|---|---|

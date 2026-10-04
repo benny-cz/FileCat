@@ -1145,10 +1145,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     and Core 745/46 skips pass. All 1,809 inputs/fourteen sources/active assemblies/direct XML verify (E-I121).
     Clean CI/guest next; per-device picture bounds, other direct Source use, native/candidate remain.
 
+226. Clean a550fcd passes four CI lanes, three package jobs skipped; six direct inventories/three server-digest-
+    matching ZIPs verify, including 56 affected Windows and eighteen App cases on each Unix lane, zero affected
+    skips. Exact source passes 34 Windows guest cases, zero skips, ending 09:04:25 UTC; 686 payloads/687 ZIP
+    members/fourteen sources/output pins verify. Controller 12360/workers 9500/12532 and owned decoder
+    children absent, temp empty at 09:06:23 UTC. Original harness expects seventeen Core cases instead of
+    actual sixteen; all sixteen pass but its guard stops App. Failed run/cleanup retained; exact corrected
+    successor uses identical payload in a new root (E-I121). Per-device/native/candidate scopes remain.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I121: prior picture/quick-view evidence does not qualify actual feed ownership after cancellation or F3 bitmap
-  retirement. Working/full host controls pass; clean CI/guest and native/candidate checks remain required.
+  retirement. Working/full host, four clean CI lanes and 34 guest cases pass; native/candidate checks remain required.
   Per-device picture-feed bounds and other direct Source consumers remain outside this remedy.
 
 - I120: the original MFT integration pass did not distinguish live-history prerequisites/omitted assertions.
@@ -1260,7 +1268,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Page-reader calls now retire new demand and release active sources safely on close (I119 working/full host
    suites, 45 clean guest cases and four successor CI lanes pass; original I120 failure retained). Direct
    Picture feeds now retain active sources after cancellation and release closed F3 bitmaps (I121 working/full
-   host controls pass; clean CI/guest next). Per-device feeds, other direct Source use and wider queue bounds remain open.
+   host, clean CI and 34 guest controls pass). Per-device feeds, other direct Source use and wider queue bounds remain open.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now
