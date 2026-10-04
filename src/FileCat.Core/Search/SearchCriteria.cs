@@ -242,6 +242,7 @@ public sealed class SearchCriteria
             IgnoredFolders = ignoredFolders,
             WithinResults = within,
             Archives = InsideArchives ? archives : null,
+            ResultArchives = archives as IArchiveResultLookup,
             CarriesHiddenData = Advanced.CarriesHiddenData ? hiddenData : null,
         };
         if (Advanced.CarriesHiddenData && hiddenData is not { IsSupported: true })

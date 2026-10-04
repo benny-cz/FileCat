@@ -114,6 +114,11 @@ corrected full Core 714 pass/46 skips. Exact inputs/XML/skip inventories verify 
 passes four CI lanes and seven Windows guest controls; exact payload/XML/cleanup verifies. Candidate and native
 presentation checks remain open; no change to USB hold or source-safety status.
 
+V13 archive-result narrowing exposes I115's silent omission of all non-file-system references. Four valid baseline
+failures become eleven passing Core and two headless Find/content/log/navigation controls; full Core 725/46 skips
+and App 258/21 skips pass. Exact working inputs/XML verify (E-I115). Clean CI/guest, other-format/native and candidate
+checks remain required. No change to USB hold, source-safety disposition or **NO-GO**.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

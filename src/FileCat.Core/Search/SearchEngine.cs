@@ -58,6 +58,9 @@ public sealed class SearchQuery
     /// </summary>
     public IArchiveMembers? Archives { get; init; }
 
+    /// <summary>Revalidates archive members already in a result set, independently of discovering more archives.</summary>
+    public IArchiveResultLookup? ResultArchives { get; init; }
+
     /// <summary>
     /// Searches these earlier results instead of folders: each item is tested against the criteria as it is now,
     /// nothing is entered, and matches keep their relative folder (plan §11: searching within results narrows the set).
@@ -97,16 +100,19 @@ public enum SearchLogKind
     Skipped,
     /// <summary>An earlier result that no longer exists (searching within results).</summary>
     Gone,
+    /// <summary>A provider reported a partial listing or another warning while earlier results were rechecked.</summary>
+    Warning,
 }
 
-/// <summary>A line of a search's log (plan §11): what was not searched, and why.</summary>
-public sealed record SearchLogEntry(SearchLogKind Kind, string Path, string? Detail = null)
+/// <summary>A line of a search's log (plan §11): skipped scope, provider warnings, and their original locations.</summary>
+public sealed record SearchLogEntry(SearchLogKind Kind, string Path, string? Detail = null, Location? Parent = null, string? Name = null)
 {
     public string Describe() => Kind switch
     {
         SearchLogKind.Inaccessible => $"Not searched (inaccessible): {Path}" + (Detail is null ? string.Empty : $" · {Detail}"),
         SearchLogKind.Ignored => $"Not searched (on the ignore list): {Path}",
         SearchLogKind.Skipped => $"Not searched (skipped while searching): {Path}",
+        SearchLogKind.Warning => $"Search warning: {Path}" + (Detail is null ? string.Empty : $" · {Detail}"),
         _ => $"No longer exists (not searched): {Path}",
     };
 }
@@ -250,11 +256,11 @@ public sealed class SearchSession
         }
     }
 
-    private void AddLog(SearchLogKind kind, string path, string? detail = null)
+    private void AddLog(SearchLogKind kind, string path, string? detail = null, Location? parent = null, string? name = null)
     {
         lock (_logLock)
         {
-            if (_log.Count < MaxLog) _log.Add(new SearchLogEntry(kind, path, detail));
+            if (_log.Count < MaxLog) _log.Add(new SearchLogEntry(kind, path, detail, parent, name));
         }
     }
 
@@ -273,6 +279,60 @@ public sealed class SearchSession
             }
             if ((info.Attributes & FileAttributes.Hidden) != 0 && !_query.IncludeHidden) continue;
             if (IsMatch(info, item.IsContainer, ct)) AddResult(info, item.IsContainer, relative);
+        }
+        // Batch each archive parent once. Only that parent's requested identities and current metadata are retained;
+        // neither sibling folders nor members that were absent from the original result set become search results.
+        foreach (var group in items.Where(r => !r.Item.Parent.IsFileSystem).GroupBy(r => r.Item.Parent))
+        {
+            ct.ThrowIfCancellationRequested();
+            var parent = group.Key;
+            CurrentFolder = parent.ToString();
+            string? unavailable = parent.Scheme is not (Schemes.Zip or Schemes.Archive)
+                ? "This result cannot be searched within: only local files and archive members are supported."
+                : _query.HasContent ? "Archive member contents are not searched."
+                : null;
+            var lookup = _query.ResultArchives ?? _query.Archives as IArchiveResultLookup;
+            if (unavailable is not null || lookup is null)
+            {
+                foreach (var (item, _) in group)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    AddLog(SearchLogKind.Inaccessible, item.ToString(), unavailable ?? "The archive member lookup is unavailable.", parent, item.Name);
+                }
+                continue;
+            }
+            IReadOnlyDictionary<ItemRef, ItemRef> current;
+            bool partial = false;
+            try
+            {
+                current = lookup.Revalidate(parent, group.Select(r => r.Item).ToHashSet(), issue =>
+                {
+                    partial = true;
+                    AddLog(SearchLogKind.Warning, parent.ToString(), issue, parent);
+                }, ct);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+            {
+                var kind = ex is FileNotFoundException or DirectoryNotFoundException ? SearchLogKind.Gone : SearchLogKind.Inaccessible;
+                AddLog(kind, parent.ToString(), ex.Message, parent);
+                continue;
+            }
+            foreach (var (original, relative) in group)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!current.TryGetValue(original, out var member))
+                {
+                    AddLog(partial ? SearchLogKind.Inaccessible : SearchLogKind.Gone, original.ToString(),
+                        partial ? "The archive listing was partial; this member could not be rechecked." : null, parent, original.Name);
+                    continue;
+                }
+                if (MemberMatches(member))
+                {
+                    _results.Add(member, relative);
+                    long m = Interlocked.Increment(ref Matches);
+                    if (m < 50 || m % 200 == 0) _results.NotifyChanged();
+                }
+            }
         }
     }
 

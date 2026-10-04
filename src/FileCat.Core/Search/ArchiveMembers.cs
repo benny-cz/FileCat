@@ -16,16 +16,41 @@ public interface IArchiveMembers
     IEnumerable<ItemRef> List(string archivePath, CancellationToken ct);
 }
 
+/// <summary>Rechecks earlier archive results without entering folders, opening contents or discovering new members.</summary>
+public interface IArchiveResultLookup
+{
+    /// <summary>
+    /// Lists one parent once, retaining only requested identities (including duplicate ordinals). Reports partial
+    /// enumeration warnings; a missing identity is gone only if the parent was read without such warnings.
+    /// </summary>
+    IReadOnlyDictionary<ItemRef, ItemRef> Revalidate(Location parent, IReadOnlySet<ItemRef> requested,
+        Action<string> reportIssue, CancellationToken ct);
+}
+
 /// <summary>
 /// The archive providers' members (ZIP, TAR, 7z, RAR, disc images, …): each folder of the archive is listed in turn;
 /// archives inside the archive are listed as files and not opened (that would unpack them).
 /// </summary>
-public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiveMembers
+public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiveMembers, IArchiveResultLookup
 {
     private IContainerDetector? Detector =>
         providers.TryGet(Schemes.FileSystem, out var provider) && provider is LocalFileSystemProvider local ? local.ContainerDetector : null;
 
     public bool IsArchive(string fileName) => Detector?.IsContainer(fileName) == true;
+
+    public IReadOnlyDictionary<ItemRef, ItemRef> Revalidate(Location parent, IReadOnlySet<ItemRef> requested,
+        Action<string> reportIssue, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        // Find discovers members of local archives, but never opens another archive inside one to recheck a result.
+        if (parent.Scheme is not (Schemes.Zip or Schemes.Archive) || parent.Container?.IsFileSystem != true)
+            throw new NotSupportedException("This result is not a member of a local archive; it cannot be rechecked.");
+        if (!providers.TryGet(parent.Scheme, out var provider) || provider is null)
+            throw new NotSupportedException("The archive provider is unavailable; its members cannot be rechecked.");
+        var sink = new LookupCollector(provider, parent, requested, reportIssue, ct);
+        provider.EnumerateAsync(parent, sink, ct).GetAwaiter().GetResult();
+        return sink.Members;
+    }
 
     public IEnumerable<ItemRef> List(string archivePath, CancellationToken ct)
     {
@@ -61,5 +86,24 @@ public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiv
         public void ReportIssue(string message)
         {
         }
+    }
+
+    private sealed class LookupCollector(ResourceProvider provider, Location parent, IReadOnlySet<ItemRef> requested,
+        Action<string> reportIssue, CancellationToken ct) : IEnumerationSink
+    {
+        public Dictionary<ItemRef, ItemRef> Members { get; } = [];
+
+        public void AddBatch(ReadOnlySpan<EntryData> entries)
+        {
+            foreach (var entry in entries)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (entry.Kind == EntryKind.Parent) continue;
+                var item = provider.GetItemRef(parent, entry);
+                if (requested.Contains(item)) Members.TryAdd(item, item);
+            }
+        }
+
+        public void ReportIssue(string message) => reportIssue(message);
     }
 }

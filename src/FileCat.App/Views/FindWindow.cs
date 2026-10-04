@@ -837,7 +837,9 @@ public sealed class FindWindow : Window, IViewActions
     private void UpdateStatus()
     {
         if (_session is not { } s) return;
-        int notSearched = s.Log.Count;
+        var log = s.Log;
+        int warnings = log.Count(e => e.Kind == SearchLogKind.Warning);
+        int notSearched = log.Count - warnings;
         string state = s.Finished
             ? (_refineScratch is { IsComplete: false } || _refineScratch is null && _set is { IsComplete: false } ? "Stopped" : "Finished")
             : $"Searching {s.CurrentFolder}";
@@ -851,9 +853,10 @@ public sealed class FindWindow : Window, IViewActions
         _status.Text = state + $" · {s.FoldersVisited:N0} folders" + (s.FilesExamined > 0 ? $" · {s.FilesExamined:N0} files read" : string.Empty)
             + $" · {s.Matches:N0}{verb}" + (_mode != RefineMode.Replace ? $" · {_set?.Count ?? 0:N0} in the list" : string.Empty)
             + (notSearched > 0 ? $" · {notSearched:N0} not searched (see the log)" : string.Empty)
+            + (warnings > 0 ? $" · {warnings:N0} warnings (see the log)" : string.Empty)
             + (s.RegexTimedOut ? " · some regular expression matches timed out" : string.Empty);
-        _logButton.IsEnabled = notSearched > 0;
-        _logButton.Content = notSearched > 0 ? $"Log ({notSearched:N0})" : "Log";
+        _logButton.IsEnabled = log.Count > 0;
+        _logButton.Content = log.Count > 0 ? $"Log ({log.Count:N0})" : "Log";
     }
 
     private void UpdateButtons()
@@ -883,11 +886,17 @@ public sealed class FindWindow : Window, IViewActions
             SearchLogKind.Inaccessible => "Not accessible" + (e.Detail is null ? string.Empty : ": " + e.Detail),
             SearchLogKind.Ignored => "On the ignore list",
             SearchLogKind.Skipped => "Skipped while searching",
+            SearchLogKind.Warning => "Search warning" + (e.Detail is null ? string.Empty : ": " + e.Detail),
             _ => "No longer exists",
         })).ToList();
-        var r = await _dialogs.ChooseAsync(new ChoiceOptions("Search log", items) { Hint = "What was not searched · Enter shows it in the active panel · Esc closes" });
+        var r = await _dialogs.ChooseAsync(new ChoiceOptions("Search log", items) { Hint = "Skipped items and warnings · Enter shows it in the active panel · Esc closes" });
         if (r.Index < 0) return;
         var entry = log[r.Index];
+        if (entry.Parent is { } parent)
+        {
+            ShowInMainPanel(parent, entry.Name);
+            return;
+        }
         string folder = Directory.Exists(entry.Path) ? entry.Path : Path.GetDirectoryName(entry.Path) ?? entry.Path;
         string? name = Directory.Exists(entry.Path) ? null : Path.GetFileName(entry.Path);
         ShowInMainPanel(Location.FileSystem(folder), name);

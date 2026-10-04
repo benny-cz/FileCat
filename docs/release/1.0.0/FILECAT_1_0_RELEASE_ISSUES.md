@@ -10,6 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
+| I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated; verified preliminarily: four valid baseline failures, eleven corrected Core controls, two headless App flows and full Core 725/46 skips/App 258/21 skips. Exact working inputs/XML verify; clean CI/guest/candidate pending (E-I115) |
 | I114 | Parallel GnuPG fixtures replace each other's process-wide tool selection | Low (validation reliability) | Must fix (V15/V24 evidence) | Remediated 7497acf; verified preliminarily: controlled Good → UnknownKey → Good swap, isolated full Core 714/46 skips and four successor CI lanes pass. Original failure retained/interleaving untraced; candidate pending (E-I114) |
 | I113 | Quick view accepts stale results/errors, leaks failed/empty-reset readers and starts unbounded abandoned opens | Medium (preview correctness/resource demand) | Must fix (V12/AI-03) | Remediated 7497acf; verified preliminarily: six baseline failures, seven corrected controls, full affected host suites, four CI lanes and seven clean guest cases. Native presentation/candidate pending (E-I113) |
 | I112 | Concurrent page-cache stress observer infers idle from unchanged totals | Low (validation reliability) | Must fix (required evidence/CI) | Remediated b7d2e8; verified preliminarily: held-read and seven cache controls, full affected host suites, four successor CI lanes and seven guest controls pass. Original failure retained; candidate rerun pending (E-I112) |
@@ -126,6 +127,18 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I115 — Searching within results silently omitted archive members
+
+- V13, medium correctness defect. Four valid controlled failures on unchanged 7648865 show omitted matching
+  ZIP members and missing diagnostics for removed ordinals, content exclusions and unavailable lookup.
+- Revalidation lists each original parent once, preserves identities/ordinals/relative paths, uses current
+  metadata and only the original subset. Partial listings stay explicit; unlisted members are not called gone.
+  No member content or nested archive opens during lookup. The log keeps the original typed location.
+- Eleven Core controls and two headless Find/content/log/navigation flows pass. Full Core 725/46 declared skips
+  and App 258/21 declared skips pass; exact inputs/direct XML verify. Early fixture/observer faults are retained
+  separately. Preliminary remediation verified; clean CI/guest, other-format/native and candidate checks remain.
+  See [E-I115](evidence/E-I115-archive-result-search.md). Overall NO-GO and USB hold remain.
 
 ### I109 — unsupported cluster query was silently absent from the file record
 

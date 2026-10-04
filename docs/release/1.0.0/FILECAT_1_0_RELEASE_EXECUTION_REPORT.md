@@ -5,7 +5,7 @@ Operational plan: [FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md](../../d
 [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), [open blockers and decisions](FILECAT_1_0_RELEASE_BLOCKERS.md).
 Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` once a candidate exists.
 
-## Current state (updated 2026-10-03)
+## Current state (updated 2026-10-04)
 
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
@@ -1046,7 +1046,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Windows guest passes seven quick-view controls without skips; 364 payloads/365 ZIP members/ten source-content
     files and XML/cleanup verify. Controller/test worker/temp files absent. Native presentation/candidate remain open.
 
+212. Resume V13 archive-member results. Four valid controls fail because narrowing silently skips every non-file-system
+    reference (I115). Revalidation now retains original identities/ordinals/relative paths and only the input subset;
+    contents, unsupported scopes, partial/missing/unreadable listings are explicit. Eleven Core and two headless
+    Find/content/log/navigation controls pass; full Core 725/46 skips and App 258/21 skips pass. Exact baseline/final
+    input and direct XML inventories independently verify (E-I115). Two earlier fixture replacement faults and
+    deferred-row observer failures are retained separately. Clean CI/guest execution is next; candidate/native remain open.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I115: old result-narrowing evidence does not qualify archive-member revalidation or the revised log/navigation.
+  Working controls and full affected host suites pass; clean CI/guest, other-format/native and candidate checks remain required.
 
 - I113: old quick-view evidence does not qualify the new request, scheduler and bitmap lifetimes. Controlled
   headless/full host suites, clean CI and guest controls pass; native presentation/AT and candidate reruns remain required.
@@ -1133,7 +1143,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
-1c. V13, what is left: duplicates among a set, result sets of archive members, saved criteria beyond the time fields.
+1c. V13, what is left: duplicates among a set, saved criteria beyond the time fields; archive-result narrowing now
+   passes working Core/headless Find flows (I115), with clean CI/guest, other formats and initial listing-warning
+   propagation still to validate. Candidate/native checks remain required.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
    the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
