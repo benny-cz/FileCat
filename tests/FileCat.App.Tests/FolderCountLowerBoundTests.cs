@@ -124,8 +124,9 @@ public sealed class FolderCountLowerBoundTests
             var restoredAcl = new DirectorySecurity();
             restoredAcl.SetSecurityDescriptorSddlForm(originalAcl, AccessControlSections.Access);
             blocked.SetAccessControl(restoredAcl);
-            restored = blocked.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access) == originalAcl;
-            Assert.True(restored);
+            string actualAcl = blocked.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access);
+            restored = actualAcl == originalAcl;
+            Assert.True(restored, $"Owned ACL differs after restore. Expected: {originalAcl}; actual: {actualAcl}");
             vm.CountFolderSizes(tab);
             await Wait(() => tab.SizingFolders == 0);
             await Task.Delay(100, TestContext.Current.CancellationToken);
@@ -140,7 +141,8 @@ public sealed class FolderCountLowerBoundTests
             var restoredAcl = new DirectorySecurity();
             restoredAcl.SetSecurityDescriptorSddlForm(originalAcl, AccessControlSections.Access);
             blocked.SetAccessControl(restoredAcl);
-            restored = blocked.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access) == originalAcl;
+            string actualAcl = blocked.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access);
+            restored = actualAcl == originalAcl;
             if (vm is not null) foreach (var job in vm.Services.Jobs.Jobs) job.Cancel();
             window?.Close();
             if (vm is not null) foreach (var tab in vm.Workspace.Panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();
@@ -150,7 +152,7 @@ public sealed class FolderCountLowerBoundTests
             // The real-file/ACL probe retains observations separately; this regression owns only its verified temp root.
             Directory.Delete(root, recursive: true);
             Assert.Equal(beforeHashes, afterHashes);
-            Assert.True(restored);
+            Assert.True(restored, $"Owned ACL differs during cleanup. Expected: {originalAcl}; actual: {actualAcl}");
         }
         Assert.True(problems.Count == 0, string.Join("; ", problems));
     }

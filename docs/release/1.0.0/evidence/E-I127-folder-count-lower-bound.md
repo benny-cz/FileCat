@@ -67,7 +67,19 @@ Corrected production App/Core DLLs: `7503f71e0e18f4dbeca3c10c90288a3682fa79e0b0a
 | Core / final App input manifests | `043611d8b14421b9ad1be3b387c6c5b7c1b440206c519363ffece2cbf1b06705` / `408d21028df6973c6f5ca76f4ee75d696956684a844e61408361bb67e05a1908` |
 | Owned worker/ACL/temp cleanup | `c6644d3236c52d0371d4cdd97c6acdf0412a655df5f2aa574543ca442c3d42fe` |
 
-Clean-source CI and SDK-free Windows guest validation are next. Native desktop/AT/candidate remain unqualified. Computer Use
+Clean source `2be20cfb8a647261ad9dad32c114888739e77dae` CI
+[37214155885](https://github.com/benny-cz/FileCat/actions/runs/37214155885) fails both Windows lanes;
+Ubuntu and macOS pass. All seven new Windows App cases fail the fixture's cleanup ACL-restoration assertion,
+including accessible controls. Direct Windows inventories are Core 751 passed/47 declared skips, App 281 passed/
+seven failed/15 declared skips, Platform 166 passed/33 declared skips and Remote 88 passed/28 declared skips.
+Both Unix App inventories are 260 passed/43 declared skips, with seven explicit Windows ACL fixture skips.
+All three downloaded artifact bytes/server digests and complete TRX inventories independently verify;
+inventory SHA-256 `93313c556bcc15a738d1a467ff6b3dac0c977b1c867f5caf6408439867129ff1` in private
+`FileCatReleaseEvidence/ci-37214155885`. Logs include the failing ARM64 lane. These failures remain open.
+Descriptor diagnostics are added without relaxing restoration; all seven host cases still pass
+(diagnostic XML SHA-256 `1c402ef5e4d4cc1368a3e07d1583d0eedd2a54a2bc522d90d80b28e5176ebff1`).
+
+SDK-free Windows guest validation and corrected clean CI are next. Native desktop/AT/candidate remain unqualified. Computer Use
 initialization still exits before selecting a host or VMware window after the owner's Codex restart; exact tool
 result retained with E-I126. VMware command execution remains usable. No USB action occurred; its source-change
 gate remains held. Both VMs remain running. Overall **NO-GO** remains.

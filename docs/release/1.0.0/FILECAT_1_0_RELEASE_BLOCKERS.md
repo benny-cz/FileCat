@@ -35,7 +35,10 @@ claim an exact cached size. Refresh preserves it; restored access cannot retry C
 owned-ACL failures and two accessible positive controls retained; file hashes/ACL restoration verify (E-I127).
 Persistent lower-bound state/labels and retry now pass identical corrected probe/four cases, seven App/three Core
 regressions, 59 Core/63 App affected and full Core 752/46 skips/App 282/21 skips. All 1,800 inputs/source/DLL/XML/
-fixture bytes/owned ACL/process/temp cleanup verify; clean CI/guest/native/candidate next.
+fixture bytes/owned ACL/process/temp cleanup verify. Clean 2be20cf CI fails both Windows lanes at the new
+fixture's ACL-restoration check; all seven cases, including accessible controls, fail. Linux/macOS pass.
+Failure artifacts and full inventories retained/verified; diagnostic assertions added without waiver.
+Corrected clean CI/guest/native/candidate remain required.
 Owner restart did not restore Computer Use: initialization exits before
 selecting any host/VM window; guest command execution remains available and independent V12 work continues.
 

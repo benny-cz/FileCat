@@ -1242,6 +1242,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     unchanged skip reasons, sixteen fixture payloads, restored ACLs and owned worker/temp cleanup. Original test
     encoding failure retained; corrected expectation passes identical production bytes. Clean CI/guest next.
 
+240. Clean I127 source 2be20cf CI 37214155885 passes Linux/macOS and fails both Windows lanes: all seven new
+    App controls fail the owned-fixture ACL-restoration check, including accessible controls. Complete direct
+    TRX inventories and three server artifact digests verify; failure retained, not waived (E-I127). Descriptor
+    diagnostics preserve the assertion and all seven host controls still pass. Corrected clean CI/guest pending.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I127: earlier folder-count passes do not qualify inaccessible-subtree lower bounds or retries after restored
