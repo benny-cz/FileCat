@@ -183,8 +183,10 @@ I124: an isolated probe using the original production scheduler DLL terminates o
 exception when a hung call gains a replacement. A separate controlled Watch run admits three simultaneous calls
 despite a two-worker cap. Enqueue now enforces the cap and Watch scans its initial worker count. Both corrected
 probes, two new controls, 48 affected Core/37 App cases and full Core 747/46 skips/App 271/21 skips pass.
-All 1,084 inputs/nineteen sources/probe DLLs/observations/direct XML/process cleanup verify (E-I124). Clean CI/guest
-checks are next; actual hung hardware, wider queues, aggregate decoders and native/candidate remain unqualified.
+All 1,084 working inputs/nineteen sources/probe DLLs/observations/direct XML/process cleanup verify (E-I124).
+Clean 18006cc passes four CI lanes and 85 guest controls without affected skips; all 691 payloads/692 ZIP members,
+canonical sources/server artifact digests/XML/owned process/temp cleanup verify. Actual hung hardware, wider
+shutdown/queue lifetimes, aggregate decoders and native/candidate remain unqualified.
 
 | ID | Needed | Status |
 |---|---|---|

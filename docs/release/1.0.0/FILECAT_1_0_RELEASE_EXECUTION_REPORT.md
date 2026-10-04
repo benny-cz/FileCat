@@ -1187,11 +1187,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     All 1,084 inputs/nineteen sources/probe DLLs/observations/XML/process cleanup verify (E-I124).
     Clean CI/guest next; synthetic callbacks do not qualify physical hung hardware or native/candidate scope.
 
+232. I124 clean source 18006cc passes all four required CI lanes (37195976222); package jobs skip. All 85 affected
+    Windows controls and 37 App controls per Unix lane pass. Six full XML/skip inventories, server digests and
+    ZIP/extracted bytes verify. The self-contained SDK-free 26300 guest passes the same 85 Core/App controls,
+    zero skips; 691 payloads/692 ZIP members/nineteen sources/pre-launch pins/direct XML/owned process and temp
+    cleanup verify. Synthetic watchdog/cap qualification is preliminary; physical/wider/native/candidate remain.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I124: previous scheduler passes do not qualify watchdog replacement while appending workers or enforcement
   of the cap when all workers are quarantined. Corrected owned probes, affected Core/App and full host suites
-  pass; the shared scheduler requires clean CI/guest and fresh consumer/native/candidate validation.
+  pass, as do four clean CI lanes and 85 guest consumer controls. Actual hung hardware, wider shutdown/queue
+  lifetimes, aggregate decoders and native/candidate validation remain.
 
 - I123: prior passing synchronization runs do not establish use of the shipping Windows adapter or a held
   replacement target. Controlled baseline/final, seventeen affected/full App, four clean CI lanes and 17 guest
@@ -1320,7 +1327,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    and 36 clean guest cases/four successor CI lanes/all affected controls (I122; original synchronization failure retained);
    watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
    Real timer/list mutation and controlled worker-cap failures now pass working probes, 85 affected cases and
-   full host suites (I124); clean CI/guest, actual hung hardware and wider/native/candidate scopes remain.
+   full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
+   scopes remain.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

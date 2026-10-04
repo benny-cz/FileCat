@@ -51,7 +51,40 @@ Private root:
 | Core / App input manifests | `3d12c7f971ae56d24cc943127e1fb510c1dbbad944af55f3b85795eeb6c39d88` / `90e619fa984f706593de6bbd5f8980d51395272dc8f97af3e541239959012669` |
 | Independent baseline/probe/source/input/case inventory | `a0aaf5527e98502687619d1d0ef7cf792b851608105f7d9f186215e4a5e701a2` |
 
-Clean-source CI and Windows guest checks are next. Synthetic callback controls qualify the observed scheduler
-branches, not actual hung hardware, aggregate decoder memory/process limits, native queue/frame/AT performance or
-an exact release candidate. The shared scheduler change requires fresh affected consumer validation. Physical USB
-qualification remains held at its historical source-change gate; no USB action occurred. Overall **NO-GO** remains.
+Clean source `18006cc9746a80e3c1b88ec40b89fb5f38dbe8cc` passes all four required lanes in
+[CI 37195976222](https://github.com/benny-cz/FileCat/actions/runs/37195976222); three package jobs skip.
+Direct Windows XML records Core **746 pass/47 skips**, App **277/15**, Windows platform **166/33** and Remote
+**88/28**. The live NTFS history case passes. Linux and macOS App each pass **256/36**. All **85 affected Windows
+Core/App cases** and **37 affected App cases per Unix lane** pass without affected skips. The ARM64 lane succeeds,
+but has no retained direct XML artifact. Independent verification checks all three server artifact digests and
+ZIP sizes, extracted XML bytes, six complete case/skip inventories and selected affected names.
+
+The same clean source is published self-contained for the SDK-free Windows Insider 26300 guest, VM UUID
+`9D224D56-1161-A849-ABA7-2581A980895C`. Its owned root is
+`C:/Users/Public/FileCat-workerbound-validation-b0f47da9a7384ab5a90ea6006ea28115`.
+All **48 Core and 37 headless App controls pass**, zero skips, ending at **10:48:15.6149910 UTC** on 2026-10-04.
+Independent verification checks **691 payload files, 692 ZIP members and nineteen canonical sources** against the
+pre-launch pins and exact direct XML names. At **10:50:02.4059026 UTC**, controller PID 9220 and worker PIDs
+12296/13848 are absent, no executable children remain below the owned root, and its temporary folder is empty.
+The App consumer checks include actual-file picture feeds/lifetimes, quick view, comparison/synchronization and
+operation routes. These are headless consumer controls, without native desktop input or physical source-device access.
+
+Private clean payload/guest root: `clean-18006cc` below the working evidence root above. Private CI root:
+`C:/Users/marek/.codex/visualizations/2026/10/02/01a0fbbf-f37d-7042-9e13-028bfb0e5c33/FileCatReleaseEvidence/ci-37195976222`.
+
+| Clean evidence | SHA-256 |
+|---|---|
+| CI metadata / complete log | `d878b2995528253bb39ec967a94c83e2a6895125ade1bfea37c7e1fed6460d39` / `a52db2b28586349e97c12ac18b09750522a93591ff75f8a93aa3140f86d22860` |
+| Windows artifact 11301097460, 378181 bytes | `cc8a30d100352b930b5c2c0d5bf127c063365ff8650fc2024c6b6bdf4e02caea` |
+| Linux App artifact 11301441418, 81333 bytes | `5547e33de4de3badb46ec207196b5a66ce3dc0b11f913f20666a9d7a1134c775` |
+| macOS App artifact 11301301945, 82098 bytes | `c2f9aee8436c6fc94232b28431a51624d40fe490c00f0c858f30ed5ee232c43d` |
+| Independent CI inventory | `332130db2973055f47eceb324960baa71e0498a79bcca17dc173fa21d0e1b935` |
+| Guest ZIP / payload manifest | `55410b5b6977bc4896be0dfdaea18b5897fa42b84df989f8cbd52dddd715cbaa` / `e6ff0a40dc702bf2807b5f2c2e502baa02d2f46972cb14ad6fbc46b0fa8bfe70` |
+| Guest runner / cleanup script | `09f76295b6da7e55d6e26f8b7fe8c067675493f7cb6456c8ad5b3c42b5bf5248` / `4a940e18884b10479332ed129665f3fd0d1d8c040f1bab39a3454e4e25251365` |
+| Guest Core / App XML | `63ec8f621b052a51c336845f267c2203dad7eee75b0fa36f6c12005df3fc9030` / `5a6e709c8108579012d5c645ab10ba9e1ef5e217232bb7801ad922eb2fea596c` |
+| Guest cleanup / independent inventory | `160b07a47c3fe826a66d850c1752746c88fc467cd41607c862b80ea0ba025c99` / `945a792bc215f00bb50d4395f577408d904c7dad0cea4c9ac028ff414ee45f2c` |
+
+Synthetic callback controls qualify the observed scheduler branches. Actual hung hardware, aggregate decoder
+memory/process limits, wider shutdown/queue lifetimes, native queue/frame/AT performance and an exact release
+candidate remain unqualified. Physical USB qualification remains held at its historical source-change gate;
+no USB action occurred. Overall **NO-GO** remains.
