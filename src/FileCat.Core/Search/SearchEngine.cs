@@ -439,8 +439,14 @@ public sealed class SearchSession
             if (names.RegexTimedOut) RegexTimedOut = true;
             return false;
         }
-        if (!isDir && member.Size >= 0)
+        if (!isDir)
         {
+            if (member.Size < 0 && (_query.MinSize is not null || _query.MaxSize is not null))
+            {
+                AddLog(SearchLogKind.Inaccessible, member.ToString(),
+                    "The archive member's size is unknown; size criteria cannot be checked.", member.Parent, member.Name);
+                return false;
+            }
             if (_query.MinSize is { } min && member.Size < min) return false;
             if (_query.MaxSize is { } max && member.Size > max) return false;
         }

@@ -12,6 +12,52 @@ namespace FileCat.App.Tests;
 
 public sealed class FindArchiveResultTests
 {
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unknown_archive_sizes_show_an_exclusion_and_the_log_opens_the_original_member_parent(bool narrowed)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        string? archive = null;
+        try
+        {
+            services.Settings.SearchLogOnErrors = false;
+            string scope = Path.Combine(root, "unknown-size-search");
+            Directory.CreateDirectory(scope);
+            archive = Path.Combine(scope, "notes.txt.gz");
+            using (var compressed = new GZipStream(File.Create(archive), CompressionMode.Compress))
+                compressed.Write("alpha"u8);
+            var member = Assert.Single(new ProviderArchiveMembers(services.Providers).List(archive, TestContext.Current.CancellationToken));
+            Assert.Equal(-1, member.Size);
+            var original = services.ResultSets.Create("Original unknown-size member", "owned gzip fixture");
+            original.Add(member, "original relative folder");
+            var find = FindWindow.Open(vm, scope, narrowed ? original : null);
+            find.Apply(new SearchCriteria { LookIn = scope, Names = "*.txt", InsideArchives = !narrowed,
+                Advanced = new AdvancedSearchCriteria { SizeAtLeast = 100, SizeAtLeastUnit = SizeUnit.Bytes } });
+            find.StartSearch(RefineMode.Replace);
+            await WaitFor(() => find.IsIdle);
+            Assert.Empty(find.Found);
+            Assert.Equal(1, original.Count);
+            var exclusion = Assert.Single(find.Session!.Log);
+            Assert.Equal(SearchLogKind.Inaccessible, exclusion.Kind);
+            Assert.Equal(member.Parent, exclusion.Parent);
+            Assert.Equal(member.Name, exclusion.Name);
+            Assert.Contains("not searched", find.Status, StringComparison.Ordinal);
+            find.OpenLog();
+            await WaitFor(() => find.Dialogs.IsOpen);
+            await WaitFor(() => find.GetVisualDescendants().OfType<TextBlock>().Any(b => b.Text?.Contains("size is unknown", StringComparison.Ordinal) == true));
+            find.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => !find.Dialogs.IsOpen);
+            Assert.Equal(member.Parent, vm.Workspace.ActiveTab!.Location);
+        }
+        finally
+        {
+            foreach (var find in FindWindow.OpenWindows.ToList()) find.Close();
+            if (archive is not null) services.Archives.Release(archive);
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
     private static async Task WaitFor(Func<bool> condition)
     {
         for (int i = 0; i < 250 && !condition(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);

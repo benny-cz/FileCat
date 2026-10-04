@@ -30,6 +30,12 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I133 excludes unknown-length archive members when size criteria cannot be checked. Twelve baseline
+failures/six controls, eighteen corrected production-probe observations, twenty Core/four Find cases
+and full host inventories pass (Core disjoint union 774/46 skips, App 324/21 skips). Failed fixture/
+cleanup runs and exact source/binary/fixture/cleanup evidence stay retained. Clean-source CI/Windows/
+Ubuntu checks, other formats, native interaction and final candidate remain (E-I133).
+
 I132 is a test-only quick-search cancellation checkpoint repair. Original macOS CI failure/full
 server-bound artifact inventory and one controlled observer failure/three controls are retained;
 exact historical timing is unavailable. Nine affected/full App 322 with 21 declared skips pass,
@@ -55,9 +61,9 @@ native rows, twelve sparse files/twelve link groups and process/temp cleanup ind
 Failed harness attempts stay retained; no production defect/new issue was found in this slice.
 
 The saved successful Mac result was retrieved after owner confirmation following its final test transport
-timeout; exact interruption cause is unknown. The owner confirms SSH availability, but two fresh agent
-connections on 2026-10-05 time out before login; the host's LAN neighbor address is unresolved. The owner
-is asked to keep the Mac awake/connected and confirm a fresh connection. No new Mac test ran. Python is present;
+timeout; exact interruption cause is unknown. Physical Mac work is now owner-deferred. Subsequent authorized
+minimal discovery found no address: cached neighbors, one known-host DNS query and one Bonjour packet
+with a four-second response window. No subnet sweep or Mac command/test ran. Python is present;
 dotnet is not on the SSH PATH. Only owned self-contained validation files were added; no global
 dependency installation/system-setting change occurred. Needed installations remain authorized.
 Mandatory Mac artifact/native/distribution work remains. Both VMs stay running; G: is untouched and
@@ -263,7 +269,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | Latest native run: macOS 27.0.1/26A434 (E-V12-N1); earlier checkpoints report 26.6.2/25G83 (E-ENV-05/E-I129). Saved results retrieved successfully; owner confirms availability, but fresh agent SSH/LAN connections time out on 2026-10-05. Connection restoration is pending. Personal machine, not a clean install; its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | Latest native run: macOS 27.0.1/26A434 (E-V12-N1); earlier checkpoints report 26.6.2/25G83 (E-ENV-05/E-I129). Saved results retrieved successfully; fresh agent connections time out on 2026-10-05. Owner defers Mac work; authorized minimal discovery finds no new address. Personal machine, not a clean install; its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |

@@ -7,6 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+I133 corrects false size-filter matches for unknown-length gzip/bzip2/xz members. Twelve independently
+verified baseline failures and six positives are retained. The Core-only production swap corrects all
+eighteen observations; twenty Core/four Find cases pass. Exact full Core coverage is a disjoint union
+of unchanged builds (774 pass/46 declared skips); full App passes 324/21 declared skips. All source/input/
+binary pins and seven owned temp cleanups verify. Earlier GPG/disk/Git-fixture/cleanup failures remain
+failed and retained. Clean-source CI/Windows/Ubuntu checks are next (E-I133). Progress: **111/133 issue
+rows remediated**, one separately Closed; **24/26 release steps partly or fully open**. This is preliminary
+remediation, not final qualification. No candidate/human GO exists.
+
 I132 corrects the quick-search Escape fixture's early focus checkpoint; production source is unchanged.
 The original 545d627 macOS CI failure is retained with its full artifact/case inventory. An independent
 held-continuation probe demonstrates one invalid early-observer failure and three passing controls;
@@ -16,10 +25,10 @@ jobs; four server artifact digests/six full TRX inventories verify. All nine qui
 without skips per Windows/Ubuntu/macOS App inventory; ARM64 App/package checks pass with log totals.
 The following records retain their own exact baselines; native data remains qualified preliminarily.
 
-The owner confirms Mac SSH availability, but two fresh agent connections time out before login;
-the Windows LAN neighbor address is unresolved. Raw tool observations are retained privately in
-`mac-agent-connectivity-20261005/observations.json`; exact cause is unknown. Owner wake/connectivity
-confirmation is pending. No new Mac test or system change is claimed at this checkpoint.
+Mac work is deferred at the owner's request. The later authorized, limited address discovery inspected
+cached neighbors, one known-host DNS query and one Bonjour packet with a four-second response window.
+No Mac address was found and no command ran there. Earlier connectivity observations and new discovery
+records remain private; no subnet sweep or new Mac result is claimed.
 
 Clean fdb17b4 completes the preliminary I129-I131 validation slice. The test-only I131 correction
 observes count progress before refresh replaces a partial row, retaining all retired-result oracles.
@@ -42,8 +51,8 @@ DLLs; the Mac uses an actual RID producer with 826 source exports independently 
 The disconnected Mac run was retrieved after owner confirmation; failed harness attempts stay retained.
 
 Both VMs stay running. Computer Use's recorded startup failure still blocks native input; the tool
-shell is unelevated. G: stays untouched and its historical source-change gate remains held. Mac SSH
-is usable again. Only owned self-contained validation files were added there; no global dependency
+shell is unelevated. G: stays untouched and its historical source-change gate remains held. Physical Mac work is
+deferred. Earlier Mac validation added only owned self-contained files; no global dependency
 installation or system-setting change occurred. Needed Mac installations remain authorized.
 No candidate or human GO exists; overall NO-GO.
 
@@ -114,7 +123,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I132 at clean 5a11100, the §14 checklist has the following conservative gate status.
+After working preliminary remediation through I133 (clean CI/guest checks pending), the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -127,7 +136,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **110 of 132 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **111 of 133 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -141,7 +150,7 @@ Exact source/input/artifact/case inventories and owned cleanup verify. Both earl
 remain retained; controlled reproductions do not establish their exact historical event triggers.
 
 The checklist remains 24 partly/fully open steps; its I128 derivation is retained. Latest evidence is
-in E-I129, E-I130 and E-I131. Overall **NO-GO** remains.
+in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO** remains.
 
 ## Historical checkpoint (2026-10-01; superseded by the current state above)
 
@@ -1433,7 +1442,23 @@ in E-I129, E-I130 and E-I131. Overall **NO-GO** remains.
     Mac test/device access is claimed. Both VMs stay running; G: untouched. Progress remains 110/132
     remediated, 24/26 checklist steps partly/fully open, no candidate/human GO, overall NO-GO (E-I132).
 
+253. V13 follow-up reproduces I133: three independently encoded/decoded five-byte single-compression
+    fixtures falsely match minimum 100/maximum one in both initial/narrowed searches (twelve failures,
+    six unfiltered controls). Baseline 1e5416e uses unchanged fdb17b4 production DLLs. Unknown-size members
+    now exclude with a typed original-location reason; only Core.dll changes in the repeated probe.
+    Twenty Core/four headless Find cases and all eighteen corrected observations pass. Full Core is
+    the exact disjoint 819+1 case union: 774 pass/46 declared skips; full App 324 pass/21 skips.
+    Source/binary/fixture pins and seven owned temp cleanups independently verify; proof SHA-256
+    `402e810567a4ba7fded37041231354182b98173975e4065743e29bac1ea78620`. Failed GPG/space/Git-precondition/
+    cleanup attempts remain failed and retained. Clean committed-source CI/Windows/Ubuntu checks are next.
+    Mac is owner-deferred; one minimal Bonjour discovery found no address. Both VMs stay running, G:
+    untouched/HOLD. Progress 111/133 remediated and 24/26 release steps partly/fully open; NO-GO (E-I133).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I133: earlier I115/I116 archive-search passes do not establish truthful size criteria for unknown-length
+  members. The shared initial/narrowed search check is corrected and working host validation passes;
+  clean-source CI/guest checks and candidate qualification remain. Unrelated count evidence is unchanged.
 
 - I132: earlier quick-search passes do not prove cancellation-relative focus when a match completes
   during input delivery. The corrected observer/forced controls, full host suite and all four clean CI
