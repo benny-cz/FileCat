@@ -30,17 +30,13 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I127: an inaccessible subtree yields a lower-bound notification but the folder row, marked total and quick view
-claim an exact cached size. Refresh preserves it; restored access cannot retry Count. Two actual-production/
-owned-ACL failures and two accessible positive controls retained; file hashes/ACL restoration verify (E-I127).
-Persistent lower-bound state/labels and retry now pass identical corrected probe/four cases, seven App/three Core
-regressions, 59 Core/63 App affected and full Core 752/46 skips/App 282/21 skips. All 1,800 inputs/source/DLL/XML/
-fixture bytes/owned ACL/process/temp cleanup verify. Clean 2be20cf CI fails both Windows lanes at the new
-fixture's ACL-restoration check; all seven cases, including accessible controls, fail. Linux/macOS pass.
-Failure artifacts and full inventories retained/verified. Diagnostic b80f286 proves only Windows' DACL
-auto-inheritance marker differs; every ACE matches. Corrected comparison ignores only that marker and seven
-host cases pass. Clean b80f286 guest passes all 122 affected cases with verified inputs/cleanup. Successor
-fixture bytes still require clean CI/guest; native/candidate remain unqualified.
+I127 is remediated preliminarily: inaccessible counts retain lower-bound labels/state across refresh and allow
+retry after restored access. Actual-production baseline failures/corrected probes, affected/full host suites,
+four clean 9d33282 CI lanes and 122 SDK-free guest controls pass (E-I127). All 122 affected Windows CI cases pass;
+each Unix App lane has 50 affected passes/13 declared Windows-fixture skips. Two failed fixture CI attempts are
+retained; diagnostics identify only Windows' DACL auto-inheritance marker, with every ACE still checked.
+Inputs/702 payloads/703 ZIP members/thirty canonical sources/artifact digests/XML/owned process/temp cleanup
+verify. Native/AT/exact-candidate qualification remains required.
 Owner restart did not restore Computer Use: initialization exits before
 selecting any host/VM window; guest command execution remains available and independent V12 work continues.
 

@@ -101,7 +101,51 @@ ZIP `122e3550618caaf8a33400e74687e9d4ffffc807304fbd36fc76b7e38f7eebd8`, manifest
 `c892c35cdb8fbfa1a53cf7dd4e02fd35169f00e84686d2662414bea5ec9b7136`.
 This run precedes the CI fixture comparison correction; it does not qualify the successor test assembly.
 
-Corrected clean CI and successor guest validation are next. Native desktop/AT/candidate remain unqualified. Computer Use
+Final clean source `9d332825237ffab2bb6f329e4a454fe78e3239e7` includes the corrected fixture comparison.
+[CI 37216212781](https://github.com/benny-cz/FileCat/actions/runs/37216212781) passes all four required lanes,
+including Windows ARM64 tests/package startup/installer compilation; three tag/manual package jobs are skipped.
+All three downloaded server artifact digests and six complete TRX inventories independently verify.
+
+| Direct CI inventory | Passed | Declared skips |
+|---|---:|---:|
+| Windows Core | 751 | 47 |
+| Windows App | 288 | 15 |
+| Windows Platform | 166 | 33 |
+| Windows Remote | 88 | 28 |
+| Ubuntu App | 260 | 43 |
+| macOS App | 260 | 43 |
+
+All **122 affected Windows cases pass**, zero skips. Each Unix App lane has **50 affected passes and 13 declared
+skips**: seven new Windows ACL cases plus six existing Windows-factory folder-identity/leave cases. Every skip's
+identity/reason verifies, and the six existing reasons match the preceding CI inventory. Verification retains raw
+TRX names/test IDs/execution IDs and full case multiplicity; it accounts only for the native xUnit XML runner's
+additional backslash/quote escaping when comparing the complete affected inventories. No case is omitted.
+Independent CI inventory SHA-256 `755e1232825832df328883f8411aea2e2710842581dd469caca6e977fca04cf9`;
+private `FileCatReleaseEvidence/ci-37216212781`. Both failed CI attempts remain retained.
+
+The successor SDK-free Windows guest run of clean 9d33282 passes **122/122**, zero skips, at the same UUID/build
+and administrator identity. Private `clean-9d33282`, guest
+`C:/Users/Public/FileCat-folderlowerbound-validation-e924be484b1b4eabb31ff51ef75243cb`.
+All 702 payloads/703 ZIP members/thirty canonical inputs (26 C# sources, two build properties files and two test
+projects), copied production inputs, case inventories and ownership/cleanup verify. It ends at 16:21:51 UTC;
+cleanup at 16:23:08 UTC finds controller 3700/workers 6692/7300 and all owned executable children absent, with
+no temporary files. This qualifies only the controlled preliminary folder-count scope.
+
+| Clean 9d33282 guest evidence | SHA-256 |
+|---|---|
+| ZIP / input manifest | `af02f5f1faaf8a956d61fece14e106927f3532cc289ef29ce6ecec337f127c84` / `0972c6da15f0eee9b68144378c8c53e6e91065a02fcbf7ad8bcea1bbd23d577b` |
+| Runner / cleanup script | `e1f25b0ec41134cb9b962e47f44eb0a95c59e196c3d058c0761755d7506acf09` / `586abb72015d10f2d73083ad30f85a9b6a6b9f92bb07a768e987d5d962f17da6` |
+| Core / App XML | `60172ca2f6b567e61494eafa1f59b73664f15296062c13ecfc9a9bf7937e035e` / `65cdef2a2ff7de89cc27879523227d9852d7a3ccf80fba88eef167640bd95cc0` |
+| Guest identity / exit record | `e48c237dc745019697cfda25a7629021de55f2c07d6043cdd84c49c864d8f2d7` / `26fbb7078cc44c945ba6ecad409356e08926fe26544527e7f54825e8127cf6d6` |
+| Owned worker/temp cleanup | `959e3211301ccbecf8d0913a217310138262f5d187e7a1e1a0c1110ec09c9ad7` |
+| Independent native inventory | `55f2f1c9d4db65e74949b9dccc8686edd068d037d8973c1562d0328a2451f92c` |
+
+The final independent slice check re-verifies all 751 normalized working inputs/thirty canonical sources,
+746 retained clean guest/CI evidence files and every document pin; its retained record is
+`final-slice-verification.json` in the I127 private root.
+
+I127 preliminary remediation is verified. Native desktop/AT/candidate remain unqualified. Computer Use
 initialization still exits before selecting a host or VMware window after the owner's Codex restart; exact tool
 result retained with E-I126. VMware command execution remains usable. No USB action occurred; its source-change
-gate remains held. Both VMs remain running. Overall **NO-GO** remains.
+gate remains held. Both VMs remain running. The owner requested finishing this slice and stopping before another
+Codex restart/elevated launch; execution stops after the evidence push. Overall **NO-GO** remains.

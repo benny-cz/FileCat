@@ -1254,10 +1254,21 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     without skips; 702 payloads/703 archive members/thirty canonical sources and owned process/temp cleanup
     verify. This precedes the fixture correction; successor clean CI/guest still required (E-I127).
 
+242. I127 clean 9d33282 passes all four CI lanes, including ARM64 package startup/installer compilation, and
+    122 SDK-free guest controls without skips. Complete server artifact digests/six TRX inventories verify:
+    Windows Core 751/47 skips, App 288/15, Platform 166/33 and Remote 88/28; Unix App each 260/43. All 122 affected
+    Windows cases pass; Unix App each 50 affected passes/13 declared Windows-fixture skips, including six
+    unchanged Windows-factory reasons. Raw IDs/names/case multiplicity verify with only runner quote/backslash
+    escaping accounted for. Native 702 payloads/703 ZIP members/thirty canonical inputs and owned process/temp
+    cleanup independently verify (E-I127). Both earlier failed fixture CI attempts remain retained. Owner asks
+    to finish this slice and stop before restarting Codex elevated; stop after evidence push, leave both VMs
+    running. No USB action, native/AT/candidate qualification or stable publication. Overall NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I127: earlier folder-count passes do not qualify inaccessible-subtree lower bounds or retries after restored
-  access. Corrected probe/affected/full host suites pass; clean CI/guest and native/candidate remain required.
+  access. Corrected probe/affected/full host suites, four clean CI lanes and 122 guest controls pass. Native/AT/
+  candidate remain required.
 
 - I126: previous comparison passes do not qualify revision/length lifetime during close or F5. Corrected owned
   real-file probes/affected Core/App/full App pass, as do four clean CI lanes and 91 guest controls. Wider content
@@ -1405,6 +1416,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    host suites, four clean CI lanes and 87 guest controls (I125); wider/native/candidate remain.
    Comparison revision/length lifetime now passes owned probes, four regressions/affected and full App,
    four clean CI lanes and 91 guest controls (I126). Wider content/native/candidate remain.
+   Inaccessible subtree/zero-byte counts now retain lower-bound labels and permit restored-access retry (I127):
+   owned probes/affected/full host suites, four clean CI lanes and 122 SDK-free guest controls pass. Native/AT/
+   candidate remain, alongside many marked folders and the other partial-count scenarios.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now
