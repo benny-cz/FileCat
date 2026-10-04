@@ -5,7 +5,21 @@ Operational plan: [FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md](../../d
 [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), [open blockers and decisions](FILECAT_1_0_RELEASE_BLOCKERS.md).
 Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` once a candidate exists.
 
-## Current state (updated 2026-10-04)
+## Current state (updated 2026-10-05)
+
+I132 corrects the quick-search Escape fixture's early focus checkpoint; production source is unchanged.
+The original 545d627 macOS CI failure is retained with its full artifact/case inventory. An independent
+held-continuation probe demonstrates one invalid early-observer failure and three passing controls;
+it does not identify the historical CI event timing. All nine affected/full App 322 with 21 declared
+skips pass after a short-temp Git fixture precondition correction. Clean 5a11100 passes all four CI
+jobs; four server artifact digests/six full TRX inventories verify. All nine quick-search cases pass
+without skips per Windows/Ubuntu/macOS App inventory; ARM64 App/package checks pass with log totals.
+The following records retain their own exact baselines; native data remains qualified preliminarily.
+
+The owner confirms Mac SSH availability, but two fresh agent connections time out before login;
+the Windows LAN neighbor address is unresolved. Raw tool observations are retained privately in
+`mac-agent-connectivity-20261005/observations.json`; exact cause is unknown. Owner wake/connectivity
+confirmation is pending. No new Mac test or system change is claimed at this checkpoint.
 
 Clean fdb17b4 completes the preliminary I129-I131 validation slice. The test-only I131 correction
 observes count progress before refresh replaces a partial row, retaining all retired-result oracles.
@@ -98,9 +112,9 @@ No candidate or human GO exists; overall NO-GO.
 - **Controls and people:** private reporting, release protections, signing, retained REP storage, support decisions
   and human validation/GO gates remain open. No release controls were changed and nothing was published.
 
-## Progress snapshot (2026-10-04)
+## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I131 at clean fdb17b4, the §14 checklist has the following conservative gate status.
+After verified preliminary remediation through I132 at clean 5a11100, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -113,7 +127,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **109 of 131 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **110 of 132 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -1395,7 +1409,36 @@ in E-I129, E-I130 and E-I131. Overall **NO-GO** remains.
     No production change/new issue; 109/131 remediated and 24/26 steps open remain. Both VMs stay
     running, G: untouched, native UI/hardware/AT/candidate remain, no human GO. NO-GO (E-V12-N1).
 
+251. Subsequent 545d627 macOS CI exposes I132's early Escape focus checkpoint (1000 versus 0),
+    raw artifact/server digest/full case inventory retained. Held actual-production continuation
+    shows one controlled old-observer failure/three controls; cancellation timing corrects that
+    observer, not production. Two forced before/after answer controls and all nine quick-search
+    cases pass. Initial namespace compile and long-temp Git setup failures retained; unchanged
+    build passes short-temp setup control/full App 322 with 21 skips, owned temp absent at
+    22:26:43 UTC. Independent working proof SHA-256
+    `567b8020982b2a5a966f69c73d25fbc04215c360dd9aa581b2ff4d2de5b99e28`.
+    Exact historical CI timing unavailable. Test-only 5a11100 is pushed; clean CI in progress.
+    110/132 remediated, 24/26 release steps partly/fully open. No candidate or human GO (E-I132).
+
+252. Clean correction 5a11100 CI 37240337432 passes all four required jobs; three tag/manual package
+    jobs are declared skipped. Four downloaded artifacts match server SHA-256/bytes/source identity;
+    six complete TRX inventories match test IDs/outcomes/skip reasons and each full App inventory
+    matches all 343 host case names. Nine quick-search cases pass without skips per Windows/Ubuntu/
+    macOS inventory; full App totals are 328/15 declared skips on Windows and 300/43 on each Unix lane.
+    ARM64 full App 328/15 and package startup/drawing/installer checks pass; no per-case TRX there.
+    Independent CI proof SHA-256
+    `6b50257c52ce896423855a40da26739856fe5440cf7f28ac89dd103a01dc431f`.
+    Owner confirms Mac SSH access, but two fresh agent connections time out before login and LAN
+    neighbor resolution is unavailable; owner asked to keep it awake/connected and reconfirm. No new
+    Mac test/device access is claimed. Both VMs stay running; G: untouched. Progress remains 110/132
+    remediated, 24/26 checklist steps partly/fully open, no candidate/human GO, overall NO-GO (E-I132).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I132: earlier quick-search passes do not prove cancellation-relative focus when a match completes
+  during input delivery. The corrected observer/forced controls, full host suite and all four clean CI
+  jobs now pass with complete affected inventories. Native/candidate obligations remain; production
+  and E-V12-N1 data are unchanged.
 
 - I129-I131: earlier passes did not cover already queued retired results, unchanged folder-caption
   demand or the partial-progress checkpoint after refresh. Controlled corrections, host suites, four
