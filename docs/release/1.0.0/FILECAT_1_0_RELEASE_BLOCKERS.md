@@ -146,8 +146,10 @@ deferred disposal and request retirement pass nine controls/38 affected cases an
 App 263/21 skips. All 267 inputs/source/active assemblies/direct XML verify (E-I119). Clean de1fd71 passes
 45 guest cases, zero skips; exact payload/cases/cleanup verify. Three CI lanes pass; Windows fails the existing
 live NTFS fixture I120, while all 45 affected cases pass. Split MFT/live-history controls declare actual unavailable
-history skipped; full host platform 161/38 skips and nine golden cases pass (E-I120). Elevated guest and successor
-overall CI, direct Source/picture use, wider queue/device controls and native/candidate remain. Native automation import
+history skipped; full host platform 161/38 skips and nine golden cases pass (E-I120). Clean successor 9074cf6
+passes four CI lanes and 20 elevated guest cases, zero affected skips, including complete live-history assertions
+in both CI and guest. Exact inputs/payloads/source/artifact digests/XML/process/temp cleanup verify.
+Direct Source/picture use, wider queue/device controls and native/candidate remain. Native automation import
 again exits before input with a trusted-Node/kernel-reset error; component and VIX guest execution remain usable.
 
 | ID | Needed | Status |

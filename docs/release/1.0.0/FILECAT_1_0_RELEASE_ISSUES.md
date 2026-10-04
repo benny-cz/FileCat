@@ -10,8 +10,8 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
-| I120 | Live NTFS fixture dereferences an absent table after its history falls outside the retained window | Low (validation reliability) | Must fix (CI/I23) | Original de1fd71 Windows CI failure retained. Separate MFT/live-history checks declare unavailable history skipped; full host platform 161/38 skips and nine golden cases pass. 130 inputs/source/original XML verify. Elevated guest/clean CI next (E-I120) |
-| I119 | Closing a page reader disposes an active source call and leaves later page/refresh demand alive | Medium (resource lifetime) | Must fix (V12/AI-03) | Remediated de1fd71; verified preliminarily: eight baseline failures, nine corrected/38 affected cases/full host suites and 45 clean guest cases pass. Three CI lanes pass; Windows fails I120 while all 45 affected cases pass. Exact inputs/artifacts/XML/cleanup verify; successor CI/direct Source/picture/native/candidate pending (E-I119) |
+| I120 | Live NTFS fixture dereferences an absent table after its history falls outside the retained window | Low (validation reliability) | Must fix (CI/I23) | Remediated 9074cf6; verified preliminarily: original CI failure retained, full host platform/golden controls, four clean CI lanes and 20 elevated guest cases pass. Complete live history passes in CI/guest, zero affected skips. Exact inputs/payloads/source/artifact digests/XML/cleanup verify; native/candidate pending (E-I120) |
+| I119 | Closing a page reader disposes an active source call and leaves later page/refresh demand alive | Medium (resource lifetime) | Must fix (V12/AI-03) | Remediated de1fd71; verified preliminarily: eight baseline failures, nine corrected/38 affected cases/full host suites and 45 clean guest cases pass. Original I120 CI failure retained; clean successor passes four lanes/all affected XML cases. Exact inputs/artifacts/XML/cleanup verify; direct Source/picture/native/candidate pending (E-I119) |
 | I118 | In-flight metadata repopulates invalidated values, including stale checksum matches | Medium (metadata truth) | Must fix (V12/V15) | Remediated 2896108; verified preliminarily: four original failures, six final controls/full host suites, four CI lanes and ten clean guest cases pass. Exact working/payload/source/XML/artifact-digest/cleanup inventories verify. Native/candidate pending (E-I118) |
 | I117 | Late-name discovery fixture can finish before any probe is handled | Low (validation reliability) | Must fix (CI/I23 evidence) | Remediated da3a3d6; verified preliminarily: eight network/full Core 730/46 skips and seven App controls, four clean CI lanes and 15 guest cases pass. Mutation fails twice; original ARM64 failure retained/scheduling untraced. Exact inputs/artifacts/XML/cleanup verify; candidate/real-device pending (E-I117) |
 | I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated 6ecf4a8; verified preliminarily: two valid baseline failures/two TAR/gzip positives, 32 affected controls and full host suites. Four CI lanes and 34 clean guest cases pass; exact inputs/artifact digests/XML/cleanup verify. Other formats/native/candidate pending (E-I116) |
@@ -141,8 +141,11 @@ level the plan already states; exploit-level detail is not recorded here.
 - MFT checks are separate from bounded live-log checks. The latter declares known missing history skipped,
   preserves creation/name/time-change assertions and fails other missing-table reasons with the report.
 - Full host platform 161/38 skips and nine golden log cases pass; eleven record cases have seven passes/four
-  declared privilege skips. All 130 inputs/source/active assemblies/original XML verify. Elevated guest and
-  clean CI are next. See [E-I120](evidence/E-I120-ntfs-live-history-fixture.md).
+  declared privilege skips. All 130 inputs/source/active assemblies/original XML verify. Clean 9074cf6 passes
+  four CI lanes and 20 elevated guest cases, zero affected skips; complete live history passes in both.
+  All 625 payloads/626 ZIP members/seven sources/artifact digests/XML/process/temp cleanup verify.
+  Guest system-volume metadata reads are explicit; no physical USB or recovery-source qualification.
+  Native/candidate remain. See [E-I120](evidence/E-I120-ntfs-live-history-fixture.md).
 
 ### I119 — Closing page readers races source calls and leaves abandoned demand
 
@@ -154,8 +157,9 @@ level the plan already states; exploit-level detail is not recorded here.
 - Nine final controls/38 affected cases and full Core 745/46 skips/App 263/21 skips pass; 267 inputs/eleven sources
   per stage/active assemblies/direct XML independently verify. Clean de1fd71 passes 45 guest cases, zero skips;
   683 payloads/684 ZIP members/eleven sources/XML/cleanup verify. Three CI lanes pass; all 45 affected Windows
-  and seven Linux/macOS App cases pass, but Windows fails I120. Successor overall CI, many active calls, direct
-  Source/picture lifetime, scheduler bounds, native/candidate remain. See [E-I119](evidence/E-I119-page-reader-lifetime.md).
+  and seven Linux/macOS App cases pass, but Windows fails I120. Clean successor 9074cf6 passes all four CI
+  lanes and all affected cases, with original failure retained. Many active calls, direct Source/picture lifetime,
+  scheduler bounds, native/candidate remain. See [E-I119](evidence/E-I119-page-reader-lifetime.md).
 
 ### I118 — In-flight metadata restores values invalidated by a sidecar change
 

@@ -55,7 +55,7 @@ on Linux/macOS pass directly in XML. The only failure is the existing NTFS histo
 an absent log table while its actual report says the fixture's last change is older than the circular log still
 holds. Six inventories verify: Windows Core 744/47 skips, App 269/15, platform 164/33 skips/one failure and
 Remote 88/28; Linux/macOS App each 248/36. Three raw artifact ZIPs match server digests. Overall CI success
-is still pending a successor; no rerun erased the original failure.
+was held by that fixture; no rerun erased the original failure.
 
 | Clean-source evidence | SHA-256 |
 |---|---|
@@ -66,6 +66,14 @@ is still pending a successor; no rerun erased the original failure.
 | Runner / cleanup / launch wrapper | `574316a1c8dbf86e6960287a0a34747f4f214a33fc1524f1928ca35e22db3a10` / `e96b593796f23f2e9eea8c067796c58f8a32f419f8d65f7e71b3b9bf318d19b9` / `f9fe81966f2030fc81c1baef714b959d310d0691716f18bfa2085b15d6c1fd85` |
 | Guest Core / App XML | `7e76d076ed67e2d0bb9a6ccc8e4b31796cb7bdfad14b643bd27c811eae5c15f1` / `e0960bd954189694639154be66ad5c9c1d0a9086e7c069293a494a82cd58178c` |
 | Cleanup / independent guest inventory | `e3fbd02fe238ea1d605b82dac7dfae1f6acf3b74fd6c265d8cae57657804c708` / `146c459d5f9153dbd479eeb65fac7e6927eb09fa4395ce7ff08b0549c1424ba9` |
+
+Clean successor `9074cf654123467829e4085becaf52b9695ea5ab` passes all four required lanes in
+[CI run 37183143181](https://github.com/benny-cz/FileCat/actions/runs/37183143181), with three skipped
+package jobs. All 45 page-reader/quick-view Windows cases and seven App cases on Linux/macOS pass again.
+The eleven split NTFS record/history cases also pass, including retained live-history assertions (E-I120).
+Six direct XML inventories and three server-digest-matching raw ZIPs independently verify; inventory
+SHA-256 `547377c0039e2a00a9941ddaf9e1e67fa18cbbbd8e6183ccc2791999ade1a839`.
+The successor's exact artifact pins are recorded in [E-I120](E-I120-ntfs-live-history-fixture.md).
 
 Many simultaneous active source calls, broader viewport queue/device bounds, direct picture feeds,
 concurrent real copy/search, many-folder/partial-size controls, native frame/AT and exact-candidate checks
