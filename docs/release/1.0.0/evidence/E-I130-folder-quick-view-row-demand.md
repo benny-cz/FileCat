@@ -59,3 +59,17 @@ multiplicity and affected/full inventories independently verify. Manifest SHA-25
 Full-suite skips retain their prerequisite reasons. Clean committed CI and SDK-free guest revalidation
 are next; native frames/AT/hardware/final-candidate evidence remains required. Both VMs stay running,
 G: stays untouched, Mac authorization is retained in E-I129. Overall **NO-GO**; no candidate or human GO.
+
+
+## Clean committed CI and first guest outcome
+
+Clean 3a408eb passes all four required jobs in [CI 37228520630](https://github.com/benny-cz/FileCat/actions/runs/37228520630);
+three artifact server digests/six full TRX inventories verify, proof SHA-256 `775b802f3b567da512bdc3f9f09aa7cdbde9a7a63375e52a72613ab15a3e9a5f`.
+All 72 affected Windows cases pass; each Unix lane has 56 passes/sixteen declared skips, including the
+Windows-only Shell thumbnail case. All twelve I130 cases pass per platform.
+
+The guest run ends 19:36:55 UTC with 70/72 passes, two I129 early live-row fixture checkpoint failures.
+All twelve I130 and all seven I127 cases pass. Failed XML/outputs and cleanup are retained in clean-3a408eb;
+controller 10956/worker 10420 and owned temp files are absent at 19:39:57 UTC. This remains a failed
+affected run. E-I131 reproduces the invalid checkpoint with a controlled refresh and corrects only
+the test; exact historical trigger is unavailable. New clean guest revalidation remains required.

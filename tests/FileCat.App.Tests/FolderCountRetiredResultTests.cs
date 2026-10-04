@@ -44,11 +44,14 @@ public sealed class FolderCountRetiredResultTests(ITestOutputHelper output)
     private sealed class Queued(IUiDispatcher inner) : IUiDispatcher
     {
         public bool Capture;
+        public Action? Applied;
         public readonly ConcurrentQueue<Action> Pending = new();
         public bool CheckAccess() => inner.CheckAccess();
         public void Post(Action action)
         {
             if (Capture && action.Method.Name.Contains("<SizeFolder>", StringComparison.Ordinal)) Pending.Enqueue(action);
+            else if (action.Method.Name.Contains("<SizeFolder>", StringComparison.Ordinal))
+                inner.Post(() => { action(); Applied?.Invoke(); });
             else inner.Post(action);
         }
         public void Apply()
@@ -74,7 +77,16 @@ public sealed class FolderCountRetiredResultTests(ITestOutputHelper output)
     [InlineData("replace-demand", true, 32, true)]
     [InlineData("complete", false, 1, true)]
     [InlineData("complete", true, 1, true)]
-    public async Task Retired_count_results_do_not_publish(string action, bool replaced, int folders, bool queuedResult)
+    public Task Retired_count_results_do_not_publish(string action, bool replaced, int folders, bool queuedResult)
+        => CheckRetiredCount(action, replaced, folders, queuedResult, forceRefresh: false);
+
+    [AvaloniaTheory]
+    [InlineData("cancel-retry")]
+    [InlineData("replace-demand")]
+    public Task A_refresh_after_progress_does_not_prevent_testing_retired_results(string action)
+        => CheckRetiredCount(action, replaced: true, folders: 32, queuedResult: false, forceRefresh: true);
+
+    private async Task CheckRetiredCount(string action, bool replaced, int folders, bool queuedResult, bool forceRefresh)
     {
         string parent = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
         string root = Path.GetFullPath(Path.Combine(parent, "filecat-count-retired-test-" + Guid.NewGuid().ToString("N")));
@@ -101,6 +113,8 @@ public sealed class FolderCountRetiredResultTests(ITestOutputHelper output)
         MainWindow? window = null;
         object? observation = null;
         var problems = new List<string>();
+        Queued? queued = null;
+        bool progressApplied = false;
         try
         {
             services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
@@ -116,12 +130,26 @@ public sealed class FolderCountRetiredResultTests(ITestOutputHelper output)
             await Wait(() => listing.State == ListingState.Complete && listing.FocusName("counted"));
             listing.MarkNames(names, true);
             Assert.Equal(folders, listing.MarkedCount);
-            var queued = new Queued(services.Ui);
+            queued = new Queued(services.Ui);
+            queued.Applied = () =>
+            {
+                var current = listing.Store[listing.FindStoreIndex("counted")];
+                if (current.Size == 1000 && !current.Has(EntryFlags.SizeComputed)) progressApplied = true;
+            };
             typeof(AppServices).GetField("<Ui>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(services, queued);
             queued.Capture = queuedResult;
             vm.CountFolderSizes(tab);
             await Wait(() => held.Asked.IsSet && (queuedResult || tab.SizingFolders == 1));
-            if (!queuedResult) await Wait(() => listing.Store[listing.FindStoreIndex("counted")].Size == 1000);
+            // Observe the real progress application. A refresh may subsequently replace that partial row with
+            // unknown size while the worker is held; waiting on its later value would miss this checkpoint.
+            if (!queuedResult) await Wait(() => progressApplied);
+            if (forceRefresh)
+            {
+                listing.Refresh();
+                await Wait(() => !listing.IsRefreshing && listing.State == ListingState.Complete);
+                Assert.True(progressApplied);
+                Assert.Equal(1, tab.SizingFolders);
+            }
             Assert.Equal(2, held.Asks);
             int pendingBeforeCancel = 0;
             if (queuedResult)
@@ -179,10 +207,11 @@ public sealed class FolderCountRetiredResultTests(ITestOutputHelper output)
             }
             Assert.Equal(folders, listing.MarkedCount);
             Assert.Equal(focused, listing.GetVisible(listing.FocusedIndex).Name);
-            observation = new { action, replaced, folders, queuedResult, pendingBeforeCancel, expectedBytes, beforeReleaseBytes, ActualBytes = actual.Size, Flags = actual.Flags.ToString(), stats, tab.SizingFolders, tab.CanCountMarked, tab.StatusMarked, vm.Notification, held.Asks, BeforeSHA256 = beforeHash, ExpectedAfterSHA256 = expectedHash, ActualAfterSHA256 = Hash(payload), OwnedRealFiles = true, ControlledIdentityHold = true, ControlledUiPosts = queuedResult, NativeDesktop = false, PhysicalDevice = false, Problems = problems.ToArray() };
+            observation = new { action, replaced, folders, queuedResult, forceRefresh, progressApplied, pendingBeforeCancel, expectedBytes, beforeReleaseBytes, ActualBytes = actual.Size, Flags = actual.Flags.ToString(), stats, tab.SizingFolders, tab.CanCountMarked, tab.StatusMarked, vm.Notification, held.Asks, BeforeSHA256 = beforeHash, ExpectedAfterSHA256 = expectedHash, ActualAfterSHA256 = Hash(payload), OwnedRealFiles = true, ControlledIdentityHold = true, ControlledUiPosts = queuedResult, NativeDesktop = false, PhysicalDevice = false, Problems = problems.ToArray() };
         }
         finally
         {
+            if (queued is not null) queued.Applied = null;
             held.Release.Set();
             if (vm is not null) foreach (var job in vm.Services.Jobs.Jobs) job.Cancel();
             window?.Close();

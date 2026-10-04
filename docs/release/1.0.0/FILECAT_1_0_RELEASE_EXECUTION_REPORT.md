@@ -7,19 +7,21 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-04)
 
-I130 controlled caption-demand investigation reproduces eight unchanged-key failures with four passing
-controls. QuickViewPane now retains pending/displayed folder demand until its key changes. Identical
-App-only probe 12/12, affected host 72/72 and full App 318 pass with 21 declared skips; exact inputs and
-case inventories verify. Clean committed CI/SDK-free guest revalidation is next (E-I130).
+I131 validation repair observes actual count progress before refresh can replace a partial row.
+Two controlled checkpoint failures/two controls retained; four corrected probes keep every production
+DLL unchanged. Original sixteen cases plus two forced-refresh controls, 74 affected host and full App
+320 pass with 21 declared skips. Exact inputs/case inventories verify. Clean committed CI/guest next.
 
-I129 f341dfd CI passes all four jobs/all sixteen new cases per platform. Its first affected guest remains
-41/43, two existing zero-byte I127 refresh-caption failures. The original failure and isolated diagnostic
-7/7 are retained; I130's controlled trace does not prove their exact historical cause. Diagnostic
-controller 7220/worker 14120 and owned temp files are absent at 19:20:34 UTC. New guest revalidation remains.
+I130 3a408eb passes all four CI jobs; three server digests/six full inventories verify. All twelve new
+caption cases pass each platform/guest; Windows affected 72 pass and each Unix lane has 56 passes/sixteen
+declared skips. First affected guest is 70/72, two I129 early fixture checkpoint failures. All seven
+I127 lower-bound cases pass. Raw failures and owned process/temp cleanup are retained; exact historical
+event trigger is unavailable. Original f341dfd 41/43 remains a distinct failed run (E-I129–E-I131).
 
-Computer Use's recorded sandbox startup failure still blocks desktop input; the tool shell is unelevated.
-Both VMs stay running. G: is authorized but untouched; the historical USB source-change gate remains held.
-Owner-authorized Mac SSH works (macOS 26.6.2 arm64, eight CPUs/16 GiB/admin). No candidate or human GO exists.
+Both VMs stay running. Computer Use's recorded startup failure still blocks native input; the tool
+shell is unelevated. G: stays untouched and its historical source-change gate remains held. Owner's
+Mac SSH works; Python is present, dotnet is not on the SSH PATH, roughly 786 GiB available on its data volume. No remote
+mutation. No candidate or human GO exists; overall NO-GO.
 
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
@@ -88,7 +90,7 @@ Owner-authorized Mac SSH works (macOS 26.6.2 arm64, eight CPUs/16 GiB/admin). No
 
 ## Progress snapshot (2026-10-04)
 
-After preliminary remediation through I130 (working overlay on 5e5799d), the §14 checklist has the following conservative gate status.
+After preliminary remediation through I131 (working test overlay on 3a408eb), the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -101,7 +103,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **108 of 130 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **109 of 131 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -1346,6 +1348,17 @@ evidence and the source-pinned failure inventory are in E-I129. Overall **NO-GO*
     Inputs/748 captures/27 sources/XML/case inventories verify. I129 diagnostic process/temp cleanup
     verifies at 19:20:34 UTC; original guest 41/43 failure remains retained, exact attribution unknown.
     Clean committed CI/guest next. Both VMs remain running, no native input/USB access. NO-GO (E-I130).
+
+248. Clean I130 3a408eb passes four CI jobs; artifact server digests/six TRX inventories/72 Windows
+    affected and 56 Unix affected passes with sixteen declared skips verify. First guest 70/72 retains
+    two I129 early checkpoint failures; all twelve I130/seven I127 cases pass. Controller 10956/worker
+    10420 and temp files are absent at 19:39:57 UTC. I131 controlled refresh shows 1,000 partial bytes
+    applied, then an unknown replacement row while the identity worker remains held: two original
+    checkpoint failures/two controls. Fixture observes the actual callback; no production change.
+    Corrected four-case probe/all 74 affected/full App 320 with 21 skips pass; 748 inputs/27 sources/
+    complete inventories verify. Historical event trigger is not asserted. Clean CI/guest next.
+    Mac read-only environment: Python available, dotnet not on the SSH PATH, data-volume free space sufficient for
+    owned probes. Both VMs stay running, no native input/USB access/Mac mutation. NO-GO (E-I131).
 
 ## Evidence invalidated by the campaign's own changes
 

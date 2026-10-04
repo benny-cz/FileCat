@@ -30,6 +30,13 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I130 clean 3a408eb passes four CI jobs; exact artifacts/72 Windows affected/56 Unix affected passes
+plus sixteen declared skips verify. First guest is 70/72: twelve I130 and seven I127 cases pass, two
+I129 early live-row fixture checkpoints fail. Original outputs/owned cleanup retained. I131 controlled
+refresh reproduces that checkpoint failure; fixture-only correction and two refresh controls pass four
+independent/74 affected/full App 320 tests with 21 skips. Clean committed revalidation remains. Exact
+historical trigger is not asserted; native/AT/hardware/candidate remain (E-I130, E-I131).
+
 I130: unrelated/repeated unchanged folder rows clear or postpone quick-view captions. Eight unchanged-
 key failures/four controls retained; App-only correction, identical twelve-case probe, affected 72/full
 318 App tests pass with 21 full-suite skips. Clean committed CI/guest revalidation remains. Original
