@@ -169,7 +169,7 @@ public sealed class DeviceIoScheduler : IDisposable
                 _queue.Enqueue(item, ((int)priority, _seq++));
                 if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);
-                else if (ActiveWorkers() < owner.ThreadsPerDevice || (_queue.Count > 0 && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice))
+                else if (_workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
                     StartWorker();
             }
         }
@@ -247,8 +247,11 @@ public sealed class DeviceIoScheduler : IDisposable
             lock (_lock)
             {
                 long now = Stopwatch.GetTimestamp();
-                foreach (var w in _workers)
+                // Replacements are appended below; inspect only the workers present when this tick began.
+                int count = _workers.Count;
+                for (int i = 0; i < count; i++)
                 {
+                    var w = _workers[i];
                     if (w.Quarantined || w.Current is null) continue;
                     if (Stopwatch.GetElapsedTime(w.Current.StartedTimestamp, now) > owner.HangThreshold)
                     {

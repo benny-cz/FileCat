@@ -179,6 +179,13 @@ Clean 08acc2f passes four CI lanes and 17 guest cases, zero affected skips. Exac
 members/thirteen sources/server artifact digests/XML/worker/temp cleanup verify. This test-only remedy does not
 change production replacement policies; native/candidate checks remain.
 
+I124: an isolated probe using the original production scheduler DLL terminates on an unhandled timer/list-mutation
+exception when a hung call gains a replacement. A separate controlled Watch run admits three simultaneous calls
+despite a two-worker cap. Enqueue now enforces the cap and Watch scans its initial worker count. Both corrected
+probes, two new controls, 48 affected Core/37 App cases and full Core 747/46 skips/App 271/21 skips pass.
+All 1,084 inputs/nineteen sources/probe DLLs/observations/direct XML/process cleanup verify (E-I124). Clean CI/guest
+checks are next; actual hung hardware, wider queues, aggregate decoders and native/candidate remain unqualified.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
