@@ -1109,7 +1109,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     members/eight source copies and output pins independently verify. Controller/workers are absent, owned
     temp empty (E-I118). Native demand/frame/AT, concurrent workloads and candidate qualification remain.
 
+221. V12 page-load controls expose I119: closing a reader disposes a held actual-file read/revision source,
+    and later page/refresh requests access the closed source. Eight baseline failures plus one normal cached-byte
+    control; coordinated source-use accounting defers disposal while immediately retiring cache/new demand.
+    Nine controls/38 affected cases and full Core 745/46 skips/App 263/21 skips pass. All 267 inputs/eleven
+    sources per stage/active assemblies/direct XML verify (E-I119). Clean CI/guest next. Direct Source/picture
+    use and wider queue/device/native/candidate remain. Native automation import again ends with trusted-Node
+    exit/kernel reset before any input; component and VIX guest execution remain available.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I119: prior page-reader tests do not qualify disposal against active provider calls or retired refresh demand.
+  Working component/full host suites pass; clean CI/guest and native/candidate checks remain required. Direct
+  calls through Source, including picture feeds, are outside this remedy's protection.
 
 - I118: earlier metadata cache/verification evidence does not qualify the new publication and demand lifetimes.
   Working component/full host, clean CI and guest controls pass; native frame/AT/candidate checks remain required.
@@ -1207,6 +1219,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
    In-flight invalidation/retry and controlled rapid viewport demand now pass working/full host suites and clean
    CI/guest controls (I118). Native request/queue traces and UI-thread timing remain required.
+   Page-reader calls now retire new demand and release active sources safely on close (I119 working/full host
+   suites pass; clean CI/guest next). Direct Source/picture feeds and wider device/queue bounds remain open.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

@@ -10,6 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
+| I119 | Closing a page reader disposes an active source call and leaves later page/refresh demand alive | Medium (resource lifetime) | Must fix (V12/AI-03) | Eight baseline failures; nine corrected controls/38 affected cases and full Core 745/46 skips/App 263/21 skips pass. 267 inputs/source/active assemblies/direct XML verify. Clean CI/guest next; direct Source/picture/native/candidate pending (E-I119) |
 | I118 | In-flight metadata repopulates invalidated values, including stale checksum matches | Medium (metadata truth) | Must fix (V12/V15) | Remediated 2896108; verified preliminarily: four original failures, six final controls/full host suites, four CI lanes and ten clean guest cases pass. Exact working/payload/source/XML/artifact-digest/cleanup inventories verify. Native/candidate pending (E-I118) |
 | I117 | Late-name discovery fixture can finish before any probe is handled | Low (validation reliability) | Must fix (CI/I23 evidence) | Remediated da3a3d6; verified preliminarily: eight network/full Core 730/46 skips and seven App controls, four clean CI lanes and 15 guest cases pass. Mutation fails twice; original ARM64 failure retained/scheduling untraced. Exact inputs/artifacts/XML/cleanup verify; candidate/real-device pending (E-I117) |
 | I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated 6ecf4a8; verified preliminarily: two valid baseline failures/two TAR/gzip positives, 32 affected controls and full host suites. Four CI lanes and 34 clean guest cases pass; exact inputs/artifact digests/XML/cleanup verify. Other formats/native/candidate pending (E-I116) |
@@ -130,6 +131,17 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I119 — Closing page readers races source calls and leaves abandoned demand
+
+- Eight unchanged-production controls hold actual local-file read/revision calls: close disposes their source
+  during the call; a multi-page read loses its first page, and closed readers request pages or access the source
+  during Refresh. A completed-byte/cache/budget control passes. No fixture-timeout failure counts as evidence.
+- Source-use accounting defers disposal to the last active call, while close releases cache memory immediately.
+  New page/refresh requests stop, multi-page reads end at a safe boundary and retired errors/revisions cannot land.
+- Nine final controls/38 affected cases and full Core 745/46 skips/App 263/21 skips pass; 267 inputs/eleven sources
+  per stage/active assemblies/direct XML independently verify. Clean CI/guest next; many active calls, direct
+  Source/picture lifetime, scheduler bounds, native/candidate remain. See [E-I119](evidence/E-I119-page-reader-lifetime.md).
 
 ### I118 — In-flight metadata restores values invalidated by a sidecar change
 

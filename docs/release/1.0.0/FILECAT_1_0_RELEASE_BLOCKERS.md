@@ -140,6 +140,13 @@ controls and full Core 736/46 skips/App 263/21 skips pass; 477 inputs/direct XML
 Clean 2896108 passes four CI lanes and ten guest cases, zero skips; exact source/payload/artifact digests/XML
 and process/temp cleanup verify. Native demand/frame/AT and exact candidate remain.
 
+V12's page-load lifetime controls expose I119: closing a reader disposes its actual local-file source during
+an active read/revision call, while closed readers still issue page/refresh demand. Eight baseline failures;
+deferred disposal and request retirement pass nine controls/38 affected cases and full Core 745/46 skips,
+App 263/21 skips. All 267 inputs/source/active assemblies/direct XML verify (E-I119). Clean CI/guest,
+direct Source/picture use, wider queue/device controls and native/candidate remain. Native automation import
+again exits before input with a trusted-Node/kernel-reset error; component and VIX guest execution remain usable.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

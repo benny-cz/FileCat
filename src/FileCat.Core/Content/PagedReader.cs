@@ -20,6 +20,8 @@ public sealed class PagedReader : IDisposable
     private readonly PageCacheBudget _budget;
     private readonly PageCacheBudget.Account _account;
     private bool _disposed;
+    private int _sourceUses;
+    private bool _sourceDisposed;
     private readonly object _lock = new();
     private readonly Dictionary<long, LinkedListNode<Page>> _pages = new();
     private readonly LinkedList<Page> _lru = new();
@@ -83,6 +85,7 @@ public sealed class PagedReader : IDisposable
     public bool TryRead(long offset, Span<byte> destination, out int read)
     {
         read = 0;
+        lock (_lock) if (_disposed) return true;
         long len = Length;
         if (offset >= len || destination.Length == 0) return true;
         bool complete = true;
@@ -93,6 +96,7 @@ public sealed class PagedReader : IDisposable
             Page? page;
             lock (_lock)
             {
+                if (_disposed) return true;
                 if (_pages.TryGetValue(index, out var node))
                 {
                     _lru.Remove(node);
@@ -147,7 +151,7 @@ public sealed class PagedReader : IDisposable
     {
         lock (_lock)
         {
-            if (!_loading.Add(index)) return;
+            if (_disposed || !_loading.Add(index)) return;
         }
         ThreadPool.QueueUserWorkItem(_ =>
         {
@@ -166,21 +170,31 @@ public sealed class PagedReader : IDisposable
         long generation;
         lock (_lock)
         {
+            if (_disposed) return null;
             if (_pages.TryGetValue(index, out var existing)) return existing.Value;
             generation = _generation;
+            _sourceUses++;
         }
-        var buffer = new byte[PageSize];
+        byte[] buffer;
         int n;
         try
         {
+            buffer = new byte[PageSize];
             n = _source.Read(index * PageSize, buffer);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ObjectDisposedException)
         {
-            if (ex is not ObjectDisposedException) ReadError = ex.Message;
-            lock (_lock) _failed[index] = DateTime.UtcNow;
+            lock (_lock)
+            {
+                if (!_disposed)
+                {
+                    if (ex is not ObjectDisposedException) ReadError = ex.Message;
+                    _failed[index] = DateTime.UtcNow;
+                }
+            }
             return null;
         }
+        finally { EndSourceUse(); }
         var page = new Page(index, buffer, n);
         lock (_lock)
         {
@@ -226,22 +240,34 @@ public sealed class PagedReader : IDisposable
     /// <summary>Re-reads length and revision; drops cached pages when the content changed (external truncation).</summary>
     public bool Refresh()
     {
-        var rev = _source.GetRevision();
-        long len = Math.Max(0, _source.Length);
-        bool changed = rev != Revision || len != Length;
-        if (changed)
+        lock (_lock)
         {
-            lock (_lock)
+            if (_disposed) return false;
+            _sourceUses++;
+        }
+        ContentRevision? rev;
+        long len;
+        try
+        {
+            rev = _source.GetRevision();
+            len = Math.Max(0, _source.Length);
+        }
+        finally { EndSourceUse(); }
+        lock (_lock)
+        {
+            if (_disposed) return false;
+            bool changed = rev != Revision || len != Length;
+            if (changed)
             {
                 _generation++;
                 _budget.Adjust(_account, -(long)_pages.Count * PageSize);
                 _pages.Clear();
                 _lru.Clear();
+                Interlocked.Exchange(ref _length, len);
+                Revision = rev;
             }
-            Interlocked.Exchange(ref _length, len);
-            Revision = rev;
+            return changed;
         }
-        return changed;
     }
 
     /// <summary>
@@ -270,9 +296,24 @@ public sealed class PagedReader : IDisposable
         }
     }
 
-    /// <summary>Disposes the source and lets go of the cached pages and their charge on the shared budget.</summary>
+    // A provider may still be inside a synchronous read/revision call when its view closes. Retire the cache
+    // immediately, but release its source only after the last such call returns, without blocking the UI.
+    private void EndSourceUse()
+    {
+        bool dispose;
+        lock (_lock)
+        {
+            _sourceUses--;
+            dispose = _disposed && _sourceUses == 0 && !_sourceDisposed;
+            if (dispose) _sourceDisposed = true;
+        }
+        if (dispose) _source.Dispose();
+    }
+
+    /// <summary>Retires page demand and releases the cache budget; an active source call finishes before disposal.</summary>
     public void Dispose()
     {
+        bool disposeSource;
         lock (_lock)
         {
             if (_disposed) return;
@@ -280,8 +321,12 @@ public sealed class PagedReader : IDisposable
             _generation++;
             _pages.Clear();
             _lru.Clear();
+            _failed.Clear();
+            ReadError = null;
+            disposeSource = _sourceUses == 0;
+            if (disposeSource) _sourceDisposed = true;
         }
         _budget.Close(_account);
-        _source.Dispose();
+        if (disposeSource) _source.Dispose();
     }
 }
