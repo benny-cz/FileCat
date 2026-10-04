@@ -1073,6 +1073,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     hash-verify before the redundant failed tree is removed. Clean package/CI evidence uses that workspace.
     No historical/source evidence discarded; other-format/native/candidate and sealed-store gates remain.
 
+216. V13's remaining saved-criteria/duplicates component controls pass (E-V13-F2). Four actual headless Find
+    flows save literal/regex/hex/Unicode criteria, reload settings from disk and reopen/search an independently
+    specified positive/negative byte corpus. Duplicates within a six-file subset retain both known groups,
+    original relative paths/source membership and correct extra-copy marking, excluding unselected identical
+    files and same-size different bytes. Full App 263/21 skips passes; 106 inputs/ten sources/direct XML verify.
+    No production defect found. Clean CI/guest is next; process restart/native/candidate remain open.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I116: prior initial archive-search logs do not prove provider warnings were visible. Working/full host,
@@ -1166,7 +1173,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
-1c. V13, what is left: duplicates among a set, saved criteria beyond the time fields; archive-result narrowing now
+1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
+   clean CI/guest execution is next. Archive-result narrowing now
    passes working and clean CI/guest Core/headless Find flows (I115); TAR/gzip and initial warning propagation
    now pass working/full host and clean CI/guest controls (I116), with other formats still to validate.
    Candidate/native checks remain required.
