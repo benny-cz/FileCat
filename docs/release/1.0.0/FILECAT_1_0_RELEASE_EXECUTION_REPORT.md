@@ -1205,7 +1205,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     zero skips; 691 payloads/692 ZIP members/nineteen sources/pre-launch pins/direct XML/owned process and temp
     cleanup verify. Admission/watchdog/cap qualification is preliminary; wider/physical/native/candidate remain.
 
+235. V12/V13 comparison lifetime checks expose I126: four actual-production/owned-file activation/page revision
+    cases dispose during their held call when closed or reopened, then fail on the released handle. Views now count
+    revision/length/read calls and activation captures views. Identical corrected probe and App-only DLL swap pass
+    all four; four regressions/41 App and 50 Core affected/full App 275/21 skips pass. All 1,434 inputs/twenty-one
+    sources/24 fixtures/DLLs/XML/identity-aware cleanup verify. NU1015, inherited Core stamp and reused-PID observer
+    records remain retained. Clean CI/guest next; updated Computer Use import still crashes before input (E-I126).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I126: previous comparison passes do not qualify revision/length lifetime during close or F5. Corrected owned
+  real-file probes/affected Core/App/full App pass; clean CI/guest, wider content lifetime and native/candidate remain.
 
 - I125: earlier scheduler passes do not cover waiting admission across disposal or new queues missed by its
   snapshot. Corrected owned probes, affected Core/App and full host suites pass; shared consumers require clean

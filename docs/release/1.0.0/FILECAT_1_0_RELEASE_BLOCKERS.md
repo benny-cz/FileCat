@@ -196,6 +196,13 @@ nineteen sources/probe DLLs/XML/owned process cleanup verify (E-I125). Clean 749
 guest controls without affected skips; 691 payloads/692 ZIP members/canonical sources/artifact digests/XML/owned
 process/temp cleanup verify. Wider resource lifetimes and physical/native/candidate remain unqualified.
 
+I126: activation and page-refresh revision calls were not retained by the comparison's close/reopen lifetime.
+Four actual-production/owned-file controls dispose during the held call and fail on its released handle. The view
+now counts revision/length/read calls and activation uses those views. Identical corrected probe and App-only DLL
+swap, four regressions, 41 App/50 Core affected and full App 275/21 skips pass; exact inputs/source/DLLs/fixtures/XML/
+identity-aware cleanup verify (E-I126). Clean CI/guest and wider/native/candidate next. Updated Computer Use
+26.930.41038 still crashes during import before any app input; live Windows UI validation remains unavailable.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

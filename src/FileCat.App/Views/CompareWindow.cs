@@ -693,10 +693,10 @@ public sealed class CompareWindow : Window
     private async void CheckInputs()
     {
         if (_closed || _reopening || _bytes is null || _changedBanner.IsVisible || _revisions is (null, null)) return;
-        var (left, right) = (_left, _right);
+        var (left, right) = (_leftView, _rightView);
         var before = _revisions;
         var now = await Task.Run(() => (Revision(left), Revision(right)));
-        if (_closed || !ReferenceEquals(left, _left) || !ReferenceEquals(right, _right)) return;
+        if (_closed || !ReferenceEquals(left, _leftView) || !ReferenceEquals(right, _rightView)) return;
         var changed = new List<string>();
         if (before.Left is { } l && now.Item1 != l) changed.Add(Path.GetFileName(_leftName.TrimEnd('/', '\\')));
         if (before.Right is { } r && now.Item2 != r) changed.Add(Path.GetFileName(_rightName.TrimEnd('/', '\\')));
@@ -1027,50 +1027,73 @@ public sealed class CompareWindow : Window
     }
 
     /// <summary>
-    /// The byte view's way to a content: its reads are counted, so the content is disposed only after the ones under way
-    /// finished, and refused once the window let go of it (the view's page loads run on pool threads).
+    /// The byte view and revision checks borrow the content, so it is disposed after active calls finish and further
+    /// calls are refused once the window lets go of it (the view's page loads run on pool threads).
     /// </summary>
     private sealed class ViewSource(IContentSource inner) : IContentSource
     {
         private readonly object _lock = new();
         private readonly TaskCompletionSource _idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private int _reading;
+        private int _activeCalls;
         private bool _closed;
 
         public string DisplayName => inner.DisplayName;
-        public long Length => inner.Length;
+        public long Length
+        {
+            get
+            {
+                BeginCall();
+                try { return inner.Length; }
+                finally { EndCall(); }
+            }
+        }
         public bool CanSeek => inner.CanSeek;
         public string? LocalPath => inner.LocalPath;
 
         public int Read(long offset, Span<byte> buffer)
         {
-            lock (_lock)
-            {
-                ObjectDisposedException.ThrowIf(_closed, this);
-                _reading++;
-            }
+            BeginCall();
             try
             {
                 return inner.Read(offset, buffer);
             }
             finally
             {
-                lock (_lock)
-                {
-                    if (--_reading == 0 && _closed) _idle.TrySetResult();
-                }
+                EndCall();
             }
         }
 
-        public ContentRevision? GetRevision() => inner.GetRevision();
+        public ContentRevision? GetRevision()
+        {
+            BeginCall();
+            try { return inner.GetRevision(); }
+            finally { EndCall(); }
+        }
 
-        /// <summary>Refuses further reads; completes when the ones under way finished.</summary>
+        private void BeginCall()
+        {
+            lock (_lock)
+            {
+                ObjectDisposedException.ThrowIf(_closed, this);
+                _activeCalls++;
+            }
+        }
+
+        private void EndCall()
+        {
+            lock (_lock)
+            {
+                if (--_activeCalls == 0 && _closed) _idle.TrySetResult();
+            }
+        }
+
+        /// <summary>Refuses further content calls; completes when the ones under way finished.</summary>
         public Task CloseAsync()
         {
             lock (_lock)
             {
                 _closed = true;
-                if (_reading == 0) _idle.TrySetResult();
+                if (_activeCalls == 0) _idle.TrySetResult();
             }
             return _idle.Task;
         }
