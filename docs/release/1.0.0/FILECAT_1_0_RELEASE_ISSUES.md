@@ -10,6 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
+| I121 | Closing a picture races its active file feed; F3 retains a loaded bitmap after close | Medium (resource lifetime) | Must fix (V12/V10/AI-03) | Working remedy: five baseline failures/one positive; six corrected/20 affected App cases and full App 269/21 skips/Core 745/46 skips pass. All 1,809 inputs/source/active assemblies/direct XML verify. Clean CI/guest next; per-device feeds/other Source/native/candidate pending (E-I121) |
 | I120 | Live NTFS fixture dereferences an absent table after its history falls outside the retained window | Low (validation reliability) | Must fix (CI/I23) | Remediated 9074cf6; verified preliminarily: original CI failure retained, full host platform/golden controls, four clean CI lanes and 20 elevated guest cases pass. Complete live history passes in CI/guest, zero affected skips. Exact inputs/payloads/source/artifact digests/XML/cleanup verify; native/candidate pending (E-I120) |
 | I119 | Closing a page reader disposes an active source call and leaves later page/refresh demand alive | Medium (resource lifetime) | Must fix (V12/AI-03) | Remediated de1fd71; verified preliminarily: eight baseline failures, nine corrected/38 affected cases/full host suites and 45 clean guest cases pass. Original I120 CI failure retained; clean successor passes four lanes/all affected XML cases. Exact inputs/artifacts/XML/cleanup verify; direct Source/picture/native/candidate pending (E-I119) |
 | I118 | In-flight metadata repopulates invalidated values, including stale checksum matches | Medium (metadata truth) | Must fix (V12/V15) | Remediated 2896108; verified preliminarily: four original failures, six final controls/full host suites, four CI lanes and ten clean guest cases pass. Exact working/payload/source/XML/artifact-digest/cleanup inventories verify. Native/candidate pending (E-I118) |
@@ -132,6 +133,18 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I121 — Picture feeders outlive the source ownership of their closed view
+
+- Four unchanged-production controls hold the real decoder's second read over an owned PNG file; viewer/quick
+  view close disposes its source before return on success/failure routes. A fifth case retains the loaded F3
+  bitmap; normal quick view passes. No fixture timeout is counted as a product failure.
+- Reader borrows now cover actual feed callbacks while cancellation finishes UI demand promptly. Feed cancellation
+  is checked after held reads, abandoned exceptions observed, unreturned bitmaps released and closed F3 clears
+  its bitmap/rejects late results. The raw-source overload drains feeding before completing.
+- Six controls/20 affected App cases/full App 269/21 skips and Core 745/46 skips pass; 1,809 inputs/fourteen
+  sources per stage/active assemblies/direct XML verify. Clean CI/guest next; per-device feed bounds, other
+  Source consumers, native/candidate remain. See [E-I121](evidence/E-I121-picture-feed-lifetime.md).
 
 ### I120 — Live NTFS log fixture assumes an expired history table exists
 

@@ -75,6 +75,22 @@ public sealed class PagedReader : IDisposable
     public long Length => Interlocked.Read(ref _length);
     public ContentRevision? Revision { get; private set; }
 
+    /// <summary>
+    /// Runs background work with the underlying source borrowed until the work returns. Close rejects new borrows
+    /// and releases the cache immediately; the work must observe its cancellation at safe source-call boundaries.
+    /// The callback must not dispose the source.
+    /// </summary>
+    public void WithSource(Action<IContentSource> work)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _sourceUses++;
+        }
+        try { work(_source); }
+        finally { EndSourceUse(); }
+    }
+
     /// <summary>Why content could not be read (for example an archive member found damaged part way), or null.</summary>
     public string? ReadError { get; private set; }
 

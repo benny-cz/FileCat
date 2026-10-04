@@ -85,6 +85,16 @@ public sealed class PictureView : Border
         _surface.IsVisible = false;
     }
 
+    /// <summary>Releases the displayed bitmap when its viewer closes.</summary>
+    public void Clear()
+    {
+        var old = Picture;
+        Picture = null;
+        _surface.IsVisible = false;
+        _dragFrom = null;
+        old?.Bitmap.Dispose();
+    }
+
     /// <summary>The picture as large as fits, never larger than its actual size, centered.</summary>
     private void FitNow()
     {

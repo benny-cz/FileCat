@@ -152,6 +152,12 @@ in both CI and guest. Exact inputs/payloads/source/artifact digests/XML/process/
 Direct Source/picture use, wider queue/device controls and native/candidate remain. Native automation import
 again exits before input with a trusted-Node/kernel-reset error; component and VIX guest execution remain usable.
 
+The direct picture-feed audit exposes I121: four held actual-file controls dispose sources during decoder
+reads, and closing a loaded F3 retains its bitmap. Actual feeder borrows and bitmap retirement pass six
+controls/20 affected App cases, full App 269/21 skips/Core 745/46 skips. All 1,809 inputs/fourteen sources
+per stage/active assemblies/direct XML verify (E-I121). Clean-source CI/guest is next; per-device feed bounds,
+other direct Source consumers, native frame/AT and exact candidate remain.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

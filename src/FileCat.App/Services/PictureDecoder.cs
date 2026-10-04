@@ -5,6 +5,7 @@ using System.Text;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using FileCat.Core.Content;
 using FileCat.Core.Resources;
 
 namespace FileCat.App.Services;
@@ -38,23 +39,46 @@ public static class PictureDecoder
         return null;
     }
 
-    public static async Task<DecodedPicture> DecodeAsync(IContentSource source, int maxSide, CancellationToken ct)
+    /// <summary>Decodes borrowed content; completion includes the feeder's last source call, even after cancellation.</summary>
+    public static Task<DecodedPicture> DecodeAsync(IContentSource source, int maxSide, CancellationToken ct) =>
+        DecodeAsync(source.Length, (input, token) => Feed(source, input, token), maxSide, ct, drainFeed: true);
+
+    /// <summary>
+    /// Decodes for a view. Cancellation can finish its UI demand while a synchronous source read is still held;
+    /// the reader keeps that source alive until the actual feeder returns.
+    /// </summary>
+    public static Task<DecodedPicture> DecodeAsync(PagedReader reader, int maxSide, CancellationToken ct) =>
+        DecodeAsync(reader.Length, (input, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            reader.WithSource(source => Feed(source, input, token));
+        }, maxSide, ct, drainFeed: false);
+
+    private static async Task<DecodedPicture> DecodeAsync(long length, Action<Stream, CancellationToken> feed,
+        int maxSide, CancellationToken ct, bool drainFeed)
     {
-        if (source.Length > PictureWorker.MaxInputBytes)
-            throw new InvalidDataException($"at {Formatters.SizeWithUnit(source.Length)} it is larger than FileCat shows as a picture");
+        ct.ThrowIfCancellationRequested();
+        if (length > PictureWorker.MaxInputBytes)
+            throw new InvalidDataException($"at {Formatters.SizeWithUnit(length)} it is larger than FileCat shows as a picture");
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(Timeout);
+        var token = limit.Token;
         var (executable, arguments) = WorkerCommand(maxSide);
         using var worker = Worker.Start(executable, arguments);
-        using var stop = limit.Token.Register(worker.Kill);
+        using var stop = token.Register(worker.Kill);
         // Written and read at once: the worker may stop reading early (a damaged file), and a full pipe must not block.
-        var feeding = Task.Run(() => Feed(source, worker.Input, limit.Token), CancellationToken.None);
+        var input = worker.Input;
+        var feeding = Task.Run(() => feed(input, token), CancellationToken.None);
+        DecodedPicture? picture = null;
         try
         {
-            var picture = await Task.Run(() => Read(worker.Output, maxSide), CancellationToken.None).ConfigureAwait(false);
+            picture = await Task.Run(() => Read(worker.Output, maxSide), CancellationToken.None).ConfigureAwait(false);
             try { await feeding.ConfigureAwait(false); }
             catch (IOException) { } // the worker had what it needed
-            return picture;
+            token.ThrowIfCancellationRequested();
+            var result = picture;
+            picture = null; // ownership moves to the caller only on success
+            return result;
         }
         catch (Exception) when (limit.IsCancellationRequested && !ct.IsCancellationRequested)
         {
@@ -64,6 +88,19 @@ public static class PictureDecoder
         {
             throw new OperationCanceledException(ct);
         }
+        finally
+        {
+            picture?.Bitmap.Dispose();
+            limit.Cancel(); // no more source calls after a worker failure, either
+            var drained = ObserveFeedAsync(feeding);
+            if (drainFeed) await drained.ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ObserveFeedAsync(Task feeding)
+    {
+        try { await feeding.ConfigureAwait(false); }
+        catch (Exception) { } // already reported by the decode task, or abandoned after cancellation/worker failure
     }
 
     private static void Feed(IContentSource source, Stream input, CancellationToken ct)
@@ -75,6 +112,7 @@ public static class PictureDecoder
             {
                 ct.ThrowIfCancellationRequested();
                 int n = source.Read(offset, buffer);
+                ct.ThrowIfCancellationRequested();
                 if (n <= 0) break;
                 input.Write(buffer, 0, n);
                 offset += n;

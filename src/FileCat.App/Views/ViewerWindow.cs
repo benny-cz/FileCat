@@ -238,6 +238,7 @@ public sealed class ViewerWindow : Window
             _changeTimer.Stop();
             _searchCts?.Cancel();
             _closing.Cancel();
+            _picture.Clear();
             _reader.Dispose();
             _infoReader?.Dispose();
         };
@@ -310,7 +311,12 @@ public sealed class ViewerWindow : Window
         _picture.ShowMessage("Decoding the picture…");
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(_source, PictureSide, _closing.Token);
+            var picture = await PictureDecoder.DecodeAsync(_reader, PictureSide, _closing.Token);
+            if (_closing.IsCancellationRequested)
+            {
+                picture.Bitmap.Dispose();
+                return;
+            }
             _picture.Show(picture);
         }
         catch (Exception) when (_closing.IsCancellationRequested)
