@@ -18,20 +18,34 @@ public sealed class HtmlPage
     public const int MaxBytes = 64 << 20;
 
     private readonly IContentSource _source;
+    private readonly PagedReader? _reader;
+    private readonly CancellationToken _ct;
     private readonly string? _folder;
     private readonly bool _markdown;
 
     /// <summary>A Markdown file drawn as a page (release issue I25): its pictures load from its folder, as a page's do.</summary>
     public static HtmlPage ForMarkdown(IContentSource source, string displayName) => new(source, displayName, markdown: true);
 
+    /// <summary>A viewer-owned Markdown page; closing the reader retires requests and retains an active source call.</summary>
+    public static HtmlPage ForMarkdown(PagedReader reader, string displayName, CancellationToken ct = default) =>
+        new(reader.Source, displayName, markdown: true, reader, ct);
+
+    /// <summary>A viewer-owned page; closing the reader retires requests and retains an active source call.</summary>
+    public HtmlPage(PagedReader reader, string displayName, CancellationToken ct = default) :
+        this(reader.Source, displayName, markdown: false, reader, ct)
+    {
+    }
+
     public HtmlPage(IContentSource source, string displayName) : this(source, displayName, markdown: false)
     {
     }
 
-    private HtmlPage(IContentSource source, string displayName, bool markdown)
+    private HtmlPage(IContentSource source, string displayName, bool markdown, PagedReader? reader = null, CancellationToken ct = default)
     {
         _markdown = markdown;
         _source = source;
+        _reader = reader;
+        _ct = ct;
         string name = Path.GetFileName(displayName.TrimEnd('/', '\\'));
         Name = name.Length == 0 ? "page.html" : name;
         if (source.LocalPath is { } local)
@@ -56,6 +70,20 @@ public sealed class HtmlPage
     /// </summary>
     public (byte[] Bytes, string MimeType)? Resolve(string path)
     {
+        try
+        {
+            _ct.ThrowIfCancellationRequested();
+            (byte[] Bytes, string MimeType)? result = null;
+            if (_reader is null) result = ResolveCore(path);
+            else _reader.WithSource(_ => result = ResolveCore(path));
+            _ct.ThrowIfCancellationRequested();
+            return result;
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or OperationCanceledException) { return null; }
+    }
+
+    private (byte[] Bytes, string MimeType)? ResolveCore(string path)
+    {
         string relative;
         try { relative = Uri.UnescapeDataString(path.Split('?', '#')[0]).TrimStart('/'); }
         catch (UriFormatException) { return null; }
@@ -72,7 +100,10 @@ public sealed class HtmlPage
             // A link inside the folder that leads out of it is not followed.
             if (file.LinkTarget is not null && (file.ResolveLinkTarget(returnFinalTarget: true)?.FullName is not { } target || !Inside(target))) return null;
             if (file.Length > MaxBytes) return null;
-            return (File.ReadAllBytes(full), MimeType(full));
+            _ct.ThrowIfCancellationRequested();
+            var bytes = File.ReadAllBytes(full);
+            _ct.ThrowIfCancellationRequested();
+            return (bytes, MimeType(full));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
@@ -94,17 +125,20 @@ public sealed class HtmlPage
         return (Encoding.UTF8.GetBytes(Markdown.ToPage(text, Name)), "text/html");
     }
 
-    private static (byte[], string)? Read(IContentSource source, string mime)
+    private (byte[], string)? Read(IContentSource source, string mime)
     {
         try
         {
+            _ct.ThrowIfCancellationRequested();
             long length = source.Length;
             if (length > MaxBytes) return null;
             using var buffer = new MemoryStream(length > 0 ? (int)length : 64 * 1024);
             var chunk = new byte[64 * 1024];
             for (long offset = 0; buffer.Length <= MaxBytes;)
             {
+                _ct.ThrowIfCancellationRequested();
                 int n = source.Read(offset, chunk);
+                _ct.ThrowIfCancellationRequested();
                 if (n <= 0) break;
                 buffer.Write(chunk, 0, n);
                 offset += n;

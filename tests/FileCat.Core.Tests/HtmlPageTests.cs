@@ -32,6 +32,34 @@ public sealed class HtmlPageTests
     }
 
     [Fact]
+    public void A_closed_viewer_page_refuses_its_main_file_and_adjacent_files()
+    {
+        using var root = new TempDir();
+        string path = Path.Combine(root.Path, "index.html");
+        File.WriteAllText(path, "<html></html>");
+        File.WriteAllText(Path.Combine(root.Path, "style.css"), "body {}");
+        using var reader = new PagedReader(new FileContentSource(path));
+        var page = new HtmlPage(reader, path);
+        Assert.NotNull(page.Resolve("/"));
+        Assert.NotNull(page.Resolve("/style.css"));
+        reader.Dispose();
+        Assert.Null(page.Resolve("/"));
+        Assert.Null(page.Resolve("/style.css"));
+    }
+
+    [Fact]
+    public void A_canceled_markdown_page_refuses_further_requests_while_its_reader_is_open()
+    {
+        using var reader = new PagedReader(new MemoryContentSource("notes.md", Encoding.UTF8.GetBytes("# Notes")));
+        using var cts = new CancellationTokenSource();
+        var page = HtmlPage.ForMarkdown(reader, "notes.md", cts.Token);
+        Assert.NotNull(page.Resolve("/"));
+        cts.Cancel();
+        Assert.Null(page.Resolve("/"));
+        Assert.True(reader.Read(0, new byte[10]) > 0);
+    }
+
+    [Fact]
     public void A_link_inside_the_folder_that_leads_out_is_not_followed()
     {
         using var root = new TempDir();

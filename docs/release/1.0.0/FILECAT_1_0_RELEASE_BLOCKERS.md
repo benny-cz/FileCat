@@ -30,6 +30,12 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I128 working correction retains viewer line/page/Info source calls through close. Four actual-production
+failures/four controls are retained; the identical corrected probe, affected/full host suites and 1,096
+captured inputs verify. Clean CI/SDK-free guest revalidation is pending (E-I128). Native/hardware/aggregate/
+candidate remain. Elevated Codex restart still fails before any UI target: Node reports Windows sandbox
+setup refresh errors; shell commands still have an unelevated token. VIX guest commands remain usable.
+
 I127 is remediated preliminarily: inaccessible counts retain lower-bound labels/state across refresh and allow
 retry after restored access. Actual-production baseline failures/corrected probes, affected/full host suites,
 four clean 9d33282 CI lanes and 122 SDK-free guest controls pass (E-I127). All 122 affected Windows CI cases pass;

@@ -62,7 +62,6 @@ public sealed class ViewerWindow : Window
     private readonly TextViewer _info = new() { IsVisible = false, Wrap = false, ReportStyle = true };
     private PagedReader? _infoReader;
     private string _infoText = "";
-    private readonly IContentSource _source;
     private bool _isInfo, _infoLoaded;
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
@@ -94,7 +93,6 @@ public sealed class ViewerWindow : Window
             _deviceKey = services.Providers.For(location).GetDeviceKey(location);
         }
         _displayName = displayName;
-        _source = source;
         _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
         s_open.Add(this);
         Closed += (_, _) => s_open.Remove(this);
@@ -237,6 +235,7 @@ public sealed class ViewerWindow : Window
         {
             SetMode(hex);
             await DetectEncodingAsync(forceHexIfBinary: !hex);
+            if (_closing.IsCancellationRequested) return;
             _changeTimer.Start();
             FocusContent();
         };
@@ -259,6 +258,7 @@ public sealed class ViewerWindow : Window
             int n = _reader.Read(0, buf);
             return buf[..n];
         });
+        if (_closing.IsCancellationRequested) return;
         _guess = TextDecoding.Detect(prefix);
         int index = Array.FindIndex(TextDecoding.Choices.ToArray(), c => c.Get().WebName == _guess.Encoding.WebName);
         _text.SetEncoding(_guess.Encoding, _guess.PreambleLength);
@@ -340,7 +340,7 @@ public sealed class ViewerWindow : Window
     /// <summary>The page mode: the page drawn by the system's browser engine (a native view over the window's content).</summary>
     public void ShowPage()
     {
-        if (!_modePage.IsVisible) return;
+        if (_closing.IsCancellationRequested || !_modePage.IsVisible) return;
         if (_pageUnavailable is { } why)
         {
             SetMode(false);
@@ -357,7 +357,7 @@ public sealed class ViewerWindow : Window
         foreach (var part in _textOnly) part.IsVisible = false;
         if (_htmlPage is null)
         {
-            _htmlPage = Markdown.IsMarkdown(_displayName) ? HtmlPage.ForMarkdown(_source, _displayName) : new HtmlPage(_source, _displayName);
+            _htmlPage = Markdown.IsMarkdown(_displayName) ? HtmlPage.ForMarkdown(_reader, _displayName, _closing.Token) : new HtmlPage(_reader, _displayName, _closing.Token);
             _pageView.Show(_htmlPage);
         }
         _pageView.FocusPage();
@@ -408,6 +408,7 @@ public sealed class ViewerWindow : Window
     /// <summary>The Info mode: what a static inspector reads from the file's structure (plan §16.1), computed once.</summary>
     public async Task ShowInfoAsync()
     {
+        if (_closing.IsCancellationRequested) return;
         LeavePicture();
         if (!_isInfo) _lastHit = -1;
         _isInfo = true;
@@ -446,8 +447,20 @@ public sealed class ViewerWindow : Window
         ShowInfoText("Reading the file's structure…");
         try
         {
-            var report = await Task.Run(() => FileCat.Core.Inspect.Inspectors.Inspect(_source, _closing.Token), _closing.Token);
-            ShowInfoText(report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {_source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}");
+            var text = await Task.Run(() =>
+            {
+                string result = "";
+                _reader.WithSource(source =>
+                {
+                    _closing.Token.ThrowIfCancellationRequested();
+                    var report = FileCat.Core.Inspect.Inspectors.Inspect(new InspectionSource(source, _closing.Token), _closing.Token);
+                    _closing.Token.ThrowIfCancellationRequested();
+                    result = report?.ToText() ?? $"No structure inspector for this kind of file.\n\nSize: {source.Length:N0} bytes\nContent: {(_guess.LooksBinary ? "binary" : "text, " + _guess.Encoding.WebName + " (" + _guess.Evidence + ")")}";
+                });
+                return result;
+            }, _closing.Token);
+            if (_closing.IsCancellationRequested) return;
+            ShowInfoText(text);
         }
         catch (Exception) when (_closing.IsCancellationRequested)
         {
@@ -459,6 +472,40 @@ public sealed class ViewerWindow : Window
             ShowInfoText("The file's structure could not be read: " + ex.Message);
         }
         UpdateStatus();
+    }
+
+    // A borrowed inspector source observes close between calls, including an inspector's short-read loop.
+    // The reader retains ownership until the inspection returns.
+    private sealed class InspectionSource(IContentSource source, CancellationToken ct) : IContentSource
+    {
+        public string DisplayName => source.DisplayName;
+        public bool CanSeek => source.CanSeek;
+        public string? LocalPath => source.LocalPath;
+        public long Length
+        {
+            get
+            {
+                ct.ThrowIfCancellationRequested();
+                long length = source.Length;
+                ct.ThrowIfCancellationRequested();
+                return length;
+            }
+        }
+        public ContentRevision? GetRevision()
+        {
+            ct.ThrowIfCancellationRequested();
+            var revision = source.GetRevision();
+            ct.ThrowIfCancellationRequested();
+            return revision;
+        }
+        public int Read(long offset, Span<byte> buffer)
+        {
+            ct.ThrowIfCancellationRequested();
+            int read = source.Read(offset, buffer);
+            ct.ThrowIfCancellationRequested();
+            return read;
+        }
+        public void Dispose() { } // borrowed; PagedReader releases the source
     }
 
     private void ShowInfoText(string text)
@@ -776,6 +823,7 @@ public sealed class ViewerWindow : Window
     /// </summary>
     private async Task GoToLineAsync(long line)
     {
+        if (_closing.IsCancellationRequested) return;
         if (!_reader.Source.CanSeek)
         {
             _status.Text = "Going to a line needs content that can be read at any position.";
@@ -784,12 +832,24 @@ public sealed class ViewerWindow : Window
         if (_isHex) SetMode(false);
         if (_lines is null || !ReferenceEquals(_lines.Encoding, _text.Encoding)) _lines = new LineIndex(_reader.Source, _text.Encoding, _text.ContentStart);
         _lineCts?.Cancel();
-        var cts = _lineCts = new CancellationTokenSource();
+        using var cts = _lineCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
         var index = _lines;
-        var progress = new Progress<long>(bytes => _status.Text = $"Counting lines to {line:N0}… {bytes / (1024.0 * 1024):N0} MB read (Esc stops)");
+        var progress = new Progress<long>(bytes =>
+        {
+            if (!ct.IsCancellationRequested && ReferenceEquals(_lineCts, cts))
+                _status.Text = $"Counting lines to {line:N0}… {bytes / (1024.0 * 1024):N0} MB read (Esc stops)";
+        });
         try
         {
-            var start = await Task.Run(() => index.FindLineStart(line, progress, cts.Token), cts.Token);
+            var start = await Task.Run(() =>
+            {
+                long? result = null;
+                _reader.WithSource(_ => result = index.FindLineStart(line, progress, ct));
+                ct.ThrowIfCancellationRequested();
+                return result;
+            }, ct);
+            if (_closing.IsCancellationRequested || !ReferenceEquals(_lineCts, cts)) return;
             if (start is { } offset)
             {
                 _text.ScrollToOffset(offset);
@@ -800,6 +860,10 @@ public sealed class ViewerWindow : Window
             {
                 _status.Text = $"The file has only {index.TotalLines:N0} lines.";
             }
+        }
+        catch (Exception) when (_closing.IsCancellationRequested || !ReferenceEquals(_lineCts, cts))
+        {
+            return;
         }
         catch (OperationCanceledException)
         {

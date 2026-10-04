@@ -7,6 +7,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-04)
 
+Execution resumes after the owner restarts Codex elevated. Computer Use still exits before selecting a
+window; one retry reports Windows sandbox setup refresh errors. The tool shell is still unelevated.
+Independent V12 work reproduces four direct viewer-source close failures and verifies a working correction
+(E-I128); affected/full host suites pass, clean CI/SDK-free guest are next. Both VMs remain running, no USB
+action occurs and its source-change gate stays held. No candidate or human GO exists; overall NO-GO.
+
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
 - **Resumption input:** clean `main` at `08c2e2dee4e04c936a34cd867770d05d758af686`, with prior work through I95.
@@ -1264,7 +1270,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     to finish this slice and stop before restarting Codex elevated; stop after evidence push, leave both VMs
     running. No USB action, native/AT/candidate qualification or stable publication. Overall NO-GO.
 
+243. I128: actual clean 9d33282 production disposes an owned file during held line, HTML, Markdown and Info
+    reads; the line task throws ObjectDisposedException. Four completed-read controls pass, hashes unchanged.
+    Existing reader borrowing plus close cancellation/result retirement corrects all eight identical probe
+    cases with only App/Core DLLs changed. Eight App/two Core regressions, 102 Core/41 App affected cases and
+    full Core 754/46 skips/App 290/21 skips pass; 1,096 captured files/twenty-five source inputs/complete case
+    inventories independently verify. Clean CI/guest pending, native/hardware/aggregate/candidate remain.
+    Elevated restart still fails Node sandbox setup before any target/input; VIX works, both VMs stay running,
+    no USB action. Initial probe compile error retained as harness-only evidence (E-I128).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I128: prior viewer passes do not qualify direct line/page/Info reads during close. Working controlled
+  correction/affected/full host suites pass; clean CI/SDK-free guest, native/hardware/aggregate/candidate remain.
 
 - I127: earlier folder-count passes do not qualify inaccessible-subtree lower bounds or retries after restored
   access. Corrected probe/affected/full host suites, four clean CI lanes and 122 guest controls pass. Native/AT/
