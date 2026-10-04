@@ -41,5 +41,10 @@ their server digests. Private root: sibling `ci-37177512600` in the same authori
 | Metadata / complete log | `f88bd87fb124043687d73ca0b5da4f173a8d9234ab53b56bf7c62348e354936f` / `158364e6449d135b5a342feddbb8720b24fb17fef2eda2d97c5da578a325943d` |
 | Independent artifact/case/skip inventory | `cc930899b4a5f95862d7ae80d819e7975b9b54a2554dad6ae1fa9e365d795bf2` |
 
-Windows guest execution is next. Native desktop/AT, process restart and exact-candidate
+All five cases, plus two Network-place App controls and eight Core discovery controls, pass without skips
+on clean successor `da3a3d6` in the elevated Windows 26300 VM. Exact payload/source pins, retrieved case names
+and process/temp cleanup independently verify in [E-I117's combined guest record](E-I117-network-discovery-cutoff.md).
+Controller/workers are absent and owned temp is empty. This is native OS execution of headless controls.
+
+Native desktop/AT, process restart and exact-candidate
 qualification remain open. Physical USB source hold and overall **NO-GO** remain.

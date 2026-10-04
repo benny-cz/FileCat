@@ -10,7 +10,8 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
-| I117 | Late-name discovery fixture can finish before any probe is handled | Low (validation reliability) | Must fix (CI/I23 evidence) | Controlled probe cutoff passes eight network cases, full Core 730/46 skips and seven related App cases; coupled-cancellation mutation fails twice. Original ARM64 failure retained; scheduling untraced. Clean successor CI/guest next (E-I117) |
+| I118 | In-flight metadata repopulates invalidated values, including stale checksum matches | Medium (metadata truth) | Must fix (V12/V15) | Four original failures; complete publication/invalidation/retry remedy passes six demand controls and full Core 736/46 skips/App 263/21 skips. 477 inputs/direct XML verify. Clean CI/guest next; native/candidate pending (E-I118) |
+| I117 | Late-name discovery fixture can finish before any probe is handled | Low (validation reliability) | Must fix (CI/I23 evidence) | Remediated da3a3d6; verified preliminarily: eight network/full Core 730/46 skips and seven App controls, four clean CI lanes and 15 guest cases pass. Mutation fails twice; original ARM64 failure retained/scheduling untraced. Exact inputs/artifacts/XML/cleanup verify; candidate/real-device pending (E-I117) |
 | I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated 6ecf4a8; verified preliminarily: two valid baseline failures/two TAR/gzip positives, 32 affected controls and full host suites. Four CI lanes and 34 clean guest cases pass; exact inputs/artifact digests/XML/cleanup verify. Other formats/native/candidate pending (E-I116) |
 | I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated ff8746a; verified preliminarily: four valid baseline failures, eleven corrected Core/two App controls and full affected host suites. Four CI lanes, all affected Windows/Linux/macOS App XML and 13 clean guest cases pass. Exact inputs/XML/cleanup verify; other formats/native/candidate pending (E-I115) |
 | I114 | Parallel GnuPG fixtures replace each other's process-wide tool selection | Low (validation reliability) | Must fix (V15/V24 evidence) | Remediated 7497acf; verified preliminarily: controlled Good → UnknownKey → Good swap, isolated full Core 714/46 skips and four successor CI lanes pass. Original failure retained/interleaving untraced; candidate pending (E-I114) |
@@ -130,6 +131,17 @@ level the plan already states; exploit-level detail is not recorded here.
 
 ## Records of issues worked in this campaign
 
+### I118 — In-flight metadata restores values invalidated by a sidecar change
+
+- Four unchanged-production failures: Get restores Matches after an actual checksum-sidecar mismatch and
+  invalidation/Forget; explicit Compute also returns/caches an obsolete Available value.
+- Production validity and cache invalidation/publication are coordinated; obsolete work cannot republish,
+  explicit results become NotRequested, unrelated fields survive selective Forget and queued canceled work
+  releases demand. Completion wakes visible rows to retry. Four intermediate event controls require that wakeup.
+- Six final controls and full Core 736/46 skips/App 263/21 skips pass. Positive viewport control includes 1,000
+  abandoned requests, an independent healthy device and interactive priority with one freed worker. All 477
+  inputs/source/direct XML verify. Clean CI/guest next; wider/native/candidate scopes remain. See [E-I118](evidence/E-I118-metadata-invalidation.md).
+
 ### I117 — Late-name discovery fixture can expire before handling a probe
 
 - Exact aed64a7 ARM64 CI receives an empty host list after one second; other lanes pass. No original scheduling
@@ -138,7 +150,8 @@ level the plan already states; exploit-level detail is not recorded here.
   its dedicated device thread. Immediate/delayed setup controls pass; a name/probe cancellation mutation fails
   twice. Public timings and network policy are unchanged; the internal helper shares the production algorithm.
 - Full Core 730/46 skips and seven related App controls pass. Original run/artifacts and 218 input files/direct
-  XML verify. Clean successor CI/guest next; candidate and real-device discovery remain. See [E-I117](evidence/E-I117-network-discovery-cutoff.md).
+  XML verify. Clean da3a3d6 passes all four CI lanes and 15 combined guest cases; exact input/artifact/XML/process/
+  temp checks verify. Candidate and real-device discovery remain. See [E-I117](evidence/E-I117-network-discovery-cutoff.md).
 
 ### I116 — Initial archive search silently discarded provider warnings
 

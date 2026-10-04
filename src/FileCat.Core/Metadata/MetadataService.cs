@@ -67,7 +67,16 @@ public sealed class MetadataService
     private readonly ConcurrentDictionary<string, byte> _inFlight = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, int> _outstanding = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MetadataField> _fields = new(StringComparer.Ordinal);
+    private readonly object _publicationLock = new();
+    private readonly HashSet<Production> _productions = [];
     private int _notifyPending;
+
+    /// <summary>An invalidated producer may finish its current call, but must not republish its old value.</summary>
+    private sealed class Production(string key)
+    {
+        public string Key { get; } = key;
+        public bool Current = true; // guarded with cache publication and invalidation
+    }
 
     public MetadataService(DeviceIoScheduler io)
     {
@@ -118,9 +127,17 @@ public sealed class MetadataService
         if (!_fields.TryGetValue(fieldId, out var field) || !Applies(field, entry)) return MetadataValue.Absent;
         var key = Key(path, entry, fieldId);
         if (_cache.TryGetValue(key, out var v) && v.State is MetadataState.Available or MetadataState.Absent) return v;
-        var value = Produce(field, path, ct);
-        Store(key, value);
-        return value;
+        var production = BeginProduction(key);
+        try
+        {
+            var value = Produce(field, path, ct);
+            return Store(production, value, out _) ? value : new MetadataValue(MetadataState.NotRequested);
+        }
+        finally
+        {
+            EndProduction(production);
+            if (!IsCurrent(production)) Notify();
+        }
     }
 
     private void Schedule(string key, MetadataField field, string path, string deviceKey, Func<bool>? isStillWanted)
@@ -134,23 +151,30 @@ public sealed class MetadataService
             _inFlight.TryRemove(key, out _);
             return;
         }
-        _ = _io.Run(deviceKey, IoPriority.Background, ct =>
+        var production = BeginProduction(key);
+        void Finished()
+        {
+            if (!EndProduction(production)) return;
+            _inFlight.TryRemove(key, out _);
+            _outstanding.AddOrUpdate(deviceKey, 0, (_, n) => Math.Max(0, n - 1));
+            if (!IsCurrent(production)) Notify(); // visible rows can retry now that obsolete demand has ended
+        }
+        var work = _io.Run(deviceKey, IoPriority.Background, ct =>
         {
             try
             {
-                if (isStillWanted is not null && !isStillWanted()) return;
+                if (isStillWanted is not null && !isStillWanted() || !IsCurrent(production)) return;
                 var value = Produce(field, path, ct);
-                bool changed = !_cache.TryGetValue(key, out var old) || !old.Equals(value);
-                Store(key, value);
-                if (field.RefreshAfter is not null) _producedAt[key] = Environment.TickCount64;
-                if (changed) Notify();
+                if (Store(production, value, out bool changed, field.RefreshAfter is not null) && changed) Notify();
             }
             finally
             {
-                _inFlight.TryRemove(key, out _);
-                _outstanding.AddOrUpdate(deviceKey, 0, (_, n) => Math.Max(0, n - 1));
+                Finished();
             }
         });
+        // Shutdown cancels queued work without entering its callback; release its demand record in that case too.
+        _ = work.ContinueWith(_ => Finished(), CancellationToken.None,
+            TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     private static MetadataValue Produce(MetadataField field, string path, CancellationToken ct)
@@ -170,15 +194,40 @@ public sealed class MetadataService
         }
     }
 
-    private void Store(string key, MetadataValue value)
+    private Production BeginProduction(string key)
     {
-        if (value.State == MetadataState.NotRequested) return;
-        if (_cache.TryAdd(key, value)) _order.Enqueue(key); // a value read again keeps its place
-        else _cache[key] = value;
-        while (_cache.Count > MaxCache && _order.TryDequeue(out var old))
+        var production = new Production(key);
+        lock (_publicationLock) _productions.Add(production);
+        return production;
+    }
+
+    private bool EndProduction(Production production)
+    {
+        lock (_publicationLock) return _productions.Remove(production);
+    }
+
+    private bool IsCurrent(Production production)
+    {
+        lock (_publicationLock) return production.Current;
+    }
+
+    private bool Store(Production production, MetadataValue value, out bool changed, bool refreshing = false)
+    {
+        lock (_publicationLock)
         {
-            _cache.TryRemove(old, out _);
-            _producedAt.TryRemove(old, out _);
+            changed = false;
+            if (!production.Current || value.State == MetadataState.NotRequested) return false;
+            string key = production.Key;
+            changed = !_cache.TryGetValue(key, out var before) || !before.Equals(value);
+            if (_cache.TryAdd(key, value)) _order.Enqueue(key); // a value read again keeps its place
+            else _cache[key] = value;
+            if (refreshing) _producedAt[key] = Environment.TickCount64;
+            while (_cache.Count > MaxCache && _order.TryDequeue(out var old))
+            {
+                _cache.TryRemove(old, out _);
+                _producedAt.TryRemove(old, out _);
+            }
+            return true;
         }
     }
 
@@ -197,21 +246,31 @@ public sealed class MetadataService
     public void Forget(string fieldId, string path)
     {
         string prefix = fieldId + "|", suffix = "|" + path;
-        foreach (string key in _cache.Keys)
-            if (key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal))
-            {
-                _cache.TryRemove(key, out _);
-                _producedAt.TryRemove(key, out _);
-            }
+        bool Matches(string key) => key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(suffix, StringComparison.Ordinal);
+        lock (_publicationLock)
+        {
+            foreach (var production in _productions)
+                if (Matches(production.Key)) production.Current = false;
+            foreach (string key in _cache.Keys)
+                if (Matches(key))
+                {
+                    _cache.TryRemove(key, out _);
+                    _producedAt.TryRemove(key, out _);
+                }
+        }
         Notify();
     }
 
     /// <summary>Forgets every value (after a refresh or a change FileCat made, such as new permissions); shown rows ask again.</summary>
     public void Invalidate()
     {
-        _cache.Clear();
-        _producedAt.Clear();
-        _order.Clear();
+        lock (_publicationLock)
+        {
+            foreach (var production in _productions) production.Current = false;
+            _cache.Clear();
+            _producedAt.Clear();
+            _order.Clear();
+        }
         Notify();
     }
 }

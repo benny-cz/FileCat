@@ -1089,7 +1089,24 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     with all five new saved-search/duplicate App cases on Windows/Linux/macOS independently verified
     against three server-digest-matching artifacts (E-V13-F2).
 
+218. Clean da3a3d6 passes all four CI lanes; six direct inventories and three server-digest-matching ZIPs
+    verify, including all eight network and five saved-search/duplicate Windows cases and all five affected
+    App cases on Linux/macOS. Exact self-contained source passes eight Core/seven App guest cases, zero skips.
+    All 685 payloads/686 ZIP members/13 source copies and retrieved XML/output pins independently verify.
+    Controller/workers are absent, owned temp empty (E-I117/E-V13-F2). Native/candidate and real-device gates remain.
+
+219. V12 exposes I118's stale metadata publication after actual checksum-sidecar invalidation/Forget;
+    four unchanged-production failures include explicit Compute. Validity records and coordinated cache
+    publication reject obsolete values and preserve unrelated fields. Four stronger event controls expose
+    the missing retry wakeup in an intermediate fix; completed remedy passes all six controls, including
+    1,000 abandoned viewport requests, a healthy second device and controlled interactive priority.
+    Full Core 736/46 skips and App 263/21 skips pass. All 477 inputs/source/direct XML verify (E-I118).
+    Clean CI/guest is next; wider/native/candidate checks remain.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I118: earlier metadata cache/verification evidence does not qualify the new publication and demand lifetimes.
+  Working component/full host suites pass; clean CI/guest and native frame/AT/candidate checks remain required.
 
 - I116: prior initial archive-search logs do not prove provider warnings were visible. Working/full host,
   clean CI and guest controls pass; other-format/native/candidate checks remain required.
@@ -1182,9 +1199,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
+   In-flight invalidation/retry and controlled rapid viewport demand now pass working/full host suites (I118);
+   clean CI/guest checks are next. Native request/queue traces and UI-thread timing remain required.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
-   clean ab919ed CI passes all four lanes and affected Windows/Linux/macOS App cases; guest execution is next.
-   I117's controlled network fixture needs clean successor CI/guest. Archive-result narrowing now
+   clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
+   execution also passes (E-I117). Archive-result narrowing now
    passes working and clean CI/guest Core/headless Find flows (I115); TAR/gzip and initial warning propagation
    now pass working/full host and clean CI/guest controls (I116), with other formats still to validate.
    Candidate/native checks remain required.

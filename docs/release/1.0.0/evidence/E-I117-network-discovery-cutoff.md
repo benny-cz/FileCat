@@ -38,5 +38,29 @@ Private roots under
 | Final Core / App input manifest | `1f8a4db06ec0e4df2621fec6b50ecf02258d0b00f32a356ca927df13575e786d` / `49ca572c755751acd4645fa4c806f54ae0a29189850684c39e6185086808d18b` |
 | Independent input/XML/failure inventory | `4111826facd03864dd1f07516381af7e1e20fb4179bd5b65219df0a3ef3eda8a` |
 
-Native real-device/candidate discovery and exact candidate regression remain required. Overall **NO-GO** and
+Clean successor `da3a3d602624b4cf6bb0f4c3314c1ccc60d6af78` passes all four required
+[CI lanes](https://github.com/benny-cz/FileCat/actions/runs/37178237458); three package jobs skip. Six direct XML
+inventories and three server-digest-matching artifact ZIPs verify. Windows Core 729/47 skips, App 269/15,
+platform 165/33 and Remote 88/28; Linux/macOS App each 248/36. All eight network and five saved-search/duplicate
+Windows cases pass; all five saved-search/duplicate cases pass on Linux/macOS.
+
+The exact clean self-contained source passes **eight Core and seven App cases, zero skips**, in Windows VM
+26300, UUID `9D224D56-1161-A849-ABA7-2581A980895C`, ending 2026-10-04 04:57:00 UTC. All 685 payloads,
+686 ZIP members, 13 committed source-content copies, retrieved scripts/XML and output pins independently verify.
+Controller 10744 and workers 12504/12224 are absent; owned temp is empty at 04:58:52 UTC.
+This is native OS execution of headless/component controls, not desktop input/frame qualification.
+
+Private successor roots in the same store: `ci-37178237458` and
+`i117-discovery-fixture-cutoff-20261004/clean-da3a3d6`.
+
+| Clean successor evidence | SHA-256 |
+|---|---|
+| CI metadata / complete log | `df98e75e0919a6ffb7151306dce0da1b5d00d617b7073fcc8585dd0de20663e9` / `9d849073560f16ecff6e3203178b85f9e7a913bd649fb00f35463d9e90d032ff` |
+| Independent CI inventory | `6881692af659638cd5a7fe795aa7646f08c3813e7cdd32c8cad976b88e95aba0` |
+| Guest ZIP / manifest | `b831926ecbf60c15f83dde612ae57f8a514cc0d6f057a9bca32ba9ab118571c2` / `e6f59a9816b5614e4fc570ab2d5ec4ede5f9f3f7d8b6d35e632a7179152c2adc` |
+| Guest runner / cleanup observer | `4fc2cca2678348b00c0e617675fd834a88f6420dcff8dfa1f7290bdf808b3baf` / `25d30285436d9a427dd5cc43c669f0555c5cf33473fbfded2d280874ebcc78b8` |
+| Guest Core / App XML | `a59bcf298f9f7ff52a6b79635f5327e0e00f46d627ae31279330b3e5fe0ab399` / `aa4e1c5e822f252c9b4632a08c02b927ac140c1170d33a88f1286e9575feffc7` |
+| Guest cleanup / independent native inventory | `d8c410fabb2b8df83e4ec3176bd65a3515fa3483f907c61b7a7802a12dc3fdbb` / `9bd7d065bf198f873d8d24bd0599cc972a2347aee2e3907c924c9ffd3aabdbce` |
+
+Fixture remediation verified preliminarily. Native real-device/candidate discovery and exact candidate regression remain required. Overall **NO-GO** and
 the USB source hold remain.

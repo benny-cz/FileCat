@@ -129,8 +129,15 @@ native/candidate and sealed-store gates remain required.
 ARM64 aed64a7 CI's late-name discovery fixture finishes after one second with an empty list (I117).
 Controlled metadata-admitted cutoff passes eight network/full Core 730/46 skips and seven related App controls;
 the coupled-cancellation negative control fails twice. Original failure/input/XML evidence is retained and
-verified (E-I117). Public timeouts/policy are unchanged; clean successor CI/guest and candidate remain.
+verified (E-I117). Public timeouts/policy are unchanged. Clean da3a3d6 passes four CI lanes and 15 guest cases;
+exact inputs/artifacts/XML/process/temp cleanup verify. Candidate and real-device discovery remain.
 The intervening saved-search/duplicates commit ab919ed passes all four CI lanes (E-V13-F2).
+
+V12 metadata invalidation exposes I118: actual checksum-sidecar changes permit in-flight old Matches values
+to restore the cache; explicit Compute also returns stale Available. Four original failures and four intermediate
+missing-retry failures lead to coordinated publication/invalidation and completion notification. Six demand
+controls and full Core 736/46 skips/App 263/21 skips pass; 477 inputs/direct XML verify (E-I118).
+Clean successor CI/guest, native demand/frame/AT and exact candidate remain.
 
 | ID | Needed | Status |
 |---|---|---|
