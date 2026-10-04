@@ -1193,7 +1193,17 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     zero skips; 691 payloads/692 ZIP members/nineteen sources/pre-launch pins/direct XML/owned process and temp
     cleanup verify. Synthetic watchdog/cap qualification is preliminary; physical/wider/native/candidate remain.
 
+233. V12 shutdown checks expose I125: original production Run admitted after disposal leaves an existing-queue
+    task incomplete or starts a new-queue callback after the disposal snapshot. Both owned baseline probes exit 2;
+    identical corrected probes cancel both tasks with zero callbacks. Enqueue now checks queue and owner shutdown
+    under its lock. Two new controls/50 Core and 37 App affected/full Core 749/46 skips/App 271/21 skips pass;
+    1,084 inputs/nineteen sources/probe DLLs/direct XML/owned process cleanup verify. Clean CI/guest next (E-I125).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I125: earlier scheduler passes do not cover waiting admission across disposal or new queues missed by its
+  snapshot. Corrected owned probes, affected Core/App and full host suites pass; shared consumers require clean
+  CI/guest and native/candidate revalidation.
 
 - I124: previous scheduler passes do not qualify watchdog replacement while appending workers or enforcement
   of the cap when all workers are quarantined. Corrected owned probes, affected Core/App and full host suites
@@ -1328,7 +1338,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
    Real timer/list mutation and controlled worker-cap failures now pass working probes, 85 affected cases and
    full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
-   scopes remain.
+   scopes remain. Shutdown admission races now pass corrected probes/two new controls/87 affected cases and full
+   host suites (I125); clean CI/guest and wider/native/candidate remain.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

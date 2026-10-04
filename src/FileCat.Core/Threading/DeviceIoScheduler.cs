@@ -166,6 +166,12 @@ public sealed class DeviceIoScheduler : IDisposable
         {
             lock (_lock)
             {
+                // Admission can resume after Shutdown, or create a queue after Dispose took its snapshot.
+                if (_shutdown || owner._disposed)
+                {
+                    item.Cancel();
+                    return;
+                }
                 _queue.Enqueue(item, ((int)priority, _seq++));
                 if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);

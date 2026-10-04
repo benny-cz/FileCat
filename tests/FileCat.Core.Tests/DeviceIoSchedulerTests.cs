@@ -5,6 +5,71 @@ namespace FileCat.Core.Tests;
 
 public sealed class DeviceIoSchedulerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Disposal_cancels_admission_waiting_on_an_existing_or_new_device_queue(bool newDevice)
+    {
+        const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+        using var io = new DeviceIoScheduler();
+        ((Timer)typeof(DeviceIoScheduler).GetField("_watchdog", fields)!.GetValue(io)!)
+            .Change(Timeout.Infinite, Timeout.Infinite);
+        await io.Run("existing", IoPriority.Interactive, _ => { }).WaitAsync(TimeSpan.FromSeconds(5));
+        var queues = typeof(DeviceIoScheduler).GetField("_devices", fields)!.GetValue(io)!;
+        object[] gates;
+        if (newDevice)
+        {
+            // Hold this owned dictionary's insertion locks; Dispose can reenter them and snapshot before insertion.
+            var tables = queues.GetType().GetField("_tables", fields)!.GetValue(queues)!;
+            gates = (object[])tables.GetType().GetField("_locks", fields)!.GetValue(tables)!;
+        }
+        else
+        {
+            var queue = queues.GetType().GetProperty("Item")!.GetValue(queues, new object[] { "existing" })!;
+            gates = [queue.GetType().GetField("_lock", fields)!.GetValue(queue)!];
+        }
+        using var ready = new ManualResetEventSlim();
+        var admitted = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        string key = newDevice ? "new" : "existing";
+        var caller = new Thread(() =>
+        {
+            ready.Set();
+            try { admitted.TrySetResult(io.Run(key, IoPriority.Interactive, _ => Interlocked.Increment(ref calls))); }
+            catch (Exception ex) { admitted.TrySetException(ex); }
+        }) { IsBackground = true, Name = "FileCat test shutdown admission" };
+        try
+        {
+            foreach (var gate in gates) Monitor.Enter(gate);
+            try
+            {
+                caller.Start();
+                Assert.True(ready.Wait(TimeSpan.FromSeconds(5)));
+                Assert.True(SpinWait.SpinUntil(() => (caller.ThreadState & ThreadState.WaitSleepJoin) != 0 || admitted.Task.IsCompleted,
+                    TimeSpan.FromSeconds(5)));
+                Assert.False(admitted.Task.IsCompleted); // public Run passed its initial check and is blocked on admission
+                io.Dispose(); // reenters the held locks; closes the existing queue before the caller resumes
+            }
+            finally
+            {
+                foreach (var gate in gates.Reverse()) Monitor.Exit(gate);
+            }
+            Assert.True(caller.Join(TimeSpan.FromSeconds(5)));
+            var late = await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(late.IsCanceled);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => late);
+            var after = io.Run(key, IoPriority.Interactive, _ => Interlocked.Increment(ref calls));
+            Assert.True(after.IsCanceled);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => after);
+            Assert.Equal(0, Volatile.Read(ref calls));
+        }
+        finally
+        {
+            io.Dispose();
+            if (caller.IsAlive) Assert.True(caller.Join(TimeSpan.FromSeconds(5)));
+        }
+    }
+
     [Fact]
     public async Task The_real_watchdog_replaces_a_held_call_and_a_healthy_device_keeps_working()
     {

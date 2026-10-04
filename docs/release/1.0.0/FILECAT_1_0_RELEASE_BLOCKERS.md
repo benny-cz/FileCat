@@ -188,6 +188,12 @@ Clean 18006cc passes four CI lanes and 85 guest controls without affected skips;
 canonical sources/server artifact digests/XML/owned process/temp cleanup verify. Actual hung hardware, wider
 shutdown/queue lifetimes, aggregate decoders and native/candidate remain unqualified.
 
+I125: the original scheduler's public Run can pass the initial disposed check, wait on admission, then enqueue to
+a closed queue (task never completes) or insert a new queue after the disposal snapshot (callback runs after
+disposal). Owned synthetic probes retain both failures. Locked queue/owner shutdown checks cancel both races;
+identical corrected probes, two controls, 50 Core/37 App affected cases and full host suites pass. All 1,084 inputs,
+nineteen sources/probe DLLs/XML/owned process cleanup verify (E-I125). Clean CI/guest and wider/native/candidate next.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
