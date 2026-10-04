@@ -1103,10 +1103,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     Full Core 736/46 skips and App 263/21 skips pass. All 477 inputs/source/direct XML verify (E-I118).
     Clean CI/guest is next; wider/native/candidate checks remain.
 
+220. Clean 2896108 passes four CI lanes; six direct XML inventories and three server-digest-matching ZIPs
+    verify, including eight metadata and two checksum UI cases on Windows and both App cases on Linux/macOS.
+    The exact self-contained source passes ten Windows guest cases, zero skips. All 680 payloads/681 ZIP
+    members/eight source copies and output pins independently verify. Controller/workers are absent, owned
+    temp empty (E-I118). Native demand/frame/AT, concurrent workloads and candidate qualification remain.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I118: earlier metadata cache/verification evidence does not qualify the new publication and demand lifetimes.
-  Working component/full host suites pass; clean CI/guest and native frame/AT/candidate checks remain required.
+  Working component/full host, clean CI and guest controls pass; native frame/AT/candidate checks remain required.
 
 - I116: prior initial archive-search logs do not prove provider warnings were visible. Working/full host,
   clean CI and guest controls pass; other-format/native/candidate checks remain required.
@@ -1199,8 +1205,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Done this session: page and archive budgets (I06), the watcher (I87), counts and analyses ending with their folder
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
-   In-flight invalidation/retry and controlled rapid viewport demand now pass working/full host suites (I118);
-   clean CI/guest checks are next. Native request/queue traces and UI-thread timing remain required.
+   In-flight invalidation/retry and controlled rapid viewport demand now pass working/full host suites and clean
+   CI/guest controls (I118). Native request/queue traces and UI-thread timing remain required.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

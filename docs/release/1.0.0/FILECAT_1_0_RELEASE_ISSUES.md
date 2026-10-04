@@ -10,7 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
-| I118 | In-flight metadata repopulates invalidated values, including stale checksum matches | Medium (metadata truth) | Must fix (V12/V15) | Four original failures; complete publication/invalidation/retry remedy passes six demand controls and full Core 736/46 skips/App 263/21 skips. 477 inputs/direct XML verify. Clean CI/guest next; native/candidate pending (E-I118) |
+| I118 | In-flight metadata repopulates invalidated values, including stale checksum matches | Medium (metadata truth) | Must fix (V12/V15) | Remediated 2896108; verified preliminarily: four original failures, six final controls/full host suites, four CI lanes and ten clean guest cases pass. Exact working/payload/source/XML/artifact-digest/cleanup inventories verify. Native/candidate pending (E-I118) |
 | I117 | Late-name discovery fixture can finish before any probe is handled | Low (validation reliability) | Must fix (CI/I23 evidence) | Remediated da3a3d6; verified preliminarily: eight network/full Core 730/46 skips and seven App controls, four clean CI lanes and 15 guest cases pass. Mutation fails twice; original ARM64 failure retained/scheduling untraced. Exact inputs/artifacts/XML/cleanup verify; candidate/real-device pending (E-I117) |
 | I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated 6ecf4a8; verified preliminarily: two valid baseline failures/two TAR/gzip positives, 32 affected controls and full host suites. Four CI lanes and 34 clean guest cases pass; exact inputs/artifact digests/XML/cleanup verify. Other formats/native/candidate pending (E-I116) |
 | I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated ff8746a; verified preliminarily: four valid baseline failures, eleven corrected Core/two App controls and full affected host suites. Four CI lanes, all affected Windows/Linux/macOS App XML and 13 clean guest cases pass. Exact inputs/XML/cleanup verify; other formats/native/candidate pending (E-I115) |
@@ -140,7 +140,9 @@ level the plan already states; exploit-level detail is not recorded here.
   releases demand. Completion wakes visible rows to retry. Four intermediate event controls require that wakeup.
 - Six final controls and full Core 736/46 skips/App 263/21 skips pass. Positive viewport control includes 1,000
   abandoned requests, an independent healthy device and interactive priority with one freed worker. All 477
-  inputs/source/direct XML verify. Clean CI/guest next; wider/native/candidate scopes remain. See [E-I118](evidence/E-I118-metadata-invalidation.md).
+  inputs/source/direct XML verify. Clean 2896108 passes four CI lanes and ten guest cases, zero skips; 680
+  payloads/681 ZIP members/eight sources and output pins verify, controller/workers absent and temp empty.
+  Wider/native/candidate scopes remain. See [E-I118](evidence/E-I118-metadata-invalidation.md).
 
 ### I117 — Late-name discovery fixture can expire before handling a probe
 

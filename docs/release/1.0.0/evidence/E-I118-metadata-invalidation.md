@@ -46,6 +46,32 @@ Private root:
 | Final Core / App input manifest | `e19484e5c398b7e6db458d2fba0b12a11e53e74f13e27042ed31864bee824e04` / `e2a3a799d8d8c01823657b89678850a8eb7690c1dee6c3ef010f43a5d3f6efe5` |
 | Independent input/case/skip inventory | `29270837c64a59d9a62234c779f5003f8e60aafb9be5994eea53c12622e6c4bb` |
 
-Clean committed-source CI/guest controls are next. Concurrent real copy/search, broader viewport/page/picture
-demand, many-folder/partial-size controls, native frame/AT and exact-candidate checks remain. Overall **NO-GO**
-and the physical USB source hold remain.
+Clean source `28961085ed490381afbb5e7b19600c212886bbe4` passes all four required lanes in
+[CI run 37179889361](https://github.com/benny-cz/FileCat/actions/runs/37179889361); three package jobs skip.
+The three actual downloaded artifact ZIPs match GitHub's server digests. Six direct XML inventories verify:
+Windows Core 735/47 skips, App 269/15, platform 165/33 and Remote 88/28; Linux/macOS App each 248/36.
+All eight selected metadata cases and both checksum UI cases pass in direct Windows XML; both App cases also
+pass on Linux/macOS. ARM64's job/log status is retained; there is no direct ARM64 XML artifact in this run.
+Raw metadata/log/ZIPs/XML and the independent inventory are under the sibling `ci-37179889361` root.
+
+The exact self-contained win-x64 payload passes eight Core metadata and two headless checksum UI cases in the
+Windows Insider 26300 VM, with zero skips, ending at **2026-10-04 05:38:47 UTC**. All 680 payload files,
+681 ZIP members, eight raw/canonical source copies and retrieved output pins independently verify. The
+controller PID 12516 and test PIDs 8156/3960 are absent, and the owned temp folder is empty at 05:40:26 UTC.
+The guest UUID is `9D224D56-1161-A849-ABA7-2581A980895C`; its source/device/desktop flags explicitly record
+no physical-source access or native desktop interaction. Guest root:
+`C:\Users\Public\FileCat-metadatademand-validation-43eb2da6b5854c5ca0b1b4ce2727c07c`.
+Retained host payload/scripts/request/XML/cleanup are under `clean-2896108` in the private I118 root.
+
+| Clean-source evidence | SHA-256 |
+|---|---|
+| CI metadata / full log | `b7fc84d8bef9cc960c9d9dbeb0ee12d96565ee8eb520a15cfd97686aca0bd99c` / `f00cba3ea532fc97fab22d7908796732703da24498937bd1d766d1ec9f8ce814` |
+| Windows / Linux / macOS artifact ZIP | `31c9a8dcd0f761e0c75cba77cd239a94199ce85afa8c64b28808a3a58d0ac9c1` / `993380a57703d8a60a59b51245b408c2d8a06f201f3960af65094eba29e6fc13` / `c96ea57dcbff49c8eddd0cc848147dedf305d0d1d165c9fce0e0b60bf3f0bc96` |
+| Independent CI inventory | `36c798554a2751f35cea67911e8a44b96f799e69b12f5731238504cfac26f520` |
+| Guest input ZIP / manifest | `b3bb31b24b309a1eba9f15d98989fd421d1b408238b90d441ee26a2a9f70f503` / `afa35c689c0b57e683d401242ee903318bd46a20146061bb249a0316a50a3123` |
+| Runner / cleanup script | `5624a3d0a4b99393391ba609b222035b21270d18f8f5b324787abc5d1b2e0aca` / `9ce1cf3b8cc68c3098935a484559f86710d5f59688cd7d5d863e6613f5b95e90` |
+| Guest Core / App XML | `1b701f6cc50120e120468fde16af5ea881c77e45519f2de41aa336f59a770d15` / `e7ac8cd1c1afc54e2d42951fab60f4bdc51c7e78bded0ce0dac95a2f625c3944` |
+| Guest cleanup / independent payload/output inventory | `6d707e5eed3fa1569d95e3dd3b5059efcdc5e09c5de3bd6694ac40161a3b6974` / `b3b9cbf0e152ce69cd2d1ed82a981d5b7eb5edd322c31de80bc4df46bba41bc9` |
+
+Concurrent real copy/search, broader viewport/page/picture demand, many-folder/partial-size controls,
+native frame/AT and exact-candidate checks remain. Overall **NO-GO** and the physical USB source hold remain.

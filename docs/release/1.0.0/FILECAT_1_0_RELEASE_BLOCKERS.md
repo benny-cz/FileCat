@@ -137,7 +137,8 @@ V12 metadata invalidation exposes I118: actual checksum-sidecar changes permit i
 to restore the cache; explicit Compute also returns stale Available. Four original failures and four intermediate
 missing-retry failures lead to coordinated publication/invalidation and completion notification. Six demand
 controls and full Core 736/46 skips/App 263/21 skips pass; 477 inputs/direct XML verify (E-I118).
-Clean successor CI/guest, native demand/frame/AT and exact candidate remain.
+Clean 2896108 passes four CI lanes and ten guest cases, zero skips; exact source/payload/artifact digests/XML
+and process/temp cleanup verify. Native demand/frame/AT and exact candidate remain.
 
 | ID | Needed | Status |
 |---|---|---|
