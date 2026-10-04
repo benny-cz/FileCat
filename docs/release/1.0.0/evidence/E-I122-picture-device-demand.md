@@ -70,6 +70,12 @@ or described as green. Synchronization investigation is separate from this devic
 | CI Windows / Linux / macOS ZIP | `29b7ffb14b0a8d7e27b5abc9d5cae9c97cb8ff1fe7fadcdb1bcc18d0ecddadab` / `1f9ad9a93a1d1f8ee072304bc75ab32bf808dd0d5fc5bd59b8c4aee61324b49b` / `130f0b35cbed88bd8bc73121cb8a448da33f88a3266f44f5a13cabfd22c1c86a` |
 | Independent original CI inventory | `eab637c372e59f0119d7eec097b7f6295fc4c73593d418b6a2fc98c1d5a0cf04` |
 
+Clean successor `08acc2f327a99f63e904e9195085d180f55e4447`, with only the synchronization fixture correction,
+passes all four lanes in [CI 37194533201](https://github.com/benny-cz/FileCat/actions/runs/37194533201).
+All 58 I122 affected Windows and twenty App cases per Unix lane pass, as part of the larger 75/37-case inventory.
+Exact source/server digests/extracted XML verify in [E-I123](E-I123-synchronize-windows-fixture.md), independent
+inventory `6fafb12ee41f9c4c1e183f07d694c5fe85c050a2cad37a9252bfcb5ac192e7b7`. The original failed CI remains retained.
+
 Watchdog replacement/hard-cap cases, many simultaneous decoder processes/aggregate memory, other direct `Source`
-consumers, concurrent copy/search, native queue/frame/AT and final candidate checks remain. Overall CI needs the
-separate synchronization failure resolved. No physical USB action was run; its source-change hold and overall **NO-GO** remain.
+consumers, concurrent copy/search, native queue/frame/AT and final candidate checks remain. No physical USB action
+was run; its source-change hold and overall **NO-GO** remain.

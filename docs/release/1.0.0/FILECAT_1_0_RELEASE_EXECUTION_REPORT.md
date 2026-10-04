@@ -1174,15 +1174,22 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     failures are retained, then identical captured assemblies pass in short outside-repository system temp.
     Production is unchanged; original CI request/interleaving remains unavailable. Clean CI/guest is next.
 
+230. Clean 08acc2f passes four CI lanes and all 17 elevated Windows guest comparison/synchronization/operation
+    cases, zero skips. Exact 367-file payload/368 ZIP members/thirteen sources/XML and worker/temp cleanup
+    verify (E-I123). Three server artifact digests/sizes and extracted XML verify: all 75 affected Windows
+    Core/App and 37 App cases per Unix lane pass, including all I122 controls. Complete live NTFS history passes.
+    The original failed run and unavailable request/interleaving remain recorded; native/candidate remain.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I123: prior passing synchronization runs do not establish use of the shipping Windows adapter or a held
-  replacement target. Controlled baseline/final, seventeen affected and full App pass; clean CI/guest is next.
+  replacement target. Controlled baseline/final, seventeen affected/full App, four clean CI lanes and 17 guest
+  cases pass; native/candidate remain.
   The original failed CI remains retained; its unavailable decision request prevents exact attribution.
 
 - I122: earlier picture evidence does not qualify the new provider-keyed scheduler route. Working/full host,
-  36 clean guest and all affected CI controls pass; original Windows synchronization failure is retained and
-  overall CI unresolved. Native/candidate remain. Watchdog/hard-cap and aggregate decoder bounds have separate
+  36 clean guest and four successor CI lanes/all affected controls pass; original Windows synchronization failure
+  is retained. Native/candidate remain. Watchdog/hard-cap and aggregate decoder bounds have separate
   uncompleted scopes.
 
 - I121: prior picture/quick-view evidence does not qualify actual feed ownership after cancellation or F3 bitmap
@@ -1299,7 +1306,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    suites, 45 clean guest cases and four successor CI lanes pass; original I120 failure retained). Direct
    Picture feeds now retain active sources after cancellation and release closed F3 bitmaps (I121 working/full
    host, clean CI and 34 guest controls pass). Controlled per-device feeds now pass working/full host cases
-   and 36 clean guest cases/all affected CI controls (I122; separate synchronization CI failure unresolved);
+   and 36 clean guest cases/four successor CI lanes/all affected controls (I122; original synchronization failure retained);
    watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest

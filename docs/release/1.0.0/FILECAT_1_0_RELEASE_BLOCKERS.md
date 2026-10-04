@@ -165,7 +165,8 @@ two-worker device while a healthy device completes. Provider-keyed scheduled fee
 22 affected App cases and full App 271/21 skips/Core 745/46 skips. All 1,812 inputs/fifteen sources/active
 assemblies/direct XML and scoped call-count traces verify (E-I122). Clean 82f7488 passes 36 guest cases;
 all 58 affected Windows and twenty App cases per Unix CI lane pass. Original CI Windows fails the separate
-directory-synchronization test (old content/AwaitingDecision); that run is retained and overall CI is unresolved.
+directory-synchronization test (old content/AwaitingDecision); that run is retained. Clean successor 08acc2f
+passes four CI lanes and all affected cases (E-I123).
 Exact clean payload/source/artifact digests/XML/worker/decoder-child/temp cleanup verify. Watchdog/hard-cap,
 aggregate decoder memory/processes, other direct Source/native/candidate remain.
 
@@ -174,7 +175,9 @@ A held target reproduces old content/AwaitingDecision/error-access with its port
 adapter passes all 17 comparison/operation controls and full App 271/21 skips. All 2,202 inputs/thirteen raw
 sources per stage/unchanged production DLLs/direct XML verify (E-I123). Intermediate culture/path/location/space
 harness failures are retained. The original CI request is unavailable, so its precise mechanism remains unknown.
-Clean-source CI/guest validation is next; this test-only remedy does not change production replacement policies.
+Clean 08acc2f passes four CI lanes and 17 guest cases, zero affected skips. Exact 367-file payload/368 ZIP
+members/thirteen sources/server artifact digests/XML/worker/temp cleanup verify. This test-only remedy does not
+change production replacement policies; native/candidate checks remain.
 
 | ID | Needed | Status |
 |---|---|---|
