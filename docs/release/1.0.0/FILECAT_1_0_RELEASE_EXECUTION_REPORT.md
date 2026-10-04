@@ -1053,10 +1053,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     input and direct XML inventories independently verify (E-I115). Two earlier fixture replacement faults and
     deferred-row observer failures are retained separately. Clean CI/guest execution is next; candidate/native remain open.
 
+213. Clean ff8746a passes all four required CI lanes, three package jobs skip. Six direct XML inventories verify,
+    including all 13 new Windows cases and both App flows on Linux/macOS; three artifact ZIPs match server digests.
+    The exact clean self-contained payload passes 13 Windows guest controls without skips. All 683 payloads/684 ZIP
+    members/eleven source copies and retrieved XML verify; controller/workers absent, owned temp empty. Additive
+    guest-locator correction retained, payload unchanged. Other formats, initial listing warnings and candidate/native remain open.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I115: old result-narrowing evidence does not qualify archive-member revalidation or the revised log/navigation.
-  Working controls and full affected host suites pass; clean CI/guest, other-format/native and candidate checks remain required.
+  Working/full host, clean CI and guest controls pass; other-format/native and candidate checks remain required.
 
 - I113: old quick-view evidence does not qualify the new request, scheduler and bitmap lifetimes. Controlled
   headless/full host suites, clean CI and guest controls pass; native presentation/AT and candidate reruns remain required.
@@ -1144,7 +1150,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13, what is left: duplicates among a set, saved criteria beyond the time fields; archive-result narrowing now
-   passes working Core/headless Find flows (I115), with clean CI/guest, other formats and initial listing-warning
+   passes working and clean CI/guest Core/headless Find flows (I115), with other formats and initial listing-warning
    propagation still to validate. Candidate/native checks remain required.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
    the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.

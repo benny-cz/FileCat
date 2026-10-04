@@ -10,7 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
-| I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated; verified preliminarily: four valid baseline failures, eleven corrected Core controls, two headless App flows and full Core 725/46 skips/App 258/21 skips. Exact working inputs/XML verify; clean CI/guest/candidate pending (E-I115) |
+| I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated ff8746a; verified preliminarily: four valid baseline failures, eleven corrected Core/two App controls and full affected host suites. Four CI lanes, all affected Windows/Linux/macOS App XML and 13 clean guest cases pass. Exact inputs/XML/cleanup verify; other formats/native/candidate pending (E-I115) |
 | I114 | Parallel GnuPG fixtures replace each other's process-wide tool selection | Low (validation reliability) | Must fix (V15/V24 evidence) | Remediated 7497acf; verified preliminarily: controlled Good → UnknownKey → Good swap, isolated full Core 714/46 skips and four successor CI lanes pass. Original failure retained/interleaving untraced; candidate pending (E-I114) |
 | I113 | Quick view accepts stale results/errors, leaks failed/empty-reset readers and starts unbounded abandoned opens | Medium (preview correctness/resource demand) | Must fix (V12/AI-03) | Remediated 7497acf; verified preliminarily: six baseline failures, seven corrected controls, full affected host suites, four CI lanes and seven clean guest cases. Native presentation/candidate pending (E-I113) |
 | I112 | Concurrent page-cache stress observer infers idle from unchanged totals | Low (validation reliability) | Must fix (required evidence/CI) | Remediated b7d2e8; verified preliminarily: held-read and seven cache controls, full affected host suites, four successor CI lanes and seven guest controls pass. Original failure retained; candidate rerun pending (E-I112) |
@@ -137,7 +137,8 @@ level the plan already states; exploit-level detail is not recorded here.
   No member content or nested archive opens during lookup. The log keeps the original typed location.
 - Eleven Core controls and two headless Find/content/log/navigation flows pass. Full Core 725/46 declared skips
   and App 258/21 declared skips pass; exact inputs/direct XML verify. Early fixture/observer faults are retained
-  separately. Preliminary remediation verified; clean CI/guest, other-format/native and candidate checks remain.
+  separately. Clean ff8746a passes four CI lanes, affected Windows/Linux/macOS App XML and 13 guest cases with
+  exact payload/cleanup verification. Preliminary remediation verified; other-format/native and candidate checks remain.
   See [E-I115](evidence/E-I115-archive-result-search.md). Overall NO-GO and USB hold remain.
 
 ### I109 — unsupported cluster query was silently absent from the file record

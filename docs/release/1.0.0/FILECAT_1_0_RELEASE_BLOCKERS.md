@@ -116,8 +116,9 @@ presentation checks remain open; no change to USB hold or source-safety status.
 
 V13 archive-result narrowing exposes I115's silent omission of all non-file-system references. Four valid baseline
 failures become eleven passing Core and two headless Find/content/log/navigation controls; full Core 725/46 skips
-and App 258/21 skips pass. Exact working inputs/XML verify (E-I115). Clean CI/guest, other-format/native and candidate
-checks remain required. No change to USB hold, source-safety disposition or **NO-GO**.
+and App 258/21 skips pass. Exact working inputs/XML verify (E-I115). Clean ff8746a passes four CI lanes, affected
+Windows/Linux/macOS App XML and 13 guest cases; exact input/artifact/cleanup proofs verify. Other-format/native
+and candidate checks remain required. No change to USB hold, source-safety disposition or **NO-GO**.
 
 | ID | Needed | Status |
 |---|---|---|

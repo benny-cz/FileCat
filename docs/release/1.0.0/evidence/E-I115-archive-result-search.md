@@ -43,5 +43,31 @@ Private root: `artifacts/release-evidence/i115-archive-result-search-20261004`.
 | Final source/payload manifest | `062d381035b9221443b555d41963e03804b46434f7f2ef20dafc54da7cb5ea4a` |
 | Independent input/XML/skip inventory | `c564d67bfb3e003543fa63440b3b4ef913a6a2ab5ba4d815b6f3df69f358a22b` |
 
-Remediation verified preliminarily on the working source; clean successor CI/guest execution is next. Exact
-candidate and native presentation/AT checks remain required. USB G6 quarantine and overall **NO-GO** remain.
+Clean successor `ff8746a3dd11c1ee7fe040e1d9263aaa9dbfc468` passes all four required
+[CI lanes](https://github.com/benny-cz/FileCat/actions/runs/37174198419); three tag/manual package jobs skip.
+The Windows XML directly verifies Core 724 pass/47 skips, App 264/15, platform 165/33 and Remote 88/28,
+including all 13 affected cases. Linux and macOS App XML each verify 243 pass/36 skips and both new Find flows.
+All six direct XML inventories and three complete artifact ZIPs match their server-reported SHA-256 digests.
+
+The same clean source passes all **13 controls without skips** in the elevated Windows 26300 VM
+(UUID `9D224D56-1161-A849-ABA7-2581A980895C`), ending 2026-10-04 03:36:22 UTC. All 683 payload files,
+684 ZIP members and eleven committed source-content copies independently verify. Controller 12140 and
+workers 652/12520 are absent and the owned temp folder is empty at 03:37:55 UTC. Native OS execution of
+headless controls is not native desktop input/frame evidence. A guest-locator separator correction is retained
+as an additive request document; package bytes are unchanged.
+
+Private successor roots: this record's `clean-ff8746a` and `artifacts/release-evidence/ci-37174198419`.
+
+| Successor evidence | SHA-256 |
+|---|---|
+| CI metadata / complete log | `bde51f4b1d25bcf333f900d74171e9badf6d29d8e668155e86a281ceb2742baf` / `e5b299507500ac805d70636f16cff2d565fe222b2816e0d0a42929087afd2fdb` |
+| Independent CI inventory | `7b5158bc4cd069fed49063272173636716975e73ce86a66f81898138e91bf2a3` |
+| Guest ZIP / input manifest | `424c2704a2fdbf0e20c1035805d001c43146222b58184a72eab12f4961be6ed1` / `75a5905cf20135766be9cf5a00e02052782792f762091fb18a8fef973d992549` |
+| Guest runner / cleanup observer | `17d484bf4316b76d10818aa86fa4798d6fecb248e6347ca53d1a678587c64b85` / `a6d3e09fa345a18d14ba1c2cd517769cca8a2d3b43f91cc38e1d907deb230797` |
+| Guest Core / App XML | `f1e1e9e226fcdc03c8f1dd206350c3a3584451f7c6e6d332bfe9ec140e0f4dc8` / `bc057d0295be1a1bb9dab4e14ae63384fa5e6a9a3e259c9f200d6d6e83ba54fa` |
+| Guest cleanup result | `65d738ad29e330a7d013738301e46e0036efde78147e8e67ecf694d681dfc20e` |
+| Independent native inventory | `6791b40ea406d07ef27254456fcd598f31ca0fd2df308126f30aa0a5d6ae7183` |
+
+Remediation verified preliminarily on clean source. Other formats and initial archive-discovery warning propagation
+remain to validate. Exact candidate and native presentation/AT checks remain required. USB G6 quarantine and
+overall **NO-GO** remain.
