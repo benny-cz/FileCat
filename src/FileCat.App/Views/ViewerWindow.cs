@@ -26,6 +26,7 @@ namespace FileCat.App.Views;
 public sealed class ViewerWindow : Window
 {
     private readonly AppServices _services;
+    private readonly string _deviceKey;
     private readonly PagedReader _reader;
     private readonly TextViewer _text = new();
     private readonly HexView _hex = new();
@@ -83,9 +84,15 @@ public sealed class ViewerWindow : Window
     /// <summary>The viewed item's full path or provider path.</summary>
     public string DisplayName => _displayName;
 
-    public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex)
+    public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey = null)
     {
         _services = services;
+        _deviceKey = deviceKey ?? "viewer-content";
+        if (deviceKey is null && source.LocalPath is { } path)
+        {
+            var location = Core.Resources.Location.FileSystem(Path.GetDirectoryName(path) ?? path);
+            _deviceKey = services.Providers.For(location).GetDeviceKey(location);
+        }
         _displayName = displayName;
         _source = source;
         _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
@@ -311,7 +318,7 @@ public sealed class ViewerWindow : Window
         _picture.ShowMessage("Decoding the picture…");
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(_reader, PictureSide, _closing.Token);
+            var picture = await PictureDecoder.DecodeAsync(_reader, _services.Io, _deviceKey, PictureSide, _closing.Token);
             if (_closing.IsCancellationRequested)
             {
                 picture.Bitmap.Dispose();
@@ -860,7 +867,7 @@ public static class ViewerLauncher
     public static void Open(AppServices services, ItemRef item, IContentSource source, bool hex)
     {
         var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
-        new ViewerWindow(services, source, name, hex).Show();
+        new ViewerWindow(services, source, name, hex, services.Providers.For(item.Parent).GetDeviceKey(item.Parent)).Show();
     }
 
     public static void OpenPath(AppServices services, string path)

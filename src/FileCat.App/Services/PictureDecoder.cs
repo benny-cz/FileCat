@@ -7,6 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.Services;
 
@@ -41,20 +42,22 @@ public static class PictureDecoder
 
     /// <summary>Decodes borrowed content; completion includes the feeder's last source call, even after cancellation.</summary>
     public static Task<DecodedPicture> DecodeAsync(IContentSource source, int maxSide, CancellationToken ct) =>
-        DecodeAsync(source.Length, (input, token) => Feed(source, input, token), maxSide, ct, drainFeed: true);
+        DecodeAsync(source.Length, (input, token) => Task.Run(() => Feed(source, input, token), CancellationToken.None), maxSide, ct, drainFeed: true);
 
     /// <summary>
     /// Decodes for a view. Cancellation can finish its UI demand while a synchronous source read is still held;
-    /// the reader keeps that source alive until the actual feeder returns.
+    /// the reader keeps that source alive until the actual feeder returns. Source calls share the provider's device
+    /// workers; canceled queued work never borrows or reads the source.
     /// </summary>
-    public static Task<DecodedPicture> DecodeAsync(PagedReader reader, int maxSide, CancellationToken ct) =>
-        DecodeAsync(reader.Length, (input, token) =>
+    public static Task<DecodedPicture> DecodeAsync(PagedReader reader, DeviceIoScheduler io, string deviceKey,
+        int maxSide, CancellationToken ct) =>
+        DecodeAsync(reader.Length, (input, token) => io.Run(deviceKey, IoPriority.Interactive, canceled =>
         {
-            token.ThrowIfCancellationRequested();
-            reader.WithSource(source => Feed(source, input, token));
-        }, maxSide, ct, drainFeed: false);
+            canceled.ThrowIfCancellationRequested();
+            reader.WithSource(source => Feed(source, input, canceled));
+        }, token), maxSide, ct, drainFeed: false);
 
-    private static async Task<DecodedPicture> DecodeAsync(long length, Action<Stream, CancellationToken> feed,
+    private static async Task<DecodedPicture> DecodeAsync(long length, Func<Stream, CancellationToken, Task> feed,
         int maxSide, CancellationToken ct, bool drainFeed)
     {
         ct.ThrowIfCancellationRequested();
@@ -68,7 +71,7 @@ public static class PictureDecoder
         using var stop = token.Register(worker.Kill);
         // Written and read at once: the worker may stop reading early (a damaged file), and a full pipe must not block.
         var input = worker.Input;
-        var feeding = Task.Run(() => feed(input, token), CancellationToken.None);
+        var feeding = feed(input, token);
         DecodedPicture? picture = null;
         try
         {

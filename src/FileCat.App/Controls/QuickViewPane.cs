@@ -227,7 +227,8 @@ public sealed class QuickViewPane : Border
             _isPictureFile = request.Picture;
             // No Shell thumbnail coming (Linux, macOS, archives, servers, or Shell pictures turned off): FileCat decodes
             // the picture itself, in its worker process.
-            if (request.Picture && !shellPicture && e.Size is > 0 and <= MaxDecodedBytes) _ = LoadDecodedPictureAsync(_reader, key, request);
+            if (request.Picture && !shellPicture && e.Size is > 0 and <= MaxDecodedBytes)
+                _ = LoadDecodedPictureAsync(_reader, services.Io, provider.GetDeviceKey(item.Parent), key, request);
             if (request.Guess!.LooksBinary)
             {
                 _hex.SetReader(_reader);
@@ -270,12 +271,12 @@ public sealed class QuickViewPane : Border
     }
 
     /// <summary>A picture FileCat decodes itself (<see cref="PictureDecoder"/>), for the glance quick view gives.</summary>
-    private async Task LoadDecodedPictureAsync(PagedReader reader, string key, PreviewRequest request)
+    private async Task LoadDecodedPictureAsync(PagedReader reader, DeviceIoScheduler io, string deviceKey, string key, PreviewRequest request)
     {
         double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1;
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(reader, (int)Math.Round(PictureSize * scale), request.Token);
+            var picture = await PictureDecoder.DecodeAsync(reader, io, deviceKey, (int)Math.Round(PictureSize * scale), request.Token);
             if (!IsCurrent(request))
             {
                 picture.Bitmap.Dispose();

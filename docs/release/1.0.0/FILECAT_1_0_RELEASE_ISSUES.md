@@ -10,6 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
+| I122 | Picture feeds bypass per-device workers and keep additional held calls after demand changes | Medium (bounded resources) | Must fix (V12/AI-03) | Working remedy: two baseline failures/healthy-device positives; two corrected/22 affected App cases/full App 271/21 skips/Core 745/46 skips pass. 1,812 inputs/source/active assemblies/direct XML/controlled traces verify. Clean CI/guest next; watchdog/aggregate decoder/native/candidate pending (E-I122) |
 | I121 | Closing a picture races its active file feed; F3 retains a loaded bitmap after close | Medium (resource lifetime) | Must fix (V12/V10/AI-03) | Remediated a550fcd; verified preliminarily: five baseline failures/one positive, six corrected/20 affected App cases/full host suites, four clean CI lanes and 34 guest cases pass. Wrong harness count retained; identical payload passes exact successor inventory. Inputs/payloads/source/artifact digests/XML/cleanup verify; per-device feeds/other Source/native/candidate pending (E-I121) |
 | I120 | Live NTFS fixture dereferences an absent table after its history falls outside the retained window | Low (validation reliability) | Must fix (CI/I23) | Remediated 9074cf6; verified preliminarily: original CI failure retained, full host platform/golden controls, four clean CI lanes and 20 elevated guest cases pass. Complete live history passes in CI/guest, zero affected skips. Exact inputs/payloads/source/artifact digests/XML/cleanup verify; native/candidate pending (E-I120) |
 | I119 | Closing a page reader disposes an active source call and leaves later page/refresh demand alive | Medium (resource lifetime) | Must fix (V12/AI-03) | Remediated de1fd71; verified preliminarily: eight baseline failures, nine corrected/38 affected cases/full host suites and 45 clean guest cases pass. Original I120 CI failure retained; clean successor passes four lanes/all affected XML cases. Exact inputs/artifacts/XML/cleanup verify; direct Source/picture/native/candidate pending (E-I119) |
@@ -133,6 +134,16 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I122 — Picture feeds bypass their provider's bounded workers
+
+- Three actual held picture-file reads occur against a two-worker provider device in both F3 and rapid quick
+  view. A healthy device completes in each baseline; failure is the extra held call, not a timing prerequisite.
+- Runtime feeding now uses the provider's device key and interactive scheduler queue. The actual callback
+  borrows its source; canceled queued feeds perform no read. Existing scheduler/worker limits are unchanged.
+- Two controls/22 affected App cases/full App 271/21 skips/Core 745/46 skips pass. Inputs/source/direct XML
+  and original/corrected/full-suite call/healthy-device traces independently verify. Clean CI/guest next;
+  watchdog/hard-cap, aggregate decoder resources, other Source/native/candidate remain (E-I122).
 
 ### I121 — Picture feeders outlive the source ownership of their closed view
 

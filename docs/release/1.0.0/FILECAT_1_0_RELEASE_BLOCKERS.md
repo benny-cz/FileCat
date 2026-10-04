@@ -160,6 +160,12 @@ cases, zero affected skips; exact payload/source/artifact digests/XML/worker/dec
 Wrong original harness count is retained, with identical payload passing the corrected inventory.
 Per-device feed bounds, other direct Source consumers, native frame/AT and exact candidate remain.
 
+Two further device controls expose I122: F3 and quick view each hold three real picture-file calls on a
+two-worker device while a healthy device completes. Provider-keyed scheduled feeding passes both controls,
+22 affected App cases and full App 271/21 skips/Core 745/46 skips. All 1,812 inputs/fifteen sources/active
+assemblies/direct XML and scoped call-count traces verify (E-I122). Clean-source CI/guest is next;
+watchdog/hard-cap, aggregate decoder memory/processes, other direct Source/native/candidate remain.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
