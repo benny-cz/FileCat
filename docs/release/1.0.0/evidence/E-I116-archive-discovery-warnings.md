@@ -40,5 +40,37 @@ Private root: `artifacts/release-evidence/i116-archive-discovery-warnings-202610
 | Final source/payload manifest | `9de3a86a71978cf8c3cc8a1abbf09ceaa9e53fff1eef71f0b3a0c5ae51051740` |
 | Independent input/XML/skip inventory | `017eb9765b51b17bf7d3acd33c862d81352f065768c5e5bf7319f4f182f74a6f` |
 
-Remediation verified preliminarily on working source; clean CI/guest execution is next. Other formats, native
-presentation/AT and exact candidate checks remain required. USB G6 quarantine and overall **NO-GO** remain.
+Clean successor `6ecf4a83a189f3035e2ebb306e8742cc6eb32228` passes all four required
+[CI lanes](https://github.com/benny-cz/FileCat/actions/runs/37175881310); three package jobs skip. Six direct XML
+inventories verify Windows Core 728 pass/47 skips, App 264/15, platform 165/33 and Remote 88/28; Linux/macOS App
+each 243/36. All 34 affected Windows cases and both Find flows on Linux/macOS pass. Three retained artifact ZIPs
+match their server SHA-256 digests.
+
+The exact clean source passes **32 Core and two App controls, no skips**, in the elevated Windows 26300 VM,
+UUID `9D224D56-1161-A849-ABA7-2581A980895C`, ending 2026-10-04 04:16:04 UTC. All 680 payload files,
+681 ZIP members, eight committed source-content copies and retrieved XML verify. Controller 14256 and workers
+12476/1956 are absent; owned temp is empty at 04:19:22 UTC. This is native OS execution of headless controls,
+not native desktop input/frame evidence.
+
+The first clean publish hits a full E: volume. Its 668 files (289,179,564 bytes) are copied and independently
+hash-verified in the authorized second workspace before the redundant failed directory is removed from E:.
+The successful publish and CI records use that workspace's `FileCatReleaseEvidence` directory. The failed
+attempt is not qualified; its exact transferred bytes and manifest remain retained. No physical source or
+historical release evidence is discarded. This writable local store does not resolve DEC-10's sealed-store gate.
+
+Private successor roots under
+`C:/Users/marek/.codex/visualizations/2026/10/02/01a0fbbf-f37d-7042-9e13-028bfb0e5c33/FileCatReleaseEvidence`:
+`i116-archive-discovery-warnings-20261004/clean-6ecf4a8-v2`, its sibling `failed-clean-6ecf4a8`, and `ci-37175881310`.
+
+| Successor evidence | SHA-256 |
+|---|---|
+| CI metadata / complete log | `36cf8618e22c66238c7fda79a207a59e29e714e96ea40bce32ac7e3f39cd4ddf` / `8a78f6ca732adb13ab2aa185861334d698a46356822fe5f9c56308bdfbc87e19` |
+| Independent CI inventory | `cfe8f9b52bf1e5f5fb6a36f1a4256ec35e51f9ea8ac79a75034def896912b53a` |
+| Guest ZIP / input manifest | `681047d476e52935e5af459ab8c7c3b6617eb911e02dac2040485b0e13205115` / `399a22c549926a4a7f51987aede7e428a34ab3a51078cc031ba29db12e681a8f` |
+| Guest runner / cleanup observer | `dbb89c651f7e5061efe0a0b77848711bfa02c0422b8494acd66105988595f1f0` / `179847fa256f207aeca7670dbfa6a2cccac6613638b17be37942deaadd40683d` |
+| Guest Core / App XML | `81a4da2f7eee86c56d72c94af5570d0f308aaeb1e22add125e7174ea6904f836` / `5e088c80f9fbfe911c9f91ace5db3db3528b68ea763d574e5eaa9d73587e8287` |
+| Guest cleanup result | `b92c72035d219ccff19b466edaa9817aa6ebbbbf160bb8bacdc7a8b948924272` |
+| Independent native/failed-transfer inventory | `2e9e11c8c9d316cc2fe38fe239804803634dfb865c2c9b37db6256ab0b9a23d5` |
+
+Remediation verified preliminarily on clean source. Other formats, native presentation/AT and exact candidate
+checks remain required. USB G6 quarantine and overall **NO-GO** remain.

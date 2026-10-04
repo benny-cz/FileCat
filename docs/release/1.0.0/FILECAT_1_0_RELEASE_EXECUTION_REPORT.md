@@ -1065,10 +1065,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     input/active-assembly/direct XML inventories verify (E-I116). Detector-misconfigured and disk-case observer
     attempts are retained separately. Clean CI/guest is next; other formats/native/candidate remain open.
 
+215. Clean 6ecf4a8 passes all four required CI lanes, three package jobs skip. Six direct XML inventories and
+    three server-digest-matching artifact ZIPs verify, including all 34 affected Windows cases and both Find flows
+    on Linux/macOS. The exact self-contained source passes 34 Windows guest cases without skips; 680 payloads,
+    681 ZIP members, eight source copies and XML/cleanup verify. Controller/workers absent, owned temp empty.
+    E: fills during initial publish; all 668 failed-output files transfer to the authorized second workspace and
+    hash-verify before the redundant failed tree is removed. Clean package/CI evidence uses that workspace.
+    No historical/source evidence discarded; other-format/native/candidate and sealed-store gates remain.
+
 ## Evidence invalidated by the campaign's own changes
 
-- I116: prior initial archive-search logs do not prove provider warnings were visible. Working controls and
-  full affected host suites pass; clean CI/guest/native/candidate checks remain required.
+- I116: prior initial archive-search logs do not prove provider warnings were visible. Working/full host,
+  clean CI and guest controls pass; other-format/native/candidate checks remain required.
 
 - I115: old result-narrowing evidence does not qualify archive-member revalidation or the revised log/navigation.
   Working/full host, clean CI and guest controls pass; other-format/native and candidate checks remain required.
@@ -1160,7 +1168,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13, what is left: duplicates among a set, saved criteria beyond the time fields; archive-result narrowing now
    passes working and clean CI/guest Core/headless Find flows (I115); TAR/gzip and initial warning propagation
-   now pass working controls/full suites (I116), with clean CI/guest and other formats still to validate.
+   now pass working/full host and clean CI/guest controls (I116), with other formats still to validate.
    Candidate/native checks remain required.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
    the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.

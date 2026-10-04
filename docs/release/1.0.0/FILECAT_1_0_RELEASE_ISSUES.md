@@ -10,7 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
-| I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated; verified preliminarily: two valid baseline failures/two TAR/gzip positive controls, 32 corrected affected cases and full Core 729/46 skips/App 258/21 skips. Exact inputs/XML verify; clean CI/guest/native/candidate pending (E-I116) |
+| I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated 6ecf4a8; verified preliminarily: two valid baseline failures/two TAR/gzip positives, 32 affected controls and full host suites. Four CI lanes and 34 clean guest cases pass; exact inputs/artifact digests/XML/cleanup verify. Other formats/native/candidate pending (E-I116) |
 | I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated ff8746a; verified preliminarily: four valid baseline failures, eleven corrected Core/two App controls and full affected host suites. Four CI lanes, all affected Windows/Linux/macOS App XML and 13 clean guest cases pass. Exact inputs/XML/cleanup verify; other formats/native/candidate pending (E-I115) |
 | I114 | Parallel GnuPG fixtures replace each other's process-wide tool selection | Low (validation reliability) | Must fix (V15/V24 evidence) | Remediated 7497acf; verified preliminarily: controlled Good → UnknownKey → Good swap, isolated full Core 714/46 skips and four successor CI lanes pass. Original failure retained/interleaving untraced; candidate pending (E-I114) |
 | I113 | Quick view accepts stale results/errors, leaks failed/empty-reset readers and starts unbounded abandoned opens | Medium (preview correctness/resource demand) | Must fix (V12/AI-03) | Remediated 7497acf; verified preliminarily: six baseline failures, seven corrected controls, full affected host suites, four CI lanes and seven clean guest cases. Native presentation/candidate pending (E-I113) |
@@ -136,8 +136,9 @@ level the plan already states; exploit-level detail is not recorded here.
 - The adapter forwards warnings; search deduplicates each archive-wide warning across member folders within
   the existing log bound. Usable original references remain; contents/parser/nesting policy is unchanged.
 - Thirty-two affected controls and full Core 729/46 declared skips/App 258/21 declared skips pass. Actual TAR
-  and gzip-TAR narrowing/content-reference controls extend I115. Exact inputs/XML verify; clean CI/guest,
-  other formats/native and candidate remain. See [E-I116](evidence/E-I116-archive-discovery-warnings.md).
+  and gzip-TAR narrowing/content-reference controls extend I115. Clean 6ecf4a8 passes four CI lanes and 34 guest
+  cases; exact inputs/artifact digests/XML/cleanup verify. Disk-full failed publish is retained and verified on the
+  authorized second workspace. Other formats/native and candidate remain. See [E-I116](evidence/E-I116-archive-discovery-warnings.md).
 
 ### I115 — Searching within results silently omitted archive members
 
