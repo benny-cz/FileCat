@@ -163,8 +163,11 @@ Per-device feed bounds, other direct Source consumers, native frame/AT and exact
 Two further device controls expose I122: F3 and quick view each hold three real picture-file calls on a
 two-worker device while a healthy device completes. Provider-keyed scheduled feeding passes both controls,
 22 affected App cases and full App 271/21 skips/Core 745/46 skips. All 1,812 inputs/fifteen sources/active
-assemblies/direct XML and scoped call-count traces verify (E-I122). Clean-source CI/guest is next;
-watchdog/hard-cap, aggregate decoder memory/processes, other direct Source/native/candidate remain.
+assemblies/direct XML and scoped call-count traces verify (E-I122). Clean 82f7488 passes 36 guest cases;
+all 58 affected Windows and twenty App cases per Unix CI lane pass. Original CI Windows fails the separate
+directory-synchronization test (old content/AwaitingDecision); that run is retained and overall CI is unresolved.
+Exact clean payload/source/artifact digests/XML/worker/decoder-child/temp cleanup verify. Watchdog/hard-cap,
+aggregate decoder memory/processes, other direct Source/native/candidate remain.
 
 | ID | Needed | Status |
 |---|---|---|

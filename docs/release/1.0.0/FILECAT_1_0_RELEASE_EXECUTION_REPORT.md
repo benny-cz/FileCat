@@ -1160,11 +1160,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     active assemblies/direct XML and scoped original/corrected call-count traces verify (E-I122).
     Clean CI/guest next; watchdog/hard-cap, aggregate decoder, other Source/native/candidate remain.
 
+228. Clean 82f7488 passes all 36 elevated Windows guest picture/page-reader/budget controls, zero skips.
+    Exact 687-file payload/688 ZIP members/fifteen sources/direct XML and worker/decoder-child/temp cleanup
+    verify (E-I122). CI 37192262649 has three passing lanes and one Windows synchronization failure:
+    changed.txt remains old, replacement job AwaitingDecision; its original request is unretained.
+    All 58 affected Windows and twenty App cases per Unix lane pass. Server artifact digests/size and
+    extracted XML inventories verify; failed CI is retained and synchronization investigation proceeds.
+
 ## Evidence invalidated by the campaign's own changes
 
-- I122: earlier picture evidence does not qualify the new provider-keyed scheduler route. Working/full host
-  controls pass; clean CI/guest and native/candidate remain. Watchdog/hard-cap and aggregate decoder bounds
-  have separate uncompleted scopes.
+- I122: earlier picture evidence does not qualify the new provider-keyed scheduler route. Working/full host,
+  36 clean guest and all affected CI controls pass; original Windows synchronization failure is retained and
+  overall CI unresolved. Native/candidate remain. Watchdog/hard-cap and aggregate decoder bounds have separate
+  uncompleted scopes.
 
 - I121: prior picture/quick-view evidence does not qualify actual feed ownership after cancellation or F3 bitmap
   retirement. Working/full host, four clean CI lanes and 34 guest cases pass; native/candidate checks remain required.
@@ -1280,7 +1288,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    suites, 45 clean guest cases and four successor CI lanes pass; original I120 failure retained). Direct
    Picture feeds now retain active sources after cancellation and release closed F3 bitmaps (I121 working/full
    host, clean CI and 34 guest controls pass). Controlled per-device feeds now pass working/full host cases
-   (I122; clean CI/guest next); watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
+   and 36 clean guest cases/all affected CI controls (I122; separate synchronization CI failure unresolved);
+   watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

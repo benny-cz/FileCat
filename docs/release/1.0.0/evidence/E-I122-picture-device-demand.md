@@ -41,6 +41,35 @@ namespace. All failed build/baseline inputs and results remain retained.
 | Independent input/case/skip inventory | `a330310cb2537ccd43ed217c8786243ee1f0772cedf8a26d4991d67b60e93e24` |
 | Controlled device-demand scope inventory | `8ac2a450a73cdffd9232546324ef6b36324b98370d40d82e725173ed9317a089` |
 
-Clean-source CI/Windows guest execution is next. Watchdog replacement/hard-cap cases, many simultaneous
-decoder processes/aggregate memory, other direct `Source` consumers, concurrent copy/search, native queue/frame/AT
-and final candidate checks remain. No physical USB action was run; its source-change hold and overall **NO-GO** remain.
+Clean-source `82f7488e4e9ff81a59a14b83171016eeec7c6e2a` passes **36/36 elevated Windows 26300 guest cases**,
+zero skips: sixteen page-reader/budget and twenty picture-device/lifetime/viewer/quick-view cases. The self-contained
+win-x64 payload verifies 687 files, 688 ZIP members and fifteen source copies against canonical Git blobs.
+Execution ends at 09:42:21 UTC; independent cleanup at 09:44:47 confirms controller 7988, workers 12464/7580 and
+all executable paths below the owned root absent, with no owned temporary files or decoder children.
+Guest UUID: `9D224D56-1161-A849-ABA7-2581A980895C`; root:
+`C:\Users\Public\FileCat-picturedevice-validation-5ad1437d40e3427eb2ccc829f485697d`.
+Private clean root is `clean-82f7488` below the working evidence root above. This is native OS process execution
+of headless controls, not desktop interaction or final candidate qualification.
+
+[CI 37192262649](https://github.com/benny-cz/FileCat/actions/runs/37192262649) on that exact source is **failed**:
+ARM64, Linux and macOS succeed; Windows has one existing directory-synchronization failure, with the target still
+"old" and its replacement job AwaitingDecision. Its original decision request was not retained, so the failure's
+exact mechanism is not claimed. All **58 affected Windows Core/App cases and twenty App cases on each Unix lane pass**,
+zero affected skips. Windows full inventories: Core 744/47 skips, App 276/one failure/15 skips, Platform 166/33 skips,
+Remote 88/28 skips. Linux/macOS App each 256/36 skips. Three artifact ZIPs verify against server SHA-256/size and
+every extracted XML inventory; the complete live NTFS-history case passes. The failed run is retained, not rerun
+or described as green. Synchronization investigation is separate from this device-feed remedy.
+
+| Clean evidence | SHA-256 |
+|---|---|
+| Guest ZIP / manifest | `c76ac805802f56702b7d9b2f1782dcce5a6706b188195e973fc535a8fa65fa23` / `eb9f9cf1625a547d22514cad5018c1bf334ecac9ee61a71fec5277affd6c1030` |
+| Guest runner / cleanup observer | `701608cd1836450d5b5bf3e1ce6c40855b7b1ffd5d5d0c8b81776f1721effaae` / `b167e25593c0bbd18e6a2c51864dafa6fc0e2f79e4d067ef043712a7f720c7b9` |
+| Guest Core / App XML | `7ff19c6a8de612ea20abfa3655fe6592670960e1f9b03f77bcf76452b1c78170` / `1f53993763af5f9079bdf6b63c2a2649090a3d2e9696b4a5aa479a912712791c` |
+| Guest cleanup / independent inventory | `098593c465dc9ea80f3c7ff713360fa9b26d7a93147fcbf70bdbac720b17d128` / `c0b6e760a980c86ebaacb2985dbead23c75c7997f9b8521835942bf776874e45` |
+| Original CI metadata / full log | `535d78aa05b2245bf2e74ed517b9f05ff516cf746e4650537fe9a1048d9732a5` / `cf48a722d6d801976fbb1ee7fbb372876dd02bf1281342af3b9b055901145d61` |
+| CI Windows / Linux / macOS ZIP | `29b7ffb14b0a8d7e27b5abc9d5cae9c97cb8ff1fe7fadcdb1bcc18d0ecddadab` / `1f9ad9a93a1d1f8ee072304bc75ab32bf808dd0d5fc5bd59b8c4aee61324b49b` / `130f0b35cbed88bd8bc73121cb8a448da33f88a3266f44f5a13cabfd22c1c86a` |
+| Independent original CI inventory | `eab637c372e59f0119d7eec097b7f6295fc4c73593d418b6a2fc98c1d5a0cf04` |
+
+Watchdog replacement/hard-cap cases, many simultaneous decoder processes/aggregate memory, other direct `Source`
+consumers, concurrent copy/search, native queue/frame/AT and final candidate checks remain. Overall CI needs the
+separate synchronization failure resolved. No physical USB action was run; its source-change hold and overall **NO-GO** remain.
