@@ -37,8 +37,10 @@ Persistent lower-bound state/labels and retry now pass identical corrected probe
 regressions, 59 Core/63 App affected and full Core 752/46 skips/App 282/21 skips. All 1,800 inputs/source/DLL/XML/
 fixture bytes/owned ACL/process/temp cleanup verify. Clean 2be20cf CI fails both Windows lanes at the new
 fixture's ACL-restoration check; all seven cases, including accessible controls, fail. Linux/macOS pass.
-Failure artifacts and full inventories retained/verified; diagnostic assertions added without waiver.
-Corrected clean CI/guest/native/candidate remain required.
+Failure artifacts and full inventories retained/verified. Diagnostic b80f286 proves only Windows' DACL
+auto-inheritance marker differs; every ACE matches. Corrected comparison ignores only that marker and seven
+host cases pass. Clean b80f286 guest passes all 122 affected cases with verified inputs/cleanup. Successor
+fixture bytes still require clean CI/guest; native/candidate remain unqualified.
 Owner restart did not restore Computer Use: initialization exits before
 selecting any host/VM window; guest command execution remains available and independent V12 work continues.
 

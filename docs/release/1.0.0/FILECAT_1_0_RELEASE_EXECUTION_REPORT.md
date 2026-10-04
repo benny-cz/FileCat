@@ -1247,6 +1247,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     TRX inventories and three server artifact digests verify; failure retained, not waived (E-I127). Descriptor
     diagnostics preserve the assertion and all seven host controls still pass. Corrected clean CI/guest pending.
 
+241. I127 diagnostic b80f286 CI identifies Windows' auto-inheritance marker as the only descriptor difference
+    in all seven direct Windows failures/seven ARM64 logged failures; every ACE matches. Corrected fixture
+    comparison ignores only that marker and preserves all permission/cancellation/hash checks; seven host cases
+    pass, 751 captured inputs verified. Clean b80f286 SDK-free guest separately passes all 122 affected cases
+    without skips; 702 payloads/703 archive members/thirty canonical sources and owned process/temp cleanup
+    verify. This precedes the fixture correction; successor clean CI/guest still required (E-I127).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I127: earlier folder-count passes do not qualify inaccessible-subtree lower bounds or retries after restored

@@ -125,7 +125,7 @@ public sealed class FolderCountLowerBoundTests
             restoredAcl.SetSecurityDescriptorSddlForm(originalAcl, AccessControlSections.Access);
             blocked.SetAccessControl(restoredAcl);
             string actualAcl = blocked.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access);
-            restored = actualAcl == originalAcl;
+            restored = PermissionAcl(actualAcl) == PermissionAcl(originalAcl);
             Assert.True(restored, $"Owned ACL differs after restore. Expected: {originalAcl}; actual: {actualAcl}");
             vm.CountFolderSizes(tab);
             await Wait(() => tab.SizingFolders == 0);
@@ -142,7 +142,7 @@ public sealed class FolderCountLowerBoundTests
             restoredAcl.SetSecurityDescriptorSddlForm(originalAcl, AccessControlSections.Access);
             blocked.SetAccessControl(restoredAcl);
             string actualAcl = blocked.GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access);
-            restored = actualAcl == originalAcl;
+            restored = PermissionAcl(actualAcl) == PermissionAcl(originalAcl);
             if (vm is not null) foreach (var job in vm.Services.Jobs.Jobs) job.Cancel();
             window?.Close();
             if (vm is not null) foreach (var tab in vm.Workspace.Panels.SelectMany(p => p.Tabs).ToList()) tab.Dispose();
@@ -155,6 +155,15 @@ public sealed class FolderCountLowerBoundTests
             Assert.True(restored, $"Owned ACL differs during cleanup. Expected: {originalAcl}; actual: {actualAcl}");
         }
         Assert.True(problems.Count == 0, string.Join("; ", problems));
+    }
+
+    private static string PermissionAcl(string sddl)
+    {
+        // Windows may mark an unchanged inherited DACL auto-inherited when writing it back.
+        // Every access rule and all other flags must still match the owned fixture's original permissions.
+        var descriptor = new RawSecurityDescriptor(sddl);
+        descriptor.SetFlags(descriptor.ControlFlags & ~ControlFlags.DiscretionaryAclAutoInherited);
+        return descriptor.GetSddlForm(AccessControlSections.Access);
     }
 
     private static async Task Wait(Func<bool> ready)

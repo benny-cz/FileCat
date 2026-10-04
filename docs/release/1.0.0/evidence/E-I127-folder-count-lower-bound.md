@@ -79,7 +79,29 @@ inventory SHA-256 `93313c556bcc15a738d1a467ff6b3dac0c977b1c867f5caf6408439867129
 Descriptor diagnostics are added without relaxing restoration; all seven host cases still pass
 (diagnostic XML SHA-256 `1c402ef5e4d4cc1368a3e07d1583d0eedd2a54a2bc522d90d80b28e5176ebff1`).
 
-SDK-free Windows guest validation and corrected clean CI are next. Native desktop/AT/candidate remain unqualified. Computer Use
+Diagnostic clean source `b80f2868d295766e2ceb287439eadb8d4582913a` CI
+[37215304292](https://github.com/benny-cz/FileCat/actions/runs/37215304292) retains the same failures.
+All seven direct Windows failure messages and seven ARM64 log messages differ only by the DACL `AI`
+auto-inheritance marker: every ACE is identical. Three server digests/full inventories verify, and the independent
+descriptor/failure inventory SHA-256 is `e55804a146a684b6a78730a6c691965f5de0df9fede6038b655ab9f4245ec93f`.
+The comparison now masks only DiscretionaryAclAutoInherited via RawSecurityDescriptor; all access rules and every
+other descriptor flag still have to match. Actual denial, restored-access retry and unchanged hashes remain required.
+All seven corrected host cases pass. The captured 751 files include thirty source/build inputs;
+XML SHA-256 `20134ae417b1eb541121913af093354a874c458f48e979119d263b7e8824119a`, input manifest
+`77e342633d8f48d16733174680bf315068bc0a61de6d052f092b1fb9712a53f8`. No production code changed for this correction.
+
+The independently verified SDK-free Windows guest run of clean b80f286 passes **122/122**, zero skips:
+59 Core and 63 headless App cases. Guest UUID `9D224D56-1161-A849-ABA7-2581A980895C`, Windows build 26300,
+administrator token; private `clean-b80f286`, guest
+`C:/Users/Public/FileCat-folderlowerbound-validation-b082369442f44609967e8a030c93688d`.
+All 702 payloads/703 archive members/thirty canonical source/build inputs and XML case multiplicity verify.
+Controller 1460 and workers 2428/11352 ended; cleanup at 16:10:11 UTC finds no owned processes/children/temp files.
+Independent native inventory SHA-256 `50e0e1a441f0175597e0393bc805e5493661715bac3d335c9d9fe49443a0a329`;
+ZIP `122e3550618caaf8a33400e74687e9d4ffffc807304fbd36fc76b7e38f7eebd8`, manifest
+`c892c35cdb8fbfa1a53cf7dd4e02fd35169f00e84686d2662414bea5ec9b7136`.
+This run precedes the CI fixture comparison correction; it does not qualify the successor test assembly.
+
+Corrected clean CI and successor guest validation are next. Native desktop/AT/candidate remain unqualified. Computer Use
 initialization still exits before selecting a host or VMware window after the owner's Codex restart; exact tool
 result retained with E-I126. VMware command execution remains usable. No USB action occurred; its source-change
 gate remains held. Both VMs remain running. Overall **NO-GO** remains.
