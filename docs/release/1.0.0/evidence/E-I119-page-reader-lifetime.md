@@ -36,8 +36,39 @@ Private root:
 | Final Core / App input manifest | `cce8e49d7b63b392936efb5f1edf0bbfdacac72de45b42757c10b4ec3bb1f372` / `411ee52a20504ea7e168556f77e0de2f2c79a90af6ad694d45750dd39fb7e193` |
 | Independent input/case/skip inventory | `5d9eadf8926331b6309e6f3a1646642864f5fe75f8e63a7cadcbaca49013da98` |
 
-Clean committed-source CI/guest controls are next. Many simultaneous active source calls, broader viewport
-queue/device bounds, direct picture feeds, concurrent real copy/search, many-folder/partial-size controls,
-native frame/AT and exact-candidate checks remain. Native automation initialization was rechecked on
+Clean source `de1fd7145be13a4a64785cbe8ba88095a4f954e3` passes 38 Core and seven headless quick-view guest
+cases, zero skips, ending **2026-10-04 06:08:51 UTC**. All 683 payloads/684 ZIP members/eleven raw/canonical
+source copies and retrieved output pins verify. Controller PID 14188 and workers 1420/3824 are absent;
+the owned temp folder is empty at 06:10:10 UTC. Guest UUID `9D224D56-1161-A849-ABA7-2581A980895C`,
+Windows Insider 26300, elevated; no physical-source or native desktop interaction requested. Guest root:
+`C:\Users\Public\FileCat-pagereader-validation-40fadd2a0ee44d01ae91a4f090949263`.
+Retained host evidence: `clean-de1fd71` below the private I119 root.
+
+An additive launch wrapper sets the guest working directory to its owned root; original request/payload pins
+remain retained. The first output comparison rejects ten string-parameter names because xUnit native XML
+adds a string-escaping layer. The successor verifier round-trips each escaped name from its exact host name,
+checks the one-to-one case inventory and retains all raw names/mappings. Payload/tests were not rerun or changed.
+
+[CI run 37181433089](https://github.com/benny-cz/FileCat/actions/runs/37181433089) has **three passing lanes,
+one failing Windows lane and three skipped package jobs**. All 45 affected Windows cases and seven App cases
+on Linux/macOS pass directly in XML. The only failure is the existing NTFS history fixture (I120): it dereferences
+an absent log table while its actual report says the fixture's last change is older than the circular log still
+holds. Six inventories verify: Windows Core 744/47 skips, App 269/15, platform 164/33 skips/one failure and
+Remote 88/28; Linux/macOS App each 248/36. Three raw artifact ZIPs match server digests. Overall CI success
+is still pending a successor; no rerun erased the original failure.
+
+| Clean-source evidence | SHA-256 |
+|---|---|
+| CI metadata / full log | `3ea8de0b59fffdfed903b7831f3e91dcedc5acc4e127f21aecea915376b3dd65` / `49abf92d03aeded71a01e98603e489d19e3358ce32c851d0ddb78abf73985c32` |
+| Windows / Linux / macOS ZIP | `432632984fb9f9cfc0df24a2d7aea4c8d915b660f5ba3f96ed832c665da5d135` / `419b5de8a1319967681a4341638e9f9178a5084d844bcef374d0b4f996c01449` / `c1f4dbc2474860af0fe3d5babffe068e165917621c644c505e3c869bbf0c8917` |
+| Independent CI inventory | `ebdbd38c45118598a81210f945cb96f55df9f7bd04c63eef6b9119c377e40270` |
+| Guest ZIP / manifest | `2d80bfebe68ac85775fb3590f91d1ef22265a2bd6661e792dd8101f7b9605b3b` / `7c694c61b51a45ea306082211a08933eae179be22c9ca60d2a558662b29082f3` |
+| Runner / cleanup / launch wrapper | `574316a1c8dbf86e6960287a0a34747f4f214a33fc1524f1928ca35e22db3a10` / `e96b593796f23f2e9eea8c067796c58f8a32f419f8d65f7e71b3b9bf318d19b9` / `f9fe81966f2030fc81c1baef714b959d310d0691716f18bfa2085b15d6c1fd85` |
+| Guest Core / App XML | `7e76d076ed67e2d0bb9a6ccc8e4b31796cb7bdfad14b643bd27c811eae5c15f1` / `e0960bd954189694639154be66ad5c9c1d0a9086e7c069293a494a82cd58178c` |
+| Cleanup / independent guest inventory | `e3fbd02fe238ea1d605b82dac7dfae1f6acf3b74fd6c265d8cae57657804c708` / `146c459d5f9153dbd479eeb65fac7e6927eb09fa4395ce7ff08b0549c1424ba9` |
+
+Many simultaneous active source calls, broader viewport queue/device bounds, direct picture feeds,
+concurrent real copy/search, many-folder/partial-size controls, native frame/AT and exact-candidate checks
+remain. Native automation initialization was rechecked on
 2026-10-04 and again exited before input with “trusted Node process exited unexpectedly; kernel reset”.
 Overall **NO-GO** and the physical USB source hold remain.

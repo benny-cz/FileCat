@@ -1117,10 +1117,28 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     use and wider queue/device/native/candidate remain. Native automation import again ends with trusted-Node
     exit/kernel reset before any input; component and VIX guest execution remain available.
 
+222. Clean de1fd71 passes 45 Windows guest cases, zero skips; 683 payloads/684 ZIP members/eleven sources,
+    output pins and process/temp cleanup verify (E-I119). Additive private-working-directory wrapper and ten
+    round-tripped xUnit string-name escaping mappings retained; payload/tests unchanged. Three CI lanes pass;
+    Windows fails the existing NTFS fixture I120 while all 45 affected Windows/seven Linux/macOS App cases pass.
+    Six direct XML inventories and three server-digest-matching artifact ZIPs independently verify.
+
+223. Original I120 CI report says the fixture's last LSN is older than its circular log retains, but the MFT test
+    dereferences its absent history table. Raw blocks/IO timing unretained; no unobserved attribution claimed.
+    Separate current-MFT and bounded-live-history cases preserve positive assertions and declare unavailable
+    live history skipped. Full host platform 161/38 skips and nine golden NTFS log cases pass; four record
+    privilege skips do not qualify live history. All 130 inputs/source/active assemblies/original CI XML verify.
+    Elevated guest and clean successor CI next (E-I120); production file-record code unchanged.
+
 ## Evidence invalidated by the campaign's own changes
 
+- I120: the original MFT integration pass did not distinguish live-history prerequisites/omitted assertions.
+  Its successor separates MFT and live-log cases; skipped history is not qualified. Host platform/golden
+  controls pass; elevated guest/clean CI and candidate/native scopes remain required.
+
 - I119: prior page-reader tests do not qualify disposal against active provider calls or retired refresh demand.
-  Working component/full host suites pass; clean CI/guest and native/candidate checks remain required. Direct
+  Working component/full host and clean guest controls pass; affected direct CI cases pass, with overall
+  Windows CI held by I120. Successor CI and native/candidate checks remain required. Direct
   calls through Source, including picture feeds, are outside this remedy's protection.
 
 - I118: earlier metadata cache/verification evidence does not qualify the new publication and demand lifetimes.
@@ -1220,7 +1238,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    In-flight invalidation/retry and controlled rapid viewport demand now pass working/full host suites and clean
    CI/guest controls (I118). Native request/queue traces and UI-thread timing remain required.
    Page-reader calls now retire new demand and release active sources safely on close (I119 working/full host
-   suites pass; clean CI/guest next). Direct Source/picture feeds and wider device/queue bounds remain open.
+   suites and 45 clean guest cases pass; affected CI cases pass, overall Windows CI held by I120). Direct
+   Source/picture feeds and wider device/queue bounds remain open.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

@@ -134,34 +134,11 @@ public sealed partial class WindowsFileRecordsTests
         string dir = NewFolder();
         try
         {
-            string file = Path.Combine(dir, "stomped.bin");
-            File.WriteAllText(file, "small enough to stay in its record");
-            if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
-            File.SetCreationTimeUtc(file, new DateTime(2019, 5, 1, 12, 0, 0, DateTimeKind.Utc));
-            // Flushed, so NTFS has written the change's log records to $LogFile on disk before it is read.
-            using (var flush = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) flush.Flush(flushToDisk: true);
-            // Two signs: $FILE_NAME's creation time, and $LogFile's before and after images of the change. The report
-            // shows what is on disk when it is read, and on a busy CI runner the change had not reached the record and its
-            // log yet (runs 36797153928, ARM64, and 36806933971, x64: one sign, no time change among the record's
-            // operations), so it is read again for a while, as a user would press F5.
+            string file = StompedFile(dir);
             var report = Read(file);
-            for (var until = DateTime.UtcNow.AddSeconds(15); !TwoSigns(report) && DateTime.UtcNow < until; report = Read(file)) Thread.Sleep(1000);
-            // NTFS writes the time change to $LogFile when it writes the record back. On CI's runners it sometimes had not
-            // after 15 s (seven failures in a hundred red runs: the record's creation and its USN updates logged, the time
-            // change not): then the parts that need it are left unchecked in that run, and the run says so.
-            bool logged = TwoSigns(report);
-            if (!logged)
-                TestContext.Current.TestOutputHelper?.WriteLine("NTFS had not logged the creation time change after 15 s; its $LogFile sign is not checked in this run:\n" +
-                                                                 Excerpt(report, "Timestamp checks", "NTFS log ($LogFile)"));
             // The lines as one text (wrapped lines continue indented).
             var checks = System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
             Assert.Contains("⚠ Its creation time (2019-05-01 12:00:00.0000000 UTC)", checks, StringComparison.Ordinal);
-            if (logged)
-                Assert.Matches(@"⚠ \$LogFile \(LSN [\d\s\u00A0\u202F,.']+\) shows its created time set back from \d{4}-\d\d-\d\d \d\d:\d\d:\d\d to 2019-05-01 12:00:00", checks);
-            var log = Section(report, "NTFS log ($LogFile)");
-            Assert.Contains(log.Table!.Rows, r => r[1] == "InitializeFileRecordSegment" && r[2].Contains("as “stomped.bin”", StringComparison.Ordinal));
-            Assert.Contains(log.Table.Rows, r => r[2].StartsWith("its name “stomped.bin” added to the index of", StringComparison.Ordinal));
-            if (logged) Assert.Contains(log.Table.Rows, r => r[2].Contains("Created 2019-05-01 12:00:00 (was", StringComparison.Ordinal));
             var secure = Section(report, "Security descriptor in $Secure");
             Assert.EndsWith("matches the descriptor", Field(secure, "Hash"), StringComparison.Ordinal);
             string compared = Field(secure, "As Windows reports");
@@ -183,6 +160,47 @@ public sealed partial class WindowsFileRecordsTests
             }
         }
         finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void As_administrator_the_live_log_shows_creation_and_a_time_change_while_history_is_retained()
+    {
+        if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
+        string dir = NewFolder();
+        try
+        {
+            string file = StompedFile(dir);
+            // The MFT record comes from NTFS's cache; its before/after log images can reach disk later. Retain
+            // the bounded retry, but a circular log can also move past the fixture (CI run 37181433089).
+            var report = Read(file);
+            for (var until = DateTime.UtcNow.AddSeconds(15); !TwoSigns(report) && DateTime.UtcNow < until; report = Read(file)) Thread.Sleep(1000);
+            var log = Section(report, "NTFS log ($LogFile)");
+            string excerpt = Excerpt(report, "Timestamp checks", "NTFS log ($LogFile)");
+            if (log.Table is null && !TwoSigns(report) && log.Fields.Any(f => f.Name == "This item"
+                && f.Value.StartsWith("none of them: its last change (LSN ", StringComparison.Ordinal)
+                && f.Value.EndsWith("is older than anything the log still holds", StringComparison.Ordinal)))
+                Assert.Skip("The live circular NTFS log no longer holds this fixture; its history was not validated:\n" + excerpt);
+            // Other missing-table reasons still fail with the actual report, rather than a null dereference.
+            Assert.True(log.Table is not null, excerpt);
+            Assert.Contains(log.Table!.Rows, r => r[1] == "InitializeFileRecordSegment" && r[2].Contains("as “stomped.bin”", StringComparison.Ordinal));
+            Assert.Contains(log.Table.Rows, r => r[2].StartsWith("its name “stomped.bin” added to the index of", StringComparison.Ordinal));
+            if (!TwoSigns(report))
+                Assert.Skip("The live log contains this fixture's creation/name, but its before/after time change did not arrive within the retry; that change was not validated:\n" + excerpt);
+            var checks = System.Text.RegularExpressions.Regex.Replace(string.Join(" ", Section(report, "Timestamp checks").Lines), @"\s+", " ");
+            Assert.Matches(@"⚠ \$LogFile \(LSN [\d\s\u00A0\u202F,.']+\) shows its created time set back from \d{4}-\d\d-\d\d \d\d:\d\d:\d\d to 2019-05-01 12:00:00", checks);
+            Assert.Contains(log.Table.Rows, r => r[2].Contains("Created 2019-05-01 12:00:00 (was", StringComparison.Ordinal));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    private static string StompedFile(string dir)
+    {
+        string file = Path.Combine(dir, "stomped.bin");
+        File.WriteAllText(file, "small enough to stay in its record");
+        if (!OnNtfs(file)) Assert.Skip("The test folder is not on NTFS.");
+        File.SetCreationTimeUtc(file, new DateTime(2019, 5, 1, 12, 0, 0, DateTimeKind.Utc));
+        using (var flush = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) flush.Flush(flushToDisk: true);
+        return file;
     }
 
     [Fact]

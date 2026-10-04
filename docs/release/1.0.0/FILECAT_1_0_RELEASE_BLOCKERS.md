@@ -143,8 +143,11 @@ and process/temp cleanup verify. Native demand/frame/AT and exact candidate rema
 V12's page-load lifetime controls expose I119: closing a reader disposes its actual local-file source during
 an active read/revision call, while closed readers still issue page/refresh demand. Eight baseline failures;
 deferred disposal and request retirement pass nine controls/38 affected cases and full Core 745/46 skips,
-App 263/21 skips. All 267 inputs/source/active assemblies/direct XML verify (E-I119). Clean CI/guest,
-direct Source/picture use, wider queue/device controls and native/candidate remain. Native automation import
+App 263/21 skips. All 267 inputs/source/active assemblies/direct XML verify (E-I119). Clean de1fd71 passes
+45 guest cases, zero skips; exact payload/cases/cleanup verify. Three CI lanes pass; Windows fails the existing
+live NTFS fixture I120, while all 45 affected cases pass. Split MFT/live-history controls declare actual unavailable
+history skipped; full host platform 161/38 skips and nine golden cases pass (E-I120). Elevated guest and successor
+overall CI, direct Source/picture use, wider queue/device controls and native/candidate remain. Native automation import
 again exits before input with a trusted-Node/kernel-reset error; component and VIX guest execution remain usable.
 
 | ID | Needed | Status |
