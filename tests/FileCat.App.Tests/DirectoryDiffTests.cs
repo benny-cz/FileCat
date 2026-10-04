@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Compare;
+using FileCat.Core.Platform;
 using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
 
@@ -99,6 +100,9 @@ public sealed class DirectoryDiffTests
     [AvaloniaFact]
     public async Task Synchronize_previews_every_step_and_runs_only_the_chosen_ones_as_jobs()
     {
+        // The headless application does not run App.OnFrameworkInitializationCompleted, which registers
+        // the Windows adapter. Synchronize must use the same file operations as the shipping app.
+        using var nativePlatform = new WindowsAdapterScope();
         // Other tests may have comparisons open at the same time: this one compares changed.txt.
         static bool ChangedTxt(CompareWindow w) => w.Title == "Compare: changed.txt ↔ changed.txt";
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -111,6 +115,9 @@ public sealed class DirectoryDiffTests
             File.WriteAllText(Path.Combine(l, "changed.txt"), "newer");
             File.WriteAllText(Path.Combine(r, "changed.txt"), "old");
             File.SetLastWriteTimeUtc(Path.Combine(r, "changed.txt"), DateTime.UtcNow.AddDays(-3));
+            // A viewer may keep its read handle open while Synchronize replaces the same file.
+            // Holding it here makes the Windows adapter difference deterministic.
+            using var openTarget = OperatingSystem.IsWindows() ? new FileContentSource(Path.Combine(r, "changed.txt")) : null;
             File.WriteAllText(Path.Combine(r, "extra.txt"), "only right");
             vm.Workspace.Panels[0].ActiveTab!.Navigate(Location.FileSystem(l));
             vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(r));
@@ -167,10 +174,16 @@ public sealed class DirectoryDiffTests
                 await Task.Delay(20, ct);
             for (int i = 0; i < 250 && services.Jobs.HasActiveWork; i++) await Task.Delay(20, ct);
             // Release issue I22: this failed once in an unelevated Windows 11 VM ("old" after the run); say what the jobs did.
-            string Jobs() => string.Join("; ", services.Jobs.Jobs.Select(j => $"{j.Title}: {j.State} [{string.Join(", ", j.Issues.Select(x => $"{x.Outcome} {Path.GetFileName(x.Path)}: {x.Message}"))}]"));
+            string Jobs() => $"Adapter {services.Platform.FileOperations.GetType().FullName}; " + string.Join("; ", services.Jobs.Jobs.Select(j => $"{j.Title}: {j.State} [{string.Join(", ", j.Issues.Select(x => $"{x.Outcome} {Path.GetFileName(x.Path)}: {x.Message}"))}]; decision {j.Decision?.Request.ClassKey}: {j.Decision?.Request.Title}: {j.Decision?.Request.Message}"));
             Assert.True(File.ReadAllText(Path.Combine(r, "sub", "new.txt")) == "new", Jobs());
             Assert.True(File.ReadAllText(Path.Combine(r, "changed.txt")) == "newer", $"changed.txt reads \"{File.ReadAllText(Path.Combine(r, "changed.txt"))}\"; {Jobs()}");
             Assert.True(File.Exists(Path.Combine(r, "extra.txt")));
+            if (openTarget is not null)
+            {
+                var bytes = new byte[8];
+                Assert.Equal("old", System.Text.Encoding.UTF8.GetString(bytes, 0, openTarget.Read(0, bytes)));
+                Assert.Equal(["changed.txt", "extra.txt"], Directory.GetFiles(r).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+            }
             for (int i = 0; i < 250 && services.Jobs.HasActiveWork; i++) await Task.Delay(20, ct);
         }
         finally
@@ -179,5 +192,18 @@ public sealed class DirectoryDiffTests
             foreach (var w in DirectoryDiffWindow.OpenWindows.ToList()) w.Close();
             AccessibilityTests.Close(services, window, root);
         }
+    }
+
+    private sealed class WindowsAdapterScope : IDisposable
+    {
+        private readonly Func<IPlatform>? _before = PlatformFactory.WindowsFactory;
+
+        public WindowsAdapterScope()
+        {
+            if (OperatingSystem.IsWindows())
+                PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
+        }
+
+        public void Dispose() => PlatformFactory.WindowsFactory = _before;
     }
 }

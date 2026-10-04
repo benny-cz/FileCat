@@ -1167,7 +1167,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     All 58 affected Windows and twenty App cases per Unix lane pass. Server artifact digests/size and
     extracted XML inventories verify; failed CI is retained and synchronization investigation proceeds.
 
+229. I123: the headless synchronization fixture omits native Windows adapter registration. A held target
+    reproduces old content/AwaitingDecision/error-access with the portable adapter; the scoped native adapter
+    passes 17 affected cases and full App 271/21 declared skips. All 2,202 inputs/thirteen sources per stage/
+    unchanged production DLLs/direct XML verify (E-I123). Intermediate culture/path/location/space harness
+    failures are retained, then identical captured assemblies pass in short outside-repository system temp.
+    Production is unchanged; original CI request/interleaving remains unavailable. Clean CI/guest is next.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I123: prior passing synchronization runs do not establish use of the shipping Windows adapter or a held
+  replacement target. Controlled baseline/final, seventeen affected and full App pass; clean CI/guest is next.
+  The original failed CI remains retained; its unavailable decision request prevents exact attribution.
 
 - I122: earlier picture evidence does not qualify the new provider-keyed scheduler route. Working/full host,
   36 clean guest and all affected CI controls pass; original Windows synchronization failure is retained and

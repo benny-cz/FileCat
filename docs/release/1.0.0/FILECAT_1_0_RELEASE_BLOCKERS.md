@@ -169,6 +169,13 @@ directory-synchronization test (old content/AwaitingDecision); that run is retai
 Exact clean payload/source/artifact digests/XML/worker/decoder-child/temp cleanup verify. Watchdog/hard-cap,
 aggregate decoder memory/processes, other direct Source/native/candidate remain.
 
+The synchronization fixture omits the shipping application's Windows platform registration (I123).
+A held target reproduces old content/AwaitingDecision/error-access with its portable adapter; a scoped native
+adapter passes all 17 comparison/operation controls and full App 271/21 skips. All 2,202 inputs/thirteen raw
+sources per stage/unchanged production DLLs/direct XML verify (E-I123). Intermediate culture/path/location/space
+harness failures are retained. The original CI request is unavailable, so its precise mechanism remains unknown.
+Clean-source CI/guest validation is next; this test-only remedy does not change production replacement policies.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
