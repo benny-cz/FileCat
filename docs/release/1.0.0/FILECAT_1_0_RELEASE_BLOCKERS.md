@@ -30,6 +30,11 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I129: controlled queued-result audit reproduces six count failures after cancellation/new demand.
+An App-only correction passes sixteen identical probes, 43 affected/full 306 headless App cases
+(with 21 full-suite skips); 742 inputs/twenty-one sources/inventories verify. Clean CI/SDK-free guest
+revalidation is next (E-I129). Native Esc/frame/AT, slow/cloud hardware and candidate remain.
+
 I128 clean c453925 correction retains viewer line/page/Info source calls through close. Four actual-production
 failures/four controls are retained; identical corrected probe, affected/full host suites, four clean CI jobs
 and 143 SDK-free guest controls pass. All 143 affected Windows/41 Unix App cases pass without affected skips.

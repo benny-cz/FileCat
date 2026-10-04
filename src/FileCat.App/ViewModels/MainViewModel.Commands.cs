@@ -748,13 +748,18 @@ public sealed partial class MainViewModel
         }
         listing.Changed += Moved;
         tab.Closed += Closed;
+        var name = e.Name;
         // Esc (or unmarking it) ends it in the tab at once too, not when a call held by a slow disk returns.
         OnSizingStopped(key, token, () =>
         {
             Ended();
-            if (!closed) tab.UpdateStatus();
+            if (!closed)
+            {
+                if (!left && listing.Location == vol && listing.FindStoreIndex(name) is var si && si >= 0 && !listing.IsMarked(si))
+                    listing.SetComputedSize(name, -1, false);
+                tab.UpdateStatus();
+            }
         });
-        var name = e.Name;
         var device = Services.Providers.For(vol).GetDeviceKey(vol);
         var fs = Services.Platform.FileOperations;
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, ct =>
@@ -770,16 +775,20 @@ public sealed partial class MainViewModel
             // Sizes land only while the panel still shows that folder's parent: another folder may hold one of the same name.
             var size = DirectorySizer.Compute(path, p => Services.Ui.Post(() =>
             {
-                if (!left && listing.Location == vol) listing.SetComputedSize(name, p.Bytes, false);
+                if (open && !token.IsCancellationRequested && !left && listing.Location == vol)
+                    listing.SetComputedSize(name, p.Bytes, false);
             }), linked.Token);
             return (Size: size, Modified: modified, Replaced: before is not null && fs.GetFileIdentity(path) != before);
         }, token).ContinueWith(t =>
         {
             Services.Ui.Post(() =>
             {
+                // A completed worker may already have posted its result when Esc or a new Count retires it.
+                // Cancellation cannot change that completed task: validate its lifetime when applying the post.
+                bool acceptResult = open && !token.IsCancellationRequested;
                 EndSizing(key, token);
                 Ended();
-                if (!left && listing.Location == vol)
+                if (acceptResult && !left && listing.Location == vol)
                 {
                     if (t.IsCompletedSuccessfully && t.Result.Replaced)
                     {

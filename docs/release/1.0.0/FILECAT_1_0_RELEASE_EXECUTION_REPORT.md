@@ -7,6 +7,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-04)
 
+V12 continuation finds I129: already queued count results survive cancellation/new demand and overwrite
+a newer total. Six baseline failures/ten controls retained; App-only correction, sixteen identical probes,
+43 affected/full 306 App cases pass with 21 full-suite skips. Clean CI/SDK-free guest next. Controlled
+32-folder demand now has preliminary evidence; native/hardware/AT/candidate remain.
+
 Execution resumes after the owner restarts Codex elevated. Computer Use still exits before selecting a
 window; one retry reports Windows sandbox setup refresh errors. The tool shell is still unelevated.
 Independent V12 work reproduces four direct viewer-source close failures and verifies a working correction
@@ -1317,7 +1322,18 @@ the corrected console run preserves the same counts. Overall **NO-GO** remains.
     and authorizes G: USB rewriting; identity alone verifies the same serial/non-system disk, original G6
     source-change evidence remains held and no USB mutation occurs. Both VMs stay running (E-I128).
 
+245. I129: first eight held-worker count controls pass on clean c453925, but six already-queued UI
+    result cases fail: canceled sizes become complete or overwrite/clear a newer 2,345-byte result.
+    Current-lifetime checks at post application correct all sixteen identical probes with only App DLL
+    changed. Sixteen cross-platform regressions, 43 affected/full App 306/21 skips pass; 742 captured
+    inputs/twenty-one source/build inputs/full case inventories independently verify. Clean CI/guest
+    next. No desktop input/USB access; both VMs stay running, source-change gate held (E-I129).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I129: prior count passes do not cover completed but queued progress/results after Esc/new demand.
+  Controlled correction/identical probes/affected and full host suites pass. Clean CI/SDK-free guest,
+  native/hardware/AT/candidate revalidation remain.
 
 - I128: prior viewer passes do not qualify direct line/page/Info reads during close. Working controlled
   correction/affected/full host suites, four clean CI jobs and 143 SDK-free guest controls pass. Native/
@@ -1479,6 +1495,9 @@ the corrected console run preserves the same counts. Overall **NO-GO** remains.
    Direct viewer line/page/Info read lifetime now passes four baseline-failure corrections/eight controls,
    affected/full host suites, four clean CI jobs and 143 guest controls (I128). Native/hardware/aggregate/
    candidate remain.
+   Controlled 32-folder counts and completed-but-queued callbacks now pass an App-only correction/
+   sixteen identical probes/43 affected and full host cases (I129). Clean CI/guest are next; sparse/
+   hard-linked data, slow/cloud locations, native Esc/frame/AT and candidate still need validation.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now
