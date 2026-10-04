@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Diagnostics;
+using Window = Avalonia.Controls.Window;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -88,18 +91,118 @@ public sealed class QuickSearchTests(ITestOutputHelper output)
             window.KeyTextInput("zz-missing");
             window.KeyTextInput("b");
             var work = tab.QuickSearchWork;
-            int focusAtEscape = tab.Listing.FocusedIndex; // completed matches remain applied when Esc ends the search.
-            output.WriteLine($"Before Escape: pending={tab.IsQuickSearchPending}; focused row={focusAtEscape}.");
-            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            output.WriteLine($"Before Escape input: pending={tab.IsQuickSearchPending}; focused row={tab.Listing.FocusedIndex}.");
+            int focusAtEscape = PressEscape(tab, window);
+            output.WriteLine($"Escape acknowledged with focused row={focusAtEscape}.");
             Assert.Null(tab.QuickSearch);
             Assert.Null(tab.ShownQuickSearch);
             Assert.False(tab.IsQuickSearchPending);
             await work.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
             Assert.Null(tab.QuickSearch);
+            Assert.Null(tab.ShownQuickSearch);
+            Assert.False(tab.IsQuickSearchPending);
             Assert.Equal(focusAtEscape, tab.Listing.FocusedIndex);
             Assert.Equal(1, tab.Listing.MarkedCount);
         }
         finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Escape_preserves_completed_matches_and_rejects_answers_released_after_cancellation(bool completeBeforeEscape)
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        var held = new HeldQuickSearchContext();
+        try
+        {
+            var tab = vm.ActiveTab!;
+            await Load(services, tab);
+            vm.View.FocusActivePanel();
+            var previous = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(held);
+                tab.QuickSearchType("zz-missing");
+                tab.QuickSearchType("b");
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+            var work = tab.QuickSearchWork;
+            await held.Posted.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+            Assert.True(tab.IsQuickSearchPending);
+            Assert.Equal(1000, tab.Listing.FocusedIndex);
+            if (completeBeforeEscape)
+            {
+                await held.Drain(work);
+                Assert.Equal("b", tab.QuickSearch);
+                Assert.Equal("b.txt", tab.Listing.GetVisible(tab.Listing.FocusedIndex).Name);
+            }
+            int expectedFocus = completeBeforeEscape ? 0 : 1000;
+            Assert.Equal(expectedFocus, tab.Listing.FocusedIndex);
+            int focusAtEscape = PressEscape(tab, window);
+            Assert.Equal(expectedFocus, focusAtEscape);
+            Assert.Null(tab.QuickSearch);
+            Assert.Null(tab.ShownQuickSearch);
+            Assert.False(tab.IsQuickSearchPending);
+            await held.Drain(work);
+            Assert.Null(tab.QuickSearch);
+            Assert.Null(tab.ShownQuickSearch);
+            Assert.False(tab.IsQuickSearchPending);
+            Assert.Equal(expectedFocus, tab.Listing.FocusedIndex);
+            Assert.Equal(1, tab.Listing.MarkedCount);
+            output.WriteLine($"Completed before Escape={completeBeforeEscape}; cancellation focus={focusAtEscape}; final focus={tab.Listing.FocusedIndex}.");
+        }
+        finally
+        {
+            held.ReleaseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    private static int PressEscape(TabViewModel tab, Window window)
+    {
+        // Headless input can process queued answers before delivering the key. Completed matches stay applied;
+        // only answers after the actual cancellation boundary must leave focus unchanged.
+        int? focusAtCancellation = null;
+        void SearchEnded(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TabViewModel.QuickSearch) && tab.QuickSearch is null)
+                focusAtCancellation = tab.Listing.FocusedIndex;
+        }
+        tab.PropertyChanged += SearchEnded;
+        try { window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null); }
+        finally { tab.PropertyChanged -= SearchEnded; }
+        Assert.NotNull(focusAtCancellation);
+        return focusAtCancellation.Value;
+    }
+
+    private sealed class HeldQuickSearchContext : SynchronizationContext
+    {
+        private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _queue = new();
+        public readonly TaskCompletionSource Posted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override SynchronizationContext CreateCopy() => this;
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            _queue.Enqueue((d, state));
+            Posted.TrySetResult();
+        }
+        public void ReleaseAll()
+        {
+            Assert.True(Avalonia.Threading.Dispatcher.UIThread.CheckAccess());
+            while (_queue.TryDequeue(out var call)) call.Callback(call.State);
+        }
+        public async Task Drain(Task work)
+        {
+            var deadline = Stopwatch.StartNew();
+            while (!work.IsCompleted)
+            {
+                ReleaseAll();
+                if (deadline.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException("Held quick-search answer did not settle.");
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            await work;
+            Assert.True(_queue.IsEmpty);
+        }
     }
 
     [AvaloniaFact]
