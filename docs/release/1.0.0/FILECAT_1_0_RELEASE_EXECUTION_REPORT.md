@@ -1199,11 +1199,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     under its lock. Two new controls/50 Core and 37 App affected/full Core 749/46 skips/App 271/21 skips pass;
     1,084 inputs/nineteen sources/probe DLLs/direct XML/owned process cleanup verify. Clean CI/guest next (E-I125).
 
+234. I125 clean source 749f55f passes four required CI lanes (37198032750); package jobs skip. All 87 affected
+    Windows controls and 37 App controls per Unix lane pass. Six full XML/skip inventories, server digests and
+    ZIP/extracted bytes verify. The self-contained SDK-free 26300 guest passes the same 87 Core/App controls,
+    zero skips; 691 payloads/692 ZIP members/nineteen sources/pre-launch pins/direct XML/owned process and temp
+    cleanup verify. Admission/watchdog/cap qualification is preliminary; wider/physical/native/candidate remain.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I125: earlier scheduler passes do not cover waiting admission across disposal or new queues missed by its
   snapshot. Corrected owned probes, affected Core/App and full host suites pass; shared consumers require clean
-  CI/guest and native/candidate revalidation.
+  CI/guest and native/candidate revalidation. Clean 749f55f now passes four CI lanes and 87 guest controls;
+  wider resource lifetimes and native/candidate remain.
 
 - I124: previous scheduler passes do not qualify watchdog replacement while appending workers or enforcement
   of the cap when all workers are quarantined. Corrected owned probes, affected Core/App and full host suites
@@ -1339,7 +1346,7 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    Real timer/list mutation and controlled worker-cap failures now pass working probes, 85 affected cases and
    full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
    scopes remain. Shutdown admission races now pass corrected probes/two new controls/87 affected cases and full
-   host suites (I125); clean CI/guest and wider/native/candidate remain.
+   host suites, four clean CI lanes and 87 guest controls (I125); wider/native/candidate remain.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

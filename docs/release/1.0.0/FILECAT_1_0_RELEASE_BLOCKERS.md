@@ -192,7 +192,9 @@ I125: the original scheduler's public Run can pass the initial disposed check, w
 a closed queue (task never completes) or insert a new queue after the disposal snapshot (callback runs after
 disposal). Owned synthetic probes retain both failures. Locked queue/owner shutdown checks cancel both races;
 identical corrected probes, two controls, 50 Core/37 App affected cases and full host suites pass. All 1,084 inputs,
-nineteen sources/probe DLLs/XML/owned process cleanup verify (E-I125). Clean CI/guest and wider/native/candidate next.
+nineteen sources/probe DLLs/XML/owned process cleanup verify (E-I125). Clean 749f55f passes four CI lanes and 87
+guest controls without affected skips; 691 payloads/692 ZIP members/canonical sources/artifact digests/XML/owned
+process/temp cleanup verify. Wider resource lifetimes and physical/native/candidate remain unqualified.
 
 | ID | Needed | Status |
 |---|---|---|
