@@ -88,5 +88,12 @@ Native desktop/AT/candidate and wider content lifetimes remain unqualified. Upda
 before any app input. A separate plain `nodeRepl.write("Node runtime ready");` call fails identically without loading
 Computer Use. Both exact invocation/error records are retained; neither observes current desktop state.
 The plain-runtime record SHA-256 is `3dbeb6643a6185fde455a93fba9798c537922dea55d28585636c8701810954bc`.
+After resuming at 12:25:57 UTC, the same plain call reports `node_repl kernel exited unexpectedly` with diagnostic
+`windows sandbox failed: helper_unknown_error: setup refresh had errors`. One kernel reset and retry at
+12:26:12 UTC fail identically (kernel PIDs 10744 and 36368, exit code 1). Complete tool results are retained in
+`windows-node-runtime-resumption-1226.json`, SHA-256
+`069307e146da11561176029a5721f2711217fb8f8a58a3efc7aad455d2ed3187`.
+No Computer Use import, input or desktop observation occurred. A full Codex restart is requested as the next
+setup recovery attempt; restoration is not yet established.
 Live Windows interaction needs the runtime restored. No USB action occurred; its historical source-change gate
 stays held. Both VMs remain running. Overall **NO-GO** remains.

@@ -1220,6 +1220,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     A plain Node call independently fails before loading Computer Use; exact records retained, no input/state
     observation. Live UI needs runtime setup restored; wider content/native/candidate remain (E-I126).
 
+237. Resumed plain Node startup at 12:25:57 UTC fails before importing Computer Use. Kernel reset followed by
+    one retry at 12:26:12 UTC fails identically: exit code 1 and Windows sandbox helper setup-refresh error.
+    Complete tool diagnostics retained and pinned (E-I126). A full Codex restart is requested as the next setup
+    recovery attempt. No desktop state/input observed, no USB action; both VMs remain running. Live interaction
+    is gated; this does not qualify remaining native/reference/AT/candidate scopes.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I126: previous comparison passes do not qualify revision/length lifetime during close or F5. Corrected owned

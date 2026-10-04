@@ -204,7 +204,9 @@ identity-aware cleanup verify (E-I126). Clean e406c96 passes four CI lanes and 9
 skips; 693 payloads/694 ZIP members/twenty-one sources/artifact digests/XML/owned process/temp cleanup verify.
 Wider/native/candidate remain. Updated Computer Use 26.930.41038 import and a separate plain JavaScript startup
 both crash before any app input. Live Windows UI validation needs the Node runtime restored; current desktop
-state was not observed. Both VMs remain running; the USB source-change gate remains held.
+state was not observed. At 12:25–12:26 UTC the resumed plain call and one reset/retry both report a Windows sandbox
+helper setup-refresh failure, exit code 1. Exact diagnostics retained; full Codex restart requested as a setup
+recovery attempt before live UI can proceed. Both VMs remain running; the USB source-change gate remains held.
 
 | ID | Needed | Status |
 |---|---|---|
