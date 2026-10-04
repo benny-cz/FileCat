@@ -79,6 +79,35 @@ authorizes the connected G: USB; only identity inventory is queried, no mutation
 - **Controls and people:** private reporting, release protections, signing, retained REP storage, support decisions
   and human validation/GO gates remain open. No release controls were changed and nothing was published.
 
+## Progress snapshot (2026-10-04)
+
+At clean documentation head `3cb4f06`, the §14 checklist has the following conservative gate status.
+Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
+15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
+
+| Release checklist state | Steps | Count |
+|---|---|---:|
+| Complete in preliminary scope | 1, 3 | 2 |
+| Partial or in progress | 4, 6, 8, 9, 10, 11, 13 | 7 |
+| Blocked or not started | 2, 5, 7, 12, 14–26 | 17 |
+| Partly or fully remaining | All except 1 and 3 | 24 of 26 |
+
+The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
+or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
+cases already pass. The register explicitly marks **106 of 128 issue rows remediated** and one closed in
+preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
+external prerequisites remain and are already represented in the checklist.
+
+There is no frozen, defensible total of individual remaining test cases yet: platform/support/package
+decisions, the case catalog and candidate impact determine that denominator. New defects can also add
+regressions. Do not turn counts of repeated passing executions into a release-completion percentage.
+The latest completed I128 slice passes 143/143 SDK-free guest cases and all four clean CI jobs, with all
+143 affected Windows and 41 affected App cases per Unix lane passing without skips.
+
+The derivation is retained as `viewer-direct-content-20261004/release-progress-20261004-v2.json` in the
+private evidence root. The preceding JSON was written successfully before a console encoding error;
+the corrected console run preserves the same counts. Overall **NO-GO** remains.
+
 ## Historical checkpoint (2026-10-01; superseded by the current state above)
 
 - **Readiness: NO-GO.** Release readiness is not established. No release candidate, tag, signed artifact or qualified
