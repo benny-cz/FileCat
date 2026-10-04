@@ -10,6 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
+| I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated; verified preliminarily: two valid baseline failures/two TAR/gzip positive controls, 32 corrected affected cases and full Core 729/46 skips/App 258/21 skips. Exact inputs/XML verify; clean CI/guest/native/candidate pending (E-I116) |
 | I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated ff8746a; verified preliminarily: four valid baseline failures, eleven corrected Core/two App controls and full affected host suites. Four CI lanes, all affected Windows/Linux/macOS App XML and 13 clean guest cases pass. Exact inputs/XML/cleanup verify; other formats/native/candidate pending (E-I115) |
 | I114 | Parallel GnuPG fixtures replace each other's process-wide tool selection | Low (validation reliability) | Must fix (V15/V24 evidence) | Remediated 7497acf; verified preliminarily: controlled Good → UnknownKey → Good swap, isolated full Core 714/46 skips and four successor CI lanes pass. Original failure retained/interleaving untraced; candidate pending (E-I114) |
 | I113 | Quick view accepts stale results/errors, leaks failed/empty-reset readers and starts unbounded abandoned opens | Medium (preview correctness/resource demand) | Must fix (V12/AI-03) | Remediated 7497acf; verified preliminarily: six baseline failures, seven corrected controls, full affected host suites, four CI lanes and seven clean guest cases. Native presentation/candidate pending (E-I113) |
@@ -127,6 +128,16 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I116 — Initial archive search silently discarded provider warnings
+
+- V13, medium truth defect: a damaged TAR's usable prefix and a duplicate-name ZIP both lose warnings at the
+  Find adapter. Two valid controlled baseline failures; the first detector-misconfigured attempt is separate.
+- The adapter forwards warnings; search deduplicates each archive-wide warning across member folders within
+  the existing log bound. Usable original references remain; contents/parser/nesting policy is unchanged.
+- Thirty-two affected controls and full Core 729/46 declared skips/App 258/21 declared skips pass. Actual TAR
+  and gzip-TAR narrowing/content-reference controls extend I115. Exact inputs/XML verify; clean CI/guest,
+  other formats/native and candidate remain. See [E-I116](evidence/E-I116-archive-discovery-warnings.md).
 
 ### I115 — Searching within results silently omitted archive members
 

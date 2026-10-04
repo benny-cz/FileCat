@@ -1059,7 +1059,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     members/eleven source copies and retrieved XML verify; controller/workers absent, owned temp empty. Additive
     guest-locator correction retained, payload unchanged. Other formats, initial listing warnings and candidate/native remain open.
 
+214. V13 initial archive search exposes I116: the adapter discards damage/duplicate-name warnings from actual
+    providers. Two valid baseline failures plus two positive TAR/gzip narrowing controls; warning forwarding and
+    per-archive deduplication now pass 32 affected cases. Full Core 729/46 skips and App 258/21 skips pass. Exact
+    input/active-assembly/direct XML inventories verify (E-I116). Detector-misconfigured and disk-case observer
+    attempts are retained separately. Clean CI/guest is next; other formats/native/candidate remain open.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I116: prior initial archive-search logs do not prove provider warnings were visible. Working controls and
+  full affected host suites pass; clean CI/guest/native/candidate checks remain required.
 
 - I115: old result-narrowing evidence does not qualify archive-member revalidation or the revised log/navigation.
   Working/full host, clean CI and guest controls pass; other-format/native and candidate checks remain required.
@@ -1150,8 +1159,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13, what is left: duplicates among a set, saved criteria beyond the time fields; archive-result narrowing now
-   passes working and clean CI/guest Core/headless Find flows (I115), with other formats and initial listing-warning
-   propagation still to validate. Candidate/native checks remain required.
+   passes working and clean CI/guest Core/headless Find flows (I115); TAR/gzip and initial warning propagation
+   now pass working controls/full suites (I116), with clean CI/guest and other formats still to validate.
+   Candidate/native checks remain required.
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
    the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a

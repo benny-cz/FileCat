@@ -120,6 +120,10 @@ and App 258/21 skips pass. Exact working inputs/XML verify (E-I115). Clean ff874
 Windows/Linux/macOS App XML and 13 guest cases; exact input/artifact/cleanup proofs verify. Other-format/native
 and candidate checks remain required. No change to USB hold, source-safety disposition or **NO-GO**.
 
+Initial archive discovery loses damage/duplicate-name warnings at its adapter (I116). Two valid baseline failures
+and two TAR/gzip positive controls lead to warning forwarding/deduplication; 32 affected and full Core 729/46
+skips/App 258/21 skips pass. Exact inputs/XML verify (E-I116); clean CI/guest/native/candidate remain required.
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

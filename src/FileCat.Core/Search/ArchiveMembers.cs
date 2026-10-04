@@ -14,6 +14,9 @@ public interface IArchiveMembers
     /// <see cref="IOException"/> or <see cref="InvalidDataException"/> when the archive cannot be read.
     /// </summary>
     IEnumerable<ItemRef> List(string archivePath, CancellationToken ct);
+
+    /// <summary>Lists members and reports non-fatal provider warnings, including damage after a usable prefix.</summary>
+    IEnumerable<ItemRef> List(string archivePath, Action<string> reportIssue, CancellationToken ct) => List(archivePath, ct);
 }
 
 /// <summary>Rechecks earlier archive results without entering folders, opening contents or discovering new members.</summary>
@@ -52,7 +55,9 @@ public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiv
         return sink.Members;
     }
 
-    public IEnumerable<ItemRef> List(string archivePath, CancellationToken ct)
+    public IEnumerable<ItemRef> List(string archivePath, CancellationToken ct) => List(archivePath, _ => { }, ct);
+
+    public IEnumerable<ItemRef> List(string archivePath, Action<string> reportIssue, CancellationToken ct)
     {
         if (Detector?.GetContainerLocation(archivePath) is not { } archive) yield break;
         var folders = new Stack<Location>();
@@ -62,7 +67,7 @@ public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiv
             ct.ThrowIfCancellationRequested();
             var folder = folders.Pop();
             var provider = providers.For(folder);
-            var entries = new Collector();
+            var entries = new Collector(reportIssue);
             provider.EnumerateAsync(folder, entries, ct).GetAwaiter().GetResult();
             foreach (var entry in entries.Entries)
             {
@@ -74,7 +79,7 @@ public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiv
         }
     }
 
-    private sealed class Collector : IEnumerationSink
+    private sealed class Collector(Action<string> reportIssue) : IEnumerationSink
     {
         public List<EntryData> Entries { get; } = [];
 
@@ -83,9 +88,7 @@ public sealed class ProviderArchiveMembers(ProviderRegistry providers) : IArchiv
             foreach (var entry in entries) Entries.Add(entry);
         }
 
-        public void ReportIssue(string message)
-        {
-        }
+        public void ReportIssue(string message) => reportIssue(message);
     }
 
     private sealed class LookupCollector(ResourceProvider provider, Location parent, IReadOnlySet<ItemRef> requested,

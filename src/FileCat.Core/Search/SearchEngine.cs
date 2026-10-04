@@ -399,9 +399,15 @@ public sealed class SearchSession
     {
         CurrentFolder = archive.FullName;
         int listed = 0;
+        var warnings = new HashSet<string>(StringComparer.Ordinal);
         try
         {
-            foreach (var member in archives.List(archive.FullName, ct))
+            foreach (var member in archives.List(archive.FullName, issue =>
+            {
+                // Providers repeat archive-wide warnings in each member folder. Keep the search log useful and bounded.
+                if (warnings.Count < MaxLog && warnings.Add(issue))
+                    AddLog(SearchLogKind.Warning, archive.FullName, issue, Location.FileSystem(archive.DirectoryName ?? root), archive.Name);
+            }, ct))
             {
                 ct.ThrowIfCancellationRequested();
                 if (++listed > MaxArchiveMembers)
