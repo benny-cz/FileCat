@@ -30,6 +30,12 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I130: unrelated/repeated unchanged folder rows clear or postpone quick-view captions. Eight unchanged-
+key failures/four controls retained; App-only correction, identical twelve-case probe, affected 72/full
+318 App tests pass with 21 full-suite skips. Clean committed CI/guest revalidation remains. Original
+I129 guest failures remain failed and retained; this controlled trace does not identify their exact
+historical cause. Native/AT/hardware/candidate remain (E-I130).
+
 Clean I129 f341dfd passes four CI jobs/all sixteen new cases per platform. First SDK-free affected
 guest run passes 41/43: two existing zero-visible-byte I127 refresh captions time out. Failure and
 owned process/temp cleanup are retained; isolated unchanged-production diagnostic 7/7 does not explain

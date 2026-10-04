@@ -89,3 +89,12 @@ arm64 MacBookPro17,1, eight logical CPUs/16 GiB, benny in admin group. No remote
 exposure occurs. `mac-owner-access.json` SHA-256 `8ae9fc4221fdc093d0bdb31a38496a10013d72b742b74a136d81632dc26f396a`. Physical/native
 Mac qualification and its distribution/credentials decisions remain required; SSH availability alone
 does not close them. Both VMware guests remain running and G: remains untouched.
+
+
+## Diagnostic cleanup and follow-up
+
+Controller 7220/worker 14120, owned executable children and all owned temp files are absent at
+19:20:34 UTC. Cleanup SHA-256 `8f5ac82c1bcbf2ff2d42584b940693a1ae024dd62988a331974e00ecdca3ab04`. E-I130 independently reproduces unchanged-key
+caption clearing/starvation during repeated Rows notifications; corrected twelve-case host probe and
+72 affected tests pass. This trace does not identify the original guest failures' exact historical cause.
+The original 41/43 run remains failed and retained; new clean guest revalidation is still required.

@@ -45,6 +45,7 @@ public sealed class QuickViewPane : Border
     private TabViewModel? _source;
     private PagedReader? _reader;
     private string? _shownKey;
+    private string? _folderDemandKey;
 
     // The scheduler may cancel its task before a synchronous device call returns. Keep ownership separate from
     // that task: late readers are disposed on the worker, and a completed reader is transferred exactly once.
@@ -124,6 +125,7 @@ public sealed class QuickViewPane : Border
         Close();
         if (_source is not null) _source.Listing.Changed -= OnSourceChanged;
         _source = source;
+        _folderDemandKey = FocusedFolderKey();
         if (source is not null)
         {
             source.Listing.Changed += OnSourceChanged;
@@ -133,14 +135,32 @@ public sealed class QuickViewPane : Border
 
     private void OnSourceChanged(object? sender, ListingChange change)
     {
-        // A folder count changes its caption without changing focus. File previews keep their existing demand.
-        bool folderSizeChanged = (change & ListingChange.Rows) != 0 && _source is { } source
-            && source.Listing.TryGetFocused(out var focused) && focused.IsContainer;
-        if ((change & (ListingChange.Focus | ListingChange.Reset)) == 0 && !folderSizeChanged) return;
+        bool focusChanged = (change & (ListingChange.Focus | ListingChange.Reset)) != 0;
+        if (!focusChanged && (change & ListingChange.Rows) == 0) return;
+        var folderKey = FocusedFolderKey();
+        if (folderKey is not null)
+        {
+            // Counts in other rows and unchanged refresh results must neither clear the caption nor postpone
+            // its first display. Keep the pending folder demand as well as the already displayed one.
+            if (folderKey == _folderDemandKey) return;
+        }
+        else if (!focusChanged) return; // File previews keep their existing row-update policy.
+        _folderDemandKey = folderKey;
         Close(); // abandoned demand ends immediately, before the next focus settles through the debounce
         _debounce.Stop();
         _debounce.Start();
     }
+
+    private string? FocusedFolderKey()
+    {
+        if (_source is not { Location: not null } tab || !tab.Listing.TryGetFocused(out var entry) || !entry.IsContainer) return null;
+        var item = entry.Kind == EntryKind.Parent ? null : tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
+        return PreviewKey(item, entry);
+    }
+
+    private static string PreviewKey(ItemRef? item, in EntryData entry) => item is null ? "parent"
+        : item.ToString() + "|" + entry.Modified + "|" + entry.Size
+          + (entry.IsContainer ? "|" + (entry.Flags & (EntryFlags.SizeComputed | EntryFlags.SizeLowerBound)) : "");
 
     private void Close()
     {
@@ -167,8 +187,7 @@ public sealed class QuickViewPane : Border
         var tab = _source;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var e)) return;
         var item = e.Kind == EntryKind.Parent ? null : tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        var key = item is null ? "parent" : item.ToString() + "|" + e.Modified + "|" + e.Size
-            + (e.IsContainer ? "|" + (e.Flags & (EntryFlags.SizeComputed | EntryFlags.SizeLowerBound)) : "");
+        var key = PreviewKey(item, e);
         if (key == _shownKey) return;
         Close();
         _shownKey = key;
