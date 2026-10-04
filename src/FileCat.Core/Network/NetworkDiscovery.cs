@@ -40,6 +40,17 @@ public static class NetworkDiscovery
     public static async Task DiscoverAsync(Action<NetworkHost> found, TimeSpan wait, CancellationToken ct,
         IPEndPoint? wsdTarget = null, IPEndPoint? mdnsTarget = null, IReadOnlyList<IPAddress>? interfaces = null)
     {
+        var local = interfaces ?? LocalAddresses();
+        if (local.Count == 0) return;
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        stop.CancelAfter(wait);
+        await DiscoverAsync(found, stop.Token, ct, wsdTarget, mdnsTarget, local).ConfigureAwait(false);
+    }
+
+    /// <summary>The same discovery with an independently controlled probe cutoff (tests of late name replies).</summary>
+    internal static async Task DiscoverAsync(Action<NetworkHost> found, CancellationToken probing, CancellationToken ct,
+        IPEndPoint? wsdTarget, IPEndPoint? mdnsTarget, IReadOnlyList<IPAddress>? interfaces)
+    {
         // One row per device: the first name it answers with wins, and a device known only by its address waits
         // until the end, in case it answers with a name after all.
         var servers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -61,13 +72,11 @@ public static class NetworkDiscovery
         }
         var local = interfaces ?? LocalAddresses();
         if (local.Count == 0) return;
-        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        stop.CancelAfter(wait);
         var work = new List<Task>();
         foreach (var address in local)
         {
-            work.Add(ProbeWsdAsync(address, wsdTarget ?? WsDiscovery, Report, stop.Token, ct));
-            work.Add(ProbeMdnsAsync(address, mdnsTarget ?? MulticastDns, Report, stop.Token));
+            work.Add(ProbeWsdAsync(address, wsdTarget ?? WsDiscovery, Report, probing, ct));
+            work.Add(ProbeMdnsAsync(address, mdnsTarget ?? MulticastDns, Report, probing));
         }
         await Task.WhenAll(work).ConfigureAwait(false);
         foreach (var host in nameless.DistinctBy(h => h.Address))

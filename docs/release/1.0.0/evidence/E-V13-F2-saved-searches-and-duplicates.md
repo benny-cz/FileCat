@@ -30,5 +30,16 @@ Private root:
 | Full App XML | `27d0050e699e407c5908779c19b866497bc1ba3d1537b7753d1aca9320585f75` |
 | Independent input/case/skip inventory | `e2e7dd02e64db2ce53a50a4548fd6e11c8d2fbb797793a13d5e441f3dc9e721f` |
 
-Clean committed-source CI/guest execution is next. Native desktop/AT, process restart and exact-candidate
+Clean `ab919ed78eae0dfa8287249fd4ec07d38cbdc37c` passes all four required
+[CI lanes](https://github.com/benny-cz/FileCat/actions/runs/37177512600); three package jobs skip. Six direct
+XML inventories verify Windows Core 728/47 skips, App 269/15, platform 165/33 and Remote 88/28; Linux/macOS App
+each 248/36. All five affected App cases pass on Windows, Linux and macOS. Three actual artifact ZIPs match
+their server digests. Private root: sibling `ci-37177512600` in the same authorized evidence store.
+
+| Clean CI evidence | SHA-256 |
+|---|---|
+| Metadata / complete log | `f88bd87fb124043687d73ca0b5da4f173a8d9234ab53b56bf7c62348e354936f` / `158364e6449d135b5a342feddbb8720b24fb17fef2eda2d97c5da578a325943d` |
+| Independent artifact/case/skip inventory | `cc930899b4a5f95862d7ae80d819e7975b9b54a2554dad6ae1fa9e365d795bf2` |
+
+Windows guest execution is next. Native desktop/AT, process restart and exact-candidate
 qualification remain open. Physical USB source hold and overall **NO-GO** remain.

@@ -10,6 +10,7 @@ level the plan already states; exploit-level detail is not recorded here.
 
 | ID | Title | Severity | Disposition | Status |
 |---|---|---|---|---|
+| I117 | Late-name discovery fixture can finish before any probe is handled | Low (validation reliability) | Must fix (CI/I23 evidence) | Controlled probe cutoff passes eight network cases, full Core 730/46 skips and seven related App cases; coupled-cancellation mutation fails twice. Original ARM64 failure retained; scheduling untraced. Clean successor CI/guest next (E-I117) |
 | I116 | Initial archive search discards provider warnings and hides partial scope | Medium (search truth) | Must fix (V13) | Remediated 6ecf4a8; verified preliminarily: two valid baseline failures/two TAR/gzip positives, 32 affected controls and full host suites. Four CI lanes and 34 clean guest cases pass; exact inputs/artifact digests/XML/cleanup verify. Other formats/native/candidate pending (E-I116) |
 | I115 | Searching within results silently drops archive members and unavailable scope | Medium (search correctness) | Must fix (V13) | Remediated ff8746a; verified preliminarily: four valid baseline failures, eleven corrected Core/two App controls and full affected host suites. Four CI lanes, all affected Windows/Linux/macOS App XML and 13 clean guest cases pass. Exact inputs/XML/cleanup verify; other formats/native/candidate pending (E-I115) |
 | I114 | Parallel GnuPG fixtures replace each other's process-wide tool selection | Low (validation reliability) | Must fix (V15/V24 evidence) | Remediated 7497acf; verified preliminarily: controlled Good → UnknownKey → Good swap, isolated full Core 714/46 skips and four successor CI lanes pass. Original failure retained/interleaving untraced; candidate pending (E-I114) |
@@ -128,6 +129,16 @@ level the plan already states; exploit-level detail is not recorded here.
 | I59 | Registry: renaming a key checked by name that it was no link, then renamed by name, and Windows' rename follows links | Low (a process able to write the key's parent, winning a race, could make an elevated plan rename another key, the one a link names) | Should fix (V23 B07) | **Remediated `b02a01f`; verified** (E-DPI) |
 
 ## Records of issues worked in this campaign
+
+### I117 — Late-name discovery fixture can expire before handling a probe
+
+- Exact aed64a7 ARM64 CI receives an empty host list after one second; other lanes pass. No original scheduling
+  trace is available. The fixed timer starts before the fixture confirms its metadata request.
+- The loopback fixture now controls the actual cutoff after receiving that request and replies afterward, on
+  its dedicated device thread. Immediate/delayed setup controls pass; a name/probe cancellation mutation fails
+  twice. Public timings and network policy are unchanged; the internal helper shares the production algorithm.
+- Full Core 730/46 skips and seven related App controls pass. Original run/artifacts and 218 input files/direct
+  XML verify. Clean successor CI/guest next; candidate and real-device discovery remain. See [E-I117](evidence/E-I117-network-discovery-cutoff.md).
 
 ### I116 — Initial archive search silently discarded provider warnings
 

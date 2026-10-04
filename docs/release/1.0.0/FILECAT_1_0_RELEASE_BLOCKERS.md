@@ -126,6 +126,12 @@ skips/App 258/21 skips pass. Exact inputs/XML verify (E-I116); clean 6ecf4a8 pas
 Input/artifact/cleanup proofs verify; disk-full failed outputs are retained in the second workspace. Other-format/
 native/candidate and sealed-store gates remain required.
 
+ARM64 aed64a7 CI's late-name discovery fixture finishes after one second with an empty list (I117).
+Controlled metadata-admitted cutoff passes eight network/full Core 730/46 skips and seven related App controls;
+the coupled-cancellation negative control fails twice. Original failure/input/XML evidence is retained and
+verified (E-I117). Public timeouts/policy are unchanged; clean successor CI/guest and candidate remain.
+The intervening saved-search/duplicates commit ab919ed passes all four CI lanes (E-V13-F2).
+
 | ID | Needed | Status |
 |---|---|---|
 | ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |

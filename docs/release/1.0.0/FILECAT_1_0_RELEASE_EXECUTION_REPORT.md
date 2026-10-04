@@ -1080,6 +1080,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     files and same-size different bytes. Full App 263/21 skips passes; 106 inputs/ten sources/direct XML verify.
     No production defect found. Clean CI/guest is next; process restart/native/candidate remain open.
 
+217. Exact aed64a7 ARM64 CI fails the late-name discovery test after one second with an empty host list
+    (I117); other three lanes pass. Its timer starts before probe/request admission; original scheduling is
+    untraced. Controlled cutoff after the fixture receives the metadata request passes immediate/delayed
+    setup; a coupled name/probe cancellation mutation fails both controls. Public timings/policy remain.
+    Full Core 730/46 skips and seven related App controls pass; 218 inputs/source/direct XML and original
+    failure verify (E-I117). Clean successor CI/guest next. Clean ab919ed meanwhile passes four lanes,
+    with all five new saved-search/duplicate App cases on Windows/Linux/macOS independently verified
+    against three server-digest-matching artifacts (E-V13-F2).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I116: prior initial archive-search logs do not prove provider warnings were visible. Working/full host,
@@ -1174,7 +1183,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    (I88, I91), quick-view initial-load demand and stale-result lifetime (I113 host/clean CI/guest pass),
    views closed while busy, million-entry listings (I92 host/clean CI/guest pass; native frame pending), many tabs.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
-   clean CI/guest execution is next. Archive-result narrowing now
+   clean ab919ed CI passes all four lanes and affected Windows/Linux/macOS App cases; guest execution is next.
+   I117's controlled network fixture needs clean successor CI/guest. Archive-result narrowing now
    passes working and clean CI/guest Core/headless Find flows (I115); TAR/gzip and initial warning propagation
    now pass working/full host and clean CI/guest controls (I116), with other formats still to validate.
    Candidate/native checks remain required.

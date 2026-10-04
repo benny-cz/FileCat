@@ -167,58 +167,74 @@ public sealed class NetworkDiscoveryTests
         http.Stop();
     }
 
-    [Fact]
-    public async Task A_name_that_arrives_after_the_search_window_is_still_used()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1200)]
+    public async Task A_name_that_arrives_after_the_search_window_is_still_used(int probeDelayMilliseconds)
     {
-        // Release issue I23: the device answers the probe at once, but its metadata (its name) comes only after the
-        // one-second search has ended, as from a slow device or a busy machine. It is listed by its name, not its address.
+        // I23/I117: close the probe window after the device receives the metadata request and before it replies.
+        // A one-second timer could expire before any probe was handled on a busy ARM64 runner, testing no name lookup.
         var ct = TestContext.Current.CancellationToken;
-        var window = TimeSpan.FromSeconds(1);
+        using var cutoff = CancellationTokenSource.CreateLinkedTokenSource(ct);
         using var http = new TcpListener(IPAddress.Loopback, 0);
         http.Start();
         int httpPort = ((IPEndPoint)http.LocalEndpoint).Port;
         using var wsd = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var silentMdns = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-        // The device runs on threads of its own: on CI's busy ARM64 runner a device served from the thread pool once
-        // answered too late for the metadata client's 3 s, and the host was listed by its address.
+        wsd.Client.ReceiveTimeout = 10_000;
+        Exception? deviceError = null;
+        bool repliedAfterCutoff = false;
+        // This dedicated device thread also closes the window; a delayed pool continuation cannot postpone the reply
+        // until the metadata client's own timeout. The second control delays the probe beyond the former 1 s timer.
         var device = new Thread(() =>
         {
             try
             {
                 var from = new IPEndPoint(IPAddress.Any, 0);
                 wsd.Receive(ref from);
+                Thread.Sleep(probeDelayMilliseconds);
                 wsd.Send(Encoding.UTF8.GetBytes(ProbeMatches($"http://127.0.0.1:{httpPort}/1f7b8c3a/")), from);
                 using var client = http.AcceptTcpClient();
                 using var stream = client.GetStream();
+                stream.ReadTimeout = 10_000;
                 var buffer = new byte[16384];
                 int read = 0;
                 while (!Encoding.UTF8.GetString(buffer, 0, read).Contains("</soap:Envelope>", StringComparison.Ordinal))
                 {
                     int n = stream.Read(buffer, read, buffer.Length - read);
-                    if (n == 0) return;
+                    if (n == 0) throw new IOException("The metadata request ended before its envelope.");
                     read += n;
                 }
-                // After the search window has ended, whenever the request came.
-                Thread.Sleep(window + TimeSpan.FromMilliseconds(300));
+                cutoff.Cancel();
+                repliedAfterCutoff = cutoff.IsCancellationRequested;
                 byte[] body = Encoding.UTF8.GetBytes(Metadata);
                 stream.Write(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/soap+xml\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"));
                 stream.Write(body);
             }
-            catch (Exception ex) when (ex is SocketException or IOException or ObjectDisposedException) { }
+            catch (Exception ex) when (ex is SocketException or IOException or ObjectDisposedException) { deviceError = ex; }
         }) { IsBackground = true };
         device.Start();
 
         var found = new List<NetworkHost>();
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, window, ct,
-            (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)silentMdns.Client.LocalEndPoint!, [IPAddress.Loopback]);
-        var host = Assert.Single(found);
-        Assert.Equal("TESTBOX", host.Name);
-        Assert.Equal("Workgroup: WORKGROUP", host.Detail);
-        // The lookup is bounded by the metadata client's own timeout (3 s), not endless.
-        Assert.True(clock.Elapsed < window + TimeSpan.FromSeconds(4), $"Took {clock.Elapsed}.");
-        Assert.True(device.Join(TimeSpan.FromSeconds(10)));
-        http.Stop();
+        try
+        {
+            await NetworkDiscovery.DiscoverAsync(h => { lock (found) found.Add(h); }, cutoff.Token, ct,
+                (IPEndPoint)wsd.Client.LocalEndPoint!, (IPEndPoint)silentMdns.Client.LocalEndPoint!, [IPAddress.Loopback])
+                .WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.True(device.Join(TimeSpan.FromSeconds(5)), "The owned device did not finish.");
+            Assert.Null(deviceError);
+            Assert.True(repliedAfterCutoff, "The name was not sent after the probe window closed.");
+            var host = Assert.Single(found);
+            Assert.Equal("TESTBOX", host.Name);
+            Assert.Equal("Workgroup: WORKGROUP", host.Detail);
+        }
+        finally
+        {
+            cutoff.Cancel();
+            http.Stop();
+            wsd.Dispose();
+            Assert.True(device.Join(TimeSpan.FromSeconds(10)), "The owned device survived cleanup.");
+        }
     }
 
     [Fact]
