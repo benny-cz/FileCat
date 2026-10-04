@@ -7,6 +7,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-04)
 
+I129 clean f341dfd passes all four CI jobs/all sixteen new cases per platform. First affected guest
+run passes 41/43: two existing I127 zero-byte refresh captions time out. Failure/cleanup retained;
+isolated same-production diagnostic 7/7 does not explain them. Investigation continues. Owner-authorized
+Mac SSH succeeds (macOS 26.6.2 arm64, eight CPUs/16 GiB/admin); no mutation. No USB access or release GO.
+
 V12 continuation finds I129: already queued count results survive cancellation/new demand and overwrite
 a newer total. Six baseline failures/ten controls retained; App-only correction, sixteen identical probes,
 43 affected/full 306 App cases pass with 21 full-suite skips. Clean CI/SDK-free guest next. Controlled
@@ -86,7 +91,7 @@ authorizes the connected G: USB; only identity inventory is queried, no mutation
 
 ## Progress snapshot (2026-10-04)
 
-At clean documentation head `3cb4f06`, the §14 checklist has the following conservative gate status.
+After preliminary remediation through I129 (f341dfd), the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -99,19 +104,19 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **106 of 128 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **107 of 129 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
 There is no frozen, defensible total of individual remaining test cases yet: platform/support/package
 decisions, the case catalog and candidate impact determine that denominator. New defects can also add
 regressions. Do not turn counts of repeated passing executions into a release-completion percentage.
-The latest completed I128 slice passes 143/143 SDK-free guest cases and all four clean CI jobs, with all
-143 affected Windows and 41 affected App cases per Unix lane passing without skips.
+The latest completed I128 slice passes 143/143 guest cases and four clean CI jobs. I129 now passes
+host/full CI and its sixteen new guest cases; the first affected guest run is 41/43, with two existing
+caption failures under investigation. The isolated passing diagnostic does not close those failures.
 
-The derivation is retained as `viewer-direct-content-20261004/release-progress-20261004-v2.json` in the
-private evidence root. The preceding JSON was written successfully before a console encoding error;
-the corrected console run preserves the same counts. Overall **NO-GO** remains.
+The checklist count remains 24 partly/fully open steps; its I128 derivation is retained. New I129
+evidence and the source-pinned failure inventory are in E-I129. Overall **NO-GO** remains.
 
 ## Historical checkpoint (2026-10-01; superseded by the current state above)
 
@@ -1328,6 +1333,14 @@ the corrected console run preserves the same counts. Overall **NO-GO** remains.
     changed. Sixteen cross-platform regressions, 43 affected/full App 306/21 skips pass; 742 captured
     inputs/twenty-one source/build inputs/full case inventories independently verify. Clean CI/guest
     next. No desktop input/USB access; both VMs stay running, source-change gate held (E-I129).
+
+246. I129 clean f341dfd CI passes four jobs; three server digests/six TRX inventories verify. All
+    sixteen new cases pass per platform; affected Unix lanes retain fifteen declared Windows factory/
+    ACL/drive-letter skips. First affected guest is 41/43, two zero-byte refreshed I127 quick-view
+    captions fail; all sixteen new cases pass. Raw failure/owned cleanup retained. Isolated unchanged-
+    production seven-case diagnostic passes but does not explain the original. Caption investigation
+    continues. Owner grants Mac SSH; read-only 26.6.2 arm64/eight CPUs/16 GiB/admin inventory succeeds.
+    No remote mutation/USB access, both VMs stay running. Overall NO-GO (E-I129).
 
 ## Evidence invalidated by the campaign's own changes
 

@@ -30,6 +30,13 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+Clean I129 f341dfd passes four CI jobs/all sixteen new cases per platform. First SDK-free affected
+guest run passes 41/43: two existing zero-visible-byte I127 refresh captions time out. Failure and
+owned process/temp cleanup are retained; isolated unchanged-production diagnostic 7/7 does not explain
+the original. Caption-demand investigation remains open (E-I129). Owner-authorized Mac SSH now works:
+macOS 26.6.2 arm64, eight CPUs/16 GiB, benny admin; no mutation. Mandatory Mac artifact/native/distribution
+work remains. Both VMs stay running; no USB access.
+
 I129: controlled queued-result audit reproduces six count failures after cancellation/new demand.
 An App-only correction passes sixteen identical probes, 43 affected/full 306 headless App cases
 (with 21 full-suite skips); 742 inputs/twenty-one sources/inventories verify. Clean CI/SDK-free guest
