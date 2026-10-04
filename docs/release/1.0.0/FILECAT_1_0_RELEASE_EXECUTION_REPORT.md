@@ -19,10 +19,18 @@ twenty-seven canonical source files, exact case inventories and owned process/te
 Earlier f341dfd 41/43 caption and 3a408eb 70/72 fixture runs remain failed and retained. Controlled
 reproductions do not identify their exact historical event triggers (E-I129, E-I130, E-I131).
 
+Native sparse/hard-linked/mixed counts now pass six cases without skips on each of Windows 26300,
+Ubuntu 26.04.1/ext4 and the owner's macOS 27.0.1/arm64 Mac (E-V12-N1). Exact logical totals, 32 marks,
+focus, completed/quick-view state and refresh reconciliation pass against independently enumerated
+native files. All input/output pins, 1,248 before/after snapshot rows, twelve sparse files/twelve link
+groups and post-run process/temp cleanup verify. Windows/Linux retain the original seven production
+DLLs; the Mac uses an actual RID producer with 826 source exports independently matched to Git.
+The disconnected Mac run was retrieved after owner confirmation; failed harness attempts stay retained.
+
 Both VMs stay running. Computer Use's recorded startup failure still blocks native input; the tool
-shell is unelevated. G: stays untouched and its historical source-change gate remains held. Owner's
-Mac SSH works; Python is present, dotnet is not on the SSH PATH and roughly 786 GiB is available on its
-data volume. Needed Mac installations are now authorized; no remote mutation has yet occurred.
+shell is unelevated. G: stays untouched and its historical source-change gate remains held. Mac SSH
+is usable again. Only owned self-contained validation files were added there; no global dependency
+installation or system-setting change occurred. Needed Mac installations remain authorized.
 No candidate or human GO exists; overall NO-GO.
 
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
@@ -113,6 +121,8 @@ There is no frozen, defensible total of individual remaining test cases yet: pla
 decisions, the case catalog and candidate impact determine that denominator. New defects can also add
 regressions. Do not turn counts of repeated passing executions into a release-completion percentage.
 The latest completed I129-I131 slice passes all 74 SDK-free guest cases and four clean CI jobs.
+The following native-data slice passes six cases on each of Windows, Ubuntu and macOS (E-V12-N1),
+without closing a whole campaign or changing those gate counts.
 Exact source/input/artifact/case inventories and owned cleanup verify. Both earlier failed guest runs
 remain retained; controlled reproductions do not establish their exact historical event triggers.
 
@@ -1373,6 +1383,18 @@ in E-I129, E-I130 and E-I131. Overall **NO-GO** remains.
     obligations remain. Owner authorizes needed Mac installations; no remote mutation yet. Both
     VMs stay running, G: untouched, no stable publication/human GO. NO-GO (E-I129, E-I130, E-I131).
 
+250. V12 native sparse/hard-linked/mixed data passes six cases without skips per Windows 26300,
+    Ubuntu 26.04.1/ext4 and owner macOS 27.0.1/arm64 lane: eighteen executions. Actual Core/count/
+    headless quick-view/32 marks/focus and refresh reconciliation retain exact logical totals and
+    complete labels. Native before/after snapshots match all 1,248 rows, twelve sparse files and
+    twelve hard-link groups. Full request/output ZIPs/manifests/XML/observations and owned fixture/
+    process/temp cleanup independently verify; proof SHA-256 `854bbe2a2246df17913718166ef75a0c402a45b54274260eeb1324762d8affaa`. Mac uses its actual RID
+    producer from 826 source exports independently matched to Git; x64 lanes retain original
+    seven production DLLs. Original harness failures remain retained. Mac transport timed out;
+    saved successful result retrieved after owner confirmation, exact interruption cause unknown.
+    No production change/new issue; 109/131 remediated and 24/26 steps open remain. Both VMs stay
+    running, G: untouched, native UI/hardware/AT/candidate remain, no human GO. NO-GO (E-V12-N1).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I129-I131: earlier passes did not cover already queued retired results, unchanged folder-caption
@@ -1542,8 +1564,10 @@ in E-I129, E-I130 and E-I131. Overall **NO-GO** remains.
    candidate remain.
    Controlled 32-folder counts and completed-but-queued callbacks now pass an App-only correction/
    sixteen identical probes/43 original affected and full host cases (I129). Combined clean fdb17b4
-   four CI jobs/74 SDK-free guest cases now pass (I129-I131); sparse/hard-linked data, slow/cloud
-   locations, native Esc/frame/AT and candidate still need validation.
+   four CI jobs/74 SDK-free guest cases now pass (I129-I131). Native sparse/hard-linked/mixed data,
+   32 marked folders and refresh reconciliation now pass six cases per Windows/Ubuntu/macOS lane,
+   with independently verified native snapshots/input pins/cleanup (E-V12-N1). Slow/cloud locations,
+   other native environments, native Esc/frame/AT and candidate still need validation.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

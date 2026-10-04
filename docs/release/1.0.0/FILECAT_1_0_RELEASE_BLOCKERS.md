@@ -38,13 +38,20 @@ The SDK-free Windows guest passes all 74 controls with zero skips. All 381 paylo
 twenty-seven canonical source files, exact case inventories and owned process/temp cleanup verify.
 Earlier f341dfd 41/43 and 3a408eb 70/72 guest runs remain failed and retained; controlled reproductions
 do not identify their exact historical event triggers. Native Esc/frame/AT, slow/cloud/hung hardware,
-sparse/hard-linked data and final-candidate qualification remain required (E-I129, E-I130, E-I131).
+other native environments and final-candidate qualification remain required (E-I129, E-I130, E-I131).
+Native sparse/hard-linked/mixed data now passes six cases without skips per Windows 26300, Ubuntu
+26.04.1/ext4 and macOS 27.0.1/arm64 lane (E-V12-N1). Exact logical counts, 32 marks/focus, complete
+quick-view/status labels and refresh reconciliation pass. All input/output pins, 1,248 before/after
+native rows, twelve sparse files/twelve link groups and process/temp cleanup independently verify.
+Failed harness attempts stay retained; no production defect/new issue was found in this slice.
 
-Owner-authorized Mac SSH works: macOS 26.6.2 arm64, eight CPUs/16 GiB, benny admin. Python is present;
-dotnet is not on the SSH PATH. Installation of needed Mac dependencies is now authorized; no remote
-mutation has yet occurred. Mandatory Mac artifact/native/distribution work remains. Both VMs stay
-running; G: is untouched and its historical source-change gate remains held. Computer Use's recorded
-startup failure still blocks native input.
+Owner-authorized Mac SSH is usable again after its final test transport timed out. The saved successful
+result was retrieved after owner confirmation; exact interruption cause is unknown. Python is present;
+dotnet is not on the SSH PATH. Only owned self-contained validation files were added; no global
+dependency installation/system-setting change occurred. Needed installations remain authorized.
+Mandatory Mac artifact/native/distribution work remains. Both VMs stay running; G: is untouched and
+its historical source-change gate remains held. Computer Use's recorded startup failure still blocks
+native input.
 
 I128 clean c453925 correction retains viewer line/page/Info source calls through close. Four actual-production
 failures/four controls are retained; identical corrected probe, affected/full host suites, four clean CI jobs
@@ -245,7 +252,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1, macOS 26.6.2, reachable over SSH (E-ENV-05): usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | The owner's MacBook Pro M1 is reachable over SSH: the latest native run reports macOS 27.0.1/26A434 (E-V12-N1); earlier checkpoints report 26.6.2/25G83 (E-ENV-05/E-I129). Usable for preliminary runs; it is a personal machine, not a clean install, and its keychain cannot be unlocked over SSH. A clean Mac is still needed for final qualification |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |
