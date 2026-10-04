@@ -7,21 +7,23 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-04)
 
-I131 validation repair observes actual count progress before refresh can replace a partial row.
-Two controlled checkpoint failures/two controls retained; four corrected probes keep every production
-DLL unchanged. Original sixteen cases plus two forced-refresh controls, 74 affected host and full App
-320 pass with 21 declared skips. Exact inputs/case inventories verify. Clean committed CI/guest next.
+Clean fdb17b4 completes the preliminary I129-I131 validation slice. The test-only I131 correction
+observes count progress before refresh replaces a partial row, retaining all retired-result oracles.
+Controlled failures/controls and unchanged-production probe remain retained. Host affected 74/full App
+320 pass with 21 declared skips. All four required CI jobs pass; three server digests/six full TRX
+inventories verify. Windows has 74 affected passes; each Unix App lane has 58 passes/sixteen declared
+Windows-only skips. All eighteen retired-count and twelve caption cases pass per platform.
 
-I130 3a408eb passes all four CI jobs; three server digests/six full inventories verify. All twelve new
-caption cases pass each platform/guest; Windows affected 72 pass and each Unix lane has 56 passes/sixteen
-declared skips. First affected guest is 70/72, two I129 early fixture checkpoint failures. All seven
-I127 lower-bound cases pass. Raw failures and owned process/temp cleanup are retained; exact historical
-event trigger is unavailable. Original f341dfd 41/43 remains a distinct failed run (E-I129–E-I131).
+The SDK-free Windows guest passes all 74 cases with zero skips. All 381 payloads/382 ZIP members,
+twenty-seven canonical source files, exact case inventories and owned process/temp cleanup verify.
+Earlier f341dfd 41/43 caption and 3a408eb 70/72 fixture runs remain failed and retained. Controlled
+reproductions do not identify their exact historical event triggers (E-I129, E-I130, E-I131).
 
 Both VMs stay running. Computer Use's recorded startup failure still blocks native input; the tool
 shell is unelevated. G: stays untouched and its historical source-change gate remains held. Owner's
-Mac SSH works; Python is present, dotnet is not on the SSH PATH, roughly 786 GiB available on its data volume. No remote
-mutation. No candidate or human GO exists; overall NO-GO.
+Mac SSH works; Python is present, dotnet is not on the SSH PATH and roughly 786 GiB is available on its
+data volume. Needed Mac installations are now authorized; no remote mutation has yet occurred.
+No candidate or human GO exists; overall NO-GO.
 
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
@@ -90,7 +92,7 @@ mutation. No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-04)
 
-After preliminary remediation through I131 (working test overlay on 3a408eb), the §14 checklist has the following conservative gate status.
+After verified preliminary remediation through I131 at clean fdb17b4, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -110,12 +112,12 @@ external prerequisites remain and are already represented in the checklist.
 There is no frozen, defensible total of individual remaining test cases yet: platform/support/package
 decisions, the case catalog and candidate impact determine that denominator. New defects can also add
 regressions. Do not turn counts of repeated passing executions into a release-completion percentage.
-The latest completed I128 slice passes 143/143 guest cases and four clean CI jobs. I129 now passes
-host/full CI and its sixteen new guest cases; the first affected guest run is 41/43, with two existing
-caption failures under investigation. The isolated passing diagnostic does not close those failures.
+The latest completed I129-I131 slice passes all 74 SDK-free guest cases and four clean CI jobs.
+Exact source/input/artifact/case inventories and owned cleanup verify. Both earlier failed guest runs
+remain retained; controlled reproductions do not establish their exact historical event triggers.
 
-The checklist count remains 24 partly/fully open steps; its I128 derivation is retained. New I129
-evidence and the source-pinned failure inventory are in E-I129. Overall **NO-GO** remains.
+The checklist remains 24 partly/fully open steps; its I128 derivation is retained. Latest evidence is
+in E-I129, E-I130 and E-I131. Overall **NO-GO** remains.
 
 ## Historical checkpoint (2026-10-01; superseded by the current state above)
 
@@ -1360,11 +1362,23 @@ evidence and the source-pinned failure inventory are in E-I129. Overall **NO-GO*
     Mac read-only environment: Python available, dotnet not on the SSH PATH, data-volume free space sufficient for
     owned probes. Both VMs stay running, no native input/USB access/Mac mutation. NO-GO (E-I131).
 
+249. Clean fdb17b4 passes all four required jobs in CI 37231232236. Three server digests/six full
+    TRX inventories verify: affected Windows 74, each Unix 58 passes/sixteen declared skips; all
+    eighteen retired-count/twelve caption cases pass per platform. Independent CI SHA-256
+    `9492ed6584767b068a812381c22bc7d11c195481b5c46c10a50bde242e3167d9`. SDK-free Windows guest passes all 74 with zero skips at 20:20:11 UTC; controller
+    5940/worker 4492, owned executable children and temp files are absent at 20:22:08 UTC. All 381
+    payloads/382 ZIP members/twenty-seven canonical sources/case inventories independently verify,
+    proof SHA-256 `2911e42af096558da0b5b72780fab68534aa825c317da789dd8f8af4bf94ce30`. Earlier 41/43 and 70/72 failed guest runs remain retained, exact
+    historical triggers unasserted. I129-I131 preliminarily verified; native/hardware/AT/candidate
+    obligations remain. Owner authorizes needed Mac installations; no remote mutation yet. Both
+    VMs stay running, G: untouched, no stable publication/human GO. NO-GO (E-I129, E-I130, E-I131).
+
 ## Evidence invalidated by the campaign's own changes
 
-- I129: prior count passes do not cover completed but queued progress/results after Esc/new demand.
-  Controlled correction/identical probes/affected and full host suites pass. Clean CI/SDK-free guest,
-  native/hardware/AT/candidate revalidation remain.
+- I129-I131: earlier passes did not cover already queued retired results, unchanged folder-caption
+  demand or the partial-progress checkpoint after refresh. Controlled corrections, host suites, four
+  clean CI jobs and all 74 combined SDK-free guest controls now pass at fdb17b4. Earlier failed runs
+  remain retained; native/hardware/AT/candidate qualification remains.
 
 - I128: prior viewer passes do not qualify direct line/page/Info reads during close. Working controlled
   correction/affected/full host suites, four clean CI jobs and 143 SDK-free guest controls pass. Native/
@@ -1527,8 +1541,9 @@ evidence and the source-pinned failure inventory are in E-I129. Overall **NO-GO*
    affected/full host suites, four clean CI jobs and 143 guest controls (I128). Native/hardware/aggregate/
    candidate remain.
    Controlled 32-folder counts and completed-but-queued callbacks now pass an App-only correction/
-   sixteen identical probes/43 affected and full host cases (I129). Clean CI/guest are next; sparse/
-   hard-linked data, slow/cloud locations, native Esc/frame/AT and candidate still need validation.
+   sixteen identical probes/43 original affected and full host cases (I129). Combined clean fdb17b4
+   four CI jobs/74 SDK-free guest cases now pass (I129-I131); sparse/hard-linked data, slow/cloud
+   locations, native Esc/frame/AT and candidate still need validation.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now

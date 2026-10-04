@@ -98,3 +98,19 @@ Controller 7220/worker 14120, owned executable children and all owned temp files
 caption clearing/starvation during repeated Rows notifications; corrected twelve-case host probe and
 72 affected tests pass. This trace does not identify the original guest failures' exact historical cause.
 The original 41/43 run remains failed and retained; new clean guest revalidation is still required.
+
+
+## Combined successor validation
+
+Clean `fdb17b453d515df437bce34eaaaf8f3626f7cb09` passes all four required CI jobs in
+[CI 37231232236](https://github.com/benny-cz/FileCat/actions/runs/37231232236) and all **74/74 SDK-free
+guest controls with zero skips**. Windows has 74 affected passes; each Unix lane has 58 passes/sixteen
+declared Windows-only skips. Original sixteen retired-count cases, two new forced-refresh controls and
+all twelve caption cases pass per platform/guest. Three artifact digests, six full TRX inventories,
+381 guest payloads/382 ZIP members/twenty-seven canonical source files, exact case inventories and
+owned process/temp cleanup independently verify. CI proof SHA-256 `9492ed6584767b068a812381c22bc7d11c195481b5c46c10a50bde242e3167d9`;
+guest proof SHA-256 `2911e42af096558da0b5b72780fab68534aa825c317da789dd8f8af4bf94ce30`. Full pins/inventories are in [E-I131](E-I131-count-progress-checkpoint.md).
+
+Both earlier failed guest runs remain failed and retained; these controlled corrections do not prove
+their exact historical event triggers. Preliminary remediation is verified. Native/hardware/AT and
+final-candidate obligations remain; overall **NO-GO**.

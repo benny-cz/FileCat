@@ -30,30 +30,21 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I130 clean 3a408eb passes four CI jobs; exact artifacts/72 Windows affected/56 Unix affected passes
-plus sixteen declared skips verify. First guest is 70/72: twelve I130 and seven I127 cases pass, two
-I129 early live-row fixture checkpoints fail. Original outputs/owned cleanup retained. I131 controlled
-refresh reproduces that checkpoint failure; fixture-only correction and two refresh controls pass four
-independent/74 affected/full App 320 tests with 21 skips. Clean committed revalidation remains. Exact
-historical trigger is not asserted; native/AT/hardware/candidate remain (E-I130, E-I131).
+Clean fdb17b4 completes preliminary I129-I131 revalidation: four required CI jobs pass; three
+artifact server digests and six full TRX inventories verify. Windows has 74 affected passes; each Unix
+App lane has 58 passes/sixteen declared Windows factory/ACL/drive-letter/Shell skips. Original sixteen
+retired-count cases, two new forced-refresh controls and all twelve caption cases pass per platform.
+The SDK-free Windows guest passes all 74 controls with zero skips. All 381 payloads/382 ZIP members,
+twenty-seven canonical source files, exact case inventories and owned process/temp cleanup verify.
+Earlier f341dfd 41/43 and 3a408eb 70/72 guest runs remain failed and retained; controlled reproductions
+do not identify their exact historical event triggers. Native Esc/frame/AT, slow/cloud/hung hardware,
+sparse/hard-linked data and final-candidate qualification remain required (E-I129, E-I130, E-I131).
 
-I130: unrelated/repeated unchanged folder rows clear or postpone quick-view captions. Eight unchanged-
-key failures/four controls retained; App-only correction, identical twelve-case probe, affected 72/full
-318 App tests pass with 21 full-suite skips. Clean committed CI/guest revalidation remains. Original
-I129 guest failures remain failed and retained; this controlled trace does not identify their exact
-historical cause. Native/AT/hardware/candidate remain (E-I130).
-
-Clean I129 f341dfd passes four CI jobs/all sixteen new cases per platform. First SDK-free affected
-guest run passes 41/43: two existing zero-visible-byte I127 refresh captions time out. Failure and
-owned process/temp cleanup are retained; isolated unchanged-production diagnostic 7/7 does not explain
-the original. Caption-demand investigation remains open (E-I129). Owner-authorized Mac SSH now works:
-macOS 26.6.2 arm64, eight CPUs/16 GiB, benny admin; no mutation. Mandatory Mac artifact/native/distribution
-work remains. Both VMs stay running; no USB access.
-
-I129: controlled queued-result audit reproduces six count failures after cancellation/new demand.
-An App-only correction passes sixteen identical probes, 43 affected/full 306 headless App cases
-(with 21 full-suite skips); 742 inputs/twenty-one sources/inventories verify. Clean CI/SDK-free guest
-revalidation is next (E-I129). Native Esc/frame/AT, slow/cloud hardware and candidate remain.
+Owner-authorized Mac SSH works: macOS 26.6.2 arm64, eight CPUs/16 GiB, benny admin. Python is present;
+dotnet is not on the SSH PATH. Installation of needed Mac dependencies is now authorized; no remote
+mutation has yet occurred. Mandatory Mac artifact/native/distribution work remains. Both VMs stay
+running; G: is untouched and its historical source-change gate remains held. Computer Use's recorded
+startup failure still blocks native input.
 
 I128 clean c453925 correction retains viewer line/page/Info source calls through close. Four actual-production
 failures/four controls are retained; identical corrected probe, affected/full host suites, four clean CI jobs

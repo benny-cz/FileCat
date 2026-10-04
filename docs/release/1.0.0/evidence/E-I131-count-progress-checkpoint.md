@@ -50,7 +50,7 @@ All 748 captured files, twenty-seven canonical source/build inputs, complete cas
 affected/full inventories and selective fixture-only changes verify. Working manifest SHA-256
 `56b2e1a75ef2fc4089044fa4e7f0c89c6ea3eabeed1becf6e31ca42808185c1f`; independent proof SHA-256 `85e51a8a0be24ac4b20b5ed2e9c09a07e91439c1f992873959aa37e4e700179a`.
 Framework-dependent host build and self-contained guest publish are separately pinned; their build
-bytes are not assumed identical. Clean committed CI and SDK-free guest revalidation are next.
+bytes are not assumed identical. Clean committed revalidation is recorded below.
 
 I130 clean 3a408eb passes all four required jobs in [CI 37228520630](https://github.com/benny-cz/FileCat/actions/runs/37228520630).
 Three artifact server digests and six complete TRX inventories verify, independent proof SHA-256
@@ -59,3 +59,45 @@ sixteen declared Windows factory/ACL/drive-letter/Shell skips. All sixteen origi
 cases pass per platform. That CI does not erase either failed guest run. Native input/AT/hardware and
 final-candidate evidence remain required. Both VMs remain running, G: is untouched, no stable publication
 or human GO. Overall **NO-GO**.
+
+
+## Clean committed combined revalidation
+
+Source **`fdb17b453d515df437bce34eaaaf8f3626f7cb09`** changes only the I131 test fixture over 3a408eb;
+I129 and I130 production corrections are unchanged. All four required jobs pass in
+[CI 37231232236](https://github.com/benny-cz/FileCat/actions/runs/37231232236); three package jobs are
+declared skipped. Three downloaded artifact ZIPs match their server SHA-256 digests; six complete TRX
+inventories and full case IDs/multiplicity independently verify in `ci-37231232236/independent-ci.json`,
+SHA-256 `9492ed6584767b068a812381c22bc7d11c195481b5c46c10a50bde242e3167d9`.
+
+| Clean CI inventory | Pass | Declared skips |
+|---|---:|---:|
+| Windows Core | 753 | 47 |
+| Windows App | 326 | 15 |
+| Windows Platform | 166 | 33 |
+| Windows Remote | 88 | 28 |
+| Ubuntu App | 298 | 43 |
+| macOS App | 298 | 43 |
+| Affected Windows App | 74 | 0 |
+| Affected App on each Unix lane | 58 | 16 |
+
+All eighteen retired-count cases (sixteen original plus two forced-refresh controls), all twelve
+caption cases and all seven I127 lower-bound cases pass on their supported lanes. The sixteen affected
+Unix skips retain actual Windows factory/ACL/drive-letter/Shell prerequisites and are not native passes.
+
+The pinned SDK-free Windows guest run ends **20:20:11 UTC with 74 passes, zero failures and zero skips**.
+UUID `9D224D56-1161-A849-ABA7-2581A980895C`, Insider build 26300, controller 5940/worker 4492. All
+381 payloads/382 ZIP members/twenty-seven canonical source/build files verify against the exact clean
+producer and guest input manifest SHA-256
+`9d4e1891d8f2f13908efe6791c01981f4642f1e7cccca824a7f4a341ea39dfc3`.
+ZIP SHA-256 `38da7e48fb6ab97521c5f5d6dfbacbbfc3c39270fedc60597e0d3805c7a4f650`.
+Guest XML SHA-256 `556b4d8b750d3e2eeeb3111c337dd5feccdd6cca345a57a0785b65ed1008ac67`; complete case inventory matches the affected host inventory.
+Controller, worker, owned executable children and temp/listing files are absent at **20:22:08 UTC**;
+cleanup SHA-256 `ce0d218e841881b1a78b1b3d4792fa9f99f107878847d1c1e6087e4958c5c931`. Independent native proof SHA-256 `2911e42af096558da0b5b72780fab68534aa825c317da789dd8f8af4bf94ce30`
+is retained in `count-progress-checkpoint-20261004/clean-fdb17b4/independent-native.json`.
+
+This completes preliminary I129-I131 revalidation. The original 41/43 and 70/72 guest runs remain failed
+and retained; the controlled reproductions do not establish their exact historical event triggers.
+Native desktop/Esc/frame/AT, slow/cloud/hung devices, wider filesystem data and final-candidate
+qualification remain. Both VMs stay running. G: is untouched; no native desktop input, source-device
+access or stable publication. No candidate or human GO; overall **NO-GO**.
