@@ -30,11 +30,14 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I128 working correction retains viewer line/page/Info source calls through close. Four actual-production
-failures/four controls are retained; the identical corrected probe, affected/full host suites and 1,096
-captured inputs verify. Clean CI/SDK-free guest revalidation is pending (E-I128). Native/hardware/aggregate/
-candidate remain. Elevated Codex restart still fails before any UI target: Node reports Windows sandbox
+I128 clean c453925 correction retains viewer line/page/Info source calls through close. Four actual-production
+failures/four controls are retained; identical corrected probe, affected/full host suites, four clean CI jobs
+and 143 SDK-free guest controls pass. All 143 affected Windows/41 Unix App cases pass without affected skips.
+Inputs/697 payloads/698 ZIP members/twenty-five canonical sources/case inventories/owned cleanup verify
+(E-I128). Native/hardware/aggregate/candidate remain. Elevated Codex restart still fails before any UI target: Node reports Windows sandbox
 setup refresh errors; shell commands still have an unelevated token. VIX guest commands remain usable.
+The owner again authorizes the disposable USB at G:; inventory matches serial 2F2000129618/FCTEST/NTFS,
+non-boot/non-system. Original source-change evidence stays held; no USB mutation has occurred in this slice.
 
 I127 is remediated preliminarily: inaccessible counts retain lower-bound labels/state across refresh and allow
 retry after restored access. Actual-production baseline failures/corrected probes, affected/full host suites,

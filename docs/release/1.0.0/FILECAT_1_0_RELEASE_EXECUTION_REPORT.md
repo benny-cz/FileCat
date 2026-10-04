@@ -10,8 +10,9 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 Execution resumes after the owner restarts Codex elevated. Computer Use still exits before selecting a
 window; one retry reports Windows sandbox setup refresh errors. The tool shell is still unelevated.
 Independent V12 work reproduces four direct viewer-source close failures and verifies a working correction
-(E-I128); affected/full host suites pass, clean CI/SDK-free guest are next. Both VMs remain running, no USB
-action occurs and its source-change gate stays held. No candidate or human GO exists; overall NO-GO.
+(E-I128); affected/full host suites, four clean c453925 CI jobs and 143 SDK-free guest controls pass. All
+143 affected Windows/41 Unix App cases pass without affected skips. Both VMs remain running. The owner again
+authorizes the connected G: USB; only identity inventory is queried, no mutation, prior source-change gate held. No candidate or human GO exists; overall NO-GO.
 
 - **Readiness: NO-GO.** No candidate, release tag, signed artifact, final qualification or human GO exists.
   Work remains in preliminary validation and remediation; the historical source baseline is retained below.
@@ -1279,10 +1280,19 @@ action occurs and its source-change gate stays held. No candidate or human GO ex
     Elevated restart still fails Node sandbox setup before any target/input; VIX works, both VMs stay running,
     no USB action. Initial probe compile error retained as harness-only evidence (E-I128).
 
+244. I128 clean c453925 passes all four CI jobs (including ARM64 package startup/installer compilation),
+    all 143 affected Windows/41 Unix App cases without affected skips and 143/143 SDK-free guest controls.
+    Three server artifact digests/six full TRX inventories, 697 guest payloads/698 ZIP members/twenty-five
+    canonical source/build inputs and exact owned process/temp cleanup independently verify. No native
+    browser/input/frame, hung hardware, aggregate or candidate qualification is claimed. Owner reconnects
+    and authorizes G: USB rewriting; identity alone verifies the same serial/non-system disk, original G6
+    source-change evidence remains held and no USB mutation occurs. Both VMs stay running (E-I128).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I128: prior viewer passes do not qualify direct line/page/Info reads during close. Working controlled
-  correction/affected/full host suites pass; clean CI/SDK-free guest, native/hardware/aggregate/candidate remain.
+  correction/affected/full host suites, four clean CI jobs and 143 SDK-free guest controls pass. Native/
+  hardware/aggregate/candidate remain.
 
 - I127: earlier folder-count passes do not qualify inaccessible-subtree lower bounds or retries after restored
   access. Corrected probe/affected/full host suites, four clean CI lanes and 122 guest controls pass. Native/AT/
@@ -1437,6 +1447,9 @@ action occurs and its source-change gate stays held. No candidate or human GO ex
    Inaccessible subtree/zero-byte counts now retain lower-bound labels and permit restored-access retry (I127):
    owned probes/affected/full host suites, four clean CI lanes and 122 SDK-free guest controls pass. Native/AT/
    candidate remain, alongside many marked folders and the other partial-count scenarios.
+   Direct viewer line/page/Info read lifetime now passes four baseline-failure corrections/eight controls,
+   affected/full host suites, four clean CI jobs and 143 guest controls (I128). Native/hardware/aggregate/
+   candidate remain.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now
