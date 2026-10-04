@@ -48,8 +48,8 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
   (E-I106). I107 native trace identifies unchanged theme rebuilding the open menu; palette guard,
   affected App/CI and owner host check pass. Owner confirms clean 1a9f1ba guest menus; I107 is preliminarily closed,
   while exact-candidate interaction remains pending. Owner restored the
-  Windows snapshot and guest access works; keep Windows VM running. Computer Use runtime remains unavailable
-  with sandbox setup refresh errors, independently of FileCat (E-I107).
+  Windows snapshot and guest access works; keep both VMs running. Computer Use runtime remains unavailable:
+  updated 26.930.41038 import and separate plain JavaScript startup both crash before input (E-I126).
   Full recovery write-location audit continues. GA Windows/reference hardware remain open.
 - **Physical recovery:** authorized USB host preflight and FAT32/exFAT/NTFS component runs pass at clean 1df5dff,
   325 generated deleted files recovered exactly per filesystem. Byte-checker audit exposes false acceptance beside
@@ -1212,10 +1212,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     sources/24 fixtures/DLLs/XML/identity-aware cleanup verify. NU1015, inherited Core stamp and reused-PID observer
     records remain retained. Clean CI/guest next; updated Computer Use import still crashes before input (E-I126).
 
+236. I126 clean source e406c96 passes four required CI lanes (37200743448); package jobs skip. All 91 affected
+    Windows controls and 41 App controls per Unix lane pass. Three server artifact digests/ZIP bytes and six full
+    XML/skip inventories verify. The self-contained SDK-free 26300 guest passes 50 Core and 41 headless App cases,
+    zero skips; 693 payloads/694 ZIP members/twenty-one canonical sources/pre-launch pins/direct XML/owned process
+    and temporary-folder cleanup verify. Comparison revision/length lifetime qualification remains preliminary.
+    A plain Node call independently fails before loading Computer Use; exact records retained, no input/state
+    observation. Live UI needs runtime setup restored; wider content/native/candidate remain (E-I126).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I126: previous comparison passes do not qualify revision/length lifetime during close or F5. Corrected owned
-  real-file probes/affected Core/App/full App pass; clean CI/guest, wider content lifetime and native/candidate remain.
+  real-file probes/affected Core/App/full App pass, as do four clean CI lanes and 91 guest controls. Wider content
+  lifetime and native/candidate remain.
 
 - I125: earlier scheduler passes do not cover waiting admission across disposal or new queues missed by its
   snapshot. Corrected owned probes, affected Core/App and full host suites pass; shared consumers require clean
@@ -1357,14 +1366,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
    full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
    scopes remain. Shutdown admission races now pass corrected probes/two new controls/87 affected cases and full
    host suites, four clean CI lanes and 87 guest controls (I125); wider/native/candidate remain.
+   Comparison revision/length lifetime now passes owned probes, four regressions/affected and full App,
+   four clean CI lanes and 91 guest controls (I126). Wider content/native/candidate remain.
 1c. V13: duplicates among a set and saved content criteria now pass working/full App controls (E-V13-F2);
    clean ab919ed/da3a3d6 CI passes all four lanes and affected Windows/Linux/macOS App cases; combined guest
    execution also passes (E-I117). Archive-result narrowing now
    passes working and clean CI/guest Core/headless Find flows (I115); TAR/gzip and initial warning propagation
    now pass working/full host and clean CI/guest controls (I116), with other formats still to validate.
    Candidate/native checks remain required.
-1d. V16: ready-for-input and input-to-frame latency need the window on a desktop (the owner's screen is locked now) and
-   the reference machine; I92's worker remedy passes host/clean CI/guest controls, with native frame/AT checks pending.
+1d. V16: ready-for-input and input-to-frame latency need the window on a desktop and the reference machine.
+   Current desktop state was not observed: updated Computer Use import and plain Node startup both fail before
+   input. Restore that runtime for live interaction; I92's worker remedy passes host/clean CI/guest controls,
+   with native frame/AT checks pending.
 1a. Continue V24: the terminal and association routes as the user drives them from a window; the same cases on a
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process

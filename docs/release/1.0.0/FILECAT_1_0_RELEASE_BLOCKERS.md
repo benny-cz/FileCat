@@ -200,8 +200,11 @@ I126: activation and page-refresh revision calls were not retained by the compar
 Four actual-production/owned-file controls dispose during the held call and fail on its released handle. The view
 now counts revision/length/read calls and activation uses those views. Identical corrected probe and App-only DLL
 swap, four regressions, 41 App/50 Core affected and full App 275/21 skips pass; exact inputs/source/DLLs/fixtures/XML/
-identity-aware cleanup verify (E-I126). Clean CI/guest and wider/native/candidate next. Updated Computer Use
-26.930.41038 still crashes during import before any app input; live Windows UI validation remains unavailable.
+identity-aware cleanup verify (E-I126). Clean e406c96 passes four CI lanes and 91 guest controls without affected
+skips; 693 payloads/694 ZIP members/twenty-one sources/artifact digests/XML/owned process/temp cleanup verify.
+Wider/native/candidate remain. Updated Computer Use 26.930.41038 import and a separate plain JavaScript startup
+both crash before any app input. Live Windows UI validation needs the Node runtime restored; current desktop
+state was not observed. Both VMs remain running; the USB source-change gate remains held.
 
 | ID | Needed | Status |
 |---|---|---|
