@@ -788,7 +788,7 @@ public sealed partial class MainViewModel
                     }
                     else if (t.IsCompletedSuccessfully)
                     {
-                        listing.SetComputedSize(name, t.Result.Size.Bytes, true, t.Result.Modified);
+                        listing.SetComputedSize(name, t.Result.Size.Bytes, true, t.Result.Modified, lowerBound: t.Result.Size.Inaccessible > 0);
                         if (t.Result.Size.Inaccessible > 0) Notify($"\"{name}\": {t.Result.Size.Inaccessible} folder(s) could not be read; the size is a lower bound.");
                     }
                     else if (t.IsCanceled && listing.FindStoreIndex(name) is var si && si >= 0 && !listing.IsMarked(si))

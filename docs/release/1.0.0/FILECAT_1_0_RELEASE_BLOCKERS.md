@@ -30,6 +30,15 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I127: an inaccessible subtree yields a lower-bound notification but the folder row, marked total and quick view
+claim an exact cached size. Refresh preserves it; restored access cannot retry Count. Two actual-production/
+owned-ACL failures and two accessible positive controls retained; file hashes/ACL restoration verify (E-I127).
+Persistent lower-bound state/labels and retry now pass identical corrected probe/four cases, seven App/three Core
+regressions, 59 Core/63 App affected and full Core 752/46 skips/App 282/21 skips. All 1,800 inputs/source/DLL/XML/
+fixture bytes/owned ACL/process/temp cleanup verify; clean CI/guest/native/candidate next.
+Owner restart did not restore Computer Use: initialization exits before
+selecting any host/VM window; guest command execution remains available and independent V12 work continues.
+
 I107 is closed for preliminary remediation: the owner confirms corrected host and 1a9f1ba guest success.
 Native VM trace identifies unchanged theme application removing the open menu; a palette guard fixes two
 baseline regressions. Complete App inventory passes 233/248 with 15 platform skips; copied host App DLL matches

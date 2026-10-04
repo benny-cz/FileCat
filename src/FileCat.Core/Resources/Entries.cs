@@ -64,6 +64,8 @@ public enum EntryFlags : ushort
     TimeToMinute = 1 << 13,
     /// <summary>The same to the day (FTP's LIST for older files: "Mar 04  2021"); the value is the day's start in UTC.</summary>
     TimeToDay = 1 << 14,
+    /// <summary>An explicitly counted directory size omits inaccessible subtrees and is a lower bound.</summary>
+    SizeLowerBound = 1 << 15,
 }
 
 /// <summary>

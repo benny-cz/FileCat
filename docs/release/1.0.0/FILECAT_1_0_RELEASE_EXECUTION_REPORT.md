@@ -1226,7 +1226,26 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
     recovery attempt. No desktop state/input observed, no USB action; both VMs remain running. Live interaction
     is gated; this does not qualify remaining native/reference/AT/candidate scopes.
 
+238. Owner reports Codex restarted; fresh Computer Use initialization still exits before selecting a host/VM
+    window (exact tool result retained with E-I126). Continue independent V12 checks. Actual clean e406c96 DLLs
+    reproduce I127: two owned denied-subtree cases show/cache a 1,000-byte lower bound as exact and skip retry
+    after access restoration; two accessible controls correctly count 1,234 bytes. Refresh preserves the defect.
+    Valid failure XML/loaded-copy pins/unchanged file hashes/owned ACL restoration retained (E-I127). Intermediate
+    harness failures remain separately recorded. Remediation/revalidation in progress; no USB action or native
+    desktop qualification. Both VMs remain running; overall NO-GO.
+
+239. I127 remedy carries lower-bound state through row and refresh/pending caches, marked stats and quick-view
+    captions; Count can retry partial folders and a complete retry clears uncertainty. Identical probe with only
+    App/Core DLLs replaced passes four cases; seven App and three Core regressions pass, including zero bounds and
+    attached-pane updates. All 59 Core/63 App affected and full Core 752/46 skips/App 282/21 skips pass. Independent
+    verification checks 1,800 inputs/nine sources/two properties files per capture, DLLs/XML case multiplicity and
+    unchanged skip reasons, sixteen fixture payloads, restored ACLs and owned worker/temp cleanup. Original test
+    encoding failure retained; corrected expectation passes identical production bytes. Clean CI/guest next.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I127: earlier folder-count passes do not qualify inaccessible-subtree lower bounds or retries after restored
+  access. Corrected probe/affected/full host suites pass; clean CI/guest and native/candidate remain required.
 
 - I126: previous comparison passes do not qualify revision/length lifetime during close or F5. Corrected owned
   real-file probes/affected Core/App/full App pass, as do four clean CI lanes and 91 guest controls. Wider content

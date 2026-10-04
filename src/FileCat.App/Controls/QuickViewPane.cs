@@ -133,7 +133,10 @@ public sealed class QuickViewPane : Border
 
     private void OnSourceChanged(object? sender, ListingChange change)
     {
-        if ((change & (ListingChange.Focus | ListingChange.Reset)) == 0) return;
+        // A folder count changes its caption without changing focus. File previews keep their existing demand.
+        bool folderSizeChanged = (change & ListingChange.Rows) != 0 && _source is { } source
+            && source.Listing.TryGetFocused(out var focused) && focused.IsContainer;
+        if ((change & (ListingChange.Focus | ListingChange.Reset)) == 0 && !folderSizeChanged) return;
         Close(); // abandoned demand ends immediately, before the next focus settles through the debounce
         _debounce.Stop();
         _debounce.Start();
@@ -164,14 +167,17 @@ public sealed class QuickViewPane : Border
         var tab = _source;
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var e)) return;
         var item = e.Kind == EntryKind.Parent ? null : tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        var key = item is null ? "parent" : item.ToString() + "|" + e.Modified + "|" + e.Size;
+        var key = item is null ? "parent" : item.ToString() + "|" + e.Modified + "|" + e.Size
+            + (e.IsContainer ? "|" + (e.Flags & (EntryFlags.SizeComputed | EntryFlags.SizeLowerBound)) : "");
         if (key == _shownKey) return;
         Close();
         _shownKey = key;
         _title.Text = e.Kind == EntryKind.Parent ? ".." : Formatters.SafeName(e.Name);
         if (e.IsContainer || item is null)
         {
-            _info.Text = e.Kind == EntryKind.Parent ? "Parent folder" : e.Has(EntryFlags.SizeComputed) ? $"Folder · {Formatters.SizeWithUnit(e.Size)}" : "Folder · Space in the source panel computes its size";
+            _info.Text = e.Kind == EntryKind.Parent ? "Parent folder" : e.Has(EntryFlags.SizeComputed)
+                ? e.Has(EntryFlags.SizeLowerBound) ? $"Folder · at least {Formatters.SizeWithUnit(e.Size)} (lower bound)" : $"Folder · {Formatters.SizeWithUnit(e.Size)}"
+                : "Folder · Space in the source panel computes its size";
             ShowMessage("Quick view shows file contents. Ctrl+Q closes it; the panel's location stays the copy destination.");
             return;
         }

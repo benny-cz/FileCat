@@ -638,21 +638,24 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             var marked = "Marked " + string.Join(", ", what);
             // A marked folder's size counts once counted (Space counts as it marks); until then it is said, not guessed.
             int unsized = !together && dirOne == "folder" ? stats.UnsizedDirectories : 0;
+            bool lowerBound = stats.LowerBoundDirectories > 0;
             string size = Formatters.SizeWithUnit(stats.Bytes);
+            if (lowerBound) size = "at least " + size;
             if (unsized == 0)
             {
-                if (stats.Bytes > 0 || stats.Files > 0) marked += " · " + size;
+                if (stats.Bytes > 0 || stats.Files > 0 || lowerBound) marked += " · " + size;
             }
             else if (SizingFolders > 0)
-                marked += " · " + (stats.Bytes > 0 ? $"{size} so far, " : "") + $"counting {Formatters.Plural(unsized, "folder", "folders")}…";
-            else if (stats.Bytes > 0 || stats.Files > 0)
+                marked += " · " + (stats.Bytes > 0 || lowerBound ? $"{size} so far, " : "") + $"counting {Formatters.Plural(unsized, "folder", "folders")}…";
+            else if (stats.Bytes > 0 || stats.Files > 0 || lowerBound)
                 marked += $" · {size}, not counting {Formatters.Plural(unsized, "folder", "folders")}";
             else
                 marked += unsized == 1 ? " · size not counted" : " · sizes not counted";
+            if (lowerBound) marked += $" · lower bound ({Formatters.Plural(stats.LowerBoundDirectories, "folder", "folders")} partially counted)";
             if (stats.HiddenByFilter > 0) marked += $" · {stats.HiddenByFilter:N0} of them hidden by the filter";
             StatusMarked = marked;
             StatusLeft = rest.Count > 0 ? " · " + string.Join(" · ", rest) : string.Empty;
-            CanCountMarked = unsized > 0 && SizingFolders == 0 && fileSystem;
+            CanCountMarked = (unsized > 0 || lowerBound) && SizingFolders == 0 && fileSystem;
         }
         StatusRight = l.TryGetFocused(out var f) && f.Kind != EntryKind.Parent ? DescribeFocused(f) + FocusedVerification(f, l.FocusedStoreIndex) : string.Empty;
     }

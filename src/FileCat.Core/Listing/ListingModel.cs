@@ -28,7 +28,8 @@ public enum ListingChange
 /// <summary>The marked items: how many, of which kind, and their size.</summary>
 /// <param name="Bytes">The marked files' sizes and the sizes counted for marked folders.</param>
 /// <param name="UnsizedDirectories">Marked folders whose size is not counted (yet): <see cref="Bytes"/> leaves them out.</param>
-public readonly record struct MarkStats(int Count, int Files, int Directories, long Bytes, int HiddenByFilter, bool SizesIncomplete, int UnsizedDirectories = 0);
+/// <param name="LowerBoundDirectories">Counted folders with inaccessible subtrees: their subtotal is included in <see cref="Bytes"/>.</param>
+public readonly record struct MarkStats(int Count, int Files, int Directories, long Bytes, int HiddenByFilter, bool SizesIncomplete, int UnsizedDirectories = 0, int LowerBoundDirectories = 0);
 
 /// <summary>
 /// One tab's listing: streaming enumeration into an <see cref="EntryStore"/>, background sorting and
@@ -76,8 +77,8 @@ public sealed class ListingModel : IDisposable
     /// Folder sizes computed here (Space), by name, with the folder's own time then. A refresh (a change the folder
     /// watcher saw, Ctrl+R) carries each over while that time is unchanged; a change in the folder makes it stale.
     /// </summary>
-    private Dictionary<string, (long Size, long Modified)> _computedSizes = new(StringComparer.Ordinal);
-    private Dictionary<string, (long Size, long Modified)>? _pendingSizes;
+    private Dictionary<string, (long Size, long Modified, bool LowerBound)> _computedSizes = new(StringComparer.Ordinal);
+    private Dictionary<string, (long Size, long Modified, bool LowerBound)>? _pendingSizes;
     /// <summary>A pending size measured while its folder was being listed again: it applies whatever the folder's time.</summary>
     private const long MeasuredDuringRefresh = long.MinValue;
     /// <summary>Entries are still arriving (a load, or a refresh after it replaced the rows) and names may not be found yet.</summary>
@@ -606,7 +607,7 @@ public sealed class ListingModel : IDisposable
         var change = ListingChange.Rows;
 
         // Resolve names that were waiting for their entry to arrive.
-        List<(int Index, long Size)>? sized = null;
+        List<(int Index, long Size, bool LowerBound)>? sized = null;
         if (_pendingMarks is not null || _pendingFocusName is not null || _pendingSizes is not null)
         {
             using var scan = new EntryStore.Scan(_store, r.Count, r.Count - previousCount);
@@ -617,7 +618,7 @@ public sealed class ListingModel : IDisposable
                 // A folder whose own time is unchanged keeps the size computed for it before the refresh.
                 if (_pendingSizes is not null && e.Kind == EntryKind.Directory && _pendingSizes.GetAlternateLookup<ReadOnlySpan<char>>().Remove(e.Name, out _, out var kept))
                 {
-                    if (kept.Modified == e.Modified || kept.Modified == MeasuredDuringRefresh) (sized ??= []).Add((i, kept.Size));
+                    if (kept.Modified == e.Modified || kept.Modified == MeasuredDuringRefresh) (sized ??= []).Add((i, kept.Size, kept.LowerBound));
                 }
                 if (RemovePendingMark(e.Kind, e.Name))
                 {
@@ -636,13 +637,14 @@ public sealed class ListingModel : IDisposable
         }
         if (sized is not null)
         {
-            foreach (var (index, size) in sized)
+            foreach (var (index, size, lowerBound) in sized)
             {
                 var entry = _store[index];
                 entry.Size = size;
                 entry.Flags |= EntryFlags.SizeComputed;
+                if (lowerBound) entry.Flags |= EntryFlags.SizeLowerBound;
                 _store.Update(index, entry);
-                _computedSizes[entry.Name] = (size, entry.Modified);
+                _computedSizes[entry.Name] = (size, entry.Modified, lowerBound);
             }
             change |= ListingChange.Rows;
         }
@@ -937,7 +939,7 @@ public sealed class ListingModel : IDisposable
     public MarkStats GetMarkStats()
     {
         if (_statsCache is { } cached) return cached;
-        int files = 0, dirs = 0, hidden = 0, unsized = 0;
+        int files = 0, dirs = 0, hidden = 0, unsized = 0, lowerBound = 0;
         long bytes = 0;
         using var scan = new EntryStore.Scan(_store, _appliedCount, _marks.Count);
         foreach (int si in _marks.Enumerate())
@@ -948,7 +950,11 @@ public sealed class ListingModel : IDisposable
             {
                 dirs++;
                 // Only a counted size: a folder entry's own (4096 bytes from some servers) is not its contents'.
-                if (e.Has(EntryFlags.SizeComputed) && e.Size >= 0) bytes += e.Size;
+                if (e.Has(EntryFlags.SizeComputed) && e.Size >= 0)
+                {
+                    bytes += e.Size;
+                    if (e.Has(EntryFlags.SizeLowerBound)) lowerBound++;
+                }
                 else unsized++;
             }
             else
@@ -958,7 +964,7 @@ public sealed class ListingModel : IDisposable
             }
             if (GetVisibleIndex(si) < 0) hidden++;
         }
-        var stats = new MarkStats(files + dirs, files, dirs, bytes, hidden, unsized > 0, unsized);
+        var stats = new MarkStats(files + dirs, files, dirs, bytes, hidden, unsized > 0 || lowerBound > 0, unsized, lowerBound);
         _statsCache = stats;
         return stats;
     }
@@ -972,7 +978,7 @@ public sealed class ListingModel : IDisposable
         {
             if (si >= _appliedCount) continue;
             var e = scan[si];
-            if (e.Kind == EntryKind.Directory && !e.Has(EntryFlags.Link) && !(e.Has(EntryFlags.SizeComputed) && e.Size >= 0)) found.Add(si);
+            if (e.Kind == EntryKind.Directory && !e.Has(EntryFlags.Link) && (e.Has(EntryFlags.SizeLowerBound) || !(e.Has(EntryFlags.SizeComputed) && e.Size >= 0))) found.Add(si);
         }
         return found;
     }
@@ -1021,20 +1027,21 @@ public sealed class ListingModel : IDisposable
     /// the folder still has that time. Without it the time the listing shows is used, which can be one taken while the
     /// folder was still being written (release issue I32: the size then vanished at the next refresh although current).
     /// </param>
-    public void SetComputedSize(string name, long bytes, bool complete, long? folderModified = null)
+    public void SetComputedSize(string name, long bytes, bool complete, long? folderModified = null, bool lowerBound = false)
     {
         int si = FindStoreIndex(name);
         if (si < 0)
         {
             // Measured while the folder is being listed again and before its row came back: the size waits for it.
-            if (_awaitingEntries && complete && bytes >= 0) (_pendingSizes ??= new(StringComparer.Ordinal))[name] = (bytes, folderModified ?? MeasuredDuringRefresh);
+            if (_awaitingEntries && complete && bytes >= 0) (_pendingSizes ??= new(StringComparer.Ordinal))[name] = (bytes, folderModified ?? MeasuredDuringRefresh, lowerBound);
             return;
         }
         var e = _store[si];
         e.Size = bytes;
         e.Flags = complete ? e.Flags | EntryFlags.SizeComputed : e.Flags & ~EntryFlags.SizeComputed;
+        e.Flags = complete && lowerBound ? e.Flags | EntryFlags.SizeLowerBound : e.Flags & ~EntryFlags.SizeLowerBound;
         _store.Update(si, e);
-        if (complete && e.Kind == EntryKind.Directory && bytes >= 0) _computedSizes[e.Name] = (bytes, folderModified ?? e.Modified);
+        if (complete && e.Kind == EntryKind.Directory && bytes >= 0) _computedSizes[e.Name] = (bytes, folderModified ?? e.Modified, lowerBound);
         else _computedSizes.Remove(e.Name);
         _statsCache = null;
         if (_sort.Field == SortField.Size && complete) PushSpec();

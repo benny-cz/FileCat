@@ -177,7 +177,7 @@ public static class Formatters
         }
         if (e.IsContainer)
         {
-            if (e.Has(EntryFlags.SizeComputed)) return Size(e.Size);
+            if (e.Has(EntryFlags.SizeComputed)) return (e.Has(EntryFlags.SizeLowerBound) ? "≥" : "") + Size(e.Size);
             if (e.Size >= 0) return Size(e.Size) + "…";
             return e.Has(EntryFlags.Link) ? "<LINK>" : "<DIR>";
         }
