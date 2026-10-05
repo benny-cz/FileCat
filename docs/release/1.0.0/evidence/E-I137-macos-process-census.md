@@ -41,6 +41,28 @@ checks pass **40/51**, with **11 declared platform skips**. Full working host Ap
 skip explanations and source pins independently verify. Committed-source Mac/runtime/CI
 revalidation is pending at this checkpoint; I137 is remediated, not Closed. Broader I106 remains open.
 
+## Clean committed revalidation
+
+Clean **`f62329788630514251a87d2524f256f978bef031`** is pushed to main. A full verified source
+export produces the Release/self-contained osx-arm64 payload. All **843 exports**, **1,516 payload
+files/1,517 ZIP members**, output pins and owned process/temp/device cleanup independently verify.
+Native Mac admission/census tests pass **44/51**, with seven Windows-only skips; all **19 new
+census controls pass**. Five native device/topology/descriptor controls pass without skips.
+The full recovery session now confirms and opens the device once: the kernel/zombie admission
+block is removed. It subsequently fails because the whole-file driver selects an intentionally
+partial fixture; that failure and its independently correct partial bytes are retained in E-I138.
+The source image is unchanged and detached. No whole-session success is claimed here.
+
+All four required jobs pass in [CI run 37285720557](https://github.com/benny-cz/FileCat/actions/runs/37285720557);
+three tag/manual package jobs skip. Four server artifact digests and six complete TRX inventories
+independently verify. Full App totals: Windows **347/17 skips**, Ubuntu **319/45 skips**, Mac
+**321/43 skips**, 364 cases each. Exact affected inventory: Windows **46/5 skips**, Ubuntu
+**41/10 skips**, Mac **43/8 skips**. All 19 census cases are accounted for: native Mac cases pass
+on Mac and declare their platform skips elsewhere; seventeen decoder controls pass everywhere.
+ARM64 App totals are 347/17 skips and package-start/installer checks pass; no per-case ARM64 TRX
+is available. The extra Unix affected skip in CI is the short-TMPDIR fallback precondition.
+I137 is verified preliminarily, not Closed; broader I106 and candidate qualification remain.
+
 ## Owner-run trace pilot
 
 The owner executes `~/FileCatReleaseValidation/TracePreflight-20261005.command`. The administrator
@@ -68,6 +90,13 @@ Private root: the authorized second workspace's `FileCatReleaseEvidence/mac-resu
 - `i137-host-independent-v1.json` SHA-256
   **`41c09385891b104968679f98fdffbd75f314f7fd452bcaa3470bd7b81d38cda1`**:
   both complete host TRX inventories and working source pins.
+- `i137-native-baseline-independent-v1.json` SHA-256
+  **`eb62953c52c676aaa540f1e10d93d7a038cc4a6a97793bd8b011142c406da36d`**:
+  committed producer, 51 native cases/five controls, actual admission, retained I138 failure,
+  independent partial bytes and source/process/temp/device cleanup.
+- `../ci-37285720557/independent-ci.json` SHA-256
+  **`55f9c2299cd136ad40d1661265f4e2c8a8a2b256d28fa0e5ca6cd14c364a8234`**:
+  four required jobs, four server digests, six full TRX inventories and exact affected cases/skips.
 
 The original refusals and trace interpretation limits remain retained. The Mac is a personal
 installation (macOS 27.0.1/26A434 arm64), not a clean qualification environment. Native desktop

@@ -11,6 +11,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
+using FileCat.Recovery;
 
 namespace FileCat.App.Tests;
 
@@ -139,7 +140,11 @@ public sealed class RecoveryWriteTraceTests
             int file = -1;
             for (int depth = 0; depth < 4 && file < 0; depth++)
             {
-                file = Enumerable.Range(0, scan.Listing.VisibleCount).FirstOrDefault(i => scan.Listing.GetVisible(i) is { Kind: EntryKind.File } e && !e.Has(EntryFlags.Unavailable) && e.Size > 0, -1);
+                // A partial file is readable too, but its correct copy result is CompletedWithIssues. This whole-file
+                // control must select a file the scan reports recoverable, not whichever readable row sorts first.
+                file = Enumerable.Range(0, scan.Listing.VisibleCount).FirstOrDefault(i => scan.Listing.GetVisible(i) is
+                    { Kind: EntryKind.File, Size: > 0, Tag: RecoveryEntryTag { State: RecoveryState.Recoverable } } e &&
+                    !e.Has(EntryFlags.Unavailable), -1);
                 if (file >= 0) break;
                 int folder = Enumerable.Range(0, scan.Listing.VisibleCount).FirstOrDefault(i => scan.Listing.GetVisible(i).Kind == EntryKind.Directory, -1);
                 if (folder < 0) break;
@@ -162,7 +167,7 @@ public sealed class RecoveryWriteTraceTests
             }
             Directory.CreateDirectory(output);
             var job = services.Jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [item], Destination = FileCat.Core.Resources.Location.FileSystem(output) });
-            for (int i = 0; i < 6000 && job.State is not (JobState.Completed or JobState.Failed or JobState.Canceled or JobState.Interrupted or JobState.AwaitingDecision); i++) await Task.Delay(20, ct);
+            for (int i = 0; i < 6000 && !job.State.IsFinished() && job.State != JobState.AwaitingDecision; i++) await Task.Delay(20, ct);
             Log($"copy: {job.State}; {string.Join("; ", job.Issues.Select(x => x.Message))}");
             Assert.Equal(JobState.Completed, job.State);
             Log($"waiting {wait} s with the scan open");
