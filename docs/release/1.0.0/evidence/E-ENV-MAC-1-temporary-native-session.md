@@ -123,3 +123,9 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   collection `f27477abba0db6b8d2e23f3878d3ca7c983f40f366bd1ac19acb42e542b98e40`.
 
 No candidate or human GO. **NO-GO** remains.
+
+Actual owner-approved owned-device removal now verifies no source/no timeout, helper
+ENOENT after the missing-path cue, source/cleanup/agent removal/nine absences and
+201 input/57 retained pins (E-V09-M10). Reporting failure is I142; no further human
+Mac dialog test is queued for the current slice. Power restoration remains due when
+Mac validation ends.

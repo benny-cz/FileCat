@@ -184,5 +184,6 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   private FileCatReleaseEvidence/ci-37359106547/independent-ci.json SHA-256
   `c1a4af6495c4a447de0108bde6ed9c8f297755f79c3ad0d9b8da846aa699ebc3`.
 
-I140 is remediated preliminarily, not Closed. Current native device removal, broader native and final
+I140 is remediated preliminarily, not Closed. Actual held removal safety independently verifies
+(E-V09-M10); its reporting defect is I142. Broader native and final
 qualification remain. No candidate or human GO. **NO-GO** remains.

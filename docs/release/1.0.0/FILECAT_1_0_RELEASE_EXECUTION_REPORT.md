@@ -18,10 +18,13 @@ no source/no timeout, two EACCES source opens, native helper cancellation/channe
 201 input/55 retained pins, unchanged detached source and nine absences verify. Raw
 duration is independently measured; finite tracing/full-workflow/candidate limits remain
 (E-ENV-MAC-1/E-V09-M9).
-Fresh owned-device removal preparation passes 201 inputs/42 retained pins, regular/raw
-seven-range/read-only controls, safe missing-source refusal, native desktop contexts,
-source/detachment/two agent removals/eight absences. Actual held approval/removal is
-not executed and waits on owner readiness (E-V09-M10).
+Actual owner-approved device removal independently verifies: both owned paths disappear
+before the cue, helper ENOENT occurs 75.100791 seconds later, no source/no timeout,
+channel closure/reaping, unchanged detached image/agent removal/nine absences and
+201 input/57 retained pins pass. Failure reporting says not approved despite approval;
+I142 is corrected in working source. Mac baseline 21 pass/2 expected failures/4 skips
+and corrected 23 pass/4 skips, host Core 7/20 skips and App 25/9 skips pass. Fresh native
+committed-source and successor CI remain pending (E-V09-M10/E-I142).
 
 I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
 four required lanes. Four server ZIP digests/six complete TRX inventories and 60 affected
@@ -47,9 +50,9 @@ Fresh v3 unchanged approval component passes read-only rights/seven ranges/closu
 source/detachment; independent 55 retained/197 input pins, six bounded native reads,
 source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake support and
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
-(E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); current native device removal,
+(E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); actual removal safety verifies with a reporting defect corrected by working I142 (E-V09-M10);
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
-Progress: **119/141 issue rows preliminarily remediated**, **one Closed**, **21 remain for
+Progress: **120/142 issue rows preliminarily remediated**, **one Closed**, **21 remain for
 remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
 final qualification. No candidate or human GO; overall **NO-GO**.
 
@@ -291,7 +294,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I141 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
+After verified preliminary working remediation through I142 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -304,7 +307,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **119 of 141 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **120 of 142 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -319,7 +322,8 @@ remain retained; controlled reproductions do not establish their exact historica
 
 The checklist remains 24 partly/fully open steps; its I128 derivation is retained. Latest evidence is
 in E-I140 (clean committed Mac tests/two native replacement passes), E-V09-M8 (fresh
-unchanged approval prepared) and E-I141 (host fixture correction/four passing CI lanes) and E-V09-M5 (actual Mac combined
+unchanged approval passed), E-V09-M9/M10 (native refusal/removal) and E-I142
+(working failure-reporting remedy), alongside E-I141 (host fixture correction/four passing CI lanes) and E-V09-M5 (actual Mac combined
 raw/mapping session, all shared mapping FDs resolved and retained qualification limits).
 Earlier records keep their own provenance and limits.
 Overall **NO-GO** remains.
@@ -2076,6 +2080,27 @@ Overall **NO-GO** remains.
     VMs/G: HOLD, outstanding temporary Mac power restoration and NO-GO unchanged; no
     candidate/GO (E-V09-M10).
 
+290. Execute the fresh owner-approved removal case on the byte-identical 8f75856
+    component. Verify owned detachment/both missing paths/live ordinary helper before
+    the approval cue; owner reports dialog and approval. Three uniquely linked source
+    opens are read-only: two initial EACCES and helper ENOENT 75.100791 seconds after
+    removal. No source/no timeout, channel FD 63 close/separate later pipe reuse,
+    helper exit/reap, all recorded command exits, unchanged source/detachment/agent
+    removal/nine absences and 201 input/57 retained pins independently verify.
+    8,272,489 raw events span 128.007 seconds; measured duration/finite-loss limits
+    retained. The pre-cue ps-format assertion failure remains explicit. Component
+    reports not approved despite owner approval: real reporting defect I142.
+291. Four new native I142 cases reproduce two reporting failures while unchanged
+    refusal/explicit cancellation controls pass. Recheck native identity only on an
+    uncancelled opener cancellation; changed/missing source reports IOException with
+    the original inner failure. Corrected Mac 23/4 declared skips, host Core 7/20
+    native skips and affected App 25/9 native skips pass. Failed v1 empty-container
+    observer retained; fresh v2 verifies and removes only the empty exact owned
+    nonsymlink container. 321 payload/six retained pins per native run, process/temp
+    cleanup verify. Committed/native/CI validation pending; no additional human Mac
+    dialog case queued. 120/142 preliminarily remediated, one Closed, 21 remaining;
+    checklist 24/26 partly/fully open. No candidate/human GO; NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2308,7 +2333,8 @@ Overall **NO-GO** remains.
    owner-local interaction. Native component refusal and fresh approval/returned-FD/read
    controls verify historically in E-V09-M6; actual E-V09-M7 replacement exposes I140.
    Committed replacement v3/v4 pass; unchanged-source approval passes (E-V09-M8); continue
-   device removal and broader native qualification before advancing that path; current
+   broader native qualification before advancing that path; actual held removal safety
+   passes with a reporting defect corrected in working I142 (E-V09-M10/E-I142); current
    desktop refusal now independently passes (E-V09-M9).
    The first approved/failed-expectation attempt remains
    retained. Continue intended-device replacement/removal and adverse topology controls.

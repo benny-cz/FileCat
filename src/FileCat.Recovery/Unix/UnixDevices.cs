@@ -49,7 +49,17 @@ public sealed class UnixDeviceSource : IBlockSource
         ct.ThrowIfCancellationRequested();
         if (UnixFiles.Stat(device, followLinks: true) is not { Inode: > 0 } selected)
             throw new IOException($"The identity of {device} could not be verified. Select the device again.");
-        var handle = openHandle(device, ct);
+        SafeFileHandle handle;
+        try
+        {
+            handle = openHandle(device, ct);
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && !SameEntry(UnixFiles.Stat(device, followLinks: true), selected))
+        {
+            // authopen can fail to return a descriptor after approval if the selected device vanished.
+            // Preserve actual cancellation, but report a changed source instead of blaming the approval.
+            throw new IOException("The selected device changed or was removed while opening. Select it again.", ex);
+        }
         try
         {
             if (!SameEntry(UnixFiles.Stat(handle), selected) || !SameEntry(UnixFiles.Stat(device, followLinks: true), selected))

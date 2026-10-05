@@ -367,6 +367,56 @@ public sealed class UnixDeviceTests : IDisposable
         Assert.False(requested);
     }
 
+    [Theory]
+    [InlineData("removed")]
+    [InlineData("replaced")]
+    public void An_authorization_failure_after_the_device_changes_reports_the_device_change(string change)
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Native device identities require Linux or macOS.");
+        string selected = Path.Combine(_dir.Path, "selected.img"), replacement = Path.Combine(_dir.Path, "replacement.img");
+        File.WriteAllBytes(selected, new byte[512]);
+        File.WriteAllBytes(replacement, Enumerable.Repeat((byte)0x72, 512).ToArray());
+        var authorizationFailure = new OperationCanceledException("Reading the device was not approved.");
+        int requests = 0;
+        var error = Assert.Throws<IOException>(() => UnixDeviceSource.Open(selected, "selected image", CancellationToken.None,
+            (path, _) =>
+            {
+                requests++;
+                if (change == "removed") File.Delete(path);
+                else File.Move(replacement, path, overwrite: true);
+                throw authorizationFailure;
+            }));
+        Assert.Contains("changed or was removed", error.Message);
+        Assert.Same(authorizationFailure, error.InnerException);
+        Assert.Equal(1, requests);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void An_unchanged_device_refusal_or_explicit_cancellation_preserves_the_original_failure(bool cancel)
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Native device identities require Linux or macOS.");
+        string selected = Path.Combine(_dir.Path, "selected.img");
+        File.WriteAllBytes(selected, new byte[512]);
+        using var cancellation = new CancellationTokenSource();
+        var original = new OperationCanceledException("Authorization did not return a descriptor.", cancellation.Token);
+        int requests = 0;
+        var error = Assert.Throws<OperationCanceledException>(() => UnixDeviceSource.Open(selected, "selected image", cancellation.Token,
+            (path, _) =>
+            {
+                requests++;
+                if (cancel)
+                {
+                    File.Delete(path);
+                    cancellation.Cancel();
+                }
+                throw original;
+            }));
+        Assert.Same(original, error);
+        Assert.Equal(1, requests);
+    }
+
     [Fact]
     public void A_descriptor_passed_over_a_local_socket_arrives_open()
     {
