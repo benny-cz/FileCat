@@ -7,17 +7,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-The Mac is reachable again at its known address: macOS 27.0.1/26A434, arm64, benny/UID 501.
-Clean 0bc1b66's self-contained Mac producer passes all 81 archive/Find and five native device
-checks without skips. All 839 Git exports, 1,512 payloads/1,513 ZIP members, exact case/output pins,
-unchanged source-image hash and owned process/temp/device cleanup independently verify.
-The full recovery session **fails at admission, with zero device opens**. The unchanged census
-detects Visual Studio's dotnet ServiceHub and three unavailable identities, including PID 0 and
-a later-confirmed defunct process; I106 remains open. No census bypass or application shutdown.
-The owner must close Visual Studio and launch the staged eight-second owned-control fs_usage
-preflight with the Mac's local administrator password. It has not run; actual write tracing,
-authopen consent and candidate qualification remain (E-V09-M1). Mac availability is restored;
-both VMs stay running and G: stays untouched/HOLD. Progress remains **114/136 issues remediated**,
+I137 corrects a Mac recovery-availability defect. After identity-checked, owner-authorized SIGTERM
+of Visual Studio and ServiceHub, the unchanged census still returns null with no FileCat matches:
+managed kernel/zombie entries lack executable identities. Complete native records now exclude
+only those nonexecuting tasks; failed/short/inconsistent records and unavailable executable
+identities still refuse. Seventeen decoder controls and host affected 40/11 declared skips,
+full App 341/23 declared skips pass. Source/case/skip pins independently verify; clean committed
+Mac/runtime/CI revalidation is next. Broader I106 remains open (E-I137).
+
+The owner-run eight-second fs_usage pilot captures the synthetic ordinary-user reads/write;
+independent file bytes and process cleanup verify. Encoded offsets/thread suffix require calibration;
+whole-source/child/loss controls and authopen remain. SSH sudo still needs local authentication.
+E-V09-M1's prior 86 clean Mac passes and failed session with zero opens remain historical evidence.
+Both VMs stay running and G: stays untouched/HOLD. Progress: **115/137 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
 
@@ -1589,7 +1591,24 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     authopen/native/candidate qualification remains. Progress unchanged: 114/136 remediated,
     one Closed, 24/26 steps partly/fully open. VMs running, G: untouched/HOLD, NO-GO (E-V09-M1).
 
+262. Owner reports the trace preflight run under sudo and Visual Studio closed, then expressly
+    authorizes needed Mac process termination. Native identity checks still find IDE PID 1743
+    and ServiceHub PID 1912; bounded SIGTERM stops both. Unchanged production now returns null,
+    no FileCat matches and three unknown kernel/defunct identities. Complete native BSD records
+    and installed SDK headers establish the kernel/zombie distinction. I137 adds a narrow native
+    exclusion with 17 adverse decoder controls; failures/short/mismatched records remain unknown.
+    Host affected 40/11 declared skips and full App 341/23 declared skips pass, all case/source
+    pins verified. Owner synthetic trace bytes/capture/cleanup verify, but encoded offsets/thread
+    identity and whole-process/child/loss calibration remain. Proofs `b16d7d79ef4f0dda312e015a85625973ad7d82e8c620f24e7bed468f3b96d195`
+    and `41c09385891b104968679f98fdffbd75f314f7fd452bcaa3470bd7b81d38cda1`.
+    Clean committed Mac/CI revalidation pending; broader I106 remains open. Progress 115/137
+    remediated, one Closed, 24/26 steps partly/fully open; VMs running, G: HOLD, NO-GO (E-I137).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I137 changes only the Mac process census. Prior kernel/zombie admission refusal remains failed;
+  the host verification does not establish native Mac recovery success. Rebuild and revalidate
+  the exact committed Mac producer before advancing this path (E-I137).
 
 - I136: earlier archive passes do not prove missing interior RAR-volume reporting. Seven-Zip rejects
   the owned incomplete set; FileCat has seven missing-warning failures but refuses affected content.
@@ -1799,10 +1818,10 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
    and file traces of browsing (E-V24-D1, E-V24-D1-F1).
-2. V09 on macOS: 86 current-source archive/native checks pass, but session admission refuses
-   at I106's process inventory. Owner closes Visual Studio and launches the staged eight-second
-   trace preflight with local administrator authentication (E-V09-M1); continue the admission
-   diagnosis, calibrated `fs_usage` and authopen. The installed
+2. V09 on macOS: revalidate I137's complete native kernel/zombie exclusion with a clean committed
+   producer and actual recovery session. Owner trace pilot ran; calibrate encoded offsets/thread
+   identity and whole-process/child/loss coverage before full `fs_usage` and authopen (E-I137).
+   Broader I106 remains open. The installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.

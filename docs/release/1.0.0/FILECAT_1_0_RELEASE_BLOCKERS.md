@@ -34,11 +34,13 @@ I136 is verified preliminarily at clean a1c265f. The numbered-volume gap warning
 independent ISO/Joliet/UDF 1.02 and complete RAR 54 search/72 content controls plus safe refusals.
 Affected host checks, four clean CI jobs and all 81 cases per VM pass. Four server digests/six
 complete TRX inventories and native source/fixture/payload/case/cleanup pins independently verify.
-Other variants/native desktop/AT/candidate remain. Mac availability is restored in E-V09-M1;
-86 clean 0bc1b66 checks pass, while the full recovery session refuses before opening a device.
-The unchanged process census sees Visual Studio's dotnet and unavailable Mac identities; I106
-remains open. Local administrator authentication is needed for the staged trace preflight and
-actual fs_usage/authopen work. Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1).
+Other variants/native desktop/AT/candidate remain. E-V09-M1 retains 86 Mac passes and an admission
+refusal before device opening. Owner-authorized IDE/ServiceHub shutdown exposes the remaining
+kernel/zombie census defect I137. Its narrow correction passes affected/full host checks; clean
+committed Mac/CI verification is next. Broader I106 remains open. The owner trace pilot ran and
+its synthetic bytes/capture/cleanup verify, but offset/thread/whole-process/child/loss calibration
+and actual fs_usage/authopen remain. SSH sudo still needs local administrator authentication.
+Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137).
 
 I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
 real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
@@ -289,7 +291,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | Owner restores availability 2026-10-05; trusted SSH succeeds at the known address. macOS 27.0.1/26A434 arm64: 81 archive/Find plus five native device checks pass at clean 0bc1b66 (E-V09-M1). Recovery admission refuses with zero device opens; census detects Visual Studio dotnet plus unknown Mac identities (I106). Local sudo password required; eight-second owned-control trace preflight staged for owner, not executed. Personal machine, not a clean install; keychain/native consent and a clean Mac remain needed for final qualification. Earlier checkpoint identities retained in E-V12-N1/E-ENV-05/E-I129 |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | Available at known trusted address, macOS 27.0.1/26A434 arm64. E-V09-M1 retains 86 passes and failed admission/zero opens at clean 0bc1b66. Authorized IDE shutdown leaves kernel/zombie unknowns; I137 correction passes host checks, committed Mac/CI validation pending. Owner trace pilot executed; synthetic capture/bytes/cleanup verify, offset/thread/full coverage calibration remains. SSH sudo still needs password; authopen/native consent and a clean Mac remain. Personal installation, not a clean qualification environment. Earlier identities in E-V12-N1/E-ENV-05/E-I129 |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |

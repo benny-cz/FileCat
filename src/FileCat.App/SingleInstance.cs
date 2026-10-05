@@ -54,6 +54,12 @@ public static partial class SingleInstance
                 try
                 {
                     if (process.HasExited) continue;
+                    if (OperatingSystem.IsMacOS())
+                    {
+                        bool? running = MacProcessCanExecute(process.Id);
+                        if (running == false) continue;
+                        unknown |= running is null;
+                    }
                     if (enumerate is null && OperatingSystem.IsLinux())
                     {
                         bool? kernel = KernelThreadFromStat(File.ReadAllText($"/proc/{process.Id}/stat"));
