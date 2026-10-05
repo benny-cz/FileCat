@@ -122,5 +122,12 @@ log limits remain as above. Private `../ci-37328413504/independent-ci.json` SHA-
 `7177823e2a3d867a4929d1ce0735bc34cba65acee2025e50e3bbd6bddc86ab90` retains
 that separate source/run identity and outputs. Three tag-only package jobs skip.
 
+Docs-only `10d4e62b63d01f8bf5d0fc7ecfb4e48ca91aa75d` independently repeats those passes
+in [CI 37331762053](https://github.com/benny-cz/FileCat/actions/runs/37331762053): four required
+jobs/server ZIP digests, six complete inventories and all 24 affected cases verify. App totals
+and ARM64 log/per-case/physical limits remain as above; three tag-only package jobs skip.
+Private `../ci-37331762053/independent-ci.json` SHA-256
+`5c6dcf421606b2e16929160c03c02052a01612984900442ca0dcc6c1dc9e5390` binds that run/source.
+
 I139 is remediated and verified preliminarily, not Closed. No native desktop, physical device or release
 candidate qualification is claimed. Stable publication remains **NO-GO**.

@@ -59,11 +59,13 @@ SIP enabled. New v13 actual execution verifies 1/1/whole recovered bytes/source/
 1,197 payload pins/117 retained pins and clean worker/recorder/decoder exits. All 77 shared
 mapping FDs/offsets resolve, including 75 filesystem paths/two shared-memory objects; no
 source-FD writes/aliases/forks/mappings are observed. 43 unmatched private maps and broader
-helper/authopen/topology/native/candidate qualification remain (E-V09-M5). Native refusal
-component is now prepared: 197 pins/two production DLL identities, two actual direct
-file/raw-image controls/fourteen independent ranges, FD rights/closure/source/cleanup and
-seven process absences verify. Owner-local sudo and native dialog cancellation are needed
-to execute the staged refusal launcher (E-V09-M6); no authopen/refusal pass yet.
+helper/authopen/topology/native/candidate qualification remain (E-V09-M5). Native component
+refusal now passes with owner cancellation: actual not-approved/no source/no timeout,
+raw EACCES/helper cancellation, clean command exits, 42 retained/197 input pins, source
+bytes/detachment and seven absences verify. First owner-approved attempt remains failed
+against its refusal expectation, with original failure/shortened trace preserved. Fresh
+approval/returned-FD/read-range case is prepared and verified; owner-local sudo and native
+approval are needed next (E-V09-M6). Drawn workflow/full-helper/removal/candidate remain.
 Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137;
 [E-I138](evidence/E-I138-recovery-trace-fixture-selection.md);
 [E-V09-M2](evidence/E-V09-M2-macos-trace-calibration.md);
@@ -321,7 +323,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | Known trusted address available after retained staging timeout. I137/I138 and v12 actual 593583e complete session/bytes/source/cleanup pass at their identities. V2 formatted offsets fail; v5 selectors/v6 raw controls retain limits (E-V09-M2). V8/v9 census/v10 elevation/v11 marker failures retained. V12 104 pins/18 tracked +15 derived absences, 2,669,238 events/430 controls/ordinary FD reads verify; 79 shared mmap backing FDs unresolved and supervisor failure/recorder exit unknown retained. Root syscall provider unavailable under SIP; v5 process calibration passes three known FD/offset/address mappings, 32 pins/three absences/whole bytes/SIP enabled. New v13 all 77 shared mapping FDs resolve; 1,197 payload/117 retained pins, recovery/bytes/source/cleanup and every recorded command exit zero verify. 43 unmatched private maps retained; full-source/helper/authopen/topology/native/clean Mac/candidate remain (E-V09-M5). Concrete refusal launcher/two native direct controls/197 pins now verify; owner-local sudo and dialog cancellation pending (E-V09-M6). Personal installation, not clean qualification; earlier E-V12-N1/E-ENV-05/E-I129 |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | Known trusted address available after retained staging timeout. I137/I138 and v12 actual 593583e complete session/bytes/source/cleanup pass at their identities. V2 formatted offsets fail; v5 selectors/v6 raw controls retain limits (E-V09-M2). V8/v9 census/v10 elevation/v11 marker failures retained. V12 104 pins/18 tracked +15 derived absences, 2,669,238 events/430 controls/ordinary FD reads verify; 79 shared mmap backing FDs unresolved and supervisor failure/recorder exit unknown retained. Root syscall provider unavailable under SIP; v5 process calibration passes three known FD/offset/address mappings, 32 pins/three absences/whole bytes/SIP enabled. New v13 all 77 shared mapping FDs resolve; 1,197 payload/117 retained pins, recovery/bytes/source/cleanup and every recorded command exit zero verify. 43 unmatched private maps retained; full-source/helper/authopen/topology/native/clean Mac/candidate remain (E-V09-M5). Native component refusal now verifies with owner cancellation/no source/no timeout, 42 retained/197 input pins, source/detachment/seven absences and clean command exits. First approved attempt remains a failed refusal expectation. Fresh approval/returned-FD/read-range controls are staged; owner-local sudo/native approval pending (E-V09-M6). Personal installation, not clean qualification; earlier E-V12-N1/E-ENV-05/E-I129 |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |

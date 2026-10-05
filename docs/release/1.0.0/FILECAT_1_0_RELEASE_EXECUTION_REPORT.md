@@ -90,12 +90,15 @@ reads/264,192 bytes and no observed writes/aliases/forks/mappings. 43 unmatched 
 maps precede the source opens and stay retained. Broader helper/authopen/topology/native/
 candidate qualification remains (E-V09-M5). Twenty-one tracked owned, fifteen derived
 children and one image-attachment daemon are absent. Clean e7a1e7e CI is verified above.
-Mac native authorization refusal is now concretely prepared (E-V09-M6). Both ordinary
-file/raw-image controls pass all fourteen independent ranges, read-only FD/closure and
-source/cleanup checks. All 197 staged pins/two production DLL identities verify. The
-owner must run the local launcher and cancel the native authorization dialog; no actual
-authopen/refusal result is claimed. Docs-only 302f63a CI 37328413504 also passes all four
-jobs, four server digests/six full inventories/24 affected cases independently verified.
+Mac native component authorization refusal now passes with owner cancellation (E-V09-M6).
+The first owner-approved attempt remains a failed refusal expectation, not a production
+defect or an approved read-range pass. Fresh v2 returns not-approved/SourceOpened=false,
+without timeout. Raw source-open EACCES pairs/helper cancellation, clean worker/recorder/
+decoder exits, 42 retained/197 input pins, unchanged source/detachment and seven absences
+verify. A fresh approval/returned-FD/read-range launcher is prepared; local authentication
+is the next gate. Drawn workflow/helper/full source/candidate qualification remains open.
+Docs-only 10d4e62 CI 37331762053 passes all four jobs, four server digests/six full
+inventories/24 affected cases independently verified; ARM64 per-case/physical limits remain.
 Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
@@ -1862,6 +1865,20 @@ Overall **NO-GO** remains.
     four jobs/digests/six complete inventories/24 affected cases; ARM64 log limits retained.
     Counts/VMs/G: HOLD/NO-GO unchanged.
 
+279. Execute native Mac authorization twice against the pinned 593583e component. V1
+    owner approves the separate dialog; helper opens read-only/returns a source, so the
+    decline-mode wrapper fails its expectation (-6). Original failure/shortened raw trace
+    remain retained; source bytes/detachment/51 pins/seven absences verify. Separate fresh
+    v2 owner cancels: not-approved OperationCanceledException, no source/no timeout,
+    clean worker/recorder/decoder/cleanup exits. Two attributed source opens fail EACCES;
+    raw 1,502,267 events/125.956 seconds, 42 retained/197 input pins and seven absences
+    independently verify. Finite loss-marker absence is not full-source/zero-loss proof.
+    Corrected observer name/lifetime/attestation-label assumptions remain retained; native
+    inputs/results unchanged. Fresh approval/returned-FD/seven-range case is staged and
+    independently verified, awaiting local authentication (E-V09-M6). Docs-only 10d4e62
+    CI 37331762053 passes all four required lanes; four server digests/six full inventories/
+    24 affected cases verify, ARM64 log limits retained. Counts/VMs/G: HOLD/NO-GO unchanged.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -2086,8 +2103,9 @@ Overall **NO-GO** remains.
    observed. Historical v12 gaps/failures remain in E-V09-M4. Continue broader helper,
    native authopen approval/refusal/removal and adverse topology qualification with SIP
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
-   owner-local interaction. Concrete refusal launcher/direct controls are verified and
-   staged in E-V09-M6; pause that activity for local sudo/dialog cancellation. Broader I106,
+   owner-local interaction. Native component refusal now verifies in E-V09-M6; its first
+   approved/failed-expectation attempt remains retained. Fresh approval/returned-FD/read
+   controls are verified and staged; pause that activity for local sudo/native approval. Broader I106,
    installed helper/Windows approval refusal remain.
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
