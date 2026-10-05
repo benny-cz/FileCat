@@ -20,14 +20,21 @@ namespace FileCat.App.Tests;
 public sealed class PictureLifetimeTests(ITestOutputHelper output)
 {
     [AvaloniaTheory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task Closing_a_picture_retires_demand_before_its_active_source_read_returns(bool quickView, bool failRead)
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, true)]
+    public async Task Closing_a_picture_retires_demand_before_its_active_source_read_returns(bool quickView, bool failRead, bool priorHeaderRead)
     {
         var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
         var source = new HeldPictureSource(root, hold: true, failRead);
+        // Initial text rendering and encoding detection can each request the header before picture mode starts.
+        // A controlled extra header also checks that the fixture holds the feeder rather than the second read.
+        if (priorHeaderRead) source.Read(0, new byte[64 * 1024]);
         var pane = new QuickViewPane();
         ViewerWindow? viewer = null;
         try
@@ -47,7 +54,9 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
                 viewer.Show();
             }
             await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            Assert.Equal(2, source.Reads); // initial header, then the real decoder's direct feed
+            Assert.Equal(1, source.FeederReads);
+            Assert.True(source.Reads >= (priorHeaderRead ? 3 : 2));
+            int readsWhileHeld = source.Reads;
             var clock = Stopwatch.StartNew();
             if (quickView) pane.Attach(null);
             else
@@ -63,11 +72,12 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
             source.Release.Set();
             await source.ReadExited.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             await WaitFor(() => source.Disposals == 1);
-            Assert.Equal(2, source.Reads);
+            Assert.Equal(readsWhileHeld, source.Reads);
+            Assert.Equal(1, source.FeederReads);
             Assert.Equal(0, source.DisposalsDuringRead);
             Assert.Null(viewer?.Picture);
             Assert.Equal(source.OriginalHash, SHA256.HashData(File.ReadAllBytes(source.Path)));
-            output.WriteLine($"Quick view {quickView}, read failure {failRead}: cancellation precedes release; two reads; one disposal after return; unchanged owned PNG {Convert.ToHexString(source.OriginalHash)}.");
+            output.WriteLine($"Quick view {quickView}, read failure {failRead}, prior header {priorHeaderRead}: cancellation precedes release; {readsWhileHeld} total reads; one feeder read; no later reads; one disposal after return; unchanged owned PNG {Convert.ToHexString(source.OriginalHash)}.");
         }
         finally
         {
@@ -184,7 +194,7 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
     {
         private readonly FileContentSource _file;
         private readonly bool _hold, _failRead;
-        private int _reads, _disposals, _active, _disposalsDuringRead;
+        private int _reads, _feederReads, _disposals, _active, _disposalsDuringRead;
         public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly TaskCompletionSource ReadExited = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly ManualResetEventSlim Release = new();
@@ -204,6 +214,7 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
             _file = new FileContentSource(Path);
         }
         public int Reads => Volatile.Read(ref _reads);
+        public int FeederReads => Volatile.Read(ref _feederReads);
         public int Disposals => Volatile.Read(ref _disposals);
         public int DisposalsDuringRead => Volatile.Read(ref _disposalsDuringRead);
         public string DisplayName => "owned.png";
@@ -213,23 +224,26 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
         public ContentRevision? GetRevision() => _file.GetRevision();
         public int Read(long offset, Span<byte> buffer)
         {
-            int read = Interlocked.Increment(ref _reads);
+            Interlocked.Increment(ref _reads);
+            // The decoder feeds in 1-MiB chunks; both paged header consumers use 64-KiB buffers.
+            bool feeder = buffer.Length == 1024 * 1024;
+            if (feeder) Interlocked.Increment(ref _feederReads);
             Interlocked.Increment(ref _active);
             try
             {
-                if (_hold && read == 2)
+                if (_hold && feeder)
                 {
                     Entered.TrySetResult();
                     if (!Release.Wait(TimeSpan.FromSeconds(20))) throw new IOException("Owned picture read was not released.");
                 }
                 int count = _file.Read(offset, buffer);
-                if (_failRead && read == 2) throw new IOException("Owned picture read failure.");
+                if (_failRead && feeder) throw new IOException("Owned picture read failure.");
                 return count;
             }
             finally
             {
                 Interlocked.Decrement(ref _active);
-                if (_hold && read == 2) ReadExited.TrySetResult();
+                if (_hold && feeder) ReadExited.TrySetResult();
             }
         }
         public void Dispose()

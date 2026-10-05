@@ -4,7 +4,19 @@ Native baseline executed and independently verified, 2026-10-05. This follows th
 successful approval/refusal cases in [E-V09-M6](E-V09-M6-macos-authopen-preparation.md).
 **Actual held authorization returns the equally sized replacement device.** The defect and
 working correction are recorded in [E-I140](E-I140-unix-device-authorization-identity.md).
-The preparation below remains historical; no candidate qualification or issue closure follows.
+The baseline preparation below remains historical; no candidate qualification or issue closure follows.
+
+Fresh committed I140 preparation uses `8f75856802668f7d21c09f33aa876e4fdc4409d3`
+in native root `authbind-c6369740f9634543ad7e3839c5a4b4a1`. The Recovery/Core DLLs
+match the clean Core test producer byte-for-byte. All 200 input/46 retained pins,
+four native metadata controls, equal-size same-path/different-inode rehearsal,
+golden source hashes, normal detachment and five process absences independently verify.
+The unchanged wrapper reads no source content in binding mode. The single-use
+`AuthopenBinding-20261005-v2.command` is staged for the separate root account and a
+held ordinary-user authorization dialog; this fresh binding case remains pending.
+All exact source/payload/launcher/transport hashes and the clean Mac 19/4 declared-skip
+test result are recorded in E-I140. Root CLI authentication is verified without retaining
+the credential. It is not native consent. I141 records the unrelated failed ARM64 CI gate.
 
 The private self-contained arm64 wrapper calls the actual UnixDeviceSource.Open from
 the byte-identical clean `593583e585d4a79cbb7ff961770a2d826858e14d` Recovery/Core DLLs.
@@ -12,6 +24,21 @@ The production source tree is unchanged through `ce282827380cc79e81bd775ead38688
 The wrapper snapshots path metadata before opening, then inspects the returned descriptor's
 native fstat identity, read-only flags, length and closure. It makes **no source-content read**.
 It is a validation instrument, not a drawn FileCat workflow or release artifact.
+
+The v2 SSH/root launch authenticates and starts the recorder, but native authopen says
+authorization is denied because no user interaction is possible. The worker returns
+not-approved/no source/no timeout; no replacement is installed. This is an unavailable
+authorization-session setup, not a human refusal or a passing binding case. All 200 input/
+71 retained pins, both unchanged detached images, five recorded command exits and four
+known owned PID absences verify. The helper PID was not independently observed for an
+absence claim. The 13,008,560-byte raw capture is shortened after setup failure; no completed
+120-second or whole-source trace is claimed. Detached supervisor exit code is not recorded.
+
+Fresh local-Terminal v3 setup uses the same committed Recovery/Core bytes and owned golden
+images in `authbind-d8b09642eead468882d8dd2cf0204d97`. Four native controls, same-path/different-inode
+rehearsal, 200 input/46 retained pins, both hashes/detachment and five absences verify again.
+`AuthopenBinding-20261005-v3.command` uses the previously verified local sudo route.
+Its held native approval remains pending; v2 is completed/single-use and must not be rerun.
 
 ## Verified controls and owned replacement rehearsal
 

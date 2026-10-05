@@ -7,15 +7,27 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-I140 is a real native authorization binding defect: after the verified owned equal-size swap
-and owner approval, actual Mac component 593583e returns replacement inode 849 instead of
-selected 845. Native open/flags/closure, unchanged source hashes/detachment, 88 retained/
-200 input pins and eight absences verify; the probe reads no source content. Working guard
-now binds the received descriptor and current path to the native device/inode captured before
-opening, closing mismatches before source construction. All six new Mac cases pass within
-affected 19/4 declared skips; Windows 7/16 native skips compiles. Host recovery admission/UI
-checks pass 25/10 declared skips. Clean committed-source
-CI/native authorization/replacement revalidation remains pending (E-I140/E-V09-M7).
+I141 repairs a picture-lifetime validation assumption. Clean 8f75856 CI passes three
+required lanes but its ARM64 App test observes three reads where the ordinal fixture expects
+two. Original failed CI is retained with three server digests/six complete inventories.
+Controlled prior-header injection reproduces three original host failures. Actual feeder
+targeting preserves lifetime/deadline/no-later-read/byte checks; all eight held cases/four
+new prior-header controls pass within affected 20/0 skips, full App 345/23 declared skips.
+Production behavior is unchanged. Clean successor CI/native ARM64 revalidation remains
+(E-I141). Historical CI read ordering is unknown.
+
+I140's actual held Mac approval returns replacement inode 849 instead of selected 845,
+exposing a native device-binding defect. Committed 8f75856 guard binds the received FD and
+current path before source construction. Clean Mac affected 19/4 declared skips includes
+all six new native cases; 852 archive-source/321 payload pins and process absence verify.
+The working/archive raw source difference is limited to line endings and retained explicitly.
+Fresh clean binding setup passes four native controls, 200 input/46 retained pins,
+equal-size same-path/different-inode rehearsal, image hashes/detachment/five absences.
+The v2 SSH capture fails setup: authopen cannot interact in that session; no source opens
+or replacement occurs, source/cleanup and 200/71 pins/four known absences verify. Fresh
+local-Terminal v3 setup independently verifies the same controls/pins/cleanup and awaits
+held native approval. Root CLI authentication verifies separately without credential retention;
+it is not native consent. Required clean CI remains failed on I141 (E-I140/E-V09-M7).
 
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
 required jobs. Four server digests/six complete inventories/24 affected cases independently
@@ -36,7 +48,7 @@ The historical CI scheduler state is unknown; failed setup/supervisor attempts r
 Clean 6509eff successor CI passes all four required lanes, including native ARM64 App
 347/17 declared skips, startup/drawing and installer compilation. Four server digests/six
 full inventories and 24 affected cases verify; ARM64 has log totals, no per-case TRX.
-Physical ARM64/candidate qualification remains (E-I139). Progress: **118/140 issue rows remediated**,
+Physical ARM64/candidate qualification remains (E-I139). Progress: **119/141 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/GO; NO-GO.
 
 I138 repairs the whole-file trace driver's fixture choice and finished-state wait. I137's clean
@@ -114,7 +126,7 @@ authorization exposes I140; working correction/native cases verify above, while 
 authorization revalidation remains (E-V09-M7/E-I140). Docs-only ce28282
 CI 37346405163 passes all four required jobs/four server digests/six full inventories/24
 affected cases independently verified; ARM64 per-case/physical limits remain.
-Both VMs stay running and G: stays untouched/HOLD. Progress: **118/140 issue rows remediated**,
+Both VMs stay running and G: stays untouched/HOLD. Progress: **119/141 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
 
@@ -255,7 +267,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I139 at clean e7a1e7e, the §14 checklist has the following conservative gate status.
+After verified preliminary remediation through I141 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -268,7 +280,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **117 of 139 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **119 of 141 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -282,7 +294,8 @@ Exact source/input/artifact/case inventories and owned cleanup verify. Both earl
 remain retained; controlled reproductions do not establish their exact historical event triggers.
 
 The checklist remains 24 partly/fully open steps; its I128 derivation is retained. Latest evidence is
-in E-I139 (verified clean e7a1e7e four-lane CI) and E-V09-M5 (actual Mac combined
+in E-I140 (clean committed Mac tests/fresh native binding setup) and E-I141 (host fixture
+correction; clean successor CI pending) and E-V09-M5 (actual Mac combined
 raw/mapping session, all shared mapping FDs resolved and retained qualification limits).
 Earlier records keep their own provenance and limits.
 Overall **NO-GO** remains.
@@ -1933,6 +1946,24 @@ Overall **NO-GO** remains.
     walltime/help-command failures and exact working producer. Commit correction; clean
     CI/native authorization revalidation next (E-I140). Progress 118/140 preliminarily remediated,
     one Closed; 24/26 steps partly/fully open. VMs running, G: HOLD, no candidate/GO, NO-GO.
+
+283. Validate committed I140 source 8f75856 independently: 852 exported source pins,
+    clean Mac 19/4 declared skips/all six new cases, 321 payload pins and process absence
+    verify. Raw source mismatch is only CRLF/LF; original false receipt remains retained.
+    Fresh byte-identical binding producer verifies 200 input/46 retained pins, four native
+    metadata controls, equal-size same-path/different-inode rehearsal, golden hashes,
+    detachment/five absences; v2 SSH setup fails unavailable interactive authorization; no source opens/replacement
+    occurs, unchanged sources/detachment, 200/71 pins/four known absences verify. Fresh
+    local-Terminal v3 controls/pins/cleanup verify; held approval remains pending. Separate root CLI
+    account authenticates without saving the credential. Preceding 300c52a CI passes four
+    jobs/server digests/six inventories. I140 CI has three passing lanes/one ARM64 App
+    failure; original log/three server digests/six inventories verify. Register I141:
+    three controlled original-fixture failures expose ordinal read targeting. Test-only
+    feeder targeting passes all eight held cases/four new controls, affected 20 and full
+    App 345/23 declared skips, exit zero. Clean successor CI/native ARM64 remains. Progress
+    119/141 preliminarily remediated, one separately Closed, 21 remaining remediation;
+    24/26 checklist steps partly/fully open, all 24 campaigns still need final qualification.
+    Both VMs stay running, G: untouched/HOLD; no candidate/human GO, NO-GO.
 
 ## Evidence invalidated by the campaign's own changes
 
