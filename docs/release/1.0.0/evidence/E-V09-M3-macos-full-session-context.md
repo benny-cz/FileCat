@@ -1,6 +1,8 @@
 # E-V09-M3 — Mac full-session trace refusal and launch context
 
 Preliminary execution, 2026-10-05, following [E-V09-M2](E-V09-M2-macos-trace-calibration.md).
+The v11 staging/request checkpoint below is historical; actual v11/v12 execution and the
+current provider gate are in [E-V09-M4](E-V09-M4-macos-recorded-session.md).
 No production/source-write oracle change. Actual SDK-free payload retains clean
 `593583e585d4a79cbb7ff961770a2d826858e14d` and manifest SHA-256
 `f3b8e93a97f0d4a9383548f5d1d7fcc98ad32d0084d2cb8558d9f235bafe1288`.

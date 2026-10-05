@@ -48,14 +48,17 @@ FD/offset remains unresolved. Neither is whole-source/zero-loss qualification. A
 full sessions fail census admission with zero opens; source/detachment/owned cleanup verify.
 V9 preserves normal groups and records four EACCES reads of the sudo executable. Its mode
 04511/ordinary read failure and later production census false independently verify. No guard
-is weakened. V10 sudo preflight/cleanup failure stops before App/device/trace; identity-checked
-manual cleanup verifies absence. V11 separate-session detachment passes a harmless ordinary-user
-control; 1,196 payload pins/26 inputs/six files/four control absences verify. Owner-local sudo
-for the verified v11 launcher is the current interaction gate (E-V09-M3). Authopen/native/full trace/candidate remain.
+is weakened. V10/v11 preflight/marker failures are retained. V12 actual complete session
+passes 1/1, exact 60 bytes/70-second wait/source/detachment/cleanup. All 104 pins/18 tracked
+plus fifteen derived child absences verify; finite raw controls/ordinary source FD reads
+verify. Supervisor failure and uncaptured recorder command exit remain. All 79 shared
+nonanonymous mappings lack backing FD; full source-write/authopen/native/candidate remain.
+Pinned provider control awaits owner-local sudo, without App/device/SIP changes (E-V09-M4).
 Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137;
 [E-I138](evidence/E-I138-recovery-trace-fixture-selection.md);
 [E-V09-M2](evidence/E-V09-M2-macos-trace-calibration.md);
-[E-V09-M3](evidence/E-V09-M3-macos-full-session-context.md)).
+[E-V09-M3](evidence/E-V09-M3-macos-full-session-context.md);
+[E-V09-M4](evidence/E-V09-M4-macos-recorded-session.md)).
 
 I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
 real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
@@ -306,7 +309,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | Known trusted address connection restored after a retained staging timeout. macOS 27.0.1/26A434 arm64; I137 native/CI and I138 593583e complete session/bytes/source/cleanup pass at their identities. V2 formatted offsets fail; v5 selectors/v6 raw controls executed and independently verified within limits, mmap FD unresolved (E-V09-M2). Actual v8/v9 refuse census before source opening; v9 unreadable sudo control/source/15 owned absences verify. V10 preflight/cleanup failure is retained, no App/device/trace; manual cleanup verifies. V11 separate-session harmless control and 1,196 native/26 input pins/six files/four control absences verify; capture pending. Owner-local sudo/full-source/loss/authopen/native consent/clean Mac/candidate remain (E-V09-M3). Personal installation, not clean qualification; earlier E-V12-N1/E-ENV-05/E-I129 |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | Known trusted address available after retained staging timeout. I137/I138 and v12 actual 593583e complete session/bytes/source/cleanup pass at their identities. V2 formatted offsets fail; v5 selectors/v6 raw controls retain limits (E-V09-M2). V8/v9 census/v10 elevation/v11 marker failures retained. V12 104 pins/18 tracked +15 derived absences, 2,669,238 events/430 controls/ordinary FD reads verify; 79 shared mmap backing FDs unresolved and supervisor failure/recorder exit unknown retained. Provider control staged, awaits owner-local sudo; full-source/authopen/native/clean Mac/candidate remain (E-V09-M4). Personal installation, not clean qualification; earlier E-V12-N1/E-ENV-05/E-I129 |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |

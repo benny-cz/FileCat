@@ -54,11 +54,23 @@ the same current production census is false after the sudo launchers exit. This 
 concrete blocker, not proof of the sole historical cause. All 77 v9 pins/15 owned absences,
 source bytes and detachment verify. V8's 68 pins/twelve owned absences remain retained.
 No production guard is weakened and neither failure supplies recovery/trace qualification.
-V10 elevation preflight fails before recorder/App/device starts; sudo -b retains its monitor.
-A cleanup argv mismatch is retained, and identity-checked manual watcher cleanup/owned absence
-verify. V11 uses a separate-session detached child; an ordinary-user harmless control verifies
-its parent/session/group/exit/absence. All 1,196 payload pins/26 inputs/six files/four control
-absences verify. Owner-local sudo for v11 is the current credential gate (E-V09-M3).
+V10 elevation preflight fails before App/device/trace; v11 records but its root-only marker
+prevents the worker. Those failures and cleanup verify. V12's atomically benny-owned marker
+lets the full ordinary-user session pass 1/1, exact 60-byte recovery, 70-second timed save,
+unchanged source/detachment/temp and 104 pins/18 tracked plus fifteen derived child absences.
+The supervisor's identity refusal occurs before App start; its exact cause remains unknown.
+The independent worker/recorder continue. Owner-scoped result-access seal permits retrieval;
+original supervisor failure and unknown recorder command exit remain retained.
+
+Raw 2,669,238 events/115.488 seconds, 430 known calls/twelve control files and 33 App native
+thread births match. Two native read-only source lifetimes have eight reads/264,192 bytes,
+no observed writes/truncations/aliases/forks while open. Fifteen diskutil children have
+syscall observations and are absent. All 79 nonanonymous shared App mappings initially
+request PROT_READ but omit backing FD; full source-write qualification stays open.
+A pinned bounded mmap-provider control is staged; ordinary inventory needs privileges and
+warns of SIP limits. Owner-local sudo for ProbeMmapProvider-20261005-v1.command is the
+current gate, without App/device/SIP changes (E-V09-M4). Docs-only 09e42e7 CI passes all four
+required jobs, four server digests/six full inventories and 24 affected cases verify.
 Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
@@ -1755,6 +1767,27 @@ Overall **NO-GO** remains.
     process identity and launch time. Ordinary watcher armed, owner-local sudo pending;
     no guard change/new issue/qualification. Counts and NO-GO unchanged (E-V09-M3).
 
+272. V11 sudo-exit preflight passes; root-only ready marker stops ordinary watcher before
+    App/device starts. Recorder-only failure, 25 pins/three owned absences verify. V12
+    atomically publishes complete UID-501/mode-0600 marker; staging 1,196 native/26 inputs/
+    six files/four control absences and harmless detachment verify. Actual session passes
+    1/1, exact generated 60 bytes, 70-second save wait, source unchanged/detached/temp clean.
+    Supervisor identity refusal is timestamped before actual App startup, not proved as an
+    exit race; worker/recorder continue. Scoped owner result-access seal enables retrieval.
+
+273. V12 104 retained pins/18 tracked plus fifteen derived child absences verify. Raw
+    2,669,238 events/115.488 seconds and 430 known before/after calls/twelve files match;
+    loss markers absent, original recorder command exit uncaptured. Actual App 33 native
+    thread births/fifteen diskutil syscall-observed children verify. Native source probe
+    FD 164 reads nothing; recovery FD 140 reads eight times/264,192 bytes, two size/count
+    ioctls, closes; no writes/truncations/aliases/forks while open observed. Service count
+    one does not erase two native opens. All 79 shared nonanonymous mappings have initial
+    PROT_READ but missing backing FD, so full source-write qualification remains pending.
+    Privileged provider control staged, ordinary inventory needs local sudo; no SIP change.
+    09e42e7 CI 37309749235 four jobs/digests/six inventories/24 affected cases verify after
+    retained connection failures. Counts remain 117/139 remediated, one Closed, 24/26 steps
+    partly/fully open. VMs running, G: HOLD, no candidate/GO (E-V09-M4).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -1973,16 +2006,14 @@ Overall **NO-GO** remains.
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
    and file traces of browsing (E-V24-D1, E-V24-D1-F1).
-2. V09 on macOS: I137/I138 native admission/complete-session/bytes pass at their own
-   identities. V2 formatted offsets fail; v5 name selectors omit controls; v6 raw offsets
-   verify but mappings omit source FD. Actual v8/v9 fail conservative census admission,
-   zero opens; v9 proves the sudo executable is unreadable. Owner must launch verified
-   ~/FileCatReleaseValidation/TraceSession-20261005-v11.command and authenticate locally.
-   The detached elevation/sudo-exit preflight harness is staged; capture remains pending. Retain every
-   failed run and require independent process/descriptor/loss/source-write interpretation
-   after a complete session. Authopen/native/candidate remain (E-V09-M2/M3).
-   Broader I106 remains open. The installed helper path, device removal and Windows approval
-   refusal still need qualification (the lent VM elevates without asking).
+2. V09 on macOS: independently pinned v12 actual session/bytes/source/cleanup and finite
+   raw controls/ordinary FD observations verify (E-V09-M4). Seventy-nine App shared mappings
+   omit backing FD; full write qualification stays open. Owner must launch
+   ~/FileCatReleaseValidation/ProbeMmapProvider-20261005-v1.command and authenticate locally.
+   It checks the provider/known small-file mappings, without FileCat/device/SIP changes.
+   Preserve supervisor/instrument failures and require independent process/descriptor/loss
+   interpretation. Authopen/native/candidate remain. Broader I106, installed helper/device
+   removal/Windows approval refusal remain (the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
