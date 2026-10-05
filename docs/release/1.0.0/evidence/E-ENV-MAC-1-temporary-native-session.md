@@ -87,7 +87,9 @@ read-only descriptor and closure pass on the owned regular image. Bootstrap/boot
 exit zero; wrapper, metadata control and actual probe are absent; the agent is removed
 and source bytes remain unchanged/detached. No native authorization or root-controller
 capture occurs in this preparation. Actual refusal is launched later with owner
-cancellation; trace/source/cleanup qualification is pending independent analysis.
+cancellation and independently passes at its precise component/trace/source/cleanup scope
+in [E-V09-M9](E-V09-M9-macos-guard-desktop-refusal.md). Remote mouse/keyboard and drawn
+workflow qualification remain unavailable through the failed UI runtimes.
 
 ## Private provenance
 

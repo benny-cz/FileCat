@@ -36,7 +36,9 @@ independently. ARM64 App passes 351/368 with 17 declared skips; native startup/d
 and installer compilation pass. ARM64 per-case TRX and physical qualification remain
 unavailable; three tag/manual package jobs are skipped. Original failed CI is preserved.
 
-Unchanged-source approval is prepared separately in [E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md).
+Unchanged-source approval independently passes in [E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md).
+Fresh ordinary desktop refusal on the same committed component also independently passes
+in [E-V09-M9](E-V09-M9-macos-guard-desktop-refusal.md); native removal/broader qualification remain.
 
 ## Historical clean preparation and failed SSH session
 

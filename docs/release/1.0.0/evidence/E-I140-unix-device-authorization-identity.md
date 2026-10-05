@@ -36,7 +36,10 @@ unavailable; three tag/manual package jobs are skipped. Original failed CI is pr
 
 Fresh unchanged-device v3 approval verifies read-only rights/seven exact ranges/six native
 reads/closure/EBADF, 55 retained and 197 input pins, source/detachment/seven absences in
-[E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md). V2 timeout stays retained; current refusal/removal and broader qualification remain.
+[E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md). V2 timeout stays retained. Fresh current-component desktop refusal independently passes
+with owner cancellation/no source/no timeout, native EACCES/channel closure, 201 input/55
+retained pins/source/detachment/agent removal/nine absences in
+[E-V09-M9](E-V09-M9-macos-guard-desktop-refusal.md). Native removal/broader qualification remain.
 
 ## Historical defective baseline
 
@@ -181,5 +184,5 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   private FileCatReleaseEvidence/ci-37359106547/independent-ci.json SHA-256
   `c1a4af6495c4a447de0108bde6ed9c8f297755f79c3ad0d9b8da846aa699ebc3`.
 
-I140 is remediated preliminarily, not Closed. Current refusal/removal, broader native and final
+I140 is remediated preliminarily, not Closed. Current native device removal, broader native and final
 qualification remain. No candidate or human GO. **NO-GO** remains.

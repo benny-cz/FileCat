@@ -13,8 +13,11 @@ are active; four SSH/native-sensor samples over 62.868 seconds verify closed-lid
 operation. Original unrelated settings remain unchanged and restoration is required
 when Mac testing ends. Fresh gui/501 refusal-driver preparation verifies 201 input/21
 retained pins, normal UID/groups, seven golden ranges, read-only closure, agent removal,
-source/detachment and three absences. Actual refusal has launched with owner cancellation;
-trace/source/cleanup analysis remains pending (E-ENV-MAC-1).
+source/detachment and three absences. Actual desktop-session refusal now independently passes on the committed component:
+no source/no timeout, two EACCES source opens, native helper cancellation/channel closure,
+201 input/55 retained pins, unchanged detached source and nine absences verify. Raw
+duration is independently measured; finite tracing/full-workflow/candidate limits remain
+(E-ENV-MAC-1/E-V09-M9).
 
 I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
 four required lanes. Four server ZIP digests/six complete TRX inventories and 60 affected
@@ -40,7 +43,7 @@ Fresh v3 unchanged approval component passes read-only rights/seven ranges/closu
 source/detachment; independent 55 retained/197 input pins, six bounded native reads,
 source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake support and
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
-(E-ENV-MAC-1). Native refusal preparation verifies; actual refusal/removal/broader checks remain. Current guard refusal/removal,
+(E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); current native device removal,
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
 Progress: **119/141 issue rows preliminarily remediated**, **one Closed**, **21 remain for
 remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
@@ -2043,6 +2046,20 @@ Overall **NO-GO** remains.
     ordinary component reports no source/no timeout, and independent capture analysis is
     pending. Counts unchanged, VMs running, G: HOLD, no candidate/GO, NO-GO (E-ENV-MAC-1).
 
+288. Fresh committed-component refusal runs autonomously through an ordinary gui/501
+    launch agent; owner attests cancellation. Actual UID/groups/native desktop context,
+    no source/no timeout, two raw/formatted EACCES source opens, native helper cancellation
+    exit 1, authorization channel close and helper wait independently verify. Component,
+    recorder, two decoders and seven recorded cleanup commands exit zero. All 201 input/
+    55 retained pins/source hashes, normal detachment, agent removal and nine owned
+    absences verify. Raw capture has 3,064,665 events/128.003514583 measured seconds;
+    four nonreturning starts/finite loss and mmap/full-workflow/candidate limits remain.
+    Preserve rejected direct capture-flag edit; safer analyzer derives completion from
+    raw span/recorder metadata. Preserve failed older-name close verifier and repair it
+    using actual BSC_sys_close names plus explicit later pipe FD reuse. No native rerun
+    or historical result rewrite. Counts unchanged, VMs running, G: HOLD, temporary Mac
+    power restoration still due, no candidate/GO, NO-GO (E-V09-M9).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2275,7 +2292,8 @@ Overall **NO-GO** remains.
    owner-local interaction. Native component refusal and fresh approval/returned-FD/read
    controls verify historically in E-V09-M6; actual E-V09-M7 replacement exposes I140.
    Committed replacement v3/v4 pass; unchanged-source approval passes (E-V09-M8); continue
-   refusal/removal and broader native qualification before advancing that path.
+   device removal and broader native qualification before advancing that path; current
+   desktop refusal now independently passes (E-V09-M9).
    The first approved/failed-expectation attempt remains
    retained. Continue intended-device replacement/removal and adverse topology controls.
    Broader I106,
