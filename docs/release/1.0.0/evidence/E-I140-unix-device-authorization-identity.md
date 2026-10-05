@@ -34,8 +34,9 @@ independently. ARM64 App passes 351/368 with 17 declared skips; native startup/d
 and installer compilation pass. ARM64 per-case TRX and physical qualification remain
 unavailable; three tag/manual package jobs are skipped. Original failed CI is preserved.
 
-Fresh unchanged-device approval setup is verified in [E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md);
-actual native approval/read-rights/ranges, fresh refusal/removal and final qualification remain.
+Fresh unchanged-device v3 approval verifies read-only rights/seven exact ranges/six native
+reads/closure/EBADF, 55 retained and 197 input pins, source/detachment/seven absences in
+[E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md). V2 timeout stays retained; current refusal/removal and broader qualification remain.
 
 ## Historical defective baseline
 
@@ -180,5 +181,5 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   private FileCatReleaseEvidence/ci-37359106547/independent-ci.json SHA-256
   `c1a4af6495c4a447de0108bde6ed9c8f297755f79c3ad0d9b8da846aa699ebc3`.
 
-I140 is remediated preliminarily, not Closed. Unchanged-source approval/refusal/removal, broader native and final
+I140 is remediated preliminarily, not Closed. Current refusal/removal, broader native and final
 qualification remain. No candidate or human GO. **NO-GO** remains.

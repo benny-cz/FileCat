@@ -1,9 +1,9 @@
 # E-V09-M8 — Committed Unix guard unchanged-device approval
 
-Verified preparations and retained first-run failure, 2026-10-05. The owner reports
-approving the fresh v3 dialog; its component checks pass read-only rights, seven byte
-ranges, closure, unchanged source and detachment. Independent raw verification remains
-pending. The completed v2 launcher is single-use and is not rerun.
+Verified committed-component approval and retained first-run failure, 2026-10-05.
+Fresh v3 owner approval, all seven independent ranges, actual read-only F_GETFL/closed
+EBADF, six bounded native reads, 55 retained/197 input pins, unchanged detached source
+and seven owned absences independently verify. Completed launchers are single-use.
 This follows two corrected replacement passes in [E-V09-M7](E-V09-M7-macos-authopen-device-binding.md)
 and [E-I140](E-I140-unix-device-authorization-identity.md). Earlier successful approval/refusal
 at 593583e remain historical in [E-V09-M6](E-V09-M6-macos-authopen-preparation.md).
@@ -55,7 +55,16 @@ bytes, 197 input/20 preparation pins, regular/raw seven-range controls, source/d
 four preparation absences and detached launcher verify independently. The owner reports
 that the dialog appeared after a while and was approved. Actual component worker 13775
 returns FD 64, read-only F_GETFL, all seven ranges and closed/EBADF. Native worker/recorder/
-cleanup report zero exits and source/detachment; independent raw collection is in progress.
+cleanup exit zero. Independent 55 retained/197 before-after input pins, unchanged detached
+source and seven owned absences verify. Raw 3,820,309 events span 125.998767541 seconds;
+the 120-second recorder completes. Three source-open raw/formatted pairs establish direct
+EACCES/helper EACCES followed by read-only helper success. Actual FD 64 receives read-only
+F_GETFL, successful close and subsequent EBADF. Six native aligned bounded preads return
+5,250,560 bytes; seven requested ranges return 5,247,304 independently checked bytes.
+No observed source-FD writes/truncations/aliases occur. Six private mappings retain unresolved
+backing FD/offset; no helper mapping is observed during its successful source lifetime.
+Three unpaired nonreturning exit/thread-termination starts and finite inspected loss-marker
+absence are retained. No whole-source/zero-loss/drawn-workflow/candidate qualification follows.
 The test's original 90-second wait and assertions remain unchanged.
 
 ## Native interaction and remaining gate
@@ -67,8 +76,8 @@ keeps the owned device unchanged; no held replacement is performed. The requeste
 capture is 120 seconds, with offline decoding and independent native operation pairing
 still to follow. SSH's retained AuthorizationCreate failure cannot supply this dialog.
 
-Native component v3 results are reported above; independent raw/pin/source/owned-cleanup
-verification and syscall coverage/loss interpretation remain pending until collection. Fresh refusal/removal, broader helper/mapping/
+Native component v3 results and independent finite raw/pin/source/owned-cleanup verification
+pass above. These do not cover the broader obligations below. Fresh refusal/removal, broader helper/mapping/
 source-write/native workflow and exact-candidate qualification remain. SIP stays enabled,
 VMs stay running and physical G: stays untouched/HOLD. No candidate or human GO; **NO-GO**.
 
@@ -98,3 +107,14 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   launcher `5752b485ea7b4123ad4ff565fc153e2102b8fa8352f05f0b3a150ad36a8d0d08`;
   collection `88153d449277d9fedc3e2658b217b16dac88350c8b394a5f9a87beade5cd7750`;
   transport `b9f6f1fe9b2900ea66d84fe559e9779c57e0d3e6dcafcbe19fde2939b15ccc76`.
+
+- Successful v3 private `i140-approval-executed-v3/independent-executed-v1.json` SHA-256
+  `949810692b4f722b38c20a4f7dfa226ee198613502ac7a2e6c43e5a57c76b485`.
+  Raw `dd67068de06eeef44737816e26d7d98d68d13425e7e125fe58ef5ba373f520c1`;
+  collection `ccf23cfc040e2291c89d83c3a4559f79b04aaed100fb44141a0ea4d143270370`;
+  transport `ab31af840cfc7dc9c77f31ad0033362448190c653a40884cc074928af8897f3a`.
+
+Temporary Mac session support and restoration obligations are recorded in
+[E-ENV-MAC-1](E-ENV-MAC-1-temporary-native-session.md). Fresh committed-component refusal
+preparation verifies the same 197 inputs, two direct controls/seven ranges each, source/
+detachment and four preparation absences; its native consent case remains unexecuted.

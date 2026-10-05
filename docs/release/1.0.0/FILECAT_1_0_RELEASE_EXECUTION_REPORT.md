@@ -28,7 +28,10 @@ approval setup verifies 197 input/20 retained pins, two native direct controls/s
 ranges each, source/detachment/four absences and launcher. V2 receives no descriptor during its 90-second wait despite owner-reported approval;
 the failed worker and shortened trace remain retained, source/cleanup verified, cause unknown.
 Fresh v3 unchanged approval component passes read-only rights/seven ranges/closure and
-source/detachment; independent trace verification remains pending (E-V09-M8). Current guard refusal/removal,
+source/detachment; independent 55 retained/197 input pins, six bounded native reads,
+source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake support and
+benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
+(E-ENV-MAC-1). Native refusal preparation verifies; actual refusal/removal/broader checks remain. Current guard refusal/removal,
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
 Progress: **119/141 issue rows preliminarily remediated**, **one Closed**, **21 remain for
 remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
@@ -1993,11 +1996,27 @@ Overall **NO-GO** remains.
     Counts unchanged: 119/141 remediated, one Closed, 21 remain for remediation;
     24/26 steps partly/fully open. VMs running, G: HOLD, no candidate/GO, NO-GO.
 
+285. Verify successful fresh I140 unchanged-source v3 approval independently: actual read-only
+    F_GETFL/closed EBADF, seven golden ranges, six native aligned reads/5,250,560 bytes,
+    55 retained and 197 input pins, source unchanged/detached/seven absences and all
+    recorded worker/recorder/decoder/cleanup exits zero. Raw 3,820,309 events/125.999
+    seconds retain six private mapping backing gaps/three nonreturning starts/finite
+    loss limits; whole-source/native workflow/candidate remain. Preserve approved v2
+    timeout/cause unknown. Owner authorizes autonomous Mac setup and temporary awake
+    support: bounded owned caffeinate active, saved settings unchanged, restoration
+    due when testing ends. Hidden benny sudo UID check succeeds, no credential saved.
+    Native SSH versus desktop-agent SessionGetInfo control verifies graphical access
+    only for desktop session; all 23 pins/two absences and agent removal verify. Local
+    computer/browser runtime initialization fails before input; no remote-access service
+    or security setting is changed. Fresh current-guard refusal prep controls/pins/source/
+    cleanup verify; actual desktop-context consent driver remains to validate. Counts
+    unchanged, VMs running, G: HOLD, no candidate/GO, NO-GO (E-V09-M8/E-ENV-MAC-1).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
   ordinary source passes at 593583e remain historical. Committed replacement v3/v4 pass;
-  current unchanged-source approval/refusal/removal and broader qualification remain
+  current unchanged approval passes; refusal/removal and broader qualification remain
   (E-I140/E-V09-M8).
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -2224,7 +2243,7 @@ Overall **NO-GO** remains.
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
    owner-local interaction. Native component refusal and fresh approval/returned-FD/read
    controls verify historically in E-V09-M6; actual E-V09-M7 replacement exposes I140.
-   Committed replacement v3/v4 pass; continue fresh unchanged-source approval (E-V09-M8),
+   Committed replacement v3/v4 pass; unchanged-source approval passes (E-V09-M8); continue
    refusal/removal and broader native qualification before advancing that path.
    The first approved/failed-expectation attempt remains
    retained. Continue intended-device replacement/removal and adverse topology controls.
