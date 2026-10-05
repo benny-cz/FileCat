@@ -7,29 +7,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I145/I146 follow-up validation is in progress. Clean f017a94 Windows guest passes
-25/25; clean native Mac/Ubuntu each pass 24/one declared Windows-only skip, but their
-temp observers expose 62/64 orphan runtime debugger FIFOs. Owned type/mode/UID/PID
-absence, unchanged original results/payloads and strict observer cleanup independently
-verify; automatic production cleanup has not passed. Unix workers now suppress
-runtime diagnostics, matching the existing Windows policy (working I145).
-CI 37384217205 passes Mac/Ubuntu/ARM64 but Windows fails one existing picture-device
-case. Four server digests/six full inventories preserve that failure and all six new
-admission cases pass on each available App inventory. A nine-second controlled delay
-reproduces legitimate default-watchdog replacement and the fixture's wrong late
-assertion; a fixture-only one-minute threshold gives two passes with all production
-bytes identical. Historical CI watchdog timing is inferred, not observed. Working
-I146 keeps every source/read/healthy-device/lifetime assertion; affected host 25 pass,
-full host/successor clean native/CI are pending (E-I145/E-I146).
-
-I144 is committed at f017a94 after eight held actual-file requests start eight owned
-Windows decoder processes. Shared admission now allows four workers and 32 waiters;
-canceled queued requests start no worker/read, excess demand reports a reason, and
-admission is retained until the worker actually exits. Four identical integration
-cases fail with baseline App DLL and pass with corrected App DLL; two admission/race
-controls, affected host 25 and full App 357/23 declared skips pass. Clean native and
-exact-source CI collection are pending. Original compile/observer failures retained
-(E-I144); aggregate displayed bitmap memory/Unix sandbox/frame/candidate remain open.
+I144–I146 are preliminarily remediated at cb85f0a. Shared decoder admission is
+four workers/32 waiters, Unix child runtime diagnostics are disabled to avoid
+orphan debugger FIFOs, and the normal-admission fixture has its own watchdog
+threshold. Original eight-worker demand, Unix cleanup and Windows CI failures
+remain retained. Affected host 25/full host 357 with 23 declared skips pass;
+clean exact-source Windows 25/0 and Mac/Ubuntu 24/1 inventories, unchanged payloads,
+automatic owned-temp cleanup and command/test-process checks independently verify.
+All four required CI lanes at 37387554116 attempt one pass; four server ZIP digests,
+six complete TRX inventories, all 380 App case names and all six new admission
+cases verify. The Mac collector's receipt-variable failure remains retained before
+a fresh corrected observer. Historical CI watchdog attribution remains inferred.
+Displayed bitmap memory, Unix containment, wider native/frame/AT, hardware and
+candidate scopes remain open (E-I144/E-I145/E-I146).
 
 The owner requested unattended execution until 2026-10-06 08:40 CEST (06:40 UTC),
 with interaction gates queued for later. Temporary same-chat continuation and a
@@ -116,8 +106,8 @@ source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake su
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
 (E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); actual removal safety/reporting verifies on committed I142 (E-V09-M10);
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
-Progress: **121/146 issue rows preliminarily remediated**, **one Closed**, **24 remain for
-remediation** (including I144–I146 under native/CI validation); **24/26 checklist steps partly or fully open**, all 24 campaigns still need
+Progress: **124/146 issue rows preliminarily remediated**, **one Closed**, **21 remain for
+remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
 final qualification. No candidate or human GO; overall **NO-GO**.
 
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
@@ -2266,6 +2256,21 @@ Overall **NO-GO** remains.
     interaction needed/requested; temporary awake support remains restore-due.
     Counts 121/146 preliminary, one Closed, 24 under remediation/validation; NO-GO.
 
+299. Seal I144–I146 at pushed cb85f0a: 867 raw Git/source pins; clean self-contained
+     Windows 25/0 and macOS/Ubuntu 24/1 picture inventories, all six new controls,
+     354/350 unchanged payloads and automatic temp cleanup without FIFO exemptions.
+     Original Mac receipt-variable shadowing failure is independently retained;
+     fresh corrected observer passes, without changing production. Full host 357/23
+     declared skips/380 cases and affected 25 pass. Exact CI 37387554116 attempt one
+     passes all four required jobs; four server ZIP digests/six complete inventories,
+     380 exact App names/25 affected cases and all six new admission controls verify.
+     ARM64 App 363/17/380 and package start/installer compilation are log evidence.
+     Original f017a94 cleanup/CI failures and historical timing inference remain.
+     Counts 124/146 preliminary, one Closed, 21 remain; Mac awake v3 remains active
+     for further testing with restoration due, VMs stay running, G: untouched.
+     Continue Windows native icon demand/retention work; interaction gates queued
+     until 08:40 CEST. No candidate/human GO; NO-GO (E-I144–E-I146).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2452,8 +2457,9 @@ Overall **NO-GO** remains.
    host, clean CI and 34 guest controls pass). Controlled per-device feeds now pass working/full host cases
    and 36 clean guest cases/four successor CI lanes/all affected controls (I122; original synchronization failure retained);
    watchdog/hard-cap and other direct Source use/wider queues remain open. Aggregate
-   decoder process admission is committed at f017a94 with working/host controls passing;
-   clean native/CI validation and aggregate displayed bitmap memory remain (E-I144).
+   decoder admission and the Unix cleanup/fixture follow-ups pass working/full host,
+   clean Windows/macOS/Ubuntu and all four exact cb85f0a CI lanes (E-I144–E-I146);
+   aggregate displayed bitmap memory remains.
    Unix native icon cache/queue growth is now corrected at 1559933: actual Ubuntu
    baseline 50,000 entries/43,795 queue peak, corrected 2,538 entries/256 peak/zero
    queued; clean Mac/Ubuntu nine-case inventories and four CI lanes/full inventories
