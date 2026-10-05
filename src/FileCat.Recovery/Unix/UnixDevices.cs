@@ -38,7 +38,35 @@ public sealed class UnixDeviceSource : IBlockSource
     /// <see cref="UnauthorizedAccessException"/> when it is refused, and <see cref="NotSupportedException"/> when there
     /// is no way to ask (no UDisks2).
     /// </summary>
-    public static UnixDeviceSource Open(string device, string description, CancellationToken ct)
+    public static UnixDeviceSource Open(string device, string description, CancellationToken ct) =>
+        Open(device, description, ct, OpenHandle);
+
+    // Authorization can wait while a device disappears and another takes its path, even with the same size.
+    // Bind both the received descriptor and the current path to the entry observed before asking for access.
+    internal static UnixDeviceSource Open(string device, string description, CancellationToken ct,
+        Func<string, CancellationToken, SafeFileHandle> openHandle)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (UnixFiles.Stat(device, followLinks: true) is not { Inode: > 0 } selected)
+            throw new IOException($"The identity of {device} could not be verified. Select the device again.");
+        var handle = openHandle(device, ct);
+        try
+        {
+            if (!SameEntry(UnixFiles.Stat(handle), selected) || !SameEntry(UnixFiles.Stat(device, followLinks: true), selected))
+                throw new IOException("The selected device changed or was removed while opening. Select it again.");
+            return From(handle, device, description);
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    private static bool SameEntry(UnixStat? actual, UnixStat selected) =>
+        actual is { } entry && entry.Device == selected.Device && entry.Inode == selected.Inode;
+
+    private static SafeFileHandle OpenHandle(string device, CancellationToken ct)
     {
         SafeFileHandle? handle = null;
         try
@@ -48,16 +76,7 @@ public sealed class UnixDeviceSource : IBlockSource
         catch (UnauthorizedAccessException)
         {
         }
-        handle ??= OperatingSystem.IsMacOS() ? AuthOpen.Open(device, ct) : UDisks.Open(device, ct);
-        try
-        {
-            return From(handle, device, description);
-        }
-        catch
-        {
-            handle.Dispose();
-            throw;
-        }
+        return handle ?? (OperatingSystem.IsMacOS() ? AuthOpen.Open(device, ct) : UDisks.Open(device, ct));
     }
 
     /// <summary>

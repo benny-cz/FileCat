@@ -313,6 +313,60 @@ public sealed class UnixDeviceTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("replaced")]
+    [InlineData("removed")]
+    [InlineData("wrong-descriptor")]
+    [InlineData("path-replaced-after-open")]
+    public void A_device_changed_while_access_is_requested_is_refused_and_the_received_descriptor_is_closed(string change)
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Native descriptor identities require Linux or macOS.");
+        string selected = Path.Combine(_dir.Path, "selected.img"), other = Path.Combine(_dir.Path, "other.img");
+        File.WriteAllBytes(selected, Enumerable.Repeat((byte)0x31, 512).ToArray());
+        File.WriteAllBytes(other, Enumerable.Repeat((byte)0x72, 512).ToArray()); // Equal sizes cannot distinguish them.
+        Microsoft.Win32.SafeHandles.SafeFileHandle? received = null;
+        int requests = 0;
+        var error = Assert.Throws<IOException>(() => UnixDeviceSource.Open(selected, "selected image", TestContext.Current.CancellationToken,
+            (path, _) =>
+            {
+                requests++;
+                if (change == "replaced") File.Move(other, path, overwrite: true);
+                received = File.OpenHandle(change == "wrong-descriptor" ? other : path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (change == "removed") File.Delete(path);
+                if (change == "path-replaced-after-open") File.Move(other, path, overwrite: true);
+                return received;
+            }));
+        Assert.Contains("changed or was removed", error.Message);
+        Assert.Equal(1, requests);
+        Assert.NotNull(received);
+        Assert.True(received.IsClosed); // Refusal owns disposal; no source object or content read is returned.
+    }
+
+    [Fact]
+    public void An_unchanged_received_device_and_a_link_to_it_open_with_the_original_bytes()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Native descriptor identities require Linux or macOS.");
+        string image = Path.Combine(_dir.Path, "unchanged.img"), link = Path.Combine(_dir.Path, "selected-link");
+        var bytes = Enumerable.Range(0, 512).Select(i => (byte)i).ToArray();
+        File.WriteAllBytes(image, bytes);
+        File.CreateSymbolicLink(link, image);
+        using var source = UnixDeviceSource.Open(link, "unchanged image", TestContext.Current.CancellationToken);
+        Assert.Equal(bytes.Length, source.Length);
+        var actual = new byte[bytes.Length];
+        Assert.Equal(actual.Length, source.Read(0, actual));
+        Assert.Equal(bytes, actual);
+    }
+
+    [Fact]
+    public void An_unavailable_device_identity_is_refused_before_requesting_access()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Native descriptor identities require Linux or macOS.");
+        bool requested = false;
+        Assert.Throws<IOException>(() => UnixDeviceSource.Open(Path.Combine(_dir.Path, "missing.img"), "missing image", TestContext.Current.CancellationToken,
+            (_, _) => { requested = true; throw new InvalidOperationException("Access must not be requested."); }));
+        Assert.False(requested);
+    }
+
     [Fact]
     public void A_descriptor_passed_over_a_local_socket_arrives_open()
     {

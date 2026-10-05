@@ -7,6 +7,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+I140 is a real native authorization binding defect: after the verified owned equal-size swap
+and owner approval, actual Mac component 593583e returns replacement inode 849 instead of
+selected 845. Native open/flags/closure, unchanged source hashes/detachment, 88 retained/
+200 input pins and eight absences verify; the probe reads no source content. Working guard
+now binds the received descriptor and current path to the native device/inode captured before
+opening, closing mismatches before source construction. All six new Mac cases pass within
+affected 19/4 declared skips; Windows 7/16 native skips compiles. Host recovery admission/UI
+checks pass 25/10 declared skips. Clean committed-source
+CI/native authorization/replacement revalidation remains pending (E-I140/E-V09-M7).
+
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
 required jobs. Four server digests/six complete inventories/24 affected cases independently
 verify. ARM64 App 347/17 declared skips and package checks pass by logs; physical
@@ -26,7 +36,7 @@ The historical CI scheduler state is unknown; failed setup/supervisor attempts r
 Clean 6509eff successor CI passes all four required lanes, including native ARM64 App
 347/17 declared skips, startup/drawing and installer compilation. Four server digests/six
 full inventories and 24 affected cases verify; ARM64 has log totals, no per-case TRX.
-Physical ARM64/candidate qualification remains (E-I139). Progress: **117/139 issue rows remediated**,
+Physical ARM64/candidate qualification remains (E-I139). Progress: **118/140 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/GO; NO-GO.
 
 I138 repairs the whole-file trace driver's fixture choice and finished-state wait. I137's clean
@@ -99,12 +109,12 @@ verify. The separate fresh approval case now passes seven independent golden-ima
 actual read-only F_GETFL/closed EBADF, six bounded native preads, clean exits/source/cleanup
 and all pins/absences. Device replacement/removal, drawn workflow/helper/full source/
 candidate qualification remains open. The equal-size native device replacement rehearsal and
-four metadata controls now pass, with 200 input/46 retained pins, unchanged image hashes,
-detachment and five absences verified. The pending-authorization case is staged but unexecuted;
-owner-local sudo and held-then-approved dialog are required (E-V09-M7). Docs-only ce28282
+four metadata controls pass with preserved preparation pins/source/cleanup. Actual held
+authorization exposes I140; working correction/native cases verify above, while committed
+authorization revalidation remains (E-V09-M7/E-I140). Docs-only ce28282
 CI 37346405163 passes all four required jobs/four server digests/six full inventories/24
 affected cases independently verified; ARM64 per-case/physical limits remain.
-Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
+Both VMs stay running and G: stays untouched/HOLD. Progress: **118/140 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
 
@@ -1910,7 +1920,25 @@ Overall **NO-GO** remains.
     ARM64 log limits remain. Production source unchanged; no new defect or closure inferred.
     Counts/VMs/G: HOLD/NO-GO unchanged.
 
+282. Owner runs and approves the held-authorization Mac binding case. Actual 593583e
+    component returns the equally sized replacement inode 849 instead of selected 845;
+    successful helper source-open occurs 19.208 seconds after verified replacement readiness.
+    Probe has zero source-content reads; read-only/closure, source hashes/detachment, all
+    88 retained/200 input pins and eight owned absences verify. Raw 2,142,873 events/125.982
+    seconds retain finite coverage limits; all recorded commands exit zero. Stop the defective
+    path and register I140. Guard received handle and current path with the native device/inode
+    captured before opening; dispose mismatches before constructing a source. Working Mac
+    six new real-file cases pass within affected 19/4 skips, 321 payload pins and owned test
+    process absence verify. Windows affected 7/16 native skips compiles. Preserve verifier
+    walltime/help-command failures and exact working producer. Commit correction; clean
+    CI/native authorization revalidation next (E-I140). Progress 118/140 preliminarily remediated,
+    one Closed; 24/26 steps partly/fully open. VMs running, G: HOLD, no candidate/GO, NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
+  ordinary source passes at 593583e remain historical; revalidate the committed guard/native
+  authorization with unchanged and replaced/removed sources before qualification (E-I140).
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
   clean 593583e's complete successor, exact recovered bytes/source and cleanup verify. Its
@@ -2135,7 +2163,8 @@ Overall **NO-GO** remains.
    native authopen approval/refusal/removal and adverse topology qualification with SIP
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
    owner-local interaction. Native component refusal and fresh approval/returned-FD/read
-   controls now verify in E-V09-M6; E-V09-M7 prepares the unexecuted pending-replacement case.
+   controls verify historically in E-V09-M6; actual E-V09-M7 replacement exposes I140.
+   Revalidate its committed guard and native authorization before advancing that path.
    The first approved/failed-expectation attempt remains
    retained. Continue intended-device replacement/removal and adverse topology controls.
    Broader I106,

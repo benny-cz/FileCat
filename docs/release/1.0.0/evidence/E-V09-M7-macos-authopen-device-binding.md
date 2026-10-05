@@ -1,9 +1,10 @@
-# E-V09-M7 — Mac authorization device-binding preparation
+# E-V09-M7 — Mac native authorization device binding
 
-Prepared and independently verified, 2026-10-05. This follows the separate successful
-native approval and refusal cases in [E-V09-M6](E-V09-M6-macos-authopen-preparation.md).
-**Authorization with a pending device replacement has not run.** No production defect,
-issue closure or candidate qualification is inferred from this preparation.
+Native baseline executed and independently verified, 2026-10-05. This follows the separate
+successful approval/refusal cases in [E-V09-M6](E-V09-M6-macos-authopen-preparation.md).
+**Actual held authorization returns the equally sized replacement device.** The defect and
+working correction are recorded in [E-I140](E-I140-unix-device-authorization-identity.md).
+The preparation below remains historical; no candidate qualification or issue closure follows.
 
 The private self-contained arm64 wrapper calls the actual UnixDeviceSource.Open from
 the byte-identical clean `593583e585d4a79cbb7ff961770a2d826858e14d` Recovery/Core DLLs.
@@ -35,7 +36,7 @@ and five owned process absences verify. This rehearsal does not hold an authoriz
 - Source A SHA-256: `19f74a085272a8080035ffb5a649b8b53ae8fe1cdcd323555c89037293a10819`.
 - Source B SHA-256: `93e102afd953eff730a60e1cdf23d62677fedb7fdf46b0dc540714f9b8b51062`.
 
-## Staged native case and human interaction gate
+## Historical staged native case and human interaction gate
 
 `~/FileCatReleaseValidation/AuthopenBinding-20261005-v1.command` is staged and verified.
 It requests sudo locally, detaches the root controller, and requires sudo to exit before
@@ -68,6 +69,18 @@ Plan V09 and §12.3 require local consent and human attestation. SSH cannot prov
 required local authentication. Device removal, drawn application admission/workflow,
 broader helper/source-write/adverse-topology and exact-candidate qualification remain open.
 
+## Actual v1 baseline result
+
+The owner reports “ran and approved.” Actual component worker 11463 returns replacement
+inode 849 instead of original 845 at the same `/dev/rdisk4` path; equal lengths would pass
+the existing size gate. Independent source-open raw/formatted pairs place helper 11465's
+successful read-only open 19.208 seconds after the verified replacement-ready marker.
+The probe inspects metadata and closes FD 60 without calling a content read. Both image
+hashes/detachment, clean recorded command exits, 88 retained/200 input pins and eight
+owned absences verify. Raw 2,142,873 events/125.982 seconds retain finite trace/mapping limits.
+This completed v1 launcher is not reused. Committed-guard revalidation needs a fresh run;
+[E-I140](E-I140-unix-device-authorization-identity.md) records the correction and working cases.
+
 ## Private provenance
 
 Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20261005,
@@ -91,4 +104,5 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
 - Installed SDKSettings SHA-256
   `2fa5c0ce1bbcd261b132b572b1a9eece3b5905b04640a44deae1a6a8812928fb`.
 
-No actual pending-authorization pass, candidate or human GO. **NO-GO** remains.
+Actual binding failure is retained; I140 correction/native revalidation remains. No candidate
+or human GO. **NO-GO** remains.
