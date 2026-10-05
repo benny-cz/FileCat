@@ -132,6 +132,10 @@ permissions or native results. Device replacement/removal, adverse topology, ful
 source-write and drawn application/candidate qualification remain open. Plan V09 and §12.3
 still require local consent and human attestation for each applicable native case.
 
+The next pending-authorization device-binding case is separately prepared in
+[E-V09-M7](E-V09-M7-macos-authopen-device-binding.md). Its equal-size replacement rehearsal
+does not establish an actual authorization-with-replacement result.
+
 ## Private provenance
 
 Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20261005.

@@ -136,5 +136,12 @@ skips and ARM64 per-case/physical limits remain as above. Three tag-only package
 Private `../ci-37342876513/independent-ci.json` SHA-256
 `515a6bf237bcbff604e7bb7144d7bff4b366d9c441a6b842ee91ce3dc6f16abb` binds that run/source.
 
+Docs-only `ce282827380cc79e81bd775ead38688935533c02` repeats all four required passes in
+[CI 37346405163](https://github.com/benny-cz/FileCat/actions/runs/37346405163). Four server
+ZIP digests, six complete inventories and all 24 affected cases verify; App totals, declared
+skips and ARM64 per-case/physical limits remain as above. Three tag-only package jobs skip.
+Private `../ci-37346405163/independent-ci.json` SHA-256
+`311724a0599a00142a6324737f0f23939412d476093a1929613ecd679f2a3d7a` binds that run/source.
+
 I139 is remediated and verified preliminarily, not Closed. No native desktop, physical device or release
 candidate qualification is claimed. Stable publication remains **NO-GO**.

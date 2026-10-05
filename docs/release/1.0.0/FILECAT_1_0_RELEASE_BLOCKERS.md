@@ -66,14 +66,18 @@ bytes/detachment and seven absences verify. First owner-approved attempt remains
 against its refusal expectation, with original failure/shortened trace preserved. Fresh
 approval/returned-FD/seven-range case now passes independent bytes, O_RDONLY/closed EBADF,
 six bounded native reads, clean exits/42 pins/source/detachment/seven absences (E-V09-M6).
-Drawn workflow/full-helper/device replacement/removal/adverse topology/candidate remain.
+Equal-size owned replacement rehearsal/four metadata controls now verify, with 200 input/
+46 retained pins, exact source hashes/detachment/five absences. The pending-authorization
+case remains unexecuted; local sudo and held-then-approved owner dialog are required
+(E-V09-M7). Drawn workflow/full-helper/device removal/adverse topology/candidate remain.
 Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137;
 [E-I138](evidence/E-I138-recovery-trace-fixture-selection.md);
 [E-V09-M2](evidence/E-V09-M2-macos-trace-calibration.md);
 [E-V09-M3](evidence/E-V09-M3-macos-full-session-context.md);
 [E-V09-M4](evidence/E-V09-M4-macos-recorded-session.md);
 [E-V09-M5](evidence/E-V09-M5-macos-combined-mapping-session.md);
-[E-V09-M6](evidence/E-V09-M6-macos-authopen-preparation.md)).
+[E-V09-M6](evidence/E-V09-M6-macos-authopen-preparation.md);
+[E-V09-M7](evidence/E-V09-M7-macos-authopen-device-binding.md)).
 
 I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
 real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
@@ -324,7 +328,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | Known trusted address available after retained staging timeout. I137/I138 and v12 actual 593583e complete session/bytes/source/cleanup pass at their identities. V2 formatted offsets fail; v5 selectors/v6 raw controls retain limits (E-V09-M2). V8/v9 census/v10 elevation/v11 marker failures retained. V12 104 pins/18 tracked +15 derived absences, 2,669,238 events/430 controls/ordinary FD reads verify; 79 shared mmap backing FDs unresolved and supervisor failure/recorder exit unknown retained. Root syscall provider unavailable under SIP; v5 process calibration passes three known FD/offset/address mappings, 32 pins/three absences/whole bytes/SIP enabled. New v13 all 77 shared mapping FDs resolve; 1,197 payload/117 retained pins, recovery/bytes/source/cleanup and every recorded command exit zero verify. 43 unmatched private maps retained; full-source/helper/authopen/topology/native/clean Mac/candidate remain (E-V09-M5). Native component refusal now verifies with owner cancellation/no source/no timeout, 42 retained/197 input pins, source/detachment/seven absences and clean command exits. First approved attempt remains a failed refusal expectation. Fresh approval now verifies actual O_RDONLY/closed EBADF, seven independent ranges/six bounded native reads, clean exits/42 retained pins/source/detachment/seven absences. Device replacement/removal/drawn workflow/full-helper/candidate remain (E-V09-M6). Personal installation, not clean qualification; earlier E-V12-N1/E-ENV-05/E-I129 |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | Known trusted address available after retained staging timeout. I137/I138 and v12 actual 593583e complete session/bytes/source/cleanup pass at their identities. V2 formatted offsets fail; v5 selectors/v6 raw controls retain limits (E-V09-M2). V8/v9 census/v10 elevation/v11 marker failures retained. V12 104 pins/18 tracked +15 derived absences, 2,669,238 events/430 controls/ordinary FD reads verify; 79 shared mmap backing FDs unresolved and supervisor failure/recorder exit unknown retained. Root syscall provider unavailable under SIP; v5 process calibration passes three known FD/offset/address mappings, 32 pins/three absences/whole bytes/SIP enabled. New v13 all 77 shared mapping FDs resolve; 1,197 payload/117 retained pins, recovery/bytes/source/cleanup and every recorded command exit zero verify. 43 unmatched private maps retained; full-source/helper/authopen/topology/native/clean Mac/candidate remain (E-V09-M5). Native component refusal now verifies with owner cancellation/no source/no timeout, 42 retained/197 input pins, source/detachment/seven absences and clean command exits. First approved attempt remains a failed refusal expectation. Fresh approval now verifies actual O_RDONLY/closed EBADF, seven independent ranges/six bounded native reads, clean exits/42 retained pins/source/detachment/seven absences. Equal-size owned replacement rehearsal/metadata controls and 200 input/46 retained pins verify; pending-authorization case unexecuted, local sudo/held-then-approved owner dialog required (E-V09-M7). Device removal/drawn workflow/full-helper/candidate remain (E-V09-M6). Personal installation, not clean qualification; earlier E-V12-N1/E-ENV-05/E-I129 |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |

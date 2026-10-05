@@ -98,8 +98,12 @@ decoder exits, 42 retained/197 input pins, unchanged source/detachment and seven
 verify. The separate fresh approval case now passes seven independent golden-image ranges,
 actual read-only F_GETFL/closed EBADF, six bounded native preads, clean exits/source/cleanup
 and all pins/absences. Device replacement/removal, drawn workflow/helper/full source/
-candidate qualification remains open. Docs-only f35d4da CI 37342876513 passes all four jobs, four server digests/six full
-inventories/24 affected cases independently verified; ARM64 per-case/physical limits remain.
+candidate qualification remains open. The equal-size native device replacement rehearsal and
+four metadata controls now pass, with 200 input/46 retained pins, unchanged image hashes,
+detachment and five absences verified. The pending-authorization case is staged but unexecuted;
+owner-local sudo and held-then-approved dialog are required (E-V09-M7). Docs-only ce28282
+CI 37346405163 passes all four required jobs/four server digests/six full inventories/24
+affected cases independently verified; ARM64 per-case/physical limits remain.
 Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
@@ -1893,6 +1897,19 @@ Overall **NO-GO** remains.
     lanes/four server digests/six full inventories/24 affected cases; ARM64 log limits
     retained. Counts/VMs/G: HOLD/NO-GO unchanged.
 
+281. Prepare the Mac pending-authorization device-binding case using byte-identical clean
+    593583e Recovery/Core DLLs and a metadata-only wrapper. All 200 input/46 retained pins,
+    native C/Python ABI and four ordinary metadata controls verify. Equal-size owned images
+    reuse the same raw path with different inodes; golden source and one-byte replacement
+    hashes independently verify. Both images remain unchanged/detached; five owned process
+    absences and harmless detached launch pass. Preserve the pre-staging safety revision;
+    partial attachment/permission cleanup now tracks exact owned identities. Pending native
+    authorization has not run. Staged launcher needs local sudo, held dialog until the verified
+    replacement marker, then owner approval (E-V09-M7). Docs-only ce28282 CI 37346405163
+    passes all four required jobs, four server digests/six full inventories/24 affected cases;
+    ARM64 log limits remain. Production source unchanged; no new defect or closure inferred.
+    Counts/VMs/G: HOLD/NO-GO unchanged.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -2118,7 +2135,8 @@ Overall **NO-GO** remains.
    native authopen approval/refusal/removal and adverse topology qualification with SIP
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
    owner-local interaction. Native component refusal and fresh approval/returned-FD/read
-   controls now verify in E-V09-M6; the first approved/failed-expectation attempt remains
+   controls now verify in E-V09-M6; E-V09-M7 prepares the unexecuted pending-replacement case.
+   The first approved/failed-expectation attempt remains
    retained. Continue intended-device replacement/removal and adverse topology controls.
    Broader I106,
    installed helper/Windows approval refusal remain.
