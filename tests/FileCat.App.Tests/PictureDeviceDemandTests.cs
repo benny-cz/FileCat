@@ -6,10 +6,12 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
+using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 using SkiaSharp;
 using Location = FileCat.Core.Resources.Location;
 using ResourceProvider = FileCat.Core.Resources.ResourceProvider;
@@ -23,6 +25,7 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
     public async Task Rapid_quick_pictures_do_not_start_more_source_calls_on_a_held_device()
     {
         var (services, vm, main, root) = AccessibilityTests.OpenMainWindow();
+        KeepHeldCallsInsideTheFixtureDeadline(services);
         var sources = Enumerable.Range(0, 4).Select(i => new Source(root, i, hold: i < 3)).ToArray();
         var provider = new Provider(sources);
         var pane = new QuickViewPane();
@@ -80,6 +83,7 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
     public async Task Picture_viewers_share_the_provider_device_limit_and_other_devices_complete()
     {
         var (services, _, main, root) = AccessibilityTests.OpenMainWindow();
+        KeepHeldCallsInsideTheFixtureDeadline(services);
         var sources = Enumerable.Range(0, 4).Select(i => new Source(root, i, hold: i < 3)).ToArray();
         var windows = new List<ViewerWindow>();
         try
@@ -125,6 +129,17 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             foreach (var s in sources) s.Cleanup();
             AccessibilityTests.Close(services, main, root);
         }
+    }
+
+    private static void KeepHeldCallsInsideTheFixtureDeadline(AppServices services)
+    {
+        // These cases isolate normal per-device admission. Native decoder startup on a busy runner may push the
+        // whole case beyond the production eight-second watchdog, which then correctly replaces held workers.
+        // Watchdog replacement/hard caps have separate scheduler controls; keep this owned fixture below its own
+        // threshold without changing the application's default or its source/lifetime/healthy-device assertions.
+        typeof(DeviceIoScheduler).GetField("<HangThreshold>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(services.Io, TimeSpan.FromMinutes(1));
+        Assert.Equal(TimeSpan.FromMinutes(1), services.Io.HangThreshold);
     }
 
     private static async Task JoinReads(Source[] sources) => await WaitFor(() => sources.All(s => s.ActiveReads == 0));

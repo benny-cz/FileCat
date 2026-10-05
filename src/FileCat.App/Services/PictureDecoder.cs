@@ -236,6 +236,9 @@ public static class PictureDecoder
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            // A canceled worker is killed and cannot remove the runtime's debugger FIFOs on Unix. This content-only
+            // child needs no diagnostic port; match the existing Windows helper policy before the runtime starts.
+            psi.Environment["DOTNET_EnableDiagnostics"] = "0";
             var process = Process.Start(psi) ?? throw new InvalidOperationException("The picture decoder could not be started.");
             process.ErrorDataReceived += (_, _) => { };
             process.BeginErrorReadLine();
