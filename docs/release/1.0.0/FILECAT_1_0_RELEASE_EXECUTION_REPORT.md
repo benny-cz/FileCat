@@ -7,6 +7,20 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+The Mac is reachable again at its known address: macOS 27.0.1/26A434, arm64, benny/UID 501.
+Clean 0bc1b66's self-contained Mac producer passes all 81 archive/Find and five native device
+checks without skips. All 839 Git exports, 1,512 payloads/1,513 ZIP members, exact case/output pins,
+unchanged source-image hash and owned process/temp/device cleanup independently verify.
+The full recovery session **fails at admission, with zero device opens**. The unchanged census
+detects Visual Studio's dotnet ServiceHub and three unavailable identities, including PID 0 and
+a later-confirmed defunct process; I106 remains open. No census bypass or application shutdown.
+The owner must close Visual Studio and launch the staged eight-second owned-control fs_usage
+preflight with the Mac's local administrator password. It has not run; actual write tracing,
+authopen consent and candidate qualification remain (E-V09-M1). Mac availability is restored;
+both VMs stay running and G: stays untouched/HOLD. Progress remains **114/136 issues remediated**,
+one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
+overall NO-GO.
+
 I136 is remediated and verified preliminarily at clean a1c265f. Independent ISO/Joliet/UDF 1.02
 and complete numbered-RAR controls preserve all 54 search/72 content results; seven missing-part
 warnings now pass while affected content safely refuses. Ten new regressions/affected host checks,
@@ -15,7 +29,7 @@ digests/six complete TRX inventories, all 77 affected Core cases and four Find c
 lane verify; native source/fixture/payload/output/case/process/temp pins independently verify.
 Other format variants, native desktop/AT/reference hardware and candidate qualification remain
 (E-I136). Progress: **114/136 issue rows remediated**, one separately Closed; **24/26 release steps
-partly or fully open**. Mac is deferred after bounded negative discovery. No candidate/human GO;
+partly or fully open**. The later Mac resumption is recorded above. No candidate/human GO;
 overall NO-GO.
 
 I134/I135 are remediated and verified preliminarily at clean 3caf480. Empty 7z no-stream metadata,
@@ -25,7 +39,7 @@ digests/six full TRX inventories verify. All 67 affected Core cases pass in Wind
 cases pass per Windows/Ubuntu/macOS inventory. Both SDK-free VMs pass all 71 cases with zero skips;
 all source/fixture/payload/output/case pins and owned process/temp cleanup verify. Original failures
 remain retained. Shared-profile search throughput/cancellation also passes; native/AT/reference-
-hardware/candidate obligations remain (E-I134/E-I135). Mac remains deferred after limited
+hardware/candidate obligations remain (E-I134/E-I135). At that checkpoint Mac was deferred after limited
 discovery found no address. No candidate/human GO exists; overall NO-GO.
 
 I133 is remediated and verified preliminarily at clean 578a0ed: twelve independent baseline failures/
@@ -46,9 +60,9 @@ jobs; four server artifact digests/six full TRX inventories verify. All nine qui
 without skips per Windows/Ubuntu/macOS App inventory; ARM64 App/package checks pass with log totals.
 The following records retain their own exact baselines; native data remains qualified preliminarily.
 
-Mac work is deferred at the owner's request. The later authorized, limited address discovery inspected
+Before the resumption above, Mac work was deferred at the owner's request. Authorized limited address discovery inspected
 cached neighbors, one known-host DNS query and one Bonjour packet with a four-second response window.
-No Mac address was found and no command ran there. Earlier connectivity observations and new discovery
+No Mac address was found and no command ran there during that discovery. Earlier connectivity observations and discovery
 records remain private; no subnet sweep or new Mac result is claimed.
 
 Clean fdb17b4 completes the preliminary I129-I131 validation slice. The test-only I131 correction
@@ -73,7 +87,7 @@ The disconnected Mac run was retrieved after owner confirmation; failed harness 
 
 Both VMs stay running. Computer Use's recorded startup failure still blocks native input; the tool
 shell is unelevated. G: stays untouched and its historical source-change gate remains held. Physical Mac work is
-deferred. Earlier Mac validation added only owned self-contained files; no global dependency
+resumed up to the local administrator/admission gate above. Mac validation added only owned self-contained files; no global dependency
 installation or system-setting change occurred. Needed Mac installations remain authorized.
 No candidate or human GO exists; overall NO-GO.
 
@@ -1552,6 +1566,29 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     audit confirms 114/136 remediated and one Closed; 24/26 steps partly/fully open. Both VMs running,
     Mac deferred, G: untouched/HOLD, no candidate/human GO, NO-GO (E-I136).
 
+260. Owner restores Mac availability. Trusted SSH at the known address verifies macOS 27.0.1/
+    26A434 arm64, benny/UID 501; no network sweep/global installation/system change. Clean
+    0bc1b66 CI job metadata shows all four required jobs successful; source/test/build/workflow
+    paths are unchanged from a1c265f. An isolated verified full Git export produces self-contained
+    osx-arm64 Core/App tests. All 77 archive and four Find controls pass without skips; five native
+    device/descriptor/sector/topology controls pass. Full recovery session fails at the process
+    admission guard, with zero device opens. Source image remains SHA-256
+    `19f74a085272a8080035ffb5a649b8b53ae8fe1cdcd323555c89037293a10819`; device is detached.
+    All 839 exports, 1,512 payloads/1,513 input members, exact cases/output pins and independent
+    tracked/path process/temp cleanup verify. Proof `8db9e519fe0ab482210973c6f67eba0a8ccd3080c8d659e27ed187d3d98529d5`.
+    First E: out-of-space build and private diagnostic reference failure remain retained; neither
+    executed FileCat on the Mac. Original session failure remains failed (E-V09-M1).
+
+261. Unchanged-production Mac admission diagnosis returns census true: one dotnet match and
+    three unknown managed identities. Native ps identifies Visual Studio ServiceHub and confirms
+    one unknown entry is Z/defunct; PID 0 has no managed executable identity. No Mac task stopped
+    or interlock bypassed. I106 remains open. Noninteractive sudo requires the Mac password.
+    A reviewable eight-second fs_usage preflight on one ordinary-user synthetic control PID is
+    staged as `~/FileCatReleaseValidation/TracePreflight-20261005.command`, not executed. Owner
+    must close Visual Studio and launch it with local administrator authentication; actual trace/
+    authopen/native/candidate qualification remains. Progress unchanged: 114/136 remediated,
+    one Closed, 24/26 steps partly/fully open. VMs running, G: untouched/HOLD, NO-GO (E-V09-M1).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I136: earlier archive passes do not prove missing interior RAR-volume reporting. Seven-Zip rejects
@@ -1762,7 +1799,10 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
    and file traces of browsing (E-V24-D1, E-V24-D1-F1).
-2. V09 on macOS: `fs_usage` and authopen (the owner's administrator rights); the installed
+2. V09 on macOS: 86 current-source archive/native checks pass, but session admission refuses
+   at I106's process inventory. Owner closes Visual Studio and launches the staged eight-second
+   trace preflight with local administrator authentication (E-V09-M1); continue the admission
+   diagnosis, calibrated `fs_usage` and authopen. The installed
    helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.

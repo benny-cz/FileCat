@@ -1226,6 +1226,16 @@ level the plan already states; exploit-level detail is not recorded here.
 
 ### I106 — Recovery discovery misses a separate portable installation
 
+- **2026-10-05 Mac availability extension ([E-V09-M1](evidence/E-V09-M1-macos-resumption.md)):**
+  clean 0bc1b66 passes 81 archive/Find and five native device checks, but the full recovery session
+  refuses at process admission with zero device opens. Unchanged production census returns true:
+  Visual Studio's dotnet ServiceHub matches the broad dotnet candidate rule; three managed identities
+  are unknown, including PID 0 and a later-confirmed defunct process. Native ps confirms identities
+  and owned worker cleanup; source image is unchanged/detached. No name-based exemption, process
+  shutdown or census bypass. Mac sudo needs local authentication; an eight-second owned-control
+  trace preflight is staged for the owner, not executed. Mac census availability and full session/
+  authopen/write tracing remain **Open**; earlier preliminary remedies keep their own scope.
+
 - [E-I106](evidence/E-I106-other-process-recovery.md): actual second portable GUI holds a busy lease but the first
   installation's production probe misses it. Baseline presence/unknown guard regressions fail; absent control passes.
 - Device safety now also takes a read-only process census and requires other FileCat processes/helpers to finish;
