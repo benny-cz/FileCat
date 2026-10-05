@@ -7,6 +7,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+Independent xorriso ISO/Joliet and genisoimage UDF images plus all six complete RAR entry points
+pass 54 search/72 reverse-forward byte-hash controls. Missing middle part 03 exposes I136:
+one listing/six initial-narrowed searches omit the missing-volume warning, while affected content
+safely refuses. Baseline/source/input/DLL pins verify; correction and clean CI/native checks next.
+Progress is **113/136 issue rows remediated**, one separately Closed; **24/26 steps partly or
+fully open**. No candidate/human GO; overall NO-GO (E-I136).
+
 I134/I135 are remediated and verified preliminarily at clean 3caf480. Empty 7z no-stream metadata,
 encrypted data/header refusal and canonical test identities pass the identical 78 search/57 content
 controls, four new regressions and affected host checks. All four clean CI jobs pass; four server
@@ -1521,6 +1528,10 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     Mac deferred, G: untouched/HOLD, no candidate/human GO, NO-GO (E-I134/E-I135).
 
 ## Evidence invalidated by the campaign's own changes
+
+- I136: earlier archive passes do not prove missing interior RAR-volume reporting. Seven-Zip rejects
+  the owned incomplete set; FileCat has seven missing-warning failures but refuses affected content.
+  Correction/identical controls and affected clean CI/native/candidate checks remain (E-I136).
 
 - I134/I135: prior archive passes do not prove empty 7z protection/content truth or I133 fixture identities
   under noncanonical Windows TEMP spelling. Working corrections/identical corpus/affected checks pass;

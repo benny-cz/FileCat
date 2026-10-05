@@ -30,6 +30,11 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I136 is newly reproduced on clean 3caf480 production inputs: a missing middle RAR part has no
+listing/Find warning, despite safe decompression refusal. Independent ISO/Joliet/UDF and all
+six complete RAR entry points pass 54 search/72 byte-hash controls. Fix/revalidation proceeds;
+physical Mac discovery remains bounded and negative, Mac work stays deferred (E-I136).
+
 I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
 real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
 The identical 78 search/57 content controls, affected host checks, four clean CI jobs and all 71
