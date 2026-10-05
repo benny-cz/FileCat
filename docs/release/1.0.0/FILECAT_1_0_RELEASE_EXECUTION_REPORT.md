@@ -95,9 +95,10 @@ The first owner-approved attempt remains a failed refusal expectation, not a pro
 defect or an approved read-range pass. Fresh v2 returns not-approved/SourceOpened=false,
 without timeout. Raw source-open EACCES pairs/helper cancellation, clean worker/recorder/
 decoder exits, 42 retained/197 input pins, unchanged source/detachment and seven absences
-verify. A fresh approval/returned-FD/read-range launcher is prepared; local authentication
-is the next gate. Drawn workflow/helper/full source/candidate qualification remains open.
-Docs-only 10d4e62 CI 37331762053 passes all four jobs, four server digests/six full
+verify. The separate fresh approval case now passes seven independent golden-image ranges,
+actual read-only F_GETFL/closed EBADF, six bounded native preads, clean exits/source/cleanup
+and all pins/absences. Device replacement/removal, drawn workflow/helper/full source/
+candidate qualification remains open. Docs-only f35d4da CI 37342876513 passes all four jobs, four server digests/six full
 inventories/24 affected cases independently verified; ARM64 per-case/physical limits remain.
 Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
@@ -1879,6 +1880,19 @@ Overall **NO-GO** remains.
     CI 37331762053 passes all four required lanes; four server digests/six full inventories/
     24 affected cases verify, ARM64 log limits retained. Counts/VMs/G: HOLD/NO-GO unchanged.
 
+280. Fresh native Mac approval case passes actual received-FD O_RDONLY and immediate
+    EBADF after disposal. All seven returned ranges independently match the golden image;
+    six bounded, aligned native preads total 5,250,560 bytes. Native direct/helper EACCES
+    then helper read-only success verify. Clean worker/recorder/decoder/cleanup exits,
+    42 retained/197 input pins, unchanged source/detachment and seven absences pass.
+    Raw 1,976,923 events/125.978 seconds retain finite loss-marker/mapping limits; no
+    source-FD writes/truncations observed. Original early-permission/syntax observer
+    failures retained; native permissions/results unchanged. Native component approval
+    and refusal now verify, while replacement/removal/full-helper/drawn workflow/candidate
+    remain (E-V09-M6). Separate docs-only f35d4da CI 37342876513 passes all four required
+    lanes/four server digests/six full inventories/24 affected cases; ARM64 log limits
+    retained. Counts/VMs/G: HOLD/NO-GO unchanged.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -2103,9 +2117,10 @@ Overall **NO-GO** remains.
    observed. Historical v12 gaps/failures remain in E-V09-M4. Continue broader helper,
    native authopen approval/refusal/removal and adverse topology qualification with SIP
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
-   owner-local interaction. Native component refusal now verifies in E-V09-M6; its first
-   approved/failed-expectation attempt remains retained. Fresh approval/returned-FD/read
-   controls are verified and staged; pause that activity for local sudo/native approval. Broader I106,
+   owner-local interaction. Native component refusal and fresh approval/returned-FD/read
+   controls now verify in E-V09-M6; the first approved/failed-expectation attempt remains
+   retained. Continue intended-device replacement/removal and adverse topology controls.
+   Broader I106,
    installed helper/Windows approval refusal remain.
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.

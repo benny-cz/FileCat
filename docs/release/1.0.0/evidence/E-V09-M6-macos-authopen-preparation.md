@@ -1,9 +1,9 @@
-# E-V09-M6 — Mac native authorization refusal and retained approval attempt
+# E-V09-M6 — Mac native authorization refusal and approved bounded reads
 
 Native component execution and direct-read controls, 2026-10-05; follows
 [E-V09-M5](E-V09-M5-macos-combined-mapping-session.md). **The separate v2 native
 authorization refusal passes.** The first attempt was approved by the owner and remains
-a failed refusal test. A fresh approval/read-range case is prepared, awaiting local authentication.
+a failed refusal test. **The separate fresh approval/read-range case also passes.**
 
 The private, self-contained arm64 validation wrapper calls the actual UnixDeviceSource.Open
 implementation. Its FileCat.Recovery.dll and FileCat.Core.dll are byte-identical to the
@@ -100,22 +100,37 @@ lifetimes. The corrected verifier pairs native PID/TID/end time and limits closu
 source lifetime. A copied v1 question label in v2's first local attestation record is retained;
 the corrected record names the actual v2 request. Native inputs/results are unchanged.
 
-## Next owner-local case: approval and descriptor reads
+## Fresh approval case: descriptor rights and bounded reads verified
 
-Run `~/FileCatReleaseValidation/AuthopenApprove-20261005-v1.command` on the Mac.
-Enter sudo in Terminal, then **approve the separate native macOS authorization dialog**.
-The fresh root is `authopen-dc067d3f608e464b9cef0f6545dc0e0f`. All 197 copied pins, installed
-helper identity and launcher readback verify. A separate ordinary direct-file control passes
-seven independently checked golden-image ranges, O_RDONLY/closure and two process absences.
-**This fresh authorization case has not run.**
+The owner runs `AuthopenApprove-20261005-v1.command` and reports **“ran and approved”**.
+The fresh root is `authopen-dc067d3f608e464b9cef0f6545dc0e0f`. Its historical preparation
+proof verifies 197 copied pins/helper/launcher, a separate ordinary direct-file control's
+seven golden-image ranges, O_RDONLY/closure and two process absences. Actual execution
+now identifies root controller 10959, ordinary wrapper 10976, helper 10987 and recorder 10975.
 
-After native approval, this case requires the actual returned FD's F_GETFL access mode to
-be O_RDONLY, seven byte-exact reads including unaligned/5-MiB/EOF bounds, and immediate
-EBADF after disposal. It records the raw session, verifies unchanged source bytes, restores
-only identity-checked owned nodes and detaches the image. It does not exercise a physical disk.
-Local authentication is still necessary because SSH cannot provide it. Plan V09 and §12.3
-require native consent/human attestation. Full source-write/helper, drawn application desktop,
-removal/adverse topology and candidate qualification remain open.
+All seven byte ranges independently match the decompressed golden fixture, including
+unaligned/5-MiB/short EOF/EOF/negative offset. The actual received FD 62's F_GETFL is
+O_RDONLY; native event pairs verify flags zero and EBADF after successful disposal.
+Three source-open raw/formatted pairs verify direct/helper EACCES, then helper O_RDONLY
+success after approval. Six sector-aligned native preads total **5,250,560 bytes**, remain
+inside the source and supply **5,247,304 requested-range bytes**. No source-FD write or
+truncate is observed. Six private mappings occur during that FD lifetime; their backing
+FD/offsets are not captured here. No helper mapping occurs during its successful source lifetime.
+
+Worker/recorder/attachment/info/permission-check/detachment and both ordinary offline
+decoders exit zero; controller failure and cleanup errors are absent. All 42 retained/197
+input pins and seven owned absences verify. Source bytes remain unchanged and native
+inventory confirms detachment. Raw **132,380,112 bytes**, **1,976,923 events**, **125.978 seconds**
+of observed span; the requested 120-second recorder completes. Three nonreturning
+exit/bsdthread_terminate starts and finite absence of the three inspected loss-marker IDs
+remain explicit. This is not whole-source/zero-loss or drawn-workflow/candidate qualification.
+
+The early read-only status observer encounters root-owned live logs before normal cleanup
+seals them. A subsequent observer has a literal-newline syntax error; both receipts remain
+retained. The corrected reader waits for/accesses normally sealed outputs without changing
+permissions or native results. Device replacement/removal, adverse topology, full helper/
+source-write and drawn application/candidate qualification remain open. Plan V09 and §12.3
+still require local consent and human attestation for each applicable native case.
 
 ## Private provenance
 
@@ -149,8 +164,14 @@ Native base: `/Users/benny/FileCatReleaseValidation/`; roots above are separatel
   transport ZIP `537c5bf57a21c61681fd2f60d43f32d575ce63df9cc16ef6385c539b61b509cd`.
 - authopen-approval-prepared-v1/independent-prepared-v1.json SHA-256
   `53a4d1319f50750dfb53f6396fc5286d59ad925f4557933bfbe72122b59689b0`:
-  fresh approval case's verified preparation; owner execution still pending.
+  historical preparation of the now-executed fresh approval case.
   Native LF approval launcher SHA-256
   `43ce7899113198f6b56997532e012e48a5a4f84307b5c88372225bec9d35059e`.
+- authopen-approval-executed-v1/independent-executed-v1.json SHA-256
+  `534aa9bbe43c01a389a6e44c61b05c4cb4e848667864b8f48f02c5527dfc141e`:
+  actual approval, independent bytes, native rights/closure/bounded reads, all pins/cleanup.
+  Raw SHA-256 `2018b08f49bea4d6d4012a62787c87d9e2d43d1e3625eab5cfb404e3809f2928`;
+  collection `7b4d60a84b1eb31a157d61c3ce6dd96065f386279ad4b35a0de529c050293113`;
+  transport ZIP `e8686d40d9f7df4c8c6ceff8780e536af559d9486b68c53e42abb1f29fc6fca5`.
 
 No issue closure, candidate or human GO. **NO-GO** remains.
