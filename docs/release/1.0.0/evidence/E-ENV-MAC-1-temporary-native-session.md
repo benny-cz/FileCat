@@ -155,3 +155,28 @@ Six retained native files, empty watchdog stderr and the original baseline hashe
 verify. Existing ordinary PID 14103 has the exact owned timed caffeinate command;
 it remains active until Mac validation ends or its four-hour timeout. Closed-lid
 support is currently restored to the original sleep behavior.
+
+## Final restoration after the clean icon validation
+
+After AC returned, the already-authorized controller was copied byte-identically to
+fresh owned root `/Users/benny/FileCatReleaseValidation/lid-awake-9bde8851079a4865a47aaf2ea77337b4`.
+Native apply at `2026-10-05T21:59:51.705654Z` verifies prior key absence, AC power,
+unchanged unrelated preferences and root restorer PID 18659 before enabling the
+bounded 12-hour/AC-disconnect failsafe. This rearm adds no new closed-lid sensor
+qualification; the original finite closed-lid observations retain their identity.
+
+Clean Mac I143 tests pass and current Mac testing ends. The exact UID/command/hash-
+verified root PID 18659 receives SIGTERM and completes restoration at
+`2026-10-05T22:05:25.723936Z`. The exact ordinary UID 501 PID 14103 caffeinate command
+is then signaled and stopped. Native API/preference/custom/ioreg readback matches
+both fresh and original baselines: originally absent SleepDisabled key removed,
+original system/custom settings restored and runtime sleep reenabled. Both root
+restorers and the owned caffeinate are independently absent. Seven native retained
+files/hash comparisons and empty watchdog stderr verify. No temporary power change
+from this slice remains; future Mac testing can rearm support within existing owner
+authorization once SSH/AC is available.
+
+Private `mac-lid-awake-v2/independent-final-restoration-v1.json` is
+`a1d5ef6eddab69be2c9a0fcfc47ab042303fa4daed665a32d2b435c2fb33e244`;
+actual native `retrieved/restoration.json` is
+`d69248ab05e9790be3f635a2544e2f432846ad1df45a35cca049aeab786e96d8`.

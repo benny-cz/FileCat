@@ -120,7 +120,7 @@ Private executed root is `mac-removal-executed-v1`, beside the preparation root 
 | Removal marker `retrieved/results-remove/source-removed.json` | `6165e0e088e0818faac723ef7c0ba87adbb1505c5f0538d9ae965437d1e1fc08` |
 
 Temporary Mac
-sleep-disable and restorer remain active with restoration due when validation ends
+sleep-disable and restorer were active at capture time, with restoration due when validation ends
 ([E-ENV-MAC-1](E-ENV-MAC-1-temporary-native-session.md)). Broader topology/helper/drawn
 workflow and final candidate qualification remain. I140 is not Closed. No candidate
 or human GO. **NO-GO** remains.
@@ -189,4 +189,5 @@ Private preparation root is `mac-removal-prepared-v2`; execution root is
 The original 8f75856 failure remains the baseline. No further Mac interaction is
 queued; exact-source CI retry passes all four required lanes, server digests and
 complete inventories (E-I142). Broader/native workflow/candidate qualification remain. Temporary
-power support still requires restoration when Mac testing ends. **NO-GO** remains.
+power support is now independently restored after the subsequent clean icon tests,
+with both owned root restorers and caffeinate absent (E-ENV-MAC-1). **NO-GO** remains.

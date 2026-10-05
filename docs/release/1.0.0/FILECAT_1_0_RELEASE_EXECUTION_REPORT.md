@@ -5,13 +5,20 @@ Operational plan: [FILECAT_1_0_RELEASE_READINESS_AND_VALIDATION_PLAN.md](../../d
 [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), [open blockers and decisions](FILECAT_1_0_RELEASE_BLOCKERS.md).
 Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` once a candidate exists.
 
-## Current state (updated 2026-10-05)
+## Current state (updated 2026-10-06)
 
-I143 working remediation follows a real Ubuntu production icon-budget failure:
+I143 committed remediation at 1559933 follows a real Ubuntu production icon-budget failure:
 50,000 requests retain 50,000 entries and observe a 43,795 waiting-queue peak. Linux/Mac
 now use a 4,096-entry LRU, nonblocking 256-request queue and entry identity for stale
 completion rejection. Six new controls and full host App 351/23 declared skips pass.
-Clean committed/native/CI validation remains pending (E-I143); no interaction needed.
+Clean raw Git/source manifests and native Mac/Ubuntu 7 pass/2 declared skips each
+verify all six new cases, 350 payload/six retained pins and process/temp cleanup.
+Identical Ubuntu 50,000-entry getter demand now retains 2,538 entries with queue peak
+256 and zero remaining; 261 input/four retained pins and byte-identical App/Core
+references verify. Exact-source CI 37379380371 now passes all four required lanes/four server digests/
+six complete TRX inventories; affected icon Windows 8/1 and Unix 7/2 declared skips
+verify all six new cases. ARM64 App 357/17/374 and drawing/installer checks pass by
+logs; per-case physical/frame/candidate limits remain (E-I143). No interaction needed.
 
 Mac connectivity is restored at 192.168.0.199 after owner input; prior timeouts are
 retained. At the owner's request, temporary system sleep-disable and a root restorer
@@ -19,7 +26,11 @@ were active; four SSH/native-sensor samples over 62.868 seconds verify closed-li
 operation. The restorer exits after AC disconnect at 21:30:26Z; independent native
 readback now verifies the originally absent key removed, exact original system/custom
 preferences, native sleep reenabled and root restorer absent. The original timed
-ordinary caffeinate remains active pending completion of Mac tests (E-ENV-MAC-1). Fresh gui/501 refusal-driver preparation verifies 201 input/21
+ordinary caffeinate remained active for the clean Mac check. AC returned and a fresh
+verified controller rearmed bounded support; at 22:05:25Z the exact root restorer was
+signaled, original settings independently verified restored, and the exact owned
+caffeinate stopped. Both root restorers and caffeinate are absent. No temporary Mac
+power change remains from this slice (E-ENV-MAC-1). Fresh gui/501 refusal-driver preparation verifies 201 input/21
 retained pins, normal UID/groups, seven golden ranges, read-only closure, agent removal,
 source/detachment and three absences. Actual desktop-session refusal now independently passes on the committed component:
 no source/no timeout, two EACCES source opens, native helper cancellation/channel closure,
@@ -311,7 +322,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary working remediation through I143 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
+After verified preliminary committed/native/CI remediation through I143 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -2161,6 +2172,34 @@ Overall **NO-GO** remains.
     remediated, one Closed, 21 remaining; checklist 24/26 partly/fully open.
     No further Mac interaction queued; no candidate/human GO; NO-GO.
 
+295. Commit/push I143 at 1559933; all 861 raw Git blobs/object IDs/source archive verify.
+    Clean physical Mac arm64 UID 501 and Ubuntu 26.04.1 VMware UID 1000 each pass
+    7/2 declared Windows-only skips, including all six new controls; 350 payload/six
+    retained pins/native XML/source/process/temp cleanup verify. The identical
+    50,000-request production Ubuntu getter now has 2,538 entries/queue peak 256/
+    zero waiting; 261 input/four retained pins, native transport and byte-identical
+    clean App/Core references verify. Actual finite heap 608,392 bytes versus
+    baseline 7,411,592; native bitmap/frame/aggregate limits remain explicit.
+    After AC returns, rearm the unchanged bounded Mac controller under existing
+    authorization; after native tests verify exact root PID/command/hash, signal
+    its restorer and ordinary owned caffeinate. Both original/fresh system/custom
+    baselines, absent sleep-disable key, runtime sleep and three owned process
+    absences independently verify. Current Mac testing complete; no interaction
+    queued. Exact-source CI 37379380371 pending. Counts unchanged 121/143
+    preliminarily remediated, one Closed, 21 remaining; no candidate/GO; NO-GO.
+
+296. Seal exact 1559933 CI 37379380371 attempt one: all four required lanes pass,
+    three package publication jobs skipped; four server archive digests/six complete
+    TRX inventories and full 374-name App multiset verify. Affected icon cases
+    Windows 8/1 declared skip and Unix 7/2 Windows-only skips each include all six
+    passing new bounds/lifetime/stale/concurrency controls. Full App Windows 357/17,
+    Ubuntu 329/45, macOS 331/43 declared skips; ARM64 App 357/17/374, package drawing
+    and installer compilation pass by logs. Per-case ARM64/physical/frame/candidate
+    limits explicit. Native original failure/getter/control/source/cleanup and final
+    Mac power restoration remain independently pinned. Progress 121/143 preliminary
+    remediation, one Closed, 21 remaining; checklist 24/26 partly/fully open. No
+    further Mac interaction queued, VMs running/G: untouched; no candidate/GO; NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2347,6 +2386,10 @@ Overall **NO-GO** remains.
    host, clean CI and 34 guest controls pass). Controlled per-device feeds now pass working/full host cases
    and 36 clean guest cases/four successor CI lanes/all affected controls (I122; original synchronization failure retained);
    watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
+   Unix native icon cache/queue growth is now corrected at 1559933: actual Ubuntu
+   baseline 50,000 entries/43,795 queue peak, corrected 2,538 entries/256 peak/zero
+   queued; clean Mac/Ubuntu nine-case inventories and four CI lanes/full inventories
+   verify (E-I143). Windows icons, all-consumer memory and native frame demand remain.
    Real timer/list mutation and controlled worker-cap failures now pass working probes, 85 affected cases and
    full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
    scopes remain. Shutdown admission races now pass corrected probes/two new controls/87 affected cases and full

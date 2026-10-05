@@ -51,6 +51,79 @@ process absence and empty owned temporary root. The source's empty-theme constru
 is invoked through reflection only in the private observation wrapper. It does not
 modify the production getter or worker.
 
-Committed clean-source/native revalidation and successor CI are pending. No human
+Committed clean-source/native and successor CI revalidation pass below. No human
 Mac dialog case is queued. I06 remains open for aggregate pictures, Windows icon
 and other materialized/queue scopes. No candidate/human GO; **NO-GO** remains.
+
+## Clean committed native revalidation (2026-10-06 local)
+
+Production is `15599332188f252c995aab89bce655946cdc7a08`. All 861 raw Git blobs verify their
+object IDs, SHA-256, paths/modes before publication with the exact SourceRevisionId.
+The archive is `a007c2bb6d2077985d1ac44c11d15708a104a865be9462ef08ecf59b360958e1`; producer proof is
+`4a46ce3e8b47f01ff9e42a1f636aa8925cc9597546e29d9c9fb8a5ac9485389b`. Clean Mac arm64 UID 501 and Ubuntu 26.04.1 VMware
+x64 UID 1000 each execute the complete nine-case affected inventory: **7 pass,
+2 declared Windows-only skips**, including all six new controls. Each independently
+verifies 350 payload pins before/after, six retained pins, native results/XML and
+source manifest, process absence and empty owned temporary roots. No native dialog
+or drawn FileCat workflow is used.
+
+The same 50,000-entry production getter probe on clean Ubuntu now retains **2,538**
+entries, observes a queue peak of **256**, and ends with **zero queued requests**.
+Managed heap after forced collection is 608,392 bytes, versus baseline 7,411,592.
+These are one finite schedule's actual measurements; the hard bounds are separately
+validated by the held-worker and LRU controls, rather than inferred from that count.
+The probe's diagnostic adapter reads the new cache properties; its entry names,
+empty-theme fixture and production GetIcon call sequence are unchanged. App and Core
+DLLs are byte-identical to the clean affected-test payload. All 261 probe input pins,
+four retained pins, native/transport hashes, process and temp cleanup verify.
+
+| Private proof under `i143-clean-v1` | SHA-256 |
+|---|---|
+| `mac-executed/independent-native-v1.json` | `953ae272444f06e1022e6be963fdee8b2d343806497b354e9d6c9504c52e1131` |
+| `linux-executed/independent-guest-v1.json` | `388c545f269f65665c0e8ce4ef6142ea87f2b67504424d1353db7a961e0d988e` |
+| `linux-probe/independent-guest-v1.json` | `bb6fd09615cfa8f0f1f5df43d0a4df5e5158cf389141dc71f955d3cf1f2f6cdb` |
+
+CI 37379380371 passes all four required lanes on that exact source, with independently
+verified server digests/full inventories below. Full candidate/frame/native
+icon rendering, Windows icon/aggregate picture and other materialized/queue scopes
+remain. Current Mac testing ends; both temporary sleep-disable runs and the owned
+caffeinate are now independently restored/stopped (E-ENV-MAC-1). No additional Mac
+interaction is queued. **NO-GO** remains.
+
+## Exact clean-source CI qualification for the remedy
+
+[CI 37379380371](https://github.com/benny-cz/FileCat/actions/runs/37379380371)
+attempt one passes all four required build/test lanes at exact 1559933; all three
+package publication jobs are skipped. Four downloaded server archive digests and
+six complete TRX inventories independently verify matching definitions, unique
+executions, zero failures and reasons/stdout for every declared skip. All three
+TRX-bearing App inventories match the full host's exact 374-name case multiset.
+
+| Complete TRX inventory | Passed | Declared skips |
+|---|---|---|
+| app-test-results-macos-latest/FileCat.App.Tests | 331 | 43 |
+| app-test-results-ubuntu-latest/FileCat.App.Tests | 329 | 45 |
+| test-results-windows/FileCat.App.Tests | 357 | 17 |
+| test-results-windows/FileCat.Core.Tests | 787 | 57 |
+| test-results-windows/FileCat.Platform.Windows.Tests | 165 | 34 |
+| test-results-windows/FileCat.Remote.Tests | 88 | 28 |
+
+The nine affected icon cases pass 8/1 declared skip on Windows and 7/2 declared
+Windows-only skips per Ubuntu/macOS lane. All six new bounded-queue/LRU/lifetime/
+stale/concurrency controls pass in each of those per-case inventories. ARM64 App
+logs retain 357 pass/17 declared skips/374 total, with successful package start/
+drawing and installer compilation. No per-case ARM64 TRX or physical ARM64/final
+artifact qualification is inferred.
+
+| Independently verified server archive | Artifact ID | SHA-256 |
+|---|---|---|
+| test-results-windows | 11372653858 | `a5b0183ca919cb09eb873ea8f842ca44a984db44b4b83cce1afce1ca6af6fbfb` |
+| app-test-results-ubuntu-latest | 11373875887 | `8cdf5e07b3b29da5f7bc73466a64cba93e2038b434655f6a70dfa9de4c042c90` |
+| app-test-results-macos-latest | 11373656349 | `99933c76ed31e2fc107acc286f621c683cace2578b21f0c85534b718b459128a` |
+| windows-arm64-screenshot | 11372644388 | `0846f3096792b6f12eca387c1fb9374f62f43cdc73d168c6774f701695159fd9` |
+
+Private `FileCatReleaseEvidence/ci-37379380371-attempt1/independent-ci.json` is
+`7ca9ff4a03e672d33750eb34b19d17e6d51932f039cbbe0a9fb532d384d20b48`. Native source/payload/getter and original failure
+proofs above remain separately pinned. I143 is remediated preliminarily on committed
+host/native/CI evidence. I06 broader aggregate/Windows/native-frame/candidate gates
+remain. No additional Mac interaction queued; **NO-GO** remains.
