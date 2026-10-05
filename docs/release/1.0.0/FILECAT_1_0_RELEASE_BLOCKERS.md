@@ -30,6 +30,11 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+I134 is open: independently generated empty 7z members in solid/non-solid archives are falsely
+classified as encrypted and cannot open. Two actual-production failures, fifty-five passing content
+controls and seventy-eight passing file-member search controls are retained. Remediation and affected
+revalidation continue; native/candidate requirements remain (E-I134).
+
 I133 unknown-length size criteria now pass verified preliminary revalidation at clean 578a0ed.
 Twelve baseline failures/six controls, eighteen corrected production observations, affected/full
 host coverage, four CI jobs and 24 SDK-free cases per Windows/Ubuntu lane pass. Four server digests/

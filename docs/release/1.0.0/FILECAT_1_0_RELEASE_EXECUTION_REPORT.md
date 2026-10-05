@@ -7,6 +7,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+Independent wider archive validation finds I134: empty solid/non-solid 7z members are falsely
+Protected and cannot open. Two actual-production failures are retained beside fifty-five passing
+content controls and seventy-eight passing file-member search controls across thirteen fixtures.
+Remediation/revalidation continues. Current progress: **111/134 issue rows remediated**, one Closed;
+**24/26 release steps partly or fully open**. This remains preliminary execution and overall NO-GO.
+
 I133 is remediated and verified preliminarily at clean 578a0ed: twelve independent baseline failures/
 six controls, eighteen corrected production observations, twenty Core/four Find cases and full host
 coverage pass. All four clean CI jobs pass; four server digests/six full TRX inventories verify.
@@ -14,7 +20,7 @@ All twenty new Core cases pass in Windows' inventory; all four affected Find cas
 Ubuntu/macOS inventory. SDK-free Windows and Ubuntu each pass all 24 cases without skips. Every
 payload/input/output/source pin and corrected owned process/temp cleanup verifies. Original test/
 setup/cleanup failures remain retained. Additional archive formats are under independent validation;
-native desktop/AT/candidate obligations remain (E-I133). Progress: **111/133 issue rows remediated**,
+native desktop/AT/candidate obligations remain (E-I133). Progress: **111/134 issue rows remediated**,
 one separately Closed; **24/26 release steps partly or fully open**. No candidate/human GO exists.
 
 I132 corrects the quick-search Escape fixture's early focus checkpoint; production source is unchanged.
@@ -137,7 +143,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **111 of 133 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **111 of 134 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -1468,6 +1474,16 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     settings. Guest proof SHA-256 `3b6f18c1047905dca7ea8ebe3291197d6e226626c6c67a5ce5b9eee6d499018f`.
     Mac remains owner-deferred, both VMs running, G: untouched/HOLD. Other formats/native/candidate
     remain; 111/133 remediated, 24/26 steps partly/fully open, no candidate/human GO, NO-GO (E-I133).
+
+255. Wider V13/V10 corpus independently checks thirteen formats/fixtures using actual clean 578a0ed
+    Core/Archives/Recovery DLLs. All seventy-eight file-member name/size initial/narrowed controls pass,
+    including zstd unknown-size exclusion and frozen relative scopes; search creates no scratch or
+    nested matches. Fifty-five content byte/hash controls pass. Two empty 7z members (solid/non-solid)
+    are falsely Protected and cannot open, despite independent unencrypted listings/empty extraction:
+    I134, must fix. Baseline proof SHA-256 `94c229eb4d0a0bc1987443e4ce67dba7e1f3eb16e4de15f856d5317d16ebb58f`.
+    Failed private generators/aborted probes remain retained. Remediation/revalidation continues;
+    source/fixture/DLL identity retained, native/candidate remain. 111/134 remediated; 24/26 steps open;
+    both VMs running, Mac deferred, G: untouched/HOLD, NO-GO (E-I134).
 
 ## Evidence invalidated by the campaign's own changes
 
