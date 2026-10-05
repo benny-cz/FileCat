@@ -69,7 +69,9 @@ public sealed class ViewerDirectContentLifetimeTests(ITestOutputHelper output)
             {
                 viewer.ShowPage();
                 page = Field<HtmlPage>(viewer, "_htmlPage");
-                work = Task.Run(() => served = page.Resolve("/"));
+                // This read deliberately blocks until the test releases it.
+                work = Task.Factory.StartNew(() => served = page.Resolve("/"),
+                    CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
             await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             if (closeWhileHeld)

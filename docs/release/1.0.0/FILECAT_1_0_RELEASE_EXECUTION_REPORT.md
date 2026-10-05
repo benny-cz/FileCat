@@ -7,6 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+I139 corrects a scheduling dependency in the deliberately blocking HTML/Markdown viewer
+validation worker. The 63e7af8 native ARM64 CI lane times out before read entry; the other
+three lanes pass. A private four-worker saturation reproduces that entry timeout, and the
+same case passes with a dedicated worker and every original deadline/assertion preserved.
+Eight affected host cases and full App 341/23 declared skips pass with command exit zero.
+The historical CI scheduler state is unknown; failed setup/supervisor attempts remain retained.
+Successor native ARM/four-lane CI is pending (E-I139). Progress: **117/139 issue rows remediated**,
+one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/GO; NO-GO.
+
 I138 repairs the whole-file trace driver's fixture choice and finished-state wait. I137's clean
 Mac session now opens the source but selects intentionally partial frag-a.bin; FileCat correctly
 reports lost bytes and CompletedWithIssues. Independent generated prefix/zero-fill bytes verify;
@@ -37,7 +46,7 @@ ordinary-user six complete file-byte controls/four identities/26 pins and cleanu
 SSH sudo still needs the owner's Mac password locally; execution stops at that credential gate
 after sealing this slice (E-V09-M2). Docs-only 161c488 CI passes all four required jobs.
 E-V09-M1's prior 86 clean Mac passes and failed session with zero opens remain historical evidence.
-Both VMs stay running and G: stays untouched/HOLD. Progress: **116/138 issue rows remediated**,
+Both VMs stay running and G: stays untouched/HOLD. Progress at the preceding checkpoint: **116/138 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
 
@@ -1680,6 +1689,18 @@ Overall **NO-GO** remains.
     actual FileCat app opens. Stop for owner-local sudo password; full tracing/authopen/native/
     candidate remain. Progress 116/138 remediated, one Closed, 24/26 steps partly/fully open;
     both VMs running, G: untouched/HOLD, no candidate/GO, NO-GO (E-V09-M2).
+
+267. Docs-only 63e7af8 CI fails native ARM64 App at the Markdown close-after-read entry
+    checkpoint; 346 pass/one failure/17 skips, other three lanes pass. Failed log and three
+    server digests/six complete inventories verify. I139's private four-worker gate reproduces
+    the entry timeout; only a dedicated worker changes, and the same gate passes with the
+    original deadlines/lifetime/bytes assertions. Eight affected host cases/full App
+    341/23 declared skips pass with exit zero. One-worker setup hang/two owned process cleanup
+    and the first full-suite supervisor timeout stay retained. Historical CI scheduling state
+    unknown. Independent host proof SHA-256
+    `c2c47000c4410e79b24db5af93ab9060a293fbfadba393f83eedcef798fb01ba`.
+    I139 preliminarily remediated; successor CI pending. Progress 117/139 remediated, one Closed,
+    24/26 steps partly/fully open. Both VMs running, G: untouched/HOLD, no candidate/GO (E-I139).
 
 ## Evidence invalidated by the campaign's own changes
 
