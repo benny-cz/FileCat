@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media;
@@ -17,9 +16,7 @@ namespace FileCat.App.Services;
 /// </summary>
 public sealed class MacIconSource : INativeIconSource
 {
-    private const int PerPathLimit = 4096;
-    private readonly ConcurrentDictionary<(int Size, string Key), IImage?> _cache = new();
-    private readonly BlockingCollection<(int Size, string Key)> _queue = new();
+    private readonly IconRequestCache _cache = new();
     private readonly Thread _thread;
     private int _pendingNotify;
 
@@ -55,20 +52,14 @@ public sealed class MacIconSource : INativeIconSource
         }
     }
 
-    private IImage? Get(string key)
-    {
-        var sized = (PixelSize, key);
-        if (_cache.TryGetValue(sized, out var image)) return image;
-        if (_cache.Count > PerPathLimit) _cache.Clear();
-        if (_cache.TryAdd(sized, null)) _queue.Add(sized);
-        return null;
-    }
+    private IImage? Get(string key) => _cache.Get((PixelSize, key));
 
     private void Worker()
     {
         if (!OperatingSystem.IsMacOS()) return;
-        foreach (var (size, key) in _queue.GetConsumingEnumerable())
+        foreach (var request in _cache.Requests())
         {
+            var (size, key) = request.Key;
             IImage? image = null;
             try
             {
@@ -81,8 +72,7 @@ public sealed class MacIconSource : INativeIconSource
             {
                 image = null;
             }
-            if (image is null) continue;
-            _cache[(size, key)] = image;
+            if (!_cache.Complete(request, image) || image is null) continue;
             if (Interlocked.Exchange(ref _pendingNotify, 1) != 0) continue;
             Dispatcher.UIThread.Post(() =>
             {

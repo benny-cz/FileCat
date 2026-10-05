@@ -7,11 +7,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+I143 working remediation follows a real Ubuntu production icon-budget failure:
+50,000 requests retain 50,000 entries and observe a 43,795 waiting-queue peak. Linux/Mac
+now use a 4,096-entry LRU, nonblocking 256-request queue and entry identity for stale
+completion rejection. Six new controls and full host App 351/23 declared skips pass.
+Clean committed/native/CI validation remains pending (E-I143); no interaction needed.
+
 Mac connectivity is restored at 192.168.0.199 after owner input; prior timeouts are
 retained. At the owner's request, temporary system sleep-disable and a root restorer
-are active; four SSH/native-sensor samples over 62.868 seconds verify closed-lid AC
-operation. Original unrelated settings remain unchanged and restoration is required
-when Mac testing ends. Fresh gui/501 refusal-driver preparation verifies 201 input/21
+were active; four SSH/native-sensor samples over 62.868 seconds verify closed-lid AC
+operation. The restorer exits after AC disconnect at 21:30:26Z; independent native
+readback now verifies the originally absent key removed, exact original system/custom
+preferences, native sleep reenabled and root restorer absent. The original timed
+ordinary caffeinate remains active pending completion of Mac tests (E-ENV-MAC-1). Fresh gui/501 refusal-driver preparation verifies 201 input/21
 retained pins, normal UID/groups, seven golden ranges, read-only closure, agent removal,
 source/detachment and three absences. Actual desktop-session refusal now independently passes on the committed component:
 no source/no timeout, two EACCES source opens, native helper cancellation/channel closure,
@@ -61,7 +69,7 @@ source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake su
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
 (E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); actual removal safety/reporting verifies on committed I142 (E-V09-M10);
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
-Progress: **120/142 issue rows preliminarily remediated**, **one Closed**, **21 remain for
+Progress: **121/143 issue rows preliminarily remediated**, **one Closed**, **21 remain for
 remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
 final qualification. No candidate or human GO; overall **NO-GO**.
 
@@ -303,7 +311,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary working remediation through I142 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
+After verified preliminary working remediation through I143 in its recorded preliminary scope, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -316,7 +324,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **120 of 142 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **121 of 143 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -2138,6 +2146,20 @@ Overall **NO-GO** remains.
     annotations, both cancelled lanes' zero test steps and 38-member log archive;
     no test/workflow relaxation or merged attempt results. Counts unchanged; no
     additional Mac interaction queued. No candidate/human GO; NO-GO.
+
+294. Continue V12 aggregate icon audit after sealing I142. Actual unchanged 348cbc7
+    production getter on ordinary Ubuntu retains 50,000 cache entries with a 43,795
+    sampled queued-work peak; 261 payload/four retained pins, transport, VMX/OS and
+    process/temp cleanup verify. Correct Linux/Mac admission with 4,096-entry LRU,
+    nonblocking 256 waiting requests, stale entry identity and safe unpublished-
+    bitmap disposal. Six new held-worker/LRU/clear/late-result/queued/concurrency
+    controls and full host App 351/23 declared skips/374 pass. Clean/native/CI pending.
+    Verify separate Mac power restorer's AC-disconnect restoration at 21:30:26Z:
+    original absent key removed, system/custom/native sleep baseline restored and
+    exact root process absent; original timed ordinary caffeinate remains. Owner
+    reconfirms G: disposable; no USB touched. Progress 121/143 preliminarily
+    remediated, one Closed, 21 remaining; checklist 24/26 partly/fully open.
+    No further Mac interaction queued; no candidate/human GO; NO-GO.
 
 ## Evidence invalidated by the campaign's own changes
 

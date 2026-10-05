@@ -135,3 +135,23 @@ device IOException, post-helper missing-entry stat and complete owned cleanup
 (E-V09-M10/E-I142). Clean physical Mac regression controls pass 23/4 declared skips.
 No further human Mac interaction is queued. Temporary awake/restorer support remains
 active while autonomous validation continues; restoration is still required.
+
+## Independently verified AC-disconnect restoration
+
+The root restorer records automatic restoration at `2026-10-05T21:30:26.144399Z`
+because AC power disconnected. Fresh native API/preference/ioreg/custom-profile
+readback and original baseline/applied bytes independently verify the originally
+absent SleepDisabled key removed, exact original system/custom preferences, runtime
+sleep reenabled, unrelated settings preserved and exact root PID 14706 absent.
+The observer subsequently sees AC connected again; automatic restoration was not
+silently rearmed. Earlier prose saying support remained active was an assumption
+after capture completion; this native readback corrects the current state.
+
+Private `mac-power-restoration-v1/independent-restoration-v1.json` is
+`7982a2a09f3c8bb1adf0f75ab77aa24d2d34a306ddcdde293f13ce65f3b9927b`;
+actual native `retrieved/restoration.json` is
+`11bdbdb8705c34d69d6e3bf5a3ba824cfbf9f13ad1e097f6e9eb8eb0eb58e0ff`.
+Six retained native files, empty watchdog stderr and the original baseline hashes
+verify. Existing ordinary PID 14103 has the exact owned timed caffeinate command;
+it remains active until Mac validation ends or its four-hour timeout. Closed-lid
+support is currently restored to the original sleep behavior.
