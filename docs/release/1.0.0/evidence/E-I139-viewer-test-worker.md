@@ -115,5 +115,12 @@ Private base: authorized second workspace's `FileCatReleaseEvidence/mac-resume-2
   exact corrected source/run/job identities, four server digests, six complete inventories,
   24 affected case passes and the separate ARM64 logs/startup/installer checks.
 
+Docs-only `302f63a17bc7a8ba75487101d535f5382982f9da` also passes all four required jobs
+in [CI 37328413504](https://github.com/benny-cz/FileCat/actions/runs/37328413504). Four server
+ZIP digests, six complete inventories and all 24 affected cases verify; App totals and ARM64
+log limits remain as above. Private `../ci-37328413504/independent-ci.json` SHA-256
+`7177823e2a3d867a4929d1ce0735bc34cba65acee2025e50e3bbd6bddc86ab90` retains
+that separate source/run identity and outputs. Three tag-only package jobs skip.
+
 I139 is remediated and verified preliminarily, not Closed. No native desktop, physical device or release
 candidate qualification is claimed. Stable publication remains **NO-GO**.

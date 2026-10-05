@@ -90,6 +90,12 @@ reads/264,192 bytes and no observed writes/aliases/forks/mappings. 43 unmatched 
 maps precede the source opens and stay retained. Broader helper/authopen/topology/native/
 candidate qualification remains (E-V09-M5). Twenty-one tracked owned, fifteen derived
 children and one image-attachment daemon are absent. Clean e7a1e7e CI is verified above.
+Mac native authorization refusal is now concretely prepared (E-V09-M6). Both ordinary
+file/raw-image controls pass all fourteen independent ranges, read-only FD/closure and
+source/cleanup checks. All 197 staged pins/two production DLL identities verify. The
+owner must run the local launcher and cancel the native authorization dialog; no actual
+authopen/refusal result is claimed. Docs-only 302f63a CI 37328413504 also passes all four
+jobs, four server digests/six full inventories/24 affected cases independently verified.
 Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
@@ -1844,6 +1850,18 @@ Overall **NO-GO** remains.
     Counts remain 117/139 remediated, one Closed, 24/26 steps open. VMs running, G: HOLD,
     no candidate/GO (E-V09-M5).
 
+278. Prepare native Mac authopen refusal using byte-identical clean 593583e Recovery/Core
+    DLLs and a private self-contained arm64 wrapper. All 197 staged pins verify. Two actual
+    ordinary direct controls over regular file/raw owned image pass fourteen independent
+    ranges including unaligned 5-MiB and EOF checks; returned FD read-only/closed, source
+    unchanged/detached, seven owned processes absent. Installed authopen signature/hash
+    and harmless detached launcher verify. Local CRLF/native LF verifier assumption remains
+    retained; no native input/result changed. Concrete local refusal launcher is staged;
+    owner sudo and native dialog cancellation remain required. No actual authopen or device
+    permission change yet (E-V09-M6). Separate docs-only 302f63a CI 37328413504 passes all
+    four jobs/digests/six complete inventories/24 affected cases; ARM64 log limits retained.
+    Counts/VMs/G: HOLD/NO-GO unchanged.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -2068,7 +2086,9 @@ Overall **NO-GO** remains.
    observed. Historical v12 gaps/failures remain in E-V09-M4. Continue broader helper,
    native authopen approval/refusal/removal and adverse topology qualification with SIP
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
-   owner-local interaction. Broader I106, installed helper/Windows approval refusal remain.
+   owner-local interaction. Concrete refusal launcher/direct controls are verified and
+   staged in E-V09-M6; pause that activity for local sudo/dialog cancellation. Broader I106,
+   installed helper/Windows approval refusal remain.
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
