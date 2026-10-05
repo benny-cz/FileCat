@@ -94,8 +94,9 @@ detachment, channel closure, 201 input/57 retained pins/source/cleanup/nine abse
 Reporting defect I142 is committed at 348cbc7; clean Mac 23/4 declared skips, Ubuntu
 25/2 declared skips and final owner-approved native removal now pass no source,
 truthful IOException and independently verified trace/cleanup. CI attempt-one hosted
-runner acquisition failure is retained; exact-source retry and broader/candidate
-qualification remain (E-V09-M10/E-I142). Drawn workflow/full-helper/adverse topology/candidate remain.
+runner acquisition failure is retained; exact-source retry now passes all four
+required lanes, four server digests/six full inventories and affected recovery
+controls. Broader/native workflow/physical ARM64/candidate qualification remain (E-V09-M10/E-I142). Drawn workflow/full-helper/adverse topology/candidate remain.
 Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137;
 [E-I138](evidence/E-I138-recovery-trace-fixture-selection.md);
 [E-V09-M2](evidence/E-V09-M2-macos-trace-calibration.md);

@@ -29,7 +29,10 @@ verifies no source/no timeout and the correct changed-or-removed IOException. Na
 helper ENOENT occurs 54.651673 seconds after removal; subsequent path stat, channel
 closure/reap, 201 input/57 retained pins/source/cleanup/nine absences verify. Original
 8f75856 failure is retained. CI 37373490704 attempt one has a hosted-runner acquisition
-failure; exact-source attempt two is pending. No further Mac interaction is queued
+failure; exact-source attempt two now passes all four required lanes/four server
+digests/six full inventories and affected recovery controls. ARM64 App 351/17 declared
+skips, package drawing and installer compilation pass by logs. Per-case native CI
+inventory/physical ARM64/candidate limits remain. No further Mac interaction is queued
 (E-V09-M10/E-I142).
 
 I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
@@ -2122,6 +2125,19 @@ Overall **NO-GO** remains.
     exact-source attempt two pending. No further Mac interaction queued. Counts
     unchanged: 120/142 preliminarily remediated, one Closed, 21 remaining; 24/26
     checklist steps partly/fully open. No candidate/human GO; NO-GO.
+
+293. Independently seal 348cbc7 CI 37373490704 attempt two: all four required lanes
+    pass, three package publication jobs skipped; four server archive digests/six
+    complete TRX inventories match all definitions, unique case executions and skip
+    reasons. Complete App inventories 368 each: Windows 351/17, Ubuntu 323/45,
+    macOS 325/43 declared skips. Affected recovery App 31/3 Windows and 26/8 per
+    Unix lane; Windows Unix Core 7/20 native skips. Physical Mac/Ubuntu four new
+    native cases pass separately. ARM64 App 351/17/368, package drawing/installer
+    compilation pass by logs; per-case ARM64 and Unix Core CI/physical/candidate
+    limits explicit. Preserve separate attempt-one metadata, primary acquisition
+    annotations, both cancelled lanes' zero test steps and 38-member log archive;
+    no test/workflow relaxation or merged attempt results. Counts unchanged; no
+    additional Mac interaction queued. No candidate/human GO; NO-GO.
 
 ## Evidence invalidated by the campaign's own changes
 

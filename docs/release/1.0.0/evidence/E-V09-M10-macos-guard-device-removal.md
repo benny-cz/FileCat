@@ -187,5 +187,6 @@ Private preparation root is `mac-removal-prepared-v2`; execution root is
 | Removal marker | `bcf2aa85aad8792431870a25c536c4f4f0dbd4a869cb65dd2b33c83a70e7048f` |
 
 The original 8f75856 failure remains the baseline. No further Mac interaction is
-queued; CI and broader/native workflow/candidate qualification remain. Temporary
+queued; exact-source CI retry passes all four required lanes, server digests and
+complete inventories (E-I142). Broader/native workflow/candidate qualification remain. Temporary
 power support still requires restoration when Mac testing ends. **NO-GO** remains.

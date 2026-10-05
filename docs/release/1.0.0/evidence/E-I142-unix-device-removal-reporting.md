@@ -50,9 +50,9 @@ Private base is the authorized second workspace's
 | Corrected working v2 `corrected-v2/independent-native-v1.json` | `692bbca18f97c55d1b9dc918ac9fea6100e987ecbd2303e792d14cab6fc2ab83` |
 | Actual native removal baseline | See exact raw/result/owner hashes in [E-V09-M10](E-V09-M10-macos-guard-device-removal.md) |
 
-Committed-source/native revalidation passes below. Successor CI is pending; its first
-attempt is retained as a hosted-runner acquisition failure, and the exact same source
-is being retried. Historical native
+Committed-source/native and successor CI revalidation pass below. The first CI
+attempt is retained as a hosted-runner acquisition failure, separately from the
+successful retry of the exact same source. Historical native
 approval/refusal/replacement/removal captures retain their exact 8f75856 component
 identity; their results are not relabelled as successor qualification. Actual drawn
 workflow, broader helper/topology, final candidate and human GO remain unavailable.
@@ -89,6 +89,54 @@ No native suite is rerun or outcome altered for that selector correction.
 CI 37373490704 attempt one passes Mac and ARM64, while Windows and Ubuntu are
 cancelled with the primary annotation "The job was not acquired by Runner of type
 hosted even after multiple attempts." Attempt-one metadata/annotations remain
-separate. Attempt two reruns all lanes at the same source; completion and complete
-inventories remain pending. This is not a test failure or a qualified candidate.
+separate. Attempt two reruns all lanes at the same source and passes all four required
+lanes, with independently verified logs/inventories below. The acquisition failure
+is not a test failure; the passing retry does not qualify a release candidate.
 No further Mac interaction is queued. Broader/native workflow/candidate gates remain.
+
+## Exact-source CI retry verified
+
+[CI 37373490704 attempt two](https://github.com/benny-cz/FileCat/actions/runs/37373490704/attempts/2)
+passes Windows x64, Windows ARM64, Ubuntu and macOS at exact production
+`348cbc703140b1b4d84a05b75185d268ae5fc8f6`. All three package publication jobs are
+skipped. Four downloaded server ZIP digests and six complete TRX inventories verify;
+each case has a matching definition/unique execution ID, zero failures, and retained
+messages/stdout for each declared skip. The complete 368-name App inventory matches
+the independently retained host inventory on all three TRX-bearing App lanes.
+
+| Complete TRX inventory | Passed | Declared skips |
+|---|---|---|
+| app-test-results-macos-latest/FileCat.App.Tests | 325 | 43 |
+| app-test-results-ubuntu-latest/FileCat.App.Tests | 323 | 45 |
+| test-results-windows/FileCat.App.Tests | 351 | 17 |
+| test-results-windows/FileCat.Core.Tests | 787 | 57 |
+| test-results-windows/FileCat.Platform.Windows.Tests | 166 | 33 |
+| test-results-windows/FileCat.Remote.Tests | 88 | 28 |
+
+The 34 affected App recovery cases are 31 pass/3 declared skips on Windows and
+26 pass/8 declared skips each on Ubuntu/macOS. The Windows UnixDevice/UnixFiles
+scope is 7 pass/20 declared native skips; Unix CI has successful Core log totals,
+but no per-case Core TRX artifact. The physical Mac and Ubuntu guest inventories
+above independently prove actual execution of all four native I142 cases.
+
+ARM64 App logs retain 351 pass/17 declared skips/368 total, zero failures, successful
+package start/drawing and installer compilation. Per-case ARM64 TRX and physical
+ARM64/final artifact qualification remain unavailable.
+
+| Independently verified server archive | Artifact ID | SHA-256 |
+|---|---|---|
+| test-results-windows | 11371442043 | `faba8c74ec6ac5e6d300fba364ef52cc491ac8056f596c5cf762648c2ff1ab03` |
+| app-test-results-ubuntu-latest | 11371447067 | `b0c0f18bf8f4eabc84174d58cd8178c8e268442ab4217f03bd72fba1847b19a0` |
+| app-test-results-macos-latest | 11371807170 | `1ddb80461a71648be02fab96071255ae0aa49612db338642a1380ee503e5a911` |
+| windows-arm64-screenshot | 11372161729 | `6de6fc3240a8fe5c015cd3e5e0f3f983b23732e4729087a9f31c8c929d2a5495` |
+
+Private retry root `FileCatReleaseEvidence/ci-37373490704-attempt2` contains
+`independent-ci.json`, SHA-256 `a861defc5c65aa21d2b4a2f60602b21a232127e35f3769c3e0f7c9ac45b72755`. The separate
+attempt-one provider proof in `ci-37373490704-attempt1/independent-provider-failure-v1.json`
+is `787bae39097a185b0228753e1f0380c71e246bb593e107cfae346fd491be908b`;
+its primary metadata, both exact failure annotations, notices and complete 38-member
+log archive are retained. Both cancelled lanes have zero test steps. No failed
+attempt is relabelled as passing or merged into the retry's results.
+
+I142 is remediated preliminarily on committed/native/CI evidence; broader recovery,
+drawn workflow, final candidate and human GO remain. **NO-GO** remains.
