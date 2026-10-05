@@ -7,14 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-I133 corrects false size-filter matches for unknown-length gzip/bzip2/xz members. Twelve independently
-verified baseline failures and six positives are retained. The Core-only production swap corrects all
-eighteen observations; twenty Core/four Find cases pass. Exact full Core coverage is a disjoint union
-of unchanged builds (774 pass/46 declared skips); full App passes 324/21 declared skips. All source/input/
-binary pins and seven owned temp cleanups verify. Earlier GPG/disk/Git-fixture/cleanup failures remain
-failed and retained. Clean-source CI/Windows/Ubuntu checks are next (E-I133). Progress: **111/133 issue
-rows remediated**, one separately Closed; **24/26 release steps partly or fully open**. This is preliminary
-remediation, not final qualification. No candidate/human GO exists.
+I133 is remediated and verified preliminarily at clean 578a0ed: twelve independent baseline failures/
+six controls, eighteen corrected production observations, twenty Core/four Find cases and full host
+coverage pass. All four clean CI jobs pass; four server digests/six full TRX inventories verify.
+All twenty new Core cases pass in Windows' inventory; all four affected Find cases pass per Windows/
+Ubuntu/macOS inventory. SDK-free Windows and Ubuntu each pass all 24 cases without skips. Every
+payload/input/output/source pin and corrected owned process/temp cleanup verifies. Original test/
+setup/cleanup failures remain retained. Additional archive formats are under independent validation;
+native desktop/AT/candidate obligations remain (E-I133). Progress: **111/133 issue rows remediated**,
+one separately Closed; **24/26 release steps partly or fully open**. No candidate/human GO exists.
 
 I132 corrects the quick-search Escape fixture's early focus checkpoint; production source is unchanged.
 The original 545d627 macOS CI failure is retained with its full artifact/case inventory. An independent
@@ -123,7 +124,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After working preliminary remediation through I133 (clean CI/guest checks pending), the §14 checklist has the following conservative gate status.
+After verified preliminary remediation through I133 at clean 578a0ed, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -1454,11 +1455,25 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     Mac is owner-deferred; one minimal Bonjour discovery found no address. Both VMs stay running, G:
     untouched/HOLD. Progress 111/133 remediated and 24/26 release steps partly/fully open; NO-GO (E-I133).
 
+254. Clean 578a0ed CI 37244741557 passes all four required jobs. Four server artifact digests/six
+    full TRX inventories independently verify: all twenty new Core cases pass in Windows and all
+    four affected Find cases pass in each Windows/Ubuntu/macOS App inventory. ARM64 Core/App/package
+    start/installer checks pass with log totals; no ARM64/Unix Core per-case inventory claimed.
+    CI proof SHA-256 `85722d923dff8b8da830728c607b907fb240b2ba9c92ec83bcd0367e11b58451`.
+    SDK-free Windows 26300 and Ubuntu 26.04.1 each pass all 24 affected cases without skips. All
+    1,262/687 payloads, 1,263/688 ZIP members, sixteen canonical source exports per lane, exact case
+    inventories and owned process/temp cleanup independently verify. First Windows cleanup observer
+    counts itself; first Ubuntu observer cannot read one proc executable. Both remain failed/retained;
+    independent PowerShell/read-only root censuses verify cleanup without altering tests or system
+    settings. Guest proof SHA-256 `3b6f18c1047905dca7ea8ebe3291197d6e226626c6c67a5ce5b9eee6d499018f`.
+    Mac remains owner-deferred, both VMs running, G: untouched/HOLD. Other formats/native/candidate
+    remain; 111/133 remediated, 24/26 steps partly/fully open, no candidate/human GO, NO-GO (E-I133).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I133: earlier I115/I116 archive-search passes do not establish truthful size criteria for unknown-length
   members. The shared initial/narrowed search check is corrected and working host validation passes;
-  clean-source CI/guest checks and candidate qualification remain. Unrelated count evidence is unchanged.
+  clean 578a0ed CI/Windows/Ubuntu checks now pass. Other formats/native/candidate remain; unrelated count evidence is unchanged.
 
 - I132: earlier quick-search passes do not prove cancellation-relative focus when a match completes
   during input delivery. The corrected observer/forced controls, full host suite and all four clean CI

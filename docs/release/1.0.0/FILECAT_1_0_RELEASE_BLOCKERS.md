@@ -30,11 +30,13 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I133 excludes unknown-length archive members when size criteria cannot be checked. Twelve baseline
-failures/six controls, eighteen corrected production-probe observations, twenty Core/four Find cases
-and full host inventories pass (Core disjoint union 774/46 skips, App 324/21 skips). Failed fixture/
-cleanup runs and exact source/binary/fixture/cleanup evidence stay retained. Clean-source CI/Windows/
-Ubuntu checks, other formats, native interaction and final candidate remain (E-I133).
+I133 unknown-length size criteria now pass verified preliminary revalidation at clean 578a0ed.
+Twelve baseline failures/six controls, eighteen corrected production observations, affected/full
+host coverage, four CI jobs and 24 SDK-free cases per Windows/Ubuntu lane pass. Four server digests/
+six TRX inventories and all guest source/input/output/process/temp pins independently verify.
+Failed setup/test/cleanup observations stay retained; repaired private cleanup observers do not
+change tests or permissions. Additional formats are under independent validation; native desktop/
+AT/exact-candidate obligations remain (E-I133).
 
 I132 is a test-only quick-search cancellation checkpoint repair. Original macOS CI failure/full
 server-bound artifact inventory and one controlled observer failure/three controls are retained;
