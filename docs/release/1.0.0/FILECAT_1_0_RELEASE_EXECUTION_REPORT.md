@@ -7,12 +7,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-Mac connectivity is currently gated: new GUI consent-driver staging and a second
-read-only SSH attempt to 192.168.0.199 both time out before execution. The completed
-approval/session controls below remain verified; the new driver has not run. Existing
-awake-helper state is unknown while disconnected; saved power settings were unchanged
-at setup and restoration remains due when testing ends (E-ENV-MAC-1). Owner wake/network/IP
-input is required before native testing resumes.
+Mac connectivity is restored at 192.168.0.199 after owner input; prior timeouts are
+retained. At the owner's request, temporary system sleep-disable and a root restorer
+are active; four SSH/native-sensor samples over 62.868 seconds verify closed-lid AC
+operation. Original unrelated settings remain unchanged and restoration is required
+when Mac testing ends. Fresh gui/501 refusal-driver preparation verifies 201 input/21
+retained pins, normal UID/groups, seven golden ranges, read-only closure, agent removal,
+source/detachment and three absences. Actual refusal has launched with owner cancellation;
+trace/source/cleanup analysis remains pending (E-ENV-MAC-1).
 
 I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
 four required lanes. Four server ZIP digests/six complete TRX inventories and 60 affected
@@ -2027,6 +2029,19 @@ Overall **NO-GO** remains.
     prior settings were unchanged and owned-helper restoration remains due. Completed
     approval/session proofs remain valid at their recorded identities. Counts, VMs/G:
     HOLD and NO-GO unchanged; no candidate/GO (E-ENV-MAC-1).
+
+287. Owner-restored Mac connectivity permits the fresh GUI-driver staging retry.
+    Independently verify 201 native/host input pins, 21 retained pins, byte-identical
+    production DLLs, ordinary gui/501 metadata/normal groups, seven golden ranges,
+    read-only closure, unchanged detached source, agent removal and three absences.
+    At the owner's request, arm a root restorer and temporarily set native SleepDisabled;
+    preserve the absent original key and unrelated settings. Owner closes the AC-connected
+    lid; four independent SSH/native-sensor checks over 62.868 seconds pass without boot/
+    SleepWakeUUID change. Owner reopens it. Root restorer/caffeinate cleanup remains due
+    at end; unplug/deadline restoration is armed but not yet executed or qualified.
+    Actual fresh refusal is launched autonomously through gui/501; owner reports cancellation,
+    ordinary component reports no source/no timeout, and independent capture analysis is
+    pending. Counts unchanged, VMs running, G: HOLD, no candidate/GO, NO-GO (E-ENV-MAC-1).
 
 ## Evidence invalidated by the campaign's own changes
 

@@ -4,17 +4,47 @@ Verified preliminary environment controls, 2026-10-05. The owner authorizes temp
 remote-control setup and sleep inhibition, with restoration when Mac testing ends.
 These controls do not supply native FileCat GUI or candidate qualification.
 
-## Awake support and restoration
+## Awake support, closed-lid verification and restoration
 
-Owned UID-501 process 14103 runs `/usr/bin/caffeinate -i -s -t 14400` from
-`/Users/benny/FileCatReleaseValidation/awake-9c64838bcad94c15993b6f4e46a24d9d`.
-Its exact PID/UID/command and active native power assertion verify. Saved `pmset -g custom`
-bytes are unchanged before/after, SHA-256
+The original owned UID-501 process 14103 runs `/usr/bin/caffeinate -i -s -t 14400`
+from `awake-9c64838bcad94c15993b6f4e46a24d9d`. Its exact identity and assertion
+verified again after reconnection. Its setup did not modify saved power preferences;
+original `pmset -g custom` SHA-256 is
 `3042d13ac43edef6c522d07e290dc997e9ee78550c401d867fbfbda830857c65`.
-No saved sleep/lock/security preference is modified. Stop the exact owned helper when
-Mac validation ends, after checking PID/UID/command, then verify absence and original
-saved settings. Assertions also expire after four hours. Active infrastructure process
-is excluded from completed test-process absence counts; restoration is pending.
+That assertion alone does not establish closed-lid wakefulness.
+
+At the owner's explicit request, a separate temporary native sleep-disable control
+uses `/usr/bin/pmset disablesleep 1`. Apple's [pmset implementation](https://github.com/apple-oss-distributions/PowerManagement/blob/main/pmset/pmset.m)
+defines this system-wide setting. The root restorer follows the matching
+[power-preference implementation](https://github.com/apple-oss-distributions/IOKitUser/blob/main/pwr_mgt.subproj/IOPMEnergyPrefs.c)
+and changes only `SleepDisabled`. Native root is
+`/Users/benny/FileCatReleaseValidation/lid-awake-afd4b8f111bc44039fc1a4edbc1fdd43`.
+The original key is absent; existing `Update DarkWakeBG Setting` and both power-source
+profiles remain unchanged. Original preferences, pinned controller and active result
+are retained. The saved flag and IOPMrootDomain runtime flag independently report true.
+
+The root watchdog is armed before the change, PID 14706/UID 0, exact owned
+`power-control.py watchdog` identity. It restores on an explicit completion marker or
+SIGTERM, AC disconnection, or its 43,200-second deadline (approximately
+2026-10-06 08:05:52 UTC). It first re-enables the native sleep path, then removes only
+the originally absent key through CFPreferences and notifies power management.
+Unrelated current system settings are preserved; restoration checks the original
+power-source profile bytes. **Restoration execution is still pending** while Mac
+validation continues. The watchdog is a live process; reboot/failure recovery and
+battery operation are not qualified. No persistent startup or remote-access service
+is installed.
+
+The owner physically closes the lid with AC connected. Four successful independent
+SSH samples over 62.868 seconds verify `AppleClamshellState = true`, runtime and saved
+`SleepDisabled = true`, AC supply, the live root restorer, and unchanged boot time and
+SleepWakeUUID. Thus closed-lid SSH is actually verified for this finite interval.
+The owner subsequently reopens the Mac. Longer-duration behavior is not inferred.
+
+When Mac validation ends, verify the exact root watchdog PID/UID/command and pinned
+controller before signalling it, await its `restoration.json`/exit, and independently
+check the formerly absent key, original profiles and runtime sleep flag. Then stop
+the exact owned caffeinate helper and verify absence. The active infrastructure
+processes are excluded from completed test-process absence counts.
 
 ## Authentication and native desktop launch control
 
@@ -41,15 +71,23 @@ assets: The system cannot find the path specified. (os error 3)`. No app input o
 Remote mouse-and-keyboard control is unavailable through those runtimes; no Mac remote
 access service is enabled. Native CLI and desktop-agent launch controls remain usable.
 
-## Current connectivity gate
+## Reconnection and prepared desktop-context driver
 
-While staging the new desktop-context consent driver, SSH to 192.168.0.199 times out
-before reaching the Mac. A second eight-second read-only SSH attempt also times out.
-Local driver construction and syntax checks are retained; its native staging, GUI
-handshake/range rehearsal and actual refusal remain unexecuted. Do not mark the new
-driver qualified from the earlier SessionGetInfo control. The existing awake helper's
-current status cannot be verified while disconnected; its recorded timeout/restoration
-obligations remain. The owner is asked to restore connectivity or supply the current IP.
+The earlier two eight-second SSH timeouts and local-only staging failure remain
+retained at their recorded identity. After owner wake/network input, the Mac is again
+reachable at 192.168.0.199. The corrected staging retry reaches a fresh owned native
+root `authopen-f9deb49d2a9c4839bef1a16c7ff027f1`.
+
+The fresh ordinary-user desktop driver preparation now independently verifies 201
+input pins (all 197 original inputs preserved), 21 retained pins and byte-identical
+clean 8f75856 Recovery/Core DLLs. A temporary gui/501 agent supplies actual native
+SessionGetInfo metadata before launching the probe: UID 501, normal groups, session
+100014/attributes 24624/graphic access. The same seven independently computed ranges,
+read-only descriptor and closure pass on the owned regular image. Bootstrap/bootout
+exit zero; wrapper, metadata control and actual probe are absent; the agent is removed
+and source bytes remain unchanged/detached. No native authorization or root-controller
+capture occurs in this preparation. Actual refusal is launched later with owner
+cancellation; trace/source/cleanup qualification is pending independent analysis.
 
 ## Private provenance
 
@@ -64,9 +102,22 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   SHA-256 `8a690491c45d850e61f1ddf2fcaa6902025a2c64bacf2c9b4fe2d6042e6515d3`;
   native root `authopen-2e38bfeff30741b8932b2e57f77069a4`, 197 input/20 retained pins,
   two direct controls/seven independent ranges each, unchanged detached image/four absences.
-  Single-use native refusal launcher remains unexecuted; GUI-route instrumentation next.
+  That single-use native refusal launcher remains unexecuted; fresh GUI-route preparation supersedes it.
 
 - Connectivity gate private `mac-gui-refusal-prepared-v4/connectivity-gate-v1.json` SHA-256
   `e7199d015457e306d38518ef1547cf0523cf28473340922129b59f3e85f4d841`.
+
+- Closed-lid setup `mac-lid-awake-v1/independent-setup-v1.json` SHA-256
+  `99783cf70713c82e10f902c03eb3b514f348d503a705af95be8d097efee5bcec`;
+  four-sample proof `independent-closed-lid-v1.json`
+  `c81eeacd231174c56161c9b3153b5af177689f801cd2abb8a7291c27adf14397`.
+  Controller `12230699540f5ed370feb28db7210883ee3ba055238c53b437d4e7435cc73cb0`;
+  baseline `1d3b57272dd6bd4fb70a27219270fef2cf642f6304196964853594cbff8b6dad`;
+  active result `77eb92c2d10ee0e214f8f4200e659747e79a3b39d3438d2bbc9c8db95ff00473`;
+  watchdog ready `bc70514c74cfe7f19ff672fca28dfceacc2f0f3df24b70c6e6601b08a7001e23`.
+- GUI-driver preparation `mac-gui-refusal-prepared-v4/independent-prepared-v4.json`
+  SHA-256 `05db5db2685a9b232692542e2f50642cc5b3df1de26299ff8d6578ac08ec8d52`;
+  transport `1eaf48a4b0d63357b8b0e0781c41f5d6eb9ca6e52917eed5c0caf0e1647a81e1`;
+  collection `f27477abba0db6b8d2e23f3878d3ca7c983f40f366bd1ac19acb42e542b98e40`.
 
 No candidate or human GO. **NO-GO** remains.
