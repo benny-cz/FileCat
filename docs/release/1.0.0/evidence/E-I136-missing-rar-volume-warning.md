@@ -2,7 +2,7 @@
 
 **Requirement:** V10/V13, ARC-001/002, PI-05; truthful partial archive outcomes.
 **Severity/disposition:** Medium (archive correctness and completeness reporting); must fix.
-**Status:** numbered-volume gap check remediated; working host validation passes; clean CI/native pending.
+**Status:** remediated at `a1c265f`; verified preliminarily on host, clean CI and both VMs.
 **Baseline source:** `3caf48088a4aaeed1ebd471b1c4aaf9266dd9dde`.
 
 An independent corpus adds xorriso 1.5.6 ISO 9660 and Joliet images, a genisoimage UDF 1.02
@@ -72,3 +72,31 @@ corrects that private assumption without changing tests or product behavior.
 
 Clean committed-source CI/native and exact-candidate qualification remain. Both VMs stay running,
 Mac stays deferred and G: remains untouched/HOLD. No candidate or human GO; overall NO-GO.
+
+## Clean committed-source validation
+
+Exact source `a1c265f1feb1acde1b18d1a0854862b7b0cbb21a` passes all four required CI jobs in
+[run 37250443369](https://github.com/benny-cz/FileCat/actions/runs/37250443369).
+Four downloaded artifacts match server digests, and six complete TRX inventories independently
+verify all outcomes and declared skip reasons. All **77 affected Core cases**, including all ten
+new multipart controls, pass without skips in Windows' inventory; all four affected Find cases
+pass without skips per Windows/Ubuntu/macOS App inventory. Complete Windows Core passes 787/834
+with 47 declared skips, Windows App 330/345 with 15 skips and each Unix App lane 302/345 with
+43 skips. ARM64 Core/App, package start/render and installer checks pass with log totals;
+no per-case ARM64 or Unix Core TRX is claimed. Three tag/manual package jobs correctly skip.
+Private `ci-37250443369/independent-ci.json` SHA-256 `803da2f98b5ee8993d1fb31708fc2962662c8c3d9756b19eb19a6d7c308f3e1b`.
+
+Both SDK-free guests pass all **77 Core plus four Find controls without skips**: Windows Insider
+26300/Admin/elevated at the pinned VM UUID and Ubuntu 26.04.1 x64/benny/UID 1000. All 1,271 Windows/
+696 Linux payloads, 1,272/697 ZIP members, twenty-one canonical Git source exports and ten byte-exact
+fixture Git blobs per lane independently verify. Native/host case inventories match. Before/after
+input hashes, retrieved output pins, tracked bootstrap/controller/test/observer PIDs and owned
+executable-path censuses verify; all owned processes and fixture temp files are absent. Both
+initial tracked cleanup and independent post-bootstrap PowerShell/read-only root observations pass.
+Private `i136-guests-independent-v1.json` SHA-256 `d1f1eacdd726337aed4a7928976a55f4aa6bd0ff57da872338c99af7c92906e1`.
+
+This establishes preliminary ISO 9660/Joliet/UDF 1.02 and complete numbered-RAR corpus outcomes,
+the missing-middle warning remedy and retained content refusal. Pure UDF/other revisions, legacy
+RAR naming, native desktop/AT and exact-candidate qualification remain separate scopes. All failed
+product/private attempts remain retained. Mac stays deferred, both VMs remain running and G: is
+untouched/HOLD. No candidate or human GO; overall NO-GO.

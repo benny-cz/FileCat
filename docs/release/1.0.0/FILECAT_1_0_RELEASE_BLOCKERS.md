@@ -30,11 +30,12 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I136's missing middle RAR-volume warning now passes working preliminary remediation. Nine
-baseline controls pass/one fails; ten new controls, affected Core 108/two measurement skips and
-Find 4 pass. All seven missing-warning observations are corrected with only Archives.dll changed;
-identical independent disc/complete RAR 54 search/72 content outcomes and safe refusals persist.
-Clean CI/native/candidate remain; Mac work stays deferred after bounded negative discovery (E-I136).
+I136 is verified preliminarily at clean a1c265f. The numbered-volume gap warning preserves
+independent ISO/Joliet/UDF 1.02 and complete RAR 54 search/72 content controls plus safe refusals.
+Affected host checks, four clean CI jobs and all 81 cases per VM pass. Four server digests/six
+complete TRX inventories and native source/fixture/payload/case/cleanup pins independently verify.
+Other variants/native desktop/AT/candidate remain; Mac stays deferred after bounded negative
+discovery. Both VMs remain running and G: is untouched/HOLD (E-I136).
 
 I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
 real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
@@ -42,7 +43,7 @@ The identical 78 search/57 content controls, affected host checks, four clean CI
 SDK-free cases per Windows/Ubuntu guest pass. Four server digests/six TRX inventories and all native
 source/fixture/payload/output/case/process/temp pins independently verify. Failed attempts stay
 retained; shared-profile throughput/cancellation passes. Native desktop/AT, independent remaining
-ISO/UDF/multipart corpus, reference hardware and candidate qualifications remain (E-I134/E-I135).
+format variants, reference hardware and candidate qualifications remain (E-I134/E-I135; E-I136).
 
 I133 unknown-length size criteria now pass verified preliminary revalidation at clean 578a0ed.
 Twelve baseline failures/six controls, eighteen corrected production observations, affected/full

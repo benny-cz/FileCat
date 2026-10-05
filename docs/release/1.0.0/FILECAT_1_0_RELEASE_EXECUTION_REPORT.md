@@ -7,14 +7,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-I136's interior numbered-RAR gap warning is remediated in working source. Nine baseline passes/one
-expected regression failure, all ten new controls and affected Core 108/four Find passes verify;
-two opt-in archive measurements retain explicit skips. The identical independent ISO/Joliet/UDF/
-RAR corpus preserves all 54 search/72 content results and safe corrupt-content refusal; seven
-missing-warning controls now pass, with only Archives.dll changed. Source/fixture/DLL/TRX and
-independent comparison pins verify. Clean committed-source CI/native next (E-I136). Progress:
-**114/136 issue rows remediated**, one separately Closed; **24/26 steps partly or fully open**.
-No candidate/human GO; overall NO-GO.
+I136 is remediated and verified preliminarily at clean a1c265f. Independent ISO/Joliet/UDF 1.02
+and complete numbered-RAR controls preserve all 54 search/72 content results; seven missing-part
+warnings now pass while affected content safely refuses. Ten new regressions/affected host checks,
+four clean CI jobs and all 81 SDK-free cases per Windows/Ubuntu VM pass. Four server artifact
+digests/six complete TRX inventories, all 77 affected Core cases and four Find cases per available
+lane verify; native source/fixture/payload/output/case/process/temp pins independently verify.
+Other format variants, native desktop/AT/reference hardware and candidate qualification remain
+(E-I136). Progress: **114/136 issue rows remediated**, one separately Closed; **24/26 release steps
+partly or fully open**. Mac is deferred after bounded negative discovery. No candidate/human GO;
+overall NO-GO.
 
 I134/I135 are remediated and verified preliminarily at clean 3caf480. Empty 7z no-stream metadata,
 encrypted data/header refusal and canonical test identities pass the identical 78 search/57 content
@@ -23,9 +25,8 @@ digests/six full TRX inventories verify. All 67 affected Core cases pass in Wind
 cases pass per Windows/Ubuntu/macOS inventory. Both SDK-free VMs pass all 71 cases with zero skips;
 all source/fixture/payload/output/case pins and owned process/temp cleanup verify. Original failures
 remain retained. Shared-profile search throughput/cancellation also passes; native/AT/reference-
-hardware/candidate obligations remain (E-I134/E-I135). Progress: **113/135 issue rows remediated**,
-one separately Closed; **24/26 release steps partly or fully open**. Mac remains deferred after
-limited discovery found no address. No candidate/human GO exists; overall NO-GO.
+hardware/candidate obligations remain (E-I134/E-I135). Mac remains deferred after limited
+discovery found no address. No candidate/human GO exists; overall NO-GO.
 
 I133 is remediated and verified preliminarily at clean 578a0ed: twelve independent baseline failures/
 six controls, eighteen corrected production observations, twenty Core/four Find cases and full host
@@ -34,8 +35,7 @@ All twenty new Core cases pass in Windows' inventory; all four affected Find cas
 Ubuntu/macOS inventory. SDK-free Windows and Ubuntu each pass all 24 cases without skips. Every
 payload/input/output/source pin and corrected owned process/temp cleanup verifies. Original test/
 setup/cleanup failures remain retained. Additional archive formats are under independent validation;
-native desktop/AT/candidate obligations remain (E-I133). Progress: **113/135 issue rows remediated**,
-one separately Closed; **24/26 release steps partly or fully open**. No candidate/human GO exists.
+native desktop/AT/candidate obligations remain (E-I133). No candidate/human GO exists.
 
 I132 corrects the quick-search Escape fixture's early focus checkpoint; production source is unchanged.
 The original 545d627 macOS CI failure is retained with its full artifact/case inventory. An independent
@@ -144,7 +144,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I135 at clean 3caf480, the §14 checklist has the following conservative gate status.
+After verified preliminary remediation through I136 at clean a1c265f, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -1540,11 +1540,24 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     Failed private compiler/Counter/skip-category assumptions stay retained. Clean CI/native next;
     114/136 remediated, 24/26 steps open. VMs running, Mac deferred, G: untouched/HOLD, NO-GO (E-I136).
 
+259. Clean a1c265f CI 37250443369 passes all four required jobs. Four server digests/six complete
+    TRX inventories verify: all 77 affected Core cases pass in Windows and four Find cases pass per
+    Windows/Ubuntu/macOS App inventory. Complete Windows Core 787/47 skips, App 330/15; each Unix
+    App 302/43. ARM64 Core/App/package start/render/installer pass with log totals; no per-case ARM64/
+    Unix Core TRX claimed. CI proof SHA-256 `803da2f98b5ee8993d1fb31708fc2962662c8c3d9756b19eb19a6d7c308f3e1b`.
+    Both SDK-free Windows 26300 and Ubuntu 26.04.1 pass all 81 cases without skips. All 1,271/696
+    payloads, 1,272/697 ZIP members, twenty-one canonical sources/ten raw fixture Git blobs per lane,
+    native/host cases and initial/post-bootstrap process/temp cleanup independently verify. Native
+    proof SHA-256 `d1f1eacdd726337aed4a7928976a55f4aa6bd0ff57da872338c99af7c92906e1`. Failed attempts remain retained. Register
+    audit confirms 114/136 remediated and one Closed; 24/26 steps partly/fully open. Both VMs running,
+    Mac deferred, G: untouched/HOLD, no candidate/human GO, NO-GO (E-I136).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I136: earlier archive passes do not prove missing interior RAR-volume reporting. Seven-Zip rejects
   the owned incomplete set; FileCat has seven missing-warning failures but refuses affected content.
-  Correction/identical working controls pass; affected clean CI/native/candidate checks remain (E-I136).
+  Correction/identical corpus, affected host checks, four clean CI jobs and 81 cases per VM pass; other
+  variants/native desktop/AT/candidate remain (E-I136).
 
 - I134/I135: prior archive passes do not prove empty 7z protection/content truth or I133 fixture identities
   under noncanonical Windows TEMP spelling. Working corrections/identical corpus/affected checks pass;
@@ -1737,8 +1750,10 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
    now pass working/full host and clean CI/guest controls (I116). The thirteen-fixture independent
    corpus now passes 78 file-member search/57 content controls after I133/I134 fixes; I135 repairs
    only fixture disk spelling. Four clean 3caf480 CI jobs and 71 SDK-free cases per Windows/Ubuntu
-   guest pass, with all source/fixture/case/cleanup pins verified. Independent ISO/UDF/multipart
-   corpora, native interaction and exact-candidate checks remain required.
+   guest pass, with all source/fixture/case/cleanup pins verified. Independent ISO 9660/Joliet/UDF 1.02 and six numbered-RAR entry points now pass another 54 search/
+   72 content controls. I136 fixes a missing interior-volume warning; four clean a1c265f CI jobs
+   and 81 cases per VM pass with all pins/cleanup verified. Pure UDF/other revisions, legacy RAR
+   naming, native interaction and exact-candidate checks remain required (E-I136).
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop and the reference machine.
    Current desktop state was not observed: updated Computer Use import and plain Node startup both fail before
    input. Restore that runtime for live interaction; I92's worker remedy passes host/clean CI/guest controls,
