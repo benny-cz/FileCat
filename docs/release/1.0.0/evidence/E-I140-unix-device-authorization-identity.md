@@ -187,3 +187,9 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
 I140 is remediated preliminarily, not Closed. Actual held removal safety independently verifies
 (E-V09-M10); its reporting defect is I142. Broader native and final
 qualification remain. No candidate or human GO. **NO-GO** remains.
+
+Fresh committed 348cbc7 owner-approved removal additionally passes source safety
+and truthful reporting, with independently linked helper ENOENT/post-helper path stat,
+clean source/channel/process/agent cleanup and 201 input/57 retained pins (E-V09-M10).
+Clean Mac/Ubuntu I142 cases pass. Original 8f75856 removal reporting failure remains
+the retained baseline; I140 broader/native workflow/candidate gates are unchanged.

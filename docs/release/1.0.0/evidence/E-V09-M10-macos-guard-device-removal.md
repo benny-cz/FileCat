@@ -2,9 +2,8 @@
 
 Preparation and actual held-authorization removal independently verified, 2026-10-05.
 The owner held the dialog until the owned image was detached and both device paths
-were absent, then reported that the dialog appeared and was approved. **No source is
-constructed and cleanup passes; failure reporting is incorrect and is tracked as
-I142.** This is preliminary component evidence, not full workflow qualification.
+were absent, then reported that the dialog appeared and was approved. **The original source-safety capture exposes reporting defect I142; a fresh
+committed 348cbc7 repeat below passes safety, reporting and cleanup.** This is preliminary component evidence, not full workflow qualification.
 
 Production commit is `8f75856802668f7d21c09f33aa876e4fdc4409d3`. The private
 self-contained arm64 component wrapper references byte-identical clean Recovery/Core
@@ -76,8 +75,10 @@ they disappear; there is no temporary permission bypass.
 
 Owned detachment completes at `2026-10-05T20:42:42.146367Z`, with both `/dev/disk4`
 and `/dev/rdisk4` absent, the image unchanged and the ordinary helper still waiting.
-Before the approval cue, an independent SSH check also observes missing paths, no
-owned attachment and `501 authopen`. That check exits one because its assertion
+Before the approval cue, an independent SSH check also observes missing paths and `501 authopen`. Its attachment query uses `source.img`
+instead of the actual `source-fat16.img`, so that independent attachment assertion
+cannot qualify detachment. The native controller and collection separately verify
+the exact owned image; the fresh corrected probe below uses the exact path. That check exits one because its assertion
 expected a full executable path from ps instead of the returned basename. The exact
 observation and failed assertion are retained; no successful probe exit is invented.
 The owner then reports: "Dialog appeared; I approved it."
@@ -123,3 +124,68 @@ sleep-disable and restorer remain active with restoration due when validation en
 ([E-ENV-MAC-1](E-ENV-MAC-1-temporary-native-session.md)). Broader topology/helper/drawn
 workflow and final candidate qualification remain. I140 is not Closed. No candidate
 or human GO. **NO-GO** remains.
+
+## Fresh committed removal repeat with truthful reporting
+
+Production `348cbc703140b1b4d84a05b75185d268ae5fc8f6` is published from the raw Git blob
+export described in [E-I142](E-I142-unix-device-removal-reporting.md). Preparation v2
+uses Recovery/Core DLLs byte-identical to that clean Mac regression payload. The new
+201 input/42 retained pins, seven-range regular/raw controls, read-only/closed descriptor
+checks, missing-source desktop refusal, two agent removals/eight absences, unchanged
+source/detachment and all eight commands independently verify before the real case.
+
+Fresh native root is
+`/Users/benny/FileCatReleaseValidation/authopen-e2bf150341e74660a88c055d5b68bfbb`.
+Actual component PID 17636 and authopen PID 17639 are ordinary UID 501 with normal
+groups; actual graphical SessionGetInfo is verified before launch. Owned image
+detachment completes at `2026-10-05T21:18:34.045473Z`. The native marker and successful
+independent pre-cue probe verify both device paths absent, the exact owned image no
+longer attached, unchanged source bytes and the live ordinary helper. The owner then
+reports: "Dialog appeared; I approved it."
+
+Helper read-only open at `23:19:28.697146 CEST` receives ENOENT, 54.651673 seconds
+after removal. All three source opens uniquely match raw/formatted PID, TID, time
+and syscall; initial app/helper opens receive EACCES. The initial selected-entry
+stat succeeds, and the post-helper EOF/reap path stat uniquely links to ENOENT.
+The actual component now reports IOException: "The selected device changed or was
+removed while opening. Select it again." No source is constructed and no test
+timeout occurs. This passes truthful unavailable-source reporting separately from
+the unchanged-refusal and explicit-cancellation regression controls.
+
+Two-byte authorization send/receive then EOF, channel FD 63 closure, helper exit one
+and reaping verify. Later pipe reuse/closure of FD 63 is tracked as a distinct
+lifetime. No artificial kill is observed. Worker, recorder, two decoders and all
+seven controller commands exit zero. Source bytes remain unchanged and detached;
+the temporary GUI agent is removed, nine owned process absences and all 201 input/57
+retained pins verify independently.
+
+The raw trace contains 6,413,688 events over 127.965095166 seconds, exceeding the
+configured 120 seconds with recorder exit zero. Four unmatched starts are native
+nonreturning exits/thread termination. The three finite loss IDs are absent; this
+does not prove zero loss, whole-source/helper/mapping or drawn-workflow qualification.
+The actual approval is owner-attested; no measured click timestamp is invented.
+
+The generated owner v1 file retained the older readiness-question wording. Its bytes
+remain unchanged; owner v2 corrects only that transcription, pins the original file
+and records the exact final readiness/approval questions and answers. Test outcomes
+and the final approval answer are unchanged.
+
+Private preparation root is `mac-removal-prepared-v2`; execution root is
+`mac-removal-executed-v2`, under the private base above.
+
+| Item | SHA-256 |
+|---|---|
+| Preparation `independent-prepared-v1.json` | `218d6869eab8a879fb543212efcc4a19a7ef8bcfe98d6ee4fb6226ff38b4190d` |
+| Input manifest `stage.json` | `950bbd87eb37325bcc887ae1c2cd67ead84499e68fa0c3d61fd32aef618a8824` |
+| Actual `independent-executed-v1.json` | `b990dff20015d290b00c945851b4c810e9d466e65f9f8db4f6cf081786e38692` |
+| Path recheck `independent-path-recheck-v1.json` | `9f3449ca282a8f71b0d134b59658cc69cb013dabcb68baa30e1f4249d90b8425` |
+| Collection `retrieved/executed-collection-v1.json` | `2bb16e18bb8681cb8f6070d93a6818fc9a9a8a6e92d9e2ab767872bf4f8e3a98` |
+| Transport `outputs.zip` | `c9fc83fef21b2de3112b3e00984a6a975a656d741edbec182e4a4a81ce0a05fa` |
+| Raw `retrieved/results-remove/capture.ktrace` | `f4a833c713505bb518b8e811676518359d47baf1c0f73a4b7554bb523fb8e54d` |
+| Diagnostic `raw-diagnostic-v1.json` | `009eb9d734f2e911755e9fd5e05d841498c119a70f6c6741a1df3347d9a28c7d` |
+| Owner `owner-attestation-v2.json` | `20816e07fdec3092e0b9b1e04c968f4b00ceb02867d785ae2184765d5d8556b8` |
+| Removal marker | `bcf2aa85aad8792431870a25c536c4f4f0dbd4a869cb65dd2b33c83a70e7048f` |
+
+The original 8f75856 failure remains the baseline. No further Mac interaction is
+queued; CI and broader/native workflow/candidate qualification remain. Temporary
+power support still requires restoration when Mac testing ends. **NO-GO** remains.

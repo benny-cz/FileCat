@@ -129,3 +129,9 @@ ENOENT after the missing-path cue, source/cleanup/agent removal/nine absences an
 201 input/57 retained pins (E-V09-M10). Reporting failure is I142; no further human
 Mac dialog test is queued for the current slice. Power restoration remains due when
 Mac validation ends.
+
+Final committed 348cbc7 removal now independently verifies safety, truthful missing-
+device IOException, post-helper missing-entry stat and complete owned cleanup
+(E-V09-M10/E-I142). Clean physical Mac regression controls pass 23/4 declared skips.
+No further human Mac interaction is queued. Temporary awake/restorer support remains
+active while autonomous validation continues; restoration is still required.

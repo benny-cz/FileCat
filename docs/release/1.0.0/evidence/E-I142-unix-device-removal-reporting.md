@@ -50,8 +50,45 @@ Private base is the authorized second workspace's
 | Corrected working v2 `corrected-v2/independent-native-v1.json` | `692bbca18f97c55d1b9dc918ac9fea6100e987ecbd2303e792d14cab6fc2ab83` |
 | Actual native removal baseline | See exact raw/result/owner hashes in [E-V09-M10](E-V09-M10-macos-guard-device-removal.md) |
 
-Committed-source/native revalidation and successor CI are pending. Historical native
+Committed-source/native revalidation passes below. Successor CI is pending; its first
+attempt is retained as a hosted-runner acquisition failure, and the exact same source
+is being retried. Historical native
 approval/refusal/replacement/removal captures retain their exact 8f75856 component
 identity; their results are not relabelled as successor qualification. Actual drawn
 workflow, broader helper/topology, final candidate and human GO remain unavailable.
 No further human Mac dialog case is queued for this slice. **NO-GO** remains.
+
+## Committed clean-source and native revalidation
+
+Production is `348cbc703140b1b4d84a05b75185d268ae5fc8f6`. The producer exports all 858 raw Git
+blobs and verifies each Git blob ID, path and SHA-256 before publication with the
+exact SourceRevisionId. Two earlier producers stop before tests because Windows Git
+archive converts line endings; those partial attempts remain retained. No archive
+bytes or test outcomes are silently rewritten. The raw source archive SHA-256 is
+`952348a5f9477f0597a694c28c08df90cab97e845b4277b95468891e04a89b2d`;
+producer receipt is `44d9e20649539090179dfa0753bef76b0ea68e55c75142b189db710bc63009f6`.
+
+| Lane | Actual result | Evidence scope |
+|---|---|---|
+| Clean physical Mac arm64, ordinary UID 501 | 23 pass, 4 declared skips, exit 0 | All four new cases pass; 321 payload pins before/after, six retained pins, process absence and empty owned temporary root |
+| Clean Ubuntu 26.04.1 VMware x64, ordinary UID 1000 | 25 pass, 2 declared skips, exit 0 | All four new cases pass; 322 payload pins before/after, six retained pins, process absence and empty owned temporary root; exact VMX route and actual OS recorded |
+| Final actual Mac held authorization/removal | Safety and correct reporting pass; no source, no timeout | Byte-identical clean production components, owner approval after independently verified removal, native ENOENT and path recheck, source/cleanup and trace limits in [E-V09-M10](E-V09-M10-macos-guard-device-removal.md) |
+
+| Private item under `mac-resume-20261005` | SHA-256 |
+|---|---|
+| `i142-clean-v3/executed/independent-native-v1.json` | `ad08c1554ade263d9943a25f2fe8f5de9051d3b5e989bc312f30b4c4ce1be594` |
+| `i142-linux-guest-v1/independent-guest-v1.json` | `f39917f7e4863365c31edc9dd55dd0bb753e4e6dda7ab3b11ad2c7b7046f30c9` |
+| `mac-removal-executed-v2/independent-executed-v1.json` | `b990dff20015d290b00c945851b4c810e9d466e65f9f8db4f6cf081786e38692` |
+| `mac-removal-executed-v2/independent-path-recheck-v1.json` | `9f3449ca282a8f71b0d134b59658cc69cb013dabcb68baa30e1f4249d90b8425` |
+
+The supplementary host observer first selected an assumed test name and found only
+two of the four cases. Its failed script/exit description remain retained; the fresh
+observer selects the exact committed method names and verifies the original results.
+No native suite is rerun or outcome altered for that selector correction.
+
+CI 37373490704 attempt one passes Mac and ARM64, while Windows and Ubuntu are
+cancelled with the primary annotation "The job was not acquired by Runner of type
+hosted even after multiple attempts." Attempt-one metadata/annotations remain
+separate. Attempt two reruns all lanes at the same source; completion and complete
+inventories remain pending. This is not a test failure or a qualified candidate.
+No further Mac interaction is queued. Broader/native workflow/candidate gates remain.

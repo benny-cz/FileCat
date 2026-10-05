@@ -91,8 +91,11 @@ Fresh native device-removal preparation verifies 201 inputs/42 retained pins, re
 seven-range/read-only controls, safe missing-source refusal, desktop contexts, source/
 detachment/two removed agents/eight absences. Actual owner-approved held removal verifies no source/no timeout, helper ENOENT after
 detachment, channel closure, 201 input/57 retained pins/source/cleanup/nine absences.
-Reporting defect I142 is corrected in working source; native 23/4 skips and affected
-host controls pass. Committed/native/CI validation pending (E-V09-M10/E-I142). Drawn workflow/full-helper/adverse topology/candidate remain.
+Reporting defect I142 is committed at 348cbc7; clean Mac 23/4 declared skips, Ubuntu
+25/2 declared skips and final owner-approved native removal now pass no source,
+truthful IOException and independently verified trace/cleanup. CI attempt-one hosted
+runner acquisition failure is retained; exact-source retry and broader/candidate
+qualification remain (E-V09-M10/E-I142). Drawn workflow/full-helper/adverse topology/candidate remain.
 Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137;
 [E-I138](evidence/E-I138-recovery-trace-fixture-selection.md);
 [E-V09-M2](evidence/E-V09-M2-macos-trace-calibration.md);
