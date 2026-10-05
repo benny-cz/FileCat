@@ -1,7 +1,7 @@
 # E-I147 — Windows icon retained demand and stale completion
 
-Classification: preliminary committed correction; controlled/host validation passed,
-clean native and exact-source CI pending. No release candidate or human GO.
+Classification: preliminary committed remediation; controlled/full host, clean
+native Windows/portable Unix and exact-source four-lane CI independently verify. No release candidate or human GO.
 
 V12/I06 exposes the Windows counterpart of I143. Baseline App source cb85f0a retains
 50,000 shared type entries after 50,000 public GetIcon calls. Controlled per-item
@@ -61,3 +61,42 @@ instances, actual hung-device/native helper load traces, UI frames, AT, referenc
 hardware and exact-candidate qualification remain. I06 stays open. Both guests stay
 running; Mac awake v3 remains active for further validation with restoration due.
 G: remains untouched/HOLD. Interactions stay queued until 08:40 CEST; overall NO-GO.
+
+## Clean native and CI qualification (2026-10-06)
+
+All 870 raw Git blobs/modes/source hashes at committed 6cf17e5 verify, including
+all five affected sources, before clean self-contained publication. Native Windows
+guest passes 16/one declared share-capture skip, 17 exact cases; all eight new
+controls pass. Mac UID 501 and Ubuntu UID 1000 each pass ten/ seven explicit
+Windows-or-capture skips, 17 exact cases; all three new portable controls pass and
+all five new Windows source cases explicitly skip with their native requirement.
+All 354 Windows/350 Unix payload files remain unchanged before/after; command/test
+process and owned temp cleanup verify. Windows also observes all owned payload
+processes absent. No native drawn UI, real held Shell call or frame timing is claimed.
+
+Exact-source [CI 37389900000 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37389900000)
+passes all four required jobs. Four server ZIP digests and six full per-case TRX
+inventories independently verify all 388 App case names: Windows 371/17,
+macOS 340/48 and Ubuntu 338/50 (pass/declared skip). Affected icon inventories are
+16/1 on Windows and 10/7 on each Unix lane; all eight new cases have exactly their
+expected outcomes. Windows Core 787/57, Platform 166/33 and Remote 88/28 also pass.
+ARM64 App logs report 371/17/388, with package start/drawing and installer compilation
+passing; no ARM64 per-case TRX or physical ARM64 qualification is inferred.
+One read-only GitHub metadata request times out; its tool output is retained.
+The bounded readiness driver retains every subsequent read before collecting the
+successful exact-source run. It does not retry or replace any failing product test.
+
+I147 is preliminarily remediated. Wider displayed/borrowed memory, source instances,
+actual native helper/device traces, native UI/frame/AT, hardware and exact candidate
+remain. Both VMs stay running, G: stays untouched/HOLD, Mac awake v3 is active for
+the following disc-image work with restoration due. Owner gates remain queued
+until 08:40 CEST. No candidate/human GO; overall NO-GO.
+
+| Retained item under the same private root | SHA-256 |
+|---|---|
+| `clean-v1/source.zip` | `d60857f4bfaba90e112e33cdd162adb7332768c5db829f1f3040c2954f8b922a` |
+| `clean-v1/producer.json` | `256d84e2b86374949bf3f52a2a38a8f8f5235aac246ed80331938019279f6bfe` |
+| `clean-v1/windows-executed/independent-guest-v1.json` | `0eba31229d3f7f0cb991cac4a9acf853c63bd93c7e78fb56fe5aa2f57a2df73f` |
+| `clean-v1/mac-executed/independent-native-v1.json` | `1c16290b692c9ec2ecbeeac05b80dab1f19fa9f6b241a2961833cc5804282f87` |
+| `clean-v1/linux-executed/independent-guest-v1.json` | `4fcb0bc60c5d8e465278a6bf882e8bdb8c77f8836e55b6c0c7426607788fdbf1` |
+| `../ci-37389900000-attempt1/independent-ci.json` | `d1a0e4d6f6604676f155906ea0b5688cb783768d46f68d2cc365c915fd03f641` |

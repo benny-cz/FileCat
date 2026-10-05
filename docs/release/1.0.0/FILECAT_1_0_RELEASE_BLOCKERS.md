@@ -39,11 +39,11 @@ pinned power support rearmed on AC with root restorer PID 19109 at 22:39:22Z, wi
 12-hour/disconnect/explicit-stop restoration. Prior completed restorations remain
 historical; current restoration is due when testing ends (E-ENV-MAC-1).
 
-I147 Windows icon correction is pushed at 6cf17e5 after four original failures;
-identical five-case controls, three portable controls and full host App 365/23
-declared skips pass. Clean native/CI qualification is in progress. Resource limits
-are per source and separate shared/per-item caches; wider consumer/native/frame/
-candidate scopes stay open (E-I147).
+I147 is preliminarily remediated at 6cf17e5: controlled/full host, clean Windows/
+portable Unix inventories with unchanged payload/temp/process checks and all four
+exact-source CI jobs/four server digests/six complete inventories verify. Separate
+shared/per-item cache bounds do not qualify all-consumer/displayed memory, native
+helper/device/UI/frame/AT/hardware or candidate scopes (E-I147).
 
 I144–I146 are preliminarily remediated at cb85f0a: affected/full host, clean
 Windows/macOS/Ubuntu inventories with automatic temp cleanup, all six admission

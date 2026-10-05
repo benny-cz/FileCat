@@ -7,14 +7,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I147 Windows icon demand is corrected at pushed 6cf17e5 after four reproduced
-baseline failures. Identical test DLL changes only App DLL/PDB and passes all five
-Windows source cases; three portable queue/retry/stale/LRU controls also pass.
-Affected 16 pass/one capture skip and full host App 365/23 declared skips/388 cases
-verify. Separate retained/queued cache bounds, four per-item workers and entry
-identity replace unbounded work and stale publication. Clean native/exact-source
-CI qualification is in progress; aggregate borrowed/displayed memory and native
-frame/candidate remain (E-I147). No interaction is currently needed.
+I147 is preliminarily remediated at 6cf17e5 after four reproduced Windows icon
+failures. Identical before/after controls, three portable queue/retry/stale/LRU
+controls and full host 365/23 declared skips/388 cases pass. Clean source/native
+Windows 16/1 capture skip and Mac/Ubuntu 10/7 explicit skips, unchanged payloads/
+owned temp and process checkpoints independently verify. All four exact-source
+CI jobs pass; four server digests/six full inventories/388 exact App names and all
+eight new expected outcomes verify. The timed-out GitHub read stays retained before
+successful bounded read/collection. Broader consumer/native/frame/AT/hardware and
+candidate scopes remain. Disc-image/legacy RAR work continues; no interaction is
+currently needed (E-I147).
 
 I144–I146 are preliminarily remediated at cb85f0a. Shared decoder admission is
 four workers/32 waiters, Unix child runtime diagnostics are disabled to avoid
@@ -115,8 +117,8 @@ source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake su
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
 (E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); actual removal safety/reporting verifies on committed I142 (E-V09-M10);
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
-Progress: **124/147 issue rows preliminarily remediated**, **one Closed**, **22 remain for
-remediation** (including I147 under native/CI validation); **24/26 checklist steps partly or fully open**, all 24 campaigns still need
+Progress: **125/147 issue rows preliminarily remediated**, **one Closed**, **21 remain for
+remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
 final qualification. No candidate or human GO; overall **NO-GO**.
 
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
@@ -2293,6 +2295,20 @@ Overall **NO-GO** remains.
      19109/SleepDisabled observed active, restoration due. VMs stay running, G:
      untouched/HOLD; owner gates remain queued until 08:40 CEST. NO-GO (E-I147).
 
+301. Seal I147 at 6cf17e5: 870 raw Git/source pins; clean native Windows 16/1 capture
+     skip, Mac/Ubuntu 10/7 explicit skips, all eight expected new outcomes, unchanged
+     354/350 payloads and owned temp/test-process checkpoints. Exact CI 37389900000
+     attempt one passes all four jobs; four server digests/six full inventories,
+     388 exact App case names and affected 17-case inventories verify. ARM64 App
+     371/17/388/startup/installer pass by logs. One metadata network timeout retained
+     before bounded successful reads; no product tests rerun/overwritten. Counts
+     125/147 preliminary, one Closed, 21 remain. Start V13 pure UDF/other revisions
+     and legacy RAR naming using owned fixtures; first Mac formatter produces empty
+     images, but generic attachment does not recognize them. No FileCat ran; that
+     attempt and its logs/images are retained before explicit raw-image-class capture.
+     Mac awake v3/restorer stays active, restoration due; VMs running, G: untouched/
+     HOLD, owner gates queued until 08:40 CEST. No candidate/human GO; NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2485,8 +2501,8 @@ Overall **NO-GO** remains.
    Unix native icon cache/queue growth is now corrected at 1559933: actual Ubuntu
    baseline 50,000 entries/43,795 queue peak, corrected 2,538 entries/256 peak/zero
    queued; clean Mac/Ubuntu nine-case inventories and four CI lanes/full inventories
-   verify (E-I143). Windows icons now pass controlled/full host correction at 6cf17e5 (I147),
-   with clean native/CI in progress; all-consumer memory and native frames remain.
+   verify (E-I143). Windows icons pass controlled/full host, clean Windows/portable Unix and all
+   four exact-source CI lanes at 6cf17e5 (I147); all-consumer memory and native frames remain.
    Real timer/list mutation and controlled worker-cap failures now pass working probes, 85 affected cases and
    full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
    scopes remain. Shutdown admission races now pass corrected probes/two new controls/87 affected cases and full
