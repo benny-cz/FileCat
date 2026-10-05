@@ -69,7 +69,12 @@ pass, with log totals rather than per-case TRX. The device opt-in driver is not 
 CI; its actual success is the separately pinned native successor above. I138 is verified
 preliminarily, not Closed.
 
-## Next administrator gate — calibration staged, not executed
+## Historical administrator gate — calibration staged, not executed at this checkpoint
+
+The owner subsequently executes v2. All 18 known operations/native TIDs/FDs and controlled
+bytes/cleanup verify, but all 18 positional offsets fail. The next v5 coverage capture is staged
+separately; current results and credential gate are in [E-V09-M2](E-V09-M2-macos-trace-calibration.md).
+The following staging record retains its original not-executed provenance.
 
 Apple's [fs_usage manual](https://raw.githubusercontent.com/apple-oss-distributions/system_cmds/main/fs_usage/fs_usage.1)
 states that wide output appends the thread ID. The installed manual agrees and is retained with

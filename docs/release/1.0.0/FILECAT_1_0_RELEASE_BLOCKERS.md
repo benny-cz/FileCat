@@ -40,13 +40,16 @@ kernel/zombie census defect I137. Its narrow correction passes affected/full hos
 jobs and Mac 44/7 skips plus five native controls; actual admission succeeds. The subsequent
 whole-file driver failure selects an intentionally partial fixture (I138). Its test-only correction
 passes host, four clean 593583e CI jobs and the complete native Mac session; recovered bytes and
-unchanged source/cleanup verify. Broader I106 remains open. The owner trace pilot ran and
-its synthetic bytes/capture/cleanup verify, but offset/thread/whole-process/child/loss calibration
-and actual fs_usage/authopen remain. Fourteen-second owned-control calibration v2 is staged,
-not executed; owner must launch `~/FileCatReleaseValidation/TraceCalibration-20261005-v2.command`
-in Mac Terminal and enter the Mac password. SSH sudo still requires local administrator authentication.
+unchanged source/cleanup verify. Broader I106 remains open. Owner v2 calibration captures all
+18 known operations/three native TIDs/FDs; sparse bytes and owned cleanup verify. All 18
+positional offsets fail; full-source/child/loss qualification and authopen remain. Four six-second
+future-process/name/child/FD/burst controls are staged, not captured; six ordinary-user complete
+byte controls/four identities/26 pins and cleanup verify. Owner must launch
+`~/FileCatReleaseValidation/TraceCoverage-20261005-v5.command` in Mac Terminal and enter the Mac
+password. SSH sudo still requires local administrator authentication (E-V09-M2).
 Both VMs remain running and G: is untouched/HOLD (E-I136/E-V09-M1/E-I137;
-[E-I138](evidence/E-I138-recovery-trace-fixture-selection.md)).
+[E-I138](evidence/E-I138-recovery-trace-fixture-selection.md);
+[E-V09-M2](evidence/E-V09-M2-macos-trace-calibration.md)).
 
 I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
 real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
@@ -297,7 +300,7 @@ recovery attempt before live UI can proceed. Both VMs remain running; the USB so
 
 | ID | Needed | Status |
 |---|---|---|
-| ENV-01 | Physical Apple Silicon Mac (MAC) | Available at known trusted address, macOS 27.0.1/26A434 arm64. I137 passes native/CI/admission; I138 clean 593583e complete session/bytes/source/cleanup and four CI lanes pass. Owner trace pilot executed; synthetic capture/bytes/cleanup verify, offset/thread/full coverage calibration remains. Fourteen-second v2 control staged, not executed, as TraceCalibration-20261005-v2.command. SSH sudo still needs owner password locally; authopen/native consent and a clean Mac remain. Personal installation, not a clean qualification environment. Earlier identities in E-V12-N1/E-ENV-05/E-I129 |
+| ENV-01 | Physical Apple Silicon Mac (MAC) | Available at known trusted address, macOS 27.0.1/26A434 arm64. I137 passes native/CI/admission; I138 clean 593583e complete session/bytes/source/cleanup and four CI lanes pass. V2 captures 18 controls/three native TIDs/FDs, bytes/cleanup verify, all 18 offsets fail. V5 future-process/name/child/FD/burst controls staged, not captured, as TraceCoverage-20261005-v5.command; six whole-file dry-run controls/four identities/26 pins/cleanup verify. SSH sudo still needs owner password locally; full-source/child/loss trace/authopen/native consent and a clean Mac remain (E-V09-M2). Personal installation, not a clean qualification environment. Earlier identities in E-V12-N1/E-ENV-05/E-I129 |
 | ENV-02 | Physical Windows 11 ARM64 device (WA) for D-48 | None available |
 | ENV-03 | Physical Windows 11 x64 on a GA serviced release for final W64 qualification | Execution host is Insider 26220 (preliminary only) |
 | ENV-04 | Fresh Ubuntu 24.04 and 26.04 desktop VMs (LNX) | **Environment available:** owner authorized updates/reinstalls; clean snapshots and actual GNOME Wayland sessions retained (E-ENV-07). Dev.539 full package matrix passes both SDK-free baselines (E-V19-P2); archives verified. I106 ordinary-name native after and successor CI pass; dev.549 three formats pass successor native checks on existing 26.04 (E-V19-P3). Renamed-apphost audit reproduces a further discovery gap; identity correction, wider recovery/availability audit and exact candidate remain open |
