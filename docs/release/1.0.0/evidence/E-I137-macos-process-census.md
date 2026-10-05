@@ -101,5 +101,6 @@ Private root: the authorized second workspace's `FileCatReleaseEvidence/mac-resu
 The original refusals and trace interpretation limits remain retained. The Mac is a personal
 installation (macOS 27.0.1/26A434 arm64), not a clean qualification environment. Native desktop
 automation remains unavailable. Both VMs remain running, G: remains untouched/HOLD. Progress:
-**115/137 issue rows remediated**, one separately Closed; **24/26 checklist steps partly or fully
+at the I137 checkpoint **115/137 issue rows remediated** (later I138 checkpoint: 116/138),
+one separately Closed; **24/26 checklist steps partly or fully
 open**. No candidate or human GO exists; overall **NO-GO**.
