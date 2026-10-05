@@ -30,13 +30,13 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I134/I135 working corrections pass: explicit no-stream 7z metadata clears false encryption without
-opening member content or bypassing real encrypted data/header refusal. Four new regressions, 98
-Core cases/two declared benchmark skips, four Find cases and identical 78 search/57 content controls
-pass; source/fixture/DLL/case pins verify. I135 canonicalizes only fixture identities under default
-Windows TEMP; all original assertions and failed attempts remain. Shared-profile search throughput/
-cancellation benchmark passes. Clean committed-source CI/Windows/Ubuntu, native/AT and candidate
-qualification remain (E-I134/E-I135).
+I134/I135 are verified preliminarily at clean 3caf480: metadata-only no-stream handling preserves
+real encrypted data/header refusal; test-only fixture canonicalization retains all assertions.
+The identical 78 search/57 content controls, affected host checks, four clean CI jobs and all 71
+SDK-free cases per Windows/Ubuntu guest pass. Four server digests/six TRX inventories and all native
+source/fixture/payload/output/case/process/temp pins independently verify. Failed attempts stay
+retained; shared-profile throughput/cancellation passes. Native desktop/AT, independent remaining
+ISO/UDF/multipart corpus, reference hardware and candidate qualifications remain (E-I134/E-I135).
 
 I133 unknown-length size criteria now pass verified preliminary revalidation at clean 578a0ed.
 Twelve baseline failures/six controls, eighteen corrected production observations, affected/full

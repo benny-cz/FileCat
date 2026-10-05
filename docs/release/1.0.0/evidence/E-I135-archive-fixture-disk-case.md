@@ -2,7 +2,7 @@
 
 **Requirement:** V13, reliable identity/case validation.
 **Severity/disposition:** Low, validation reliability; must fix.
-**Status:** remediated; same-default-TEMP affected validation passes; clean CI/native next.
+**Status:** remediated at `3caf480`; verified preliminary test repair on host, clean CI and both VMs.
 **Baseline:** committed I133 tests at `578a0ed`, with the separately retained I134 Archives working overlay.
 
 An affected 100-case archive run passes 89, skips two declared benchmarks and fails nine I133 initial
@@ -30,3 +30,12 @@ the unchanged thirteen-format corpus are independently verified in `i134-working
 App compilation misses the namespace import and is retained as failed; the corrected build passes.
 I134's separate production overlay remains explicitly pinned. Clean CI/native/candidate revalidation
 remains; no product path behavior was changed for I135.
+
+Clean `3caf48088a4aaeed1ebd471b1c4aaf9266dd9dde` passes all four required CI jobs. All twenty I133
+Core cases pass without skips in Windows' full inventory; all four Find cases pass without skips
+in each Windows/Ubuntu/macOS App inventory. Four artifact server digests/six complete TRX inventories
+verify. Both SDK-free Windows/Ubuntu guests pass all 71 affected archive/Find cases, including these
+controls, with zero skips. Source/fixture/payload/case/output pins and post-bootstrap process/temp
+cleanup independently verify. Combined CI/native proof hashes and full scope are in
+[E-I134](E-I134-empty-7z-members.md). Original failed runs remain failed; native/AT/candidate obligations
+are not closed, and I134's separate production correction retains its own identity.

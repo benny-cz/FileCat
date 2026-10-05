@@ -2,7 +2,7 @@
 
 **Requirement:** V10/V13, ARCH-001, PI-05; truthful archive metadata and readable supported members.
 **Severity/disposition:** Medium, core archive correctness; must fix.
-**Status:** remediated; corrected identical corpus and working affected tests pass; clean CI/native next.
+**Status:** remediated at `3caf480`; verified preliminarily on host, clean CI and both VMs.
 **Baseline:** actual committed Core/Archives/Recovery DLLs from clean
 `578a0edd06f1269b235ef21ce91ec38280833f3c`; other private probe dependencies retain the pinned fdb17b4 baseline.
 
@@ -75,3 +75,32 @@ Clean committed-source CI/native and final-candidate requirements remain; overal
 Working derived-count proof SHA-256 `f836cffe030e58578f12fe6888d67d0083ef35eec55a508b912c7fb03442172c`.
 Benchmark run/cleanup SHA-256 `d5b204be3acdd81bcae1770a18c168393b9add4f2983f90f5df2f82d4b7b9859` /
 `9cd68237d292644417ac9ed2d4b48753b5d1232b02cce43c643ec84c1f4ec6f0`.
+
+## Clean committed-source validation
+
+Exact source `3caf48088a4aaeed1ebd471b1c4aaf9266dd9dde` passes all four required CI jobs in
+[run 37247589861](https://github.com/benny-cz/FileCat/actions/runs/37247589861).
+Four downloaded artifacts match server SHA-256 digests; six complete TRX inventories verify all
+case outcomes and declared skip reasons. All 67 affected Core cases, including all four new empty/
+encrypted controls and twenty I133 controls, pass without skips in Windows' Core inventory.
+All four affected Find cases pass without skips per Windows/Ubuntu/macOS App inventory.
+Complete Windows Core passes 777/824 with 47 declared skips; Windows App 330/345 with 15 skips;
+each Unix App lane 302/345 with 43 skips. ARM64 Core/App, package start/render and installer checks
+pass with log totals; no per-case ARM64 or Unix Core TRX is claimed. Three tag/manual package jobs skip.
+Private `ci-37247589861/independent-ci.json` SHA-256
+`7f2fdb9d6aadc85df4bed233f7144cc03526460b7a61a6b15d522bbd57c0e4e4`.
+
+Clean self-contained producers execute all **67 Core plus four Find controls without skips** on
+Windows Insider 26300 (same pinned VM UUID, Admin/elevated) and Ubuntu 26.04.1 x64 (benny/UID 1000).
+All 1,268 Windows/693 Linux payloads, 1,269/694 ZIP members, eighteen canonical source exports per
+lane and four byte-exact fixture Git blobs independently verify. Native/host case inventories match;
+input, retrieved output and source hashes verify. Tracked bootstrap/controller/test/initial-observer
+processes and owned fixture files are absent; independent PowerShell/read-only root censuses verify
+the owned executable-path scope after bootstrap exit. Both corrected observer stages pass.
+Private `i134-guests-independent-v1.json` SHA-256
+`8f28aed0f02ec60bc234aefd40cbf2f53bfcf190c17ea670e7cd5c35bdd9145b`.
+
+All original failed tests/private attempts remain retained. This qualifies preliminary behavior and
+the pinned compatibility workaround; native desktop/AT, remaining independent ISO/UDF/multipart
+corpora, final release artifacts and candidate qualification remain. Mac is deferred, both VMs stay
+running and G: stays untouched/HOLD. No candidate or human GO exists; overall **NO-GO**.
