@@ -13,7 +13,10 @@ three lanes pass. A private four-worker saturation reproduces that entry timeout
 same case passes with a dedicated worker and every original deadline/assertion preserved.
 Eight affected host cases and full App 341/23 declared skips pass with command exit zero.
 The historical CI scheduler state is unknown; failed setup/supervisor attempts remain retained.
-Successor native ARM/four-lane CI is pending (E-I139). Progress: **117/139 issue rows remediated**,
+Clean 6509eff successor CI passes all four required lanes, including native ARM64 App
+347/17 declared skips, startup/drawing and installer compilation. Four server digests/six
+full inventories and 24 affected cases verify; ARM64 has log totals, no per-case TRX.
+Physical ARM64/candidate qualification remains (E-I139). Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/GO; NO-GO.
 
 I138 repairs the whole-file trace driver's fixture choice and finished-state wait. I137's clean
@@ -35,18 +38,28 @@ identities still refuse. Host affected/full App, four clean f623297 CI jobs and 
 server digests/six full TRX inventories, 843 exports/1,516 payloads/1,517 ZIP members and owned
 cleanup verify. Actual admission succeeds; I138 is the later driver failure. Broader I106 remains open (E-I137).
 
-The owner executes v2 fs_usage calibration: all 18 controlled read/write operations, three
-native TIDs/FD lifetimes, six sparse byte ranges and owned cleanup verify. All 18 positional
-offset checks fail; reported high bits follow byte count and lose the actual high offset bits.
-No offset correction or full-source/child/zero-loss claim is accepted. Four six-second future
-process/name/child/FD/burst controls are staged as
-`~/FileCatReleaseValidation/TraceCoverage-20261005-v5.command`; privileged capture is not executed.
-After two retained compilation failures, existing SDK 15.2 builds the probe without warnings;
-ordinary-user six complete file-byte controls/four identities/26 pins and cleanup verify.
-SSH sudo still needs the owner's Mac password locally; execution stops at that credential gate
-after sealing this slice (E-V09-M2). Docs-only 161c488 CI passes all four required jobs.
-E-V09-M1's prior 86 clean Mac passes and failed session with zero opens remain historical evidence.
-Both VMs stay running and G: stays untouched/HOLD. Progress at the preceding checkpoint: **116/138 issue rows remediated**,
+The owner executes v2, v5 and v6 instrument controls. V2's 18 formatted positional offsets
+fail; no correction is guessed. V5 captures future parent/child/name/FD/burst controls:
+432 selected known operations, 24 complete files, 72 pins and 17 owned absences verify.
+Parent-only names omit the differently named child; shortened names omit the full-name parent.
+V6 raw capture verifies 233 known calls, five processes/seven native TIDs, all eighteen full
+64-bit sparse offsets, six files/six ranges, 46 pins and nine owned absences. Three known
+mmap/msync pairs lack backing FD/offset; MAP_UNIX03 is not a packed FD. Loss markers are
+absent in that finite capture, not a whole-source/zero-loss qualification (E-V09-M2).
+
+Actual v8 and v9 full-session attempts both fail conservative census admission with zero
+source opens. V9 preserves the normal SSH account/groups; its four /usr/bin/sudo read
+attempts fail EACCES. Independent ordinary-user control verifies mode 04511/read errno 13;
+the same current production census is false after the sudo launchers exit. This is a
+concrete blocker, not proof of the sole historical cause. All 77 v9 pins/15 owned absences,
+source bytes and detachment verify. V8's 68 pins/twelve owned absences remain retained.
+No production guard is weakened and neither failure supplies recovery/trace qualification.
+V10 elevation preflight fails before recorder/App/device starts; sudo -b retains its monitor.
+A cleanup argv mismatch is retained, and identity-checked manual watcher cleanup/owned absence
+verify. V11 uses a separate-session detached child; an ordinary-user harmless control verifies
+its parent/session/group/exit/absence. All 1,196 payload pins/26 inputs/six files/four control
+absences verify. Owner-local sudo for v11 is the current credential gate (E-V09-M3).
+Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
 
@@ -1702,6 +1715,46 @@ Overall **NO-GO** remains.
     I139 preliminarily remediated; successor CI pending. Progress 117/139 remediated, one Closed,
     24/26 steps partly/fully open. Both VMs running, G: untouched/HOLD, no candidate/GO (E-I139).
 
+268. Clean 6509eff CI 37301404065 passes all four required jobs. Windows App 347/17 skips,
+    Ubuntu 319/45, macOS 321/43, each 364 cases; all 24 affected available-inventory cases pass.
+    Native ARM64 App 347/17 skips plus package startup/drawing/installer compilation pass;
+    no ARM per-case TRX artifact exists. Four server digests/six complete inventories verify
+    (private proof 505e367a31d2d3e786097885ca73bb4bc227ec3c009260413cabe2ea970a9831).
+    Three tag-only package jobs skip. I139 verified preliminarily; physical/candidate remain.
+
+269. Owner v5/v6 controls execute. V5 verifies 432 selected calls/24 files/72 pins/seventeen
+    owned absences and shows parent-name/shortened-name omissions. V6 verifies 233 known calls,
+    five processes/seven TIDs, all eighteen true 64-bit sparse offsets, six files/six ranges,
+    46 pins/nine owned absences. Three raw mmap/msync pairs omit backing FD/offset; no packed-FD
+    inference is made. Finite loss-marker absence does not qualify whole-source tracing.
+    V7 misses a manifest member before execution; fresh v8 stages all 1,196 payload pins.
+    Actual v8 refuses admission before opening any source; 68 pins/twelve owned absences,
+    unchanged source/detachment and 318 flavor-2 plus 318 flavor-6 EPERM queries verify.
+    Its root-origin cleared groups are observed, not proved as the sole cause (E-V09-M2/M3).
+
+270. V9 stages all 1,196 payload pins/25 transport inputs and preserves ordinary SSH UID 501,
+    GID 20/account groups. Actual session still refuses census admission, zero source opens;
+    77 retained pins/fifteen owned absences/source/detachment verify. Four executable reads
+    of /usr/bin/sudo fail EACCES; independent ordinary-user read control confirms mode 04511,
+    errno 13. The same production census returns false after launchers exit. Cleared groups
+    are not a sufficient explanation; sudo is a concrete conservative admission blocker.
+    First detached-harness staging SSH timeout is retained. Owner restores connection; fresh
+    v10 verifies 1,196 native payload pins/25 transport inputs/six whole files/four owned
+    control absences. Detached sudo/nohup launcher checks sudo absence before recording,
+    leaving production guard unchanged. Ordinary watcher armed; owner-local sudo is pending.
+    No safeguard change/new issue/qualification claim. Progress 117/139 remediated,
+    one Closed, 24/26 steps partly/fully open. VMs running, G: HOLD, no candidate/GO (E-V09-M3).
+
+271. Owner v10 fails fifteen-second sudo-exit preflight before recorder/App/device starts:
+    sudo -b retains its elevation monitor. Cleanup rejects framework Python's rewritten
+    executable path; identity-checked manual watcher SIGTERM/owned-command absence and
+    seven native records verify. V11 separate-session double fork lets the elevation parent
+    exit. Harmless UID-501 control confirms parent 1/native session/group, zero exit and
+    detached child absence, without App/device/trace. Fresh 1,196 native payload pins/26
+    inputs/six complete files/four control absences verify. Cleanup records/matches actual
+    process identity and launch time. Ordinary watcher armed, owner-local sudo pending;
+    no guard change/new issue/qualification. Counts and NO-GO unchanged (E-V09-M3).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -1920,13 +1973,16 @@ Overall **NO-GO** remains.
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
    and file traces of browsing (E-V24-D1, E-V24-D1-F1).
-2. V09 on macOS: I137 passes native/CI/actual admission and I138's clean complete session/bytes
-   pass. V2 captures 18 controls/three native TIDs/FDs; all 18 positional offsets are inaccurate.
-   Owner must launch staged `~/FileCatReleaseValidation/TraceCoverage-20261005-v5.command`
-   in the Mac Terminal and authenticate locally. Qualify future-process/name/child/FD/burst
-   coverage and loss handling before full `fs_usage` and authopen (E-V09-M2).
-   Broader I106 remains open. The installed
-   helper path, device removal; approval refusal on Windows (UAC; the lent VM elevates without asking).
+2. V09 on macOS: I137/I138 native admission/complete-session/bytes pass at their own
+   identities. V2 formatted offsets fail; v5 name selectors omit controls; v6 raw offsets
+   verify but mappings omit source FD. Actual v8/v9 fail conservative census admission,
+   zero opens; v9 proves the sudo executable is unreadable. Owner must launch verified
+   ~/FileCatReleaseValidation/TraceSession-20261005-v11.command and authenticate locally.
+   The detached elevation/sudo-exit preflight harness is staged; capture remains pending. Retain every
+   failed run and require independent process/descriptor/loss/source-write interpretation
+   after a complete session. Authopen/native/candidate remain (E-V09-M2/M3).
+   Broader I106 remains open. The installed helper path, device removal and Windows approval
+   refusal still need qualification (the lent VM elevates without asking).
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.

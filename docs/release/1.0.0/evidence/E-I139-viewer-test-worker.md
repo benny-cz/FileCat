@@ -42,7 +42,15 @@ full-suite supervisor had a three-minute limit: its command exit was not capture
 the surviving test process subsequently produced the same passing complete TRX. That
 attempt is retained separately. A fresh repeat with sufficient command supervision passes;
 no test deadline is increased. Full case IDs, output and skip reasons are independently
-checked. Native ARM64 successor CI is still pending at this checkpoint.
+checked. The clean correction is `6509eff74583db81355bcee5e5c96446e9b3b8d3`.
+[Successor CI 37301404065](https://github.com/benny-cz/FileCat/actions/runs/37301404065)
+passes all four required lanes. Native ARM64 App passes **347/364**, with **17 declared
+skips**, zero failures; package startup/drawing and installer compilation pass. ARM64 has
+no per-case TRX artifact, so its log summary is retained without inventing that inventory.
+Other complete App inventories are Windows 347/17 skips, Ubuntu 319/45 and macOS 321/43,
+each 364 cases. All eight affected cases pass in each of those three lanes. Four server ZIP
+digests and six full TRX inventories independently verify. Three tag-only package jobs skip.
+This CI runner does not provide required physical ARM64 release qualification.
 
 Private base: authorized second workspace's `FileCatReleaseEvidence/mac-resume-20261005`.
 
@@ -57,5 +65,10 @@ Private base: authorized second workspace's `FileCatReleaseEvidence/mac-resume-2
   `2efc8a6038be408119ba8ae00ccd8caf5641465461a6280c53df8532340bdec7` /
   `23ee82cac17fba051667e6d1fea15e0c6dc3e233f0270e8dbe72c928f540528d`.
 
-I139 is remediated preliminarily, not Closed. No native desktop, physical device or release
+- `../ci-37301404065/independent-ci.json` SHA-256
+  `505e367a31d2d3e786097885ca73bb4bc227ec3c009260413cabe2ea970a9831`:
+  exact corrected source/run/job identities, four server digests, six complete inventories,
+  24 affected case passes and the separate ARM64 logs/startup/installer checks.
+
+I139 is remediated and verified preliminarily, not Closed. No native desktop, physical device or release
 candidate qualification is claimed. Stable publication remains **NO-GO**.
