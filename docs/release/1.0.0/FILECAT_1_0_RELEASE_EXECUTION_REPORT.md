@@ -7,6 +7,42 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I145/I146 follow-up validation is in progress. Clean f017a94 Windows guest passes
+25/25; clean native Mac/Ubuntu each pass 24/one declared Windows-only skip, but their
+temp observers expose 62/64 orphan runtime debugger FIFOs. Owned type/mode/UID/PID
+absence, unchanged original results/payloads and strict observer cleanup independently
+verify; automatic production cleanup has not passed. Unix workers now suppress
+runtime diagnostics, matching the existing Windows policy (working I145).
+CI 37384217205 passes Mac/Ubuntu/ARM64 but Windows fails one existing picture-device
+case. Four server digests/six full inventories preserve that failure and all six new
+admission cases pass on each available App inventory. A nine-second controlled delay
+reproduces legitimate default-watchdog replacement and the fixture's wrong late
+assertion; a fixture-only one-minute threshold gives two passes with all production
+bytes identical. Historical CI watchdog timing is inferred, not observed. Working
+I146 keeps every source/read/healthy-device/lifetime assertion; affected host 25 pass,
+full host/successor clean native/CI are pending (E-I145/E-I146).
+
+I144 is committed at f017a94 after eight held actual-file requests start eight owned
+Windows decoder processes. Shared admission now allows four workers and 32 waiters;
+canceled queued requests start no worker/read, excess demand reports a reason, and
+admission is retained until the worker actually exits. Four identical integration
+cases fail with baseline App DLL and pass with corrected App DLL; two admission/race
+controls, affected host 25 and full App 357/23 declared skips pass. Clean native and
+exact-source CI collection are pending. Original compile/observer failures retained
+(E-I144); aggregate displayed bitmap memory/Unix sandbox/frame/candidate remain open.
+
+The owner requested unattended execution until 2026-10-06 08:40 CEST (06:40 UTC),
+with interaction gates queued for later. Temporary same-chat continuation and a
+one-time 08:40 check-in are created and their saved configurations verified. No
+interaction is currently requested. Windows Computer Use import was rechecked and
+still fails with the trusted Node process exiting before input. Native desktop/tool
+repair, owner decisions/credentials, reference hardware and phone-lock interaction
+remain queued; all other executable work continues. Mac SSH UID 501 is available;
+fresh bounded awake support is applied on AC at 22:39:22Z using the identical pinned
+controller. Root restorer PID 19109 is verified before application; restoration is
+due when Mac testing ends, AC disconnects or the 12-hour watchdog expires. No new
+closed-lid observation is claimed (E-ENV-MAC-1).
+
 I143 committed remediation at 1559933 follows a real Ubuntu production icon-budget failure:
 50,000 requests retain 50,000 entries and observe a 43,795 waiting-queue peak. Linux/Mac
 now use a 4,096-entry LRU, nonblocking 256-request queue and entry identity for stale
@@ -29,8 +65,8 @@ preferences, native sleep reenabled and root restorer absent. The original timed
 ordinary caffeinate remained active for the clean Mac check. AC returned and a fresh
 verified controller rearmed bounded support; at 22:05:25Z the exact root restorer was
 signaled, original settings independently verified restored, and the exact owned
-caffeinate stopped. Both root restorers and caffeinate are absent. No temporary Mac
-power change remains from this slice (E-ENV-MAC-1). Fresh gui/501 refusal-driver preparation verifies 201 input/21
+caffeinate stopped. Both prior root restorers and caffeinate were verified absent. No temporary Mac
+power change remained when that earlier slice ended (E-ENV-MAC-1). Fresh gui/501 refusal-driver preparation verifies 201 input/21
 retained pins, normal UID/groups, seven golden ranges, read-only closure, agent removal,
 source/detachment and three absences. Actual desktop-session refusal now independently passes on the committed component:
 no source/no timeout, two EACCES source opens, native helper cancellation/channel closure,
@@ -80,8 +116,8 @@ source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake su
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
 (E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); actual removal safety/reporting verifies on committed I142 (E-V09-M10);
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
-Progress: **121/143 issue rows preliminarily remediated**, **one Closed**, **21 remain for
-remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
+Progress: **121/146 issue rows preliminarily remediated**, **one Closed**, **24 remain for
+remediation** (including I144–I146 under native/CI validation); **24/26 checklist steps partly or fully open**, all 24 campaigns still need
 final qualification. No candidate or human GO; overall **NO-GO**.
 
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
@@ -2200,6 +2236,36 @@ Overall **NO-GO** remains.
     remediation, one Closed, 21 remaining; checklist 24/26 partly/fully open. No
     further Mac interaction queued, VMs running/G: untouched; no candidate/GO; NO-GO.
 
+297. Queue owner-requested unattended execution and the one-time 08:40 CEST check-in;
+    defer human-interaction gates and continue unblocked work. Rechecked supported
+    Windows Computer Use import still exits before input. V12's aggregate picture
+    audit exposes I144: eight held owned PNG requests start eight Windows workers.
+    Commit/push f017a94 shared four-worker/32-waiter admission and actual process-exit
+    ownership. Four identical test-DLL cases fail with baseline App DLL and pass
+    with corrected App DLL; native corrected worker peak four verifies. Two extra
+    queue/cancellation-race controls, affected 25/full host App 357/23 declared skips
+    pass. Original compile error, post-release fixture timing failure and finite
+    collector assumption failure remain retained; fixture bytes/cleanup preserved.
+    Clean native/CI collection pending. Mac UID 501 SSH works; owned pinned root
+    controller freshly rearmed on AC with PID 19109/12-hour and disconnect restore.
+    Restoration due when testing ends. Counts 121/144 preliminary, one Closed,
+    22 under remediation/validation; 24/26 checklist partly/fully open; NO-GO.
+
+298. Preserve f017a94 CI 37384217205: Mac/Ubuntu/ARM64 pass; Windows has one
+    existing device-demand failure. All four server digests/six full inventories
+    verify and all six new admission cases pass. Clean Windows guest 25/25 and
+    native Mac/Ubuntu 24/one Windows-only skip pass; original temp observers fail
+    on 62/64 orphan runtime debugger FIFOs. Independent strict owned FIFO cleanup
+    verifies types/modes/UIDs/absent producers and unchanged original tests/payloads.
+    I145 applies the existing Windows no-diagnostics policy to Unix workers.
+    I146's forced nine-second delay reproduces one old fixture failure/one positive;
+    fixture-only threshold correction yields two positives with only test DLL/PDB
+    changed. Original CI timing remains inferred; every acceptance assertion kept.
+    Working affected 25 pass; full host/successor native/CI pending. Raw Git 864
+    blobs/source archive/350 Unix and 354 Windows payloads remain pinned. No owner
+    interaction needed/requested; temporary awake support remains restore-due.
+    Counts 121/146 preliminary, one Closed, 24 under remediation/validation; NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2385,7 +2451,9 @@ Overall **NO-GO** remains.
    Picture feeds now retain active sources after cancellation and release closed F3 bitmaps (I121 working/full
    host, clean CI and 34 guest controls pass). Controlled per-device feeds now pass working/full host cases
    and 36 clean guest cases/four successor CI lanes/all affected controls (I122; original synchronization failure retained);
-   watchdog/hard-cap, aggregate decoders, other direct Source use and wider queues remain open.
+   watchdog/hard-cap and other direct Source use/wider queues remain open. Aggregate
+   decoder process admission is committed at f017a94 with working/host controls passing;
+   clean native/CI validation and aggregate displayed bitmap memory remain (E-I144).
    Unix native icon cache/queue growth is now corrected at 1559933: actual Ubuntu
    baseline 50,000 entries/43,795 queue peak, corrected 2,538 entries/256 peak/zero
    queued; clean Mac/Ubuntu nine-case inventories and four CI lanes/full inventories

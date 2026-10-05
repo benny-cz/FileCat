@@ -30,6 +30,28 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
+Owner-requested overnight execution queues interactions until 2026-10-06 08:40 CEST.
+Same-chat continuation and a one-time check-in are configured. Supported Windows
+Computer Use import was rechecked and still crashes before input; desktop/tool
+restoration, phone-lock interaction, reference hardware and A/B decisions/credentials
+remain queued. No current question is pending. Mac ordinary SSH works; temporary
+pinned power support rearmed on AC with root restorer PID 19109 at 22:39:22Z, with
+12-hour/disconnect/explicit-stop restoration. Prior completed restorations remain
+historical; current restoration is due when testing ends (E-ENV-MAC-1).
+
+I145/I146 follow-up qualification is pending: committed f017a94 native tests pass
+on all three targets, but Unix debugger-FIFO cleanup fails. Working Unix policy
+correction and the isolated picture fixture watchdog correction pass affected host
+25 cases/controlled unchanged-production failure-before/pass-after checks. Original
+Windows CI failure is retained; successor clean native/CI remains required.
+
+I144's unbounded picture workers are corrected in committed f017a94. Original eight
+owned Windows workers, four identical before-fail/after-pass cases/corrected peak
+four, two admission/race controls, affected 25/full host App 357/23 declared skips
+verify. Clean native/CI collection remains pending; aggregate displayed bitmap,
+Unix containment/native/frame/candidate evidence remains open (E-I144).
+
+
 I136 is verified preliminarily at clean a1c265f. The numbered-volume gap warning preserves
 independent ISO/Joliet/UDF 1.02 and complete RAR 54 search/72 content controls plus safe refusals.
 Affected host checks, four clean CI jobs and all 81 cases per VM pass. Four server digests/six

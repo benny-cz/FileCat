@@ -180,3 +180,19 @@ Private `mac-lid-awake-v2/independent-final-restoration-v1.json` is
 `a1d5ef6eddab69be2c9a0fcfc47ab042303fa4daed665a32d2b435c2fb33e244`;
 actual native `retrieved/restoration.json` is
 `d69248ab05e9790be3f635a2544e2f432846ad1df45a35cca049aeab786e96d8`.
+
+## Fresh overnight support, 2026-10-06
+
+The owner's unattended-work instruction authorizes the fresh rearm after both prior
+restorations. Mac SSH returns UID 501. At 2026-10-05 22:39:22.785192Z the byte-identical
+controller verifies AC power, the originally absent key and unchanged unrelated
+preferences, then applies support after verifying root restorer PID 19109. Native root:
+`/Users/benny/FileCatReleaseValidation/lid-awake-3fd85544c94044caad8496b054621499`.
+The existing 12-hour/AC-disconnect/explicit-stop restoration policy applies. Restore
+and independently verify baseline preferences/native runtime state when Mac testing
+ends. No caffeinate is reintroduced and no fresh closed-lid test is claimed.
+
+Private `mac-resume-20261005/mac-lid-awake-v3/apply-transport.json` SHA-256: `085c74cfc8c2b5bbdd549f89276c1e3898e5e609f2fe5895cf029fba26f97d24`.
+Controller SHA-256 remains
+`12230699540f5ed370feb28db7210883ee3ba055238c53b437d4e7435cc73cb0`.
+No new remote-control service or permanent startup service is installed.
