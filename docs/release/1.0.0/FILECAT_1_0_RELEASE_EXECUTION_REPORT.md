@@ -7,12 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-Latest 34112ac CI passes Windows/Ubuntu/ARM64 but fails one Mac viewer entry checkpoint.
+The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
+required jobs. Four server digests/six complete inventories/24 affected cases independently
+verify. ARM64 App 347/17 declared skips and package checks pass by logs; physical
+qualification and ARM64 per-case TRX remain unavailable.
 I139's follow-up finds the timer starts before initial page detection completes. Four
 controlled HTML/Markdown timeouts reproduce; page availability fixes all eight cases with
 original assertions/deadlines. The exact corrected placement, eight actual host cases and
 full App 341/23 declared skips pass with command exits zero. Test-only correction;
-clean successor CI pending (E-I139). Historical CI timing remains unknown.
+clean successor CI verified (E-I139). Historical CI timing remains unknown.
 
 I139 corrects a scheduling dependency in the deliberately blocking HTML/Markdown viewer
 validation worker. The 63e7af8 native ARM64 CI lane times out before read entry; the other
@@ -78,9 +81,15 @@ Root syscall inventory returns header-only exit zero/SIP failure; no control/cap
 Process-level v4 inventory succeeds but numeric formatting fails before mappings. V5
 root recorder/ordinary worker exit zero, all three known FD/offset/address mapping controls,
 whole 32-KiB bytes, 32 native pins/three absences and SIP enabled verify (E-V09-M4).
-Historical v12 mappings remain unresolved; actual combined-session coverage must follow.
-Docs-only 09e42e7 historical CI passes all four required jobs with verified inventories.
-Latest 34112ac Mac CI failure and test-only remediation are recorded above.
+Historical v12 mappings remain unresolved. New v13 combined capture passes actual recovery
+1/1/whole bytes/source/cleanup, with 1,197 payload/117 retained pins and every recorded
+worker/recorder/decoder exit zero. Raw 3,171,197 events/136.463 seconds, 430 controls/twelve
+files and 33 App native TIDs match. All 77 shared mapping FDs/offsets resolve: 75 observed
+filesystem paths/two shared-memory objects. Two read-only source lifetimes have eight
+reads/264,192 bytes and no observed writes/aliases/forks/mappings. 43 unmatched private
+maps precede the source opens and stay retained. Broader helper/authopen/topology/native/
+candidate qualification remains (E-V09-M5). Twenty-one tracked owned, fifteen derived
+children and one image-attachment daemon are absent. Clean e7a1e7e CI is verified above.
 Both VMs stay running and G: stays untouched/HOLD. Progress: **117/139 issue rows remediated**,
 one separately Closed; **24/26 checklist steps partly or fully open**. No candidate/human GO;
 overall NO-GO.
@@ -222,7 +231,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I138 at clean 593583e, the §14 checklist has the following conservative gate status.
+After verified preliminary remediation through I139 at clean e7a1e7e, the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -235,7 +244,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **116 of 138 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **117 of 139 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -249,8 +258,8 @@ Exact source/input/artifact/case inventories and owned cleanup verify. Both earl
 remain retained; controlled reproductions do not establish their exact historical event triggers.
 
 The checklist remains 24 partly/fully open steps; its I128 derivation is retained. Latest evidence is
-in E-I138 (complete native Mac recovery, bytes/source/cleanup and four CI lanes) and E-V09-M2
-(18 captured control operations/18 failed offsets; future-process v5 capture staged, not executed).
+in E-I139 (verified clean e7a1e7e four-lane CI) and E-V09-M5 (actual Mac combined
+raw/mapping session, all shared mapping FDs resolved and retained qualification limits).
 Earlier records keep their own provenance and limits.
 Overall **NO-GO** remains.
 
@@ -1813,6 +1822,28 @@ Overall **NO-GO** remains.
    remedy and eight actual host/full App 341/23 skips pass; 45 pins/full inventories verify.
    Original assertions/deadlines remain; clean successor CI pending, no candidate/GO (E-I139).
 
+276. Clean e7a1e7e CI 37321377008 passes all four required jobs. Four server ZIP digests,
+    six complete TRX inventories and all 24 affected viewer cases verify. App Windows
+    347/17 skips, Ubuntu 319/45 and Mac 321/43 each total 364. ARM64 App 347/17 skips,
+    startup/drawing and installer compilation pass by logs; no per-case ARM TRX/physical
+    qualification is invented. Three tag-only package jobs skip. I139 remains remediated
+    preliminarily, not Closed; original Mac/ARM failures and setup observers stay retained.
+
+277. Owner v13 combined Mac capture passes actual recovery 1/1, exact generated 60 bytes,
+    70-second wait, source unchanged/detached/temp clean. Byte-identical alias/1,197 native
+    payload pins and 117 retained pins verify; all worker/recorder/decoder exits zero, no
+    supervisor failure/forced cleanup. Raw 3,171,197 events/136.463 seconds, 430 I/O controls/
+    twelve whole files/33 native App thread births and future-process mapping controls match.
+    All 221 library mapping pairs uniquely match raw records; all 77 shared mappings have
+    observed backing FDs/offsets, 75 filesystem paths/two shared-memory origins. Source FD
+    166 probe reads nothing; FD 140 has eight reads/264,192 bytes/two size queries, no
+    observed writes/aliases/forks/mappings while open. Forty-three unmatched private maps
+    precede source opening. Twenty-one tracked/fifteen derived children/one attachment
+    daemon absences verify. Independent verifier assumptions/failures remain pinned; native
+    outputs unchanged. Broader helper/authopen/topology/native/candidate qualification open.
+    Counts remain 117/139 remediated, one Closed, 24/26 steps open. VMs running, G: HOLD,
+    no candidate/GO (E-V09-M5).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
@@ -2031,14 +2062,13 @@ Overall **NO-GO** remains.
    candidate's installed files. (`.lnk` targets on a share held, E-V24-G1-I1.) Done so far: the Git, icon and gpg
    routes (E-V24-G1), the tool route with a recording program (E-V24-G1-T2), the discovery parsers, and the process
    and file traces of browsing (E-V24-D1, E-V24-D1-F1).
-2. V09 on macOS: v12 actual session/bytes/source/cleanup and finite raw/FD observations
-   verify (E-V09-M4). Its 79 shared mapping FDs remain unresolved. Actual root syscall
-   inventory is unavailable under SIP. Process-level v5 calibration now verifies three
-   known FD/offset/return mappings and whole-file bytes with SIP enabled. Prepare an exact
-   actual-session capture with simultaneous raw/process mapping events, positive controls
-   and independently checked lifecycle/descriptor/loss coverage. Preserve all earlier
-   supervisor/instrument/setup failures. No full-source/authopen/native/candidate pass yet.
-   Broader I106, installed helper/removal/Windows approval refusal remain.
+2. V09 on macOS: v13 actual combined capture/controls/recovery/bytes/source/cleanup and
+   all recorded command exits verify (E-V09-M5). All 77 shared mapping FDs/offsets resolve;
+   43 unmatched private maps remain explicit. No source-FD writes/aliases/forks/mappings
+   observed. Historical v12 gaps/failures remain in E-V09-M4. Continue broader helper,
+   native authopen approval/refusal/removal and adverse topology qualification with SIP
+   enabled; do not infer those passes from ordinary-image recovery. Native consent needs
+   owner-local interaction. Broader I106, installed helper/Windows approval refusal remain.
 3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
    independent file, network and process evidence.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.

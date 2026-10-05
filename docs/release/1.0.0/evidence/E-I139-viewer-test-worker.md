@@ -78,7 +78,15 @@ timer again after initialization, and asserts the created page exists. Productio
 dependencies, workflow, byte/lifetime assertions and every deadline remain unchanged.
 The exact corrected placement passes all eight delayed-start controls. Actual host affected
 **8/8** and full App **341/364, 23 declared skips** pass, zero failures, command exits zero.
-Clean successor CI remains pending at this checkpoint.
+Clean successor `e7a1e7ee4c14b76418c42833e558a653d01db86b` passes all four required jobs
+in [CI 37321377008](https://github.com/benny-cz/FileCat/actions/runs/37321377008). Four server
+ZIP digests, six complete TRX inventories and all 24 affected Windows/Ubuntu/macOS cases
+verify. App totals are Windows 347/17 declared skips, Ubuntu 319/45 and macOS 321/43,
+each 364 cases. Native ARM64 App 347/17 skips, startup/drawing and installer compilation
+pass by retained logs; no ARM64 per-case TRX or physical qualification is invented.
+Three tag-only package jobs skip. Private `../ci-37321377008/independent-ci.json` SHA-256
+`32ceedaca7634b3a7702dc32cf31ef7f476bdedde7c4a87f4a7a2b699994be79` preserves
+exact source/run/job/artifact/case identities. The original failed Mac run stays retained.
 
 Private `i139-ready-independent-host-v1.json` SHA-256
 `774631d971b5648bdf98dedd1133fcf5d6f4607801625819576ee43523f246f0` retains

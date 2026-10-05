@@ -108,8 +108,10 @@ No FileCat or source device runs in this calibration.
 
 This qualifies only the observed library probes for one C process/one native thread. It
 neither resolves the historical v12 mapping FDs nor proves future-process/direct-syscall
-coverage. Next work is a pinned actual-session capture with process mapping and retained raw
-kernel events, matching every actual mapping/lifecycle/control before any source-write claim.
+coverage. At this v5 checkpoint, the next work was a pinned actual-session capture with process mapping
+and retained raw kernel events. That new v13 execution now verifies in
+[E-V09-M5](E-V09-M5-macos-combined-mapping-session.md), resolving all 77 shared mapping FDs
+in its own run while retaining 43 unmatched private mappings and broader qualification limits.
 Authopen/native/candidate and broader helper qualification remain open. Apple's
 [documented runtime protection](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/RuntimeProtections/RuntimeProtections.html)
 also limits tracing of system processes; this C calibration does not override that limit.
