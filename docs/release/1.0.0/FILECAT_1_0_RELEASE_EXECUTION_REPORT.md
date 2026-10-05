@@ -7,6 +7,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
+Mac connectivity is currently gated: new GUI consent-driver staging and a second
+read-only SSH attempt to 192.168.0.199 both time out before execution. The completed
+approval/session controls below remain verified; the new driver has not run. Existing
+awake-helper state is unknown while disconnected; saved power settings were unchanged
+at setup and restoration remains due when testing ends (E-ENV-MAC-1). Owner wake/network/IP
+input is required before native testing resumes.
+
 I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
 four required lanes. Four server ZIP digests/six complete TRX inventories and 60 affected
 viewer cases independently verify. ARM64 App 351/17 declared skips, native startup/drawing
@@ -2011,6 +2018,15 @@ Overall **NO-GO** remains.
     or security setting is changed. Fresh current-guard refusal prep controls/pins/source/
     cleanup verify; actual desktop-context consent driver remains to validate. Counts
     unchanged, VMs running, G: HOLD, no candidate/GO, NO-GO (E-V09-M8/E-ENV-MAC-1).
+
+286. Construct fresh native GUI-session consent driver locally with pinned source and
+    checked Python syntax. Staging SSH times out before reaching the Mac; one bounded
+    read-only retry also times out. Preserve transport failure/local driver and do not
+    claim staging, GUI handshake or actual refusal qualification. Ask owner to restore
+    network/wake or provide current IP. Awake helper status is unknown while offline;
+    prior settings were unchanged and owned-helper restoration remains due. Completed
+    approval/session proofs remain valid at their recorded identities. Counts, VMs/G:
+    HOLD and NO-GO unchanged; no candidate/GO (E-ENV-MAC-1).
 
 ## Evidence invalidated by the campaign's own changes
 

@@ -41,6 +41,16 @@ assets: The system cannot find the path specified. (os error 3)`. No app input o
 Remote mouse-and-keyboard control is unavailable through those runtimes; no Mac remote
 access service is enabled. Native CLI and desktop-agent launch controls remain usable.
 
+## Current connectivity gate
+
+While staging the new desktop-context consent driver, SSH to 192.168.0.199 times out
+before reaching the Mac. A second eight-second read-only SSH attempt also times out.
+Local driver construction and syntax checks are retained; its native staging, GUI
+handshake/range rehearsal and actual refusal remain unexecuted. Do not mark the new
+driver qualified from the earlier SessionGetInfo control. The existing awake helper's
+current status cannot be verified while disconnected; its recorded timeout/restoration
+obligations remain. The owner is asked to restore connectivity or supply the current IP.
+
 ## Private provenance
 
 Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20261005.
@@ -55,5 +65,8 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
   native root `authopen-2e38bfeff30741b8932b2e57f77069a4`, 197 input/20 retained pins,
   two direct controls/seven independent ranges each, unchanged detached image/four absences.
   Single-use native refusal launcher remains unexecuted; GUI-route instrumentation next.
+
+- Connectivity gate private `mac-gui-refusal-prepared-v4/connectivity-gate-v1.json` SHA-256
+  `e7199d015457e306d38518ef1547cf0523cf28473340922129b59f3e85f4d841`.
 
 No candidate or human GO. **NO-GO** remains.
