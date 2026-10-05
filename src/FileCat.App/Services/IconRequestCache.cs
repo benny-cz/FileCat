@@ -4,7 +4,7 @@ using Avalonia.Media;
 namespace FileCat.App.Services;
 
 /// <summary>
-/// Bounds the Unix icon sources' retained icons and waiting work. A full queue leaves the row's vector fallback;
+/// Bounds native icon sources' retained icons and waiting work. A full queue leaves the row's vector fallback;
 /// a later redraw can ask again. Each request carries its entry identity so evicted or cleared work cannot return.
 /// </summary>
 internal sealed class IconRequestCache(int capacity = 4096, int queueCapacity = 256)

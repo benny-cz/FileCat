@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media;
@@ -30,7 +29,6 @@ public sealed class NativeIconSource : INativeIconSource
     private static readonly HashSet<string> OwnIconTypes = new(StringComparer.OrdinalIgnoreCase) { "exe", "ico", "cur", "ani", "scr", "msc", "cpl" };
     // Files that name another item's icon, which FileCat reads itself.
     public static readonly HashSet<string> ShortcutTypes = new(StringComparer.OrdinalIgnoreCase) { "lnk", "url" };
-    private const int PerItemLimit = 4096;
     private const FileAttributes Placeholder = FileAttributes.Offline | (FileAttributes)0x40000 | (FileAttributes)0x400000;
 
     /// <summary>What an item shows: its own picture, or a shared icon (a shortcut shows its target's type icon).</summary>
@@ -43,10 +41,8 @@ public sealed class NativeIconSource : INativeIconSource
 
     private readonly IShellServices _shell;
     private readonly Func<ShellPreviews?> _pictures;
-    private readonly ConcurrentDictionary<(int Size, string Key), IImage?> _shared = new();
-    private readonly ConcurrentDictionary<string, Plan?> _perItem = new(StringComparer.OrdinalIgnoreCase);
-    private readonly BlockingCollection<(int Size, string Key)> _queue = new();
-    private volatile bool _knownRequested;
+    private readonly IconRequestCache _shared = new();
+    private readonly AsyncIconRequestCache<Plan> _perItem = new(plan => (plan.Image as IDisposable)?.Dispose());
     private volatile HashSet<string>? _knownNames;
     private readonly Thread _thread;
     private readonly string _systemRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
@@ -61,6 +57,9 @@ public sealed class NativeIconSource : INativeIconSource
         _thread = new Thread(Worker) { IsBackground = true, Name = "FileCat icons" };
         _thread.SetApartmentState(ApartmentState.STA);
         _thread.Start();
+        // A fixed set of asynchronous consumers bounds native helper/file loads as well as queued demand.
+        // Awaiting an empty queue or helper reply uses no thread-pool thread.
+        for (int i = 0; i < 4; i++) _ = Task.Run(PerItemWorker);
     }
 
     public event Action? IconsLoaded;
@@ -77,6 +76,7 @@ public sealed class NativeIconSource : INativeIconSource
         if (size == PixelSize) return;
         PixelSize = size;
         _perItem.Clear();
+        _shared.Clear();
     }
 
     public IImage? GetIcon(in EntryData entry, Location? folder = null)
@@ -140,10 +140,11 @@ public sealed class NativeIconSource : INativeIconSource
     internal IImage? GetOverlayIcon(string path, long modified, FileAttributes attributes, GitStatusKind status)
     {
         if (_pictures() is not { } pictures || !WindowsIcons.IsLocal(path)) return null;
+        int size = PixelSize;
         return FromPlan(PerItem("overlay|" + path + "|" + modified + "|" + status, async () =>
         {
             var image = await pictures.GetAsync(ShellImageKind.OverlayIcon, path, modified, attributes,
-                PixelSize, CancellationToken.None).ConfigureAwait(false);
+                size, CancellationToken.None).ConfigureAwait(false);
             return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null);
         }));
     }
@@ -178,24 +179,13 @@ public sealed class NativeIconSource : INativeIconSource
     private IImage? FromPlan(Plan? plan) => plan is null ? null : plan.Image ?? (plan.SharedKey is { } key ? Shared(key) : null);
 
     /// <summary>A shared icon at the current size: cached, or queued for the icon thread (null meanwhile).</summary>
-    private IImage? Shared(string key)
-    {
-        var sized = (PixelSize, key);
-        if (_shared.TryGetValue(sized, out var image)) return image;
-        if (_shared.TryAdd(sized, null)) _queue.Add(sized);
-        return null;
-    }
+    private IImage? Shared(string key) => _shared.Get((PixelSize, key));
 
     /// <summary>Whether a folder's name is one a known folder has here (checked before building its path).</summary>
     private bool IsKnownFolderName(string name)
     {
         if (_knownNames is { } names) return names.Contains(name);
-        // Read once on the icon thread; rows repaint when it is there.
-        if (!_knownRequested)
-        {
-            _knownRequested = true;
-            _queue.Add((0, "known-folders"));
-        }
+        // The icon thread reads these once at startup; rows repaint when they are available.
         return false;
     }
 
@@ -204,33 +194,28 @@ public sealed class NativeIconSource : INativeIconSource
 
     // ---- Items that name their own icon -----------------------------------------------------------------------
 
-    private Plan? PerItem(string key, Func<Task<Plan>> load)
+    private Plan? PerItem(string key, Func<Task<Plan>> load) => _perItem.Get((PixelSize, key), load);
+
+    private async Task PerItemWorker()
     {
-        if (_perItem.TryGetValue(key, out var plan)) return plan;
-        if (_perItem.Count >= PerItemLimit) _perItem.Clear();
-        if (!_perItem.TryAdd(key, null)) return null;
-        int size = PixelSize;
-        _ = Task.Run(async () =>
+        await foreach (var request in _perItem.Requests().ConfigureAwait(false))
         {
             Plan result;
-            try { result = await load().ConfigureAwait(false); }
+            try { result = await request.Load().ConfigureAwait(false); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or NotSupportedException)
             {
                 result = new Plan(null, null);
             }
-            if (size != PixelSize) return;
-            // Nothing was learned about this item: forget that it was asked, so drawing the row asks again.
-            if (result.AskAgain) _perItem.TryRemove(key, out _);
-            else _perItem[key] = result;
-            if (result.Image is not null || result.SharedKey is not null) NotifyLoaded();
-        });
-        return null;
+            if (_perItem.Complete(request, result, result.AskAgain) && (result.Image is not null || result.SharedKey is not null))
+                NotifyLoaded();
+        }
     }
 
     /// <summary>A shortcut shows the icon it names, else its target's (own or type) icon, else the plain type icon.</summary>
     private Plan? Shortcut(string path, string ext, in EntryData entry)
     {
         if (((FileAttributes)entry.Attributes & Placeholder) != 0 || entry.Size > ShellFileIcons.MaxBytes) return null;
+        int size = PixelSize;
         return PerItem("lnk|" + path + "|" + entry.Modified, async () =>
         {
             byte[] bytes;
@@ -247,7 +232,7 @@ public sealed class NativeIconSource : INativeIconSource
             if (info is null) return new Plan(null, null);
             if (info.IconFile is { } iconFile)
             {
-                var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false);
+                var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex), size).ConfigureAwait(false);
                 if (named is not null || askAgain) return new Plan(named, null, askAgain);
             }
             if (info.KnownFolder is { } id && _knownById is { } byId && byId.TryGetValue(id, out var knownIcon)) return new Plan(null, "res:" + knownIcon);
@@ -261,7 +246,7 @@ public sealed class NativeIconSource : INativeIconSource
                     FileAttributes attributes;
                     try { attributes = File.GetAttributes(target); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { attributes = FileAttributes.Normal; }
-                    var image = await pictures.GetAsync(ShellImageKind.Icon, target, File.GetLastWriteTimeUtc(target).Ticks, attributes, PixelSize, CancellationToken.None).ConfigureAwait(false);
+                    var image = await pictures.GetAsync(ShellImageKind.Icon, target, File.GetLastWriteTimeUtc(target).Ticks, attributes, size, CancellationToken.None).ConfigureAwait(false);
                     if (image is not null) return new Plan(ShellBitmaps.ToBitmap(image), null);
                 }
                 if (targetExt.Length > 0) return new Plan(null, TypeKey(targetExt));
@@ -271,24 +256,27 @@ public sealed class NativeIconSource : INativeIconSource
     }
 
     /// <summary>A folder whose desktop.ini names an icon (Explorer reads it only for read-only or system folders).</summary>
-    private Plan? CustomFolder(string path, in EntryData entry) =>
-        PerItem("dir|" + path + "|" + entry.Modified, async () =>
+    private Plan? CustomFolder(string path, in EntryData entry)
+    {
+        int size = PixelSize;
+        return PerItem("dir|" + path + "|" + entry.Modified, async () =>
         {
             string ini = Path.Join(path, "desktop.ini");
             var fileInfo = new FileInfo(ini);
             if (!fileInfo.Exists || fileInfo.Length > ShellFileIcons.MaxBytes || (fileInfo.Attributes & Placeholder) != 0) return new Plan(null, null);
             var info = ShellFileIcons.ReadFolderIcon(ShellFileIcons.DecodeText(await File.ReadAllBytesAsync(ini).ConfigureAwait(false)), path);
             if (info?.IconFile is not { } iconFile) return new Plan(null, null);
-            var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex)).ConfigureAwait(false);
+            var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex), size).ConfigureAwait(false);
             return new Plan(named, null, askAgain);
         });
+    }
 
     /// <summary>An icon a user's file names, read by the restricted helper under its policy (local files only).</summary>
-    private async Task<(IImage? Image, bool AskAgain)> Resource(IconLocation location)
+    private async Task<(IImage? Image, bool AskAgain)> Resource(IconLocation location, int size)
     {
         if (_pictures() is not { } pictures) return (null, false);
         if (ResourceTime(location, pictures.IconResourceRefusal) is not { } modified) return (null, false);
-        var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, PixelSize, CancellationToken.None).ConfigureAwait(false);
+        var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.IconResource, IconResourceRequest.Format(location), modified, FileAttributes.Normal, size, CancellationToken.None).ConfigureAwait(false);
         return (image is null ? null : ShellBitmaps.ToBitmap(image), answer == ShellAnswer.Failed);
     }
 
@@ -308,9 +296,10 @@ public sealed class NativeIconSource : INativeIconSource
     private IImage? OwnIcon(string path, long modified, FileAttributes attributes)
     {
         if (_pictures() is not { } pictures) return null;
+        int size = PixelSize;
         return FromPlan(PerItem("own|" + path + "|" + modified, async () =>
         {
-            var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.Icon, path, modified, attributes, PixelSize, CancellationToken.None).ConfigureAwait(false);
+            var (image, answer) = await pictures.GetWithAnswerAsync(ShellImageKind.Icon, path, modified, attributes, size, CancellationToken.None).ConfigureAwait(false);
             return new Plan(image is null ? null : ShellBitmaps.ToBitmap(image), null, answer == ShellAnswer.Failed);
         }));
     }
@@ -329,33 +318,34 @@ public sealed class NativeIconSource : INativeIconSource
 
     private void Worker()
     {
-        foreach (var sized in _queue.GetConsumingEnumerable())
+        // Known-folder initialization is one bounded operation, independent of the bounded row request queue.
+        try
         {
+            var folders = WindowsIcons.KnownFolders();
+            _knownById = folders.GroupBy(f => f.Id).ToDictionary(g => g.Key, g => g.First().Icon);
+            var byPath = folders.Where(f => f.Path is not null).GroupBy(f => f.Path!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Icon, StringComparer.OrdinalIgnoreCase);
+            _knownByPath = byPath;
+            _knownNames = byPath.Keys.Select(Path.GetFileName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+            NotifyLoaded();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or COMException)
+        {
+            _knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+        foreach (var request in _shared.Requests())
+        {
+            var sized = request.Key;
             IImage? image = null;
             try
             {
-                if (sized.Key == "known-folders")
-                {
-                    var folders = WindowsIcons.KnownFolders();
-                    _knownById = folders.GroupBy(f => f.Id).ToDictionary(g => g.Key, g => g.First().Icon);
-                    var byPath = folders.Where(f => f.Path is not null).GroupBy(f => f.Path!, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(g => g.Key, g => g.First().Icon, StringComparer.OrdinalIgnoreCase);
-                    _knownByPath = byPath;
-                    _knownNames = byPath.Keys.Select(Path.GetFileName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    NotifyLoaded();
-                    continue;
-                }
                 image = Load(sized.Key, sized.Size);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or COMException)
             {
                 image = null;
             }
-            if (image is not null)
-            {
-                _shared[sized] = image;
-                NotifyLoaded();
-            }
+            if (_shared.Complete(request, image) && image is not null) NotifyLoaded();
         }
     }
 
