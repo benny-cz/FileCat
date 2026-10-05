@@ -7,11 +7,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-Independent wider archive validation finds I134: empty solid/non-solid 7z members are falsely
-Protected and cannot open. Two actual-production failures are retained beside fifty-five passing
-content controls and seventy-eight passing file-member search controls across thirteen fixtures.
-Remediation/revalidation continues. Current progress: **111/134 issue rows remediated**, one Closed;
-**24/26 release steps partly or fully open**. This remains preliminary execution and overall NO-GO.
+I134/I135 working revalidation passes. Empty 7z entries use explicit pinned no-stream metadata while
+encrypted data/header refusal remains. Four new regressions, 98 affected Core cases with two declared
+benchmark skips, four Find cases and the identical 78 search/57 content controls pass. I135 corrects
+only fixture disk spelling; original failures/all assertions remain. Source/fixture/DLL/case pins
+independently verify. Search throughput/cancellation benchmark passes on the shared regression profile.
+Clean committed-source CI/Windows/Ubuntu execution is next; native/AT/candidate remain (E-I134/E-I135).
+Current progress: **113/135 issue rows remediated**, one Closed; **24/26 release steps partly or fully
+open**. No candidate/human GO exists; overall NO-GO.
 
 I133 is remediated and verified preliminarily at clean 578a0ed: twelve independent baseline failures/
 six controls, eighteen corrected production observations, twenty Core/four Find cases and full host
@@ -20,7 +23,7 @@ All twenty new Core cases pass in Windows' inventory; all four affected Find cas
 Ubuntu/macOS inventory. SDK-free Windows and Ubuntu each pass all 24 cases without skips. Every
 payload/input/output/source pin and corrected owned process/temp cleanup verifies. Original test/
 setup/cleanup failures remain retained. Additional archive formats are under independent validation;
-native desktop/AT/candidate obligations remain (E-I133). Progress: **111/134 issue rows remediated**,
+native desktop/AT/candidate obligations remain (E-I133). Progress: **113/135 issue rows remediated**,
 one separately Closed; **24/26 release steps partly or fully open**. No candidate/human GO exists.
 
 I132 corrects the quick-search Escape fixture's early focus checkpoint; production source is unchanged.
@@ -130,7 +133,7 @@ No candidate or human GO exists; overall NO-GO.
 
 ## Progress snapshot (2026-10-05)
 
-After verified preliminary remediation through I133 at clean 578a0ed, the §14 checklist has the following conservative gate status.
+After working remediation through I135 (I133 clean 578a0ed; I134/I135 clean-source checks pending), the §14 checklist has the following conservative gate status.
 Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires human execution, and
 15–26 are blocked by preceding gates. “Done” here refers to the recorded preliminary scope.
 
@@ -143,7 +146,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **111 of 134 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **113 of 135 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -1485,7 +1488,26 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     source/fixture/DLL identity retained, native/candidate remain. 111/134 remediated; 24/26 steps open;
     both VMs running, Mac deferred, G: untouched/HOLD, NO-GO (E-I134).
 
+256. I134 now identifies an empty 7z member only from explicit pinned HasStream metadata; missing
+    metadata preserves protected refusal. Four independent empty/encrypted/header-encrypted fixture
+    regressions pass. Same thirteen archives/private probe pass all 78 file-member search/57 byte/hash
+    content controls, with only Archives.dll changed. I135 fixes fixture disk spelling after nine Core
+    and one Find initial-search identity failures under default TEMP; no assertions/product behavior
+    are weakened. Same-default-TEMP affected Core 98 pass/two declared benchmark skips and Find 4/4
+    pass. Working source/fixture/DLL/full-case pins independently verify; proof SHA-256
+    `f836cffe030e58578f12fe6888d67d0083ef35eec55a508b912c7fb03442172c`. Initial private proof's copied
+    summary count remains retained and is superseded by derived counts. One intervening namespace
+    build failure also stays retained. Opt-in search benchmark passes: 50,000-file name search 88 ms,
+    content 3,694 ms/46 MiB allocated, 200 MiB content 83 ms; cancellation 9 ms after request/incomplete
+    label. Exact TRX/DLL/owned C: cleanup retained; shared profile does not qualify physical V16.
+    Clean CI/native next; 113/135 remediated, 24/26 steps open. Both VMs running, Mac deferred,
+    G: untouched/HOLD, no candidate/human GO, NO-GO (E-I134/E-I135).
+
 ## Evidence invalidated by the campaign's own changes
+
+- I134/I135: prior archive passes do not prove empty 7z protection/content truth or I133 fixture identities
+  under noncanonical Windows TEMP spelling. Working corrections/identical corpus/affected checks pass;
+  clean committed-source CI/native and candidate remain. Encrypted content/header refusal is preserved.
 
 - I133: earlier I115/I116 archive-search passes do not establish truthful size criteria for unknown-length
   members. The shared initial/narrowed search check is corrected and working host validation passes;

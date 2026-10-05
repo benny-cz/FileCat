@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using FileCat.App.Views;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
 
@@ -24,6 +25,7 @@ public sealed class FindArchiveResultTests
             services.Settings.SearchLogOnErrors = false;
             string scope = Path.Combine(root, "unknown-size-search");
             Directory.CreateDirectory(scope);
+            scope = PathUtil.WithDiskCase(scope);
             archive = Path.Combine(scope, "notes.txt.gz");
             using (var compressed = new GZipStream(File.Create(archive), CompressionMode.Compress))
                 compressed.Write("alpha"u8);

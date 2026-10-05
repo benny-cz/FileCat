@@ -2,7 +2,7 @@
 
 **Requirement:** V10/V13, ARCH-001, PI-05; truthful archive metadata and readable supported members.
 **Severity/disposition:** Medium, core archive correctness; must fix.
-**Status:** reproduced; remediation and revalidation underway.
+**Status:** remediated; corrected identical corpus and working affected tests pass; clean CI/native next.
 **Baseline:** actual committed Core/Archives/Recovery DLLs from clean
 `578a0edd06f1269b235ef21ce91ec38280833f3c`; other private probe dependencies retain the pinned fdb17b4 baseline.
 
@@ -39,3 +39,39 @@ declared-size/expansion bounds and correct empty-file identity. Earlier archive 
 this boundary. Corrected identical corpus, regressions, affected CI/native execution and candidate
 qualification remain. No candidate or human GO; overall **NO-GO**. Both VMs stay running, Mac work is
 owner-deferred and G: remains untouched/HOLD.
+
+## Working correction and revalidation
+
+A narrow workaround reads the pinned dependency's existing HasStream header metadata for zero-length
+7z entries. It clears the false encryption flag and supplies the known empty stream only when that
+metadata explicitly says there is no data stream. It does not infer absence from declared size alone.
+Unavailable metadata preserves the prior protected refusal; encrypted data streams and encrypted
+headers remain refused. No member content is opened during enumeration, and no dependency is upgraded.
+The dependency has no public HasStream entry API, so the workaround uses three cached property lookups;
+published regressions must keep detecting future package/metadata incompatibility.
+
+Four independently created/decoded owned fixtures cover distinct solid/non-solid structures, encrypted
+nonempty data beside empty streams, and encrypted headers. All four new regressions pass. The same
+thirteen baseline archives, same private probe and same search scopes now pass all **78 file-member
+search controls and 57 byte/hash content controls**, with only FileCat.Archives.dll replaced. Inputs,
+all other probe files and search scratch behavior are unchanged. Affected Core passes **98/100** with
+two declared benchmark skips; headless Find passes **4/4** without skips. Source/fixture/compiled DLL
+and full-case pins independently verify in `i134-working-v4/independent-working-v2.json`. The initial
+private proof checked all 57 controls but retained a copied summary count of 55; it remains retained
+and is superseded by the derived-count proof.
+
+The affected run exposes I135's unrelated disk-spelling fixture assumption: nine Core and one App
+initial-search identity assertions fail under default `C:\WINDOWS` TEMP. Their retained failures,
+test-only canonicalization and same-default-TEMP passing rerun are separate from this production fix.
+One intervening private App build misses the required namespace import and remains failed/retained.
+
+The repository's opt-in search benchmark passes without skips on the shared host regression profile:
+50,000-file name search 88 ms/first result 7 ms; ignore-case content search 3,694 ms/46 MiB allocated;
+200 MiB content search 83 ms; cancellation settles 9 ms after the request and labels results incomplete.
+Owned C: temp files are removed. Raw output/TRX, exact compiled DLL pins and cleanup are retained in
+`search-benchmark-v1`; this does not qualify the exclusive physical V16 reference-machine profile.
+Clean committed-source CI/native and final-candidate requirements remain; overall **NO-GO**.
+
+Working derived-count proof SHA-256 `f836cffe030e58578f12fe6888d67d0083ef35eec55a508b912c7fb03442172c`.
+Benchmark run/cleanup SHA-256 `d5b204be3acdd81bcae1770a18c168393b9add4f2983f90f5df2f82d4b7b9859` /
+`9cd68237d292644417ac9ed2d4b48753b5d1232b02cce43c643ec84c1f4ec6f0`.

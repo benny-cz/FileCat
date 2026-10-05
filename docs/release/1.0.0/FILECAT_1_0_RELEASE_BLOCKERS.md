@@ -30,10 +30,13 @@ is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity
 
 ## C. Hardware and environments
 
-I134 is open: independently generated empty 7z members in solid/non-solid archives are falsely
-classified as encrypted and cannot open. Two actual-production failures, fifty-five passing content
-controls and seventy-eight passing file-member search controls are retained. Remediation and affected
-revalidation continue; native/candidate requirements remain (E-I134).
+I134/I135 working corrections pass: explicit no-stream 7z metadata clears false encryption without
+opening member content or bypassing real encrypted data/header refusal. Four new regressions, 98
+Core cases/two declared benchmark skips, four Find cases and identical 78 search/57 content controls
+pass; source/fixture/DLL/case pins verify. I135 canonicalizes only fixture identities under default
+Windows TEMP; all original assertions and failed attempts remain. Shared-profile search throughput/
+cancellation benchmark passes. Clean committed-source CI/Windows/Ubuntu, native/AT and candidate
+qualification remain (E-I134/E-I135).
 
 I133 unknown-length size criteria now pass verified preliminary revalidation at clean 578a0ed.
 Twelve baseline failures/six controls, eighteen corrected production observations, affected/full

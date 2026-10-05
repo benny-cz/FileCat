@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.IO.Compression;
+using System.Reflection;
 using DiscUtils;
 using DiscUtils.Iso9660;
 using DiscUtils.Udf;
@@ -518,6 +519,23 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 /// </summary>
 internal sealed class SharpArchiveReader : IMemberReader
 {
+    // SharpCompress 0.50.4 reports a missing 7z compression folder as encrypted. Its public entry API does
+    // not expose HasStream. Read that pinned header metadata only; missing metadata keeps the original refusal.
+    private static readonly PropertyInfo? s_sevenZipFilePart = typeof(SevenZipArchiveEntry).BaseType?
+        .GetProperty("FilePart", BindingFlags.Instance | BindingFlags.NonPublic);
+    private static readonly PropertyInfo? s_sevenZipHeader = s_sevenZipFilePart?.PropertyType
+        .GetProperty("Header", BindingFlags.Instance | BindingFlags.NonPublic);
+    private static readonly PropertyInfo? s_sevenZipHasStream = s_sevenZipHeader?.PropertyType
+        .GetProperty("HasStream", BindingFlags.Instance | BindingFlags.Public);
+
+    private static bool HasNoSevenZipStream(IArchiveEntry entry)
+    {
+        if (entry is not SevenZipArchiveEntry { IsDirectory: false, Size: 0 } sevenZip) return false;
+        object? part = s_sevenZipFilePart?.GetValue(sevenZip);
+        object? header = part is null ? null : s_sevenZipHeader?.GetValue(part);
+        return header is not null && s_sevenZipHasStream?.GetValue(header) is false;
+    }
+
     private readonly IArchive _archive;
     private readonly List<IArchiveEntry> _entries;
     private readonly List<FileStream> _volumes;
@@ -608,7 +626,7 @@ internal sealed class SharpArchiveReader : IMemberReader
             if (e is SevenZipArchiveEntry { IsAnti: true }) continue; // deletion markers of an update, not content
             var kind = e.IsDirectory ? MemberKind.Directory : e.LinkTarget is { Length: > 0 } ? MemberKind.SymbolicLink : MemberKind.File;
             yield return new MemberInfo(i, e.Key ?? string.Empty, kind, e.IsDirectory ? 0 : e.Size, e.CompressedSize, ArchiveFormats.Utc(e.LastModifiedTime),
-                e.IsEncrypted, e.LinkTarget);
+                e.IsEncrypted && !HasNoSevenZipStream(e), e.LinkTarget);
         }
         if (!_archive.IsComplete) warn("Some volumes of this archive are missing; members that continue in them cannot be extracted.");
     }
@@ -617,6 +635,7 @@ internal sealed class SharpArchiveReader : IMemberReader
     {
         try
         {
+            if (HasNoSevenZipStream(_entries[index])) return Stream.Null;
             if (!_sequential) return _entries[index].OpenEntryStream();
             string key = _entries[index].Key ?? string.Empty;
             int ordinal = _ordinals[index];

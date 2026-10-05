@@ -74,6 +74,9 @@ public sealed class ArchiveUnknownSizeSearchTests : IDisposable
         });
         string path = Path.Combine(_dir.Path, "notes.txt." + format);
         File.WriteAllBytes(path, compressed);
+        // Initial search canonicalizes disk spelling. Build the original identity with that same spelling,
+        // including when Windows supplies TEMP as C:\WINDOWS but the on-disk directory is C:\Windows.
+        path = PathUtil.WithDiskCase(path);
         _files.Add(path);
         var members = new ProviderArchiveMembers(_providers).List(path, TestContext.Current.CancellationToken)
             .Select(i => (Item: i, Relative: "original relative folder")).ToList();
