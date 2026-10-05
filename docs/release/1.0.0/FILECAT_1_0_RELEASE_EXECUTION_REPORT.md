@@ -7,6 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I147 Windows icon demand is corrected at pushed 6cf17e5 after four reproduced
+baseline failures. Identical test DLL changes only App DLL/PDB and passes all five
+Windows source cases; three portable queue/retry/stale/LRU controls also pass.
+Affected 16 pass/one capture skip and full host App 365/23 declared skips/388 cases
+verify. Separate retained/queued cache bounds, four per-item workers and entry
+identity replace unbounded work and stale publication. Clean native/exact-source
+CI qualification is in progress; aggregate borrowed/displayed memory and native
+frame/candidate remain (E-I147). No interaction is currently needed.
+
 I144–I146 are preliminarily remediated at cb85f0a. Shared decoder admission is
 four workers/32 waiters, Unix child runtime diagnostics are disabled to avoid
 orphan debugger FIFOs, and the normal-admission fixture has its own watchdog
@@ -106,8 +115,8 @@ source-FD closure/EBADF and seven absences verify (E-V09-M8). Temporary awake su
 benny sudo verify; a harmless desktop launch-agent/session control passes and is removed
 (E-ENV-MAC-1). Native desktop refusal independently verifies (E-V09-M9); actual removal safety/reporting verifies on committed I142 (E-V09-M10);
 broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
-Progress: **124/146 issue rows preliminarily remediated**, **one Closed**, **21 remain for
-remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
+Progress: **124/147 issue rows preliminarily remediated**, **one Closed**, **22 remain for
+remediation** (including I147 under native/CI validation); **24/26 checklist steps partly or fully open**, all 24 campaigns still need
 final qualification. No candidate or human GO; overall **NO-GO**.
 
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
@@ -2271,6 +2280,19 @@ Overall **NO-GO** remains.
      Continue Windows native icon demand/retention work; interaction gates queued
      until 08:40 CEST. No candidate/human GO; NO-GO (E-I144–E-I146).
 
+300. Continue overnight V12/I06 Windows icon demand: baseline 50,000 shared entries,
+     512 held per-item factory loads, 5,000 late republished plans and stale 16/32/16
+     replacement reproduce four failures; helper-failure/retry positive passes.
+     Identical final test DLL now passes all five with only App DLL/PDB different.
+     Separate 4,096 retained/256 waiting caches, four asynchronous per-item consumers,
+     stale identity/retry rejection and captured size are committed/pushed 6cf17e5.
+     Three additional portable controls and final full host 365/23 declared skips/
+     388 cases pass; affected 16/one capture skip. Clean native and exact-source CI
+     in progress. Counts 124/147 preliminary, one Closed, 22 under remediation/
+     validation; no desktop/whole memory/candidate claim. Mac v3 awake root restorer
+     19109/SleepDisabled observed active, restoration due. VMs stay running, G:
+     untouched/HOLD; owner gates remain queued until 08:40 CEST. NO-GO (E-I147).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2463,7 +2485,8 @@ Overall **NO-GO** remains.
    Unix native icon cache/queue growth is now corrected at 1559933: actual Ubuntu
    baseline 50,000 entries/43,795 queue peak, corrected 2,538 entries/256 peak/zero
    queued; clean Mac/Ubuntu nine-case inventories and four CI lanes/full inventories
-   verify (E-I143). Windows icons, all-consumer memory and native frame demand remain.
+   verify (E-I143). Windows icons now pass controlled/full host correction at 6cf17e5 (I147),
+   with clean native/CI in progress; all-consumer memory and native frames remain.
    Real timer/list mutation and controlled worker-cap failures now pass working probes, 85 affected cases and
    full host suites, four clean CI lanes and 85 guest controls (I124); actual hung hardware and wider/native/candidate
    scopes remain. Shutdown admission races now pass corrected probes/two new controls/87 affected cases and full
