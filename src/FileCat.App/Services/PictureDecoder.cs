@@ -22,11 +22,13 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// through standard input and read back within bounds, and stopped after <see cref="Timeout"/>. On Windows the worker
 /// runs in the Shell helper's sandbox (low integrity, a job that caps its memory). A picture that crashes or exhausts the
 /// worker takes nothing else with it, and the viewer says why it shows nothing.
+/// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
 /// </summary>
 public static class PictureDecoder
 {
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private const long MemoryLimit = 1536L * 1024 * 1024;
+    private static readonly PictureDecoderAdmission Admission = new();
 
     /// <summary>What a picture's first bytes say it is, for formats the worker decodes; null otherwise.</summary>
     public static string? Recognize(ReadOnlySpan<byte> head)
@@ -63,11 +65,13 @@ public static class PictureDecoder
         ct.ThrowIfCancellationRequested();
         if (length > PictureWorker.MaxInputBytes)
             throw new InvalidDataException($"at {Formatters.SizeWithUnit(length)} it is larger than FileCat shows as a picture");
+        using var admission = await Admission.EnterAsync(ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(Timeout);
         var token = limit.Token;
         var (executable, arguments) = WorkerCommand(maxSide);
-        using var worker = Worker.Start(executable, arguments);
+        await using var worker = Worker.Start(executable, arguments);
         using var stop = token.Register(worker.Kill);
         // Written and read at once: the worker may stop reading early (a damaged file), and a full pipe must not block.
         var input = worker.Input;
@@ -207,7 +211,7 @@ public static class PictureDecoder
     }
 
     /// <summary>The worker process, sandboxed where the platform allows.</summary>
-    private sealed class Worker : IDisposable
+    private sealed class Worker : IAsyncDisposable
     {
         private readonly Platform.Windows.Shell.SandboxedWorker? _sandboxed;
         private readonly Process? _process;
@@ -248,11 +252,21 @@ public static class PictureDecoder
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             Kill();
-            _sandboxed?.Dispose();
-            _process?.Dispose();
+            // A killed process may still be exiting. Admission belongs to its actual lifetime, so a new worker
+            // cannot start until this one has exited. Waiting is asynchronous, including on cancellation.
+            if (_sandboxed is not null)
+            {
+                while (!_sandboxed.HasExited) await Task.Delay(10).ConfigureAwait(false);
+                _sandboxed.Dispose();
+            }
+            if (_process is not null)
+            {
+                await _process.WaitForExitAsync().ConfigureAwait(false);
+                _process.Dispose();
+            }
         }
     }
 }
