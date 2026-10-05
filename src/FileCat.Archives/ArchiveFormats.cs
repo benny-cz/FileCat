@@ -540,15 +540,17 @@ internal sealed class SharpArchiveReader : IMemberReader
     private readonly List<IArchiveEntry> _entries;
     private readonly List<FileStream> _volumes;
     private readonly bool _sequential;
+    private readonly bool _numberedVolumeGap;
     // The reader visits entries in its own order (7z puts empty entries elsewhere than its entry list), so members are
     // matched by name and occurrence, never by position.
     private readonly int[] _ordinals;
     private readonly Dictionary<string, int> _seen = new(StringComparer.Ordinal);
     private IReader? _reader;
 
-    private SharpArchiveReader(IArchive archive, List<FileStream> volumes, string format, bool sequential)
+    private SharpArchiveReader(IArchive archive, List<FileStream> volumes, string format, bool sequential, bool numberedVolumeGap)
     {
         _sequential = sequential;
+        _numberedVolumeGap = numberedVolumeGap;
         _archive = archive;
         _volumes = volumes;
         Format = format;
@@ -569,14 +571,15 @@ internal sealed class SharpArchiveReader : IMemberReader
 
     public static SharpArchiveReader Open(string path, bool rar)
     {
-        var volumes = rar ? RarVolumes(path).Select(ArchiveFormats.OpenShared).ToList() : [ArchiveFormats.OpenShared(path)];
+        bool numberedVolumeGap = false;
+        var volumes = rar ? RarVolumes(path, out numberedVolumeGap).Select(ArchiveFormats.OpenShared).ToList() : [ArchiveFormats.OpenShared(path)];
         try
         {
             var options = new ReaderOptions { LeaveStreamOpen = true, LookForHeader = false };
             IArchive archive = rar
                 ? volumes.Count > 1 ? RarArchive.OpenArchive(volumes.Cast<Stream>().ToList(), options) : RarArchive.OpenArchive(volumes[0], options)
                 : SevenZipArchive.OpenArchive(volumes[0], options);
-            return new SharpArchiveReader(archive, volumes, rar ? volumes.Count > 1 ? $"RAR ({volumes.Count} volumes)" : "RAR" : "7z", sequential: !rar || archive.IsSolid);
+            return new SharpArchiveReader(archive, volumes, rar ? volumes.Count > 1 ? $"RAR ({volumes.Count} volumes)" : "RAR" : "7z", sequential: !rar || archive.IsSolid, numberedVolumeGap);
         }
         catch (Exception ex)
         {
@@ -587,8 +590,11 @@ internal sealed class SharpArchiveReader : IMemberReader
     }
 
     /// <summary>"x.part1.rar" (or any part) → all parts in order; "x.rar" with "x.r00"… → the old naming.</summary>
-    internal static List<string> RarVolumes(string path)
+    internal static List<string> RarVolumes(string path) => RarVolumes(path, out _);
+
+    private static List<string> RarVolumes(string path, out bool numberedVolumeGap)
     {
+        numberedVolumeGap = false;
         var dir = Path.GetDirectoryName(path) ?? ".";
         var name = Path.GetFileName(path);
         var modern = System.Text.RegularExpressions.Regex.Match(name, @"^(.*)\.part(\d+)\.rar$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -598,8 +604,13 @@ internal sealed class SharpArchiveReader : IMemberReader
             var parts = Directory.EnumerateFiles(dir, stem + ".part*.rar")
                 .Select(p => (Path: p, M: System.Text.RegularExpressions.Regex.Match(Path.GetFileName(p), @"\.part(\d+)\.rar$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
                 .Where(x => x.M.Success && Path.GetFileName(x.Path).StartsWith(stem + ".part", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => int.Parse(x.M.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)).Select(x => x.Path).ToList();
-            return parts.Count > 0 ? parts : [path];
+                .Select(x => (x.Path, Number: int.Parse(x.M.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)))
+                .OrderBy(x => x.Number).ToList();
+            // Split-before/after flags describe each member's ends, so the dependency can call a member complete
+            // even when an interior numbered volume is absent. Keep that discovery warning independently.
+            for (int i = 1; i < parts.Count; i++)
+                if (parts[i].Number - parts[i - 1].Number > 1) numberedVolumeGap = true;
+            return parts.Count > 0 ? parts.Select(x => x.Path).ToList() : [path];
         }
         var old = new List<string> { path };
         var baseName = Path.Combine(dir, Path.GetFileNameWithoutExtension(name));
@@ -619,6 +630,9 @@ internal sealed class SharpArchiveReader : IMemberReader
 
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        if (_numberedVolumeGap || !_archive.IsComplete)
+            warn("Some volumes of this archive are missing; members that continue in them cannot be extracted.");
         for (int i = 0; i < _entries.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
@@ -628,7 +642,6 @@ internal sealed class SharpArchiveReader : IMemberReader
             yield return new MemberInfo(i, e.Key ?? string.Empty, kind, e.IsDirectory ? 0 : e.Size, e.CompressedSize, ArchiveFormats.Utc(e.LastModifiedTime),
                 e.IsEncrypted && !HasNoSevenZipStream(e), e.LinkTarget);
         }
-        if (!_archive.IsComplete) warn("Some volumes of this archive are missing; members that continue in them cannot be extracted.");
     }
 
     public Stream Open(int index, CancellationToken ct)

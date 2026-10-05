@@ -2,7 +2,7 @@
 
 **Requirement:** V10/V13, ARC-001/002, PI-05; truthful partial archive outcomes.
 **Severity/disposition:** Medium (archive correctness and completeness reporting); must fix.
-**Status:** reproduced on actual clean production inputs; remediation in progress.
+**Status:** numbered-volume gap check remediated; working host validation passes; clean CI/native pending.
 **Baseline source:** `3caf48088a4aaeed1ebd471b1c4aaf9266dd9dde`.
 
 An independent corpus adds xorriso 1.5.6 ISO 9660 and Joliet images, a genisoimage UDF 1.02
@@ -46,3 +46,29 @@ repeat the identical corpus, add regressions and perform affected clean CI/nativ
 Pure UDF/other revisions, legacy RAR numbering, native desktop/AT and exact-candidate qualification
 remain separate scopes. Both VMs stay running, Mac remains deferred and G: is untouched/HOLD.
 No candidate or human GO; overall **NO-GO**.
+
+## Working correction
+
+Numbered RAR discovery now retains an interior numeric gap independently of the decoder's endpoint
+flags. Member listing reports the missing-volume warning before visiting entries, so an incomplete
+entry cannot prevent that warning. Supported complete sets and safe content refusal are preserved;
+no member decompression is introduced into discovery, and no dependency changes.
+
+Ten new controls cover every complete-set entry point, the missing-middle listing/six searches,
+independent hashes in both read orders, and existing missing first/last/first-only refusal behavior.
+Before the production change, nine pass and the missing-middle case fails exactly at its warning
+oracle. Baseline test/source/TRX pins are retained in `regression-baseline-v1/result.json`, SHA-256
+`ff38c6a16d20f5e12c7a5a658adc58331ef2dc7b6bf5bca24df9a379b72c9e75`.
+
+After the fix, all **108 affected Core and four Find checks pass**. Two opt-in archive measurement
+cases (benchmark and index scale) retain explicit skips. The identical independent corpus preserves
+all 54 complete-fixture search/72 content outcomes and all negative content outcomes; every one of
+the seven missing-warning controls now reports the warning. Only FileCat.Archives.dll changes in
+the identical private probe; all other program files, source archives and private source remain pinned.
+Independent proof `working-v1/independent-working.json` SHA-256
+`595cd9a9c47a35536ad6df2526dd4649024ad9ccdbb5013844d9caf0ab5b6c18`.
+The first working verifier assumed both skips contained BENCH; the retained index-scale reason
+corrects that private assumption without changing tests or product behavior.
+
+Clean committed-source CI/native and exact-candidate qualification remain. Both VMs stay running,
+Mac stays deferred and G: remains untouched/HOLD. No candidate or human GO; overall NO-GO.

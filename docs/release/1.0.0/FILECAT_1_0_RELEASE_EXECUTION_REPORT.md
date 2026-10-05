@@ -7,12 +7,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-Independent xorriso ISO/Joliet and genisoimage UDF images plus all six complete RAR entry points
-pass 54 search/72 reverse-forward byte-hash controls. Missing middle part 03 exposes I136:
-one listing/six initial-narrowed searches omit the missing-volume warning, while affected content
-safely refuses. Baseline/source/input/DLL pins verify; correction and clean CI/native checks next.
-Progress is **113/136 issue rows remediated**, one separately Closed; **24/26 steps partly or
-fully open**. No candidate/human GO; overall NO-GO (E-I136).
+I136's interior numbered-RAR gap warning is remediated in working source. Nine baseline passes/one
+expected regression failure, all ten new controls and affected Core 108/four Find passes verify;
+two opt-in archive measurements retain explicit skips. The identical independent ISO/Joliet/UDF/
+RAR corpus preserves all 54 search/72 content results and safe corrupt-content refusal; seven
+missing-warning controls now pass, with only Archives.dll changed. Source/fixture/DLL/TRX and
+independent comparison pins verify. Clean committed-source CI/native next (E-I136). Progress:
+**114/136 issue rows remediated**, one separately Closed; **24/26 steps partly or fully open**.
+No candidate/human GO; overall NO-GO.
 
 I134/I135 are remediated and verified preliminarily at clean 3caf480. Empty 7z no-stream metadata,
 encrypted data/header refusal and canonical test identities pass the identical 78 search/57 content
@@ -155,7 +157,7 @@ Grouped steps are expanded individually: 11 and 13 are in progress, 12 requires 
 
 The plan contains **24 validation campaigns (V01–V24)**. Each still needs applicable final qualification
 or documented case-level reuse against the final release artifacts; no candidate exists. Many preliminary
-cases already pass. The register explicitly marks **113 of 135 issue rows remediated** and one closed in
+cases already pass. The register explicitly marks **114 of 136 issue rows remediated** and one closed in
 preliminary scope; this does not close their native/candidate obligations. Nine owner decisions and three
 external prerequisites remain and are already represented in the checklist.
 
@@ -1527,11 +1529,22 @@ in E-I133; earlier records keep their own provenance and limits. Overall **NO-GO
     I06/I16/I17 remain partial and are excluded. 24/26 steps partly/fully open, both VMs running,
     Mac deferred, G: untouched/HOLD, no candidate/human GO, NO-GO (E-I134/E-I135).
 
+258. Independent xorriso ISO/Joliet and genisoimage UDF images plus all six complete RAR entry
+    points pass 54 search/72 reverse-forward byte-hash controls. Missing middle part 03 exposes I136:
+    one listing/six searches lack warnings, while affected content refuses. Baseline proof SHA-256
+    `142e5194628ccafbb873e92717f06775daa68b30f3d262de92001c429e8317fc` verifies source/Git/input/DLL pins.
+    Nine new baseline controls pass/one fails; working gap discovery reports warnings before entries.
+    All ten new controls, affected Core 108/two explicit measurement skips and Find 4 pass. Identical
+    corpus/negative content outcomes persist; all seven warnings pass with only Archives.dll changed.
+    Working proof SHA-256 `595cd9a9c47a35536ad6df2526dd4649024ad9ccdbb5013844d9caf0ab5b6c18`.
+    Failed private compiler/Counter/skip-category assumptions stay retained. Clean CI/native next;
+    114/136 remediated, 24/26 steps open. VMs running, Mac deferred, G: untouched/HOLD, NO-GO (E-I136).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I136: earlier archive passes do not prove missing interior RAR-volume reporting. Seven-Zip rejects
   the owned incomplete set; FileCat has seven missing-warning failures but refuses affected content.
-  Correction/identical controls and affected clean CI/native/candidate checks remain (E-I136).
+  Correction/identical working controls pass; affected clean CI/native/candidate checks remain (E-I136).
 
 - I134/I135: prior archive passes do not prove empty 7z protection/content truth or I133 fixture identities
   under noncanonical Windows TEMP spelling. Working corrections/identical corpus/affected checks pass;
