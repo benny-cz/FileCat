@@ -62,6 +62,10 @@ public sealed class ViewerDirectContentLifetimeTests(ITestOutputHelper output)
             await Task.Run(() => reader.Read(0, new byte[bytes.Length])).WaitAsync(TimeSpan.FromSeconds(10));
             await WaitFor(() => (int)typeof(PagedReader).GetProperty("PendingLoads", Fields)!.GetValue(reader)! == 0);
             Assert.True((int)typeof(PagedReader).GetProperty("CachedPages", Fields)!.GetValue(reader)! > 0);
+            // The timer starts in the constructor, before initial page detection completes.
+            if (mode is "html" or "markdown")
+                await WaitFor(() => Field<Avalonia.Controls.Primitives.ToggleButton>(viewer, "_modePage").IsVisible);
+            timer.Stop();
             source.Arm();
             if (mode == "line") work = (Task)typeof(ViewerWindow).GetMethod("GoToLineAsync", Fields)!.Invoke(viewer, [9000L])!;
             else if (mode == "info") work = viewer.ShowInfoAsync();
@@ -69,6 +73,7 @@ public sealed class ViewerDirectContentLifetimeTests(ITestOutputHelper output)
             {
                 viewer.ShowPage();
                 page = Field<HtmlPage>(viewer, "_htmlPage");
+                Assert.NotNull(page);
                 // This read deliberately blocks until the test releases it.
                 work = Task.Factory.StartNew(() => served = page.Resolve("/"),
                     CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);

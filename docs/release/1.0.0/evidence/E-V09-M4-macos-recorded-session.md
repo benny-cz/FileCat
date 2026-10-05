@@ -78,22 +78,41 @@ Read-only initial protection does not resolve source attribution. Under the prev
 stated conservative rule, **full source-write qualification remains pending**. No universal
 zero-write, authopen, native desktop or candidate pass is claimed.
 
-## Next concrete instrument gate
+## SIP-preserving mapping calibration — actual execution
 
-Ordinary provider inventory on this exact Mac reports additional privileges required and
-warns that SIP limits features. Installed dtrace SHA-256 is
-`b510c2d13b953b98d37f397a21669e1390d835ff248784db23e33f0b70950381`.
-This does not establish whether the needed kernel provider works under root.
+The owner executes the pinned root syscall-provider inventory. It returns exit zero but
+only a header, with an explicit SIP failed-to-match error. Independent verification treats
+that as **unavailable**, not success. SIP remains enabled, the controller is absent, and no
+C control, capture, FileCat or device ran. Seven native pins verify. Installed dtrace SHA-256
+is `b510c2d13b953b98d37f397a21669e1390d835ff248784db23e33f0b70950381`.
 
-A bounded, pinned provider/known-mapping control is staged as
-`~/FileCatReleaseValidation/ProbeMmapProvider-20261005-v1.command`, native root
-`/Users/benny/FileCatReleaseValidation/mmap-fd-431448f4cf2e44f5a6171925d3e1cdb1`,
-stage manifest SHA-256 `afd7de07aeafbd664adcdf6101d6e339e6f145379fb92d0adfacc061bfaf9bda`.
-It inventories syscall::mmap:entry and, only if available, runs renamed byte-identical
-owned C controls as UID 501 in small owned files. It never runs FileCat or opens a device,
-and makes no SIP/system-setting change. Four input pins and native transport hashes verify;
-actual privileged execution/calibration remain pending owner-local sudo. No FD argument
-interpretation is accepted before positive calibration.
+A process-level alternative preserves SIP. Its first staging uses a nonexistent SDK path;
+the corrected compile uses the already verified CommandLineTools MacOSX15.2 SDK. The first
+ordinary control assumes 4-KiB offset alignment and fails on this Mac's 16-KiB native pages;
+its early observer does not retain the C command exit/output. Both setup failures are retained.
+Fresh v4 uses native page size and its ordinary three mappings/32-KiB whole-file byte control
+pass. The root inventory finds process mmap probes, but the D script fails signed/unsigned
+printf compilation before BEGIN. All 25 pins/three owned process absences verify; the owned
+32-KiB source stays entirely zero. Cleanup command exits were not captured in v4.
+
+Fresh v5 explicitly casts numeric arguments. Its ordinary control passes again; ordinary
+PID attachment fails without privileges, while compile-only scalar formatting succeeds.
+Owner-local root execution then passes: ordinary UID-501 worker **exit zero**, recorder
+**exit zero**, **three known mappings**, six nested mmap/__mmap entry/return pairs. Native
+PID/TID, FD argument 4, offset argument 5 and return address argument 1 match all three
+independent C records. The wrapper adds MAP_UNIX03 (0x40000), without packing an FD.
+The independently generated complete 32-KiB file is exactly MAPPED plus zeros, SHA-256
+`7a71e046c351e19379b1f43a9a31bca070bdc49ddb8568515308baf6f639b738`.
+All **32 native pins** and **three owned process absences** verify; SIP remains enabled.
+No FileCat or source device runs in this calibration.
+
+This qualifies only the observed library probes for one C process/one native thread. It
+neither resolves the historical v12 mapping FDs nor proves future-process/direct-syscall
+coverage. Next work is a pinned actual-session capture with process mapping and retained raw
+kernel events, matching every actual mapping/lifecycle/control before any source-write claim.
+Authopen/native/candidate and broader helper qualification remain open. Apple's
+[documented runtime protection](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/RuntimeProtections/RuntimeProtections.html)
+also limits tracing of system processes; this C calibration does not override that limit.
 
 ## Retained private provenance
 
@@ -120,6 +139,19 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
 - mmap-provider-staged-v1/native-stage-stdout.json SHA-256
   `dfeb34c4c94a9456f953a83fdf13399bb3822c05935a648b29ed4c22a019f517`:
   concrete root launcher/four inputs/stage pins, explicit not-executed checkpoint.
+
+- mmap-provider-executed-v1/independent-provider-v1.json SHA-256
+  `58abafa13de613dc8786162df1b908f5d8fa46b3c2cab01ee86692ad0fe409c4`:
+  actual root syscall inventory unavailable under SIP; seven pins/controller absent/no capture.
+- mmap-pid-executed-v4/independent-pid-failure-v4.json SHA-256
+  `332b39d2ef241706b9c60a40f636708d29baef76d611fdb6852097f7143819d0`:
+  process probes available, retained compilation failure, 25 pins/three absences/zero file.
+- mmap-pid-executed-v5/independent-pid-calibration-v5.json SHA-256
+  `e69b5d2f2a39646352709904053428b12af99a94afbb10af10c6f1b52c34a6bf`:
+  root recorder/ordinary worker exit zero; all three known FD/offset/address observations,
+  32 pins/whole-file bytes/three absences/SIP enabled. Native root
+  `/Users/benny/FileCatReleaseValidation/mmap-pid-8df3278639a8457cad4656caf4e65d6c`,
+  stage manifest `ce01c780a700866625d09bfa4f6fe30e4caf449ca844e58e8ca4e7bae3e248bc`.
 
 Separate docs-only 09e42e7 CI 37309749235 passes all four required jobs. Four server digests,
 six complete inventories and 24 affected viewer cases verify; ARM64 uses log totals, no
