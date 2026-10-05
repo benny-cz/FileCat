@@ -18,6 +18,10 @@ no source/no timeout, two EACCES source opens, native helper cancellation/channe
 201 input/55 retained pins, unchanged detached source and nine absences verify. Raw
 duration is independently measured; finite tracing/full-workflow/candidate limits remain
 (E-ENV-MAC-1/E-V09-M9).
+Fresh owned-device removal preparation passes 201 inputs/42 retained pins, regular/raw
+seven-range/read-only controls, safe missing-source refusal, native desktop contexts,
+source/detachment/two agent removals/eight absences. Actual held approval/removal is
+not executed and waits on owner readiness (E-V09-M10).
 
 I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
 four required lanes. Four server ZIP digests/six complete TRX inventories and 60 affected
@@ -2059,6 +2063,18 @@ Overall **NO-GO** remains.
     using actual BSC_sys_close names plus explicit later pipe FD reuse. No native rerun
     or historical result rewrite. Counts unchanged, VMs running, G: HOLD, temporary Mac
     power restoration still due, no candidate/GO, NO-GO (E-V09-M9).
+
+289. Prepare fresh committed-component held-device-removal case, without changing
+    production DLLs. Recorded cross-publication exit zero, 201 host/native inputs and
+    42 retained pins verify. Ordinary gui/501 regular and raw direct controls each pass
+    seven golden ranges/read-only closure; desktop missing-source control refuses before
+    access, no source/no timeout. Normal groups/graphic access, two agent removals, owned
+    raw attachment/normal detachment, source bytes/eight tracked absences and eight command
+    exits verify. Root controller retains restriction until owned nodes disappear and
+    requires owner approval only after its removal cue; no content is read in removal mode.
+    Actual authorization-held removal is unexecuted, awaiting owner readiness. Counts,
+    VMs/G: HOLD, outstanding temporary Mac power restoration and NO-GO unchanged; no
+    candidate/GO (E-V09-M10).
 
 ## Evidence invalidated by the campaign's own changes
 
