@@ -1,10 +1,44 @@
 # E-V09-M7 — Mac native authorization device binding
 
-Native baseline executed and independently verified, 2026-10-05. This follows the separate
+Native baseline and two fresh committed-guard replacement runs independently verified, 2026-10-05. This follows the separate
 successful approval/refusal cases in [E-V09-M6](E-V09-M6-macos-authopen-preparation.md).
 **Actual held authorization returns the equally sized replacement device.** The defect and
 working correction are recorded in [E-I140](E-I140-unix-device-authorization-identity.md).
 The baseline preparation below remains historical; no candidate qualification or issue closure follows.
+
+## Corrected v3 and v4 native results
+
+Fresh corrected local-Terminal v3 and the owner-requested v4 repeat both reject the
+approved equal-size replacement before constructing a source. The byte-identical clean
+`8f75856802668f7d21c09f33aa876e4fdc4409d3` Recovery/Core components report the
+changed/removed-device IOException with no returned source, timeout or probe content read.
+V3 changes native inode 887 to 891; v4 changes 907 to 911 at the same `/dev/rdisk4` path,
+with 25,165,824 bytes in each image. Successful helper read-only opens occur respectively
+11.998218 and 14.402040 seconds after verified replacement readiness.
+
+Each capture has successful post-recvmsg native fstat and close on FD 62. That received
+FD is inferred from the unique matched native operations and pinned production control
+flow; no source exists for wrapper descriptor reflection or direct F_GETFL measurement.
+One FIOCLEX descriptor-control ioctl occurs; zero device-size ioctls or observed content
+read/write/truncate calls occur on that inferred descriptor lifetime. Each case verifies
+200 input/88 retained pins, both unchanged detached images, eight owned absences and all
+recorded worker/recorder/decoder/cleanup exits zero. V3 retains 2,196,246 raw events over
+125.979592250 seconds; v4 retains 2,359,505 over 125.966731708 seconds. Both requested
+120-second recorders complete. Three unpaired nonreturning exit/thread-termination starts
+and finite loss-marker inspection remain explicit; these are not whole-source, mapping,
+drawn-workflow or candidate qualification. Historical failed v1 and unavailable-session
+v2 are retained. Completed launchers are single-use.
+
+Clean successor `61975926df8dd5ce32d741bc5eeddd9eec6f3704` CI 37359106547 passes
+all four required lanes. Four server ZIP digests, six complete TRX inventories and all
+60 affected viewer cases (20 per available Windows x64/Ubuntu/macOS App inventory) verify
+independently. ARM64 App passes 351/368 with 17 declared skips; native startup/drawing
+and installer compilation pass. ARM64 per-case TRX and physical qualification remain
+unavailable; three tag/manual package jobs are skipped. Original failed CI is preserved.
+
+Unchanged-source approval is prepared separately in [E-V09-M8](E-V09-M8-macos-guard-unchanged-approval.md).
+
+## Historical clean preparation and failed SSH session
 
 Fresh committed I140 preparation uses `8f75856802668f7d21c09f33aa876e4fdc4409d3`
 in native root `authbind-c6369740f9634543ad7e3839c5a4b4a1`. The Recovery/Core DLLs
@@ -13,10 +47,10 @@ four native metadata controls, equal-size same-path/different-inode rehearsal,
 golden source hashes, normal detachment and five process absences independently verify.
 The unchanged wrapper reads no source content in binding mode. The single-use
 `AuthopenBinding-20261005-v2.command` is staged for the separate root account and a
-held ordinary-user authorization dialog; this fresh binding case remains pending.
+held ordinary-user authorization dialog; this binding case was pending at preparation and later fails SSH interaction as recorded below.
 All exact source/payload/launcher/transport hashes and the clean Mac 19/4 declared-skip
 test result are recorded in E-I140. Root CLI authentication is verified without retaining
-the credential. It is not native consent. I141 records the unrelated failed ARM64 CI gate.
+the credential. It is not native consent. I141 retains the unrelated failed ARM64 CI gate and its passing successor.
 
 The private self-contained arm64 wrapper calls the actual UnixDeviceSource.Open from
 the byte-identical clean `593583e585d4a79cbb7ff961770a2d826858e14d` Recovery/Core DLLs.
@@ -38,7 +72,7 @@ Fresh local-Terminal v3 setup uses the same committed Recovery/Core bytes and ow
 images in `authbind-d8b09642eead468882d8dd2cf0204d97`. Four native controls, same-path/different-inode
 rehearsal, 200 input/46 retained pins, both hashes/detachment and five absences verify again.
 `AuthopenBinding-20261005-v3.command` uses the previously verified local sudo route.
-Its held native approval remains pending; v2 is completed/single-use and must not be rerun.
+Its held native approval was pending at preparation and now passes above; v2 is completed/single-use and must not be rerun.
 
 ## Verified controls and owned replacement rehearsal
 
@@ -131,5 +165,21 @@ Private base: authorized second workspace's FileCatReleaseEvidence/mac-resume-20
 - Installed SDKSettings SHA-256
   `2fa5c0ce1bbcd261b132b572b1a9eece3b5905b04640a44deae1a6a8812928fb`.
 
-Actual binding failure is retained; I140 correction/native revalidation remains. No candidate
+- Corrected v3 native root `authbind-d8b09642eead468882d8dd2cf0204d97`;
+  private `authopen-binding-executed-v3/independent-executed-v3.json` SHA-256
+  `151fab10a6579f7d349a68a14302e37b4c01eb5a2d23c8fa4f44b5c7c8abb607`.
+  Raw `958e6ef251d02b96924ee9e61b24d2208ad631df65b592611bb0a3cd6b66d35b`;
+  collection `28c1d07cbac56b959abd81b26a535775ad37a64e52d4a33fa5ddbd95bb475fa6`;
+  transport `7a5cb31dc05c99fe54c981a270b6c73efcd2a7e66bb1e8412f5be605780a8c8c`.
+- Corrected v4 native root `authbind-0867145a0363424ab005733ac63b1552`;
+  private `authopen-binding-executed-v4/independent-executed-v4.json` SHA-256
+  `92c44eff14b99e6c71b7473772f1639c10d06236fc200a40378751ef8a46def3`.
+  Raw `29b6ead350d9820866e8bbf62d6a0efbf711b73e1fc4362a2b91db229d44c8a1`;
+  collection `ad2428268a0917bfc0ac8172b048a7e8625a335d8cba08b95a2b3ac909d27a42`;
+  transport `1b1d5b80adae3bb5906571e411a66651ee65d82dddbf1dc267a4a65027eaebd4`.
+- Clean successor CI 37359106547 at exact `61975926df8dd5ce32d741bc5eeddd9eec6f3704`;
+  private FileCatReleaseEvidence/ci-37359106547/independent-ci.json SHA-256
+  `c1a4af6495c4a447de0108bde6ed9c8f297755f79c3ad0d9b8da846aa699ebc3`.
+
+Actual baseline failure is retained; corrected replacement revalidation passes. Broader qualification remains. No candidate
 or human GO. **NO-GO** remains.

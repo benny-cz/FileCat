@@ -7,27 +7,32 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-05)
 
-I141 repairs a picture-lifetime validation assumption. Clean 8f75856 CI passes three
-required lanes but its ARM64 App test observes three reads where the ordinal fixture expects
-two. Original failed CI is retained with three server digests/six complete inventories.
-Controlled prior-header injection reproduces three original host failures. Actual feeder
-targeting preserves lifetime/deadline/no-later-read/byte checks; all eight held cases/four
-new prior-header controls pass within affected 20/0 skips, full App 345/23 declared skips.
-Production behavior is unchanged. Clean successor CI/native ARM64 revalidation remains
-(E-I141). Historical CI read ordering is unknown.
+I141's feeder-based fixture correction passes clean 6197592 CI 37359106547 in all
+four required lanes. Four server ZIP digests/six complete TRX inventories and 60 affected
+viewer cases independently verify. ARM64 App 351/17 declared skips, native startup/drawing
+and installer compilation pass; per-case ARM64 TRX/physical/candidate limits remain.
+The original 8f75856 ARM64 failure and controlled three host failures stay retained.
+Host affected 20/full App 345/23 declared skips and every original lifetime/deadline/byte
+assertion pass. Production behavior is unchanged; historical CI ordering is unknown (E-I141).
 
-I140's actual held Mac approval returns replacement inode 849 instead of selected 845,
-exposing a native device-binding defect. Committed 8f75856 guard binds the received FD and
-current path before source construction. Clean Mac affected 19/4 declared skips includes
-all six new native cases; 852 archive-source/321 payload pins and process absence verify.
-The working/archive raw source difference is limited to line endings and retained explicitly.
-Fresh clean binding setup passes four native controls, 200 input/46 retained pins,
-equal-size same-path/different-inode rehearsal, image hashes/detachment/five absences.
-The v2 SSH capture fails setup: authopen cannot interact in that session; no source opens
-or replacement occurs, source/cleanup and 200/71 pins/four known absences verify. Fresh
-local-Terminal v3 setup independently verifies the same controls/pins/cleanup and awaits
-held native approval. Root CLI authentication verifies separately without credential retention;
-it is not native consent. Required clean CI remains failed on I141 (E-I140/E-V09-M7).
+I140's committed 8f75856 guard passes two fresh native held-approval replacement checks,
+v3 and the owner-requested v4 repeat. Selected inodes 887/907 become 891/911 at the same
+raw path/equal size. Both approved opens reject changed identity before source construction,
+with no returned source, timeout or probe content read. Native inferred FD 62 fstat/close,
+zero size ioctls, 200 input/88 retained pins per case, unchanged detached images/eight
+absences and clean recorded command exits verify. Descriptor inference/finite mapping,
+source-write/drawn-workflow/candidate limits remain explicit (E-I140/E-V09-M7).
+Clean native six new cases/19 passes with four declared skips and original source/payload
+pins verify. Earlier SSH authorization failure is retained separately. New unchanged-source
+approval setup verifies 197 input/20 retained pins, two native direct controls/seven golden
+ranges each, source/detachment/four absences and launcher. V2 receives no descriptor during its 90-second wait despite owner-reported approval;
+the failed worker and shortened trace remain retained, source/cleanup verified, cause unknown.
+Fresh v3 unchanged approval component passes read-only rights/seven ranges/closure and
+source/detachment; independent trace verification remains pending (E-V09-M8). Current guard refusal/removal,
+broader native/candidate qualification remain. VMs stay running; G: untouched/HOLD.
+Progress: **119/141 issue rows preliminarily remediated**, **one Closed**, **21 remain for
+remediation**; **24/26 checklist steps partly or fully open**, all 24 campaigns still need
+final qualification. No candidate or human GO; overall **NO-GO**.
 
 The 34112ac CI failure is retained; clean e7a1e7e CI 37321377008 now passes all four
 required jobs. Four server digests/six complete inventories/24 affected cases independently
@@ -294,8 +299,8 @@ Exact source/input/artifact/case inventories and owned cleanup verify. Both earl
 remain retained; controlled reproductions do not establish their exact historical event triggers.
 
 The checklist remains 24 partly/fully open steps; its I128 derivation is retained. Latest evidence is
-in E-I140 (clean committed Mac tests/fresh native binding setup) and E-I141 (host fixture
-correction; clean successor CI pending) and E-V09-M5 (actual Mac combined
+in E-I140 (clean committed Mac tests/two native replacement passes), E-V09-M8 (fresh
+unchanged approval prepared) and E-I141 (host fixture correction/four passing CI lanes) and E-V09-M5 (actual Mac combined
 raw/mapping session, all shared mapping FDs resolved and retained qualification limits).
 Earlier records keep their own provenance and limits.
 Overall **NO-GO** remains.
@@ -1965,11 +1970,35 @@ Overall **NO-GO** remains.
     24/26 checklist steps partly/fully open, all 24 campaigns still need final qualification.
     Both VMs stay running, G: untouched/HOLD; no candidate/human GO, NO-GO.
 
+284. Independently verify clean 6197592 CI 37359106547: all four required lanes pass,
+    four server ZIP digests/six full TRX inventories/60 affected viewer cases verify.
+    ARM64 App 351/17 declared skips, native startup/drawing and installer compilation
+    pass by logs; no ARM64 per-case TRX/physical qualification is claimed. Corrected
+    I140 local-Terminal v3 and owner-requested v4 each reject the approved equal-size
+    replacement before source construction. Native inode changes, read-only helper
+    opens after ready markers, inferred received FD fstat/close/no size ioctls, 200/88
+    pins per capture, unchanged detached images/eight absences and clean command exits
+    verify. Preserve inference/finite trace/mapping/native/candidate limits and prior
+    failures. Prepare fresh unchanged-device approval on the same clean component:
+    197 inputs/20 retained pins, two direct controls/seven independent golden ranges
+    each, unchanged detached image/four absences/launcher verify. Local host extraction
+    first fails on a missing stat import before writing any member; a separate host-only
+    resume completes verification without rebuilding or rerunning native preparation.
+    V2 times out despite owner-reported approval; raw two EACCES opens, receive EOF after
+    89.974 seconds/runtime SIGTERM, 54 retained/197 input pins, source/cleanup/seven
+    absences verify. Cause remains unknown. Fresh v3 prep verifies the same controls;
+    owner reports approval and component rights/seven ranges/closure/source/cleanup
+    pass; independent trace analysis remains pending.
+    Restore malformed historical E-I19-V1 index row to its original f87ad32 provenance.
+    Counts unchanged: 119/141 remediated, one Closed, 21 remain for remediation;
+    24/26 steps partly/fully open. VMs running, G: HOLD, no candidate/GO, NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
-  ordinary source passes at 593583e remain historical; revalidate the committed guard/native
-  authorization with unchanged and replaced/removed sources before qualification (E-I140).
+  ordinary source passes at 593583e remain historical. Committed replacement v3/v4 pass;
+  current unchanged-source approval/refusal/removal and broader qualification remain
+  (E-I140/E-V09-M8).
 
 - I138 changes only the native recovery driver. Original partial-file session stays failed;
   clean 593583e's complete successor, exact recovered bytes/source and cleanup verify. Its
@@ -2195,7 +2224,8 @@ Overall **NO-GO** remains.
    enabled; do not infer those passes from ordinary-image recovery. Native consent needs
    owner-local interaction. Native component refusal and fresh approval/returned-FD/read
    controls verify historically in E-V09-M6; actual E-V09-M7 replacement exposes I140.
-   Revalidate its committed guard and native authorization before advancing that path.
+   Committed replacement v3/v4 pass; continue fresh unchanged-source approval (E-V09-M8),
+   refusal/removal and broader native qualification before advancing that path.
    The first approved/failed-expectation attempt remains
    retained. Continue intended-device replacement/removal and adverse topology controls.
    Broader I106,
