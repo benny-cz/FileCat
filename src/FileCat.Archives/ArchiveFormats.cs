@@ -72,7 +72,8 @@ public static class ArchiveFormats
         int n = s.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
         head = head[..n];
         if (n >= 6 && head[..6].SequenceEqual((ReadOnlySpan<byte>)[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C])) return ArchiveKind.SevenZip;
-        if (n >= 7 && head[..7].SequenceEqual("Rar!\x1A\x07"u8)) return ArchiveKind.Rar;
+        if (n >= 7 && head[..6].SequenceEqual("Rar!\x1A\x07"u8) &&
+            (head[6] == 0 || n >= 8 && head[6] == 1 && head[7] == 0)) return ArchiveKind.Rar;
         if (n >= 2 && head[0] == 0x1F && head[1] == 0x8B) return ArchiveKind.Gzip;
         if (n >= 3 && head[..3].SequenceEqual("BZh"u8)) return ArchiveKind.Bzip2;
         if (n >= 6 && head[..6].SequenceEqual((ReadOnlySpan<byte>)[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00])) return ArchiveKind.Xz;
