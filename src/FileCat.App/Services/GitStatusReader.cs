@@ -182,9 +182,44 @@ internal static class GitStatusReader
         if (SharedWith(gitDir) is not { } dirs) return false;
         foreach (string dir in dirs)
         {
+            if (!MetadataTreeIsLocal(dir)) return false;
             if (!IsHarmless(Path.Join(dir, "config")) || !IsHarmless(Path.Join(dir, "config.worktree"))) return false;
             string info = Path.Join(dir, "objects", "info");
             if (!AlternatesAreLocal(Path.Join(info, "alternates")) || !AlternatesAreLocal(Path.Join(info, "http-alternates"))) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Git reads more metadata than the configuration files inspected above (refs, index and object packs among
+    /// them). On Windows a link anywhere in that tree can send the child to a share. Refuse stable linked metadata
+    /// before launching Git, walking only ordinary directories with bounded optional-badge work. This admission
+    /// snapshot does not prevent an attacker from swapping a path after the check.
+    /// </summary>
+    private static bool MetadataTreeIsLocal(string gitDir)
+    {
+        if (!OperatingSystem.IsWindows()) return true;
+        const int maxEntries = 10_000, maxDepth = 64, maxPathChars = 1_048_576;
+        var pending = new Stack<(string Path, int Depth)>();
+        pending.Push((gitDir, 0));
+        long started = Stopwatch.GetTimestamp();
+        int entries = 0, pathChars = 0;
+        while (pending.TryPop(out var directory))
+        {
+            if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromMilliseconds(250) || !IsLocalPath(directory.Path)) return false;
+            foreach (var item in new DirectoryInfo(directory.Path).EnumerateFileSystemInfos())
+            {
+                if (++entries > maxEntries || Stopwatch.GetElapsedTime(started) > TimeSpan.FromMilliseconds(250)) return false;
+                var attributes = item.Attributes; // The final link's own attributes; do not enumerate beneath it.
+                if ((attributes & FileAttributes.ReparsePoint) != 0) return false;
+                pathChars += item.FullName.Length;
+                if (pathChars > maxPathChars) return false;
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    if (directory.Depth >= maxDepth) return false;
+                    pending.Push((item.FullName, directory.Depth + 1));
+                }
+            }
         }
         return true;
     }
