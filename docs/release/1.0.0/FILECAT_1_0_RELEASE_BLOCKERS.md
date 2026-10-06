@@ -3,9 +3,10 @@
 Current overnight slice: I148 clean Windows/Mac/Ubuntu 63/0 each and all four
 exact-source CI lanes verify. I149 is preliminarily remediated at 313d40b after
 eight RAR signature failures; affected 77/0/full Core 818/56 skips/874 and identical
-before/after controls verify. New clean native/CI pending. 127/149 preliminary
+before/after controls verify. Clean Windows/Mac/Ubuntu each 77/0 and all four exact
+source CI lanes/four server digests/six inventories pass. 127/149 preliminary
 Remediated, one Closed, 21 remain. Broader/candidate/human stable GO remain gated.
-Mac awake v3 is active with restoration due; owner needs stay queued until 08:40
+Mac awake v3 is independently restored; owner needs stay queued until 08:40
 CEST, both VMs stay running and G: remains untouched/HOLD (E-I148/E-I149/E-V13-UDF2).
 
 Only unresolved items are listed; closed items move to the [execution report](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
@@ -44,8 +45,9 @@ Computer Use import was rechecked and still crashes before input; desktop/tool
 restoration, phone-lock interaction, reference hardware and A/B decisions/credentials
 remain queued. No current question is pending. Mac ordinary SSH works; temporary
 pinned power support rearmed on AC with root restorer PID 19109 at 22:39:22Z, with
-12-hour/disconnect/explicit-stop restoration. Prior completed restorations remain
-historical; current restoration is due when testing ends (E-ENV-MAC-1).
+12-hour/disconnect/explicit-stop restoration. This archive slice ends with verified
+restoration at 00:53:09Z: original preferences/runtime sleep restored and all three
+restorers/owned caffeinate absent (E-ENV-MAC-1).
 
 I147 is preliminarily remediated at 6cf17e5: controlled/full host, clean Windows/
 portable Unix inventories with unchanged payload/temp/process checks and all four

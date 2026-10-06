@@ -196,3 +196,20 @@ Private `mac-resume-20261005/mac-lid-awake-v3/apply-transport.json` SHA-256: `08
 Controller SHA-256 remains
 `12230699540f5ed370feb28db7210883ee3ba055238c53b437d4e7435cc73cb0`.
 No new remote-control service or permanent startup service is installed.
+
+## Overnight archive slice restoration
+
+After all 77 clean archive controls and their retained evidence are retrieved, the
+exact root PID 19109/UID 0/controller hash/command is verified and signaled. Native
+restoration completes at `2026-10-06T00:53:09.174878Z`. Fresh ordinary-user readback
+matches both the fresh and original baseline: originally absent SleepDisabled key
+removed, exact system/custom preferences restored, runtime sleep reenabled and
+unrelated settings unchanged. Three prior/current root restorers (14706, 18659,
+19109) and owned caffeinate 14103 are independently absent. All seven native files
+and empty watchdog stderr verify; no temporary power change from this slice remains.
+
+Private `mac-lid-awake-v3/independent-final-restoration-v1.json` SHA-256 is
+`380ccb67e89063116d6a288e74f85a9d58e1e2e8a291999aebf56e0718402d9e`;
+native restoration JSON is
+`0c1cf487968ced817f70094cea4561d7f6ac35d1f3dcd34bf4ef383491b0990e`.
+No new closed-lid sensor qualification is inferred from the rearm/restoration.

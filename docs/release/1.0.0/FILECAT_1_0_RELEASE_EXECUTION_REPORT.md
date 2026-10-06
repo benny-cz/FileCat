@@ -10,8 +10,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 I149 is preliminarily remediated at committed 313d40b: eight RAR recognition
 failures/six malformed positives, identical before/after bytes with only archive
 DLL changed give eight failures/22 positives then 30 passes. Affected host 77/0
-and full Core 818/56 declared skips/874 cases independently verify. Clean native/
-CI publication is running. Initial test compile failure remains retained (E-I149).
+and full Core 818/56 declared skips/874 cases independently verify. Clean Windows/
+Mac/Ubuntu each pass 77/0, including all 30 new controls; 885 raw source blobs and
+unchanged 331/330/331 payloads, inventories/temp/process checkpoints verify. All four
+exact-source CI lanes/four server digests/six complete inventories pass. All 77
+affected Core and 388 App names match; six native PE input paths remain explicit
+differences. Initial compile and timed-out artifact-read failures remain retained.
+The wider legacy probe passes 42 search/42 exact member reads, with damaged reads
+explicitly refused and source/artifact/cleanup pins unchanged (E-I149).
 
 I148 is preliminarily qualified at committed 9da5738: six legacy secondary-volume
 failures are corrected under explicit format opening. Clean Windows/Mac/Ubuntu
@@ -24,7 +30,7 @@ six revisions match final read-only native/independent oracles, 36 search/132 ex
 reads and six durable native revision controls. Wider/native UI/candidate remain.
 Counts 127/149 preliminary Remediated, one Closed, 21 remaining issues; 24/26
 checklist steps remain partly/fully open, with no individual test-item denominator.
-Owner needs remain queued until 08:40 CEST. Mac awake restoration is due
+Owner needs remain queued until 08:40 CEST. Mac awake restoration is independently verified
 (E-I148/E-V13-UDF2/E-I149).
 
 I147 is preliminarily remediated at 6cf17e5 after four reproduced Windows icon
@@ -61,8 +67,9 @@ repair, owner decisions/credentials, reference hardware and phone-lock interacti
 remain queued; all other executable work continues. Mac SSH UID 501 is available;
 fresh bounded awake support is applied on AC at 22:39:22Z using the identical pinned
 controller. Root restorer PID 19109 is verified before application; restoration is
-due when Mac testing ends, AC disconnects or the 12-hour watchdog expires. No new
-closed-lid observation is claimed (E-ENV-MAC-1).
+completed at 00:53:09Z after this archive slice: original absent-key/system/custom
+settings and runtime sleep are restored, all three restorers and the owned
+caffeinate are absent. No new closed-lid observation is claimed (E-ENV-MAC-1).
 
 I143 committed remediation at 1559933 follows a real Ubuntu production icon-budget failure:
 50,000 requests retain 50,000 entries and observe a 43,795 waiting-queue peak. Linux/Mac
@@ -2357,6 +2364,21 @@ Overall **NO-GO** remains.
      no native drawn UI/candidate/human GO. Mac v3 active/restoration due, VMs running,
      G: untouched/HOLD, owner gates queued until 08:40 CEST. NO-GO.
 
+304. Seal I149 at pushed 313d40b: 885 raw source blobs; clean Windows/Mac/Ubuntu
+     each 77/0 including all 30 new signature/legacy/UDF controls, unchanged
+     331/330/331 payloads and exact case/process/temp inventories. Four required
+     CI lanes at 37394739441 attempt one pass; four server digests/six complete TRX,
+     all 77 affected Core and 388 App names verify, six native PE paths retained
+     explicitly. Timed-out artifact download retained before successful read-only
+     resume. Actual wider legacy probe verifies 42 search/42 complete byte reads
+     plus safe partial reads/refusals and unchanged pins/cleanup. Mac owned root
+     restorer 19109 is verified/signaled; restoration at 00:53:09Z matches original
+     system/custom preferences and runtime sleep, seven native pins/four absences
+     verify. No temporary power change remains. Windows guest browsing capture
+     runs without user input; independent trace qualification continues. Counts
+     127/149 preliminary, one Closed, 21 remain; 24/26 steps partly/fully open;
+     no candidate/stable GO. Owner interaction needs remain queued until 08:40 CEST.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2579,7 +2601,8 @@ Overall **NO-GO** remains.
    guest pass, with all source/fixture/case/cleanup pins verified. Independent ISO 9660/Joliet/UDF 1.02 and six numbered-RAR entry points now pass another 54 search/
    72 content controls. I136 fixes a missing interior-volume warning; four clean a1c265f CI jobs
    and 81 cases per VM pass with all pins/cleanup verified. Pure UDF six-revision and legacy RAR component controls now pass host oracles; clean native/CI
-   qualification is running (E-V13-UDF2/E-I148). Other revision/topology variants,
+   qualification passes, including I149's full version markers and 77 controls per
+   native lane/four exact-source CI jobs (E-V13-UDF2/E-I148/E-I149). Other revision/topology variants,
    naming, native interaction and exact-candidate checks remain required (E-I136).
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop and the reference machine.
    Current desktop state was not observed: updated Computer Use import and plain Node startup both fail before
