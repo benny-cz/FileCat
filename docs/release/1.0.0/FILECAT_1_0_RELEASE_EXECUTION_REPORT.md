@@ -10,10 +10,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 I156 ACL trust is preliminarily remediated at ce8189e: clean 918-source/four-mode
 native publishes, protected handoff/four adverse controls/profiler regression and
 all four exact-source CI lanes/digests/inventories/native byte receipts verify.
-I157 is a new read-pipe identity blocker: actual brokered open accepts counterfeit
-owned-file bytes from a PID other than its runas helper before a consented report.
-The nonexistent device is independently absent; no physical source opens.
-Correction proceeds autonomously; full I17 and candidate/human GO remain open.
+I157 read-pipe identity is preliminarily remediated at b4b6e1b: the held-live
+runas PID is checked against the kernel pipe server before Info. Clean SC/FDD
+controls reject counterfeit peers with zero protocol bytes and accept separate
+synthetic same-helper-PID regular-file positives; pins/cleanup/four green CI
+lanes/ten digests/fourteen inventories/two native test executions verify.
+No physical source opens; real consent/limited caller/full I17/candidate remain.
 
 I155 native profiling is preliminarily remediated at fc5e706/7183268: actual
 committed 917-source/four-mode native publishes, SC/FDD profiler rejection and
@@ -33,7 +35,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 134/157 preliminary, one Closed, 22 remain; all campaigns need final
+Current 135/157 preliminary, one Closed, 21 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2930,3 +2932,13 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     owned regular-file bytes from a server PID other than the launched helper, without
     a consented report. Absent-device query/two positives/pins/cleanup pass; no physical
     source opens. Authenticate peer before protocol I/O; correction underway.
+
+327. I157 b4b6e1b verifies kernel pipe server against the held live runas process
+    before Info. Working four-mode publishes and 25/1 host affected tests pass. Clean
+    923-source/four-mode publish receipts, actual SC/FDD counterfeit blocks with zero
+    protocol request/reply bytes and separate synthetic managed servers in the actual
+    helper PID preserve exact regular-file data and all pins/cleanup. No production
+    consent or physical device is involved. Four CI 37429527482 lanes/ten digests/four
+    receipts/fourteen full inventories/two native Windows executables/source receipts
+    and both new native matching/mismatching identity tests pass. 135/157 preliminary,
+    one Closed, 21 remaining issue remediations; all campaigns need final qualification.
