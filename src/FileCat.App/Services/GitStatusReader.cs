@@ -65,6 +65,7 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
 /// <summary>
 /// Reads the same underlying Git state that overlay extensions represent, without loading third-party Shell code into
 /// the file manager. Work is bounded and cancellable; unavailable Git or very large output simply leaves icons plain.
+/// Automatic badges use repository rules, excluding user-wide configuration, ignore and attribute files.
 /// </summary>
 internal static class GitStatusReader
 {
@@ -336,11 +337,26 @@ internal static class GitStatusReader
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
+        // A work tree's attributes can select a filter defined outside its checked configuration. Inherited Git
+        // variables can also redirect the repository or write traces. Restrict only this child, preserving the
+        // caller's environment and ordinary PATH/runtime settings. Global/system files and implicit user-wide
+        // ignore/attribute defaults are excluded; .gitignore/.gitattributes and checked repository settings remain.
+        foreach (string key in start.Environment.Keys.Where(key => key.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)).ToArray())
+            start.Environment.Remove(key);
+        string emptyFile = OperatingSystem.IsWindows() ? "NUL" : "/dev/null";
+        start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
+        start.Environment["GIT_CONFIG_SYSTEM"] = emptyFile;
+        start.Environment["GIT_CONFIG_GLOBAL"] = emptyFile;
+        start.Environment["GIT_ATTR_NOSYSTEM"] = "1";
         start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
         start.ArgumentList.Add("-c");
         start.ArgumentList.Add("core.fsmonitor=false");
         start.ArgumentList.Add("-c");
         start.ArgumentList.Add("status.relativePaths=true");
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add("core.attributesFile=" + emptyFile);
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add("core.excludesFile=" + emptyFile);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = new Process { StartInfo = start };
         bool started = false;
