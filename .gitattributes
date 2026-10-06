@@ -11,3 +11,5 @@
 
 # Preserve the exact upstream license bytes in installer source/evidence.
 eng/installer/licenses/InnoSetup-6.7.1.txt -text
+# Frozen notice/snapshot bytes retain original line endings and whitespace.
+licenses/dependencies/** -text -whitespace

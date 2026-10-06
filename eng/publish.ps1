@@ -56,6 +56,9 @@ if ($LASTEXITCODE -ne 0) { throw "framework-dependent Shell helper publish faile
 foreach ($dir in @($publish, $fdd)) {
     Copy-Item (Join-Path $root "LICENSE") $dir -Force
     Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") $dir -Force
+    dotnet run --project (Join-Path $root "eng/DependencyNotices") -c Release -- `
+        (Join-Path $root "licenses/dependencies") (Join-Path $root "src/FileCat.App/packages.lock.json") $dir (Join-Path $dir "licenses/dependencies")
+    if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
 }
 
 # Portable ZIP: same binaries plus the marker that keeps settings and data beside the executable.

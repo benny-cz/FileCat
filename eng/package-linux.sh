@@ -25,6 +25,8 @@ dotnet publish "$ROOT/src/FileCat.App/FileCat.App.csproj" -c Release -r "$RID" -
 # Windows-only helpers (Shell host, administrator broker) do not ship on Linux.
 rm -f "$PUB"/FileCat.ShellHost* "$PUB"/FileCat.PrivilegedHost*
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$PUB/"
+dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
+  "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$PUB/licenses/dependencies"
 install -m 644 "$ROOT/src/FileCat.App/Assets/filecat.png" "$PUB/filecat.png"
 chmod +x "$PUB/FileCat"
 # The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not

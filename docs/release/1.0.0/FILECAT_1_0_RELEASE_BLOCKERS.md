@@ -35,6 +35,14 @@ after its complete declared source tree has no license-named file. Notice
 packaging, hosted extracted/native/runtime/license/SBOM/candidate scopes remain
 Open (E-I03-RESTORE).
 
+The full-notice correction now adopts 48 exact texts/50 snapshot files covering
+38 App graph packages and five .NET 10.0.12 runtime packs. A locked package-only
+tool checks text bytes, package/runtime identity and coherent source inventory
+before output; seven positives/twelve refusals pass. All three packagers invoke
+it before archive/signing. Actual changed packaging/committed hosted validation
+continue. LTRData.Extensions full text, RAR/AppImage/native obligations, legal
+eligibility and full SBOM/candidate remain Open (E-I03-NOTICES).
+
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
 picture-demand case (E-I160). New I161 independently reproduces unscheduled

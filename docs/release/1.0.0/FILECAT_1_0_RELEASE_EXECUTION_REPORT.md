@@ -3234,3 +3234,17 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     its complete source tree has no license-named file. No binary/source license
     eligibility, all compiler reads or hosted/native/runtime/SBOM qualification
     is inferred. Notice packaging is next. Counts unchanged; NO-GO.
+
+351. I03/I10 full-notice correction adopts 48 original texts/50 frozen files,
+    maps 38 App graph packages/five actual .NET 10.0.12 runtime packs and retains
+    one unresolved LTRData.Extensions full-text gap. New locked package-only tool
+    refuses changed/missing/extra/path/version/hash/schema/runtime/existing-output
+    inputs before copying. Seven actual SC/old-FDD metadata positives and twelve
+    refusals verify exact outputs; original index-target controls are preserved
+    and two fresh pinned-license cases close that observer coverage gap. Windows/
+    Linux/Mac packagers check/copy before archiving or signing. Raw staged bytes,
+    coherent mappings and script ordering/parse/build pass. Original whitespace
+    diagnostic is retained; frozen-source-only attribute exception preserves
+    all texts. V3 corrects v2's unchanged-path label. Summary eligibility/version/
+    inventory claims correct. Actual committed packaging/hosted validation and
+    full license/native/SBOM/candidate remain Open; counts unchanged, NO-GO.

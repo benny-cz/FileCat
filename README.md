@@ -59,6 +59,11 @@ Normal builds and publishes restore the frozen graph. For a separate RID restore
 multi-RID graph and is rejected. The Linux ARM64 graph preserves the packaging script's
 existing restore compatibility; it does not establish stable platform support.
 
+Packaging also checks the frozen notice snapshot in `licenses/dependencies/index.json`
+against the App lock and published runtime version before copying full texts.
+Review and update that snapshot from verified package/source bytes when changing
+dependencies or the SDK; its index records unresolved license-provenance gaps.
+
 Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
 framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.
 A portable copy keeps its settings in `Data/` next to the executable (marker file `FileCat.portable`).

@@ -23,6 +23,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp -a "$PUB/." "$APP/Contents/MacOS/"
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
+dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
+  "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$APP/Contents/Resources/licenses/dependencies"
 
 # Icon: every size macOS asks for, from the frames drawn for each size (the 16-pixel one by hand) rather than the
 # 256-pixel artwork shrunk, which reads poorly small. 512 and up are left out: macOS scales the 256 for them.
