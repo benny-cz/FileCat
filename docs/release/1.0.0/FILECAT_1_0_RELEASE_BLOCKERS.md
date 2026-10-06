@@ -1,10 +1,14 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
-I158 is a new FDD shared-runtime trust blocker: actual b4b6e1b native launch
-loads installed CoreLib with a temporary explicit user Modify grant. All runtime
-bytes remain unchanged; exact original VM SDDL/content are restored. SC uses
-its separately protected bundled runtime. Pre-CLR shared tree correction proceeds
-autonomously; no actual plan/device/UAC bypass or candidate qualification claimed.
+I158 shared-runtime trust is preliminarily corrected at 69603ec: four clean
+native modes/924 raw sources/receipts, protected SC/FDD handoff and unsafe FDD
+block with exact runtime ACL/content restoration verify. All four CI lanes/ten
+digests/fourteen inventories/two native byte/source receipts pass (E-I158).
+New I159: exact caller launches a harmless owned native replacement with an
+explicit user Modify grant. Actual returned PID/native marker/natural exit 73
+and protected positive/pins/cleanup verify; no physical device or real plan opens.
+Pre-execution executable/ancestor trust correction proceeds autonomously;
+limited caller/consent/races/candidate and explicit human stable GO remain open.
 
 I156 ACL trust is preliminarily remediated at ce8189e: clean 918-source/four-mode
 native publishes, protected handoff/four adverse controls/profiler regression and
@@ -26,7 +30,7 @@ limited-caller/consent/candidate remain; no human stable GO (E-I155).
 I152 stable metadata links are preliminarily corrected at e3c99d5 with identical
 native zero-contact repeat/host/all three native scopes. Test-only cadence I153
 fd1d780 now passes host/all native/four CI lanes/five digests/six inventories.
-Current 135/158 preliminary, one Closed, 22 remain. I154's actual SC/FDD
+Current 136/159 preliminary, one Closed, 22 remain. I154's actual SC/FDD
 managed startup-hook acceptance is preliminarily corrected and sealed on 99e54b3
 with clean native repeats and four green CI lanes. Wider loader/UI/limited-caller
 qualification remains open (E-I154/I17).

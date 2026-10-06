@@ -7,11 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I158 is a new FDD shared-runtime trust blocker: actual b4b6e1b native launch
-loads installed CoreLib with a temporary explicit user Modify grant. All runtime
-bytes remain unchanged; exact original VM SDDL/content are restored. SC uses
-its separately protected bundled runtime. Pre-CLR shared tree correction proceeds
-autonomously; no actual plan/device/UAC bypass or candidate qualification claimed.
+I158 shared-runtime trust is preliminarily corrected at 69603ec: four clean
+native modes/924 raw sources/receipts, protected SC/FDD handoff and unsafe FDD
+block with exact runtime ACL/content restoration verify. All four CI lanes/ten
+digests/fourteen inventories/two native byte/source receipts pass (E-I158).
+New I159: exact caller launches a harmless owned native replacement with an
+explicit user Modify grant. Actual returned PID/native marker/natural exit 73
+and protected positive/pins/cleanup verify; no physical device or real plan opens.
+Pre-execution executable/ancestor trust correction proceeds autonomously;
+limited caller/consent/races/candidate and explicit human stable GO remain open.
 
 I156 ACL trust is preliminarily remediated at ce8189e: clean 918-source/four-mode
 native publishes, protected handoff/four adverse controls/profiler regression and
@@ -41,7 +45,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 135/158 preliminary, one Closed, 22 remain; all campaigns need final
+Current 136/159 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2956,3 +2960,20 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     owned cleanup and exact original VM runtime SDDL/content restoration pass. Caller
     already Admin; no real consent/device/UAC bypass. Pre-CLR shared runtime trust
     correction continues autonomously (E-I158); 135/158 preliminary, 22 remain.
+
+329. I158 69603ec verifies the complete default shared framework tree before CLR
+    loading. Working/clean four-mode native publishes/receipts and all 924 raw Git
+    inputs verify. Protected SC/FDD synthetic handoff succeeds, unsafe-runtime SC
+    stays compatible and FDD does not reach managed entry; original VM runtime ACL
+    and bytes restore exactly, positives/pins/owned cleanup pass. Dialog unobserved
+    and negative helper boundedly terminated. All four CI 37433725218 lanes/ten
+    digests/fourteen full inventories/two downloaded native PE/source receipts pass.
+    Two gh full-log reads timed out; official run-log archive/native curl succeeds, original failures/collector and unchanged event contents retained.
+
+330. New I159: exact 69603ec caller/public runas launch accepts an owned harmless
+    native replacement EXE with an explicit current-user Modify ACE. Actual held
+    launch/native PID 10624/Admin/natural exit 73, protected positive/two DLL
+    positives/pins/owned cleanup pass. No device/real plan/limited caller/UAC bypass
+    claimed. Check executable and ancestors before Windows starts them; correction
+    continues autonomously. 136/159 preliminary, one Closed, 22 remaining issue
+    remediations; all campaigns still need final qualification. NO-GO.
