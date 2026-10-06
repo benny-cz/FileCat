@@ -2902,3 +2902,12 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     naturally. Before/after bytes/all inputs/two positives/owned cleanup verify;
     only the owned DLL ACL changed. No actual plan or unelevated/UAC bypass claimed.
     Native pre-load file/ancestor ACL correction continues autonomously (E-I156).
+
+325. I156 correction ce8189e verifies ownership/ordinary write grants on the native
+    helper, ancestors and bounded adjacent tree before CLR loading. Executable-only
+    protected handoff succeeds; writable entry/folder/dependency and owner-with-inherited
+    grant controls block managed startup with positives and owned cleanup. No dialog
+    or clean refusal exit was observed; owner mutation is not an isolated owner proof.
+    Four working native publish modes and 15 affected host tests pass. All 918 raw Git
+    blobs/four clean committed native outputs/receipts verify; fresh VM repeats and
+    exact CI 37426875741 continue. No user interaction is needed for this slice.
