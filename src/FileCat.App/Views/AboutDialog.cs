@@ -24,7 +24,7 @@ internal static class AboutDialog
 {
     public const string Author = "Marek Střihavka";
     public const string AuthorMail = "marek.strihavka@gmail.com";
-    private const string Tagline = "MIT-licensed file manager and system-resource navigator";
+    private const string Tagline = "Multiplatform File Manager on steroids";
 
     public static async Task ShowAsync(MainViewModel vm)
     {
