@@ -78,7 +78,7 @@ internal static class GitStatusReader
     /// <param name="gitExecutable">Git by full path; by default the one on PATH.</param>
     internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string? gitExecutable = null)
     {
-        if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder) || OperatingSystem.IsWindows() && !WindowsIcons.IsLocal(folder)) return null;
+        if (!Path.IsPathFullyQualified(folder) || !IsLocalPath(folder) || !Directory.Exists(folder)) return null;
         if ((gitExecutable ?? s_git.Value) is not { } git) return null;
         gitExecutable = git;
         // Outside a repository, the child folders that are repositories show their work trees' state; inside one whose
@@ -116,7 +116,7 @@ internal static class GitStatusReader
         try
         {
             repositories = new DirectoryInfo(folder).EnumerateDirectories()
-                .Where(d => (d.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                .Where(d => (d.Attributes & FileAttributes.ReparsePoint) == 0 && IsLocalPath(Path.Join(d.FullName, ".git")) &&
                             (Directory.Exists(Path.Join(d.FullName, ".git")) || File.Exists(Path.Join(d.FullName, ".git"))))
                 .Select(d => d.FullName).Take(MostRepositories).ToList();
         }
@@ -157,9 +157,11 @@ internal static class GitStatusReader
     {
         try
         {
+            if (!IsLocalPath(folder)) return null;
             for (var dir = new DirectoryInfo(folder); dir is not null; dir = dir.Parent)
             {
                 string dotGit = Path.Join(dir.FullName, ".git");
+                if (!IsLocalPath(dotGit)) return null;
                 if (Directory.Exists(dotGit)) return Trusted(dotGit) ? dir.FullName : null;
                 if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && Trusted(linked) ? dir.FullName : null;
             }
@@ -176,6 +178,7 @@ internal static class GitStatusReader
     /// </summary>
     private static bool Trusted(string gitDir)
     {
+        if (!IsLocalPath(gitDir)) return false;
         if (SharedWith(gitDir) is not { } dirs) return false;
         foreach (string dir in dirs)
         {
@@ -194,6 +197,7 @@ internal static class GitStatusReader
     {
         var dirs = new List<string> { gitDir };
         string commonDir = Path.Join(gitDir, "commondir");
+        if (!IsLocalPath(commonDir)) return null;
         if (File.Exists(commonDir) && new FileInfo(commonDir).Length <= 4096)
         {
             string common = File.ReadAllText(commonDir).Trim();
@@ -218,9 +222,33 @@ internal static class GitStatusReader
     /// <summary>
     /// A path a repository's own files name (".git" file, "commondir") is looked at only when it is on this computer:
     /// a downloaded folder can name any path there, and on Windows merely testing a network path connects to it. Decided
-    /// from the path itself, before any file-system call on it.
+    /// from the path itself first. On Windows, each component's own attributes are then checked before looking beneath
+    /// it: a fixed-drive spelling can still lead to a share through a junction or symbolic link. Such optional badges
+    /// are refused even for local links. A missing component is safe to test after all existing ancestors pass.
     /// </summary>
-    internal static bool IsLocalPath(string fullPath) => !OperatingSystem.IsWindows() || WindowsIcons.IsLocal(fullPath);
+    internal static bool IsLocalPath(string fullPath)
+    {
+        if (!OperatingSystem.IsWindows()) return true;
+        try
+        {
+            if (!WindowsIcons.IsLocal(fullPath)) return false;
+            fullPath = Path.GetFullPath(fullPath);
+            string root = Path.GetPathRoot(fullPath)!;
+            string component = root;
+            if ((File.GetAttributes(component) & FileAttributes.ReparsePoint) != 0) return false;
+            foreach (string part in fullPath[root.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+            {
+                component = Path.Join(component, part);
+                // GetFileAttributes returns the final link's attributes without following its target. Never ask for
+                // the next component until this one passes; checking only the complete path would already follow it.
+                if ((File.GetAttributes(component) & FileAttributes.ReparsePoint) != 0) return false;
+            }
+            return true;
+        }
+        catch (FileNotFoundException) { return true; }
+        catch (DirectoryNotFoundException) { return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException or NotSupportedException) { return false; }
+    }
 
     /// <summary>
     /// The [core] settings whose value Git opens while it compares files: the ignore and attribute rules, the work
@@ -235,6 +263,7 @@ internal static class GitStatusReader
     /// </summary>
     internal static bool IsHarmless(string configPath)
     {
+        if (!IsLocalPath(configPath)) return false;
         var info = new FileInfo(configPath);
         if (!info.Exists) return true;
         if (info.Length > 1_000_000) return false;
@@ -298,6 +327,7 @@ internal static class GitStatusReader
     /// </summary>
     private static bool AlternatesAreLocal(string path)
     {
+        if (!IsLocalPath(path)) return false;
         var info = new FileInfo(path);
         if (!info.Exists) return true;
         if (info.Length > 1_000_000) return false;
