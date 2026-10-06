@@ -7,6 +7,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+Expanded external-configuration checks reproduce I150: actual 313d40b automatic
+Git badges execute the owned global and inherited filter recorders. Two known
+positives/one negative, unchanged 354/546 payload pins, exact environment restoration
+and process cleanup verify (E-I150). Correction/revalidation underway without
+owner interaction; 127/150 preliminarily remediated, one Closed, 22 remain.
+All owner needs stay queued until 08:40 CEST; no candidate/human GO; NO-GO.
+
 Fresh I16/V24 process/file/share-contact component controls independently pass on
 actual 313d40b: 66 process events/26 verified descendants, 594 file-open attempts/
 249 exact paths, and 118 pcap packets with only the two known endpoint control
@@ -2403,6 +2410,14 @@ Overall **NO-GO** remains.
      and all retained pins verify. No firewall/service changes or desktop/whole
      network/protected-write/candidate claims. I16/V23/V24 wider variants continue;
      all owner interactions stay queued until 08:40 CEST. Counts unchanged; NO-GO.
+
+306. Broaden I16 to global/inherited Git settings: exact pinned 313d40b actual
+     API executes both owned input-selected filter commands, with two direct
+     positives/one negative and unchanged source/payload/environment/process
+     observations. Original private assembly-name observer failure retained; fresh
+     v2 independently verifies five retained pins. Register I150 High/must-fix,
+     correct and revalidate autonomously. 127/150 preliminary, one Closed, 22
+     remain; no candidate/human GO. Owner needs queued until 08:40 CEST.
 
 ## Evidence invalidated by the campaign's own changes
 
