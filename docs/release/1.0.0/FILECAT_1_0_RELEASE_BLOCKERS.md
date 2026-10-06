@@ -1,9 +1,13 @@
 # FileCat 1.0.0 — open release blockers and required decisions
+I155 is a new pre-CLR native profiler blocker: both protected 99e54b3 helpers
+load an owned ordinary-writable DLL before Main on the actual broker route.
+Two positives/all pins/owned cleanup verify; caller already administrative.
+Correction and revalidation continue autonomously; no candidate/human GO (E-I155).
 
 I152 stable metadata links are preliminarily corrected at e3c99d5 with identical
 native zero-contact repeat/host/all three native scopes. Test-only cadence I153
 fd1d780 now passes host/all native/four CI lanes/five digests/six inventories.
-Current 132/154 preliminary, one Closed, 21 remain. I154's actual SC/FDD
+Current 132/155 preliminary, one Closed, 22 remain. I154's actual SC/FDD
 managed startup-hook acceptance is preliminarily corrected and sealed on 99e54b3
 with clean native repeats and four green CI lanes. Wider loader/UI/limited-caller
 qualification remains open (E-I154/I17).

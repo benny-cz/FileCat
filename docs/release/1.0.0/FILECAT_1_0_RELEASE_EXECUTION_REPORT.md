@@ -7,6 +7,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I155 is a new pre-CLR native profiler blocker: both protected 99e54b3 helpers
+load an owned ordinary-writable DLL before Main on the actual broker route.
+Two positives/all pins/owned cleanup verify; caller already administrative.
+Correction and revalidation continue autonomously; no candidate/human GO (E-I155).
+
 I152 is preliminarily remediated at e3c99d5: unchanged native probe/only clean App
 DLL changed eliminates 14 SMB flows/126 packets and preserves ordinary badge/
 exact controls/zero reported loss/cleanup. Identical final seven controls/721
@@ -18,7 +23,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 132/154 preliminary, one Closed, 21 remain; all campaigns need final
+Current 132/155 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2865,3 +2870,10 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     Ten server digests/four toolchain receipts/fourteen full execution inventories and actual
     ARM64 runtime-config hash/startup/drawing/installer receipts verify. Corrected helpers are
     stopped after six seconds; healthy consent/limited caller/native profiler/candidate remain.
+
+321. Actual protected committed 99e54b3 SC/FDD helpers load the owned native profiler
+    DLL before Main despite startup-hook rejection. DLL attach markers match returned
+    PIDs 12516/11108 and administrative identity. Two direct LoadLibrary controls, all
+    input/output pins and protected/process cleanup verify. The unavailable factory
+    supplies no profiler callbacks; both helpers are stopped after six seconds. Caller
+    is already administrative, no UAC bypass claimed. New I155; pre-CLR remedy underway.
