@@ -97,16 +97,25 @@ public sealed class ResultSet(string id, string title, string provenance)
         int n = 0;
         lock (_lock)
         {
-            foreach (var i in items)
+            try
             {
-                if (_relative.Remove(i))
+                foreach (var i in items)
                 {
-                    _items.Remove(i);
+                    if (!_relative.Remove(i)) continue;
                     _notes.Remove(i);
                     n++;
                 }
             }
-            if (n > 0) ModifiedUtc = DateTime.UtcNow;
+            finally
+            {
+                // Compact once instead of scanning and shifting the member list for every selected item.
+                // An interrupted selection still leaves all successfully removed references consistent.
+                if (n > 0)
+                {
+                    _items.RemoveAll(i => !_relative.ContainsKey(i));
+                    ModifiedUtc = DateTime.UtcNow;
+                }
+            }
         }
         Changed?.Invoke();
         return n;
