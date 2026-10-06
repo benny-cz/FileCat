@@ -1,5 +1,9 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
+I152 is an open High automatic Git metadata-descendant contact defect: 14 SMB
+flows/126 packets within owned controls; correction/identical repeat underway.
+Current 129/152 preliminary, one Closed, 22 remaining (E-I152).
+
 I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
 changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
 and zero reported loss verify. Six host baseline failures correct; full App

@@ -7,11 +7,18 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I152 is open: current Git child reads a linked metadata descendant and generates
+14 SMB flows/126 packets inside exact controls. Ordinary badge and separate HEAD
+zero-contact control/payload/receiver cleanup verify; correction and identical
+revalidation are underway (E-I152). Current 129/152 preliminary, one Closed,
+22 remaining; all campaigns still require final qualification.
+
 I03/I18 compiler provenance is preliminarily corrected at 0646053: exact official
 Inno package/119 frozen inputs, complete 122-file native inventory, installed exact
 license and installer recipe/output receipts. Final-source nine native controls and
 all 19 retained output hashes/cleanup pass. Recipe controls use inert payloads;
-real ARM64 CI 37410913442 is pending (E-I03-INNO). Broader I03/I18 stay open.
+all four CI lanes/five digests/six inventories and actual ARM64 recipe receipts
+verify on 37410913442 (E-I03-INNO). Broader I03/I18 stay open.
 
 I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
 changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
@@ -19,7 +26,7 @@ and zero reported loss verify. Six host baseline failures correct; full App
 378/23 skips/401, clean Windows 21/3 and Ubuntu 14/10 pass with source/payload/
 temp/process/listener pins (E-I151). Mac SSH timeout is queued for owner help
 after 08:40 CEST; all four exact-source CI lanes/four digests/six inventories/
-401 exact App names and ARM64 startup/drawing/installer verify. 129/151 preliminary, one Closed, 21 remain;
+401 exact App names and ARM64 startup/drawing/installer verify. Historical I151 count 129/151 preliminary, one Closed, 21 remain;
 all 24 campaigns need final qualification, no candidate/human GO; NO-GO.
 
 Earlier sealed I150 slice (historical counts): preliminarily remediated at 874b7ae/52df3d7: identical final native tests
@@ -2490,6 +2497,19 @@ Overall **NO-GO** remains.
      ARM64 CI 37410913442 is pending; inert recipe payloads do not qualify packages.
      Original native stderr, huge observer/partial transfers and two small helper
      failures remain retained. Wider I03/I18/candidate still open (E-I03-INNO).
+
+312. Seal 0646053 CI 37410913442: four required lanes/five server digests/six
+     inventories/401 exact App names pass. ARM64 compiler recipe verifies 119
+     static hashes/122 tool files, upstream license and unchanged actual publish
+     inputs/setup identity. Setup bytes are not uploaded in this main-push lane;
+     no binary lifecycle qualification follows (E-I03-INNO).
+
+313. Discover I152: current Git metadata-descendant case returns a snapshot while
+     14 SMB flows/126 packets occur between exact controls. Independent 157-packet
+     decoder, zero reported drops, payload/process/receiver cleanup verify. HEAD
+     control has no extra contact. Original decoder/writer assumptions retained
+     and corrected without replacing native results. Current 129/152 preliminary,
+     one Closed, 22 remaining; correct/revalidate the defect (E-I152).
 
 ## Evidence invalidated by the campaign's own changes
 

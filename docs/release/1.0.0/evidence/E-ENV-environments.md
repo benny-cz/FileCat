@@ -37,7 +37,7 @@ workflow hard-codes the `Inno Setup 6` path.
 2026-10-06 correction: 0646053 pins the exact official 6.7.1 package and 119 static
 compiler inputs, retains the complete 122-file native inventory and recipe/output
 receipts, and installs the full exact license. Final-source native controls pass;
-real ARM64 CI is pending. The preceding A01 image-selected observation remains
+all four exact-source CI lanes/real ARM64 recipe receipts verify. The preceding A01 image-selected observation remains
 historical ([E-I03-INNO](E-I03-INNO-pinned-compiler.md)). No claim of latest-version,
 complete SBOM, signed candidate or native installer lifecycle follows.
 
