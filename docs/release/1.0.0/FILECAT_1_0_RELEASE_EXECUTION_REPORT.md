@@ -3143,3 +3143,9 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     Committed hosted successor continues. Full approval/signing/promotion,
     publisher/protection/immutable storage/final download/candidate gates stay
     Open. No physical source or guest/Mac setup change; counts unchanged; NO-GO.
+
+343. Draft preservation source 6a6af3b is committed and pushed. The final document
+    pin audit detects a mismatched v2 filename for the unchanged retained v1 proof;
+    the initial audit failure remains in tool history. Correcting the document
+    path preserves the original proof bytes/hash. Hosted source validation is
+    running; no actual release/tag/upload, candidate or stable GO is claimed.

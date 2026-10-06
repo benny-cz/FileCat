@@ -49,7 +49,7 @@ Private `FileCatReleaseEvidence/release-assets-20261006`:
 |---|---|
 | draft-guard-host-v5/draft-release-controls.json | 92f0d161665b3b9b4501098b3cf56c642cc099d552717739772fa13bf026e095 |
 | draft-selector-host-v1/release-assets-controls.json | 13f7cce6185388355ba48cd11c118331a5db69509ecb2003fbabe2ce5194d6dc |
-| draft-guard-host-v5/independent-guard-v2.json | 49a129b0711b60e1d71340e9f6202e85620209ec52e0770e79614ed94c30eb57 |
+| draft-guard-host-v5/independent-guard-v1.json | 49a129b0711b60e1d71340e9f6202e85620209ec52e0770e79614ed94c30eb57 |
 | draft-release-inventory-v1/receipt.json | f20dfa39951a9b3f44744b5157d0796314ee00042c6baf73dc1f67ca15a47f1c |
 
 Counts remain 139/161 preliminary Remediated, one Closed and 21 remaining issue
