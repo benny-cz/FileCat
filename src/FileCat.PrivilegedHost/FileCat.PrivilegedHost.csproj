@@ -19,4 +19,19 @@
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
   </ItemGroup>
+  <!-- Build and publish must both replace the managed apphost: Main is too late for native profiler loading. -->
+  <Target Name="BuildPrivilegedNativeBootstrap" AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' and ('$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64')">
+    <PropertyGroup>
+      <BootstrapRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</BootstrapRuntime>
+      <BootstrapRuntime Condition="'$(RuntimeIdentifier)' == '' and '$(NETCoreSdkRuntimeIdentifier)' == 'win-arm64'">win-arm64</BootstrapRuntime>
+      <BootstrapRuntime Condition="'$(BootstrapRuntime)' == ''">win-x64</BootstrapRuntime>
+    </PropertyGroup>
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\eng\Build-PrivilegedBootstrap.ps1&quot; -ProjectDirectory &quot;$(MSBuildProjectDirectory)&quot; -OutputFile &quot;$(TargetDir)FileCat.PrivilegedHost.exe&quot; -IntermediateDirectory &quot;$(MSBuildProjectDirectory)\$(IntermediateOutputPath)native-bootstrap&quot; -Runtime &quot;$(BootstrapRuntime)&quot; -Version &quot;$(Version)&quot; -SourceRevisionId &quot;$(SourceRevisionId)&quot;" />
+  </Target>
+  <Target Name="PublishPrivilegedNativeBootstrap" AfterTargets="Publish"
+          Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">
+    <Error Condition="'$(OS)' != 'Windows_NT'" Text="Publishing the Windows administrator helper requires a Windows C++ toolchain; a managed apphost is not a safe release substitute." />
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\eng\Build-PrivilegedBootstrap.ps1&quot; -ProjectDirectory &quot;$(MSBuildProjectDirectory)&quot; -OutputFile &quot;$(PublishDir)FileCat.PrivilegedHost.exe&quot; -IntermediateDirectory &quot;$(MSBuildProjectDirectory)\$(IntermediateOutputPath)native-bootstrap-publish&quot; -Runtime &quot;$(RuntimeIdentifier)&quot; -Version &quot;$(Version)&quot; -SourceRevisionId &quot;$(SourceRevisionId)&quot;" />
+  </Target>
 </Project>

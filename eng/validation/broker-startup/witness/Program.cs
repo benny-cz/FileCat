@@ -1,0 +1,13 @@
+using System.Collections;
+using System.Security.Principal;
+using System.Text.Json;
+var marker=Environment.GetEnvironmentVariable("FILECAT_OWNED_HOOK_MARKER")??throw new InvalidOperationException("Missing owned marker");
+var destination=marker+".witness.json";
+if(File.Exists(destination))throw new InvalidOperationException("Output collision");
+var environment=Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().Where(e=>new[]{"DOTNET_","COMPLUS_","CORECLR_","COR_","COREHOST_","MONO_"}.Any(p=>e.Key.ToString()!.StartsWith(p,StringComparison.OrdinalIgnoreCase))).ToDictionary(e=>e.Key.ToString()!,e=>e.Value?.ToString());
+bool clean=environment.Count==1&&environment.TryGetValue("DOTNET_EnableDiagnostics",out var value)&&value=="0";
+bool arguments=args.Length==4&&args[0]=="--plan"&&args[1]==@"\\?\Volume{00000000-0000-0000-0000-000000000000}\owned-nonexistent.plan"&&args[2]=="--sha256"&&args[3]==new string('0',64);
+using var identity=WindowsIdentity.GetCurrent();
+bool location=Environment.CurrentDirectory.Equals(Environment.SystemDirectory,StringComparison.OrdinalIgnoreCase)&&Environment.GetEnvironmentVariable("PATH")!.Equals(Environment.SystemDirectory,StringComparison.OrdinalIgnoreCase);
+File.WriteAllText(destination,JsonSerializer.Serialize(new{SyntheticManagedEntrypoint=true,ActualProductionPlanOrConsent=false,PID=Environment.ProcessId,Image=Environment.ProcessPath,User=identity.Name,SID=identity.User?.Value,Administrator=new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator),Runtime=System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,Arguments=args,ArgumentsPreserved=arguments,RuntimeEnvironment=environment,LoaderEnvironmentClean=clean,SystemWorkingDirectoryAndPath=location,CandidateQualified=false},new JsonSerializerOptions{WriteIndented=true}));
+return clean&&arguments&&location?41:42;
