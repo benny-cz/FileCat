@@ -14,3 +14,20 @@ Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042
 | independent-ci.json | 115e66f3647aa7e6d900123a07fa98df2c1df4d5035d2e4f215a779cc4d4e8da |
 
 Status Open; controlled reproduction, remediation and exact-source CI revalidation remain. No candidate or stable GO.
+
+## Controlled observer correction (2026-10-06 04:40 UTC)
+
+The original timestamp oracle is unsuitable: an owned real-watcher probe using the unchanged production monitor deliberately holds the writer's observation after the final write. The callback has already observed the complete exact name/one-byte-length inventory, yet the original tail timestamp assertion rejects it. This proves that observer-order defect; it does not recover the scheduling history or callback contents of the original Ubuntu run.
+
+The test-only correction captures each actual reread's sorted name/length snapshot, independently constructs the expected final inventory, and still requires at least two rereads during the six-second arrival period. A second case forces final-file observation before the delayed writer resumes. It waits at most five seconds for the final-file observation and retires in-flight callbacks before owned-folder cleanup. Production `ChangeMonitor` is unchanged.
+
+Missing-final and missing-during synthetic observation controls are rejected. A separate exact-source copy deliberately removes the production two-second debounce cap: both unchanged corrected tests fail for zero rereads during churn. Restoring only `FileCat.Core.dll` makes both pass; all 861 final payload pins verify. This negative mutation is a control, not a production finding.
+
+Host affected suite: three passes, zero skips (two cadence cases and the Windows overflow case). Full Core: 819 passes, 56 declared skips, 875 complete unique results. Native Windows/macOS/Ubuntu and exact committed-source CI revalidation remain pending; I153 remains Open until that evidence is sealed.
+
+Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042-9e13-028bfb0e5c33\FileCatReleaseEvidence\cadence-20261006`.
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-host-v1.json | 8079d4ad87165601317d9ec1f03aa941bf0f02ab92eee591c47e345284654cdf |
+| negative-control/independent-negative-control-v1.json | 001bfc09f6abecdb775ab17c05d4e1085246b9cfca886d48b650c27d977218c7 |
