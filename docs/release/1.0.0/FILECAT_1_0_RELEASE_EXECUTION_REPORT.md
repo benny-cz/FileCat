@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 166 IDs: 144 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
-| Evidence catalogue | 176 entries; 316 selected private evidence hashes independently reconciled in audit v31. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 176 entries; 326 selected private evidence hashes independently reconciled in audit v32. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | 61b43fc378a9265003a645c068224b77d0298aa5 — automatic Git status no-fetch correction, including the owner About text. | Older component/native payload evidence keeps producer 6215329/1669cb6; changed/rebuilt artifacts require their own identity and affected revalidation. |
-| Latest product CI | 37539040491 attempt 1 at 61b43fc is pending completion; the original status snapshot is retained. | E-I166 seals the committed rebuild/native checks. Preceding cceb990 CI remains sealed with 19 digests, 14 complete inventories and explicit skips; no later result is inferred. |
+| Latest product CI | 37539040491 attempt 1 at 61b43fc is sealed green on policy and all four required lanes. | E-I166 retains 19 digests, 14 complete inventories (451 App cases per lane), all 64 new passing executions, explicit skips, compiler receipts and 92 locked graphs. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed local slice: I166 proves an automatic status read fetches a missing tree from an owned local partial-clone source. Twelve durable failures reproduce; correction 61b43fc passes all 66 affected/clean committed cases and 16 new controls, with one explicit network-fixture skip. The unchanged native probe now refuses the partial clone without changing its four pack files; the ordinary Modified control passes. Earlier I163/I164/I165 CI and Linux mapped-file provenance remain sealed at their own producers. Broader I03/I06/I16 and the original 21 unresolved scopes remain open.
+Latest completed local slice: I166 proves an automatic status read fetches a missing tree from an owned local partial-clone source. Twelve durable failures reproduce; correction 61b43fc passes all 66 affected/clean committed cases and 16 new controls, with one explicit network-fixture skip. The unchanged native probe now refuses the partial clone without changing its four pack files; the ordinary Modified control passes. Original four-lane CI is sealed with all 64 new cases passing and complete explicit skip inventories. Earlier I163/I164/I165 CI and Linux mapped-file provenance remain sealed at their own producers. Broader I03/I06/I16 and the original 21 unresolved scopes remain open.
 
 ## Remaining issue work — 21 entries
 
@@ -36,7 +36,7 @@ Latest completed local slice: I166 proves an automatic status read fetches a mis
 | [I12](FILECAT_1_0_RELEASE_ISSUES.md#i12) | Re-audit | Review durable regression coverage and support closure at the appropriate identity. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165 value corrections and CI sealed; I166 partial-clone correction sealed locally; collect its CI, then continue home/indirect-path/identity races. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165 value corrections and I166 no-fetch correction/CI sealed; continue home/indirect-path/identity races. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -80,7 +80,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 21 unresolved issues (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Seal original I166 CI after completion; continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review.
+1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review; next review checks relative alternate object stores.
 2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163 fix. Native frame and unavailable interaction scope remain queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView subset; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.

@@ -85,9 +85,32 @@ Private `FileCatReleaseEvidence/git-lazy-fetch-20261006-v1`:
 ## CI and remaining qualification
 
 Original [CI 37539040491](https://github.com/benny-cz/FileCat/actions/runs/37539040491),
-attempt 1, is bound to the exact correction. The retained 22:16 UTC snapshot has
-policy green and all four required lanes still running; it remains historical
-evidence, not a final CI result. Completed artifact/inventory collection is queued.
+attempt 1, subsequently completes green on producer policy and all four required
+lanes; ARM64 package start/draw and installer compilation also pass. The retained
+22:16 UTC in-progress snapshot stays unchanged. Nineteen server artifact digests
+and all extracted members, fourteen complete raw TRX inventories with explicit skip
+messages, compiler/tool receipts and 92 actual locked dependency graphs verify.
+Each App lane retains all 451 cases; all sixteen new I166 cases pass per lane,
+including the real owned-local partial-clone effect case: 64 distinct new execution
+IDs. Existing I163/I164/I165 subsets repeat at this producer with their explicit
+Unix junction skips. Overall App outcomes are 434 pass/17 skips on each Windows
+architecture, 379 pass/72 skips on Ubuntu and 381 pass/70 skips on macOS. These are
+preliminary hosted inventories, not final candidate or human desktop qualification.
+
+Private `FileCatReleaseEvidence/ci-37539040491-assets-attempt1-v1`:
+
+| Path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 2ef456966bee30440f318f5047e45318f5a9a06d833f77bdd35a5a35a35ee946 |
+| independent-fixture-ci-v1.json | aa4d02728aed2b3f05d6cb15a2ffa419598045007911a3bd88103f2e324bd999 |
+| independent-producer-policy-ci-v1.json | 293a551511434fb576b21789ac1f127c89a9111bfb3e9273a6759346b0eef861 |
+| independent-draft-guard-ci-v1.json | dd0984414edd17c06f1655f90220143d7ed7d9627c342c9d9df57e4fb31ef94f |
+| independent-separation-ci-v1.json | 0a5820ba6977d65301a0d29208fe0d1aec864ec2f12a7c02e02c1e249dc8ec4d |
+| independent-restore-ci-v1.json | 03e994aa05c3ea9037b9d3b196e70f2097a530e327b3ae5a3acad9fe3601702a |
+| independent-i163-ci-cases-v1.json | 01c223b170f5614903ff2e25588483fc7bf1dde557e623d1755414a7e25c53c8 |
+| independent-i164-ci-cases-v1.json | c37ee59913ff7a51881427c55cba93eef0f611e6c08c675f557e4a021e8fecbe |
+| independent-i165-ci-cases-v1.json | 6a090370911c0dc4dfdf49529223f9291588bcaff8e5333c11e7a0ffd6cc178b |
+| independent-i166-ci-cases-v1.json | 6a5d05d881716adf996e5025d57be8b186816c2cca23db7de5ff5106e98fec8d |
 
 Broader I16/I17/V23/V24 work remains: other parser/indirect paths, home expansion,
 aliases, source/configuration swaps, identity/loader/lifetime boundaries and actual
