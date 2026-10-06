@@ -8,3 +8,6 @@
 *.png binary
 *.ico binary
 *.zip binary
+
+# Preserve the exact upstream license bytes in installer source/evidence.
+eng/installer/licenses/InnoSetup-6.7.1.txt -text

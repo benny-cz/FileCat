@@ -101,9 +101,7 @@ jobs:
         shell: pwsh
         run: |
           $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
-          & $compiler.Executable "/DAppVersion=0.0.0" "/DArch=arm64" eng/installer/FileCat.iss
-          if ($LASTEXITCODE -ne 0) { throw 'The pinned ARM64 installer compiler failed.' }
-          if (-not (Test-Path artifacts/FileCat-0.0.0-win-arm64-setup.exe)) { throw 'The ARM64 installer was not made.' }
+          ./eng/Compile-WindowsInstaller.ps1 -Version 0.0.0 -Architecture arm64 -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -272,10 +270,8 @@ jobs:
         run: |
           $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
           $v = "${{ github.ref_name }}".TrimStart('v').Split('-')[0]
-          & $compiler.Executable "/DAppVersion=$v" eng/installer/FileCat.iss
-          if ($LASTEXITCODE -ne 0) { throw 'The pinned x64 installer compiler failed.' }
-          & $compiler.Executable "/DAppVersion=$v" "/DArch=arm64" eng/installer/FileCat.iss
-          if ($LASTEXITCODE -ne 0) { throw 'The pinned ARM64 installer compiler failed.' }
+          ./eng/Compile-WindowsInstaller.ps1 -Version $v -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
+          ./eng/Compile-WindowsInstaller.ps1 -Version $v -Architecture arm64 -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
       - uses: actions/upload-artifact@v7
         if: always()
         with:
