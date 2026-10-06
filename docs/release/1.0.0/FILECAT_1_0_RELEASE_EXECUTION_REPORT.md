@@ -7,6 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+Fresh I16/V24 process/file/share-contact component controls independently pass on
+actual 313d40b: 66 process events/26 verified descendants, 594 file-open attempts/
+249 exact paths, and 118 pcap packets with only the two known endpoint control
+flows. Independent positives, reported zero loss, source/payload/temp/process and
+owned receiver/recorder cleanup verify. Original setup and decoder/time limitations
+remain retained. Wider indirect/reparse/environment/global-config, protected-file
+effects and native/candidate scopes remain open; continuation needs no interaction
+(E-V24-D2).
+
 I149 is preliminarily remediated at committed 313d40b: eight RAR recognition
 failures/six malformed positives, identical before/after bytes with only archive
 DLL changed give eight failures/22 positives then 30 passes. Affected host 77/0
@@ -2379,6 +2388,22 @@ Overall **NO-GO** remains.
      127/149 preliminary, one Closed, 21 remain; 24/26 steps partly/fully open;
      no candidate/stable GO. Owner interaction needs remain queued until 08:40 CEST.
 
+305. Run and independently qualify exact 313d40b native component browsing traces:
+     885 source/354 payload pins verify; process 32 starts/32 stops, 26 exact
+     sequence/lifetime descendants, four allowed browse starts and before/after
+     exit-code controls. File capture v1 fails before FileCat on duplicate -p;
+     retained v2 uses provider file and passes. Raw 5585/native 5584 rows retain
+     header/partition decoder limits; all 5519 file/64 process events decode;
+     594 phase opens/249 raw paths/zero network paths/eight positive opens verify.
+     Share-icon/shortcut-target case passes actual local positives. Independent
+     Ubuntu endpoint capture has 118 untruncated packets, 20 in exactly two known
+     TCP controls and zero additional named-endpoint packets/connections. Other
+     98 packets and clock skew remain explicit. Reported loss counters zero;
+     owned receiver closes/recorder and controller absent, temp/process cleanup
+     and all retained pins verify. No firewall/service changes or desktop/whole
+     network/protected-write/candidate claims. I16/V23/V24 wider variants continue;
+     all owner interactions stay queued until 08:40 CEST. Counts unchanged; NO-GO.
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2629,8 +2654,10 @@ Overall **NO-GO** remains.
    retained. Continue intended-device replacement/removal and adverse topology controls.
    Broader I106,
    installed helper/Windows approval refusal remain.
-3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10); I16's
-   independent file, network and process evidence.
+3. Continue the V23 source review: B01–B03 (largely covered by the DPI rows, the fuzz campaigns and V07/V10).
+   Fresh finite I16 process/file/share-contact controls pass with independently retained positive/loss/
+   lifetime/payload/cleanup evidence (E-V24-D2). Broaden indirect paths, reparse/global-config/environment
+   variants and protected-file effects; these observations do not close I16 or qualify installed candidate bytes.
 4. I42's options for the owner (fewer requests per file; several files in flight), when the owner wants them.
 5. Keep the records current after each change.
 
