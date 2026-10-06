@@ -76,7 +76,40 @@ The v9 independent seal verifies 61 retained files, four original probe files,
 all four test payloads, native comparison inputs/cases, original Git decode
 controls, raw canonical source and the original in-progress CI snapshot at
 2026-10-06 21:26 UTC. [CI 37533338023](https://github.com/benny-cz/FileCat/actions/runs/37533338023)
-attempt 1 is pending full collection; no final CI pass is claimed by that snapshot.
+attempt 1 has subsequently completed successfully. That original snapshot remains
+unchanged and makes no final CI claim.
+
+## Original-attempt CI completion
+
+The original f449554 run passes producer policy and all four required lanes:
+Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. ARM64 starts/draws the
+actual package and compiles its installer. The three tag-only package jobs and
+draft-preview job explicitly skip on this main push; no release was published.
+
+All 19 uploaded artifact archives match their original server digests. Fourteen
+complete TRX inventories retain every outcome and skip reason. Each App inventory
+contains 427 cases. The nine new I164 cases have 36 distinct executions:
+nine pass on each Windows architecture; six pass and three junction-specific
+cases explicitly skip on each Unix lane. The three I163 lifetime tests also pass
+on each lane (12 distinct executions). Compiler/tool receipts, build/source
+identities and all 92 locked restore graphs are independently checked.
+
+Private `FileCatReleaseEvidence/ci-37533338023-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 68a2bb7c39167c7a4017e30ff684035a63da87cf95fd324a78a22e5f979992a2 |
+| independent-fixture-ci-v1.json | 486f5cdcf38418867f350ac86db681d7bfd2b0796128aecd51d90bb63ffd86bd |
+| independent-producer-policy-ci-v1.json | 21de838b09adaf92bb0b54d8f750071d70e3e6d3458aea5502bbb17b1c9a31db |
+| independent-draft-guard-ci-v1.json | ef987b88588d25cc3c164d05c2cf5806f25b5185fd83cf446f155639d6c82b5d |
+| independent-separation-ci-v1.json | 26e583e804823c6f0ea93bb6da4c9f81d906defc6f2ba2482b19941a3d785891 |
+| independent-restore-ci-v1.json | a605c595c2441888ab7a7e201ccbbfe5d93f7bcaa032c6f672547be9268e4515 |
+| independent-i163-ci-cases-v1.json | cbcd67fbe6989e3b1d3e81e9e9f4b31f2d4fec6731df030b93557376b1ba2d65 |
+| independent-i164-ci-cases-v1.json | a9b1a693492691b11d57a974583c0990016a05f276e72dfedca2717355dcec46 |
+
+These are finite regression/build/package-control results at the exact producer,
+with complete skipped scope retained. They do not qualify a candidate, actual
+Git network contact or desktop interaction.
 
 ## Qualification limits
 

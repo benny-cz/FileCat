@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 164 IDs: 142 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
-| Evidence catalogue | 174 entries; 275 selected private evidence hashes independently reconciled in audit v27. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 174 entries; 283 selected private evidence hashes independently reconciled in audit v28. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | f449554bc2db94b2108769f09fa0b134b31baa75 — continued Git value admission fix. | Older component/native payload evidence keeps producer 6215329/1669cb6; changed/rebuilt artifacts require their own identity and affected revalidation. |
-| Latest product CI | 37533338023 attempt 1 at f449554 is running; original 21:26 UTC snapshot retained in E-I164. | Last fully sealed green product run is 37527956906 at 1669cb6 (E-I163); its skipped cases and producer remain explicit. |
+| Latest product CI | 37533338023 attempt 1 at f449554 is sealed green on all four required lanes and producer policy. | E-I164 retains 19 server digests, 14 complete test inventories (427 App cases per lane), explicit skips, compiler receipts and 92 locked graphs; earlier producer evidence remains distinct. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed local slice: I164 proves and fixes three continued Git worktree spellings that bypass the junction refusal. Baseline fails as expected; all 42 affected tests and clean committed tests pass, with the share case explicitly skipped. Corrected native comparison and clean committed component each pass four refusals/two ordinary controls. CI collection is pending. Linux mapped-file provenance (E-I03-LOADED) and I163's lifetime/four-lane CI evidence remain sealed at their own producers; wider I03/I06/I16 qualification remains open.
+Latest completed local slice: I164 proves and fixes three continued Git worktree spellings that bypass the junction refusal. Baseline fails as expected; all 42 affected tests and clean committed tests pass, with the share case explicitly skipped. Corrected native comparison and clean committed component each pass four refusals/two ordinary controls. Original-attempt CI passes all four platforms and the new cases with explicit Unix junction skips. Linux mapped-file provenance (E-I03-LOADED) and I163's lifetime/four-lane CI evidence remain sealed at their own producers; wider I03/I06/I16 qualification remains open.
 
 ## Remaining issue work — 21 entries
 
@@ -36,7 +36,7 @@ Latest completed local slice: I164 proves and fixes three continued Git worktree
 | [I12](FILECAT_1_0_RELEASE_ISSUES.md#i12) | Re-audit | Review durable regression coverage and support closure at the appropriate identity. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164 continuation admission fixed locally/committed; collect its CI, then continue parser/indirect-path/identity race and unrequested-effect review. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164 continuation admission and original-attempt CI sealed; continue parser/indirect-path/identity race and unrequested-effect review. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -80,7 +80,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 21 unresolved issues (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Finish I164 original-attempt CI collection; continue unblocked I16/I17 V23/V24 identity, lifetime and boundary review.
+1. Continue unblocked I16/I17 V23/V24 identity, lifetime and boundary review after the sealed I164 original-attempt CI.
 2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163 fix. Native frame and unavailable interaction scope remain queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView subset; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
