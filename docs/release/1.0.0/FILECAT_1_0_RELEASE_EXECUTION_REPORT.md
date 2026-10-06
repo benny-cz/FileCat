@@ -11,11 +11,13 @@ I158 shared-runtime trust is preliminarily corrected at 69603ec: four clean
 native modes/924 raw sources/receipts, protected SC/FDD handoff and unsafe FDD
 block with exact runtime ACL/content restoration verify. All four CI lanes/ten
 digests/fourteen inventories/two native byte/source receipts pass (E-I158).
-New I159: exact caller launches a harmless owned native replacement with an
-explicit user Modify grant. Actual returned PID/native marker/natural exit 73
-and protected positive/pins/cleanup verify; no physical device or real plan opens.
-Pre-execution executable/ancestor trust correction proceeds autonomously;
-limited caller/consent/races/candidate and explicit human stable GO remain open.
+I159 pre-execution executable trust is preliminarily corrected at 8b4be9d:
+caller verifies executable/ancestors before ShellExecute. Identical final
+observer/only caller DLL differs; file/parent grants refuse without a process
+while healthy native SC/FDD handoff passes. Clean 927-source/four-mode publishes,
+all four CI lanes/ten digests/fourteen inventories/new x64/ARM64 test executions
+and native receipts verify. No physical device or real consent is exercised.
+Broader I17/I03, limited caller/races/candidate/human stable GO remain open.
 
 I156 ACL trust is preliminarily remediated at ce8189e: clean 918-source/four-mode
 native publishes, protected handoff/four adverse controls/profiler regression and
@@ -45,7 +47,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 136/159 preliminary, one Closed, 22 remain; all campaigns need final
+Current 137/159 preliminary, one Closed, 21 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2977,3 +2979,16 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     claimed. Check executable and ancestors before Windows starts them; correction
     continues autonomously. 136/159 preliminary, one Closed, 22 remaining issue
     remediations; all campaigns still need final qualification. NO-GO.
+
+331. I159 8b4be9d checks executable/ancestors before discovery and ShellExecute,
+    refusing unsafe ownership/grants/reparse/resolved aliases. Host affected 12/0
+    and four working native modes pass. Identical final observer with only caller
+    DLL changed reproduces baseline writable-native startup and corrects it with
+    no returned process, preserving protected natural exit 73. Clean 927 raw Git
+    inputs/four native publish modes/receipts verify; fresh file/parent-grant
+    refusals and healthy real-native SC/FDD synthetic managed handoff pass with
+    positives/pins/owned cleanup. Four CI 37437361505 lanes/ten digests/fourteen
+    complete inventories/two native PE/source receipts and both new Windows/ARM64
+    API-test executions pass. No real plan/consent/device or limited-user bypass
+    tested. 137/159 preliminary, one Closed, 21 remaining issue remediations.
+    All campaigns still need final qualification; no candidate/human stable GO.
