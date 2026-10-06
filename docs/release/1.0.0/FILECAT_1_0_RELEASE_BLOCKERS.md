@@ -1,5 +1,18 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
+New I160: exact 573ed2c production nonce guard admits multiple concurrent claims
+in four separate eight-process rounds while sequential replay refuses. All owned
+Registry state/payload/child PIDs/natural exits/original receipts verify. Atomic
+correction continues autonomously; no production plan or consent bypass claimed.
+Current 137/160 preliminary, one Closed, 22 remaining issue remediations (E-I160).
+
+I03 native compiler provenance improves at 573ed2c: 927 raw sources/four clean
+modes/local reported input bytes and all four CI lanes/ten digests/fourteen
+inventories/two native report-map sets verify. Diagnostic flags preserve original
+version/revision executable bytes. Resource-compiler inputs, full read trace,
+license/system-library classification, hosted input bytes and wider artifact/
+candidate provenance remain Open; no new owner interaction (E-I03-NATIVE).
+
 I158 shared-runtime trust is preliminarily corrected at 69603ec: four clean
 native modes/924 raw sources/receipts, protected SC/FDD handoff and unsafe FDD
 block with exact runtime ACL/content restoration verify. All four CI lanes/ten

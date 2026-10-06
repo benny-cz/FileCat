@@ -7,6 +7,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I03 native compiler provenance is partially improved at 573ed2c with exact
+927-source/four-mode/local input byte verification and four green CI lanes,
+ten digests/fourteen inventories/two native report-map sets (E-I03-NATIVE).
+New I160 concurrent nonce claims reproduce in the exact production DLL across
+four separate eight-process rounds. Sequential replay refuses; all native
+PIDs/natural exits/original receipts/payload/Registry restoration verify.
+Atomic correction continues; no production plan or consent bypass demonstrated.
+Current checkpoint: 137/160 preliminary, one Closed, 22 remaining issue
+remediations; all campaigns/final candidate/human GO remain gated (E-I160).
+
 I158 shared-runtime trust is preliminarily corrected at 69603ec: four clean
 native modes/924 raw sources/receipts, protected SC/FDD handoff and unsafe FDD
 block with exact runtime ACL/content restoration verify. All four CI lanes/ten
@@ -2992,3 +3002,13 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     API-test executions pass. No real plan/consent/device or limited-user bypass
     tested. 137/159 preliminary, one Closed, 21 remaining issue remediations.
     All campaigns still need final qualification; no candidate/human stable GO.
+
+332. I03 native provenance improves at 573ed2c: original-version/revision diagnostic
+    x64/ARM64 executables stay byte-identical; C++ header/library/tool pins,
+    original reports/diagnostics and actual linked-symbol maps retained. Four
+    working/four clean modes, 927 raw Git blobs and local input bytes verify.
+    Four CI lanes/ten digests/four build receipts/fourteen full inventories/two
+    native byte receipts/report-map sets pass. Hosted input bytes not retrieved;
+    resource headers/full read tracing/licenses/system-library classification/
+    broader provenance/candidate remain Open (E-I03-NATIVE). 137/159 preliminary,
+    one Closed, 21 remaining issue remediations; no stable human GO.
