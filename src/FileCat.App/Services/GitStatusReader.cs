@@ -183,7 +183,7 @@ internal static class GitStatusReader
         foreach (string dir in dirs)
         {
             if (!MetadataTreeIsLocal(dir)) return false;
-            if (!IsHarmless(Path.Join(dir, "config")) || !IsHarmless(Path.Join(dir, "config.worktree"))) return false;
+            if (!IsHarmless(Path.Join(dir, "config"), gitDir) || !IsHarmless(Path.Join(dir, "config.worktree"), gitDir)) return false;
             string info = Path.Join(dir, "objects", "info");
             if (!AlternatesAreLocal(Path.Join(info, "alternates")) || !AlternatesAreLocal(Path.Join(info, "http-alternates"))) return false;
         }
@@ -296,7 +296,7 @@ internal static class GitStatusReader
     /// computer (names are case-insensitive; "[filter.x]" is the old spelling of a subsection). A missing file is
     /// harmless; an outsized one is not a configuration to trust.
     /// </summary>
-    internal static bool IsHarmless(string configPath)
+    internal static bool IsHarmless(string configPath, string? gitDirectory = null)
     {
         if (!IsLocalPath(configPath)) return false;
         var info = new FileInfo(configPath);
@@ -323,7 +323,13 @@ internal static class GitStatusReader
             if (equals < 0) continue;
             var key = line[..equals].TrimEnd();
             foreach (string opened in OpenedByGit)
-                if (key.Equals(opened, StringComparison.OrdinalIgnoreCase) && !NamesThisComputer(Value(line[(equals + 1)..]))) return false;
+            {
+                if (!key.Equals(opened, StringComparison.OrdinalIgnoreCase)) continue;
+                // Git resolves core.worktree against the actual gitdir, including for a shared linked-worktree
+                // config. A relative spelling can cross the same junction as an absolute path.
+                string? relativeTo = opened == "worktree" ? gitDirectory ?? Path.GetDirectoryName(Path.GetFullPath(configPath)) : null;
+                if (!NamesThisComputer(Value(line[(equals + 1)..]), relativeTo)) return false;
+            }
         }
         return true;
     }
@@ -342,17 +348,18 @@ internal static class GitStatusReader
     }
 
     /// <summary>
-    /// Whether a setting's value keeps Git on this computer. A relative value does: Git resolves it against the work
-    /// tree or the repository, both of which are here. An absolute one must be local — a downloaded repository naming
-    /// a share makes Windows connect to the server while the folder is merely shown, which takes seconds to fail and
-    /// offers the user's name to whoever answers. Decided from the text, before any file-system call on it.
+    /// Whether a setting's value keeps Git on this computer. With a supplied base, relative core.worktree values
+    /// resolve against the actual Git directory and receive the same local-path checks as absolute values. Other
+    /// relative settings and home-relative spellings retain their existing admission behavior. Network spellings
+    /// are refused from the text before a file-system call; on Windows existing ancestors are checked for links.
     /// </summary>
-    private static bool NamesThisComputer(ReadOnlySpan<char> value)
+    private static bool NamesThisComputer(ReadOnlySpan<char> value, string? relativeTo = null)
     {
         if (value.Length == 0) return true;
         string text = value.ToString();
-        if (text.StartsWith('~') || !Path.IsPathRooted(text)) return true; // "~" is expanded in this user's home folder.
-        try { return IsLocalPath(Path.GetFullPath(text)); }
+        if (text.StartsWith('~')) return true; // "~" is expanded in this user's home folder.
+        if (!Path.IsPathRooted(text) && relativeTo is null) return true;
+        try { return IsLocalPath(relativeTo is null ? Path.GetFullPath(text) : Path.GetFullPath(text, relativeTo)); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException) { return false; }
     }
 

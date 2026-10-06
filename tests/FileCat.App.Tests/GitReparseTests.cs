@@ -71,6 +71,50 @@ public sealed class GitReparseTests
         Assert.Equal(linked, GitStatusReader.SafeRepository(linked));
     }
 
+    [Theory]
+    [InlineData("../target-link")]
+    [InlineData("../target-link/nested")]
+    [InlineData("./../target-link")]
+    public void Relative_configured_worktrees_refuse_junctions(string relativeWorktree)
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows junction boundary; Unix mounted paths need separate qualification."); return; }
+        using var fixture = new Fixture();
+        string target = Directory.CreateDirectory(Path.Join(fixture.Root, "target", "nested")).Parent!.FullName;
+        fixture.Junction("repo/target-link", target);
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), "\tworktree = " + relativeWorktree + "\n");
+
+        Assert.Null(GitStatusReader.SafeRepository(fixture.Repository));
+    }
+
+    [Theory]
+    [InlineData("..")]
+    [InlineData("../../ordinary-target")]
+    public void Relative_configured_worktrees_resolve_against_the_metadata_directory(string relativeWorktree)
+    {
+        using var fixture = new Fixture();
+        Directory.CreateDirectory(Path.Join(fixture.Root, "ordinary-target"));
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), "\tworktree = " + relativeWorktree + "\n");
+
+        Assert.Equal(fixture.Repository, GitStatusReader.SafeRepository(fixture.Repository));
+    }
+
+    [Fact]
+    public void Linked_configured_worktrees_use_the_actual_git_directory()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows junction boundary; Unix mounted paths need separate qualification."); return; }
+        using var fixture = new Fixture();
+        string target = Directory.CreateDirectory(Path.Join(fixture.Root, "target")).FullName;
+        fixture.Junction("repo/target-link", target);
+        string metadata = Directory.CreateDirectory(Path.Join(fixture.GitDirectory, "worktrees", "owned")).FullName;
+        File.WriteAllText(Path.Join(metadata, "commondir"), "../..\n");
+        string linked = Directory.CreateDirectory(Path.Join(fixture.Root, "linked")).FullName;
+        File.WriteAllText(Path.Join(linked, ".git"), "gitdir: ../repo/.git/worktrees/owned\n");
+        // The shared config is read by Git, but its relative worktree is based on the linked gitdir.
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), "\tworktree = ../../../target-link\n");
+
+        Assert.Null(GitStatusReader.SafeRepository(linked));
+    }
+
     private sealed class Fixture : IDisposable
     {
         internal string Root { get; } = Path.Join(Path.GetTempPath(), "filecat-git-reparse-tests", Guid.NewGuid().ToString("N"));

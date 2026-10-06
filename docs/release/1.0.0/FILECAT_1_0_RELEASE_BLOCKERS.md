@@ -88,11 +88,13 @@ healthy-device/cleanup controls and full host suites pass. Committed native and
 clean 932-source/native Windows 26/0 and Mac/Ubuntu 25/1 repeats, all four successor
 CI lanes/ten digests/fourteen inventories/two native report-map sets/eight new
 viewer/page cases and fourteen nonce cases now verify at 8975fdf (E-I161).
-New I162 remains Open: actual production Git badges refuse the absolute owned
-junction but accept the relative same worktree and read target-only names. Five
-native local controls/pins/restoration/cleanup verify; correction/revalidation
-follow. Network contact is not yet measured (E-I162).
-Current 139/162 preliminary, one Closed, 22 remaining issue remediations.
+I162 is preliminarily corrected: actual-gitdir relative worktree resolution
+refuses the same junction in both spellings. Identical six-case test assembly/
+only App DLL changes, full host 392/23/415 and unchanged native probe/five cases/
+pins/restoration/cleanup verify. Original long-path fixture setup failure is
+retained; clean committed/hosted revalidation continues. Network contact and
+broader I16/candidate qualification remain unmeasured (E-I162).
+Current 140/162 preliminary, one Closed, 21 remaining issue remediations.
 
 I03 native compiler provenance improves at 573ed2c: 927 raw sources/four clean
 modes/local reported input bytes and all four CI lanes/ten digests/fourteen

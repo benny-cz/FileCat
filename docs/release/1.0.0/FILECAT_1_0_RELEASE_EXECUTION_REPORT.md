@@ -20,10 +20,13 @@ without product/test reruns. Native PE inspection maps 50 of 62 files to origina
 NuGet archive members, with twelve generated FileCat outputs kept separate. Fresh
 NuGet query/feed comparison reports no affected version among 38 App identities/
 twelve historical ranges; finite advisory/native/license/composition limits remain.
-New I162 reproduces inconsistent Git relative-worktree junction admission; its
-five native local controls preserve production/target inputs and restore the
-configuration/remove the junction. Correction and affected revalidation follow.
-Counts are now 139/162 preliminary Remediated, one Closed, 22 remaining issue
+I162 relative-worktree correction resolves from the actual gitdir, including
+linked-worktree shared configuration. Identical final test assembly/only App
+DLL changes: four baseline failures/two passes become six passes; full host
+392/23/415 and unchanged native probe/five local cases/pins/restoration/cleanup
+verify. Original long-path fixture setup failure is retained. Clean committed
+production/native/hosted revalidation continues; network contact is unmeasured.
+Counts are now 140/162 preliminary Remediated, one Closed, 21 remaining issue
 remediations; all 24 campaigns require final-candidate qualification. No candidate
 exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
 
@@ -3430,3 +3433,22 @@ SHA-256: `d4fe42f7723212cdff62f87a2478e9045b4f09e687e25a8b93568b7fcb0cec9d`.
     No network/physical source/VM/Mac/GUI/helper execution. Evidence precedes the
     narrow correction. Current 139/162 preliminary, one Closed, 22 remaining;
     all 24 campaigns/final candidate/explicit stable GO remain Open (E-I162).
+
+366. I162 narrow correction resolves relative configured worktrees against the
+    actual gitdir, including shared linked-worktree config. Exact final test
+    assembly/721 inputs prove four refusal failures/two positive passes before;
+    only App DLL changes produce six passes/full host 392/23/415 with no failures.
+    Unchanged original native probe/only published App DLL changes refuse both
+    junction spellings and retain three ordinary/restored positives, exact
+    production/probe pins/target bytes/config restoration/nonrecursive cleanup.
+    First native setup fails at Git's filename limit before a junction or App
+    call; same probe/published DLL passes with a shorter owned fixture path.
+    Working-overlay provenance and frozen probe's baseline-only source field
+    remain explicit. Clean committed/hosted validation continues. Current
+    140/162 preliminary, one Closed, 21 remaining; all campaigns/final candidate/
+    human stable GO remain gated. No network/device/GUI/guest/Mac execution.
+
+I162 working-fix record reconciliation verifies 172 private hashes and current
+140/162 preliminary/one Closed/21 remaining issue counts. Retained
+`release-assets-20261006/independent-records-v15.json` SHA-256:
+`3e29a0baeac3b2c57c4f5e0d9c18f817c8aa2af396f4ce6462f5a8601b48c3e5`.
