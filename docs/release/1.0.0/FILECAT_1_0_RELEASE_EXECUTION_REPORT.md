@@ -20,7 +20,10 @@ without product/test reruns. Native PE inspection maps 50 of 62 files to origina
 NuGet archive members, with twelve generated FileCat outputs kept separate. Fresh
 NuGet query/feed comparison reports no affected version among 38 App identities/
 twelve historical ranges; finite advisory/native/license/composition limits remain.
-Counts remain 139/161 preliminary Remediated, one Closed, 21 remaining issue
+New I162 reproduces inconsistent Git relative-worktree junction admission; its
+five native local controls preserve production/target inputs and restore the
+configuration/remove the junction. Correction and affected revalidation follow.
+Counts are now 139/162 preliminary Remediated, one Closed, 22 remaining issue
 remediations; all 24 campaigns require final-candidate qualification. No candidate
 exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
 
@@ -3418,3 +3421,12 @@ and the unchanged 161/139/1/21 issue counts. Retained
 Unix follow-up record reconciliation verifies 168 private hashes and unchanged
 issue counts. Retained `release-assets-20261006/independent-records-v14.json`
 SHA-256: `d4fe42f7723212cdff62f87a2478e9045b4f09e687e25a8b93568b7fcb0cec9d`.
+
+365. New I162: unchanged actual 8502983 production Git component admits a relative
+    configured worktree through an owned local junction and returns target-only
+    Untracked badges; the absolute same junction is refused. Three ordinary/
+    restored positives, refusal and relative case/actual Git command exits/pinned
+    payloads/configuration restoration/nonrecursive junction cleanup verify.
+    No network/physical source/VM/Mac/GUI/helper execution. Evidence precedes the
+    narrow correction. Current 139/162 preliminary, one Closed, 22 remaining;
+    all 24 campaigns/final candidate/explicit stable GO remain Open (E-I162).
