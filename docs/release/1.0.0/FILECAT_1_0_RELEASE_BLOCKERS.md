@@ -1,5 +1,10 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
+I156 is a new native file-trust blocker: resolved Program Files location still
+accepts an explicitly ordinary-writable owned entry DLL. Both native deployment
+cases confirm loading with unchanged content/two positives/cleanup. ACL correction
+continues autonomously; actual consent/limited caller/candidate remain (E-I156).
+
 I155 native profiling is preliminarily remediated at fc5e706/7183268: actual
 committed 917-source/four-mode native publishes, SC/FDD profiler rejection and
 separate synthetic CLR handoff verify. Two positives/431 inputs/cleanup pass;
@@ -10,7 +15,7 @@ limited-caller/consent/candidate remain; no human stable GO (E-I155).
 I152 stable metadata links are preliminarily corrected at e3c99d5 with identical
 native zero-contact repeat/host/all three native scopes. Test-only cadence I153
 fd1d780 now passes host/all native/four CI lanes/five digests/six inventories.
-Current 133/155 preliminary, one Closed, 21 remain. I154's actual SC/FDD
+Current 133/156 preliminary, one Closed, 22 remain. I154's actual SC/FDD
 managed startup-hook acceptance is preliminarily corrected and sealed on 99e54b3
 with clean native repeats and four green CI lanes. Wider loader/UI/limited-caller
 qualification remains open (E-I154/I17).

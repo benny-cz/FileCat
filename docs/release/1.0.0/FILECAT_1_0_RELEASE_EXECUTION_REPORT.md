@@ -25,7 +25,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 133/155 preliminary, one Closed, 21 remain; all campaigns need final
+Current 133/156 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2895,3 +2895,10 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     both native Windows executable bytes/source/receipt pins and ARM64 startup/drawing/
     installer pass. Caller already administrative; real helpers are stopped after six
     seconds, actual consent/limited caller/ACL/dependency/license/IPC/candidate remain open.
+
+324. New I156: unchanged committed 7183268 native entry points accept a synthetic
+    managed DLL under Program Files with an explicit ordinary-account Modify ACE.
+    Both actual broker launches load it in the returned administrative PID and exit 41
+    naturally. Before/after bytes/all inputs/two positives/owned cleanup verify;
+    only the owned DLL ACL changed. No actual plan or unelevated/UAC bypass claimed.
+    Native pre-load file/ancestor ACL correction continues autonomously (E-I156).
