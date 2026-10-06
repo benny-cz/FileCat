@@ -29,6 +29,7 @@ what failed, and what remains uncertain.
 - **Git state on icons**: clean, changed, added, untracked, and conflicted items in local Git folders
   get small badges. Windows uses its installed Shell overlay when assigned; otherwise FileCat draws
   a status mark from Git. Status loads in the background and refreshes with the folder or on focus.
+  FileCat's Git-derived badges omit partial-clone repositories to avoid fetching missing objects.
 - **Themes**: Classic (follows light/dark), Cyberpunk, Psychedelic, Steampunk, and High Contrast (automatic with
   the OS setting).
 

@@ -292,9 +292,10 @@ internal static class GitStatusReader
     private static readonly string[] OpenedByGit = ["excludesfile", "attributesfile", "worktree", "hookspath"];
 
     /// <summary>
-    /// No [filter …] and no [include]/[includeIf …] section, and no [core] setting that sends Git to a path off this
-    /// computer (names are case-insensitive; "[filter.x]" is the old spelling of a subsection). A missing file is
-    /// harmless; an outsized one is not a configuration to trust.
+    /// No filter/include sections, promised-object remotes or core setting that sends Git off this computer.
+    /// A partial clone can fetch missing objects even during "status", so its automatic badges are left plain.
+    /// Names are case-insensitive; old dotted subsection spellings are checked too. A missing file is harmless;
+    /// an outsized one is not a configuration to trust.
     /// </summary>
     internal static bool IsHarmless(string configPath, string? gitDirectory = null)
     {
@@ -302,7 +303,7 @@ internal static class GitStatusReader
         var info = new FileInfo(configPath);
         if (!info.Exists) return true;
         if (info.Length > 1_000_000) return false;
-        bool core = false;
+        bool core = false, remote = false, extensions = false;
         foreach (string? raw in LogicalConfigurationLines(configPath))
         {
             if (raw is null) return false;
@@ -314,15 +315,29 @@ internal static class GitStatusReader
                 if (name.StartsWith("include", StringComparison.OrdinalIgnoreCase)) return false;
                 if (name.StartsWith("filter", StringComparison.OrdinalIgnoreCase) && (name.Length == 6 || !char.IsLetterOrDigit(name[6]))) return false;
                 core = name.StartsWith("core", StringComparison.OrdinalIgnoreCase) && (name.Length == 4 || !char.IsLetterOrDigit(name[4]));
+                remote = name.StartsWith("remote", StringComparison.OrdinalIgnoreCase) && (name.Length == 6 || !char.IsLetterOrDigit(name[6]));
+                extensions = name.StartsWith("extensions", StringComparison.OrdinalIgnoreCase) && (name.Length == 10 || !char.IsLetterOrDigit(name[10]));
                 int close = line.IndexOf(']');
                 if (close < 0) continue;
                 line = line[(close + 1)..].Trim(); // Git takes a setting on the section's own line too.
                 if (line.Length == 0) continue;
             }
-            if (!core) continue;
             int equals = line.IndexOf('=');
-            if (equals < 0) continue;
-            var key = line[..equals].TrimEnd();
+            var key = equals < 0 ? line : line[..equals].TrimEnd();
+            if (extensions && key.Equals("partialclone", StringComparison.OrdinalIgnoreCase)) return false;
+            if (remote)
+            {
+                if (key.Equals("partialclonefilter", StringComparison.OrdinalIgnoreCase)) return false;
+                if (key.Equals("promisor", StringComparison.OrdinalIgnoreCase))
+                {
+                    // A bare Boolean is true; only explicit false values leave an ordinary remote available.
+                    string? promise = equals < 0 ? null : Value(line[(equals + 1)..]);
+                    if (promise is null || !(promise.Length == 0 || promise == "0" ||
+                        promise.Equals("false", StringComparison.OrdinalIgnoreCase) || promise.Equals("no", StringComparison.OrdinalIgnoreCase) ||
+                        promise.Equals("off", StringComparison.OrdinalIgnoreCase))) return false;
+                }
+            }
+            if (!core || equals < 0) continue;
             foreach (string opened in OpenedByGit)
             {
                 if (!key.Equals(opened, StringComparison.OrdinalIgnoreCase)) continue;
@@ -486,6 +501,8 @@ internal static class GitStatusReader
         start.Environment["GIT_CONFIG_GLOBAL"] = emptyFile;
         start.Environment["GIT_ATTR_NOSYSTEM"] = "1";
         start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
+        // Defense in depth: an automatic lookup must not acquire objects from a promisor remote.
+        start.Environment["GIT_NO_LAZY_FETCH"] = "1";
         start.ArgumentList.Add("-c");
         start.ArgumentList.Add("core.fsmonitor=false");
         start.ArgumentList.Add("-c");
