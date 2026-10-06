@@ -7,6 +7,11 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I18 package prerequisites and asset selection are partially corrected: all three
+package jobs now require ARM64 and both upload routes share an exact versioned
+list and byte manifest. Eight host synthetic controls/static graph checks pass;
+hosted/actual package execution continues (E-I18-A1). I18 stays Open.
+
 I03 native compiler provenance is partially improved at 573ed2c with exact
 927-source/four-mode/local input byte verification and four green CI lanes,
 ten digests/fourteen inventories/two native report-map sets (E-I03-NATIVE).
@@ -3059,3 +3064,12 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     failed original 37446927662 remains failed. No persistent guest/Mac setup
     changes, USB source or GUI qualification. 139/161 preliminary, one Closed,
     21 remain; all final campaigns/candidate/human stable GO remain gated.
+
+337. I18: current 7b56b16 still omits ARM64 from all package prerequisites and
+    uploads broad platform globs. All three jobs now require the four test lanes;
+    shared exact versioned selection emits byte hashes and the same paths for
+    artifact and draft uploads. Eight host synthetic controls/PowerShell parse/
+    independent workflow graph checks pass. Controls are scheduled in every
+    required hosted lane; tagged publisher and actual package path have not run.
+    Installer suffix mismatch, signing/promotion/duplicates/protection/immutable
+    retention/candidate gates stay Open (E-I18-A1). Counts unchanged; NO-GO.

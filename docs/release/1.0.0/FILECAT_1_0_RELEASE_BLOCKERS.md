@@ -1,5 +1,11 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
+I18 package prerequisites and exact asset selection are partially corrected:
+all package jobs now require ARM64, and both upload routes share selected paths
+and a byte manifest. Eight host synthetic controls/static graph checks pass;
+hosted/actual package validation continues. Signing/promotion/duplicate assets/
+protection/immutable retention/candidate gates remain Open (E-I18-A1).
+
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
 picture-demand case (E-I160). New I161 independently reproduces unscheduled

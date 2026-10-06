@@ -37,6 +37,14 @@ jobs:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
+      - name: Release asset allowlist controls
+        shell: pwsh
+        run: ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+          if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -109,6 +117,14 @@ jobs:
           if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
+      - name: Release asset allowlist controls
+        shell: pwsh
+        run: ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+          if-no-files-found: error
       - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --logger "trx;LogFileName=platform-results.trx"
       # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
@@ -174,6 +190,14 @@ jobs:
           if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
+      - name: Release asset allowlist controls
+        shell: pwsh
+        run: ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+          if-no-files-found: error
       # D-47: a drive read the way FileCat reads one, from the FAT16 fixture attached as a loop device (Linux) or a raw
       # disk image (macOS) that this user may read.
       - if: runner.os == 'Linux'
@@ -296,7 +320,7 @@ jobs:
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, portable]
+    needs: [windows, windows-arm64, portable]
     runs-on: windows-2025-vs2026
     permissions:
       contents: write
@@ -336,22 +360,30 @@ jobs:
       # Code signing (ADR-15): SignPath Foundation signs the artifacts built here from tagged source.
       # Configure the SignPath project and its GitHub integration, then add the signing step here.
       # Until then releases are published as clearly labeled, unsigned previews.
+      - name: Select exact Windows release assets
+        id: assets
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ github.ref_name }}
+        run: ./eng/Select-ReleaseAssets.ps1 -Platform windows -Version $env:PACKAGE_VERSION.Substring(1) -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-release
-          path: artifacts/*.*
+          path: ${{ steps.assets.outputs.files }}
+          if-no-files-found: error
       - name: Draft release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3, pinned: this step can write releases
         with:
           draft: true
           prerelease: true
           name: FileCat ${{ github.ref_name }} (unsigned preview)
-          files: artifacts/*.*
+          files: ${{ steps.assets.outputs.files }}
+          fail_on_unmatched_files: true
 
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [windows, portable]
+    needs: [windows, windows-arm64, portable]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -385,28 +417,33 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 ./artifacts/FileCat-*-x86_64.AppImage --version
           mkdir unpacked && tar -xzf artifacts/FileCat-*-linux-x64.tar.gz -C unpacked
           unpacked/FileCat-*/FileCat --version
+      - name: Select exact Linux release assets
+        id: assets
+        shell: pwsh
+        env:
+          PACKAGE_REF: ${{ github.ref }}
+          PACKAGE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "0.1.0-dev.$env:GITHUB_RUN_NUMBER" }
+          ./eng/Select-ReleaseAssets.ps1 -Platform linux -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-linux
-          path: |
-            artifacts/*.tar.gz
-            artifacts/*.deb
-            artifacts/*.AppImage
+          path: ${{ steps.assets.outputs.files }}
+          if-no-files-found: error
       - name: Add to the draft release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3, pinned: this step can write releases
         with:
           draft: true
           prerelease: true
-          files: |
-            artifacts/*.tar.gz
-            artifacts/*.deb
-            artifacts/*.AppImage
+          files: ${{ steps.assets.outputs.files }}
+          fail_on_unmatched_files: true
 
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [windows, portable]
+    needs: [windows, windows-arm64, portable]
     runs-on: macos-26
     permissions:
       contents: write
@@ -438,14 +475,25 @@ jobs:
           # The icon at every size macOS asks for, the small ones from the frames drawn for them.
           iconutil -c iconset unpacked/FileCat.app/Contents/Resources/FileCat.icns -o icon-check.iconset
           test "$(ls icon-check.iconset | wc -l)" -eq 7
+      - name: Select exact macOS release assets
+        id: assets
+        shell: pwsh
+        env:
+          PACKAGE_REF: ${{ github.ref }}
+          PACKAGE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          $v = if ($env:PACKAGE_REF.StartsWith('refs/tags/v')) { $env:PACKAGE_REF_NAME.Substring(1) } else { "0.1.0-dev.$env:GITHUB_RUN_NUMBER" }
+          ./eng/Select-ReleaseAssets.ps1 -Platform macos -Version $v -SourceCommit $env:GITHUB_SHA -GitHubOutputPath $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-macos
-          path: artifacts/*.zip
+          path: ${{ steps.assets.outputs.files }}
+          if-no-files-found: error
       - name: Add to the draft release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3, pinned: this step can write releases
         with:
           draft: true
           prerelease: true
-          files: artifacts/*.zip
+          files: ${{ steps.assets.outputs.files }}
+          fail_on_unmatched_files: true
