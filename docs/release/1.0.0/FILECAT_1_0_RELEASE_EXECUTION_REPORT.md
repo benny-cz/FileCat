@@ -28,6 +28,11 @@ No candidate exists and stable publication remains NO-GO (E-I03-NOTICES/INVENTOR
 
 Earlier preliminary execution and retained failures:
 
+Owner-requested low-priority README presentation and all-theme Windows screenshot
+work is queued separately as [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md). Four panels
+with at least three tabs each are required. No implementation/capture pass or
+additional release-blocker count is claimed.
+
 I18 package prerequisites and asset selection are partially corrected: all three
 package jobs now require ARM64 and both upload routes share an exact versioned
 list and byte manifest at b9526b9. Eight controls pass on each of four hosted lanes.
