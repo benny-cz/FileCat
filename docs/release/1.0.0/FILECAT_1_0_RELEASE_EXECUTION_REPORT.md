@@ -7,6 +7,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I158 is a new FDD shared-runtime trust blocker: actual b4b6e1b native launch
+loads installed CoreLib with a temporary explicit user Modify grant. All runtime
+bytes remain unchanged; exact original VM SDDL/content are restored. SC uses
+its separately protected bundled runtime. Pre-CLR shared tree correction proceeds
+autonomously; no actual plan/device/UAC bypass or candidate qualification claimed.
+
 I156 ACL trust is preliminarily remediated at ce8189e: clean 918-source/four-mode
 native publishes, protected handoff/four adverse controls/profiler regression and
 all four exact-source CI lanes/digests/inventories/native byte receipts verify.
@@ -35,7 +41,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 135/157 preliminary, one Closed, 21 remain; all campaigns need final
+Current 135/158 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2942,3 +2948,11 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     receipts/fourteen full inventories/two native Windows executables/source receipts
     and both new native matching/mismatching identity tests pass. 135/157 preliminary,
     one Closed, 21 remaining issue remediations; all campaigns need final qualification.
+
+328. New I158: exact b4b6e1b native FDD helper reaches a synthetic managed entry
+    through installed .NET 10.0.9 CoreLib after only an explicit user SID Modify ACE
+    is added to that file. Actual loaded path/PID/natural exit 41 verify; SC uses
+    bundled protected .NET 10.0.12. No runtime bytes change. Two positives/all pins/
+    owned cleanup and exact original VM runtime SDDL/content restoration pass. Caller
+    already Admin; no real consent/device/UAC bypass. Pre-CLR shared runtime trust
+    correction continues autonomously (E-I158); 135/158 preliminary, 22 remain.
