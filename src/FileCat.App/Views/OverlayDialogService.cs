@@ -37,7 +37,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     // Open dialogs, the topmost last, and the window whose Esc reaches them wherever the keyboard is.
     private readonly List<Session> _sessions = [];
     private TopLevel? _escapeRoot;
-    private KeyEventArgs? _escapeClosing;
+    // An event's Source can retain the closed dialog; the guard is needed only while that event is routed.
+    private WeakReference<KeyEventArgs>? _escapeClosing;
 
     /// <summary>
     /// Esc closes the topmost dialog even when the keyboard is outside it (a click elsewhere, focus that never
@@ -46,7 +47,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     private void OnRootKeyDown(object? sender, KeyEventArgs e)
     {
         // A dialog that closed itself on this Esc: the one below it stays.
-        if (ReferenceEquals(e, _escapeClosing)) return;
+        if (_escapeClosing is { } remembered && remembered.TryGetTarget(out var closing) && ReferenceEquals(e, closing)) return;
         if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None || _sessions.Count == 0) return;
         var top = _sessions[^1];
         if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) || top.Layer.IsVisualAncestorOf(source))) return;
@@ -81,7 +82,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (e.Key == Key.Escape)
             {
                 e.Handled = true;
-                _escapeClosing = e;
+                _escapeClosing = new(e);
                 onEscape();
             }
         }, Avalonia.Interactivity.RoutingStrategies.Bubble);
