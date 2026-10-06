@@ -7,18 +7,25 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I148 is preliminarily remediated at committed 9da5738: six complete legacy RAR
-secondary entry points fail before and pass after; only archive DLL differs under
-the identical final test DLL. Ten unchanged positives and all sixteen corrected
-controls, affected host 63/0 and full Core 804/56 declared skips/860 cases verify.
-Pure UDF 1.02/1.50/2.00/2.01/2.50/2.60 actual components match fresh read-only native
-and independent oracles: 36 search/132 exact reads, unchanged source/payload bytes.
-Original attachment, writable-census timing, secondary 7-Zip assumption and empty
-temp-container observer failures remain retained. Clean native/CI publication is
-running; wider/native UI/candidate remain. Counts 126/148 preliminary Remediated,
-one Closed, 21 remaining issues; 24/26 checklist steps remain partly/fully open.
-This is not a denominator for individual remaining test items. No interaction is
-requested before 08:40 CEST; Mac awake restoration is due (E-I148/E-V13-UDF2).
+I149 is preliminarily remediated at committed 313d40b: eight RAR recognition
+failures/six malformed positives, identical before/after bytes with only archive
+DLL changed give eight failures/22 positives then 30 passes. Affected host 77/0
+and full Core 818/56 declared skips/874 cases independently verify. Clean native/
+CI publication is running. Initial test compile failure remains retained (E-I149).
+
+I148 is preliminarily qualified at committed 9da5738: six legacy secondary-volume
+failures are corrected under explicit format opening. Clean Windows/Mac/Ubuntu
+each 63/0, 882 raw Git blobs, unchanged 331/330/331 payloads and temp/process
+checkpoints verify. All four exact-source CI lanes/four server digests/six complete
+inventories pass; all 63 affected Core names/16 new cases and 388 App names are
+exact. Six native PE-path Core names differ explicitly; originals and the failed
+strict/successor observer attempts remain retained, no names normalized. Pure UDF
+six revisions match final read-only native/independent oracles, 36 search/132 exact
+reads and six durable native revision controls. Wider/native UI/candidate remain.
+Counts 127/149 preliminary Remediated, one Closed, 21 remaining issues; 24/26
+checklist steps remain partly/fully open, with no individual test-item denominator.
+Owner needs remain queued until 08:40 CEST. Mac awake restoration is due
+(E-I148/E-V13-UDF2/E-I149).
 
 I147 is preliminarily remediated at 6cf17e5 after four reproduced Windows icon
 failures. Identical before/after controls, three portable queue/retry/stale/LRU
@@ -2336,6 +2343,19 @@ Overall **NO-GO** remains.
      no desktop/candidate qualification or human GO. Mac awake v3 remains active,
      restoration due; both VMs stay running, G: untouched/HOLD, owner gates queued
      until 08:40 CEST. NO-GO (E-I148/E-V13-UDF2).
+
+303. Seal I148's 882 raw-source/three native 63/0 inventories and exact-source CI
+     37393570643 attempt one: four required jobs/four server digests/six full TRX
+     inventories, 63 affected Core/16 new exact names pass. Six native PE-path names
+     differ explicitly; preserve strict and successor observer failures, no case
+     normalization or product rerun. Follow-up format probe exposes I149: RAR
+     signature comparison cannot match. Retain initial nullable test compile failure;
+     fresh baseline 8 fail/6 pass. Commit/push 313d40b full RAR 4/5 markers and 14
+     regressions. Identical final test DLL/only archive DLL different gives 8 failures/
+     22 positives then 30 pass; affected 77/0/full Core 818/56 skips/874 verify.
+     Clean native/CI continues. Counts 127/149 preliminary, one Closed, 21 remain;
+     no native drawn UI/candidate/human GO. Mac v3 active/restoration due, VMs running,
+     G: untouched/HOLD, owner gates queued until 08:40 CEST. NO-GO.
 
 ## Evidence invalidated by the campaign's own changes
 

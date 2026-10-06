@@ -39,3 +39,14 @@ extraction jobs and exact candidate still require their own qualification; this 
 not close V13 or assert all UDF media work. See [E-I148](E-I148-legacy-rar-secondary-volumes.md)
 for the related legacy RAR defect and the retained hashes, including the independent
 UDF proof. Overall NO-GO; owner needs remain queued until 08:40 CEST.
+
+## Durable native qualification
+
+Committed 9da5738's clean Windows, ordinary Mac and Ubuntu each pass all 63 affected
+archive controls with zero skips; all six UDF regressions retain the full names,
+directories, empty files, exact hashes, initial/narrowed results and immutable source.
+All raw source/payload pins and owned temp/test-process checkpoints verify. Four
+required CI jobs pass, with all six new UDF controls passing in the Windows Core
+per-case inventory. See [E-I148](E-I148-legacy-rar-secondary-volumes.md) for exact
+provenance and CI/native pins. Unix/ARM64 Core CI has no per-case TRX; native tests
+supply those ordinary-platform case results separately. Broader/candidate remains.

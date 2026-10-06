@@ -1,14 +1,14 @@
 # E-I148 — legacy RAR secondary-volume discovery
 
 Classification: preliminary committed remediation at `9da573893a3ec9dffe7ffefe87658941c21c7d79`;
-controlled and full host qualification passes. Clean native and exact-source CI pending.
+controlled/full host, clean three-platform native and exact-source CI qualification pass.
 
 Actual clean 6cf17e5 component APIs fail all six secondary entry points of a complete,
 unchanged seven-volume legacy RAR fixture. Its primary `.rar` lists three members and
 returns the independently verified 100,926 bytes correctly. The old discovery code
 starts with the selected secondary path, omits the primary, then adds that secondary
 again while walking a prefix. This is I148, Medium functional correctness, Must fix V13.
-Explicit signature/format opening is tested; automatic discovery of `.r00` names has
+Explicit forced-format opening is tested; automatic discovery of `.r00` names has
 not been added or claimed.
 
 The correction discovers the primary once, orders the available legacy siblings by
@@ -63,3 +63,55 @@ next. Broader archive variants, drawn navigation/Find/extraction, physical/refer
 hardware and exact-candidate evidence remain. Mac awake v3 is active, restoration
 due; both VMs remain running and G: is untouched/HOLD. Owner interactions remain
 queued until 2026-10-06 08:40 CEST. No candidate, no human GO; overall NO-GO.
+
+## Clean native and CI qualification
+
+All 882 raw Git source blobs/modes at 9da5738 verify before clean self-contained
+publication. Windows, Mac UID 501 and Ubuntu UID 1000 each pass all 63 affected
+archive controls, with no skips; all sixteen new legacy/UDF controls pass. All
+331 Windows/330 Mac/331 Ubuntu payload pins, owned temp cleanup and test-process
+absence checkpoints independently verify. Windows observes all owned payload
+processes absent. This is component validation; no drawn desktop is observed.
+
+[CI 37393570643 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37393570643)
+passes all four required lanes. Four server ZIP digests/six full per-case inventories
+verify: Windows Core 803/57 declared skips/860 cases, Platform 166/33, Remote 88/28,
+App 371/17/388; Mac App 340/48/388 and Ubuntu App 338/50/388. All 63 Windows affected
+archive case names match exactly and pass, including all 16 new cases. All 388 App
+names match exactly on each TRX lane. Of 860 Core names, 854 match exactly; six PE
+cross-check inputs embed the native Windows system-path casing or native test-assembly
+location. Their exact names remain retained, without normalization; source PeFiles()
+declares these actual native inputs. This is an explicit inventory difference, not a
+missing case. ARM64 Core 803/57/860 and App 371/17/388/drawing/installer pass by logs;
+no ARM64 or Unix Core per-case TRX/physical qualification is inferred.
+
+The first collector rejects the six machine-specific path names. All original raw
+downloads remain, along with the original strict comparison. Successor read-only
+observer setup failures (wrong execution root, eight source-declared PE cases versus
+six differing paths, and a mutated intermediate comparison) remain in tool outputs
+and retained scripts. The final independent audit verifies every server byte and
+every complete inventory, with the six exact native differences stated explicitly.
+No product case fails or is rerun by this reconciliation.
+
+The follow-up private forced-format probe passes complete legacy member reads, but
+its signature-based format check still fails. This separately exposes I149: the
+signature detector compares seven bytes to a six-byte prefix. I148's entry ordering
+is qualified; signature-based opening was not supplied by the earlier forced-format
+controls. [E-I149](E-I149-rar-signature-detection.md) records the separate correction.
+No broad V13/candidate closure follows from I148. Overall NO-GO.
+
+| Retained item under archive-variants-20261006 | SHA-256 |
+|---|---|
+| `clean-v1/source.zip` | `e1b98ae1726c61eac885cb10f0b8a1889d7dcec748fb6446e4e6a93a27b6099a` |
+| `clean-v1/producer.json` | `6ec09469fb974a0905bcedebe7bebc64dfa2ace9075000caff5c2f157f4bbf81` |
+| `clean-v1/windows-executed/independent-guest-v1.json` | `2a165477b40b12d4692ec88ffc925ea7a860907f857408918a14bce0d6576c1f` |
+| `clean-v1/mac-executed/independent-native-v1.json` | `88736e9252140c9859634c8b81d394d104c59e948664dab9a9d73d43d64d1698` |
+| `clean-v1/linux-executed/independent-guest-v1.json` | `2487725e94e67dd63dd96d18fd06fd66ba88a5dcc95e06c13ea33edbdbc9c54b` |
+| `signature-baseline-v2/results.trx` | `176ded5534f471096c1035157287e804b455b570df0dc3d8338b0cbce76a9f62` |
+| `signature-working-v1/results.trx` | `b1072394c11f8876485f5f9e459574f4b8b3d928f5e7263364caacf0b6d8c5b3` |
+| `signature-full-v1/results.trx` | `c4e0664b1f9ffa85e1b83a7f2cd1f70216e84ca304e8470ca4d51e7177a989b6` |
+| `controlled-baseline-signature-v1/receipt.json` | `3dc78d7ceb3ed559ac3767ec9fca34bda951a1722a97c831fb0b05b0dbb88dae` |
+| `controlled-corrected-signature-v1/receipt.json` | `3de54f6ace503e454d67295fe9772ad9f7da0a28f4e3697fbc822e41b67371ac` |
+| `signature-controlled-comparison-v1.json` | `72631dd30c57b0eafd3c67e75c86d732c20ae932ef3bf6023e82c355e8514980` |
+| `signature-test-compile-failure-v1.json` | `9e1bc2ffb2bbd6e64bb4101b767fa15f3cddadc2dddb62dfefa24755a0e2c143` |
+| `../ci-37393570643-attempt1/independent-ci.json` | `c9ac4eb7869b6ed935b8f2859b3bf348674bfabf4f66d73e76ab70f848a2ba14` |
