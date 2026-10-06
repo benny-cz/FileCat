@@ -211,7 +211,7 @@ public sealed class FindWindow : Window, IViewActions
         {
             _closed = true;
             _timer.Stop();
-            _cts?.Cancel();
+            Stop();
             _tab?.Dispose();
         };
     }

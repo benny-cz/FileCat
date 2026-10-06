@@ -148,7 +148,11 @@ public static class DuplicateFinder
                 var files2 = new List<(ItemRef Item, string Path, long Size)>();
                 foreach (var f in group.OrderBy(f => f.Path, names))
                 {
-                    if (identityOf(f.Path) is { } id && !seen.Add(id)) sameFile.Add(f.Path);
+                    ct.ThrowIfCancellationRequested();
+                    var id = identityOf(f.Path);
+                    // An identity call may have been held while its Find window closed or Stop was pressed.
+                    ct.ThrowIfCancellationRequested();
+                    if (id is not null && !seen.Add(id)) sameFile.Add(f.Path);
                     else files2.Add(f);
                 }
                 if (files2.Count > 1) distinct.Add(files2);
