@@ -1,6 +1,6 @@
 # E-I03-SDK-ACTIONS — exact SDK, action commits and build receipts
 
-Date 2026-10-06. Preliminary pipeline correction for plan §10.2, I03/I18/I108. Committed-source CI validation is pending. No candidate, stable tag or human GO.
+Date 2026-10-06. Preliminary pipeline correction 78a0716 for plan §10.2, I03/I18/I108. All four committed-source CI lanes and their toolchain receipts now seal. No candidate, stable tag or human GO.
 
 `global.json` selects the already observed 10.0.401 SDK with roll-forward disabled and prereleases refused. Both workflows install from that single selector. The four previously floating action tags are replaced by the exact commits resolved from their official repositories; the existing release-writing action remains at its prior immutable commit. Every checkout explicitly disables persisted credentials. Hosted OS labels now specify Windows Server 2025 with VS2026, Ubuntu 24.04 and macOS 26; the existing Windows 11 ARM label remains. Labels do not freeze hosted image updates.
 
@@ -18,3 +18,13 @@ Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042
 | pin-controls-v1/independent-pins-v1.json | 99c86b013c15464c1591f54b9ab0d7cbb42b9d8e483d81af1730f2f456b6e021 |
 
 The controls freeze their then-current workflow bytes; ARM64/portable Remote TRX additions followed and require committed CI revalidation. This slice does not freeze OS images, Python/test-server/apt inputs, NuGet restore graphs, every runtime/tool byte or all redistributed notices. Fixture workflow execution, full SBOM/provenance, signing, publication controls and final installed candidate qualification remain open. I03 and I18 remain Open.
+
+## Completed source/artifact seal
+
+Run [37415760813](https://github.com/benny-cz/FileCat/actions/runs/37415760813), attempt 1, exact `78a07164eb9b73e6569e939459ee3d6b1c3478f6`: four required lanes pass, three tag-package jobs skip. Ten downloaded artifact server digests verify, including four clean source/toolchain receipts and fourteen complete TRX execution inventories. Each receipt has source SHA, exact 10.0.401 SDK, matching selector bytes, three compiler-file size/hash observations, installed 10.0.12 runtime, empty local authentication-key inventory and exact runner/run/image metadata. Compiler files themselves were not downloaded; their hashes are producer observations, rather than independently rehashed bytes. Hosted image versions: Windows x64 `20260925.250.1`, Windows ARM64 `20260924.168.1`, Ubuntu `20260927.320.1`, Mac `20260907.0351.1`.
+
+All four App inventories match 408 host display names exactly and all 31 Git controls have expected outcomes. Windows x64/ARM64 Core: 818 passes/57 skips/875; Ubuntu Core: 828/42/870; Mac Core: 827/43/870. Both cadence cases pass on every platform; overflow passes on Windows and explicitly skips on Unix. All 77 selected archive cases pass in every Core inventory. Platform x64: 166/33/199; ARM64: 165/34/199. Remote x64: 88/28/116; ARM64: 82/34/116; each Unix lane: 94/22/116. ARM64 actual package startup/drawing/installer and pinned compiler/recipe/license/input/output receipts verify; setup bytes remain unavailable on the main-push artifact route.
+
+The first observer wrongly required unique display names. xUnit truncates long arguments: two checksum displays and two runtime image-path displays repeat while execution IDs remain distinct. Its original observer and exact duplicate observation are retained. Corrected v2 preserves every execution ID, name and multiplicity; 867 non-native-image Core display rows match the host exactly. Each Windows inventory has eight native-image display rows, each Unix inventory three. Five short Windows system-image suffixes verify; full managed image paths/arguments are unavailable from the truncated displays and are not reconstructed. This does not establish every theory's full argument identity; I108/I12 retain that audit scope.
+
+Private `FileCatReleaseEvidence\ci-37415760813-attempt1\independent-ci.json` SHA-256 `bc8a13c89db04be4f4a69c85b070f7bcd6ce41434444bd31322ba55ff4d924db`.

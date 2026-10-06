@@ -14,18 +14,29 @@ inputs, full host 385/23/408, native Windows 28/3 and Mac/Ubuntu 15/16 verify.
 I153's unsuitable timestamp oracle is corrected at fd1d780: actual complete
 snapshots pass even with a delayed writer, while both deliberate unbounded
 debounce cases still fail. Host affected 3/full Core 819/56/875 and all three
-native repeats pass; exact-source CI Windows/macOS/Ubuntu pass, ARM64 and the
-full artifact seal are pending. Original CI scheduling history remains unknown.
+native repeats pass; all four exact-source CI lanes/five digests/six complete
+inventories now seal, including ARM64 startup/drawing/installer. Original CI
+scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 130/153 preliminary, one Closed, 22 remain; all campaigns need final
+Current 131/154 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
-I03/I18 SDK/action/checkout correction is prepared: exact 10.0.401 without
+I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
 roll-forward, official immutable action commits, explicit hosted OS labels,
 unstored checkout credentials and pre-build clean source/compiler/runtime/image
 receipts. Two positive/three negative owned controls and host build pass;
-portable/ARM64 Core/Remote/App inventories now retain TRX. Committed CI and
-broader provenance/release controls remain open (E-I03-SDK-ACTIONS).
+portable/ARM64 Core/Remote/App inventories now retain TRX. All four current CI
+receipt steps and full run seal pass: ten server digests/four receipts/fourteen
+complete execution inventories verify. Truncated/repeated theory displays are
+retained with distinct execution IDs; full arguments remain unavailable. Broader
+provenance/release controls remain open (E-I03-SDK-ACTIONS).
+
+New I154: actual protected SC/FDD broker components load an owned managed hook
+before Main/plan/consent. Already-administrative caller; no unelevated/UAC bypass
+claimed. Configuration-only and actual working four-mode publish/native controls
+block hooks, with two positives/all pins/owned cleanup. Helpers are bounded and
+stopped after six seconds; UI/healthy plans remain unobserved. Committed native/
+CI and wider I17 loader/profiler/runtime qualification remain open (E-I154).
 
 I03/I18 compiler provenance is preliminarily corrected at 0646053: exact official
 Inno package/119 frozen inputs, complete 122-file native inventory, installed exact
@@ -34,7 +45,7 @@ all 19 retained output hashes/cleanup pass. Recipe controls use inert payloads;
 all four CI lanes/five digests/six inventories and actual ARM64 recipe receipts
 verify on 37410913442 (E-I03-INNO). Broader I03/I18 stay open.
 
-I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
+Earlier I151 checkpoint (Mac repeat since completed above): unchanged native probe/only App DLL
 changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
 and zero reported loss verify. Six host baseline failures correct; full App
 378/23 skips/401, clean Windows 21/3 and Ubuntu 14/10 pass with source/payload/
@@ -2542,6 +2553,40 @@ Overall **NO-GO** remains.
      remains. Writer timestamp 6.10 s/callbacks 2.04/4.04/6.07 s need controlled
      event/content reproduction. Current 130/153 preliminary, one Closed, 22 remain;
      continue autonomously without an owner interaction (E-I153).
+
+316. Seal test-only I153 fd1d780: actual complete-snapshot observation proves the
+     timestamp oracle's false rejection; two deliberate unbounded-debounce cases
+     fail, restore only Core DLL and both pass/all 861 payload pins verify.
+     Host 3/full Core 819/56/875, committed native Windows 3/0, Mac/Ubuntu 2/1 and
+     all four exact-source CI lanes/five digests/six inventories pass. All 408
+     App names/31 Git controls/three Windows watcher cases and ARM64 startup/
+     drawing/installer verify; historical scheduler cause/per-case portable Core
+     and ARM64 inventories stay unavailable. Original failure retained. Current
+     131/153 preliminary, one Closed, 21 remain; no candidate/human GO (E-I153).
+
+317. Commit/push I03/I18/I108 toolchain slice 78a0716: exact 10.0.401 SDK, four
+     official immutable action commits, explicit hosted OS labels, persisted
+     checkout credentials disabled and clean compiler/runtime/image receipts.
+     Two positive/three negative controls and host build pass; complete portable/
+     ARM64 TRX is enabled. All four CI receipt steps pass; full run/artifact seal
+     and broader provenance/release controls remain Open (E-I03-SDK-ACTIONS).
+
+318. Seal 78a0716 CI 37415760813: four lanes/ten server digests/four clean SDK,
+     compiler/runtime/image receipts/fourteen execution inventories pass. All
+     408 App names/31 Git controls/two cadence cases/77 archive cases match or
+     have exact declared platform outcomes. First observer wrongly expected
+     unique display names; original preserved, corrected observer retains every
+     execution ID/multiplicity and explicit long-argument truncation limits.
+     Wider I03/I18/I108 and candidate stay Open (E-I03-SDK-ACTIONS).
+
+319. Discover I154 in protected actual SC/FDD broker components: environment
+     startup hooks execute before Main/plan/consent. Already-administrative
+     caller, no UAC/limited-caller bypass inferred. Disable startup hooks in
+     protected runtime configuration; identical configuration-only and actual
+     working four-mode publish/native controls verify no markers/two positives/
+     all pins/owned cleanup. Helpers are stopped after six seconds; UI/healthy
+     plans and committed native/CI remain pending. Current 131/154 preliminary,
+     one Closed, 22 remain (E-I154); continue wider loader audit autonomously.
 
 ## Evidence invalidated by the campaign's own changes
 

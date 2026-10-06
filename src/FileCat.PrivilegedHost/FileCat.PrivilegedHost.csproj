@@ -11,6 +11,8 @@
     <ApplicationIcon>..\FileCat.App\Assets\filecat.ico</ApplicationIcon>
     <Description>FileCat administrator helper: runs one approved plan, then exits</Description>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Environment-selected managed startup hooks run before Main and its plan/consent checks. -->
+    <StartupHookSupport>false</StartupHookSupport>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>

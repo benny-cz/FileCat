@@ -1,12 +1,15 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
 I152 stable metadata links are preliminarily corrected at e3c99d5 with identical
-native zero-contact repeat/host/all three native scopes. Ubuntu CI cadence failure
-I153 is now under diagnosis. Current 130/153 preliminary, one Closed, 22 remain.
+native zero-contact repeat/host/all three native scopes. Test-only cadence I153
+fd1d780 now passes host/all native/four CI lanes/five digests/six inventories.
+Current 131/154 preliminary, one Closed, 22 remain. I154's actual SC/FDD
+managed startup-hook acceptance is corrected in the working source; committed
+native/CI and wider loader/UI qualification remain open (E-I154).
 Mac connectivity resumed autonomously; queued native Git checks pass. No new
 owner interaction is needed for this slice (E-I152/E-I153).
 
-I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
+Historical I151 checkpoint (Mac repeat since completed): unchanged native probe/only App DLL
 changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
 and zero reported loss verify. Six host baseline failures correct; full App
 378/23 skips/401, clean Windows 21/3 and Ubuntu 14/10 pass with source/payload/

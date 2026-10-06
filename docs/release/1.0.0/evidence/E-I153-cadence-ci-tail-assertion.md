@@ -1,6 +1,6 @@
 # E-I153 — Ubuntu cadence assertion failure
 
-Date 2026-10-06. Open required-CI defect; diagnosis in progress. V12/I87/I108.
+Date 2026-10-06. Original required-CI failure; test-only correction fd1d780 now sealed preliminarily below. V12/I87/I108.
 
 Run 37412907260 attempt 1, exact source e3c99d5, Ubuntu job 112105093539 fails Core step 5 in ChangeMonitorCadenceTests.A_folder_that_keeps_changing_is_read_again_while_it_changes, line 44: no reread asked after the last change. Log reports writer times 0.04–6.10 seconds and callbacks 2.04, 4.04, 6.07 seconds. The fixture samples its last time after synchronous file-write return; callback contents/event timestamps are not captured. A callback can in principle see a change before the writer resumes, but that mechanism is not yet proved for this run. Production monitor and Core sources are unchanged by I152. Reproduce callback/write observation before deciding whether production or fixture needs correction; do not label flaky or erase the failure.
 
@@ -13,7 +13,7 @@ Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042
 | ubuntu-failed-job-log-v2.txt | bf409a7d7bfe703542354ffe00cb8b61ff7d010b8b4cb2cdd5d0dc8c31bfeed8 |
 | independent-ci.json | 115e66f3647aa7e6d900123a07fa98df2c1df4d5035d2e4f215a779cc4d4e8da |
 
-Status Open; controlled reproduction, remediation and exact-source CI revalidation remain. No candidate or stable GO.
+Initial status Open; controlled reproduction, remediation and exact-source CI revalidation follow below. No candidate or stable GO.
 
 ## Controlled observer correction (2026-10-06 04:40 UTC)
 
@@ -44,3 +44,13 @@ Source `fd1d780ad3732bf0940f1d5bd896831d7881f6ab` was exported from raw Git blob
 | clean-v1/mac-executed/independent-native-v1.json | b6a06449a0125e26bfe35a7126e14721039ecdd5412dbf0de40901c5310232e5 |
 
 Required run 37414852140 has passed the Windows/macOS/Ubuntu lanes, including Ubuntu Core; ARM64 package-start/installer completion and the full artifact seal are still pending at this update. Original failure remains retained. No native GUI or candidate qualification is inferred.
+
+## Completed exact-source CI seal
+
+Run [37414852140](https://github.com/benny-cz/FileCat/actions/runs/37414852140), attempt 1, source `fd1d780ad3732bf0940f1d5bd896831d7881f6ab`: all four required lanes succeed; three expected tag-package jobs skip. Five server artifact digests independently match downloaded bytes, six complete per-case inventories verify, and all 408 App names match the host inventory. Windows Core has 818 passes/57 declared skips/875 results: both cadence cases and the overflow case pass, and all 77 retained archive controls pass. Six native Windows image-path names differ explicitly from the host; all other 869 Core names match exactly. Portable Core/ARM64 per-case inventories were not retained by this historical workflow; their successful log summaries and all native cases are preserved without inventing those inventories.
+
+Windows App has 391 passes/17 skips, Mac 348/60, Ubuntu 346/62; all 31 selected Git controls have their exact expected outcomes. ARM64 App logs report 391/17/408 and Core 818/57/875; actual package version/startup/drawing and pinned installer compilation pass. Its 119 frozen tool files, 122-file tool inventory, exact upstream license, unchanged production recipe inputs and setup output identity verify; generated setup bytes are not uploaded on this main-push route.
+
+Private `FileCatReleaseEvidence\ci-37414852140-attempt1\independent-ci.json` SHA-256 `fade2073001a0fa521f6ebdcd0abc4e77b9531cece8259cc8bc55afd416bfd8d`.
+
+I153 is Remediated preliminarily, with production monitor unchanged. Original failure, its unavailable callback contents/scheduler history, all observer failures and negative controls remain. Final candidate/native GUI/performance qualification stays open.

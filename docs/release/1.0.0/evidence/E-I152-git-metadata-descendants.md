@@ -66,3 +66,7 @@ Additional retained pins:
 | `independent-i152-comparison-v1.json` | `f86a2caced929c49b7e6b6df6b96dff2253d105a97d023793abc059ad896e261` |
 
 Raw export count 899; failed CI seal `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042-9e13-028bfb0e5c33\FileCatReleaseEvidence\ci-37412907260-attempt1\independent-ci.json`, SHA-256 `115e66f3647aa7e6d900123a07fa98df2c1df4d5035d2e4f215a779cc4d4e8da`.
+
+## Successor CI qualification
+
+The test-only I153 successor `fd1d780ad3732bf0940f1d5bd896831d7881f6ab` preserves I152 production code and passes all four required CI lanes in run [37414852140](https://github.com/benny-cz/FileCat/actions/runs/37414852140), attempt 1. Five server digests and six complete inventories verify; all 408 App names and 31 selected Git names match exactly. Windows selected controls: 28 passes/3 declared skips; Mac and Ubuntu: 15 passes/16 declared skips each, including the portable metadata positive and six explicit Windows-only metadata skips. ARM64 full App log/startup/drawing/installer pass; its per-case inventory was unavailable in that historical workflow. Original Ubuntu cadence failure remains retained in E-I153. Seal SHA-256 `fade2073001a0fa521f6ebdcd0abc4e77b9531cece8259cc8bc55afd416bfd8d`, private `FileCatReleaseEvidence\ci-37414852140-attempt1\independent-ci.json`. I152 stays preliminarily remediated; broader paths/races/installed candidate remain open.
