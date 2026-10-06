@@ -4,12 +4,14 @@ using System.Text.Json;
 if (args.Length != 4)
 {
     Console.Error.WriteLine("usage: DependencyNotices <snapshot> <App lock> <published payload> <new destination>");
+    Console.Error.WriteLine("   or: DependencyNotices --appimage-runtime <snapshot> <runtime input> <new destination>");
     return 2;
 }
 
 try
 {
-    string source = Path.GetFullPath(args[0]);
+    bool appImage = args[0] == "--appimage-runtime";
+    string source = Path.GetFullPath(args[appImage ? 1 : 0]);
     string destination = Path.GetFullPath(args[3]);
     string sourcePrefix = source.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
     if (destination.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase) || destination.Equals(source, StringComparison.OrdinalIgnoreCase)
@@ -37,32 +39,14 @@ try
     if (!expectedFiles.SetEquals(sourceFiles.Keys))
         throw new InvalidDataException("Notice snapshot has missing or unindexed files.");
 
-    var packages = new Dictionary<string, (string Version, string Hash)>(StringComparer.OrdinalIgnoreCase);
-    foreach (var package in index.GetProperty("Packages").EnumerateArray())
-        if (!packages.TryAdd(RequiredString(package, "ID"), (RequiredString(package, "Version"), RequiredString(package, "NuGetContentHash"))))
-            throw new InvalidDataException("Duplicate notice package identity.");
-    using var lockDocument = JsonDocument.Parse(File.ReadAllBytes(args[1]));
-    var lockedPackages = new Dictionary<string, (string Version, string Hash)>(StringComparer.OrdinalIgnoreCase);
-    foreach (var framework in lockDocument.RootElement.GetProperty("dependencies").EnumerateObject())
-        foreach (var package in framework.Value.EnumerateObject())
-        {
-            if (RequiredString(package.Value, "type").Equals("Project", StringComparison.OrdinalIgnoreCase)) continue;
-            var identity = (RequiredString(package.Value, "resolved"), RequiredString(package.Value, "contentHash"));
-            if (lockedPackages.TryGetValue(package.Name, out var existing) && existing != identity)
-                throw new InvalidDataException("Conflicting package identity across lock frameworks.");
-            lockedPackages[package.Name] = identity;
-        }
-    if (packages.Count != lockedPackages.Count || packages.Any(p => !lockedPackages.TryGetValue(p.Key, out var identity) || identity != p.Value))
-        throw new InvalidDataException("Notice package identities differ from the App dependency lock; regenerate and review the snapshot.");
-
-    var runtimes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    foreach (var runtime in index.GetProperty("RuntimePacks").EnumerateArray())
-        if (!runtimes.Add(RequiredString(runtime, "ID") + "/" + RequiredString(runtime, "Version")))
-            throw new InvalidDataException("Duplicate runtime notice identity.");
-    using var depsDocument = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(args[2], "FileCat.deps.json")));
-    foreach (var library in depsDocument.RootElement.GetProperty("libraries").EnumerateObject())
-        if (library.Name.StartsWith("runtimepack.", StringComparison.OrdinalIgnoreCase) && !runtimes.Contains(library.Name["runtimepack.".Length..]))
-            throw new InvalidDataException("Published runtime pack has no matching pinned notice snapshot.");
+    if (appImage)
+    {
+        var runtime = index.GetProperty("RuntimeInput");
+        byte[] bytes = File.ReadAllBytes(args[2]);
+        if (bytes.LongLength != runtime.GetProperty("Bytes").GetInt64() || Hash(bytes) != RequiredString(runtime, "SHA256"))
+            throw new InvalidDataException("AppImage runtime input differs from the reviewed notice snapshot.");
+    }
+    else ValidateAppIdentity(index, args[1], args[2]);
 
     // Validate the complete snapshot and payload identity before creating any output.
     Directory.CreateDirectory(destination);
@@ -80,6 +64,37 @@ catch (Exception error)
 {
     Console.Error.WriteLine(error.Message);
     return 1;
+}
+
+static void ValidateAppIdentity(JsonElement index, string lockPath, string payloadPath)
+{
+    var packages = new Dictionary<string, (string Version, string Hash)>(StringComparer.OrdinalIgnoreCase);
+    foreach (var package in index.GetProperty("Packages").EnumerateArray())
+        if (!packages.TryAdd(RequiredString(package, "ID"), (RequiredString(package, "Version"), RequiredString(package, "NuGetContentHash"))))
+            throw new InvalidDataException("Duplicate notice package identity.");
+    using var lockDocument = JsonDocument.Parse(File.ReadAllBytes(lockPath));
+    var lockedPackages = new Dictionary<string, (string Version, string Hash)>(StringComparer.OrdinalIgnoreCase);
+    foreach (var framework in lockDocument.RootElement.GetProperty("dependencies").EnumerateObject())
+        foreach (var package in framework.Value.EnumerateObject())
+        {
+            if (RequiredString(package.Value, "type").Equals("Project", StringComparison.OrdinalIgnoreCase)) continue;
+            var identity = (RequiredString(package.Value, "resolved"), RequiredString(package.Value, "contentHash"));
+            if (lockedPackages.TryGetValue(package.Name, out var existing) && existing != identity)
+                throw new InvalidDataException("Conflicting package identity across lock frameworks.");
+            lockedPackages[package.Name] = identity;
+        }
+    if (packages.Count != lockedPackages.Count || packages.Any(p => !lockedPackages.TryGetValue(p.Key, out var identity) || identity != p.Value))
+        throw new InvalidDataException("Notice package identities differ from the App dependency lock; regenerate and review the snapshot.");
+
+    var runtimes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var runtime in index.GetProperty("RuntimePacks").EnumerateArray())
+        if (!runtimes.Add(RequiredString(runtime, "ID") + "/" + RequiredString(runtime, "Version")))
+            throw new InvalidDataException("Duplicate runtime notice identity.");
+    using var depsDocument = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(payloadPath, "FileCat.deps.json")));
+    foreach (var library in depsDocument.RootElement.GetProperty("libraries").EnumerateObject())
+        if (library.Name.StartsWith("runtimepack.", StringComparison.OrdinalIgnoreCase) && !runtimes.Contains(library.Name["runtimepack.".Length..]))
+            throw new InvalidDataException("Published runtime pack has no matching pinned notice snapshot.");
+
 }
 
 static string RequiredString(JsonElement value, string key) => value.GetProperty(key).GetString()

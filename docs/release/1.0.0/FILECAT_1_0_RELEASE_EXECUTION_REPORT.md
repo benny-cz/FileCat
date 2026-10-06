@@ -13,10 +13,12 @@ actual locked graphs. Actual Windows x64/ARM64 ZIPs and Linux tar/deb/AppImage/M
 archives each preserve all 50 committed notice files: 400 archive byte checks.
 The original reader path assumptions/timeouts remain retained. Inventory correction
 1d6d53f passes actual x64/ARM64 packagers/all 38 locked identities and original
-main CI 37487426601: 19 digests/fourteen inventories/92 actual graphs. Development
-37487590559 continues Unix packaging. AppImage runtime input/sole digest-section
-transformation and immutable root/dependency license sources are verified; copying
-the available wrapper notices and complete composition audit continue. Counts
+push/development CI 37487426601/37487590559: 19/25 digests/fourteen inventories per
+run/92/138 actual graphs and eight archives' exact notice sets. AppImage runtime
+input/sole digest-section transformation and immutable root/dependency license
+sources verify. Working wrapper notice inclusion now passes 35 controls and exact
+staged-source checks; committed actual package validation and complete composition
+audit continue. Counts
 remain 139/161 preliminary Remediated, one Closed, 21 remaining
 issue remediations; all 24 campaigns still require final-candidate qualification.
 No candidate exists and stable publication remains NO-GO (E-I03-NOTICES/INVENTORY).
@@ -3307,3 +3309,21 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     packaging continue. LTR README/project does not resolve full-text provenance.
     No code execution/source device/guest-Mac settings or publication; counts
     unchanged and NO-GO (E-I03-APPIMAGE).
+
+356. Inventory source 1d6d53f additionally seals development 37487590559 attempt 1:
+    all required lanes/actual Linux/Mac package install/version/signature/icon
+    checks pass. Twenty-five server digests/six clean receipts/fourteen complete
+    inventories/all hosted controls/138 actual graphs and retrieved package
+    manifests verify. Independent readers confirm all 50 raw Git notice files in
+    each of four fresh Unix archives without package mutation. No publication or
+    native-desktop/candidate qualification; broader I03 remains Open.
+
+357. AppImage wrapper gap: five exact original runtime/libfuse/squashfuse texts
+    plus README/index are frozen, with exact runtime input and explicit remaining
+    static obligations. Shared locked tool adds runtime mode; Linux copies seven
+    validated files before assembly. One exact-input positive/fifteen refusals,
+    all nineteen existing App controls, source/runtime/artifact preservation,
+    warning-free C# build/shell parse/ordering and twelve staged inputs/seven exact
+    Git files/23-project scope verify. Summary's unsupported reproducibility and
+    incomplete component claims correct. Committed production/hosted validation
+    continue. No hardware/helper/guest-Mac setup or publication; counts unchanged.

@@ -125,7 +125,7 @@ fi
 # The runtime, the start-up part every AppImage carries, pinned by checksum too: without --runtime-file appimagetool
 # takes whatever type2-runtime's "continuous" release holds when the package is built. This is the build of commit
 # 8f39b89 (2026-09-28, extraction directories made with mode 0700). When the release moves on, the check fails: review
-# the new runtime, then update the commit and checksum here (or set APPIMAGE_RUNTIME to a reviewed file).
+# the new runtime, then update the commit, checksum and reviewed notice snapshot together.
 RUNTIME="${APPIMAGE_RUNTIME:-}"
 if [ -z "$RUNTIME" ]; then
   RUNTIME="$OUT/runtime-$APPIMAGE_ARCH"
@@ -138,6 +138,8 @@ if [ -z "$RUNTIME" ]; then
     exit 2
   fi
 fi
+dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- --appimage-runtime \
+  "$ROOT/licenses/appimage-runtime" "$RUNTIME" "$APPDIR/usr/lib/filecat/licenses/appimage-runtime"
 APPIMAGE="$OUT/FileCat-$VERSION-$APPIMAGE_ARCH.AppImage"
 rm -f "$APPIMAGE"
 # Runs without FUSE (CI containers).

@@ -50,8 +50,12 @@ startup/draw/installer checks. Nineteen server digests, four clean SDK receipts,
 fourteen complete TRX inventories/all App identities and picture/reference/draft/
 set controls verify. Four builders retain 92 actual locked graphs for all 23
 projects, independently matching source. Package/draft jobs skip. Independent
-development 37487590559 has passed all test lanes and continues actual Unix
-packaging; its final artifacts are not yet qualified here.
+development 37487590559 also completes successfully. Twenty-five digests, six
+clean receipts/fourteen complete inventories/all hosted controls and 138 actual
+locked graphs independently verify. Actual Linux/Mac package install/version/
+signature/icon checks pass. Retrieved manifests agree with every package hash;
+independent readers check 50 exact committed notice files in each of its four
+Unix archives. All package bytes remain unchanged. No publication or candidate.
 
 Private `FileCatReleaseEvidence/inventory-production-windows-20261006-v1`:
 
@@ -69,3 +73,20 @@ Private `FileCatReleaseEvidence/ci-37487426601-assets-attempt1-v1`:
 | independent-draft-guard-ci-v1.json | 1f3cdb8390a109dd894e61a420be2c2042f570288a44604ed100071ce6606133 |
 | independent-separation-ci-v1.json | 0f3ebc22c45fe95e5c9fbfc45c1344df674c6d3d84cb1b5c888c0c466611f986 |
 | independent-restore-ci-v1.json | 6fad2bae55eeeaeced03455dd52ad9b483e5f529eda285a94abe4086a30daaf9 |
+
+Private `FileCatReleaseEvidence/ci-37487590559-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 85ec3e1f62abbb52b60024e76ea4b3890d82301d30819e80770ed16a3c4d8bd0 |
+| independent-fixture-ci-v1.json | d579d0cf12c2b3b24d8ce8c3fae78384532ce88554b21e5901a113b739e8f366 |
+| independent-producer-policy-ci-v1.json | 92f829482774b0bd582be5a3e5ba93f8e3c74deb3ab98282174c835f6702e8e6 |
+| independent-draft-guard-ci-v1.json | 4acd02a3679fe76d053667d5b1e100261ce27bbd8afff46bade938ac6dac2ba5 |
+| independent-separation-ci-v1.json | 57b48e4058eda1e7b919d287fd509410c0bc93e763751d32186b9b3b1d71df52 |
+| independent-restore-ci-v1.json | 7e450c083f3e02cb06da4d4513f544e3f9df13c2aafb02c29e5de5663ba96dc9 |
+
+Private `FileCatReleaseEvidence/inventory-package-inspection-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-package-notice-bytes-v1.json | 3a027c323b9062953f9e42d09c397e2113d3b14bb156afdf818de1b821992f8f |

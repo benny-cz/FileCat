@@ -1,0 +1,86 @@
+{
+  "SchemaVersion": 1,
+  "Scope": "AppImage wrapper original runtime input and available immutable source notices",
+  "RuntimeInput": {
+    "Architecture": "x86_64",
+    "Bytes": 944632,
+    "SHA256": "156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074",
+    "DeclaredSourceCommit": "8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa",
+    "OriginalURL": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
+  },
+  "Files": [
+    {
+      "Path": "type2-runtime/LICENSE",
+      "Bytes": 1678,
+      "SHA256": "aa154fc9070614bbe7921f89db11efd1dba7a1f3a41685958110e2230f9c0ca1",
+      "Origin": {
+        "DeclaredSourceCommit": "8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa",
+        "GitBlob": "a9fd00b042f392357a84fd81b7789976a53f5b4e",
+        "SourcePath": "LICENSE"
+      }
+    },
+    {
+      "Path": "libfuse/3.15.0/LICENSE",
+      "Bytes": 435,
+      "SHA256": "b8832d9caaa075bbbd2aef24efa09f8b7ab66a832812d88c602da0c7b4397fad",
+      "Origin": {
+        "DeclaredSourceVersion": "3.15.0",
+        "ArchiveURL": "https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz",
+        "ArchiveSHA256": "70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0",
+        "ArchiveMember": "fuse-3.15.0/LICENSE"
+      }
+    },
+    {
+      "Path": "libfuse/3.15.0/LGPL2.txt",
+      "Bytes": 26530,
+      "SHA256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+      "Origin": {
+        "DeclaredSourceVersion": "3.15.0",
+        "ArchiveURL": "https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz",
+        "ArchiveSHA256": "70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0",
+        "ArchiveMember": "fuse-3.15.0/LGPL2.txt"
+      }
+    },
+    {
+      "Path": "libfuse/3.15.0/GPL2.txt",
+      "Bytes": 18092,
+      "SHA256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "Origin": {
+        "DeclaredSourceVersion": "3.15.0",
+        "ArchiveURL": "https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz",
+        "ArchiveSHA256": "70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0",
+        "ArchiveMember": "fuse-3.15.0/GPL2.txt"
+      }
+    },
+    {
+      "Path": "squashfuse/0.5.2/LICENSE",
+      "Bytes": 1592,
+      "SHA256": "9e909cc8a8ba27b1a649c964cf9eda37de911f3138c2b64e6d2f01703904ac13",
+      "Origin": {
+        "DeclaredSourceVersion": "0.5.2",
+        "ArchiveURL": "https://github.com/vasi/squashfuse/archive/0.5.2.tar.gz",
+        "ArchiveSHA256": "db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3",
+        "ArchiveMember": "squashfuse-0.5.2/LICENSE"
+      }
+    }
+  ],
+  "DeclaredStaticLibraries": [
+    "squashfuse",
+    "squashfuse_ll",
+    "zstd",
+    "zlib",
+    "fuse3",
+    "mimalloc",
+    "musl"
+  ],
+  "ExactBinaryStaticVersionsAndCompositionQualified": false,
+  "CompleteNativeLicenseAndSourceObligationsQualified": false,
+  "AllReferencedSourcesProvenToShip": false,
+  "Unresolved": [
+    "Exact musl/zstd/zlib/mimalloc binary versions and full notices",
+    "Complete static-link/source obligations and distribution eligibility",
+    "Downloaded runtime source reproducibility",
+    "Independent embedded checksum semantics"
+  ],
+  "CandidateQualified": false
+}

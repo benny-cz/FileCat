@@ -63,6 +63,11 @@ Packaging also checks the frozen notice snapshot in `licenses/dependencies/index
 against the App lock and published runtime version before copying full texts.
 Review and update that snapshot from verified package/source bytes when changing
 dependencies or the SDK; its index records unresolved license-provenance gaps.
+AppImage packaging additionally checks the original runtime input against
+`licenses/appimage-runtime/index.json` and copies its available wrapper notices.
+Update the runtime pin, source references and notice snapshot together, including
+when supplying `APPIMAGE_RUNTIME` or selecting another architecture. Complete
+static-library composition and source obligations remain release audit gates.
 
 Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
 framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.

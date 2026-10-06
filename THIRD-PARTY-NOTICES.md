@@ -9,6 +9,10 @@ license eligibility. LTRData.Extensions full-text provenance, SharpCompress's RA
 AppImage/native obligations remain under review before stable release. Regenerate the package
 inventory with `eng/publish.ps1` (writes `artifacts/sbom-<version>-<rid>.json`) and review the
 snapshot whenever dependencies or the SDK change.
+The Linux AppImage also includes available wrapper texts in
+`licenses/appimage-runtime`. Its index pins the original runtime input and the
+declared source archives for these texts; complete static-library composition,
+versions and source obligations remain under review.
 
 | Component | Version | License | Notes |
 |---|---|---|---|
@@ -29,7 +33,7 @@ snapshot whenever dependencies or the SDK change.
 | SharpCompress | 0.50.4 | MIT | Read-only 7z, RAR, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
 | LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils |
-| AppImage type2-runtime (Linux AppImage only) | commit 8f39b89 (2026-09-28), pinned by checksum | MIT | The AppImage's start-up part. Statically links libfuse 3.15 (LGPL-2.1; source and patches at github.com/AppImage/type2-runtime, which builds it reproducibly), squashfuse 0.5.2 (BSD-2-Clause), musl (MIT), zstd (BSD-3-Clause), and zlib (zlib). The `.tar.gz` and `.deb` packages do not contain it |
+| AppImage type2-runtime (Linux AppImage only) | declared commit 8f39b89, exact runtime input pinned by checksum | MIT root; linked components have their own licenses | The pinned recipe declares libfuse 3.15.0, squashfuse 0.5.2, zstd, zlib, mimalloc and musl. Original root/libfuse/squashfuse texts are retained in `licenses/appimage-runtime`; complete actual static composition, source obligations and binary/source reproducibility remain unqualified. The tarball and Debian package omit this wrapper |
 | Inno Setup installer engine, loader and uninstaller (Windows setup package only) | 6.7.1 | Inno Setup license (modified BSD) | Generated installer bytes; Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Full license installed as `licenses/InnoSetup-6.7.1.txt`; compiler inputs pinned in `eng/toolchains/inno-setup.json` |
 
 Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in

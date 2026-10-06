@@ -33,9 +33,9 @@ filename selection retains two root LICENSE files; v2 includes GPL/LGPL-named
 bodies from the same unchanged archives, retaining four originals. This does
 not establish that every retained source file ships, exact binary versions of
 all linked libraries, static-link/source obligations or legal eligibility.
-Available runtime/license texts are not yet copied into the AppImage payload;
-that executable packaging work continues. Complete composition, full notices
-and obligations stay Open.
+At that artifact identity the available runtime/license texts are absent from
+the AppImage payload. The working packaging correction below addresses this;
+complete composition, full notices and obligations stay Open.
 
 The package-declared LTR source's README contains project description/link and
 its Extensions project declares version 1.0.22 while the package is 1.0.23.
@@ -54,6 +54,50 @@ Private `FileCatReleaseEvidence/appimage-runtime-20261006-v1`:
 | independent-runtime-transform-v2.json | 5da48ecb2f44232e47968416312cb984848d7ce21d4c221cc2b13974f0ed24b2 |
 | declared-dependency-notices-v1/independent-declared-runtime-notices-v1.json | a2515bf2a01b8c8b25fc176f80fef95edd22155570f452bd66eeb88e03013cfd |
 | declared-dependency-notices-v2/independent-declared-runtime-notices-v2.json | 01e54de485853928426b984e476a77c4e8fd0a8b6a9fc7ca690f8dc2101a821a |
+
+Working baseline `d32edb6`: five original verified texts are frozen in
+`licenses/appimage-runtime`, with README/index (seven files). This retains the
+runtime LICENSE, libfuse LICENSE/GPL2/LGPL2 and squashfuse LICENSE. The index
+records declared sources and the exact original x64 runtime input; it explicitly
+retains unresolved musl/zstd/zlib/mimalloc versions/notices, full static composition,
+source obligations and legal eligibility. All seven staged Git blobs preserve
+original bytes; the scoped attribute extends only to this frozen snapshot.
+
+The existing locked, BCL-only notice tool now has an explicit AppImage-runtime
+mode. Shared source/path/hash validation runs first; the mode also checks the
+original input's exact size/SHA-256 before creating output. Linux invokes it
+after runtime selection and before AppImage assembly, placing the texts in
+`usr/lib/filecat/licenses/appimage-runtime`. Runtime/source/notice pins must be
+updated together for a different reviewed input or architecture. The default
+snapshot currently covers x64. The summary corrects its prior unproved binary
+reproducibility claim and incomplete static-library list.
+
+One real pinned-input positive copies all seven original files; fifteen fresh
+refusals cover changed/missing/wrong-size/already-assembled runtime input,
+changed/missing/extra/duplicate/escaping/schema/runtime-pin/malformed/missing
+notice source, preserved existing output and output inside the snapshot. All
+fail before new output, with exact original source/runtime/artifact pins preserved.
+All nineteen original App-mode controls also pass against the changed tool:
+seven real SC/FDD metadata positives and twelve refusals, including two pinned
+license-byte controls. C# builds without warnings; shell syntax and ordinary
+whitespace checks pass. Twelve staged source files/seven exact frozen files/
+23-project scope and invocation ordering independently verify. Committed actual
+packaging and hosted revalidation continue; no full audit or candidate closure.
+
+Private `FileCatReleaseEvidence/appimage-runtime-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| snapshot-adoption-v1/independent-runtime-snapshot-adoption-v1.json | 38408b5c5ea1d58ed594cf87b0b06722fd30dc48d09843faf9df13483cafebdf |
+| snapshot-adoption-v1/independent-runtime-source-adoption-v2.json | c4fb42fa1c2f15049aa37e7dadb13dfb44bec94644a7b2b3b85650c8c194c62f |
+| runtime-mode-controls-v1/independent-runtime-mode-controls-v1.json | a5ad8d445ee2a07ec76c6bb9488a5c8a4499e33f61bef131c6c1b3257bc41f91 |
+
+Private `FileCatReleaseEvidence/nuget-locks-20261006-v3`:
+
+| Retained path | SHA-256 |
+|---|---|
+| appimage-tool-app-mode-controls-v1/independent-appimage-tool-app-mode-controls-v1.json | 7a6f5b2a7c9f2fea2c77a2430edb564171f2a13a5e663d7b5875fbe4363d69df |
+| appimage-tool-byte-refusals-v1/independent-appimage-tool-byte-refusals-v1.json | e875fc7f236a4de14dddef8e2c106880819b995402d56365abfc8dc534c71c0b |
 
 No source device, VM/Mac setup, upstream software execution, release tag,
 publication, candidate or human GO occurs in this slice. Counts remain
