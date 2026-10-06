@@ -20,12 +20,15 @@ without product/test reruns. Native PE inspection maps 50 of 62 files to origina
 NuGet archive members, with twelve generated FileCat outputs kept separate. Fresh
 NuGet query/feed comparison reports no affected version among 38 App identities/
 twelve historical ranges; finite advisory/native/license/composition limits remain.
-I162 relative-worktree correction resolves from the actual gitdir, including
-linked-worktree shared configuration. Identical final test assembly/only App
-DLL changes: four baseline failures/two passes become six passes; full host
-392/23/415 and unchanged native probe/five local cases/pins/restoration/cleanup
-verify. Original long-path fixture setup failure is retained. Clean committed
-production/native/hosted revalidation continues; network contact is unmeasured.
+I162 correction 6215329 resolves relative worktrees from the actual gitdir,
+including linked configuration. Identical test assembly/only App DLL: four
+baseline failures/two passes become six passes; full host 392/23/415 and unchanged
+native probe/clean committed five cases verify. All 1,039 raw sources/four Windows
+modes/receipts/pins, native Windows 34/3 and Ubuntu/Mac 17/20 each verify with
+cleanup. Original CI 37505705190 passes four lanes/19 digests/fourteen complete
+inventories/92 graphs/two native evidence sets/all 24 new case executions.
+Original long-path setup failure remains retained; broader/network/native GUI/
+candidate boundaries stay open.
 Counts are now 140/162 preliminary Remediated, one Closed, 21 remaining issue
 remediations; all 24 campaigns require final-candidate qualification. No candidate
 exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
@@ -3452,3 +3455,30 @@ I162 working-fix record reconciliation verifies 172 private hashes and current
 140/162 preliminary/one Closed/21 remaining issue counts. Retained
 `release-assets-20261006/independent-records-v15.json` SHA-256:
 `3e29a0baeac3b2c57c4f5e0d9c18f817c8aa2af396f4ce6462f5a8601b48c3e5`.
+
+367. Committed I162 6215329 seals actual x64/ARM64 SC/FDD packagers, all 1,039 raw
+    Git files/four ZIP notice sets/38-package inventories/four native receipts/
+    resource and payload pins. Original unchanged native probe passes all five
+    local controls against actual clean production with no DLL overlay; 303
+    inputs/config restoration/exact junction removal/target bytes verify.
+    Clean self-contained 37-case Windows/Ubuntu/Mac repeats record 34/3, 17/20,
+    17/20 respectively; all six Windows new cases/two Unix new positives/four
+    explicit Windows-only skips, full XML/TRX/source/payload/output pins and
+    process/temp cleanup independently verify. Mac's inherited older baseline
+    field is retained as I150 history, not an I162 comparison. No persistent
+    guest/Mac setting changes or physical source/GUI/helper execution.
+
+368. Original 6215329 push CI 37505705190 attempt 1 passes policy/four required
+    lanes/ARM64 startup/drawing/installer. All nineteen server digests/four clean
+    SDK receipts/fourteen full inventories/92 actual locked graphs and reference/
+    asset/draft/package-set controls independently verify. All 415 App identities
+    and 24 distinct new executions are retained: both Windows architectures
+    pass six, both Unix lanes pass two/explicitly skip four. Both downloaded
+    native evidence sets verify RC/resource/source/icon/output pins. Three package
+    jobs/draft publication skip. Counts remain 140/162 preliminary, one Closed,
+    21 remaining; all campaigns/final candidate/human stable GO remain gated.
+
+Committed I162 record reconciliation verifies 187 private hashes and unchanged
+140/162 preliminary/one Closed/21 remaining issue counts. Retained
+`release-assets-20261006/independent-records-v16.json` SHA-256:
+`64d6a34ad2e358e0365d21bb4f98de7c49b7106889254e05ebda316ae55ca159`.
