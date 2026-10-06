@@ -34,3 +34,11 @@ Independent Linux proof `independent-native-quickview-memory-linux-v6.json` SHA-
 Owner directed execution to prioritize runnable work within the 21 unresolved issues. Next: I06 borrowed icons/consumer references, then I03 and I16/I17; genuine owner/service/hardware/participant dependencies remain queued with publication holds intact.
 
 Audit v23 verifies 230 selected evidence pins and the original F3/host/native/Linux binary/output seals; SHA-256 fce452a6a6348edafa36d202c90cc76f025f7e3a73e6cc5d66b98d37ef175377. Current-tracking proof v3 verifies unchanged frozen histories/authority, 162 issue identities and status classes, 170 catalogue entries, all remaining lists and 381 local links/fragments; SHA-256 58f98e037991c57af86a9ca9f2b6e0de9b5f1f093145d08089d66e8b1e913c29.
+
+## 2026-10-06 — borrowed icon/tint references
+
+Unchanged 6215329 production cache/tint APIs pass the real-Skia component ownership case: two controlled four-entry caches hold 24 original and 120 tint Image borrowers (2.25 MiB), all still usable after cache eviction/clear. Two stale same-key completions and an async retry dispose unpublished buffers. After borrower release all 144 held wrappers become collectible, with the live weak-target positive control retained. No product defect or numeric budget violation is established in this case. The observer's `TotalPublishedBitmaps` field covers the held cohort and excludes five extra controls; its scope is explicit in the proof.
+
+[E-I06-B3](evidence/E-I06-B3-borrowed-icon-memory.md) retains every checkpoint, whole-buffer hash, original/private pin and fourteen-file static consumer inventory. Independent proof SHA-256: 3818c42fd768fe29ba154b7ae7dd187658a079153b38b4796eda8f0d181cc7b0. Broader I06 remains Open; next is a targeted retained-dialog check on the Escape guard found during source inventory, before any defect or fix is claimed.
+
+Audit v24 reconciles 236 selected evidence hashes and retained binary/output seals; SHA-256 da0afb1d9ca9c6f873d09568af183313e1795305c0aaca521b9bf58350b3c617. Current-tracking proof v4 preserves the original histories, authority, 162 issue identities/classes and all original evidence mappings; it verifies 171 current catalogue entries, remaining lists and 383 links/fragments. SHA-256 d26d9db2bbab794f0ae4f2f538d911fb75281672581a8b626556e57d4add3f1f.
