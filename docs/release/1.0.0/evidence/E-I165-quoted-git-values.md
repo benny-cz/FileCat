@@ -69,7 +69,40 @@ Independent local seal v6 verifies 43 retained files, four private probe files,
 committed source blobs. The original and corrected native six-case outcomes,
 three Git decode controls and all TRX case names/outcomes/skips are retained.
 The original CI snapshot at 21:48 UTC is unchanged; [run 37536153209](https://github.com/benny-cz/FileCat/actions/runs/37536153209)
-attempt 1 is running and requires final artifact/inventory collection.
+attempt 1 has subsequently completed successfully; the original in-progress
+snapshot is preserved and its claim remains limited to that instant.
+
+## Original-attempt CI completion
+
+Completion collected 2026-10-07 CEST. Original run 37536153209 attempt 1
+passes producer policy, Windows x64/ARM64, Ubuntu 24.04 and macOS 26, including
+ARM64 package startup/drawing and installer compilation. The main-push tag-only
+package/draft jobs explicitly skip; no release is published.
+
+All 19 artifact archives match actual original server digests. Fourteen complete
+TRX inventories retain every result/skip message, with 435 App cases per lane.
+The eight I165 cases have 32 distinct executions: eight pass per Windows
+architecture; five pass and three junction cases explicitly skip per Unix lane.
+The I163/I164 subsets also repeat their twelve/thirty-six executions with their
+own expected outcomes. All compiler identities and 92 locked restore graphs verify.
+
+Private `FileCatReleaseEvidence/ci-37536153209-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | f9e98a29539a3d1b240c5631801bea6bde2d77bf832f22ba6783f2c42859693d |
+| independent-fixture-ci-v1.json | c878a51c2197e36afc65f5a5a374cff3b5e52bc7dc218d72f894626fcd0a5d6c |
+| independent-producer-policy-ci-v1.json | 5e1b785c9a4a83ba159ce36829c9b6bd2f2ed108c7c040fb089b106071c5b486 |
+| independent-draft-guard-ci-v1.json | 0112047b55e866680e3bec52f1d8d6f6a408ed990fff63ab79f744d967386a94 |
+| independent-separation-ci-v1.json | 66d3fefa527c344f0b497325e234503fadd95887023616b74cd51651973f8320 |
+| independent-restore-ci-v1.json | d3bb34e412ced3e6beb52728ef5567cd17c1fc2fed1e3c11a8c0794a29749d9d |
+| independent-i163-ci-cases-v1.json | 72966852b427f63ae3d4f3ce54985a06dcfa86e9698b315c3a5886720a6ff6ca |
+| independent-i164-ci-cases-v1.json | 11bf19f3483dda2cd4fcd5943145cfe01ab144f0c6a6941a0483ec13c436011e |
+| independent-i165-ci-cases-v1.json | 59030a128f7ab8b9a68720c93a45e221ec392e74fd2ab4758edaa3a56490b6c6 |
+
+These are preliminary finite regression/build/package controls at cceb990.
+The subsequent About edit, native GUI/network/hardware scope and candidate
+qualification are not relabelled as these artifacts.
 
 ## Remaining scope
 
