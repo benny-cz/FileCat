@@ -1,7 +1,7 @@
 # FileCat 1.0.0 — current issue register
 
-Updated 2026-10-07. **145 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses; 167 total.**
-These are issue statuses, not remaining test counts. No status is promoted by this consolidation.
+Updated 2026-10-07. **145 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 167 total.**
+These are issue statuses, not remaining test counts. Subsequent scope closures require their own linked evidence; consolidation itself did not promote a status.
 Remediated does not mean complete candidate qualification. All original findings, comparison results, commits, failure details and closure limits remain in the [frozen full register](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md).
 
 Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the remaining campaign checklist and the [blocker register](FILECAT_1_0_RELEASE_BLOCKERS.md) for required decisions/resources.
@@ -22,7 +22,6 @@ Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the r
 | I08 | <a id="i08"></a>Containment documentation versus reality | Potential High/Critical | Security gate | Open: actual Unix/native containment and accurate public boundary claims remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I10 | <a id="i10"></a>Documentation drift | Medium | Blocker where safety/support claims mislead | Open: finish documentation reconciliation against the frozen contract and tested artifacts. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I11 | <a id="i11"></a>Missing mandatory external evidence | Qualification blocker | Blocker | Open: mandatory hardware, clean-platform, human and accessibility evidence remains. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
-| I12 | <a id="i12"></a><a id="i12--the-two-historical-failures-have-lasting-coverage"></a>Historical regressions need durable coverage | Medium | Non-blocker once covered | Covered by durable tests; closure re-audit and candidate evidence pending. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#i12--the-two-historical-failures-have-lasting-coverage) |
 | I13 | <a id="i13"></a>Latest features lack interaction evidence | Potential Medium–High | Gates open | Open: native interaction evidence is incomplete; current native computer-use surface unavailable. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I14 | <a id="i14"></a>RAR decoder provenance / OSI-only eligibility | High | Blocker (license/signing) | Open: upstream/legal RAR decoder provenance and OSI-only/signing eligibility. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I16 | <a id="i16"></a><a id="i16--automatic-browse-and-launch-boundaries-the-three-items-the-plan-names"></a>Automatic browse/launch boundaries | Potential High | Security gate | Partial: Git/config/reparse/worktree and I164/I165/I166 CI sealed; I167 alternate-store graph correction passes clean committed/native controls and all four original CI lanes. Wider parser/indirect paths, swaps, effects and V23/V24 remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#i16--automatic-browse-and-launch-boundaries-the-three-items-the-plan-names), [I167](evidence/E-I167-git-alternate-objects.md) |
@@ -34,10 +33,11 @@ Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the r
 | I108 | <a id="i108"></a><a id="i108--ci-tests-depend-on-helper-output-and-scheduler-timing"></a>CI helper readiness and verified-copy observer timing | Low (validation reliability) | Must fix (required CI) | Observer corrections verified preliminarily on native/CI; exact-candidate repeat and closure remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#i108--ci-tests-depend-on-helper-output-and-scheduler-timing) |
 | I110 | <a id="i110"></a>Physical direct/helper comparison could accept equal short reads | Medium (validation reliability; two zero reads could compare equal) | Must fix (V09) | Assertion correction implemented and off-source controls pass; strict physical rerun remains on source-safety hold. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 
-## Closed for preliminary remediation
+## Closed for preliminary scope
 
 | ID | Title | Severity | Disposition | Status | Record |
 |---|---|---|---|---|---|
+| I12 | <a id="i12"></a><a id="i12--the-two-historical-failures-have-lasting-coverage"></a>Historical regressions need durable coverage | Medium | Non-blocker once covered | Closed for preliminary regression coverage (E-I12): current Windows independent ACL controls and two Mac lifecycle runs sealed. Intermittent Mac failure not forced; candidate repeat remains. | [Coverage re-audit](evidence/E-I12-regression-coverage.md), [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#i12--the-two-historical-failures-have-lasting-coverage) |
 | I107 | <a id="i107"></a><a id="i107--windows-host-menus-appear-and-immediately-disappear"></a>Windows host menus appear and immediately disappear | High (loss of core mouse command access; owner-declared blocker) | Must fix (V17/I13) | Closed for preliminary remediation; exact-candidate interaction remains (E-I107). | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#i107--windows-host-menus-appear-and-immediately-disappear) |
 
 ## Remediated preliminarily
