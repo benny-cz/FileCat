@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 169 IDs: 147 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 180 entries; 400 selected private evidence hashes independently reconciled in audit v39. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 170 IDs: 148 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 181 entries; 412 selected private evidence hashes independently reconciled in audit v40. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 5f4a636cb587140c24aa662ea69b1a834bc4a4ac — result-set note lifetime/migration correction, including earlier Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37546809299 attempt 1 at 5f4a636 is sealed green on policy/all four required lanes. | I169 retains 19 digests, 14 full inventories (880 Core cases per Windows lane; 875 per Unix lane; 469 App cases per lane), all sixteen new passes, compiler receipts and 92 locked graphs. |
+| Current product producer | 22c263d4a9ef7b889f95d883893d2c40bf7f2736 — result-set bulk removal correction, including note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
+| Latest product CI | 37548599663 attempt 1 at 22c263d remains pending at the local seal. | Preceding I169 product CI 37546809299 is sealed green with sixteen new passes and full inventories; pending work is not counted as a pass. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed local slice: [I169](evidence/E-I169-result-set-notes.md) releases removed/merged note references and carries a note through unique rename. Three adverse controls fail before correction; working and clean committed runs pass all 25 affected cases and four new controls without skips. Source/payload/result pins and original four-platform CI are sealed; all sixteen new hosted executions pass without skips. [I168](evidence/E-I168-find-comparison-lifetime.md) keeps its sealed twelve hosted passes. [I12](evidence/E-I12-regression-coverage.md) remains closed for preliminary regression coverage, with the historical intermittent Mac failure explicitly unforced. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed local slice: [I170](evidence/E-I170-result-set-bulk-removal.md) replaces repeated list scans/shifts with one compaction. The shared-host 200,000-member removal median changes from 36 seconds to 54 ms on clean committed source; all 54 measurements, source/payload pins and 29 affected correctness passes are sealed. Original CI is pending; reference/native performance acceptance remains open. [I169](evidence/E-I169-result-set-notes.md) keeps its sealed sixteen hosted passes, and [I168](evidence/E-I168-find-comparison-lifetime.md) its twelve. [I12](evidence/E-I12-regression-coverage.md) remains closed for preliminary regression coverage, with the historical intermittent Mac failure explicitly unforced. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
@@ -28,7 +28,7 @@ Latest completed local slice: [I169](evidence/E-I169-result-set-notes.md) releas
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView mapped-file subset sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Escape dialog retention fixed as I163, Find comparison cancellation as I168 and result-note retention as I169; complete remaining worker/render-frame/consumer lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Escape dialog retention fixed as I163, Find comparison cancellation as I168 and result-note retention as I169 and bulk-removal latency as I170; complete remaining worker/render-frame/consumer lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -80,7 +80,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
 1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review.
-2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163/I168/I169 fixes. Native frame and unavailable interaction scope remain queued.
+2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163/I168/I169/I170 fixes. Native frame and unavailable interaction scope remain queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView subset; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
 5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.
@@ -100,7 +100,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 147 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 148 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |

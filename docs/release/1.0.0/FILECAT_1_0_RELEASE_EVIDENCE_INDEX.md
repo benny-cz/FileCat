@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**180 evidence entries; none is final candidate qualification.** No candidate exists.
+**181 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -147,6 +147,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I167 | Alternate Git object-store admission | Original clean 61b43fc; durable baseline 3b7a6f7; committed a0a8ece; original CI 37541603291 attempt 1 sealed | Three native junction bypasses, eleven durable failures; fifteen new/81 affected passes and unchanged clean committed/native/four-lane CI correction sealed; sixty new executions with explicit Unix junction skips; broader/candidate open | [E-I167](evidence/E-I167-git-alternate-objects.md) | I167, I16, V23 B10, V24 |
 | E-I168 | Duplicate comparison cancellation and held identity-call lifetime | Baseline 9b45b13; corrected 28d002f; original CI 37545177481 attempt 1 sealed | Two adverse failures/one positive; clean committed 30 affected passes, three new controls and twelve hosted passes without skips; finite headless owned-content/dependency evidence, broader/native/candidate open | [E-I168](evidence/E-I168-find-comparison-lifetime.md) | I168, I06, V12, V13 |
 | E-I169 | Result-set note lifetime and rename/merge fidelity | Original canonical 28d002f; corrected 5f4a636; original CI 37546809299 attempt 1 sealed | Three adverse failures/one positive; four new/25 affected clean committed passes without skips, 19 retained files/246 actual payload files/1,061 raw source blobs and sixteen hosted new passes/full inventories sealed; broader/native/candidate open | [E-I169](evidence/E-I169-result-set-notes.md) | I169, I06, V12, V13 |
+| E-I170 | Bulk result removal compaction and materialized workload | Original canonical 5f4a636; corrected 22c263d; original CI 37548599663 pending | 54 original/working/clean shared-host measurements and four durable/29 affected correctness passes sealed; 1,063 raw source blobs/246 test payload/24 probe payload files; reference/native/candidate open | [E-I170](evidence/E-I170-result-set-bulk-removal.md) | I170, I06, V13, V16 |
 | E-L01 | The S10 Windows lane run locally (Release) | `4f6b062` | Preliminary automated | [E-L01](evidence/E-L01-local-run-4f6b062.md) | — |
 | E-R04 | Step 4, first pass: the plan's code anchors and C01–C29 routes against the source | `906f1e9` | Static | [E-R04](evidence/E-R04-anchor-reconciliation.md) | — |
 | E-S01 | Tests that passed by returning before asserting (step 3) | `552aa62` → `be6ca25`; scan of `5c54181` | Static | [E-S01](evidence/E-S01-early-returns.md) | — |
