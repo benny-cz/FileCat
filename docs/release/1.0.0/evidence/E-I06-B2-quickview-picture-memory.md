@@ -65,7 +65,7 @@ successful measurement is rerun to change it.
 
 This qualifies the exercised component replacement and detach lifetimes only.
 Main-window panel integration, more counts/formats, pending/held decoder races,
-Shell thumbnail/borrowed-icon routes, higher DPI, Unix/guest repeats, native
+Shell thumbnail/borrowed-icon routes, higher DPI, Linux repeats, native
 desktop input/frames, reference hardware and exact-candidate artifacts remain
 open. Existing held-read tests provide separate evidence at their own identities.
 No new aggregate bitmap policy or budget violation is claimed. I06 remains Open.
@@ -86,3 +86,53 @@ deployed copies of four private binary/configuration files. Counts remain
 140/162 preliminary Remediated, one Closed and 21 remaining issue remediations.
 These are not remaining test counts; all final-candidate campaigns and explicit
 human stable GO remain gated.
+
+## Native Windows and Mac follow-up
+
+The same C# observer source now passes in the Windows Insider 26300 VM and on
+the physical Apple Silicon Mac, macOS 27.0.1, ordinary UID 501. Each uses its own
+original committed self-contained product/runtime payload: 352 Windows files or
+348 Mac files, with 33 exact local assembly references per probe. FileCat is
+not rebuilt. New private apphosts use self-contained .NET 10.0.12; the Mac
+validation apphost alone receives an ad-hoc signature. Its before/after hashes,
+native strict signature check and the actual retrieved signed bytes are retained;
+the other four private files and every product file remain unchanged.
+
+Each native repeat independently verifies four controls/five replacement rounds,
+24 correctly colored/dimensioned framebuffers, a 1 MiB retained pixel plateau,
+24 immediately disposed old buffers, malformed/text fallbacks, 32 source disposals
+outside reads, sixty total reads and zero final pixel/page/admission charges.
+Both exit naturally with zero and leave no owned payload process. Across the host,
+VM and Mac, the completed scope is 72 decoded pictures and 96 source readers.
+All raw output, transport, manifest, private binary and fixture oracles independently
+verify. The same original nullable-key observer warning is retained.
+
+Mac reports zero for every `PrivateBytes` sample; that metric is **unavailable
+through this observer API**, not zero actual process memory. Mac sampled working
+set is 220.75 MiB before, at most 269 MiB at recorded checkpoints and 269 MiB
+after closure/collection. Windows guest sampled private memory is 25.52 MiB
+before, at most 48.09 MiB and 34.24 MiB after closure/collection. These finite
+snapshots do not measure transient worker peaks or qualify performance targets.
+
+Mac SSH/runtime preflight finds no `dotnet` on its PATH; the private self-contained
+apphost permits the repeat without installation or root authentication.
+Temporary `caffeinate -i` is bounded by the native runner's command lifetime;
+no persistent sleep, remote-control or other machine preference is changed.
+Linux, Shell/DPI/main-window/races/other formats/native desktop/reference/candidate
+scope remains open. No physical-source or stable-publishing policy changes.
+
+Private `FileCatReleaseEvidence/quickview-picture-memory-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| native-windows-v3/retrieved/replacement/result.json | 66d4acd0b53f931e215d2fd64d11df81dd834c99177cc9346dcc606cf4c7a272 |
+| native-windows-v3/retrieved/native-result.json | d30f48797a329957139cb940fed7a9abcd7eaf6189a65c7c9e6d1efac3a7260a |
+| native-windows-v3/outputs.zip | 109d9ae85d1f13f7c6dd8cbb6809ac481a8731a04e071bce3bb456e22008a03d |
+| native-mac-v4/retrieved/replacement/result.json | 4d500840908d3f152eeeb09878c6ccdc7fb12c079ba163b83e265dd898b68be8 |
+| native-mac-v4/retrieved/native-result.json | 8d79124dfe1d9810f44f4edf9cf93d27ae68ae1452f46d37fffb63eec1c9646f |
+| native-mac-v4/outputs.zip | 6e0e3ea1e9bdf9a258322fbda231bc6019fcad0cba8013d80181b64ffe941ab8 |
+| independent-native-quickview-memory-v5.json | 897be7ac86c27265633e2cd569a5aed4f9cd9ef06052c89095cf87a1d0f133e5 |
+
+The native seal verifies 117 retained files and ten private deployed/published
+binary pins, in addition to the original host seal. Native Mac private-memory
+counter availability remains a measurement limitation; no pass is invented.

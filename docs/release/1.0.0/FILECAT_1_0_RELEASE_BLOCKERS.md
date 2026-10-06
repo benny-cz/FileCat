@@ -257,6 +257,13 @@ charges. Original payload/build/output/oracle/process pins verify. Main-window
 integration, Shell/DPI/more formats/held races/Unix/guest/native/candidate scopes
 remain open; the original observer's nullable-key warning is retained (E-I06-B2).
 
+The unchanged QuickView source now additionally passes actual Windows VM and
+physical Mac self-contained repeats with independent original payload/observer/
+output/process seals: three runs total, 72 decoded pictures/96 source readers.
+Mac private-memory samples are unavailable (all zero from this API); working
+set and exact pixels are retained without a performance pass. Linux remains
+executable; Shell/DPI/races/main-window/native/reference/candidate gates remain.
+
 I136 is verified preliminarily at clean a1c265f. The numbered-volume gap warning preserves
 independent ISO/Joliet/UDF 1.02 and complete RAR 54 search/72 content controls plus safe refusals.
 Affected host checks, four clean CI jobs and all 81 cases per VM pass. Four server digests/six

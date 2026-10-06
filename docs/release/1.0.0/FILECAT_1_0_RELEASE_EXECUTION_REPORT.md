@@ -3580,3 +3580,27 @@ input/frame qualification stays gated on the supported computer-use surface,
 and the physical-source hold stays in force. No owner interaction is needed to
 resume these component checks. Overnight continuation remains active because
 autonomous work remains; no temporary power/remote-control policy is rearmed.
+
+373. Same QuickView C# source passes against exact retained 6215329 Windows VM
+    and physical Apple Silicon payloads. Per system: 24 pictures/32 readers,
+    1 MiB retention plateau, immediate old-buffer disposal, malformed/text fallback,
+    zero final pixel/page/admission charges and no owned process. Across three
+    completed runs: 72 pictures/96 readers. Original 352/348 payloads/33 references,
+    ten deployed/published private binaries, actual signed private Mac apphost,
+    transport/output/oracles and all 117 retained native files independently verify.
+    Ordinary UID 501; no installed SDK/root interaction/persistent Mac settings.
+    Mac's all-zero PrivateBytes is unavailable counter evidence, not zero memory;
+    actual working set retained. Original warning stays. Linux/Shell/DPI/races/
+    main-window/native/reference/candidate scopes remain; no product or physical
+    source change. Counts unchanged; I06 Open/NO-GO (E-I06-B2).
+
+Independent audit v21 verifies all 223 selected public evidence pins, original
+host/retained F3 files and all 117 native QuickView files/twenty native binary
+copies. Counts remain 140/162 preliminary/one Closed/21 remaining. Retained
+`release-assets-20261006/independent-records-v21.json` SHA-256:
+`7cd87b5defd635b6612439f6e9549d5a0e9b7aba8cf6a09bbd29189b014655ed`.
+
+Owner steering: finish this native slice, then consolidate the release tracking
+Markdown into an accurate current progress/remaining-work view, preserving all
+historical information and evidence. After consolidation resume the next slices,
+starting with the retained native Linux QuickView ownership probe.
