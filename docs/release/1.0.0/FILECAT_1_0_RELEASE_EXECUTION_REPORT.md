@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 165 IDs: 143 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
-| Evidence catalogue | 175 entries; 304 selected private evidence hashes independently reconciled in audit v30. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 166 IDs: 144 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
+| Evidence catalogue | 176 entries; 316 selected private evidence hashes independently reconciled in audit v31. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 08f75e723c53368dd88e6832151ae0ef850cde42 — owner About text; preceding Git correction cceb990 is sealed locally. | Older component/native payload evidence keeps producer 6215329/1669cb6; changed/rebuilt artifacts require their own identity and affected revalidation. |
-| Latest product CI | 37536153209 attempt 1 at cceb990 is sealed green on policy and all four required lanes. | E-I165 retains 19 digests, 14 complete inventories (435 App cases per lane), explicit skips, compiler receipts and 92 locked graphs. The later owner About producer remains distinct. |
+| Current product producer | 61b43fc378a9265003a645c068224b77d0298aa5 — automatic Git status no-fetch correction, including the owner About text. | Older component/native payload evidence keeps producer 6215329/1669cb6; changed/rebuilt artifacts require their own identity and affected revalidation. |
+| Latest product CI | 37539040491 attempt 1 at 61b43fc is pending completion; the original status snapshot is retained. | E-I166 seals the committed rebuild/native checks. Preceding cceb990 CI remains sealed with 19 digests, 14 complete inventories and explicit skips; no later result is inferred. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed local slice: I165 proves and fixes three quoted Git worktree spellings that bypass junction admission. Five durable failures reproduce before correction; all 50 affected/clean committed tests and eight new controls pass, with the network fixture explicitly skipped. Unchanged native probe passes four refusals/two ordinary positives against clean cceb990. Its original four-lane CI is sealed, including all 32 new executions with explicit Unix junction skips; the owner About text is separately pushed as 08f75e7. I164's four-lane CI, Linux mapped-file provenance and I163 lifetime evidence stay sealed at their own producers; wider I03/I06/I16 remains open.
+Latest completed local slice: I166 proves an automatic status read fetches a missing tree from an owned local partial-clone source. Twelve durable failures reproduce; correction 61b43fc passes all 66 affected/clean committed cases and 16 new controls, with one explicit network-fixture skip. The unchanged native probe now refuses the partial clone without changing its four pack files; the ordinary Modified control passes. Earlier I163/I164/I165 CI and Linux mapped-file provenance remain sealed at their own producers. Broader I03/I06/I16 and the original 21 unresolved scopes remain open.
 
 ## Remaining issue work — 21 entries
 
@@ -36,7 +36,7 @@ Latest completed local slice: I165 proves and fixes three quoted Git worktree sp
 | [I12](FILECAT_1_0_RELEASE_ISSUES.md#i12) | Re-audit | Review durable regression coverage and support closure at the appropriate identity. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165 value corrections and four-lane CI sealed; next executable review corrects the newly proven owned partial-clone fetch, then home/indirect-path/identity races. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165 value corrections and CI sealed; I166 partial-clone correction sealed locally; collect its CI, then continue home/indirect-path/identity races. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -80,7 +80,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 21 unresolved issues (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Correct the newly proven unrequested owned partial-clone fetch; continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review.
+1. Seal original I166 CI after completion; continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review.
 2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163 fix. Native frame and unavailable interaction scope remain queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView subset; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
@@ -101,7 +101,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 143 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 144 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |

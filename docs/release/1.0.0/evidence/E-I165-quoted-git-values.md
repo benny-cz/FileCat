@@ -36,8 +36,8 @@ The ordinary ignore-file fixture now writes a Git-valid escaped Windows path.
 The original native probe is unchanged between its original and corrected runs;
 its embedded f449554 field stays baseline metadata. The clean correction's
 actual loaded DLL hash is 92e409dbda77c2d5103b1d6e954b5c8c6240ec635a97a5c2f9d08119fe94aa3a.
-The probe and all four configuration restorations/junction removals use only owned
-fixtures; target bytes remain unchanged.
+Both native runs restore their configurations and remove their exact owned
+junctions; target bytes remain unchanged.
 
 The two working test runs retain selected source snapshots rather than a claim
 of complete source identity. Their actual compiled About literals are recorded:
