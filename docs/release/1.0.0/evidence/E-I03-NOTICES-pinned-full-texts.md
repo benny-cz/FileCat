@@ -1,8 +1,9 @@
 # E-I03-NOTICES — pinned full dependency and runtime notice texts
 
 2026-10-06. Preliminary I03/I10 correction for plan §10.3, working baseline
-`241be6f`. Committed native/package revalidation is pending. I03 and I14 remain
-Open; no candidate or stable publication.
+`241be6f`, committed notice correction `145f569`. Exact-source CI and actual
+archive notice-byte checks below pass. I03 and I14 remain Open; no candidate or
+stable publication.
 
 The current packagers copy a summary table but omit the full license/NOTICE
 texts supplied by actual dependencies. The table additionally asserts completed
@@ -73,9 +74,71 @@ Private `FileCatReleaseEvidence/nuget-locks-20261006-v3`:
 | notice-adoption-v1/independent-notice-adoption-v2.json | 8763e379a942e211e2e6e25b18761dafb26fa12dfbc9dbfd7660c074dcdee628 |
 | notice-adoption-v1/independent-notice-adoption-v3.json | 90f9c19ef1033a6270558dabc68fcf31b041f7f91159c7f68e75895822abcf91 |
 
-Actual changed production packaging, committed hosted graphs/tests and final
-archive notice-byte inspection continue. These source/text changes invalidate
-previous package-specific qualification. Full source/native composition,
+Exact notice source `145f569a59dbad8def5a3b065eec232f4446eea8` seals original
+push 37482955415 and development 37483079672, attempt 1. Both pass the policy and
+four required native test lanes, including ARM64 startup/draw/installer steps.
+Nineteen/twenty-five server artifact digests, four/six clean SDK receipts,
+fourteen complete TRX inventories per run, all 409 App identities and picture/
+reference/draft/set controls independently verify. All 23 project locks and
+actual assets graphs agree in each of four/six builders: 92/138 graphs. The
+development run additionally passes actual Linux and Mac package creation,
+install/version startup, icon and Mac ad-hoc signature checks; retrieved package
+manifests agree with all final file hashes. Draft publication skips. Two bounded
+native-API status-read timeouts are retained; later original-attempt reads pass.
+
+The actual authoritative Windows packager runs x64 and ARM64 from a separately
+verified raw Git export of that commit with development-only version
+`0.0.0-i03noticecheck`. All four SC/FDD payloads and four portable/FDD ZIPs retain
+the exact 50 committed notice files. Portable ZIPs exclude the administrator
+helper; FDD ZIPs include it. Both actual SDK package inventories parse. Input
+bytes stay unchanged. This host run does not compile/install an installer or
+qualify native desktop behavior.
+
+Independent archive reading checks the actual development tarball, Debian
+package, AppImage and Mac ZIP against the 50 original Git blobs: 200 exact
+file-byte matches, with all package hashes unchanged. Debian's nested AR/ZSTD/TAR
+and the AppImage SquashFS are read by pinned installed 7-Zip 24.01; no package is
+executed in this inspection. Reader v1 assumes the wrong Debian prefix; v2 then
+assumes slash paths from Windows 7-Zip. Both failed observations remain. Fresh
+v3 uses actual `opt/filecat` Debian members, normalizes only AppImage listing
+comparisons and reads each original member name. All four archives pass.
+
+Private `FileCatReleaseEvidence/ci-37482955415-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 3708961fc287cab28160feb44384057b5a0b6f05a505ce51d40dbe60ffd39e61 |
+| independent-fixture-ci-v1.json | 2af1e20066037680df3a5f0127645ffdfb4425e7f78bc046d35d649cb9ac4117 |
+| independent-producer-policy-ci-v1.json | a8002eb44664c24cf6f640d45de6e29f465898569f518c1266ebce303c359622 |
+| independent-draft-guard-ci-v1.json | 0b8f7576c6f7cba6fa21194ce9d59e6f9f3cb944cac626c4cf5a377f62dfc2d4 |
+| independent-separation-ci-v1.json | 775c9025bd6d9f0b5285e846e1bf8bcc367f5d977a97e07280167995c4511cd0 |
+| independent-restore-ci-v1.json | 7e1a50e8e24f78f6bcda5913b778ab4e0ad10007eb1a87aa6ce99a8a0f1a3063 |
+
+Private `FileCatReleaseEvidence/ci-37483079672-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | f29b6413ffc6da80b4171181848f74125c6992d7e263107f73194bcd372e9cc2 |
+| independent-fixture-ci-v1.json | 9e2df657d01db1cf98100a2900ca3a2cd4a77764af8c2ba1cbc40b76114ade6b |
+| independent-producer-policy-ci-v1.json | b6c2cfbdda5d8532aa50138d1f11370e0fe990a2c1f0e396f4b03c0c9bd3abf2 |
+| independent-draft-guard-ci-v1.json | d626400391e2b318f6d49a2d07fcd11db35e754bf8d125c534b1f166b0130228 |
+| independent-separation-ci-v1.json | 2de4a6241e988f5e7d08865564ed1b504353ae6fed0ba90b24b6123dd905cfc3 |
+| independent-restore-ci-v1.json | 6e8afba8c8b55ea9297233fda62509466cce592654ab0a655577b9a54092087c |
+
+Private `FileCatReleaseEvidence/notices-production-windows-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-windows-notice-packaging-v1.json | bc16fba077e23d181e7e07ee6dc4b12202be772b9eab2b8f3f589d015fd8c26d |
+
+Private `FileCatReleaseEvidence/notice-package-inspection-20261006-v3`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-package-notice-bytes-v1.json | 90ed7debbfa9a22816ebe32cd780ef40652934c56fe83a86d921b793194544aa |
+
+These source/text changes invalidate previous package-specific qualification;
+the new evidence is preliminary development evidence. Full source/native composition,
 signatures, implicit runtime input inventory, LTRData/RAR/AppImage obligations,
 full SBOMs and candidate remain Open. Counts remain 139/161 preliminary Remediated,
 one Closed and 21 remaining issue remediations. No physical-source, guest/Mac

@@ -61,6 +61,11 @@ foreach ($dir in @($publish, $fdd)) {
     if ($LASTEXITCODE -ne 0) { throw "dependency notice validation failed" }
 }
 
+# This App package list contributes to provenance; it is not a complete artifact SBOM.
+# Validate the command, JSON and frozen graph before creating either archive.
+$sbom = Join-Path $artifacts "sbom-$Version-$Runtime.json"
+& (Join-Path $PSScriptRoot 'Write-PackageInventory.ps1') -Project $project -OutputPath $sbom
+
 # Portable ZIP: same binaries plus the marker that keeps settings and data beside the executable.
 $portableStage = Join-Path $artifacts "stage-portable"
 Remove-Item -Recurse -Force $portableStage -ErrorAction SilentlyContinue
@@ -76,10 +81,6 @@ Remove-Item -Recurse -Force $portableStage
 $fddZip = Join-Path $artifacts "FileCat-$Version-$Runtime-fdd.zip"
 Remove-Item $fddZip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $fdd "*") -DestinationPath $fddZip
-
-# Package inventory for the release SBOM and license gate (every shipped component must be OSI-licensed).
-$sbom = Join-Path $artifacts "sbom-$Version-$Runtime.json"
-dotnet list $project package --include-transitive --format json | Out-File -Encoding utf8 $sbom
 
 Write-Host "Done:"
 Get-ChildItem $artifacts -File | ForEach-Object { "  " + $_.Name + "  " + [math]::Round($_.Length / 1MB, 1) + " MB" }

@@ -7,6 +7,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+Latest execution: notice source 145f569 seals push/development CI
+37482955415/37483079672, all four test lanes, 19/25 artifact digests and 92/138
+actual locked graphs. Actual Windows x64/ARM64 ZIPs and Linux tar/deb/AppImage/Mac
+archives each preserve all 50 committed notice files: 400 archive byte checks.
+The original reader path assumptions/timeouts remain retained. A newly verified
+inventory failure-propagation gap is corrected in working source; two actual SDK
+positives/twelve refusals preserve prior output. Committed production validation
+continues. Counts remain 139/161 preliminary Remediated, one Closed, 21 remaining
+issue remediations; all 24 campaigns still require final-candidate qualification.
+No candidate exists and stable publication remains NO-GO (E-I03-NOTICES/INVENTORY).
+
+Earlier preliminary execution and retained failures:
+
 I18 package prerequisites and asset selection are partially corrected: all three
 package jobs now require ARM64 and both upload routes share an exact versioned
 list and byte manifest at b9526b9. Eight controls pass on each of four hosted lanes.
@@ -3248,3 +3261,24 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     all texts. V3 corrects v2's unchanged-path label. Summary eligibility/version/
     inventory claims correct. Actual committed packaging/hosted validation and
     full license/native/SBOM/candidate remain Open; counts unchanged, NO-GO.
+
+352. Notice source 145f569 seals original push/development CI 37482955415/
+    37483079672 attempt 1: four required lanes/ARM startup/draw/installer pass,
+    19/25 server digests, four/six clean receipts, fourteen complete inventories
+    per run/all App/picture/reference/draft/set controls and 92/138 actual locked
+    graphs verify. Real development Linux/Mac package/install/version/sign/icon
+    checks pass. Authoritative x64/ARM64 Windows production packagers preserve
+    four payload and four ZIP notice sets; all four actual Unix archives preserve
+    the same 50 raw Git files. Reader Debian-prefix/Windows-path failures and two
+    API status timeouts are retained; fresh v3 archive reading passes without
+    changing/executing packages. No tag/upload/native-desktop/candidate claim.
+
+353. I03 Windows inventory tail independently reports Done/process zero and
+    writes malformed output after native exit 23 or malformed success, using
+    isolated native substitute controls. A separate package-list gate now checks
+    exit/schema/project/framework/transitive scope and exact locked identities,
+    before atomic inventory replacement and either ZIP. Two actual SDK positives
+    and twelve refusals verify 38 packages/preserved prior output/no temp files;
+    all inputs unchanged, PowerShell parse/order checks pass. Committed production
+    and hosted validation continue. This is not full artifact SBOM/legal closure;
+    no physical source or guest/Mac setting change. Counts unchanged; NO-GO.

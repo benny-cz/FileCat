@@ -39,8 +39,12 @@ The full-notice correction now adopts 48 exact texts/50 snapshot files covering
 38 App graph packages and five .NET 10.0.12 runtime packs. A locked package-only
 tool checks text bytes, package/runtime identity and coherent source inventory
 before output; seven positives/twelve refusals pass. All three packagers invoke
-it before archive/signing. Actual changed packaging/committed hosted validation
-continue. LTRData.Extensions full text, RAR/AppImage/native obligations, legal
+it before archive/signing. Source 145f569 seals push/development CI 19/25 digests,
+92/138 actual graphs and actual Windows/Linux/Mac packages. All eight archives
+match 50 raw committed notice files each. A further inventory failure gate now
+passes two actual SDK positives/twelve preserved-output refusals in working source;
+committed production validation continues (E-I03-INVENTORY).
+LTRData.Extensions full text, RAR/AppImage/native obligations, legal
 eligibility and full SBOM/candidate remain Open (E-I03-NOTICES).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
