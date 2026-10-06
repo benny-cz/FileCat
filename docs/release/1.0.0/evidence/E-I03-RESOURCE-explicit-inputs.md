@@ -34,6 +34,12 @@ reduction and provenance improvement; full native byte-read trace, all tool/runt
 composition, licensing and candidate gates remain Open. No source device, host/
 guest/Mac setting, helper execution, publication, candidate or human GO.
 
+The exact 8502983 workflow still excludes the new RC/object from both Windows
+test-result upload lists. Independent selection against four actual local
+production files confirms the omission before remediation. CI adds only the two
+resource file globs to each existing upload; downloaded original/successor archive
+validation continues. No job, permission, package or execution behavior changes.
+
 Private `FileCatReleaseEvidence/native-resource-inputs-20261006-v1`:
 
 | Retained path | SHA-256 |
@@ -41,3 +47,9 @@ Private `FileCatReleaseEvidence/native-resource-inputs-20261006-v1`:
 | independent-prospective-resource-inputs-v1.json | 6a1f8d9202d46d48faab5e5b77458b9bb4ec8f3a9b74da4bee270e2578a71c18 |
 | working-recipe-v2/independent-working-resource-recipe-v2.json | 3427cd7ed7e579c30391efc7cd811785d5c73a4ace31f15f0e1b07d7dcaaaf27 |
 | working-recipe-v2/independent-resource-source-adoption-v3.json | 9ca8349b8d49bec61c84ccd6b18cf1630aac74beec4bcba390d79caf715e6a5e |
+
+Private `FileCatReleaseEvidence/resource-ci-retention-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-original-resource-retention-v1.json | e0ac05afe9230584bcaab935b90256a81d45cfaa42316d631d36a7df64fdbd5d |

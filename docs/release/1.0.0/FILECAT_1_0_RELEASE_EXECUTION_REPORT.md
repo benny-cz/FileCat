@@ -3356,3 +3356,10 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     verify. Full committed packaging/hosted validation continue; post-compilation
     pin timing/no byte-read trace/incomplete license classification stay explicit.
     No helper/source device/settings/publication; counts unchanged (E-I03-RESOURCE).
+
+360. Exact 8502983 CI omits newly retained RC/resource objects from both Windows
+    upload lists. Before changing CI, an independent observer pins its workflow
+    and proves all four actual local x64 build/publish resource files are
+    excluded. Four narrowly scoped upload globs correct the retention gap;
+    original/successor downloaded artifact verification continues. No job,
+    permission, package-byte or runtime change; I03 remains Open.
