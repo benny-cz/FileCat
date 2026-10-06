@@ -12,11 +12,14 @@ lanes/fourteen digests/full inventories now verify. A read-only producer-ref
 ancestor rejects stable inputs; sixteen host/hosted controls and five exit probes
 pass. Source 317a9a5 seals four green CI test lanes/fifteen server digests/four
 clean receipts/fourteen full inventories and the actual main guard (E-I18-P2).
-New read-only draft preflight/postflight checks and disabled replacement pass
-thirty-two host synthetic cases/eight selector controls/ordered workflow audits;
-committed successor remains pending. Actual tagged upload/duplicate execution,
-signing/approved promotion/publisher separation/protection/immutable retention/
-candidate gates remain Open (E-I18-P3).
+Draft preservation source 6a6af3b seals four green lanes/128 hosted controls,
+fifteen server digests/four clean receipts/fourteen full inventories. Twelve
+original package files pass nine substituted-remote phases with unchanged bytes
+(E-I18-P3). Three builders now inherit read-only permission; one draft-only job
+consumes same-run exact artifacts after all lanes/producers. Thirteen host controls/
+parse/independent boundary audit pass; committed successor remains pending. Actual
+tagged transport/upload, signing/approved final promotion/protection/immutable
+retention/candidate gates remain Open (E-I18-P4).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac

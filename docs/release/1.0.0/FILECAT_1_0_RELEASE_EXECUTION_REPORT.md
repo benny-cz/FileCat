@@ -3149,3 +3149,27 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     the initial audit failure remains in tool history. Correcting the document
     path preserves the original proof bytes/hash. Hosted source validation is
     running; no actual release/tag/upload, candidate or stable GO is claimed.
+
+
+344. Draft preservation source 6a6af3b seals original CI 37464968767 attempt 1:
+    policy/four required lanes/ARM startup/draw/installer pass; fifteen server
+    digests/four clean exact-SDK receipts/fourteen complete inventories/all 409
+    App identities/sixteen picture/sixteen reference/128 draft controls verify.
+    Three package jobs skip. Twelve original b9526b9 Windows/Linux/Mac files
+    additionally pass nine actual-byte phases with substituted remote metadata,
+    same-file hard links and unchanged original/linked pins. Initial document
+    proof-path audit failure is retained; ecac41c corrects the filename and all
+    thirty then-current document pins/counts independently verify. No tag,
+    publication, source mutation or candidate qualification (E-I18-P3).
+
+345. The current three package builders still carry release-write authority.
+    Builders now inherit global read-only permission and expose manifest digests.
+    One dependent draft-only job receives write permission, downloads three exact
+    current-run artifacts with pinned digest-enforcing action, checks all three
+    manifests/fifteen paths and uploads once without replacement. Postflight
+    checks combined IDs/names and refreshed per-platform bytes; no build/signing
+    occurs in that job. Thirteen host synthetic cases/two-script parse and
+    independent nine-job dependency/permission/transport audit pass. Hosted
+    committed successor and actual read-only development packaging continue.
+    Final approved promotion/approval/protection/immutable storage/candidate
+    remain Open (E-I18-P4). Counts unchanged; no guest/Mac or physical-source use.
