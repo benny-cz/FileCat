@@ -7,6 +7,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I156 ACL trust is preliminarily remediated at ce8189e: clean 918-source/four-mode
+native publishes, protected handoff/four adverse controls/profiler regression and
+all four exact-source CI lanes/digests/inventories/native byte receipts verify.
+I157 is a new read-pipe identity blocker: actual brokered open accepts counterfeit
+owned-file bytes from a PID other than its runas helper before a consented report.
+The nonexistent device is independently absent; no physical source opens.
+Correction proceeds autonomously; full I17 and candidate/human GO remain open.
+
 I155 native profiling is preliminarily remediated at fc5e706/7183268: actual
 committed 917-source/four-mode native publishes, SC/FDD profiler rejection and
 separate synthetic CLR handoff verify. Two positives/431 inputs/cleanup pass;
@@ -25,7 +33,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 133/156 preliminary, one Closed, 22 remain; all campaigns need final
+Current 134/157 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2911,3 +2919,14 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     Four working native publish modes and 15 affected host tests pass. All 918 raw Git
     blobs/four clean committed native outputs/receipts verify; fresh VM repeats and
     exact CI 37426875741 continue. No user interaction is needed for this slice.
+
+326. I156 ce8189e clean native/CI seal completes: all 918 raw sources/four native
+    publishes/receipts, protected SC/FDD handoff and four adverse ACL cases/profiler
+    regression/two positives/payload/output/process/protected cleanup verify. All four
+    CI 37426875741 lanes/ten digests/four receipts/fourteen full execution inventories
+    and both downloaded native Windows byte/source/receipt pins pass; ARM64 starts,
+    draws and compiles installer. Dialog/limited caller/races/shared runtime/candidate
+    remain. New I157 actual brokered-open counterfeit pipe baseline accepts exact
+    owned regular-file bytes from a server PID other than the launched helper, without
+    a consented report. Absent-device query/two positives/pins/cleanup pass; no physical
+    source opens. Authenticate peer before protocol I/O; correction underway.

@@ -1,6 +1,6 @@
 # E-I156 — resolved Program Files location accepts a writable managed entry DLL
 
-2026-10-06. High pre-consent code-trust defect under I17/V06/B04. Open; native ACL correction and revalidation in progress. No candidate/stable human GO.
+2026-10-06. High pre-consent code-trust defect under I17/V06/B04. Remediated preliminarily at ce8189e; wider I17 qualification remains open. No candidate/stable human GO.
 
 The exact committed **7183268466ce24811aee7f59b3130b0b4e999b91** native self-contained/framework-dependent win-x64 executables and all surrounding content are unchanged from the separately pinned CLR handoff fixture. The sole managed entry DLL is an explicitly synthetic harmless control, not production plan/consent code. After copying each case into a fresh owned Program Files fixture, the native script records owner/SDDL and grants the ordinary account's user SID Modify on **only that DLL**. Before/after content hashes are identical. Both file/directory owners remain BUILTIN Administrators; inherited ordinary read/execute rules remain. An explicit non-inherited user SID write ACE is verified.
 
@@ -14,7 +14,7 @@ Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042
 |---|---|
 | acl-loader-v1/native-baseline-v1/independent-native-baseline-v1.json | 00f852102bcc89eb991c970c6adcd33dcf2b2926a742e3c007091ae1d775c6b6 |
 
-Current 133/156 preliminary remediations, one Closed, 22 remaining issue remediations; all campaigns still need final qualification.
+Baseline checkpoint: 133/156 preliminary remediations, one Closed, 22 remaining issue remediations; all campaigns still need final qualification.
 
 ## Committed correction; qualification in progress
 
@@ -34,3 +34,16 @@ All four working win-x64/win-arm64 SC/FDD publishes are native PE executables wi
 | acl-adverse-v1/entry-owner/native-baseline-v1/independent-native-baseline-v1.json | 307f7c31cd40475ad858ff4ea3424da4bed61446a9f20a699621f2dfef3e0940 |
 | acl-committed-v1/source.zip | 6de0e5fa8c9725f25238c7ee3ceb84b0a04b34204c00b32e90a78843f594f97f |
 | acl-committed-v1/producer.json | 4c21d0339dcd011079d76ca900fa85001e8ffa49a35058ad18281be2a7c37e7f |
+
+## Exact committed native and CI seal
+
+All five fresh SC/FDD controls independently verify using exact committed native executables: the protected synthetic handoff exits 41 naturally; writable entry, target directory, Core DLL and owner-with-inherited-grant cases have no managed witness during the bounded window and are stopped by verified owned PID. The owner test remains a combined owner/write case. Separate real-entry native profiler controls preserve two native positives and block the external DLL. All inputs/output pins/process/protected fixture cleanup and all 918 raw Git blobs are independently verified. These are component controls, not observed refusal dialogs or production consent tests.
+
+[CI 37426875741 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37426875741) succeeds on all four required lanes. Ten server digests, four build receipts, fourteen complete TRX execution inventories and both downloaded x64/ARM64 native executables/source/compiler output receipts verify. ARM64 startup/drawing/installer compile passes. Declared skips and incomplete theory display arguments remain retained; compiler hashes and setup bytes are reported rather than downloaded. I156 is Remediated, verified preliminarily. Shared-runtime dependencies, races, limited caller/UAC/consent, IPC and installed candidate remain in I17; no stable human GO.
+
+| Retained path under FileCatReleaseEvidence | SHA-256 |
+|---|---|
+| broker-loader-20261006/acl-committed-v1/producer-native-bootstrap-v1.json | 0ec2eacf308604b45f7a6bdeadbaf9e5b0d65efa0e0fa3845c30f91894c506c1 |
+| broker-loader-20261006/independent-acl-committed-v1.json | 0fdf4d9af4dd9347b6a8d83449c325973aecc3eefec7bf0902f6d8b3ef51c8fb |
+| ci-37426875741-attempt1/independent-ci-native-bootstrap-v1.json | 6c6a7cdf4798ea42a035eb0d42ccc9f07a2b86bd7dce7982a38df69e2fe0f80b |
+| broker-loader-20261006/independent-i156-seal-v1.json | c2eddb0884b255b753a9e03db9b8f62223439292541adbad78975680b3312462 |
