@@ -239,6 +239,16 @@ CI and Mac collector failures remain retained. All-consumer bitmap memory, Unix
 containment, wider native UI/frame/AT/hardware and candidate evidence remain open
 (E-I144/E-I145/E-I146).
 
+I06 retained F3 bitmap observations now seal six exact-6215329 host/Windows VM
+cases with real Skia and 27 opened viewers. Eight 4096² pictures hold 512 MiB
+of pixels, including while their controls are hidden; restoring reuses the same
+objects, closing releases all pixel/page charges and source owners. Raw source,
+original payload, observer binary/output pins and owned-process cleanup verify.
+No separate numeric aggregate picture target is established; the 64 MiB content
+page limit is not extended without a contract decision. Wider consumers/QuickView,
+borrowed icons, Unix/native desktop/reference hardware and candidate scopes
+remain open. Failed headless F4/observer attempts are retained (E-I06-B1).
+
 I136 is verified preliminarily at clean a1c265f. The numbered-volume gap warning preserves
 independent ISO/Joliet/UDF 1.02 and complete RAR 54 search/72 content controls plus safe refusals.
 Affected host checks, four clean CI jobs and all 81 cases per VM pass. Four server digests/six

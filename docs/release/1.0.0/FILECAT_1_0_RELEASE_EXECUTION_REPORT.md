@@ -3529,3 +3529,26 @@ Independent record audit v18 verifies all 200 selected evidence pins and unchang
 140/162 preliminary/one Closed/21 remaining issue counts. Retained
 `release-assets-20261006/independent-records-v18.json` SHA-256
 `32bf674497d144030fb9a123c373d076c70348dd71ba44c21829e16765af2fcf`.
+
+371. Retained picture-memory component checks reuse exact committed 6215329
+    assemblies/worker; discovery 4e7d38d differs only in release records.
+    All 1,039 raw source files, 352 original payload pins across five copies,
+    32 references, seventeen deployed observer binaries and 131 retained files
+    independently verify. Six successful host/Windows guest cases open 27 viewers
+    with real Skia buffers: 0.25/64/512 MiB. Eight large pictures retain 512 MiB
+    while all picture controls are hidden; production mode restore reuses the
+    same objects. Every close removes its exact pixel allocation, disposes source
+    once outside reads, and ends with zero pixel/page charges. Two complete encoded
+    PNG oracles/four refusal controls, unchanged source bytes, natural child exits
+    and actual owned-process absence pass. Original compile/binding/headless F4/
+    sealing failures remain; direct mode invocation does not qualify native input.
+    No aggregate picture target is invented, no persistent settings/physical source/
+    product bytes change. I06/wider consumers/Unix/native-frame/reference/candidate
+    scope remain Open; counts stay 140/162 preliminary, one Closed/21 remaining;
+    NO-GO (E-I06-B1).
+
+Independent record audit v19 verifies all 211 selected evidence pins, the 131
+retained picture-memory files and 34 deployed/build observer file copies. Counts
+remain 140/162 preliminary/one Closed/21 remaining issue remediations. Retained
+`release-assets-20261006/independent-records-v19.json` SHA-256:
+`47fdcfed4276fa94fdc4f616369bdf95beefc43b090bba082195ef3615d8f89b`.
