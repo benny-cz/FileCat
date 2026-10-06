@@ -103,7 +103,7 @@ namespace
         return false;
     }
 
-    bool ApplicationTreeTrusted(const std::wstring& directory, const std::wstring& root,
+    bool ProtectedTreeTrusted(const std::wstring& directory, const std::wstring& root,
         DWORD& entries, unsigned depth, ULONGLONG deadline)
     {
         if (depth > 32 || GetTickCount64() > deadline || !Protected(directory + L"\\.", root)) return false;
@@ -117,7 +117,7 @@ namespace
             if (++entries > 10000 || GetTickCount64() > deadline || (entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) { trusted = false; break; }
             auto child = directory + L"\\" + entry.cFileName;
             if (!Protected(child, root) || ((entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-                !ApplicationTreeTrusted(child, root, entries, depth + 1, deadline))) { trusted = false; break; }
+                !ProtectedTreeTrusted(child, root, entries, depth + 1, deadline))) { trusted = false; break; }
         } while (FindNextFileW(search, &entry));
         DWORD error = GetLastError();
         FindClose(search);
@@ -212,7 +212,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         auto directory = self.substr(0, split);
         auto app = directory + L"\\FileCat.PrivilegedHost.dll";
         DWORD entries = 0;
-        if (!ApplicationTreeTrusted(directory, root, entries, 0, GetTickCount64() + 5000))
+        if (!ProtectedTreeTrusted(directory, root, entries, 0, GetTickCount64() + 5000))
             return Refuse(L"The administrator helper's program files can be changed by an ordinary account, contain a link, or could not be verified safely. Reinstall FileCat in an administrator-protected folder. Nothing was run.");
         for (const auto& name : { L"FileCat.PrivilegedHost.dll", L"FileCat.PrivilegedHost.deps.json", L"FileCat.PrivilegedHost.runtimeconfig.json" })
             if (!Protected(directory + L"\\" + name, root)) return Refuse(L"The administrator helper's application files are missing or outside its protected program folder. Reinstall FileCat. Nothing was run.");
@@ -232,6 +232,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
             if (native.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64) dotnetRoot += L"\\x64";
 #endif
             host = InstalledHost(dotnetRoot, root);
+            // hostfxr selects CoreCLR/managed framework files from shared after it loads. Check them first.
+            DWORD sharedEntries = 0;
+            if (!ProtectedTreeTrusted(dotnetRoot + L"\\shared", root, sharedEntries, 0, GetTickCount64() + 5000))
+                return Refuse(L"The administrator helper's installed .NET runtime can be changed by an ordinary account, contains a link, or could not be verified safely. Repair the Windows .NET runtime installation. Nothing was run.");
         }
         if (host.empty() || !Protected(host, root)) return Refuse(L"The administrator helper needs a protected .NET 10 installation. Install the Windows .NET runtime or reinstall FileCat. Nothing was run.");
         HMODULE library = LoadLibraryExW(host.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
