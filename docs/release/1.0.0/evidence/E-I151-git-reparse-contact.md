@@ -1,6 +1,6 @@
 # E-I151 — Git metadata links contact a network endpoint during automatic badges
 
-Classification: reproduced preliminary component defect; correction and qualification pending. Plan I16/V23 B10/V24. No installed candidate or native desktop observation.
+Classification: committed preliminary remediation; wider native/candidate qualification pending. Plan I16/V23 B10/V24. No installed candidate or native desktop observation.
 
 Actual source `52df3d77844c79290289892a9ef8b26b18c38423`, FileCat.dll SHA-256 `448bb5c0ced81eb4940b652c10a97865fc4053b28dd4d44a2d199dc31dc5d83c`. A private self-contained probe calls production `GitStatusReader.ReadAsync` by reflection in the elevated disposable Windows 11 VMware guest (build 26300, Admin). Explicit installed Git SHA-256 `fec691d80fccc35fcc309fbc9f720536c1d795b8a562ec169f28c9923da9600f`. All 354 production and 192 probe files verify before/after; owned payload processes are absent afterward.
 
@@ -33,3 +33,31 @@ Raw root: `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042-9e
 | `reparse-preparation-failure-v1.json` | `7aecb86bf5f942f8c2e9088372d00cf76219c39aa61d3b785c0ffcd51f5fd1c4` |
 | `execute-git-reparse-v1.py` | `a6ab41476b760264b22714c054b3f4ef63622d73dfe7f0f484ddc2bf5eb32af1` |
 | `execute-git-reparse-v2.py` | `ea883e5cade7339c01af7f4cf0c0c87c04fbb16bb87f7d6609d8667028ce194b` |
+
+Correction `483032ac44e8f6d2f60f46413682548bc0dd5a7c` checks Windows path components' own attributes before probing beneath them. The folder check precedes Directory.Exists; child `.git`, linked/shared directories, config and alternates metadata paths are checked. Local links also leave automatic badges unavailable. Missing paths remain harmless after existing ancestors pass. This is a conservative stable-path policy, not race-proof handle-relative validation of every file Git might read; swaps, other child-read paths, DOS/device aliases and Unix mounts remain in broader I16 qualification.
+
+Seven durable controls cover five actual local junction placements (worktree, `.git` directory, gitdir target, commondir target and objects directory), paths beneath a junction/missing descendants and an ordinary/regular-file linked-worktree positive. Identical before/after test DLL `3c589e892e40b831e646ab89c9b485e245562430f3e8d41bc0699f1ad951682b` gives six failures/one pass before, seven passes after. Affected host 20 pass/1 capture skip; full App 378 pass/23 declared skips/401 exact cases. Original failures retained.
+
+Clean source exports independently verify **891 raw Git blobs**, each Git object SHA-1, size and SHA-256. Clean native Windows runs 21 pass/3 declared capture skips; Ubuntu 14 pass/10 declared skips, including six explicitly Windows-only new junction cases. Each has all 24 selected names, all existing six Git environment controls pass, and Windows all seven new reparse controls pass (Ubuntu one portable positive passes/six declared skips). All 354/350 payload hashes, six retained outputs, owned test processes and empty test temporaries verify. Mac native payload upload fails with SSH timeout before test launch; one further eight-second read also times out. The owner connectivity gate is queued until 08:40 CEST, no result fabricated. Previously restored Mac power settings remain unchanged.
+
+The unchanged original private native probe is repeated with all 546 payload paths identical and **only production/FileCat.dll changed**, now SHA-256 `b5a58cf6a31fc185c0a9384f292585bc9dfd02d72997d4e9ec0d2af72999cb3b`. Ordinary badge Modified remains (144.0 ms); the symlink case returns no snapshot in 3.254 ms. Fresh independent capture: **55 untruncated packets, two exact controls and zero additional named-endpoint packet or connection**; reported kernel drops zero. The other packets remain retained without attribution. Both Windows payload processes and owned Ubuntu controller/tcpdump/listener are absent. CI 37407598742 attempt 1 is running on exact committed correction; full inventories/digests will be sealed when complete.
+
+Additional retained pins:
+
+| Relative path | SHA-256 |
+|---|---|
+| `independent-reparse-host-v1.json` | `487573191c9250be65ce1ef6593cf6053a74e3b8c795004364fe0f46536a96dc` |
+| `independent-reparse-comparison-v2.json` | `5506bbb217bcad6e44771cf635a34b1268231c2f38cb7b30d16d9e5d0c3f0b55` |
+| `reparse-clean-v1/producer.json` | `b5cb4ea2a619236e571a3ac6cfc9e6f5c75e0c0528c9f21a7fa6966f4ce5ff32` |
+| `reparse-clean-v1/source.zip` | `c449f0215aa60b851e90ffb2d9f8ad62082e7317e8674b86a7ae6fbfb922f56f` |
+| `reparse-clean-v1/windows-executed/independent-guest-v1.json` | `4840b077e650b103c1e96c717fcb6412c00f661937859c22481b9d4a65697eba` |
+| `reparse-clean-v1/linux-executed/independent-guest-v1.json` | `25e801448d8fcca7c4be4523fe3b89510543ff55886e215df2cb74891f5da5ef` |
+| `reparse-clean-v1/mac-executed/upload-payload-stderr.log` | `4ccbc688400288e58cd5293523a6785b050593ec32473586397d765965f8ed52` |
+| `reparse-clean-v1/mac-executed/upload-payload-exit.json` | `4ceee1e065769b56acb0a2b6758f50cbddc7c8c246379c725e27e7edc2385495` |
+| `windows-git-reparse-v2/manifest.json` | `06b44bea6535d9fbd8253c750d353cd849d17a97d5fcce5864a4a02ae2c60ca2` |
+| `windows-git-reparse-v2/outputs.zip` | `616b5e3a8afaf8312b74a2ea51d1071189c4facae6a5952c2d6ed7f322618dd7` |
+| `windows-git-reparse-v2/transport-proof.json` | `fa8f3034cc1f15e0c2336afbd8e89b9810c0eae1b94b4cf2f81324b31599e1fc` |
+| `git-reparse-network-v2/outputs.zip` | `44bb2d9f6354093df99c44b50dc8d017dc74f5e925e8e551d2bf5ba04065be2b` |
+| `git-reparse-network-v2/retrieved/capture.pcap` | `075682a61a535467b04b98988d4a118a207db2595d753985a624004841672857` |
+| `git-reparse-network-v2/absence.json` | `54e4bd2f4e4acff31e5cf6c8d60da9536b04a639731fbd6e0e1a865321592d11` |
+| `git-reparse-network-v2/independent-git-reparse-v2.json` | `522e0d8f35e8cf4a1486a843ede43e4df08b5614f9b3f0c1d35f56d52abd2366` |

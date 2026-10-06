@@ -1,12 +1,14 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
-I151 is reproduced on actual 52df3d7: a local .git symlink causes 14 SMB
-negotiation flows/126 packets between exact controls. Independent capture reports
-zero loss; ordinary badge/payload/process/listener checks verify (E-I151).
-128/151 preliminary remediations, one Closed, 22 remain. Correction is next;
-all 24 campaigns still need final qualification, no candidate/human GO; NO-GO.
+I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
+changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
+and zero reported loss verify. Six host baseline failures correct; full App
+378/23 skips/401, clean Windows 21/3 and Ubuntu 14/10 pass with source/payload/
+temp/process/listener pins (E-I151). Mac SSH timeout is queued for owner help
+after 08:40 CEST; CI is running. 129/151 preliminary, one Closed, 21 remain;
+all 24 campaigns need final qualification, no candidate/human GO; NO-GO.
 
-I150 is preliminarily remediated at 874b7ae/52df3d7: six identical native baseline
+Earlier sealed I150 slice (historical counts): preliminarily remediated at 874b7ae/52df3d7: six identical native baseline
 failures correct, unchanged probe blocks both original external filter executions,
 clean Windows/Mac/Ubuntu and all four successor CI lanes/four digests/six inventories
 verify (E-I150). Original ARM64 portability/missing-prerequisite/observer failures

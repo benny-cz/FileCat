@@ -7,13 +7,15 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I151 is reproduced on actual 52df3d7: a local .git symlink causes 14 SMB
-negotiation flows/126 packets between exact controls. Independent capture reports
-zero loss; ordinary badge/payload/process/listener checks verify (E-I151).
-128/151 preliminary remediations, one Closed, 22 remain. Correction is next;
-all 24 campaigns still need final qualification, no candidate/human GO; NO-GO.
+I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
+changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
+and zero reported loss verify. Six host baseline failures correct; full App
+378/23 skips/401, clean Windows 21/3 and Ubuntu 14/10 pass with source/payload/
+temp/process/listener pins (E-I151). Mac SSH timeout is queued for owner help
+after 08:40 CEST; CI is running. 129/151 preliminary, one Closed, 21 remain;
+all 24 campaigns need final qualification, no candidate/human GO; NO-GO.
 
-I150 is preliminarily remediated at 874b7ae/52df3d7: identical final native tests
+Earlier sealed I150 slice (historical counts): preliminarily remediated at 874b7ae/52df3d7: identical final native tests
 fail six before and pass six after; unchanged probe blocks both original external
 filter executions while retaining ordinary badges/positive controls. Clean native
 Windows/Mac/Ubuntu and all four successor CI lanes/four digests/six inventories/
@@ -2454,7 +2456,19 @@ Overall **NO-GO** remains.
      Correct local path checks before metadata probing; indirect/native/candidate
      I16 remains open. No owner interaction or physical-source write.
 
+309. Push I151 correction 483032a. Six identical test-DLL baseline failures correct;
+     affected host 20/1 capture skip, full App 378/23 declared skips/401 pass. Clean
+     Windows 21/3 and Ubuntu 14/10 pass with 891 raw source blobs/354/350 payload
+     pins/empty temp/owned processes verified. Unchanged original native probe,
+     only App DLL changed, yields zero additional endpoint contacts versus 14 SMB
+     flows/126 packets before. Two controls/zero reported drops/receiver and root
+     recorder cleanup verify. Original observer failures retained; Mac SSH upload
+     fails before launch and bounded retry times out, owner gate queued until
+     08:40 CEST. Exact-source CI running. Wider I16/candidate open (E-I151).
+
 ## Evidence invalidated by the campaign's own changes
+
+I151 changes Windows automatic Git path admission; earlier Git path execution evidence remains historical for affected cases. Current finite source is 483032a (E-I151); no installed candidate qualification is implied.
 
 - I150 changes automatic Git child environment/configuration. Earlier E-V24-D2
   process/file traces are historical to 313d40b for affected Git paths; finite
