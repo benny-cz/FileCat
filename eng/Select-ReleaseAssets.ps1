@@ -67,5 +67,6 @@ $Paths = @($Names + $ManifestName | ForEach-Object { (Join-Path $Root $_).Replac
 if ($GitHubOutputPath) {
     $Delimiter = 'FILECAT_RELEASE_ASSETS_' + [guid]::NewGuid().ToString('N')
     [IO.File]::AppendAllText([IO.Path]::GetFullPath($GitHubOutputPath), "files<<$Delimiter`n" + ($Paths -join "`n") + "`n$Delimiter`n", $Utf8)
+    [IO.File]::AppendAllText([IO.Path]::GetFullPath($GitHubOutputPath), "manifest_path=$($ManifestPath.Replace('\','/'))`nmanifest_sha256=$((Get-FileHash -LiteralPath $ManifestPath).Hash.ToLowerInvariant())`n", $Utf8)
 }
 [pscustomobject]@{ ManifestPath=$ManifestPath; Files=$Paths; Manifest=$Manifest }

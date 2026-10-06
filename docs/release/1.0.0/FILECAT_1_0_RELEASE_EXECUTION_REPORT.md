@@ -3120,3 +3120,26 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     Committed hosted successor continues. Approved-manifest promotion, human GO,
     signing/preview approval, duplicate asset refusal, publisher separation and
     repository/immutable controls stay Open (E-I18-P2). Counts unchanged; NO-GO.
+
+
+341. I18 stable guard source 317a9a5 and original CI 37462073457 attempt 1
+    seal the policy job/four green required test lanes, fifteen server digests,
+    four clean exact-SDK build receipts/fourteen full TRX inventories/all 409 App
+    identities/sixteen picture cases and ARM64 startup/draw/installer checks.
+    Sixteen hosted reference controls match source/run pins; actual main/push
+    guard permits development with stable promotion false. Three package jobs
+    skip; no stable-negative tag, release or candidate is created. Original
+    failed 37454794034 remains failed. Counts unchanged; NO-GO (E-I18-P2).
+
+342. I18 draft action defaults to replacing assets; false alone skips a known
+    duplicate. A read-only selected-manifest/package/ref/draft/paginated-asset
+    preflight now precedes each of three replacement-disabled actions. Read-only
+    postflight requires every newly uploaded name/ID/size/server digest and the
+    independent remote identity, refusing skipped duplicates and changed bytes.
+    Thirty-two host synthetic cases/eight selector output checks/four-script
+    parse/independent workflow ordering pass. Two harness scalar-count failures
+    remain in tool history; explicit fixture arrays correct them. Actual GitHub
+    release inventory is empty; no live duplicate/tag/upload is claimed.
+    Committed hosted successor continues. Full approval/signing/promotion,
+    publisher/protection/immutable storage/final download/candidate gates stay
+    Open. No physical source or guest/Mac setup change; counts unchanged; NO-GO.

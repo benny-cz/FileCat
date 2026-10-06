@@ -34,7 +34,8 @@ try {
         }
         if ($Manifest.SourceCommit -cne $Commit -or $Manifest.CandidateQualified -or $Manifest.SigningVerified) { throw 'Manifest identity or evidence classification is incorrect.' }
         $Emitted = Get-Content -LiteralPath $Output
-        if ($Emitted.Count -ne $Names.Count + 3 -or $Emitted[0] -cne ('files<<' + $Emitted[-1]) -or ($Emitted[1..($Emitted.Count-2)] -join "`n") -cne ($Result.Files -join "`n") -or $Emitted -match 'unrelated-probe') { throw 'Action file list differs from the manifest allowlist.' }
+        if ($Emitted.Count -ne $Names.Count + 5 -or $Emitted[0] -cne ('files<<' + $Emitted[-3]) -or ($Emitted[1..($Emitted.Count-4)] -join "`n") -cne ($Result.Files -join "`n") -or $Emitted -match 'unrelated-probe') { throw 'Action file list differs from the manifest allowlist.' }
+        if ($Emitted[-2] -cne "manifest_path=$($Result.ManifestPath.Replace('\','/'))" -or $Emitted[-1] -cne "manifest_sha256=$((Get-FileHash -LiteralPath $Result.ManifestPath).Hash.ToLowerInvariant())") { throw 'Manifest output identity differs from selected bytes.' }
         $Original = [IO.File]::ReadAllBytes($Result.ManifestPath)
         $Refused = $false
         try { & $Selector -Platform $Platform -Version $Version -SourceCommit $Commit -ArtifactDirectory $Root | Out-Null }

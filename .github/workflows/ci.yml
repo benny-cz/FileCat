@@ -60,11 +60,15 @@ jobs:
           if-no-files-found: error
       - name: Release asset allowlist controls
         shell: pwsh
-        run: ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+        run: |
+          ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+          ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+          path: |
+            ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+            ${{ runner.temp }}/filecat-release-assets-controls/draft-release-controls.json
           if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
@@ -141,11 +145,15 @@ jobs:
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
       - name: Release asset allowlist controls
         shell: pwsh
-        run: ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+        run: |
+          ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+          ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+          path: |
+            ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+            ${{ runner.temp }}/filecat-release-assets-controls/draft-release-controls.json
           if-no-files-found: error
       - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --logger "trx;LogFileName=platform-results.trx"
       # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
@@ -215,11 +223,15 @@ jobs:
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
       - name: Release asset allowlist controls
         shell: pwsh
-        run: ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+        run: |
+          ./eng/validation/validate-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
+          ./eng/validation/validate-draft-release-assets.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-release-assets-controls"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-assets-controls-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+          path: |
+            ${{ runner.temp }}/filecat-release-assets-controls/release-assets-controls.json
+            ${{ runner.temp }}/filecat-release-assets-controls/draft-release-controls.json
           if-no-files-found: error
       # D-47: a drive read the way FileCat reads one, from the FAT16 fixture attached as a loop device (Linux) or a raw
       # disk image (macOS) that this user may read.
@@ -394,7 +406,22 @@ jobs:
           name: filecat-release
           path: ${{ steps.assets.outputs.files }}
           if-no-files-found: error
+      - name: Refuse changed or existing draft assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.assets.outputs.manifest_path }}
+          MANIFEST_SHA256: ${{ steps.assets.outputs.manifest_sha256 }}
+        run: ./eng/Assert-DraftReleaseAssets.ps1 -ManifestPath $env:MANIFEST_PATH -ManifestSHA256 $env:MANIFEST_SHA256 -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -ReceiptPath "${{ runner.temp }}/filecat-draft-preflight/preflight.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: draft-preflight-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-draft-preflight/preflight.json
+          if-no-files-found: error
       - name: Draft release
+        id: draft-release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3, pinned: this step can write releases
         with:
           draft: true
@@ -402,6 +429,23 @@ jobs:
           name: FileCat ${{ github.ref_name }} (unsigned preview)
           files: ${{ steps.assets.outputs.files }}
           fail_on_unmatched_files: true
+          overwrite_files: false
+      - name: Verify every newly uploaded draft asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.assets.outputs.manifest_path }}
+          MANIFEST_SHA256: ${{ steps.assets.outputs.manifest_sha256 }}
+          UPLOADED_ASSETS: ${{ steps.draft-release.outputs.assets }}
+          UPLOADED_RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+        run: ./eng/Assert-DraftReleaseAssets.ps1 -ManifestPath $env:MANIFEST_PATH -ManifestSHA256 $env:MANIFEST_SHA256 -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -VerifyUpload -UploadedAssetsJson $env:UPLOADED_ASSETS -ExpectedReleaseID $env:UPLOADED_RELEASE_ID -ReceiptPath "${{ runner.temp }}/filecat-draft-preflight/upload-verified.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: draft-upload-verified-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-draft-preflight/upload-verified.json
+          if-no-files-found: error
 
   package-linux:
     name: Package Linux (tags and manual runs)
@@ -454,7 +498,22 @@ jobs:
           name: filecat-linux
           path: ${{ steps.assets.outputs.files }}
           if-no-files-found: error
+      - name: Refuse changed or existing draft assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.assets.outputs.manifest_path }}
+          MANIFEST_SHA256: ${{ steps.assets.outputs.manifest_sha256 }}
+        run: ./eng/Assert-DraftReleaseAssets.ps1 -ManifestPath $env:MANIFEST_PATH -ManifestSHA256 $env:MANIFEST_SHA256 -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -ReceiptPath "${{ runner.temp }}/filecat-draft-preflight/preflight.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: draft-preflight-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-draft-preflight/preflight.json
+          if-no-files-found: error
       - name: Add to the draft release
+        id: draft-release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3, pinned: this step can write releases
         with:
@@ -462,6 +521,23 @@ jobs:
           prerelease: true
           files: ${{ steps.assets.outputs.files }}
           fail_on_unmatched_files: true
+          overwrite_files: false
+      - name: Verify every newly uploaded draft asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.assets.outputs.manifest_path }}
+          MANIFEST_SHA256: ${{ steps.assets.outputs.manifest_sha256 }}
+          UPLOADED_ASSETS: ${{ steps.draft-release.outputs.assets }}
+          UPLOADED_RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+        run: ./eng/Assert-DraftReleaseAssets.ps1 -ManifestPath $env:MANIFEST_PATH -ManifestSHA256 $env:MANIFEST_SHA256 -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -VerifyUpload -UploadedAssetsJson $env:UPLOADED_ASSETS -ExpectedReleaseID $env:UPLOADED_RELEASE_ID -ReceiptPath "${{ runner.temp }}/filecat-draft-preflight/upload-verified.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: draft-upload-verified-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-draft-preflight/upload-verified.json
+          if-no-files-found: error
 
   package-macos:
     name: Package macOS (tags and manual runs)
@@ -512,7 +588,22 @@ jobs:
           name: filecat-macos
           path: ${{ steps.assets.outputs.files }}
           if-no-files-found: error
+      - name: Refuse changed or existing draft assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.assets.outputs.manifest_path }}
+          MANIFEST_SHA256: ${{ steps.assets.outputs.manifest_sha256 }}
+        run: ./eng/Assert-DraftReleaseAssets.ps1 -ManifestPath $env:MANIFEST_PATH -ManifestSHA256 $env:MANIFEST_SHA256 -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -ReceiptPath "${{ runner.temp }}/filecat-draft-preflight/preflight.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: draft-preflight-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-draft-preflight/preflight.json
+          if-no-files-found: error
       - name: Add to the draft release
+        id: draft-release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3, pinned: this step can write releases
         with:
@@ -520,3 +611,20 @@ jobs:
           prerelease: true
           files: ${{ steps.assets.outputs.files }}
           fail_on_unmatched_files: true
+          overwrite_files: false
+      - name: Verify every newly uploaded draft asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_PATH: ${{ steps.assets.outputs.manifest_path }}
+          MANIFEST_SHA256: ${{ steps.assets.outputs.manifest_sha256 }}
+          UPLOADED_ASSETS: ${{ steps.draft-release.outputs.assets }}
+          UPLOADED_RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+        run: ./eng/Assert-DraftReleaseAssets.ps1 -ManifestPath $env:MANIFEST_PATH -ManifestSHA256 $env:MANIFEST_SHA256 -SourceCommit $env:GITHUB_SHA -Reference $env:GITHUB_REF -Repository $env:GITHUB_REPOSITORY -VerifyUpload -UploadedAssetsJson $env:UPLOADED_ASSETS -ExpectedReleaseID $env:UPLOADED_RELEASE_ID -ReceiptPath "${{ runner.temp }}/filecat-draft-preflight/upload-verified.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: draft-upload-verified-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-draft-preflight/upload-verified.json
+          if-no-files-found: error

@@ -9,10 +9,14 @@ one cold-picture first-feed failure. Fixture-only capacity/diagnostics passes
 64 before/64 after with identical production bytes and full App 386/23/409;
 historical cause is not proven. Committed 4b2b9d7 native repeats/four green CI
 lanes/fourteen digests/full inventories now verify. A read-only producer-ref
-ancestor rejects stable inputs; sixteen host controls/five exit probes/static
-dependencies pass; its committed hosted successor remains pending (E-I18-P2).
-Signing/promotion/duplicate assets/
-protection/immutable retention/candidate gates remain Open (E-I18-A1).
+ancestor rejects stable inputs; sixteen host/hosted controls and five exit probes
+pass. Source 317a9a5 seals four green CI test lanes/fifteen server digests/four
+clean receipts/fourteen full inventories and the actual main guard (E-I18-P2).
+New read-only draft preflight/postflight checks and disabled replacement pass
+thirty-two host synthetic cases/eight selector controls/ordered workflow audits;
+committed successor remains pending. Actual tagged upload/duplicate execution,
+signing/approved promotion/publisher separation/protection/immutable retention/
+candidate gates remain Open (E-I18-P3).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
