@@ -55,3 +55,49 @@ High severity for unexpected automatic program execution; must fix. Correct chil
 environment/configuration boundaries and revalidate actual API, positive controls,
 ordinary badges, environment preservation and exact source/native/CI outcomes.
 Other indirect/reparse/protected-file/native/candidate I16 scopes remain open.
+
+## Correction and first qualification attempt
+
+`874b7ae826f392bfc2fb05dd16ecfc6dbe0fcc2f` restricts the child Git environment,
+global/system configuration and separate ignore/attribute files. Repository
+`.gitignore`/`.gitattributes` rules remain; automatic badges can differ from a
+user's configured command-line status. The capability record states that scope.
+Six new working-source regressions fail before and pass after; affected host
+14 pass/three declared opt-in skips and full App 371 pass/23 declared skips/394
+cases verify. Both compiled C# files match raw committed bytes. Markdown checkout
+line endings differ explicitly; the original strict observer failure is retained.
+Independent host proof `independent-git-host-v2.json`, SHA-256
+`02293285f1533b40c0e43837186767815a944d4298c60d8df8f62bd6491ba49a`.
+
+An identical native Win11 probe replaces only `FileCat.dll` in the original
+354-file payload. Both actual global/inherited badge reads preserve Modified
+without running the recorder; the two direct Git positives still execute it.
+Same probe executable SHA-256
+`fbd51d4f3ea5e05c8989becf7d7c2e12bca51643192cd35b08d0557044fad0ad`;
+corrected DLL SHA-256
+`10bed0818960e830db6618a3017c3583351bd280c5dec82221ee02d9f99d56ad`.
+Native transport proof `windows-git-global-v3/transport-proof.json`, SHA-256
+`9bdd896b0dad4bc13576a326e4c89ca15949e4d62a636f404e3158b7ae9e448f`.
+Fresh clean raw export has 889 Git blobs; source ZIP SHA-256
+`dee55f5114455e827aede3432503dc1e0e0f7b4063d8b853ca22f58ce6e710f0`.
+Clean Windows 14/3 and Mac 13/4 declared skips pass all six new cases,
+354/350 payload pins and owned process/temp cleanup. Proofs respectively
+`e8e19d6bf91646d4e7bfd9643b1ca8f417cf09d4d35f5386581513e487fb7b7b`
+and `0c5076f0473a06a75b29cef5a2784f88e2af830d339f326e2839e6636257b4d6`.
+Mac's temporary `caffeinate -i` wraps only this completed command; no power settings
+were changed. Ubuntu's original lane is not qualified: Git was absent, seven
+required Git cases (all six new plus ordinary badges) skipped; the test process
+exited zero but the required wrapper correctly rejected those missing controls.
+Original outputs remain; Git is now installed in the disposable guest for a fresh run.
+
+CI [37400693720 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37400693720)
+on exact 874b7ae fails ARM64 while the other three required lanes pass. ARM64 logs
+retain seven failures: the six new fixture setups report `NUL: Invalid argument`,
+and the existing ordinary badge test gets no snapshot. Full ARM64 summary is
+370 pass/17 skips/seven failures/394 cases. No passing CI or package-start claim
+is made for this attempt. Logs remain in private `ci-37400693720-attempt1`.
+
+The successor uses [Git's documented null path](https://git-scm.com/docs/git)
+`/dev/null` on all platforms. Affected host 14/3/17 passes; exact successor
+native/CI qualification remains required. Private preparation and unavailable-job
+log retrieval failures are retained without overwriting their originals.

@@ -120,7 +120,7 @@ public sealed class GitEnvironmentTests
             {
                 ClearGitEnvironment();
                 Environment.SetEnvironmentVariable("GIT_CONFIG_NOSYSTEM", "1");
-                Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", OperatingSystem.IsWindows() ? "NUL" : "/dev/null");
+                Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", "/dev/null");
                 Repository = CreateRepository("repo");
                 File.WriteAllText(Path.Join(Repository, "a.txt"), "two");
                 File.SetLastWriteTimeUtc(Path.Join(Repository, "a.txt"), DateTime.UtcNow.AddSeconds(3));

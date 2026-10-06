@@ -343,7 +343,8 @@ internal static class GitStatusReader
         // ignore/attribute defaults are excluded; .gitignore/.gitattributes and checked repository settings remain.
         foreach (string key in start.Environment.Keys.Where(key => key.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)).ToArray())
             start.Environment.Remove(key);
-        string emptyFile = OperatingSystem.IsWindows() ? "NUL" : "/dev/null";
+        // Git's documented null path also works with Git for Windows. The Windows ARM64 runner's Git rejects "NUL".
+        const string emptyFile = "/dev/null";
         start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
         start.Environment["GIT_CONFIG_SYSTEM"] = emptyFile;
         start.Environment["GIT_CONFIG_GLOBAL"] = emptyFile;
