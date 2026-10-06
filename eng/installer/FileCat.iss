@@ -2,7 +2,7 @@
 ; Build: run eng/publish.ps1 first (with -Runtime win-arm64 for ARM64), then:
 ;   iscc /DAppVersion=0.1.0 eng\installer\FileCat.iss               (x64)
 ;   iscc /DAppVersion=0.1.0 /DArch=arm64 eng\installer\FileCat.iss  (ARM64)
-; Inno Setup is free software (modified BSD license); it is a release tool, not a runtime dependency.
+; The pinned Inno Setup tool builds the shipped installer engine/loader/uninstaller (modified BSD license).
 ; Binaries go to Program Files (administrator-protected), which later elevated and sandboxed helpers require.
 
 #ifndef AppVersion
@@ -47,6 +47,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "..\..\artifacts\publish\win-{#Arch}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "licenses\InnoSetup-6.7.1.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\FileCat"; Filename: "{app}\FileCat.exe"

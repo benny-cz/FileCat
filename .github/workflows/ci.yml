@@ -100,10 +100,15 @@ jobs:
       - name: The ARM64 installer compiles
         shell: pwsh
         run: |
-          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) { Write-Warning 'No Chocolatey on this runner: the installer is compiled by the tag build only.'; exit 0 }
-          choco install innosetup --no-progress -y
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=0.0.0" "/DArch=arm64" eng/installer/FileCat.iss
+          $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
+          & $compiler.Executable "/DAppVersion=0.0.0" "/DArch=arm64" eng/installer/FileCat.iss
+          if ($LASTEXITCODE -ne 0) { throw 'The pinned ARM64 installer compiler failed.' }
           if (-not (Test-Path artifacts/FileCat-0.0.0-win-arm64-setup.exe)) { throw 'The ARM64 installer was not made.' }
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: inno-setup-provenance-windows-arm64
+          path: artifacts/toolchains/inno-setup/**
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -265,10 +270,17 @@ jobs:
       - name: Build installers
         shell: pwsh
         run: |
-          choco install innosetup --no-progress -y
+          $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
           $v = "${{ github.ref_name }}".TrimStart('v').Split('-')[0]
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" eng/installer/FileCat.iss
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" "/DArch=arm64" eng/installer/FileCat.iss
+          & $compiler.Executable "/DAppVersion=$v" eng/installer/FileCat.iss
+          if ($LASTEXITCODE -ne 0) { throw 'The pinned x64 installer compiler failed.' }
+          & $compiler.Executable "/DAppVersion=$v" "/DArch=arm64" eng/installer/FileCat.iss
+          if ($LASTEXITCODE -ne 0) { throw 'The pinned ARM64 installer compiler failed.' }
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: inno-setup-provenance-windows-package
+          path: artifacts/toolchains/inno-setup/**
       # Code signing (ADR-15): SignPath Foundation signs the artifacts built here from tagged source.
       # Configure the SignPath project and its GitHub integration, then add the signing step here.
       # Until then releases are published as clearly labeled, unsigned previews.
