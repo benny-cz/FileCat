@@ -39,9 +39,9 @@ public static partial class ElevationBroker
             reason = "This FileCat build has no administrator helper; administrator retry is part of the installed FileCat.";
             return null;
         }
-        if (!IsProtectedLocation(broker))
+        if (!HasTrustedExecutable(broker))
         {
-            reason = "FileCat's administrator helper runs only from the installed program folder (Program Files), where other programs cannot replace it.";
+            reason = "FileCat's administrator helper needs an administrator-protected executable and program folder in Program Files. Reinstall FileCat if their permissions could not be verified.";
             return null;
         }
         return broker;
@@ -117,6 +117,9 @@ public static partial class ElevationBroker
     /// </summary>
     public static ElevatedProcess Launch(string broker, string volumePlanPath, string hash, nint owner)
     {
+        // The helper cannot establish its own executable's trust after Windows has already started it.
+        if (!HasTrustedExecutable(broker))
+            throw new IOException("The administrator helper's executable or program folder could not be verified as administrator-protected. Reinstall FileCat. Nothing was run.");
         string arguments = $"--plan \"{volumePlanPath}\" --sha256 {hash}";
         var verb = Marshal.StringToHGlobalUni("runas");
         var file = Marshal.StringToHGlobalUni(broker);
