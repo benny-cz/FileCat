@@ -184,8 +184,7 @@ internal static class GitStatusReader
         {
             if (!MetadataTreeIsLocal(dir)) return false;
             if (!IsHarmless(Path.Join(dir, "config"), gitDir) || !IsHarmless(Path.Join(dir, "config.worktree"), gitDir)) return false;
-            string info = Path.Join(dir, "objects", "info");
-            if (!AlternatesAreLocal(Path.Join(info, "alternates")) || !AlternatesAreLocal(Path.Join(info, "http-alternates"))) return false;
+            if (!AlternateObjectDirectoriesAreLocal(Path.Join(dir, "objects"))) return false;
         }
         return true;
     }
@@ -443,20 +442,49 @@ internal static class GitStatusReader
     }
 
     /// <summary>
-    /// The object directories of other repositories that Git reads as this one's own (objects/info/alternates, one
-    /// path per line; http-alternates likewise): every one must be on this computer, for the same reason.
+    /// Git resolves alternate paths against the object directory, and follows each store's own alternates too.
+    /// Check the bounded graph and Windows metadata trees before looking beneath an alternate. Quoted C-style paths
+    /// and HTTP fetch locations are left plain rather than interpreting them as an unchecked relative filename.
     /// </summary>
-    private static bool AlternatesAreLocal(string path)
+    private static bool AlternateObjectDirectoriesAreLocal(string objectsDirectory)
     {
-        if (!IsLocalPath(path)) return false;
-        var info = new FileInfo(path);
-        if (!info.Exists) return true;
-        if (info.Length > 1_000_000) return false;
-        foreach (string raw in File.ReadLines(path))
+        const int maxDirectories = 32, maxCharacters = 1_000_000;
+        var visited = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var pending = new Queue<string>();
+        pending.Enqueue(Path.GetFullPath(objectsDirectory));
+        long started = Stopwatch.GetTimestamp();
+        int characters = 0;
+        while (pending.TryDequeue(out string? directory))
         {
-            var line = raw.AsSpan().Trim();
-            if (line.Length == 0 || line[0] == '#') continue;
-            if (!NamesThisComputer(line)) return false;
+            if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromMilliseconds(250)) return false;
+            if (!visited.Add(directory)) continue;
+            if (visited.Count > maxDirectories || !IsLocalPath(directory)) return false;
+            if (!Directory.Exists(directory)) continue; // Missing local stores cannot redirect a read.
+            if (!MetadataTreeIsLocal(directory)) return false;
+            foreach (string name in new[] { "alternates", "http-alternates" })
+            {
+                string path = Path.Join(directory, "info", name);
+                if (!IsLocalPath(path)) return false;
+                var info = new FileInfo(path);
+                if (!info.Exists) continue;
+                if (info.Length > maxCharacters) return false;
+                foreach (string raw in File.ReadLines(path))
+                {
+                    if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromMilliseconds(250) ||
+                        raw.Length >= maxCharacters - characters) return false;
+                    characters += raw.Length + 1;
+                    var line = raw.AsSpan();
+                    if (line.Trim().Length == 0) continue;
+                    // Git's alternate quoting has byte/octal rules different from its configuration values.
+                    // Optional badges refuse this unqualified encoding, including leading/trailing whitespace.
+                    if (name == "http-alternates" || line[0] == '"' || line.Trim().Length != line.Length) return false;
+                    string text = line.ToString();
+                    if (Path.IsPathRooted(text) && !Path.IsPathFullyQualified(text)) return false;
+                    string full = Path.GetFullPath(text, directory);
+                    if (!IsLocalPath(full) || pending.Count >= maxDirectories) return false;
+                    pending.Enqueue(full);
+                }
+            }
         }
         return true;
     }
