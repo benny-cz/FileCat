@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <shellapi.h>
+#include <aclapi.h>
+#include <sddl.h>
 #include <string>
 #include <vector>
 #include <cwchar>
@@ -37,14 +39,89 @@ namespace
         return result;
     }
 
+    bool TrustedWriter(PSID sid)
+    {
+        PWSTR text = nullptr;
+        if (!sid || !ConvertSidToStringSidW(sid, &text)) return false;
+        bool trusted = wcscmp(text, L"S-1-5-18") == 0 || wcscmp(text, L"S-1-5-32-544") == 0 ||
+            wcscmp(text, L"S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464") == 0;
+        LocalFree(text);
+        return trusted;
+    }
+
+    bool AdministratorOwnedReadOnlyForUsers(const std::wstring& path)
+    {
+        HANDLE file = CreateFileW(path.c_str(), READ_CONTROL, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (file == INVALID_HANDLE_VALUE) return false;
+        PSID owner = nullptr;
+        PACL acl = nullptr;
+        PSECURITY_DESCRIPTOR descriptor = nullptr;
+        DWORD error = GetSecurityInfo(file, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            &owner, nullptr, &acl, nullptr, &descriptor);
+        CloseHandle(file);
+        bool trusted = error == ERROR_SUCCESS && acl && TrustedWriter(owner);
+        constexpr DWORD write = GENERIC_ALL | GENERIC_WRITE | WRITE_DAC | WRITE_OWNER | DELETE |
+            FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES | FILE_DELETE_CHILD;
+        if (trusted)
+            for (DWORD i = 0; i < acl->AceCount; ++i)
+            {
+                void* value = nullptr;
+                if (!GetAce(acl, i, &value)) { trusted = false; break; }
+                auto header = static_cast<ACE_HEADER*>(value);
+                if (header->AceFlags & INHERIT_ONLY_ACE) continue;
+                if (header->AceType == ACCESS_DENIED_ACE_TYPE || header->AceType == ACCESS_DENIED_OBJECT_ACE_TYPE ||
+                    header->AceType == ACCESS_DENIED_CALLBACK_ACE_TYPE || header->AceType == ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE) continue;
+                // Conditional/object grants need a different access evaluation. Refuse rather than assume trust.
+                if (header->AceType != ACCESS_ALLOWED_ACE_TYPE) { trusted = false; break; }
+                auto allow = static_cast<ACCESS_ALLOWED_ACE*>(value);
+                if ((allow->Mask & write) && !TrustedWriter(&allow->SidStart)) { trusted = false; break; }
+            }
+        if (descriptor) LocalFree(descriptor);
+        return trusted;
+    }
+
     bool Protected(const std::wstring& path, const std::wstring& root)
     {
         auto final = FinalPath(path);
         static const auto x86 = KnownFolder(FOLDERID_ProgramFilesX86);
         for (const auto& folder : { root, x86 })
             if (!folder.empty() && final.size() > folder.size() && final[folder.size()] == L'\\' &&
-                _wcsnicmp(final.c_str(), folder.c_str(), folder.size()) == 0) return true;
+                _wcsnicmp(final.c_str(), folder.c_str(), folder.size()) == 0)
+            {
+                // A writable parent can replace an otherwise read-only child; check the entire resolved chain.
+                auto node = final;
+                while (node.size() >= folder.size())
+                {
+                    if (!AdministratorOwnedReadOnlyForUsers(node)) return false;
+                    if (node.size() == folder.size()) return true;
+                    auto slash = node.find_last_of(L'\\');
+                    if (slash == std::wstring::npos || slash < folder.size()) return false;
+                    node.resize(slash);
+                }
+            }
         return false;
+    }
+
+    bool ApplicationTreeTrusted(const std::wstring& directory, const std::wstring& root,
+        DWORD& entries, unsigned depth, ULONGLONG deadline)
+    {
+        if (depth > 32 || GetTickCount64() > deadline || !Protected(directory + L"\\.", root)) return false;
+        WIN32_FIND_DATAW entry{};
+        HANDLE search = FindFirstFileW((directory + L"\\*").c_str(), &entry);
+        if (search == INVALID_HANDLE_VALUE) return false;
+        bool trusted = true;
+        do
+        {
+            if (wcscmp(entry.cFileName, L".") == 0 || wcscmp(entry.cFileName, L"..") == 0) continue;
+            if (++entries > 10000 || GetTickCount64() > deadline || (entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) { trusted = false; break; }
+            auto child = directory + L"\\" + entry.cFileName;
+            if (!Protected(child, root) || ((entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+                !ApplicationTreeTrusted(child, root, entries, depth + 1, deadline))) { trusted = false; break; }
+        } while (FindNextFileW(search, &entry));
+        DWORD error = GetLastError();
+        FindClose(search);
+        return trusted && error == ERROR_NO_MORE_FILES;
     }
 
     bool ClearRuntimeEnvironment()
@@ -134,6 +211,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         if (split == std::wstring::npos) return 2;
         auto directory = self.substr(0, split);
         auto app = directory + L"\\FileCat.PrivilegedHost.dll";
+        DWORD entries = 0;
+        if (!ApplicationTreeTrusted(directory, root, entries, 0, GetTickCount64() + 5000))
+            return Refuse(L"The administrator helper's program files can be changed by an ordinary account, contain a link, or could not be verified safely. Reinstall FileCat in an administrator-protected folder. Nothing was run.");
         for (const auto& name : { L"FileCat.PrivilegedHost.dll", L"FileCat.PrivilegedHost.deps.json", L"FileCat.PrivilegedHost.runtimeconfig.json" })
             if (!Protected(directory + L"\\" + name, root)) return Refuse(L"The administrator helper's application files are missing or outside its protected program folder. Reinstall FileCat. Nothing was run.");
         count = GetSystemDirectoryW(system.data(), PathLimit);
