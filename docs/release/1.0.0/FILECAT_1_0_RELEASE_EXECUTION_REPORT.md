@@ -7,10 +7,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I155 is a new pre-CLR native profiler blocker: both protected 99e54b3 helpers
-load an owned ordinary-writable DLL before Main on the actual broker route.
-Two positives/all pins/owned cleanup verify; caller already administrative.
-Correction and revalidation continue autonomously; no candidate/human GO (E-I155).
+I155 native profiling is preliminarily remediated at fc5e706/7183268: actual
+committed 917-source/four-mode native publishes, SC/FDD profiler rejection and
+separate synthetic CLR handoff verify. Two positives/431 inputs/cleanup pass;
+four exact-source CI lanes/ten digests/fourteen inventories and both downloaded
+native Windows executables/source/compiler receipts verify. Broader I17/I03,
+limited-caller/consent/candidate remain; no human stable GO (E-I155).
 
 I152 is preliminarily remediated at e3c99d5: unchanged native probe/only clean App
 DLL changed eliminates 14 SMB flows/126 packets and preserves ordinary badge/
@@ -23,7 +25,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 132/155 preliminary, one Closed, 22 remain; all campaigns need final
+Current 133/155 preliminary, one Closed, 21 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -2877,3 +2879,19 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     input/output pins and protected/process cleanup verify. The unavailable factory
     supplies no profiler callbacks; both helpers are stopped after six seconds. Caller
     is already administrative, no UAC bypass claimed. New I155; pre-CLR remedy underway.
+
+322. I155 remedy fc5e706 adds a native Windows entry point before CLR loading, retaining
+    managed plan/consent logic and FDD servicing. Executable-only and actual working native
+    controls block external profilers with positives; synthetic entry controls preserve
+    original arguments/system environment/same-process identity, SC 10.0.12/FDD 10.0.9.
+    Full host Platform 161/38 skips/199 passes. Deep raw export exposes native linker path
+    limits; 7183268 stages native compilation at a short owned temporary path, restores
+    logs/receipts and verifies cleanup. Failed compiler/publish/normalization observers remain.
+
+323. Clean committed 7183268 I155 seal passes: all 917 raw source blobs/four native
+    outputs/compiler receipts, fresh SC/FDD actual profiler rejection/two positives/431
+    input pins/output/process/protected cleanup and separate synthetic CLR handoff verify.
+    All four CI 37422904088 lanes/ten digests/four receipts/fourteen execution inventories,
+    both native Windows executable bytes/source/receipt pins and ARM64 startup/drawing/
+    installer pass. Caller already administrative; real helpers are stopped after six
+    seconds, actual consent/limited caller/ACL/dependency/license/IPC/candidate remain open.
