@@ -24,3 +24,13 @@ Independent preservation proof is retained privately under FileCatReleaseEvidenc
 Audit v22 independently rechecks 223 selected evidence hashes plus the retained F3/QuickView files and deployed/compiled private binaries. `independent-records-v22.json` SHA-256: 7cd87b5defd635b6612439f6e9549d5a0e9b7aba8cf6a09bbd29189b014655ed (same verified content as v21). Next test slice: native Linux QuickView.
 
 Read-only GitHub policy snapshot at 2026-10-06 19:55 UTC confirms private reporting disabled, zero rulesets, main unprotected and Actions enabled with all actions allowed. Immutable-release policy was not queried. No settings changed or owner decisions waived. Private `github-policy-readonly-v1.json` SHA-256: 111b81b8e91a69580c6f3c08138547a58ca913cb9193060814d7ab3acd039208.
+
+## 2026-10-06 — native Linux QuickView ownership slice
+
+The unchanged C# observer passes on Ubuntu 26.04.1 as ordinary UID 1000 using the original 348-file committed 6215329 Linux payload, 33 original assembly references and five verified private observer files. Four panes/five replacement rounds produce 24 decoded pictures, dispose 24 abandoned buffers immediately, keep a 1 MiB pixel plateau, and close 32 source readers exactly once outside reads. All final pixel/page/admission charges are zero; no later reads or owned payload processes remain. Original nullable-key warning, real process samples and all exact input/output/native archive hashes are retained in [E-I06-B2](evidence/E-I06-B2-quickview-picture-memory.md).
+
+Independent Linux proof `independent-native-quickview-memory-linux-v6.json` SHA-256: 0d20aa7bc9e122ab5994e46b8b0de2c8bf1f7ab3a813a9b71ece597d14aa56fd. It verifies 176 retained files, compiled/deployed private binaries, both product copies, actual native transport pins, every checkpoint and whole-PNG/adverse controls, and rechecks the prior host/Windows/Mac seals. Combined finite QuickView scope is now 96 decoded pictures/128 readers; broader I06 remains Open. No product, persistent environment setting, physical source or publication changes.
+
+Owner directed execution to prioritize runnable work within the 21 unresolved issues. Next: I06 borrowed icons/consumer references, then I03 and I16/I17; genuine owner/service/hardware/participant dependencies remain queued with publication holds intact.
+
+Audit v23 verifies 230 selected evidence pins and the original F3/host/native/Linux binary/output seals; SHA-256 fce452a6a6348edafa36d202c90cc76f025f7e3a73e6cc5d66b98d37ef175377. Current-tracking proof v3 verifies unchanged frozen histories/authority, 162 issue identities and status classes, 170 catalogue entries, all remaining lists and 381 local links/fragments; SHA-256 58f98e037991c57af86a9ca9f2b6e0de9b5f1f093145d08089d66e8b1e913c29.

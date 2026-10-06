@@ -65,7 +65,7 @@ successful measurement is rerun to change it.
 
 This qualifies the exercised component replacement and detach lifetimes only.
 Main-window panel integration, more counts/formats, pending/held decoder races,
-Shell thumbnail/borrowed-icon routes, higher DPI, Linux repeats, native
+Shell thumbnail/borrowed-icon routes, higher DPI, native
 desktop input/frames, reference hardware and exact-candidate artifacts remain
 open. Existing held-read tests provide separate evidence at their own identities.
 No new aggregate bitmap policy or budget violation is claimed. I06 remains Open.
@@ -83,7 +83,7 @@ Private `FileCatReleaseEvidence/quickview-picture-memory-20261006-v1`:
 
 The final independent seal verifies twenty retained files and both compiled/
 deployed copies of four private binary/configuration files. Counts remain
-140/162 preliminary Remediated, one Closed and 21 remaining issue remediations.
+140/162 preliminary Remediated, one Closed and 21 unresolved issue statuses.
 These are not remaining test counts; all final-candidate campaigns and explicit
 human stable GO remain gated.
 
@@ -118,7 +118,7 @@ Mac SSH/runtime preflight finds no `dotnet` on its PATH; the private self-contai
 apphost permits the repeat without installation or root authentication.
 Temporary `caffeinate -i` is bounded by the native runner's command lifetime;
 no persistent sleep, remote-control or other machine preference is changed.
-Linux, Shell/DPI/main-window/races/other formats/native desktop/reference/candidate
+Shell/DPI/main-window/races/other formats/native desktop/reference/candidate
 scope remains open. No physical-source or stable-publishing policy changes.
 
 Private `FileCatReleaseEvidence/quickview-picture-memory-20261006-v1`:
@@ -136,3 +136,51 @@ Private `FileCatReleaseEvidence/quickview-picture-memory-20261006-v1`:
 The native seal verifies 117 retained files and ten private deployed/published
 binary pins, in addition to the original host seal. Native Mac private-memory
 counter availability remains a measurement limitation; no pass is invented.
+
+## Native Ubuntu follow-up
+
+The identical C# observer passes as ordinary benny (UID 1000) in the running
+Ubuntu 26.04.1 VMware guest. The original committed Linux self-contained payload
+contains 348 pinned files; 33 exact assembly references and five private observer
+binary/configuration files verify against original/build copies. Every original
+product byte and private observer byte remains unchanged after execution. The
+original nullable-key build warning remains; there are no compilation errors.
+
+Four panes repeat the same five replacement rounds, 24 decoded pictures,
+24 disposed old buffers, malformed/text fallbacks and 32 exact-once reader
+disposals outside reads. Retained decoded pixels plateau at 1 MiB; sixty reads
+complete and final pixel/page/admission charges are zero. Independently checked
+whole encoded PNG patterns and four adverse dimension/color controls pass.
+The observer exits naturally with zero; two actual native process censuses find
+no owned payload process. Guest-computed archive, manifest, native runner and
+all 353 original/private payload pins match the host copies and retrieval.
+
+Linux sampled private memory is 90.52 MiB initially, at most 168.49 MiB and
+168.03 MiB after closure/collection. Sampled working set is 98.35 MiB initially,
+at most 153.58 MiB and 147.57 MiB after closure. These finite process counters
+include more than live picture buffers and do not establish transient peaks,
+cross-platform equivalence, a leak or reference-machine acceptance.
+
+Across the host, Windows VM, physical Mac and Ubuntu VM, the completed finite
+scope is **96 decoded pictures and 128 source readers**, with the same 1 MiB
+per-run plateau and zero final pixel/page/admission charges. I06 stays Open for
+broader consumer/borrowed-reference/Shell/DPI/main-window/race/format/native-frame
+and exact-candidate scope. No physical source, package installation, persistent
+machine setting, product code or publication changed.
+
+Private `FileCatReleaseEvidence/quickview-picture-memory-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| native-linux-v6/retrieved/replacement/result.json | f03655d16aab35b944095551a367789dd413177c2f2b5186563c05a799fbdc43 |
+| native-linux-v6/retrieved/native-result.json | 8f500ac3c5dc94f01a58bf9a200b004771c57d8efca8bf202b6be052369151ff |
+| native-linux-v6/outputs.zip | 0dfd33817b9ae1b01e3de65f63f08b982918b9e4e45d1502b5194c0a9dc02f0d |
+| native-linux-v6/transport-seal-v6.json | 8bd0e35d8fc8e42b722b04008a5e46e4582d5ed812620b45122b94adf00b843a |
+| native-linux-v6/host-transport-verification.json | 607e56ea9c740369f639b0c3427831a91a34f15e64584adc604e0cc29768bda9 |
+| native-linux-v6/manifest.json | a61bc4c3e65503c5adbe805e050d81b19d10f5b78d25a9e4a269b8157a1d1692 |
+| independent-native-quickview-memory-linux-v6.json | 0d20aa7bc9e122ab5994e46b8b0de2c8bf1f7ab3a813a9b71ece597d14aa56fd |
+
+The Linux seal verifies 176 retained files and five private deployed/published
+binary pins, and rechecks the prior host twenty/native 117 retained files plus
+their compiled/deployed private binaries. This component repeat is not native
+desktop input/frame evidence or final-candidate qualification.

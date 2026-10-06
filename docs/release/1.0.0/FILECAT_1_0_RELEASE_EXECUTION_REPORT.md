@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 162 IDs: 140 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
-| Evidence catalogue | 170 entries; 223 selected private evidence hashes independently reconciled in audit v22. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 170 entries; 230 selected private evidence hashes independently reconciled in audit v23. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | 6215329ed67da6c8463a996eb51b12ac569194aa; later commits in this slice are release records only. | Reused exact artifacts keep their original identities; documentation changes do not relabel their producer. |
 | Latest product CI | 37505705190 attempt 1 at 6215329: policy/four required lanes/ARM64 startup, drawing and installer pass. | Complete original inventories/receipts/digests are retained in E-I162. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: unchanged QuickView source passes host, Windows VM and physical Mac component runs, 72 decoded pictures/96 source readers total. Each run retains 1 MiB across five replacement rounds and ends with zero pixel/page/admission charges (E-I06-B2). F3 measurements retain 512 MiB across eight large pictures even while hidden, then release buffers on close (E-I06-B1). These are finite component results; aggregate/native-frame/candidate scope remains open.
+Latest completed slice: unchanged QuickView source passes host, Windows VM, physical Mac and Ubuntu VM component runs, 96 decoded pictures/128 source readers total. Each run retains 1 MiB across five replacement rounds and ends with zero pixel/page/admission charges (E-I06-B2). F3 measurements retain 512 MiB across eight large pictures even while hidden, then release buffers on close (E-I06-B1). These are finite component results; aggregate/native-frame/candidate scope remains open.
 
 ## Remaining issue work — 21 entries
 
@@ -28,7 +28,7 @@ Latest completed slice: unchanged QuickView source passes host, Windows VM and p
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Finish native/runtime composition and legal/SBOM gaps, then candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Linux QuickView; borrowed/strong references; wider workloads and native frame/resource proof. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Borrowed/strong references, Shell/DPI/main-window/race/format scope, wider workloads and native frame/resource proof. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -62,7 +62,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 | V09 — Recovery, lost partitions and zero-source-write safety | Partial; final qualification pending | Physical-source safety hold; broader helper/source/topology/adverse identity evidence and candidate. |
 | V10 — Viewers, inspectors and parser/native boundaries | Partial; final qualification pending | Remaining viewer/inspector/native parser/containment interaction scope and candidate. |
 | V11 — External tools, state, secrets and temporary data | Partial; final qualification pending | Remaining external-tool/state/secret/temp lifecycle scope and candidate. |
-| V12 — Metadata, watches, verification demand and folder counting | Partial; final qualification pending | Linux QuickView, borrowed/strong references, wider resource/metadata/watch workflows and native frames. |
+| V12 — Metadata, watches, verification demand and folder counting | Partial; final qualification pending | Borrowed/strong references, wider resource/metadata/watch workflows and native frames. |
 | V13 — Search, results, comparison and synchronization | Partial; final qualification pending | Remaining archive/naming/search/compare/sync variants and native interaction/candidate. |
 | V14 — Hidden data, filesystem records and journal interpretation | Partial; final qualification pending | Reconcile promised filesystem/hidden-data/record fields; remaining native interpretation cases. |
 | V15 — Checksums, sidecars and signature trust | Partial; final qualification pending | Remaining sidecar/checksum/signature-trust demand and candidate corpus. |
@@ -78,12 +78,13 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 ## Next executable slices
 
-1. Repeat the unchanged QuickView ownership probe against the retained Linux payload, verifying every native/source/artifact pin.
-2. Inspect remaining borrowed-icon and all-consumer strong references; measure reachable materialized workloads before changing any budget.
-3. Continue I03 native/runtime composition and remaining V13 archive/naming variants.
-4. Continue unblocked I16/I17/V23/V24 identity, lifetime and boundary review.
-5. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
-6. Finish scope/owner/signing/protection/custody decisions, freeze the contract and form an immutable candidate before final qualification.
+Execution priority is the runnable work within the 21 unresolved issues (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
+
+1. I06: inspect remaining borrowed-icon and all-consumer strong references; measure reachable materialized workloads before changing any budget.
+2. I03: continue native/runtime composition; also complete remaining V13 archive/naming variants when executable.
+3. I16/I17: continue unblocked V23/V24 identity, lifetime and boundary review.
+4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
+5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.
 
 Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): clearer GitHub README and real Windows screenshots with four panels, at least three tabs each, covering all actual themes. Native capture is required; it is not fabricated from component measurements.
 
