@@ -3212,3 +3212,25 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     pass. Committed hosted and actual package validation continue; broader
     extracted/native/runtime/license/SBOM/candidate remain Open. Counts unchanged;
     no physical-source/guest/Mac setup or publication; NO-GO (E-I03-RESTORE).
+
+349. Locked restore source a7a70ae is committed/pushed and seals original push
+    37476206680 and development 37476271305 attempt 1: policy/four test lanes/
+    ARM64 startup/draw/installer pass, nineteen/twenty-five server digests,
+    four/six clean SDK receipts/fourteen complete inventories per run and all
+    App/picture/policy/draft/set controls verify. Every retained source lock and
+    actual assets graph independently matches: 88/132 graphs across four/six
+    builders. Actual Linux/Mac package install/start/signature/icon checks and
+    downloaded manifests pass. Bounded CLI transport timeouts are retained;
+    original-attempt native API reads correct transport with no test rerun.
+    No tag/upload/candidate or native desktop qualification (E-I03-RESTORE).
+
+350. Owned NuGet archive/input comparison verifies 1,644 extracted files across
+    63 previously pinned packages with metadata/case/OPC distinctions. Initial
+    wrong archive-field observer fails before comparison; v2 preserves that
+    failure and matches exact bytes without cache mutation. Nine immutable,
+    package-declared source license/notice blobs verify Git length/SHA-1/SHA-256.
+    Thirty-eight full texts/38 App graph components are privately staged with
+    explicit build-only/RID scope and one LTRData.Extensions 1.0.23 full-text gap;
+    its complete source tree has no license-named file. No binary/source license
+    eligibility, all compiler reads or hosted/native/runtime/SBOM qualification
+    is inferred. Notice packaging is next. Counts unchanged; NO-GO.

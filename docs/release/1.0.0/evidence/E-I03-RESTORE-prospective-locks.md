@@ -3,8 +3,9 @@
 2026-10-06. Preliminary restore correction, initially investigated on exact base
 source `246ce18993d9238227182e22a3150f3a032e0154`. Plan §10.3 requires a reproducible
 resolved dependency graph before candidate freeze. The original repository has
-no saved NuGet locks. Validated policy adoption follows below; committed hosted
-source validation is pending. I03 remains Open.
+no saved NuGet locks. Validated policy adoption follows below, committed at
+`a7a70ae2b1e27c5dce6f7e8f0790daa2a2ae9f53`. Both original push and independent
+development-package CI attempts are now sealed. I03 remains Open.
 
 An isolated raw-Git source export verifies every blob/mode/size/hash. Its derived
 configuration enables lock generation, declares the four intended shipping RIDs,
@@ -86,7 +87,7 @@ working receipt is explicitly dirty and identifies that baseline plus adopted
 inputs. All six CI builder definitions run it before building and always retain
 the resulting evidence, including partial results on failure. Independent staged
 input/graph/CI-order inspection and PowerShell syntax/whitespace checks pass.
-Exact committed native CI and actual Linux/Mac packaging revalidation continue.
+Exact committed native CI and actual Linux/Mac packaging are sealed below.
 
 Private `FileCatReleaseEvidence/nuget-locks-20261006-v3`:
 
@@ -104,3 +105,83 @@ full license provenance, full per-artifact SBOMs and final candidate remain Open
 Counts remain 139/161 preliminary Remediated, one Closed and 21 remaining issue
 remediations. No tag, release, candidate, guest/Mac setup or physical-source access
 occurs in this correction. Stable remains NO-GO.
+
+## Committed-source CI and development packages
+
+Source `a7a70ae2b1e27c5dce6f7e8f0790daa2a2ae9f53` passes original push
+[37476206680](https://github.com/benny-cz/FileCat/actions/runs/37476206680) and
+independent development dispatch
+[37476271305](https://github.com/benny-cz/FileCat/actions/runs/37476271305), both
+attempt 1. Each seals policy/four required native test lanes/ARM64 startup, draw
+and installer checks; nineteen/twenty-five downloaded artifact ZIP digests,
+four/six clean exact-SDK build receipts and fourteen full TRX inventories verify.
+All 409 App identities, sixteen picture cases, sixteen policy, 128 draft and 52
+package-set controls per run match source/run identity. Expected platform skips
+retain their reasons and are not passes or final qualification.
+
+Four/six restore receipts retain 88/132 actual project-assets graphs, all source
+locks and restore logs. Independent inspection compares every package/version/
+logical hash, input/validator/source-lock byte identity and original run identity.
+The native API transport retains original-attempt metadata/logs and all server
+digest evidence after bounded CLI connection timeouts. No test is rerun for that
+transport correction. Actual development Linux tar/deb/AppImage installation,
+startup/icons and Mac ad-hoc signature/start/icons pass; retrieved manifests match
+all actual package file hashes. The Windows tagged package and draft jobs skip.
+No tag, public preview, stable publication, native desktop qualification or
+candidate is created. Earlier failed runs remain retained.
+
+Private `FileCatReleaseEvidence/ci-37476206680-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | c079addd1eb2928ea264a54d0a888bf6d6a41637669b4ea89031aecf192160d8 |
+| independent-fixture-ci-v1.json | ab120936c391deabaefe6507a878270a1e0ff47c5de42d7469da6338fb30f9b8 |
+| independent-producer-policy-ci-v1.json | ef4aad3a2625855d14b0383aad767808cddf25702ff11ed6a8c28a6f486154ee |
+| independent-draft-guard-ci-v1.json | c3e83a6b59a9ff61a105aa6642d8a4ddb2ba93ce7ce9c0f2533c2f19c7da9d46 |
+| independent-separation-ci-v1.json | 076d360d5e38580a5158921942866994599195eadd366e0b12c524a53fff3aa5 |
+| independent-restore-ci-v1.json | c0a98933378c94461e6c8f72247c514b31b569d8c1ab0ad18529b0b45af848e8 |
+
+Private `FileCatReleaseEvidence/ci-37476271305-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | f0e349c3ce222771080f1660d5ab3c2a41143cb65264ff1381a5650336196ffe |
+| independent-fixture-ci-v1.json | 7e13f5eb5b665ffdf1eb037663b554bec3fa8820992265cc1fc6cc8275e6f3da |
+| independent-producer-policy-ci-v1.json | 0f329ed3b18afd45d15b452832894d3e5d4bfe2d9789c81a817d7f9413ef02bd |
+| independent-draft-guard-ci-v1.json | 0ab4d85f95d8b163c8e9b27e3abfdf73eaf7eac37298e502441827e9a454af17 |
+| independent-separation-ci-v1.json | 49f803d890586bbaab2b79ac605672fddc3cea62897862353facca334aa5fe6f |
+| independent-restore-ci-v1.json | 447af4a6f71f4d44589b046bb3a7d93b7d3bd0db5be537d7d15eaeed691120b0 |
+
+## Owned extracted-input and full-text preparation
+
+Read-only comparison of the owned cache associated with the raw-source derivation
+and dirty working restore verifies **1,644 extracted inputs across 63 packages**
+against the previously pinned NuGet archives. Actual assets declarations, generated
+metadata, original archive identities, byte-preserving nuspec case normalization
+and non-input archive metadata remain separately recorded. The original observer
+uses the wrong archive-hash field name and fails before comparison; corrected v2
+uses the retained schema, without modifying the cache or rerunning FileCat.
+This covers the observed owned cache. It does not prove all compiler reads,
+implicit SDK/runtime packs or the hosted runners' extracted input bytes.
+
+Nine full license/notice Git blobs are retrieved at immutable source revisions
+declared by the exact packages and independently verify their Git SHA-1, length
+and SHA-256. Thirty-eight original full texts are staged with a package/file/hash
+index for the thirty-eight resolved App graph packages, including build-only/RID
+alternatives. Their presence does not establish that all those components ship.
+The staged bundle explicitly records one full-text gap: LTRData.Extensions
+1.0.23 declares MIT, but its complete, nontruncated declared source tree contains
+no license-named file. That finite search does not establish the absence of all
+possible licensing statements. No license eligibility or RAR/native/runtime/
+AppImage obligation conclusion is inferred from metadata or root licenses.
+The bundle is still private preparation; package source changes and actual
+archive notice-byte validation remain the next executable work.
+
+Private `FileCatReleaseEvidence/nuget-locks-20261006-v3`:
+
+| Retained path | SHA-256 |
+|---|---|
+| extracted-inputs-v2/independent-extracted-inputs-v2.json | 819cd3fc0b74b1fe1770981e9743338ff0ecb02296f1aea8c57049c5748f4acd |
+| upstream-license-roots-v1/pinned-license-roots-v1.json | e03ebc141e97d8e2fc9ba9ff391b2f4fe096a0686c750071523e0596865b8c58 |
+| upstream-license-texts-v1/independent-upstream-texts-v1.json | 57c5c5429bf7cdab84a5c4722085ce13324d62b8567d4a203c1744cbd4121d5f |
+| notice-bundle-v1/independent-notice-bundle-v1.json | 8a582177baaa5df8eddec9846880a87c74034d0e720a24fa413f281928bd0515 |

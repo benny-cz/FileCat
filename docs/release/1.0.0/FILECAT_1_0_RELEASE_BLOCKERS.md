@@ -26,9 +26,14 @@ I03 restore correction adopts twenty-two locks/default locked mode/explicit
 maintenance and missing-lock guard after 52 isolated controls, actual five-RID App
 and four helper publishes/1,645 output pins. The packaging icon tool gains an
 explicit locked project; all seven frames remain exact. Working all-project
-restore retains twenty-two independently checked actual graphs. CI builders now
-retain those graphs before building. Committed hosted/package revalidation,
-extracted/native/runtime/license/SBOM/candidate scopes remain Open (E-I03-RESTORE).
+restore retains twenty-two independently checked actual graphs. Source a7a70ae
+seals original push/development CI with nineteen/twenty-five digests, full
+inventories, 88/132 actual graphs and real Linux/Mac packages. Owned 63-archive/
+1,644 extracted-input comparison passes; nine upstream blobs/38 original notice
+texts are staged. LTRData.Extensions 1.0.23 full-text provenance remains queued
+after its complete declared source tree has no license-named file. Notice
+packaging, hosted extracted/native/runtime/license/SBOM/candidate scopes remain
+Open (E-I03-RESTORE).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
