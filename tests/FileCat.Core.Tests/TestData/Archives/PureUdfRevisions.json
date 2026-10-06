@@ -1,0 +1,420 @@
+{
+  "Generator": "macOS newfs_udf -b 2048 -r <revision> -v FILECAT_udf<revision> on an owned 32 MiB regular file",
+  "NativeOS": "macOS 27.0.1 (26A434), arm64, ordinary UID 501",
+  "InitialInventoryFailure": "Native fseventsd wrote two additional files after the writable census; original failure retained. Final native inventory was taken after read-only attachment; image hashes did not change.",
+  "IndependentReader": "7-Zip 24.01, complete names/directories/bytes match final read-only native inventory",
+  "GeneratorManifestSHA256": "fe5b85c889411366a3c41c549563c3db670505b4948851ac75a65f98fb80ae1c",
+  "FinalNativeSnapshotSHA256": "747dab408d1d706faf5aa4691be19cd6c15ff380f3936d2d9c32a551ffa6f18c",
+  "IndependentProofSHA256": "8162c4304671fa1417cd6304ee0a408ebbc411d1f78efe61751667bd7669306b",
+  "ZIP_SHA256": "446727ee330fb8b80f9375691c79516339c7ae4e091dcc723fc90744ea4419eb",
+  "Fixtures": [
+    {
+      "Revision": "1.02",
+      "Image": "udf102.udf",
+      "Bytes": 33554432,
+      "SHA256": "f836ce68697f1e927e1b812976d7bef2abe5e675a2d7358de30846896dc0b644",
+      "Files": [
+        {
+          "Path": ".fseventsd/000000002a470828",
+          "Bytes": 223,
+          "SHA256": "2799b53a9652c87649b265afd2c0a7b8db9eb8a4f3cd401834f7ee8917196289"
+        },
+        {
+          "Path": ".fseventsd/000000002a470829",
+          "Bytes": 72,
+          "SHA256": "795d18b1b276941b1e36b19f95dd6198191a5d491c5033f3500545c315b635c3"
+        },
+        {
+          "Path": ".fseventsd/fseventsd-uuid",
+          "Bytes": 36,
+          "SHA256": "15cdbd88841a9cb4c373eaf075e0109ba066cc313f0e11cf467e5fcb57cacd0e"
+        },
+        {
+          "Path": ".metadata_never_index",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "empty.txt",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "folder/big.txt",
+          "Bytes": 150,
+          "SHA256": "2523d486d8b4eccce402728bf90f5c4632a6c4cf61d109c176f59c06c49c6114"
+        },
+        {
+          "Path": "folder/日本語.txt",
+          "Bytes": 13,
+          "SHA256": "74e3c59b31d9e7705d45e5768c77deac94e5b1d0b9595376b8eb1c261d6ca59c"
+        },
+        {
+          "Path": "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
+          "Bytes": 9,
+          "SHA256": "e634cc1daabcf0e599ab0e2123095ab4386337e2dda988ff10ec813c8141c245"
+        },
+        {
+          "Path": "plain.bin",
+          "Bytes": 5120,
+          "SHA256": "4345361085c730756d843f13849c50a996fe2f1fac3a7ac05fb063bb743a423e"
+        },
+        {
+          "Path": "small.txt",
+          "Bytes": 5,
+          "SHA256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+        },
+        {
+          "Path": "space name.txt",
+          "Bytes": 11,
+          "SHA256": "b1119bd03a02b7515085e553f3ad0bd2687d72e80b52337d20610a769b223245"
+        }
+      ],
+      "Directories": [
+        ".fseventsd",
+        "emptydir",
+        "folder"
+      ]
+    },
+    {
+      "Revision": "1.50",
+      "Image": "udf150.udf",
+      "Bytes": 33554432,
+      "SHA256": "400362ec8f53210cf49240f0721d79c5586f550d238d1c20ef07e52be1aa0e94",
+      "Files": [
+        {
+          "Path": ".fseventsd/000000002a470941",
+          "Bytes": 222,
+          "SHA256": "241ef19aa1e3e8e8670f3daf3fd1ecd8dd56ca1c2d1c4459882af9648d410ae8"
+        },
+        {
+          "Path": ".fseventsd/000000002a470942",
+          "Bytes": 71,
+          "SHA256": "94491ab49a305bf72d08e4a12537388617f02521b4fe16165197b84ad27e43ca"
+        },
+        {
+          "Path": ".fseventsd/fseventsd-uuid",
+          "Bytes": 36,
+          "SHA256": "91ec992e7e0af167b3dd8a00e8447de86099de82525346ba322b4610cb6b4ac2"
+        },
+        {
+          "Path": ".metadata_never_index",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "empty.txt",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "folder/big.txt",
+          "Bytes": 150,
+          "SHA256": "2523d486d8b4eccce402728bf90f5c4632a6c4cf61d109c176f59c06c49c6114"
+        },
+        {
+          "Path": "folder/日本語.txt",
+          "Bytes": 13,
+          "SHA256": "74e3c59b31d9e7705d45e5768c77deac94e5b1d0b9595376b8eb1c261d6ca59c"
+        },
+        {
+          "Path": "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
+          "Bytes": 9,
+          "SHA256": "e634cc1daabcf0e599ab0e2123095ab4386337e2dda988ff10ec813c8141c245"
+        },
+        {
+          "Path": "plain.bin",
+          "Bytes": 5120,
+          "SHA256": "4345361085c730756d843f13849c50a996fe2f1fac3a7ac05fb063bb743a423e"
+        },
+        {
+          "Path": "small.txt",
+          "Bytes": 5,
+          "SHA256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+        },
+        {
+          "Path": "space name.txt",
+          "Bytes": 11,
+          "SHA256": "b1119bd03a02b7515085e553f3ad0bd2687d72e80b52337d20610a769b223245"
+        }
+      ],
+      "Directories": [
+        ".fseventsd",
+        "emptydir",
+        "folder"
+      ]
+    },
+    {
+      "Revision": "2.00",
+      "Image": "udf200.udf",
+      "Bytes": 33554432,
+      "SHA256": "b32e1e9551750f78033e8b6d6f2c5b71ae2301af845bc72ea82bafaef4023c35",
+      "Files": [
+        {
+          "Path": ".fseventsd/000000002a4709fd",
+          "Bytes": 223,
+          "SHA256": "84194ea28264b8b1e8c4b0c7ae7d01327ca038df7b7a62211f69a570cb4b672c"
+        },
+        {
+          "Path": ".fseventsd/000000002a4709fe",
+          "Bytes": 72,
+          "SHA256": "c67f889ba66b114990a1fa09e7592b2f912cc6b9999051ed53e7ed026f48340d"
+        },
+        {
+          "Path": ".fseventsd/fseventsd-uuid",
+          "Bytes": 36,
+          "SHA256": "dea49f6d115c5514e4f4851967d4dd8dfc5ac192553932a828e2040db946ee41"
+        },
+        {
+          "Path": ".metadata_never_index",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "empty.txt",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "folder/big.txt",
+          "Bytes": 150,
+          "SHA256": "2523d486d8b4eccce402728bf90f5c4632a6c4cf61d109c176f59c06c49c6114"
+        },
+        {
+          "Path": "folder/日本語.txt",
+          "Bytes": 13,
+          "SHA256": "74e3c59b31d9e7705d45e5768c77deac94e5b1d0b9595376b8eb1c261d6ca59c"
+        },
+        {
+          "Path": "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
+          "Bytes": 9,
+          "SHA256": "e634cc1daabcf0e599ab0e2123095ab4386337e2dda988ff10ec813c8141c245"
+        },
+        {
+          "Path": "plain.bin",
+          "Bytes": 5120,
+          "SHA256": "4345361085c730756d843f13849c50a996fe2f1fac3a7ac05fb063bb743a423e"
+        },
+        {
+          "Path": "small.txt",
+          "Bytes": 5,
+          "SHA256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+        },
+        {
+          "Path": "space name.txt",
+          "Bytes": 11,
+          "SHA256": "b1119bd03a02b7515085e553f3ad0bd2687d72e80b52337d20610a769b223245"
+        }
+      ],
+      "Directories": [
+        ".fseventsd",
+        "emptydir",
+        "folder"
+      ]
+    },
+    {
+      "Revision": "2.01",
+      "Image": "udf201.udf",
+      "Bytes": 33554432,
+      "SHA256": "b746e318c14508511f848c8eb12a1214fef72c8035560e5f1fe195a0d05d7397",
+      "Files": [
+        {
+          "Path": ".fseventsd/000000002a470ab4",
+          "Bytes": 222,
+          "SHA256": "7221d36a2075220a7764be026119fa635f9eb7936296624d72d8d9dca5faffeb"
+        },
+        {
+          "Path": ".fseventsd/000000002a470ab5",
+          "Bytes": 72,
+          "SHA256": "feaeacc2edee3a02dcc4f82430dfe241735e6e5f615cf67fcdf515365651b9d7"
+        },
+        {
+          "Path": ".fseventsd/fseventsd-uuid",
+          "Bytes": 36,
+          "SHA256": "f173e1698232fa07730f1379167946970893876393a530bd9a9cc32022161ed9"
+        },
+        {
+          "Path": ".metadata_never_index",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "empty.txt",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "folder/big.txt",
+          "Bytes": 150,
+          "SHA256": "2523d486d8b4eccce402728bf90f5c4632a6c4cf61d109c176f59c06c49c6114"
+        },
+        {
+          "Path": "folder/日本語.txt",
+          "Bytes": 13,
+          "SHA256": "74e3c59b31d9e7705d45e5768c77deac94e5b1d0b9595376b8eb1c261d6ca59c"
+        },
+        {
+          "Path": "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
+          "Bytes": 9,
+          "SHA256": "e634cc1daabcf0e599ab0e2123095ab4386337e2dda988ff10ec813c8141c245"
+        },
+        {
+          "Path": "plain.bin",
+          "Bytes": 5120,
+          "SHA256": "4345361085c730756d843f13849c50a996fe2f1fac3a7ac05fb063bb743a423e"
+        },
+        {
+          "Path": "small.txt",
+          "Bytes": 5,
+          "SHA256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+        },
+        {
+          "Path": "space name.txt",
+          "Bytes": 11,
+          "SHA256": "b1119bd03a02b7515085e553f3ad0bd2687d72e80b52337d20610a769b223245"
+        }
+      ],
+      "Directories": [
+        ".fseventsd",
+        "emptydir",
+        "folder"
+      ]
+    },
+    {
+      "Revision": "2.50",
+      "Image": "udf250.udf",
+      "Bytes": 33554432,
+      "SHA256": "3f2c69d1e91585afcb6e649e968f903fc871d8fc3fccc0ccced187f6238ac441",
+      "Files": [
+        {
+          "Path": ".fseventsd/000000002a470b7b",
+          "Bytes": 221,
+          "SHA256": "ddddfc7f1d4413b4f16d2587038df407fe1784b02c3fc4b69ad764a2cb682925"
+        },
+        {
+          "Path": ".fseventsd/000000002a470b7c",
+          "Bytes": 72,
+          "SHA256": "0e5cbf1756de47e6a48c33bcd0a17b62c9f177a72818f47475efa3ab1011f2d1"
+        },
+        {
+          "Path": ".fseventsd/fseventsd-uuid",
+          "Bytes": 36,
+          "SHA256": "910e2cae51b5094d3b1287682f8b47dcb4a423ce9e5e61e3b53bee597e48e9a8"
+        },
+        {
+          "Path": ".metadata_never_index",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "empty.txt",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "folder/big.txt",
+          "Bytes": 150,
+          "SHA256": "2523d486d8b4eccce402728bf90f5c4632a6c4cf61d109c176f59c06c49c6114"
+        },
+        {
+          "Path": "folder/日本語.txt",
+          "Bytes": 13,
+          "SHA256": "74e3c59b31d9e7705d45e5768c77deac94e5b1d0b9595376b8eb1c261d6ca59c"
+        },
+        {
+          "Path": "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
+          "Bytes": 9,
+          "SHA256": "e634cc1daabcf0e599ab0e2123095ab4386337e2dda988ff10ec813c8141c245"
+        },
+        {
+          "Path": "plain.bin",
+          "Bytes": 5120,
+          "SHA256": "4345361085c730756d843f13849c50a996fe2f1fac3a7ac05fb063bb743a423e"
+        },
+        {
+          "Path": "small.txt",
+          "Bytes": 5,
+          "SHA256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+        },
+        {
+          "Path": "space name.txt",
+          "Bytes": 11,
+          "SHA256": "b1119bd03a02b7515085e553f3ad0bd2687d72e80b52337d20610a769b223245"
+        }
+      ],
+      "Directories": [
+        ".fseventsd",
+        "emptydir",
+        "folder"
+      ]
+    },
+    {
+      "Revision": "2.60",
+      "Image": "udf260.udf",
+      "Bytes": 33554432,
+      "SHA256": "a4435ce1fe1a16ff9b44d03f26eecbefa957772d7c40d3e15464aa4f5f31e923",
+      "Files": [
+        {
+          "Path": ".fseventsd/000000002a470c39",
+          "Bytes": 222,
+          "SHA256": "6392a08e96537071839cd3a57661c3b6e4679fecc81f093b04fa7f21b6a95875"
+        },
+        {
+          "Path": ".fseventsd/000000002a470c3a",
+          "Bytes": 71,
+          "SHA256": "f1e8223f21b8bfa0e542f100bd718768e585980c6156614387cb75b842ab8d77"
+        },
+        {
+          "Path": ".fseventsd/fseventsd-uuid",
+          "Bytes": 36,
+          "SHA256": "c7a6d35b3de1e698914ed931be9b40a26bee68dd1de0ffcd37ea21186524dc5a"
+        },
+        {
+          "Path": ".metadata_never_index",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "empty.txt",
+          "Bytes": 0,
+          "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "Path": "folder/big.txt",
+          "Bytes": 150,
+          "SHA256": "2523d486d8b4eccce402728bf90f5c4632a6c4cf61d109c176f59c06c49c6114"
+        },
+        {
+          "Path": "folder/日本語.txt",
+          "Bytes": 13,
+          "SHA256": "74e3c59b31d9e7705d45e5768c77deac94e5b1d0b9595376b8eb1c261d6ca59c"
+        },
+        {
+          "Path": "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
+          "Bytes": 9,
+          "SHA256": "e634cc1daabcf0e599ab0e2123095ab4386337e2dda988ff10ec813c8141c245"
+        },
+        {
+          "Path": "plain.bin",
+          "Bytes": 5120,
+          "SHA256": "4345361085c730756d843f13849c50a996fe2f1fac3a7ac05fb063bb743a423e"
+        },
+        {
+          "Path": "small.txt",
+          "Bytes": 5,
+          "SHA256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+        },
+        {
+          "Path": "space name.txt",
+          "Bytes": 11,
+          "SHA256": "b1119bd03a02b7515085e553f3ad0bd2687d72e80b52337d20610a769b223245"
+        }
+      ],
+      "Directories": [
+        ".fseventsd",
+        "emptydir",
+        "folder"
+      ]
+    }
+  ]
+}

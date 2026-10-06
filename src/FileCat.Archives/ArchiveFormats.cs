@@ -612,15 +612,27 @@ internal sealed class SharpArchiveReader : IMemberReader
                 if (parts[i].Number - parts[i - 1].Number > 1) numberedVolumeGap = true;
             return parts.Count > 0 ? parts.Select(x => x.Path).ToList() : [path];
         }
-        var old = new List<string> { path };
-        var baseName = Path.Combine(dir, Path.GetFileNameWithoutExtension(name));
-        for (int i = 0; i < 1000; i++)
+        var extension = Path.GetExtension(name);
+        bool secondary = System.Text.RegularExpressions.Regex.IsMatch(extension, @"^\.[r-z]\d{2}$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var baseName = Path.GetFileNameWithoutExtension(name);
+        var old = new List<(string Path, int Number)>();
+        if (!secondary) old.Add((path, 0));
+        foreach (string candidate in Directory.EnumerateFiles(dir))
         {
-            var next = baseName + (i < 100 ? $".r{i:00}" : $".s{i - 100:00}");
-            if (!File.Exists(next)) break;
-            old.Add(next);
+            if (!string.Equals(Path.GetFileNameWithoutExtension(candidate), baseName, StringComparison.OrdinalIgnoreCase)) continue;
+            string suffix = Path.GetExtension(candidate).ToLowerInvariant();
+            if (secondary && suffix == ".rar") old.Add((candidate, 0));
+            else if (System.Text.RegularExpressions.Regex.IsMatch(suffix, @"^\.[r-z]\d{2}$"))
+                old.Add((candidate, 1 + (suffix[1] - 'r') * 100 + (suffix[2] - '0') * 10 + suffix[3] - '0'));
         }
-        return old;
+        old.Sort((a, b) => a.Number.CompareTo(b.Number));
+        // A secondary entry point needs the primary volume first, once. Retain later volumes after a gap,
+        // with the same explicit discovery warning as numbered sets; stopping at a gap loses intact members.
+        if (old.Count > 0 && old[0].Number != 0) numberedVolumeGap = true;
+        for (int i = 1; i < old.Count; i++)
+            if (old[i].Number - old[i - 1].Number > 1) numberedVolumeGap = true;
+        return old.Count > 0 ? old.Select(x => x.Path).ToList() : [path];
     }
 
     private static string Describe(Exception ex) =>
