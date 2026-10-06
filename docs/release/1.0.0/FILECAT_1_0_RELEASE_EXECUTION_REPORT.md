@@ -7,6 +7,19 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I148 is preliminarily remediated at committed 9da5738: six complete legacy RAR
+secondary entry points fail before and pass after; only archive DLL differs under
+the identical final test DLL. Ten unchanged positives and all sixteen corrected
+controls, affected host 63/0 and full Core 804/56 declared skips/860 cases verify.
+Pure UDF 1.02/1.50/2.00/2.01/2.50/2.60 actual components match fresh read-only native
+and independent oracles: 36 search/132 exact reads, unchanged source/payload bytes.
+Original attachment, writable-census timing, secondary 7-Zip assumption and empty
+temp-container observer failures remain retained. Clean native/CI publication is
+running; wider/native UI/candidate remain. Counts 126/148 preliminary Remediated,
+one Closed, 21 remaining issues; 24/26 checklist steps remain partly/fully open.
+This is not a denominator for individual remaining test items. No interaction is
+requested before 08:40 CEST; Mac awake restoration is due (E-I148/E-V13-UDF2).
+
 I147 is preliminarily remediated at 6cf17e5 after four reproduced Windows icon
 failures. Identical before/after controls, three portable queue/retry/stale/LRU
 controls and full host 365/23 declared skips/388 cases pass. Clean source/native
@@ -2309,6 +2322,21 @@ Overall **NO-GO** remains.
      Mac awake v3/restorer stays active, restoration due; VMs running, G: untouched/
      HOLD, owner gates queued until 08:40 CEST. No candidate/human GO; NO-GO.
 
+302. Pure UDF six-revision native/independent/actual component corpus passes 36
+     search/132 exact member reads with all inputs unchanged. Retain first generic
+     attach and writable-census timing failures; fresh read-only final native
+     inventory includes event files and all six images detach. Actual legacy RAR
+     corpus reveals I148, six secondary entry-point failures. Commit/push 9da5738
+     primary-once/ordered siblings/gap warning fix, unchanged upstream fixtures
+     and six UDF/ten legacy regressions. Identical final DLL/only archive DLL changed
+     gives six baseline failures/ten positives then 16 corrected passes; original
+     secondary-tool and empty-container observer assumptions remain retained.
+     Affected 63/0/full Core 804/56 declared skips/860 cases independently verify.
+     Clean native/CI continues. Counts 126/148 preliminary, one Closed, 21 remain;
+     no desktop/candidate qualification or human GO. Mac awake v3 remains active,
+     restoration due; both VMs stay running, G: untouched/HOLD, owner gates queued
+     until 08:40 CEST. NO-GO (E-I148/E-V13-UDF2).
+
 ## Evidence invalidated by the campaign's own changes
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
@@ -2530,7 +2558,8 @@ Overall **NO-GO** remains.
    only fixture disk spelling. Four clean 3caf480 CI jobs and 71 SDK-free cases per Windows/Ubuntu
    guest pass, with all source/fixture/case/cleanup pins verified. Independent ISO 9660/Joliet/UDF 1.02 and six numbered-RAR entry points now pass another 54 search/
    72 content controls. I136 fixes a missing interior-volume warning; four clean a1c265f CI jobs
-   and 81 cases per VM pass with all pins/cleanup verified. Pure UDF/other revisions, legacy RAR
+   and 81 cases per VM pass with all pins/cleanup verified. Pure UDF six-revision and legacy RAR component controls now pass host oracles; clean native/CI
+   qualification is running (E-V13-UDF2/E-I148). Other revision/topology variants,
    naming, native interaction and exact-candidate checks remain required (E-I136).
 1d. V16: ready-for-input and input-to-frame latency need the window on a desktop and the reference machine.
    Current desktop state was not observed: updated Computer Use import and plain Node startup both fail before

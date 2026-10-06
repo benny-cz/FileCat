@@ -1,5 +1,13 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
+Current overnight slice: I148 is preliminarily remediated at 9da5738 after six
+legacy secondary-volume failures; identical before/after test bytes, affected host
+63/0/full Core 804/56 declared skips/860 cases pass. Pure UDF six revisions have
+independent/native exact oracles, 36 search/132 reads. Clean native/CI pending.
+126/148 preliminary Remediated, one Closed, 21 remain; no exact-candidate or stable
+GO. Mac awake v3 is active with restoration due; owner needs stay queued until
+08:40 CEST. Both VMs remain running and G: remains untouched/HOLD (E-I148/E-V13-UDF2).
+
 Only unresolved items are listed; closed items move to the [execution report](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
 history. Engineering defects are tracked in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md); every issue there that
 is not Closed also blocks GO (plan §12.6: no unresolved blocker at any severity). Current recommendation: **NO-GO**
