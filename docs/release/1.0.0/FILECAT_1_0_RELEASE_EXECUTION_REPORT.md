@@ -7,11 +7,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-I152 is open: current Git child reads a linked metadata descendant and generates
-14 SMB flows/126 packets inside exact controls. Ordinary badge and separate HEAD
-zero-contact control/payload/receiver cleanup verify; correction and identical
-revalidation are underway (E-I152). Current 129/152 preliminary, one Closed,
-22 remaining; all campaigns still require final qualification.
+I152 is preliminarily remediated at e3c99d5: unchanged native probe/only clean App
+DLL changed eliminates 14 SMB flows/126 packets and preserves ordinary badge/
+exact controls/zero reported loss/cleanup. Identical final seven controls/721
+inputs, full host 385/23/408, native Windows 28/3 and Mac/Ubuntu 15/16 verify.
+CI three required lanes pass; Ubuntu Core cadence fails I153, diagnosis underway.
+Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
+Current 130/153 preliminary, one Closed, 22 remain; all campaigns need final
+qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 compiler provenance is preliminarily corrected at 0646053: exact official
 Inno package/119 frozen inputs, complete 122-file native inventory, installed exact
@@ -2510,6 +2513,24 @@ Overall **NO-GO** remains.
      control has no extra contact. Original decoder/writer assumptions retained
      and corrected without replacing native results. Current 129/152 preliminary,
      one Closed, 22 remaining; correct/revalidate the defect (E-I152).
+
+314. I152 e3c99d5 bounded metadata-tree admission passes six original failures/
+     seven final controls, identical 721-input comparison/only App DLL changes,
+     affected 27/1 and full host 385/23/408. All raw source/native Windows 28/3,
+     Mac/Ubuntu 15/16 and payload/temp/process pins verify. Unchanged private probe/
+     only clean App DLL now produces zero extra endpoint contact versus 14 SMB
+     flows/126 packets, ordinary badge/two controls/loss/receiver cleanup preserved.
+     Initial rebuilt test DLL identity differed; strict failed observation retained
+     and fresh final controlled comparison completed. Mac connectivity resumes and
+     queued I151 Mac repeat passes 14/10/350 pins/cleanup (E-I151/E-I152).
+
+315. Preserve failed e3c99d5 CI 37412907260: three required lanes pass, Ubuntu Core
+     cadence assertion fails I153. Four server digests/five complete inventories/
+     408 exact Windows/Mac App names/31 selected names and ARM64 log/startup/drawing/
+     installer verify. No Ubuntu App or per-case Core inventory exists; failure
+     remains. Writer timestamp 6.10 s/callbacks 2.04/4.04/6.07 s need controlled
+     event/content reproduction. Current 130/153 preliminary, one Closed, 22 remain;
+     continue autonomously without an owner interaction (E-I153).
 
 ## Evidence invalidated by the campaign's own changes
 
