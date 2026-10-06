@@ -72,6 +72,13 @@ to original archives; twelve FileCat outputs remain generated. Fresh 38-package
 NuGet query/feed/twelve ranges/six controls report no affected version, with native,
 unknown-advisory/license/complete-SBOM limitations retained (E-I03-PAYLOAD/ADVISORIES).
 
+Native observations extend to all actual Unix packages at source 8502983:
+Linux native inventories are identical across tar/deb/AppImage and seventeen of
+eighteen ELF files match original members; Mac's seventeen third-party native files
+have bounded signing-transform comparisons and byte-change refusals. Generated
+apphosts, universal metadata/signature authenticity/static-source/legal/full SBOM/
+candidate qualification remain Open (E-I03-PAYLOAD).
+
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
 picture-demand case (E-I160). New I161 independently reproduces unscheduled

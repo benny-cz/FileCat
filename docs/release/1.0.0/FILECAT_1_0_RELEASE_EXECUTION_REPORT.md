@@ -24,6 +24,13 @@ Counts remain 139/161 preliminary Remediated, one Closed, 21 remaining issue
 remediations; all 24 campaigns require final-candidate qualification. No candidate
 exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
 
+Native Unix follow-up on the same actual 8502983 packages records eighteen ELF
+files per Linux archive, seventeen exact original-member matches each and
+identical tar/deb/AppImage native inventories. Mac's eighteen Mach-O files include
+seventeen bounded original-member/signature-transform comparisons with byte-change
+refusals. Generated apphosts/signature authenticity/static composition remain
+separate. All eight package payloads now have preliminary native byte observations.
+
 Earlier preliminary execution and retained failures:
 
 Owner-requested low-priority README presentation and all-theme Windows screenshot
@@ -3396,3 +3403,18 @@ Independent public-record reconciliation verifies 166 private evidence hashes
 and the unchanged 161/139/1/21 issue counts. Retained
 `release-assets-20261006/independent-records-v13.json` SHA-256:
 `e3c53c9fd2fe5c731bc88565583d6fefd6c98c33d191282d11ff05a0dfdffb80`.
+
+364. Actual 8502983 Linux tar/deb/AppImage native ELF inventories each contain
+    eighteen files, seventeen exact original owned archive matches and one
+    generated apphost. All three path/size/hash sets agree. Mac ZIP contains
+    eighteen native Mach-O files: seventeen independently bounded per-slice
+    signing transformations preserve all prefix bytes outside explicit signature/
+    link-edit size fields, with per-file one-byte refusal controls; FileCat is
+    generated. Universal metadata/signature authenticity/static composition are
+    not qualified. Original missing-import observer is retained. All package/
+    archive pins remain unchanged; no binary, device, VM/Mac access or setting
+    change. I03 and all final-candidate gates remain Open (E-I03-PAYLOAD).
+
+Unix follow-up record reconciliation verifies 168 private hashes and unchanged
+issue counts. Retained `release-assets-20261006/independent-records-v14.json`
+SHA-256: `d4fe42f7723212cdff62f87a2478e9045b4f09e687e25a8b93568b7fcb0cec9d`.
