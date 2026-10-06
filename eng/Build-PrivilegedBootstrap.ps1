@@ -42,13 +42,23 @@ $NumericVersion = [Version](($Version -split '-')[0])
 $Parts = @($NumericVersion.Major,$NumericVersion.Minor,[Math]::Max(0,$NumericVersion.Build),[Math]::Max(0,$NumericVersion.Revision))
 if (@($Parts | Where-Object { $_ -gt 65535 }).Count -ne 0) { throw 'Windows version components exceed 16 bits.' }
 $Tuple = $Parts -join ','
-$Resource = Join-Path $IntermediateDirectory 'NativeBootstrap.rc'
-$ResourceObject = Join-Path $IntermediateDirectory 'NativeBootstrap.res'
-$NativeOutput = Join-Path $IntermediateDirectory 'FileCat.PrivilegedHost.exe'
-$CompilerObject = Join-Path $IntermediateDirectory 'NativeBootstrap.obj'
+$TemporaryParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+$Temporary = Join-Path $TemporaryParent ('FileCatBootstrap-' + [guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $Temporary) { throw 'Native compiler temporary directory collision.' }
+if ($Temporary -match '["%\r\n!^&|<>]' -or $Temporary.Length -gt 180) { throw 'Native tools need a short supported temporary path.' }
+[void][IO.Directory]::CreateDirectory($Temporary)
+try {
+$CompileSource = Join-Path $Temporary 'NativeBootstrap.cpp'
+$CompileManifest = Join-Path $Temporary 'app.manifest'
+$CompileIcon = Join-Path $Temporary 'filecat.ico'
+[IO.File]::Copy($Source,$CompileSource);[IO.File]::Copy($Manifest,$CompileManifest);[IO.File]::Copy($Icon,$CompileIcon)
+$Resource = Join-Path $Temporary 'NativeBootstrap.rc'
+$ResourceObject = Join-Path $Temporary 'NativeBootstrap.res'
+$NativeOutput = Join-Path $Temporary 'FileCat.PrivilegedHost.exe'
+$CompilerObject = Join-Path $Temporary 'NativeBootstrap.obj'
 $ResourceText = @"
 #include <windows.h>
-1 ICON "$(($Icon -replace '\\','/'))"
+1 ICON "filecat.ico"
 1 VERSIONINFO
  FILEVERSION $Tuple
  PRODUCTVERSION $Tuple
@@ -78,7 +88,7 @@ BEGIN
 END
 "@
 [IO.File]::WriteAllText($Resource,$ResourceText,[Text.Encoding]::Unicode)
-$Batch = Join-Path $IntermediateDirectory 'BuildNativeBootstrap.cmd'
+$Batch = Join-Path $Temporary 'BuildNativeBootstrap.cmd'
 $BatchText = @"
 @echo off
 call "$DevCmd" -arch=$Architecture -host_arch=$HostArchitecture
@@ -89,14 +99,14 @@ where rc.exe
 if errorlevel 1 exit /b 1
 rc.exe /nologo /fo"$ResourceObject" "$Resource"
 if errorlevel 1 exit /b 1
-cl.exe /nologo /std:c++17 /EHsc /MT /O1 /W4 /WX /DUNICODE /D_UNICODE /Fo"$CompilerObject" "$Source" /link /INCREMENTAL:NO /Brepro /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /MANIFEST:EMBED /MANIFESTINPUT:"$Manifest" /MANIFESTUAC:NO /OUT:"$NativeOutput" "$ResourceObject" shell32.lib ole32.lib user32.lib
+cl.exe /nologo /std:c++17 /utf-8 /EHsc /MT /O1 /W4 /WX /DUNICODE /D_UNICODE /Fo"$CompilerObject" "$CompileSource" /link /INCREMENTAL:NO /Brepro /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /MANIFEST:EMBED /MANIFESTINPUT:"$CompileManifest" /MANIFESTUAC:NO /OUT:"$NativeOutput" "$ResourceObject" shell32.lib ole32.lib user32.lib
 if errorlevel 1 exit /b 1
 "@
 [IO.File]::WriteAllText($Batch,($BatchText -replace "`r?`n","`r`n"),[Text.Encoding]::Default)
 $Info = New-Object Diagnostics.ProcessStartInfo
 $Info.FileName = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
 $Info.Arguments = '/d /s /c ""' + $Batch + '""'
-$Info.WorkingDirectory = $IntermediateDirectory
+$Info.WorkingDirectory = $Temporary
 $Info.UseShellExecute = $false
 $Info.CreateNoWindow = $true
 $Info.RedirectStandardOutput = $true
@@ -125,3 +135,12 @@ foreach ($Path in @($Source,$Manifest,$Icon,$Resource,$Compiler,$ResourceCompile
 }
 [IO.File]::WriteAllText((Join-Path $IntermediateDirectory 'bootstrap-build.json'),($Receipt | ConvertTo-Json -Depth 8),[Text.Encoding]::UTF8)
 Move-Item -LiteralPath $NativeOutput -Destination $OutputFile -Force
+[IO.File]::Copy($Batch,(Join-Path $IntermediateDirectory 'BuildNativeBootstrap.cmd'),$true)
+[IO.File]::Copy($Resource,(Join-Path $IntermediateDirectory 'NativeBootstrap.rc'),$true)
+}
+finally {
+    if ([IO.Path]::GetFullPath($Temporary) -ne (Join-Path $TemporaryParent ([IO.Path]::GetFileName($Temporary))) -or
+        [IO.Path]::GetFileName($Temporary) -notmatch '^FileCatBootstrap-[0-9a-f]{32}$' -or
+        (Get-Item -LiteralPath $Temporary).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unsafe native compiler cleanup path.' }
+    Remove-Item -LiteralPath $Temporary -Recurse -Force
+}
