@@ -54,3 +54,13 @@ Dashboard/registers now track 163 findings: 141 preliminary remediations, one pr
 Audit v25 independently rechecks 254 selected hashes, earlier bitmap seals, all actual dialog source/payload pins and original CI archive members. SHA-256: 1f4b9915cc5ccb902cfa03b735958ae0180807b8388d60574dd9250ec364591a.
 
 Current-tracking proof v6 verifies frozen histories/authority, all original issue identities/status classes and catalogue mappings, 163 direct issue anchors, predecessor legacy anchors and 387 local links/fragments; 172 current evidence entries and all remaining lists agree. SHA-256: 2ee2063553143152e9bb507fe9d0b5aeb5d68d844e216740ed1126b33621e3f7. The private v5 validator's undefined-variable failure is retained; it created no proof or document changes and v6 corrects the observer.
+
+## 2026-10-06 — mapped Linux component file provenance
+
+The exact original 6215329 Linux payload completes the ordinary-user QuickView case naturally, while three self-mapping snapshots retain 69 executable file images: 44 native ELF/25 managed CLR, including eight original native payload libraries, one private apphost and 35 OS libraries. Complete file snapshots and all OS package owners/versions are retained; independent section/program header readers agree on 44 dynamic dependency tables, and the eight original native libraries match three actual owned NuGet archives. [E-I03-LOADED](evidence/E-I03-LOADED-linux-component-images.md) records the finite scope and remaining static/legal/worker/full-desktop/candidate limits.
+
+Original readers fail on a deleted .NET memory-backed mapping and then on a CLR executable mapping; both diagnostics remain. The corrected reader uses the same maps, never reruns FileCat, and rechecks all payload pins and absence of owned processes. Original nullable-key warning remains. No product source, package, persistent setting, physical source or publication changes. I03 remains Partial audit; the original 21 unresolved entries remain. Next: executable I16/I17 boundary review.
+
+Independent loaded-image proof v4 verifies 218 retained files, 69 complete mapped-file snapshots, five compiled/deployed private binaries, 348 original payload pins and 33 assembly references. SHA-256: 836897599706a3f6b3b3dc3a8ecb444dcd876bcad3464d3e670e09ebb0a3d8bc.
+
+Audit v26 rechecks 263 selected hashes and all earlier/new binary, source, CI and mapped-image seals; SHA-256 6ab9ace8c17ad4343078a3570f9006595c7100fc5c297c7fe81a0312fb6c0cfd. Current-tracking proof v7 preserves frozen histories/authority and original identities/mappings, verifies 173 current evidence entries, unchanged issue totals, all remaining lists and 390 links/fragments; SHA-256 7b56f3d21af47dea92c8ea24b2eab76a74297d64265fcfef2f83b40ebaaeca86.
