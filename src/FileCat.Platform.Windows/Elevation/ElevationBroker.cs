@@ -100,17 +100,6 @@ public static partial class ElevationBroker
         return ok ? new string(image, 0, (int)size) : null;
     }
 
-    /// <summary>A plan runs at most once: its identifier is recorded in HKLM, which only administrators can change.</summary>
-    public static bool TryClaimNonce(string nonce, DateTime nowUtc)
-    {
-        using var key = Registry.LocalMachine.CreateSubKey(NonceKey, writable: true);
-        foreach (var name in key.GetValueNames())
-            if (key.GetValue(name) is long stamp && DateTime.FromFileTimeUtc(stamp) < nowUtc.AddDays(-2)) key.DeleteValue(name, throwOnMissingValue: false);
-        if (key.GetValue(nonce) is not null) return false;
-        key.SetValue(nonce, nowUtc.ToFileTimeUtc(), RegistryValueKind.QWord);
-        return true;
-    }
-
     /// <summary>
     /// Starts the broker through UAC with the plan's volume path and hash. Throws <see cref="OperationCanceledException"/>
     /// when the user declines the Windows prompt (nothing was changed).

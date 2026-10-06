@@ -3012,3 +3012,11 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     resource headers/full read tracing/licenses/system-library classification/
     broader provenance/candidate remain Open (E-I03-NATIVE). 137/159 preliminary,
     one Closed, 21 remaining issue remediations; no stable human GO.
+
+333. New I160: exact 573ed2c production nonce guard accepts simultaneous claims
+    in thirteen thread rounds and four separate eight-process rounds (8/5/8/7).
+    Sequential replay refuses; all original child receipts/held PIDs/natural
+    exits/payload/owned Registry restoration verify. Initial null-exit observer
+    retained and corrected. No production plan/consent/device is exercised.
+    Atomic correction continues autonomously (E-I160); 137/160 preliminary,
+    one Closed, 22 remaining issue remediations; no candidate/human stable GO.
