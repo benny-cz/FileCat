@@ -1,0 +1,20 @@
+# E-I03-SDK-ACTIONS — exact SDK, action commits and build receipts
+
+Date 2026-10-06. Preliminary pipeline correction for plan §10.2, I03/I18/I108. Committed-source CI validation is pending. No candidate, stable tag or human GO.
+
+`global.json` selects the already observed 10.0.401 SDK with roll-forward disabled and prereleases refused. Both workflows install from that single selector. The four previously floating action tags are replaced by the exact commits resolved from their official repositories; the existing release-writing action remains at its prior immutable commit. Every checkout explicitly disables persisted credentials. Hosted OS labels now specify Windows Server 2025 with VS2026, Ubuntu 24.04 and macOS 26; the existing Windows 11 ARM label remains. Labels do not freeze hosted image updates.
+
+The new build receipt runs before compilation, requires the exact selected SDK and a clean checkout, and refuses local Git authentication/included-configuration keys. It requests only key names; header/credential values are never read into observer output. The receipt records source SHA, selector hash, three resolved compiler-file hashes, SDK/runtime inventory, Git/PowerShell versions and a small explicit runner/image/run metadata allowlist. Each build uploads its receipt. Complete portable Core/Remote and ARM64 Core/Platform/Remote/App TRX output is now retained alongside the existing Windows/App inventories. Test assertions and shipped application behavior are unchanged.
+
+Official exact-commit `action.yml` sources were independently decoded and their Git blob IDs verified. All four use Node 24; checkout's persisted-credential input and setup-dotnet's global-selector input are present. Sources: [checkout](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/action.yml), [setup-dotnet](https://github.com/actions/setup-dotnet/blob/a98b56852c35b8e3190ac28c8c2271da59106c68/action.yml), [setup-python](https://github.com/actions/setup-python/blob/5fda3b95a4ea91299a34e894583c3862153e4b97/action.yml), [upload-artifact](https://github.com/actions/upload-artifact/blob/043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/action.yml). Exact SDK selection follows [Microsoft's global.json documentation](https://learn.microsoft.com/en-us/dotnet/core/tools/global-json); hosted label scope follows [GitHub's runner image catalogue](https://github.com/actions/runner-images#available-images).
+
+Owned host controls: two clean positive receipts; an existing-output collision leaves its exact receipt unchanged; a harmless local header key is refused without exposing its sentinel value; an unavailable 10.0.999 SDK is refused without producing a receipt. Only the owned fixture's selector/configuration was changed for these controls, then restored. Host solution build with the pinned 10.0.401 SDK: zero errors, 32 existing warnings. A successful host receipt was followed by a caller's stale native exit-code check reporting failure; the actual receipt verifies. The first action observer misread YAML's boolean default as text; its exact source and failure remain retained. A private workflow writer correctly stopped before any writes when it assumed the fixture workflow used setup-python; the corrected writer validates both workflows before writing.
+
+Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042-9e13-028bfb0e5c33\FileCatReleaseEvidence\toolchain-controls-20261006`.
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-action-inputs-v2.json | 03d8e484a33d6ad5b280febeb2685e01d5034afe95ac08ce9a9fdaf0be2d54fc |
+| pin-controls-v1/independent-pins-v1.json | 99c86b013c15464c1591f54b9ab0d7cbb42b9d8e483d81af1730f2f456b6e021 |
+
+The controls freeze their then-current workflow bytes; ARM64/portable Remote TRX additions followed and require committed CI revalidation. This slice does not freeze OS images, Python/test-server/apt inputs, NuGet restore graphs, every runtime/tool byte or all redistributed notices. Fixture workflow execution, full SBOM/provenance, signing, publication controls and final installed candidate qualification remain open. I03 and I18 remain Open.

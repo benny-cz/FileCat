@@ -11,10 +11,21 @@ I152 is preliminarily remediated at e3c99d5: unchanged native probe/only clean A
 DLL changed eliminates 14 SMB flows/126 packets and preserves ordinary badge/
 exact controls/zero reported loss/cleanup. Identical final seven controls/721
 inputs, full host 385/23/408, native Windows 28/3 and Mac/Ubuntu 15/16 verify.
-CI three required lanes pass; Ubuntu Core cadence fails I153, diagnosis underway.
+I153's unsuitable timestamp oracle is corrected at fd1d780: actual complete
+snapshots pass even with a delayed writer, while both deliberate unbounded
+debounce cases still fail. Host affected 3/full Core 819/56/875 and all three
+native repeats pass; exact-source CI Windows/macOS/Ubuntu pass, ARM64 and the
+full artifact seal are pending. Original CI scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
 Current 130/153 preliminary, one Closed, 22 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
+
+I03/I18 SDK/action/checkout correction is prepared: exact 10.0.401 without
+roll-forward, official immutable action commits, explicit hosted OS labels,
+unstored checkout credentials and pre-build clean source/compiler/runtime/image
+receipts. Two positive/three negative owned controls and host build pass;
+portable/ARM64 Core/Remote/App inventories now retain TRX. Committed CI and
+broader provenance/release controls remain open (E-I03-SDK-ACTIONS).
 
 I03/I18 compiler provenance is preliminarily corrected at 0646053: exact official
 Inno package/119 frozen inputs, complete 122-file native inventory, installed exact

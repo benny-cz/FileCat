@@ -31,3 +31,16 @@ Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042
 |---|---|
 | independent-host-v1.json | 8079d4ad87165601317d9ec1f03aa941bf0f02ab92eee591c47e345284654cdf |
 | negative-control/independent-negative-control-v1.json | 001bfc09f6abecdb775ab17c05d4e1085246b9cfca886d48b650c27d977218c7 |
+
+## Exact committed native repeat
+
+Source `fd1d780ad3732bf0940f1d5bd896831d7881f6ab` was exported from raw Git blobs, with every exported blob ID/size/SHA-256 verified and its source archive pinned. SDK-free native execution uses the actual published Core test program: Windows 26300 VM (three passes, zero skips, 331 payload pins); Ubuntu 26.04.1 VM (two passes, one explicit Windows-overflow skip, 331 pins); macOS 27.0.1 arm64 UID 501 (two passes, the same explicit skip, 330 pins). Both cadence cases pass in each environment. All input pins verify before/after, retained result pins and exact inventories independently match, and owned worker/temp cleanup verifies. The Mac runner's transient ordinary-user caffeinate ends with its command; no persistent power setting changes were introduced.
+
+| Private path under cadence-20261006 | SHA-256 |
+|---|---|
+| clean-v1/producer.json | e3d325bc5744c3e7623a7f4a7158b3549c475def6582b1f799b456a269856403 |
+| clean-v1/windows-executed/independent-guest-v1.json | 564af4816126579929cc6802b9a603e99124a9254b7f568c8f60f2b6142ddccb |
+| clean-v1/linux-executed/independent-guest-v1.json | 0f55a4e1158f71ef085be641efd69dffc57bb562314ad2f47445ba5a511e606f |
+| clean-v1/mac-executed/independent-native-v1.json | b6a06449a0125e26bfe35a7126e14721039ecdd5412dbf0de40901c5310232e5 |
+
+Required run 37414852140 has passed the Windows/macOS/Ubuntu lanes, including Ubuntu Core; ARM64 package-start/installer completion and the full artifact seal are still pending at this update. Original failure remains retained. No native GUI or candidate qualification is inferred.

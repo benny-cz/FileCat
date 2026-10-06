@@ -19,17 +19,27 @@ env:
 jobs:
   windows:
     name: Windows (build, all tests)
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     # A hung test stops the run in minutes, not hours; --blame-hang names it and dumps the processes.
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          dotnet-version: 10.0.x
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
@@ -41,7 +51,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python eng/validation/validate-windows-instance-processes.py --smoke-dll tools/FileCat.InstanceSmoke/bin/Release/net10.0/FileCat.InstanceSmoke.dll --evidence-dir "$env:RUNNER_TEMP/filecat-windows-instances"
           exit $LASTEXITCODE
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: windows-instance-results
@@ -63,7 +73,7 @@ jobs:
           diskpart /s $script
           $env:FILECAT_TEST_FAT_DRIVE = "$($letter):\"
           dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --filter "FullyQualifiedName~FatDriveRecordTests"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: test-results-windows
@@ -78,16 +88,31 @@ jobs:
     runs-on: windows-11-arm
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          dotnet-version: 10.0.x
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
-      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build
-      - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build
+      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
+      - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --logger "trx;LogFileName=platform-results.trx"
       # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
-      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --blame-hang-timeout 4m --blame-hang-dump-type mini
-      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: test-results-windows-arm64
+          path: "**/TestResults/*.trx"
       - name: The ARM64 package starts and draws its window
         shell: pwsh
         run: |
@@ -102,12 +127,12 @@ jobs:
         run: |
           $compiler = ./eng/Acquire-InnoSetup.ps1 -ToolRoot (Join-Path $env:RUNNER_TEMP ('FileCat-Inno-' + [guid]::NewGuid().ToString('N'))) -ReceiptDirectory (Join-Path $PWD 'artifacts/toolchains/inno-setup')
           ./eng/Compile-WindowsInstaller.ps1 -Version 0.0.0 -Architecture arm64 -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: inno-setup-provenance-windows-arm64
           path: artifacts/toolchains/inno-setup/**
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: windows-arm64-screenshot
@@ -118,16 +143,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          dotnet-version: 10.0.x
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
-      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build
+      - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
       # D-47: a drive read the way FileCat reads one, from the FAT16 fixture attached as a loop device (Linux) or a raw
       # disk image (macOS) that this user may read.
       - if: runner.os == 'Linux'
@@ -181,12 +216,12 @@ jobs:
       # Real-server SFTP tests start a user-mode sshd (macOS ships one).
       - if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends openssh-server
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - run: python -m pip install --quiet pyftpdlib pyopenssl
       # A hang (a test server that never answers) fails in minutes with a dump of where, not at the job's time limit.
-      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --blame-hang-timeout 4m --blame-hang-dump-type mini
+      - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # P9: the UI runs headless on Linux and macOS too.
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
@@ -216,7 +251,7 @@ jobs:
             --evidence-dir "$RUNNER_TEMP/$evidence" || result=$?
           tar -czf "$RUNNER_TEMP/filecat-instance-results.tar.gz" -C "$RUNNER_TEMP" "$evidence"
           exit "$result"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: unix-instance-results-${{ matrix.os }}
@@ -231,17 +266,17 @@ jobs:
             --evidence-dir "$RUNNER_TEMP/$evidence" || result=$?
           tar -czf "$RUNNER_TEMP/filecat-instance-process-results.tar.gz" -C "$RUNNER_TEMP" "$evidence"
           exit "$result"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: unix-instance-process-results-${{ matrix.os }}
           path: ${{ runner.temp }}/filecat-instance-process-results.tar.gz
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always() && runner.os == 'Linux'
         with:
           name: linux-desktop-launcher-results
           path: ${{ runner.temp }}/filecat-desktop-results.tar.gz
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: app-test-results-${{ matrix.os }}
@@ -251,14 +286,24 @@ jobs:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [windows, portable]
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          dotnet-version: 10.0.x
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
       - name: Publish portable, framework-dependent, and installer payloads (x64 and ARM64, D-48)
         shell: pwsh
         run: |
@@ -272,7 +317,7 @@ jobs:
           $v = "${{ github.ref_name }}".TrimStart('v').Split('-')[0]
           ./eng/Compile-WindowsInstaller.ps1 -Version $v -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
           ./eng/Compile-WindowsInstaller.ps1 -Version $v -Architecture arm64 -CompilerRoot $compiler.ToolRoot -ReceiptDirectory $compiler.ReceiptDirectory
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: inno-setup-provenance-windows-package
@@ -280,7 +325,7 @@ jobs:
       # Code signing (ADR-15): SignPath Foundation signs the artifacts built here from tagged source.
       # Configure the SignPath project and its GitHub integration, then add the signing step here.
       # Until then releases are published as clearly labeled, unsigned previews.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-release
           path: artifacts/*.*
@@ -296,14 +341,24 @@ jobs:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: [windows, portable]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          dotnet-version: 10.0.x
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
       - name: Build the tarball, .deb, and AppImage
         run: |
           v="${GITHUB_REF_NAME#v}"
@@ -319,7 +374,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 ./artifacts/FileCat-*-x86_64.AppImage --version
           mkdir unpacked && tar -xzf artifacts/FileCat-*-linux-x64.tar.gz -C unpacked
           unpacked/FileCat-*/FileCat --version
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-linux
           path: |
@@ -341,14 +396,24 @@ jobs:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: [windows, portable]
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          dotnet-version: 10.0.x
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Record exact build toolchain
+        shell: pwsh
+        run: ./eng/Write-BuildProvenance.ps1 -OutputPath "${{ runner.temp }}/filecat-build-provenance/build.json" -RequireCleanCheckout
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
       - name: Build the app (ad-hoc signed, not notarized)
         run: |
           v="${GITHUB_REF_NAME#v}"
@@ -362,7 +427,7 @@ jobs:
           # The icon at every size macOS asks for, the small ones from the frames drawn for them.
           iconutil -c iconset unpacked/FileCat.app/Contents/Resources/FileCat.icns -o icon-check.iconset
           test "$(ls icon-check.iconset | wc -l)" -eq 7
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: filecat-macos
           path: artifacts/*.zip
