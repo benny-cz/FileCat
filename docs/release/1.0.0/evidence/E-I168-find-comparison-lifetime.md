@@ -18,7 +18,33 @@ Working and fresh committed-source runs each pass all thirteen affected App test
 
 The clean locked run uses Windows SDK 10.0.401 and a fresh export of 1,059 canonical Git blobs from 28d002f. The archive and every exported blob are checked before/after execution and against Git SHA-1/mode. The actual clean App-test `FileCat.dll` SHA-256 is 59253b5723b89e9085789510af97bab8d7efa541187d3dd8228b088eaae30959. The independent seal reconciles all raw result attributes, three structured control observations per App run, 33 retained files and 505 actual test-payload files across baseline/working/clean outputs. These are finite development payloads, not selected release artifacts.
 
-The original [CI 37545177481 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37545177481) at 28d002f is pending at this local seal. It must be reconciled before claiming four-platform evidence. The full prior I167 CI remains sealed at a0a8ece.
+The original [CI 37545177481 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37545177481) at 28d002f subsequently completes green on policy and all four required lanes, ARM64 package start/draw and installer compilation. Nineteen server artifact digests/all archive members, fourteen complete raw TRX inventories, four compiler/tool receipts and 92 locked graphs reconcile. Each App lane retains all 469 cases. All twelve new I168 executions pass without skips and record the correct held-call/result/unchanged-file controls. Overall results and skip inventories remain exact, rather than counting skips as passes:
+
+| Lane | Actual App outcomes |
+|---|---|
+| app-test-results-macos-26 | 75 NotExecuted, 394 Passed |
+| app-test-results-ubuntu-24.04 | 392 Passed, 77 NotExecuted |
+| test-results-windows | 452 Passed, 17 NotExecuted |
+| test-results-windows-arm64 | 452 Passed, 17 NotExecuted |
+
+I163/I164/I165/I166/I167 subsets repeat at this producer with their own explicit scopes and Unix skips. Their earlier seals remain valid at their own producers. These hosted component cases do not establish native desktop/human/provider or candidate qualification.
+
+Private `FileCatReleaseEvidence/ci-37545177481-assets-attempt1-v1`:
+
+| Path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | d59ec13f4bd4ef70a3113b27763081695bc64ee700200dd755253efc5f83f648 |
+| independent-fixture-ci-v1.json | ac43cc94bb03e7f778b5a08dbfedef243148bdbe517fdaa82cd804971a42bcc5 |
+| independent-producer-policy-ci-v1.json | 86d5e4eb3715f05dd02593177ba5ef9b69a504745b613a5f0d39a96682764efb |
+| independent-draft-guard-ci-v1.json | 5659782e35e81b4ff2745fc31c2ee40debee71b217869f982745f3514f8f6670 |
+| independent-separation-ci-v1.json | 86b31f8840662895c78d2b52de29b94fc0108b0ddac9b64f37490add32496e01 |
+| independent-restore-ci-v1.json | 2c747450b28bdf67cb92d44f8b481560400ac57e340fa3bff3cc4387e223fd3a |
+| independent-i163-ci-cases-v1.json | 3b399e50e8d677688111c5cd9bbce3c561133c775b776d9ad4acbda435b040d6 |
+| independent-i164-ci-cases-v1.json | abfbfccf4113972fb3f45f575e61ac1dd2f7cc4481ac9711b2b3f7863ae8e81e |
+| independent-i165-ci-cases-v1.json | c7ae9ccf2d097e5b9ec96ab305185b10904cd282ead5763f561e46c5efe3d68f |
+| independent-i166-ci-cases-v1.json | 9ec87f707bbab6872993ac0cdb7ce3b746a3ad2291a770324d234c9668b29aff |
+| independent-i167-ci-cases-v1.json | ea4c726342ea21cad732db68500029aa82b04cfb9dd403ef42af05fffa0c61a6 |
+| independent-i168-ci-cases-v1.json | ecf79fc0c68021e553fc606940ba5cc23bbc1ef150ae69873da48bccf58bf983 |
 
 The first baseline preflight compared canonical LF blobs against Windows CRLF checkout bytes and stopped before running tests. Its script/input snapshots are retained; the corrected check compares normalized source text while preserving actual raw input hashes. Existing unrelated compiler warnings remain. No physical source, persistent machine setting, contract/candidate or publication changed. Broader I06 lifetimes/materialized workloads, native frames, adverse provider behavior and final candidate remain open.
 
