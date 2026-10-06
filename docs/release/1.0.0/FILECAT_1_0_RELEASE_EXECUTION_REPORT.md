@@ -7,24 +7,22 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-Latest execution: notice source 145f569 seals push/development CI
-37482955415/37483079672, all four test lanes, 19/25 artifact digests and 92/138
-actual locked graphs. Actual Windows x64/ARM64 ZIPs and Linux tar/deb/AppImage/Mac
-archives each preserve all 50 committed notice files: 400 archive byte checks.
-The original reader path assumptions/timeouts remain retained. Inventory correction
-1d6d53f passes actual x64/ARM64 packagers/all 38 locked identities and original
-push/development CI 37487426601/37487590559: 19/25 digests/fourteen inventories per
-run/92/138 actual graphs and eight archives' exact notice sets. AppImage runtime
-input/sole digest-section transformation and immutable root/dependency license
-sources verify. Wrapper source 0d61dbb seals push/development 37492084054/37492315642,
-19/25 digests/92/138 graphs/actual Windows and Unix packages, including all seven
-new AppImage wrapper files. Native resource input reduction passes six actual
-builds/byte-identical x64/ARM64 helpers and two header refusals in working source;
-committed full packaging/hosted revalidation continue. Complete composition and
-audit remain Open. Counts
-remain 139/161 preliminary Remediated, one Closed, 21 remaining
-issue remediations; all 24 campaigns still require final-candidate qualification.
-No candidate exists and stable publication remains NO-GO (E-I03-NOTICES/INVENTORY).
+Latest execution: native resource recipe 8502983 seals actual Windows x64/ARM64
+SC/FDD packagers, four final native receipts/retained resource objects and all
+four ZIP notice sets/38-package inventories. Original push/development CI
+37496707218/37497325774 pass four test lanes, 19/25 digests/fourteen full
+inventories per run/92/138 actual graphs and actual Linux/Mac packages. All eight
+archives preserve 400 App notice files plus seven AppImage wrapper files.
+Original CI omits RC/resource uploads; narrow correction 5e11f60 seals successor
+37498145660, 19 digests/fourteen inventories/92 graphs and both complete downloaded
+native evidence sets. Original private observer errors are retained and corrected
+without product/test reruns. Native PE inspection maps 50 of 62 files to original
+NuGet archive members, with twelve generated FileCat outputs kept separate. Fresh
+NuGet query/feed comparison reports no affected version among 38 App identities/
+twelve historical ranges; finite advisory/native/license/composition limits remain.
+Counts remain 139/161 preliminary Remediated, one Closed, 21 remaining issue
+remediations; all 24 campaigns require final-candidate qualification. No candidate
+exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
 
 Earlier preliminary execution and retained failures:
 
@@ -3363,3 +3361,38 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     excluded. Four narrowly scoped upload globs correct the retention gap;
     original/successor downloaded artifact verification continues. No job,
     permission, package-byte or runtime change; I03 remains Open.
+
+361. Recipe source 8502983 passes actual x64/ARM64 SC/FDD packaging, four final
+    native receipts/retained objects/all source and payload pins, four ZIP notice
+    sets and both 38-package inventories. Original push/development CI
+    37496707218/37497325774 attempt 1 pass all required lanes/ARM package checks,
+    actual Linux/Mac packages, 19/25 digests/four/six clean receipts/fourteen full
+    inventories per run/all controls/92/138 actual locked graphs. Independent
+    Unix readers preserve 207 exact notice files and all package hashes. Both
+    original Windows lanes omit declared RC/object files; that omission is
+    retained, not treated as resource-byte qualification (E-I03-RESOURCE).
+
+362. Retention correction 5e11f60 changes exactly four upload lines, every other
+    workflow byte/production-test blob unchanged. Eight actual local files match
+    corrected globs. Successor 37498145660 attempt 1 passes four lanes/ARM package
+    checks/19 server digests/four clean receipts/fourteen inventories/all controls/
+    92 graphs. Both downloaded Windows native evidence sets independently verify
+    RC/resource/source/icon/manifest/output pins and embedded source revision.
+    Original doubled-separator observer error is retained; comparison-only
+    normalization inspects the same reports without a native build/test rerun.
+    Hosted compiler input bytes/full read trace/legal/candidate remain unqualified.
+
+363. Four actual Windows payloads contain 62 PE files without a CLR directory:
+    50 match original owned NuGet archive members exactly, twelve are generated
+    FileCat native outputs. Multiple SDK/runtime matches are preserved and do
+    not imply path provenance. All payload/archive pins stay unchanged. SDK
+    advisory query exits zero; fresh original official feed bytes/twelve ranges/
+    six NuGet parser boundary controls independently report no affected current
+    version across 38 App identities. Original schema/gzip observer failures are
+    retained. No comprehensive vulnerability/legal/candidate pass, source device,
+    host/VM/Mac setting, binary execution or publication (E-I03-PAYLOAD/ADVISORIES).
+
+Independent public-record reconciliation verifies 166 private evidence hashes
+and the unchanged 161/139/1/21 issue counts. Retained
+`release-assets-20261006/independent-records-v13.json` SHA-256:
+`e3c53c9fd2fe5c731bc88565583d6fefd6c98c33d191282d11ff05a0dfdffb80`.

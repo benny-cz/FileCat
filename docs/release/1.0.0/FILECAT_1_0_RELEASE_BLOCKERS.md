@@ -63,9 +63,14 @@ remain Open (E-I03-APPIMAGE).
 Native generated resources now use two SDK-verified fixed values without header
 includes. Six actual original/derived/working builds preserve complete x64/ARM64
 helper bytes; working Windows PowerShell 5.1 receipts retain explicit RC/icon/
-compiled `.res` pins and two new-header refusals pass. Committed full packaging/
-hosted validation continue; all compiler byte reads/tool licensing/native and
-candidate scopes remain Open (E-I03-RESOURCE).
+compiled `.res` pins and two new-header refusals pass. Source 8502983 seals actual
+Windows and Unix packaging/original push-development CI. Original RC/object upload
+omission is measured; 5e11f60 seals corrected CI and both downloaded resource sets.
+All compiler byte reads/tool licensing/native and candidate scopes remain Open
+(E-I03-RESOURCE). Actual Windows native PE bytes map 50 unchanged third-party files
+to original archives; twelve FileCat outputs remain generated. Fresh 38-package
+NuGet query/feed/twelve ranges/six controls report no affected version, with native,
+unknown-advisory/license/complete-SBOM limitations retained (E-I03-PAYLOAD/ADVISORIES).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
