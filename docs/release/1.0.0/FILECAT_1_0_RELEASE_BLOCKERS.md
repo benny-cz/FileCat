@@ -16,10 +16,17 @@ Draft preservation source 6a6af3b seals four green lanes/128 hosted controls,
 fifteen server digests/four clean receipts/fourteen full inventories. Twelve
 original package files pass nine substituted-remote phases with unchanged bytes
 (E-I18-P3). Three builders now inherit read-only permission; one draft-only job
-consumes same-run exact artifacts after all lanes/producers. Thirteen host controls/
-parse/independent boundary audit pass; committed successor remains pending. Actual
+consumes same-run exact artifacts after all lanes/producers. Source 246ce18 seals original push/development CI with fifteen/nineteen digests,
+four/six receipts/full inventories/52 set controls per run and actual read-only
+Linux/Mac package install/start/downloaded byte manifests. Draft job skips. Actual
 tagged transport/upload, signing/approved final promotion/protection/immutable
 retention/candidate gates remain Open (E-I18-P4).
+
+I03 restore investigation generates twenty-one isolated multi-RID locks, verifies
+thirteen original controls/63 logical and raw package hash pairs, and shows SDK
+locked mode recreates a missing lock. Prospective project-entry guard refuses
+missing App/Core with healthy restoration. Tracked policy/accepted script RIDs/
+locked publishing/extracted bytes/license/candidate remain Open (E-I03-RESTORE).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac

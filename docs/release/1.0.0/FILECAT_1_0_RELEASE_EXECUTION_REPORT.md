@@ -3173,3 +3173,27 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     committed successor and actual read-only development packaging continue.
     Final approved promotion/approval/protection/immutable storage/candidate
     remain Open (E-I18-P4). Counts unchanged; no guest/Mac or physical-source use.
+
+
+346. Read-only producer source 246ce18 seals push 37467658278 and independent
+    development 37467776324 attempt 1: policy/four required lanes/ARM startup/
+    draw/installer pass; fifteen/nineteen digests/four/six clean exact-SDK receipts/
+    fourteen complete inventories per run/all 409 App identities/sixteen picture/
+    sixteen policy/128 draft/52 set controls per run verify. Actual read-only
+    Linux tar/deb/AppImage and Mac package/signature/start/icon checks pass;
+    retrieved manifests match all actual file hashes. Draft job skips; no real
+    tag/upload/stable publication/candidate claim. Original failures remain.
+    Counts unchanged; no physical-source or guest/Mac setup use (E-I18-P4).
+
+347. I03 prospective restore: isolated raw 246ce18 source/derived four-RID recipe
+    restores all twenty-one projects and generates locks. Original git-archive
+    byte failure and restore -r RID narrowing remain retained. Publish-equivalent
+    property passes solution/four App RIDs/both broker SC/FDD, rejects changed
+    request/hash and restores original inputs. SDK unexpectedly recreates missing
+    lock with zero exit; prospective project-entry target refuses missing App and
+    referenced Core without recreation, with healthy controls. Original observer
+    logical/archive-hash and CRLF/raw-source assumptions fail; corrected seal
+    uses unchanged logs/raw pins and 63 separate logical-cache/raw-archive pairs,
+    with no control rerun for that correction. Repository policy is unchanged;
+    accepted script RID/publishing/input/license/candidate checks continue.
+    Counts unchanged, I03 Open and NO-GO (E-I03-RESTORE).
