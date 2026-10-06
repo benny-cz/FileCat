@@ -7,6 +7,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I151 is reproduced on actual 52df3d7: a local .git symlink causes 14 SMB
+negotiation flows/126 packets between exact controls. Independent capture reports
+zero loss; ordinary badge/payload/process/listener checks verify (E-I151).
+128/151 preliminary remediations, one Closed, 22 remain. Correction is next;
+all 24 campaigns still need final qualification, no candidate/human GO; NO-GO.
+
 I150 is preliminarily remediated at 874b7ae/52df3d7: identical final native tests
 fail six before and pass six after; unchanged probe blocks both original external
 filter executions while retaining ordinary badges/positive controls. Clean native
@@ -2439,6 +2445,14 @@ Overall **NO-GO** remains.
      stands. Observer failures preserved. 128/150 preliminary, one Closed, 21
      remain; 24/26 checklist steps partly/fully open, no candidate/GO. Continue
      indirect/reparse/protected-file/native I16; owner needs queued to 08:40 CEST.
+
+308. Reproduce I151 on actual 52df3d7: the owned .git directory symlink causes
+     14 additional SMB negotiation flows/126 packets between known controls.
+     Independent pcap parses all 328 untruncated packets with zero reported drops;
+     ordinary badges/546 exact payload pins/process/listener cleanup verify.
+     Original manifest/Windows-path observer failures retained (E-I151).
+     Correct local path checks before metadata probing; indirect/native/candidate
+     I16 remains open. No owner interaction or physical-source write.
 
 ## Evidence invalidated by the campaign's own changes
 
