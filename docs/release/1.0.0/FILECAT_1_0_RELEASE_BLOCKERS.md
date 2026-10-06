@@ -60,6 +60,14 @@ nineteen App controls/source-stage checks pass. Source 0d61dbb seals push/develo
 contains all seven exact wrapper files. Full composition/obligations/candidate
 remain Open (E-I03-APPIMAGE).
 
+Independent checksum qualification stays Open: storage-reuse replay matches
+two unchanged original AppImages, but unchanged upstream C on two Mac compilers
+at O0/O2 produces different values. All 24 plain MD5 controls/109 child exits
+verify; none of 72 AppImage calculations matches the replay/embedded field.
+Original link/assertion/receipt failures remain sealed. First Ubuntu attempt
+finds no compiler before any calculation; authorized setup/native Linux repeat
+continue. No generic initialization/whole-file authenticity claim (E-I03-CHECKSUM).
+
 Native generated resources now use two SDK-verified fixed values without header
 includes. Six actual original/derived/working builds preserve complete x64/ARM64
 helper bytes; working Windows PowerShell 5.1 receipts retain explicit RC/icon/

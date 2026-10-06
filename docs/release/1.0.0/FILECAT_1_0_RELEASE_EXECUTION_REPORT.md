@@ -33,6 +33,13 @@ Counts are now 140/162 preliminary Remediated, one Closed, 21 remaining issue
 remediations; all 24 campaigns require final-candidate qualification. No candidate
 exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
 
+AppImage checksum follow-up rejects portable qualification from a matching
+replay: unchanged upstream C builds on two Mac toolchains at O0/O2 pass 24 plain
+MD5 controls, but none of 72 retained AppImage calculations matches its embedded
+field/replay. Compiler-dependent results and all original failures are sealed
+without calculation reruns. Linux repeats continue after the disposable guest's
+missing compiler is recorded (E-I03-CHECKSUM). I03 and counts remain unchanged.
+
 Native Unix follow-up on the same actual 8502983 packages records eighteen ELF
 files per Linux archive, seventeen exact original-member matches each and
 identical tar/deb/AppImage native inventories. Mac's eighteen Mach-O files include
@@ -3482,3 +3489,21 @@ Committed I162 record reconciliation verifies 187 private hashes and unchanged
 140/162 preliminary/one Closed/21 remaining issue counts. Retained
 `release-assets-20261006/independent-records-v16.json` SHA-256:
 `64d6a34ad2e358e0365d21bb4f98de7c49b7106889254e05ebda316ae55ca159`.
+
+369. I03 checksum follow-up verifies two original CI AppImages/eight immutable
+    upstream source blobs/independent ELF spans. Explicit storage-reuse replay
+    matches both embedded fields, but unchanged C with two matching Mac compilers
+    at O0/O2 disagrees: 24 plain MD5 controls pass, none of 72 AppImage calculations
+    matches. All 109 child exits/input pins/logs independently verify; original
+    link/assertion/supervisor-serialization failures remain. Corrected observer
+    seals originals without calculation reruns. Initial Ubuntu extraction passes,
+    then missing GCC/clang stops before compilation; authorized minimal compiler
+    setup/Linux repeat continue. Independent checksum semantics remain unqualified,
+    no whole-file authenticity/source reproducibility/new product-defect claim.
+    No physical source/candidate/publication; counts remain 140/162 preliminary,
+    one Closed, 21 remaining; NO-GO (E-I03-CHECKSUM).
+
+Independent record audit v17 verifies all 194 selected evidence pins and unchanged
+140/162 preliminary/one Closed/21 remaining issue counts. Retained
+`release-assets-20261006/independent-records-v17.json` SHA-256
+`f693897c38b07fe9e75041feeb08212f3423c08a5c3ee8a9a8bbb43a10dbe02f`.
