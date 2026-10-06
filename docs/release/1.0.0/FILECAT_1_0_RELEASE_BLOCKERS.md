@@ -43,9 +43,17 @@ it before archive/signing. Source 145f569 seals push/development CI 19/25 digest
 92/138 actual graphs and actual Windows/Linux/Mac packages. All eight archives
 match 50 raw committed notice files each. A further inventory failure gate now
 passes two actual SDK positives/twelve preserved-output refusals in working source;
-committed production validation continues (E-I03-INVENTORY).
+source 1d6d53f actual x64/ARM64 packaging and original main CI 19 digests/92 graphs
+pass; independent development Unix packaging continues (E-I03-INVENTORY).
 LTRData.Extensions full text, RAR/AppImage/native obligations, legal
 eligibility and full SBOM/candidate remain Open (E-I03-NOTICES).
+
+AppImage runtime prefix/sole 16-byte digest transformation now independently
+matches its pinned original input. Thirty-two immutable source blobs/two declared
+recipe archives/four original notice files verify. First checksum assumption and
+narrow filename selection remain retained. Wrapper notice inclusion, all actual
+static-library versions/composition/source obligations and complete license
+eligibility remain Open; executable notice packaging is next (E-I03-APPIMAGE).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac

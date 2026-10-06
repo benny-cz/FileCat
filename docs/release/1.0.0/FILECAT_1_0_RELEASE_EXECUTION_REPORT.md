@@ -11,10 +11,13 @@ Latest execution: notice source 145f569 seals push/development CI
 37482955415/37483079672, all four test lanes, 19/25 artifact digests and 92/138
 actual locked graphs. Actual Windows x64/ARM64 ZIPs and Linux tar/deb/AppImage/Mac
 archives each preserve all 50 committed notice files: 400 archive byte checks.
-The original reader path assumptions/timeouts remain retained. A newly verified
-inventory failure-propagation gap is corrected in working source; two actual SDK
-positives/twelve refusals preserve prior output. Committed production validation
-continues. Counts remain 139/161 preliminary Remediated, one Closed, 21 remaining
+The original reader path assumptions/timeouts remain retained. Inventory correction
+1d6d53f passes actual x64/ARM64 packagers/all 38 locked identities and original
+main CI 37487426601: 19 digests/fourteen inventories/92 actual graphs. Development
+37487590559 continues Unix packaging. AppImage runtime input/sole digest-section
+transformation and immutable root/dependency license sources are verified; copying
+the available wrapper notices and complete composition audit continue. Counts
+remain 139/161 preliminary Remediated, one Closed, 21 remaining
 issue remediations; all 24 campaigns still require final-candidate qualification.
 No candidate exists and stable publication remains NO-GO (E-I03-NOTICES/INVENTORY).
 
@@ -3282,3 +3285,25 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     all inputs unchanged, PowerShell parse/order checks pass. Committed production
     and hosted validation continue. This is not full artifact SBOM/legal closure;
     no physical source or guest/Mac setting change. Counts unchanged; NO-GO.
+
+354. Inventory source 1d6d53f independently verifies actual x64/ARM64 production
+    packaging from raw Git inputs: both new 38-package gates/direct-transitive
+    versions/all four payload and ZIP notice sets/source pins pass. Original push
+    37487426601 attempt 1 seals four required lanes/ARM start/draw/installer,
+    nineteen server digests/four clean receipts/fourteen complete inventories/
+    all hosted controls/92 actual locked graphs. Independent development
+    37487590559 has passed all test lanes and continues Unix packaging. No
+    installer-install/native-desktop/candidate or publication qualification.
+
+355. Actual 145f569 AppImage wrapper prefix independently differs from the exact
+    checksum-pinned official runtime only in its 16-byte ELF digest section.
+    Restoring only that section exactly reproduces original runtime bytes/SHA;
+    pinned tool source describes the write. Naive zeroed-file MD5 observer fails
+    and stays retained; checksum semantics/authenticity remain unqualified.
+    Thirty-two immutable runtime/tool/build/checksum/patch/LTR blobs and two
+    recipe-hashed libfuse/squashfuse archives/four original notice texts verify.
+    Original narrow filename selection stays retained; v2 includes GPL/LGPL bodies.
+    Static binary composition/versions/source obligations and wrapper notice
+    packaging continue. LTR README/project does not resolve full-text provenance.
+    No code execution/source device/guest-Mac settings or publication; counts
+    unchanged and NO-GO (E-I03-APPIMAGE).
