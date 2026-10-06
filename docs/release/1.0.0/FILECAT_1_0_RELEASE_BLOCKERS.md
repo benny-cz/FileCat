@@ -7,7 +7,10 @@ development dispatch pass; actual Windows eight-output compilation/selection,
 Linux/Mac packages and retrieved byte manifests verify. Original main CI retains
 one cold-picture first-feed failure. Fixture-only capacity/diagnostics passes
 64 before/64 after with identical production bytes and full App 386/23/409;
-historical cause is not proven and committed successor CI continues.
+historical cause is not proven. Committed 4b2b9d7 native repeats/four green CI
+lanes/fourteen digests/full inventories now verify. A read-only producer-ref
+ancestor rejects stable inputs; sixteen host controls/five exit probes/static
+dependencies pass; its committed hosted successor remains pending (E-I18-P2).
 Signing/promotion/duplicate assets/
 protection/immutable retention/candidate gates remain Open (E-I18-A1).
 

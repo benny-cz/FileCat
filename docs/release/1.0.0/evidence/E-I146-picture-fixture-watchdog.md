@@ -115,8 +115,8 @@ An identical observer/common production payload with only test DLL/PDB replaced
 passes another 64 cases; first-case median 1.004 seconds. Both controlled sides
 pass, so no controlled failure-before claim is made. Cold injection is a plausible
 historical contributor, not established attribution. Full working App passes
-386/23/409. Committed successor CI remains necessary; no new issue closure,
-native GUI, physical source or candidate qualification is inferred.
+386/23/409. Committed validation below adds no new issue closure, native GUI,
+physical source or candidate qualification.
 
 The following pins are under private `FileCatReleaseEvidence/release-assets-20261006`:
 
@@ -126,3 +126,34 @@ The following pins are under private `FileCatReleaseEvidence/release-assets-2026
 | picture-capacity-v1/independent-cold-start-v1.json | 815124225a4020806ffdd5fbdc6f520a2d6f161ab2308a780710aa19c46b070a |
 | picture-full-working-v1/app-full.trx | 8c1d38243cf7fb0f5fefb897beebf11fd4238c3b5f14f20dd4d295b013b414ff |
 | independent-package-fixture-seal-v1.json | 9e9fdefa3ab57f3515e00bbaaede8e725b4a41fa37e63a5613e9a300b82fa81e |
+
+Committed `4b2b9d79b921d7a3e8246fbb78d3e1d2c7f31974` verifies all 935 raw Git
+inputs/modes/archive and fresh SC App test payloads. Windows guest 26/0 and Ubuntu
+26.04.1/Mac 27.0.1 each 25/1 pass. All four pool-capacity/checkpoint cases pass;
+pool restoration is asserted, and original payload/result/transport pins and
+owned temp/runner cleanup independently verify. The Unix skip is Windows-only
+Shell thumbnail coverage. No persistent Mac/VM setting changes are made.
+
+The first combined observer wrongly expects passed-case output in direct xUnit
+native TRX, which retains identities/outcomes but omits that output. Its original
+failure is retained. Corrected observer reads the unchanged original native XML,
+matches all 26 exact case names to TRX/unique execution IDs, and verifies all four
+pool/checkpoint outputs. Native tests are not rerun to correct the observer.
+
+Exact-source [37459327156 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37459327156)
+passes all four required lanes, ARM64 package start/draw/installer and all hosted
+asset controls. Fourteen selected server digests, four clean build receipts and
+fourteen complete TRX inventories verify; all 409 App names and sixteen actual
+pool/checkpoint executions match. Windows App x64/ARM64 each 392/17, Ubuntu 347/62,
+Mac 349/60. The failed 37454794034 remains failed; its historical cause is not proven.
+
+| Committed follow-up retained item under the same private root | SHA-256 |
+|---|---|
+| clean-fixture-v1/source.zip | 0218ebd4a5433418d6c2643ff931d7341fa4be29a1b19275c965aeca1e64729d |
+| clean-fixture-v1/producer.json | 75c211d8181ee6c1a5121ee8f6e238a8db034ca4f8df1cf6b748a7143242d544 |
+| clean-fixture-v1/windows-executed/independent-guest-v1.json | 08cd6a3e4547ae2b65fdf1e7db447cbfa54d5e3abb8621adffe6bc30c84dcacb |
+| clean-fixture-v1/linux-executed/independent-guest-v1.json | 883230449c74b6330d81dbc175fab74c45491c69c61b710e68c7d35b9341c18f |
+| clean-fixture-v1/mac-executed-v3/independent-native-v1.json | 671c2d3c9752f1661af72d8b9804e9f67a7fddcb124838530a6289cc16b127c1 |
+| ../ci-37459327156-assets-attempt1-v1/independent-assets-ci.json | dd145acec573f787848f04101b84af4fcb98469c39a496f156db639355204064 |
+| ../ci-37459327156-assets-attempt1-v1/independent-fixture-ci-v1.json | bbb982b8c0c79bfe15619fb01e0832dd5a63fb1b6544c7569e76babeea25b771 |
+| independent-committed-fixture-seal-v2.json | 18147c4ddb913bdb05c2dfd0feec3201e252d584b15451ab5544cabb9c3edc01 |

@@ -17,8 +17,29 @@ env:
   AVALONIA_TELEMETRY_OPTOUT: 1
 
 jobs:
+  producer-policy:
+    name: Producer reference policy (stable blocked)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Producer reference controls
+        shell: pwsh
+        run: ./eng/validation/validate-producer-reference.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-producer-reference-controls"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: producer-reference-controls
+          path: ${{ runner.temp }}/filecat-producer-reference-controls/producer-reference-controls.json
+          if-no-files-found: error
+      - name: Refuse stable tag production
+        shell: pwsh
+        run: ./eng/Assert-ProducerReference.ps1 -Reference $env:GITHUB_REF -EventName $env:GITHUB_EVENT_NAME
+
   windows:
     name: Windows (build, all tests)
+    needs: producer-policy
     runs-on: windows-2025-vs2026
     # A hung test stops the run in minutes, not hours; --blame-hang names it and dumps the processes.
     timeout-minutes: 30
@@ -98,6 +119,7 @@ jobs:
   # D-48: FileCat for Windows on ARM64, built and tested natively; its package starts and draws with the ARM64 Skia.
   windows-arm64:
     name: Windows ARM64 (build, tests, package start)
+    needs: producer-policy
     runs-on: windows-11-arm
     timeout-minutes: 45
     steps:
@@ -166,6 +188,7 @@ jobs:
           path: artifacts/screenshots/*.png
 
   portable:
+    needs: producer-policy
     name: ${{ matrix.os }} (build, portable tests)
     strategy:
       fail-fast: false
@@ -320,7 +343,7 @@ jobs:
   package:
     name: Package (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable]
     runs-on: windows-2025-vs2026
     permissions:
       contents: write
@@ -383,7 +406,7 @@ jobs:
   package-linux:
     name: Package Linux (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -443,7 +466,7 @@ jobs:
   package-macos:
     name: Package macOS (tags and manual runs)
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [windows, windows-arm64, portable]
+    needs: [producer-policy, windows, windows-arm64, portable]
     runs-on: macos-26
     permissions:
       contents: write

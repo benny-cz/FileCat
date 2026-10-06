@@ -14,8 +14,11 @@ Development dispatch passes all test lanes/Linux and Mac package jobs; actual
 Windows eight-output compilation/selection/935 raw sources/tool restoration and
 all retrieved package bytes verify. Original main CI remains failed on one separate
 cold picture checkpoint. Fixture-only capacity/diagnostics passes 64 before/64
-after with identical production files and full App 386/23/409; committed successor
-CI continues (E-I18-A1/E-I146). I18 stays Open.
+after with identical production files and full App 386/23/409. Committed 4b2b9d7
+native repeats and all four successor CI lanes/fourteen digests/inventories verify
+(E-I18-A1/E-I146). A read-only reference gate now refuses stable producer inputs;
+sixteen host controls/five exit-code probes/static dependencies pass; hosted
+successor execution continues (E-I18-P2). I18 stays Open.
 
 I03 native compiler provenance is partially improved at 573ed2c with exact
 927-source/four-mode/local input byte verification and four green CI lanes,
@@ -3096,3 +3099,24 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     cause is not proven; committed fixture successor CI continues. No tag,
     publication, Windows package-install/GUI, physical source or candidate claim.
     Counts unchanged: 139/161 preliminary, one Closed, 21 remaining; NO-GO.
+
+339. I146 separate cold-pool fixture source 4b2b9d7 seals 935 raw inputs/three
+    SC payloads and fresh Windows 26/0, Ubuntu 25/1 and Mac 25/1 native repeats.
+    All pool/checkpoint/restore outputs, exact XML/TRX identities and original
+    payload/result/transport/temp/runner cleanup pins verify. Observer v1 wrongly
+    expects native passed output in TRX; v2 uses original XML without rerunning
+    tests, preserving that observer failure. Exact CI 37459327156 attempt 1
+    passes four lanes/ARM64 startup/draw/installer; fourteen server digests,
+    four clean build receipts/fourteen inventories/all 409 App names/sixteen
+    fixture cases and hosted asset controls verify. Original 37454794034 stays
+    failed; cause remains inferred. No persistent guest/Mac settings change,
+    physical source, native GUI or candidate qualification. Counts unchanged.
+
+340. I18 stable-producer gap: baseline 4b2b9d7 still accepts stable v* tags for
+    producer rebuilds. A read-only reference-policy ancestor now rejects stable
+    push/manual/build-metadata and invalid/mismatched refs before all test/package
+    jobs. Sixteen synthetic host cases/five separate exit-code controls/PowerShell
+    parse/independent job graph pass; no real tag or release API is invoked.
+    Committed hosted successor continues. Approved-manifest promotion, human GO,
+    signing/preview approval, duplicate asset refusal, publisher separation and
+    repository/immutable controls stay Open (E-I18-P2). Counts unchanged; NO-GO.
