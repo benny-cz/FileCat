@@ -65,16 +65,17 @@ $NativeOutput = Join-Path $Temporary 'FileCat.PrivilegedHost.exe'
 $CompilerObject = Join-Path $Temporary 'NativeBootstrap.obj'
 $Dependencies = Join-Path $Temporary 'NativeBootstrap-dependencies.json'
 $LinkMap = Join-Path $Temporary 'NativeBootstrap.map'
+# Fixed Win32 VERSIONINFO values: VOS_NT_WINDOWS32 and VFT_APP. The generated
+# resource needs no SDK header preprocessing; its icon is an explicit copied input.
 $ResourceText = @"
-#include <windows.h>
 1 ICON "filecat.ico"
 1 VERSIONINFO
  FILEVERSION $Tuple
  PRODUCTVERSION $Tuple
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0
- FILEOS VOS_NT_WINDOWS32
- FILETYPE VFT_APP
+ FILEOS 0x00040004L
+ FILETYPE 0x00000001L
  FILESUBTYPE 0
 BEGIN
  BLOCK "StringFileInfo"
@@ -96,6 +97,7 @@ BEGIN
  END
 END
 "@
+if ($ResourceText -match '(?im)^\s*#\s*include\b') { throw 'Resource header includes require a reviewed dependency inventory.' }
 [IO.File]::WriteAllText($Resource,$ResourceText,[Text.Encoding]::Unicode)
 $Batch = Join-Path $Temporary 'BuildNativeBootstrap.cmd'
 $BatchText = @"
@@ -154,7 +156,7 @@ foreach ($Line in @($Stderr -split "`r?`n")) {
 }
 if (@($ToolComponents.Values | Where-Object { $_.Name -ieq 'link.exe' }).Count -ne 1) { throw 'Native compiler pass/linker report is incomplete.' }
 $Receipt = [ordered]@{ Runtime=$Runtime; Version=$Version; SourceRevisionId=$SourceRevisionId; NativeBootstrap=$true; ManagedMainPreserved=$true; Files=@() }
-foreach ($Path in @($Source,$Manifest,$Icon,$Resource,$Compiler,$ResourceCompiler,$NativeOutput)) {
+foreach ($Path in @($Source,$Manifest,$Icon,$Resource,$ResourceObject,$Compiler,$ResourceCompiler,$NativeOutput)) {
     $Pin=InputPin $Path
     $Receipt.Files+=@{ Name=$Pin.Name; Bytes=$Pin.Bytes; SHA256=$Pin.SHA256 }
 }
@@ -164,9 +166,12 @@ $Receipt['NativeInputInventory']=[ordered]@{
     ReportedCompilerComponents=@($ToolComponents.Keys | Sort-Object | ForEach-Object { $ToolComponents[$_] })
     SourceDependencyReport=(InputPin $Dependencies)
     LinkedSymbolMap=(InputPin $LinkMap)
-    RetainedEvidenceFiles=@('source-dependencies.json','NativeBootstrap.map','compiler-stdout.log','compiler-stderr.log')
+    ResourceCompilerFileInputs=@($Resource,$CompileIcon | ForEach-Object { InputPin $_ })
+    ResourceCompilerHeaderIncludes=@()
+    CompiledResource=(InputPin $ResourceObject)
+    RetainedEvidenceFiles=@('source-dependencies.json','NativeBootstrap.map','NativeBootstrap.rc','NativeBootstrap.res','compiler-stdout.log','compiler-stderr.log')
     InputPinTiming='After successful compilation; these pins are not a trace of individual bytes read.'
-    ResourceCompilerHeaderDependenciesVerified=$false
+    ResourceCompilerHeaderDependenciesVerified=$true
     LicenseAndSystemLibraryClassificationComplete=$false
 }
 [IO.File]::WriteAllText((Join-Path $IntermediateDirectory 'bootstrap-build.json'),($Receipt | ConvertTo-Json -Depth 8),[Text.Encoding]::UTF8)
@@ -175,6 +180,7 @@ $Receipt['NativeInputInventory']=[ordered]@{
 Move-Item -LiteralPath $NativeOutput -Destination $OutputFile -Force
 [IO.File]::Copy($Batch,(Join-Path $IntermediateDirectory 'BuildNativeBootstrap.cmd'),$true)
 [IO.File]::Copy($Resource,(Join-Path $IntermediateDirectory 'NativeBootstrap.rc'),$true)
+[IO.File]::Copy($ResourceObject,(Join-Path $IntermediateDirectory 'NativeBootstrap.res'),$true)
 Write-Host ("Native bootstrap built: {0} reported headers, {1} searched libraries, {2} reported tool components." -f $HeaderPins.Count,$Libraries.Count,$ToolComponents.Count)
 }
 finally {

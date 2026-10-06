@@ -55,8 +55,17 @@ narrow filename selection remain retained. Wrapper notice inclusion, all actual
 static-library versions/composition/source obligations and complete license
 eligibility remain Open. Working wrapper notice inclusion retains five original
 texts/seven frozen files; runtime mode's one positive/fifteen refusals and all
-nineteen App controls/source-stage checks pass. Committed actual packaging and
-hosted validation continue (E-I03-APPIMAGE).
+nineteen App controls/source-stage checks pass. Source 0d61dbb seals push/development
+19/25 digests/92/138 graphs and actual Windows/Linux/Mac packages; the AppImage
+contains all seven exact wrapper files. Full composition/obligations/candidate
+remain Open (E-I03-APPIMAGE).
+
+Native generated resources now use two SDK-verified fixed values without header
+includes. Six actual original/derived/working builds preserve complete x64/ARM64
+helper bytes; working Windows PowerShell 5.1 receipts retain explicit RC/icon/
+compiled `.res` pins and two new-header refusals pass. Committed full packaging/
+hosted validation continue; all compiler byte reads/tool licensing/native and
+candidate scopes remain Open (E-I03-RESOURCE).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac

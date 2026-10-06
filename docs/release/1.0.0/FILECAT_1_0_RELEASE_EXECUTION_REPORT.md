@@ -16,9 +16,12 @@ The original reader path assumptions/timeouts remain retained. Inventory correct
 push/development CI 37487426601/37487590559: 19/25 digests/fourteen inventories per
 run/92/138 actual graphs and eight archives' exact notice sets. AppImage runtime
 input/sole digest-section transformation and immutable root/dependency license
-sources verify. Working wrapper notice inclusion now passes 35 controls and exact
-staged-source checks; committed actual package validation and complete composition
-audit continue. Counts
+sources verify. Wrapper source 0d61dbb seals push/development 37492084054/37492315642,
+19/25 digests/92/138 graphs/actual Windows and Unix packages, including all seven
+new AppImage wrapper files. Native resource input reduction passes six actual
+builds/byte-identical x64/ARM64 helpers and two header refusals in working source;
+committed full packaging/hosted revalidation continue. Complete composition and
+audit remain Open. Counts
 remain 139/161 preliminary Remediated, one Closed, 21 remaining
 issue remediations; all 24 campaigns still require final-candidate qualification.
 No candidate exists and stable publication remains NO-GO (E-I03-NOTICES/INVENTORY).
@@ -3327,3 +3330,24 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     Git files/23-project scope verify. Summary's unsupported reproducibility and
     incomplete component claims correct. Committed production/hosted validation
     continue. No hardware/helper/guest-Mac setup or publication; counts unchanged.
+
+358. Wrapper source 0d61dbb seals original push/development 37492084054/37492315642
+    attempt 1: policy/four lanes/ARM startup/draw/installer and actual Linux/Mac
+    package/install/version/signature/icon steps pass. Nineteen/twenty-five
+    digests/four/six clean receipts/fourteen inventories per run/all controls/
+    92/138 actual graphs and all downloaded manifest hashes verify. Actual x64/
+    ARM64 Windows production gates/four ZIPs preserve 50 App notice files each;
+    four Unix archives independently preserve 200 App files plus seven new
+    AppImage wrapper files. All artifacts remain unchanged; full native/legal/
+    candidate and publication gates remain Open.
+
+359. Remaining native RC header inventory: installed SDK's two fixed VERSIONINFO
+    values permit header-free generated resources. Four original/derived native
+    builds prove byte-identical complete x64/ARM64 helpers. Working recipe rejects
+    new header includes, records RC/copied icon and retains/hashes `.res`; two
+    actual Windows PowerShell 5.1 builds preserve original binaries and all eight
+    file/resource/evidence pins. Two direct/spaced-header controls refuse before
+    compiler/output/success receipt. Source inputs/staged bytes/parse/whitespace
+    verify. Full committed packaging/hosted validation continue; post-compilation
+    pin timing/no byte-read trace/incomplete license classification stay explicit.
+    No helper/source device/settings/publication; counts unchanged (E-I03-RESOURCE).

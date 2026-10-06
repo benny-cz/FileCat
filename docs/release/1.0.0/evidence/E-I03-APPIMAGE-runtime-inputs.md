@@ -82,7 +82,7 @@ seven real SC/FDD metadata positives and twelve refusals, including two pinned
 license-byte controls. C# builds without warnings; shell syntax and ordinary
 whitespace checks pass. Twelve staged source files/seven exact frozen files/
 23-project scope and invocation ordering independently verify. Committed actual
-packaging and hosted revalidation continue; no full audit or candidate closure.
+packaging and hosted revalidation pass below; no full audit or candidate closure.
 
 Private `FileCatReleaseEvidence/appimage-runtime-20261006-v1`:
 
@@ -98,6 +98,56 @@ Private `FileCatReleaseEvidence/nuget-locks-20261006-v3`:
 |---|---|
 | appimage-tool-app-mode-controls-v1/independent-appimage-tool-app-mode-controls-v1.json | 7a6f5b2a7c9f2fea2c77a2430edb564171f2a13a5e663d7b5875fbe4363d69df |
 | appimage-tool-byte-refusals-v1/independent-appimage-tool-byte-refusals-v1.json | e875fc7f236a4de14dddef8e2c106880819b995402d56365abfc8dc534c71c0b |
+
+Committed wrapper source `0d61dbb2e5ea5ddc4420ee4f1807b6ac4ad32cfa` seals
+original push 37492084054 and development 37492315642, attempt 1. All four
+required test lanes/policy/ARM64 startup/draw/installer pass. Nineteen/twenty-five
+server digests, four/six clean SDK receipts, fourteen complete inventories per
+run/all App identities/picture/reference/draft/set controls and 92/138 actual
+locked graphs independently verify. Actual development Linux/Mac packaging,
+install/version/signature/icon checks pass; all retrieved manifest hashes match.
+Draft publication skips. No tag or release is created.
+
+Actual x64/ARM64 authoritative Windows packaging from raw Git source additionally
+passes both 38-package inventory gates, four SC/FDD payloads and four ZIPs' exact
+50-file App notice sets. Independent readers verify another 200 App notice files
+in the four actual Unix archives, plus **all seven new wrapper files inside the
+AppImage**: 207 Unix archive checks. Every package remains unchanged. Native
+desktop/candidate qualification and complete legal/static/source audit remain Open.
+
+Private `FileCatReleaseEvidence/ci-37492084054-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 71da31371be8f1a1539e810d9e1f04470b60c55999e924047fda37247131b06d |
+| independent-fixture-ci-v1.json | e47b23ab1202b96eeca6b8388c760822a3df4fbb3ef055f10491c6c815702bb3 |
+| independent-producer-policy-ci-v1.json | 91672007c71850f16c441a7278f4343a2b5e72481827ec930c9a03b2b3bc8525 |
+| independent-draft-guard-ci-v1.json | 9d81c38f3d05efeb9d4f917905944775a6d47bf1e9d28763544b8df5127b0f37 |
+| independent-separation-ci-v1.json | c9fc8fe30a9c3a80daf6e63cff23c5bd4681b6dc695eb19737d2b14a6d8e0e63 |
+| independent-restore-ci-v1.json | cc7224be916471c78117d50d28d04ce97fbea04f83425af67791015d87a42755 |
+
+Private `FileCatReleaseEvidence/ci-37492315642-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 25b9e81e5a10f8dd78d0b669be4e46832d229915be38aa81bd7ad4f195fe1587 |
+| independent-fixture-ci-v1.json | 02f7d49d9160b23a348752960ab6041aea67436944eff9e9f1fbd53a425fab5a |
+| independent-producer-policy-ci-v1.json | 338de5b5dccdcd872bdc2dd23be565b256924ad8936d6d11fd26a7bbfdee36c8 |
+| independent-draft-guard-ci-v1.json | 3b546be28511a98db578ba1a930206a65581b59b219db526c09b0c717835d54a |
+| independent-separation-ci-v1.json | 7ca98fc1564d1a627fd55a5adcc5cc501a833a005cd0f37f692fa8f57819a1ee |
+| independent-restore-ci-v1.json | 04eb72ad13d9d749d2bbaf17705c4699447db85812b5a72aa56fc167cb7a7b00 |
+
+Private `FileCatReleaseEvidence/wrapper-production-windows-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-windows-wrapper-regression-v1.json | aa618dd1350640b186a6d968b753d5d5ff5952505c2b767b85e9aad7df7e9ddc |
+
+Private `FileCatReleaseEvidence/wrapper-package-inspection-20261006-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-package-notice-bytes-v1.json | 9c20b16a0d40a8063d2226359defb6934228c695cd11a5759d850900a2df31ba |
 
 No source device, VM/Mac setup, upstream software execution, release tag,
 publication, candidate or human GO occurs in this slice. Counts remain
