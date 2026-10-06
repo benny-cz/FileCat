@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 162 IDs: 140 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
-| Evidence catalogue | 171 entries; 236 selected private evidence hashes independently reconciled in audit v24. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 163 IDs: 141 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 21 unimplemented fixes. |
+| Evidence catalogue | 172 entries; 254 selected private evidence hashes independently reconciled in audit v25. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 6215329ed67da6c8463a996eb51b12ac569194aa; later commits in this slice are release records only. | Reused exact artifacts keep their original identities; documentation changes do not relabel their producer. |
-| Latest product CI | 37505705190 attempt 1 at 6215329: policy/four required lanes/ARM64 startup, drawing and installer pass. | Complete original inventories/receipts/digests are retained in E-I162. |
+| Current product producer | 1669cb63c2dcb24ed1cdeb1bff95317f7ca997ef — closed-dialog Escape lifetime fix. | Older bitmap/native payload evidence keeps producer 6215329; changed/rebuilt artifacts require their own identity and affected revalidation. |
+| Latest product CI | 37527956906 attempt 1 at 1669cb6: policy/four required lanes/ARM64 startup, drawing and installer pass. | Fourteen complete inventories, nineteen server digests, toolchain/restore receipts and twelve new regression executions are retained in E-I163. Skipped cases remain explicit. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: real native/tinted bitmap borrowers survive cache eviction/clear and all 144 held wrappers become collectible after borrower release; stale completions dispose unpublished buffers (E-I06-B3). Fourteen source consumers are inventoried with remaining limits. Earlier QuickView runs cover four environments, 96 decoded pictures/128 readers and a 1 MiB per-run plateau ending with zero pixel/page/admission charges (E-I06-B2). F3 measurements retain 512 MiB across eight large pictures even while hidden, then release buffers on close (E-I06-B1). These are finite component results; aggregate/native-frame/candidate scope remains open.
+Latest completed slice: I163 proved and fixed a closed dialog retained by the Escape event guard. The original regression fails as expected; eight affected tests and three clean committed tests pass, followed by all three new cases passing on every CI lane (E-I163). Broader I06 remains open. Earlier exact 6215329 measurements cover F3 retained pixels (E-I06-B1), four-environment QuickView ownership (E-I06-B2) and borrowed icon/tint references (E-I06-B3); their finite component limits and original producers remain explicit.
 
 ## Remaining issue work — 21 entries
 
@@ -28,7 +28,7 @@ Latest completed slice: real native/tinted bitmap borrowers survive cache evicti
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Finish native/runtime composition and legal/SBOM gaps, then candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Complete native worker/render-frame and full consumer/dialog lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Escape dialog retention fixed as I163; complete remaining worker/render-frame/consumer lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -80,8 +80,8 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 21 unresolved issues (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. I06: verify full consumer/dialog/worker references and remaining materialized workloads. Start with the reviewed dialog Escape guard's potential retention; prove it before treating it as a defect.
-2. I03: continue native/runtime composition; also complete remaining V13 archive/naming variants when executable.
+1. I03: continue native/runtime composition and provenance gaps; also complete remaining V13 archive/naming variants when executable.
+2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163 fix. Native frame and unavailable interaction scope remain queued.
 3. I16/I17: continue unblocked V23/V24 identity, lifetime and boundary review.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
 5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.
@@ -101,7 +101,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 140 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 141 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |

@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current issue register
 
-Updated 2026-10-06. **140 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses; 162 total.**
+Updated 2026-10-06. **141 Remediated preliminarily, one Closed for preliminary remediation, 21 unresolved statuses; 163 total.**
 These are issue statuses, not remaining test counts. No status is promoted by this consolidation.
 Remediated does not mean complete candidate qualification. All original findings, comparison results, commits, failure details and closure limits remain in the [frozen full register](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md).
 
@@ -17,7 +17,7 @@ Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the r
 | I03 | <a id="i03"></a>Incomplete dependency and artifact provenance | High | Blocker (audit) | Partial audit: full per-artifact/native/runtime provenance, licenses, SBOM and candidate evidence remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I04 | <a id="i04"></a>Platform/package claim mismatches | High (where a clean install fails) | Blocker for the affected claim | Open: freeze support/artifact tiers and complete clean-platform lifecycle qualification. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I05 | <a id="i05"></a>Media/record claim reconciliation | Medium | Contract gate | Open: reconcile confirmed media and filesystem-record claims before contract freeze. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
-| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: page/index/admission bounds remediated; F3, four-environment QuickView and finite borrowed native/tint references sealed (E-I06-B1/B2/B3). Full consumer/dialog/worker/frame lifetimes, wider workloads and candidate remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
+| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: page/index/admission bounds remediated; F3, four-environment QuickView and finite borrowed native/tint references sealed (E-I06-B1/B2/B3). Escape dialog retention fixed as I163; remaining consumer/dialog/worker/frame lifetimes, wider workloads and candidate remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary), [I163](evidence/E-I163-escape-dialog-retention.md) |
 | I07 | <a id="i07"></a>Performance targets not proved | Medium–High | Performance gate | Open: reference-machine acceptance and controlled performance evidence remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I08 | <a id="i08"></a>Containment documentation versus reality | Potential High/Critical | Security gate | Open: actual Unix/native containment and accurate public boundary claims remain. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I10 | <a id="i10"></a>Documentation drift | Medium | Blocker where safety/support claims mislead | Open: finish documentation reconciliation against the frozen contract and tested artifacts. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
@@ -184,9 +184,10 @@ Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the r
 | I160 | <a id="i160"></a>Concurrent broker requests can each claim one nonce | High (replay-guard integrity) | Must fix (V06/B04/I17) | Remediated preliminarily — 37c88c8, 37446927662, 8975fdf. Candidate/broader limits are in the record. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I161 | <a id="i161"></a>Viewer header and visible page reads bypass shared device admission | High (responsiveness/resource admission) | Must fix (I06/I08/V12/required CI) | Remediated preliminarily — 8975fdf. Candidate/broader limits are in the record. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
 | I162 | <a id="i162"></a>Relative Git worktree bypasses local-path admission | High (path admission) | Must fix (I16/V23 B10/V24) | Remediated preliminarily — 6215329. Candidate/broader limits are in the record. | [Full record](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#summary) |
+| I163 | <a id="i163"></a>Escape event guard retains a closed dialog tree | Medium (retained resources) | Must fix (I06/V12 lifetime) | Remediated preliminarily — 1669cb6; baseline expected failure, eight affected tests, clean committed tests and all four CI lanes sealed. Native/broader/candidate qualification remains. | [Full record](evidence/E-I163-escape-dialog-retention.md) |
 
 ## Maintenance
 
-Update the current row and dashboard when evidence changes. Keep the 162 IDs stable; preserve severity/disposition unless evidence or an owner decision justifies a change.
+Update the current row and dashboard when evidence changes. Keep existing IDs stable; assign the next unused ID to a new proved finding. Preserve severity/disposition unless evidence or an owner decision justifies a change.
 Record new execution details once in the [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) and link the exact evidence. Frozen history files are not current state and must not be appended to.
 All 113 legacy issue-detail headings retain matching anchors in the relevant current table rows.
