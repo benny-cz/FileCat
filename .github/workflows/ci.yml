@@ -83,6 +83,8 @@ jobs:
             **/TestResults/**/*.dmp
             src/FileCat.PrivilegedHost/obj/**/bootstrap-build.json
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/compiler-*.log
+            src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/source-dependencies.json
+            src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/NativeBootstrap.map
             src/FileCat.PrivilegedHost/bin/Release/net10.0/FileCat.PrivilegedHost.exe
 
   # D-48: FileCat for Windows on ARM64, built and tested natively; its package starts and draws with the ARM64 Skia.
@@ -119,6 +121,8 @@ jobs:
             **/TestResults/*.trx
             src/FileCat.PrivilegedHost/obj/**/bootstrap-build.json
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/compiler-*.log
+            src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/source-dependencies.json
+            src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/NativeBootstrap.map
             src/FileCat.PrivilegedHost/bin/Release/net10.0/FileCat.PrivilegedHost.exe
       - name: The ARM64 package starts and draws its window
         shell: pwsh

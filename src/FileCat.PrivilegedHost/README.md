@@ -14,4 +14,6 @@ The caller checks the executable and each ancestor through Program Files before 
 
 Framework-dependent startup also checks the default architecture root's complete `shared` framework tree and its ancestors before loading hostfxr. The same ownership, grant, reparse and bounded-walk policy applies, including frameworks/versions that servicing could select. An unverifiable shared runtime is refused; installing a newer administrator-protected runtime remains supported.
 
+The native build receipt includes hashes for C++ compiler-reported headers, linker-searched libraries and reported compiler components, including the linker. It retains the source-dependency JSON, linked-symbol map and original diagnostics. These are input pins collected after compilation; they do not trace individual bytes read, prove resource-compiler header coverage or complete license/system-library classification.
+
 These checks do not establish every possible dependency resolution route, eliminate concurrent file replacement, or qualify IPC token/path identity and limited-caller consent. Those remain in the release loader audit. All compiled/runtime components, including native compiler runtime inputs, must complete the release license/provenance inventory.
