@@ -36,9 +36,12 @@ exists and stable publication remains NO-GO (E-I03-RESOURCE/PAYLOAD/ADVISORIES).
 AppImage checksum follow-up rejects portable qualification from a matching
 replay: unchanged upstream C builds on two Mac toolchains at O0/O2 pass 24 plain
 MD5 controls, but none of 72 retained AppImage calculations matches its embedded
-field/replay. Compiler-dependent results and all original failures are sealed
-without calculation reruns. Linux repeats continue after the disposable guest's
-missing compiler is recorded (E-I03-CHECKSUM). I03 and counts remain unchanged.
+field/replay. Ubuntu x64 GCC O0/O2 reproduces all twelve original checksums and
+24 changed-file refusals, with 12 plain controls/55 child exits. Original failures
+and corrected setup metadata are sealed without calculation reruns; all thirteen
+new compiler packages/manual marks are restored. Finite Linux matches do not
+prove generic initialization/producer authenticity (E-I03-CHECKSUM). I03 and
+counts remain unchanged.
 
 Native Unix follow-up on the same actual 8502983 packages records eighteen ELF
 files per Linux archive, seventeen exact original-member matches each and
@@ -3507,3 +3510,22 @@ Independent record audit v17 verifies all 194 selected evidence pins and unchang
 140/162 preliminary/one Closed/21 remaining issue counts. Retained
 `release-assets-20261006/independent-records-v17.json` SHA-256
 `f693897c38b07fe9e75041feeb08212f3423c08a5c3ee8a9a8bbb43a10dbe02f`.
+
+370. Native Ubuntu checksum repeat passes on the same original source/input ZIP:
+    GCC O0/O2, twelve plain MD5 controls/55 natural child exits, all twelve original
+    embedded checksums and 24 deliberately changed-file refusals. All 36 Linux
+    calculations match replay; 72 Mac disagreements stay retained. Original missing
+    compiler/mirror failures remain. Named setup dpkg fields were expanded away in
+    inline transport; full original named baseline is unavailable and v6/v7 empty
+    change assertions are superseded by original APT/current saved-file inspection.
+    All thirteen newly installed compilers/dependencies are subsequently purged;
+    original manual marks return and no other installed versions change during
+    restoration. Dry-run parser refusal precedes mutation. Combined 108 observations/
+    36 plain controls/164 child exits/artifact and source pins independently seal.
+    No product source/payload/physical source/GO change; counts stay 140/162 preliminary,
+    one Closed/21 remaining; I03 and generic provenance remain Open (E-I03-CHECKSUM).
+
+Independent record audit v18 verifies all 200 selected evidence pins and unchanged
+140/162 preliminary/one Closed/21 remaining issue counts. Retained
+`release-assets-20261006/independent-records-v18.json` SHA-256
+`32bf674497d144030fb9a123c373d076c70348dd71ba44c21829e16765af2fcf`.

@@ -64,9 +64,12 @@ Independent checksum qualification stays Open: storage-reuse replay matches
 two unchanged original AppImages, but unchanged upstream C on two Mac compilers
 at O0/O2 produces different values. All 24 plain MD5 controls/109 child exits
 verify; none of 72 AppImage calculations matches the replay/embedded field.
-Original link/assertion/receipt failures remain sealed. First Ubuntu attempt
-finds no compiler before any calculation; authorized setup/native Linux repeat
-continue. No generic initialization/whole-file authenticity claim (E-I03-CHECKSUM).
+Original link/assertion/receipt failures remain sealed. Ubuntu x64 GCC O0/O2
+reproduces all twelve original checksums and 24 changed-file refusals, with twelve
+plain controls/55 child exits. Setup metadata gaps and original mirror failure
+remain explicit; thirteen new compiler packages/manual marks are restored.
+Finite Linux matches do not establish generic initialization/whole-file
+authenticity/source reproducibility or candidate closure (E-I03-CHECKSUM).
 
 Native generated resources now use two SDK-verified fixed values without header
 includes. Six actual original/derived/working builds preserve complete x64/ARM64

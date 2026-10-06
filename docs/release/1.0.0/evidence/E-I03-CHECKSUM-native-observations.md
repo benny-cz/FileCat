@@ -66,8 +66,43 @@ Mac settings or selected Xcode path change.
 
 The first Ubuntu transport verifies and extracts the same input ZIP, then stops
 before compilation because neither GCC nor clang is installed. Its original
-diagnostic is retained. Minimal compiler setup and a Linux producer-platform
-repeat continue separately; no Linux checksum pass is claimed here.
+diagnostic is retained. The first compiler install fails on mirror transport;
+a bounded invocation with IPv4 forced succeeds without persistent network changes.
+
+The same unchanged C sources, lookup shim, original packages and changed copies
+then run on Ubuntu 26.04.1 x64, UID 1000, GCC 15.2.0-16ubuntu1, at O0/O2. All
+12 ordinary MD5 controls and 55 child exits pass. Each original runs three times
+per build: **all twelve original checksum calculations match its embedded field**.
+All 24 changed-copy calculations disagree with their changed file's embedded
+field, as intended, and all 36 Linux calculations match the replay. Each case's
+value is identical across O0/O2 and all three processes. The three payload-byte
+changes change the calculated value; the field-only change preserves calculation
+while making comparison fail.
+
+This establishes finite independent checksum matches for those two original
+Linux artifacts using the declared source algorithm. The retained 72 Mac
+disagreements still reject a portable/general buffer-lifetime guarantee. It does
+not prove the downloaded producer's compiler/source reproducibility, full byte
+coverage, whole-file authenticity or candidate qualification.
+
+The original compiler setup's named dpkg fields are blank: inline guest transport
+expanded their dollar-brace references before Python ran. Its full named original
+baseline is unavailable. The empty package-change assertions in v6/v7 are invalid
+and explicitly superseded. A saved-file reader verifies the complete original APT
+transaction and current named dpkg inventory: thirteen new compiler packages,
+no upgrade/removal in that transaction; `gcc` and existing `libc6-dev` gain manual
+marks. This correction does not rerun checksum calculations.
+
+Scoped restoration first refuses the simulation's unfamiliar `Purg` records,
+before mutation. The corrected parser still requires exactly those thirteen
+packages and no installation/other removal. All thirteen are purged, the original
+manual package set is restored, and an actual named before/after restoration
+comparison verifies no other installed version changes. Full original pre-install
+named inventory remains unavailable; APT metadata, downloaded inputs and evidence
+are retained. No network/power policy, product source or payload changes. The
+final combined reader seals 108 AppImage observations, 36 plain controls and
+164 successful child commands with the original failures and corrected setup
+limitations.
 
 Private `FileCatReleaseEvidence/appimage-checksum-20261006-v1`:
 
@@ -80,6 +115,12 @@ Private `FileCatReleaseEvidence/appimage-checksum-20261006-v1`:
 | native-control-v3/native-stderr.txt | cdee01bf5091f6170d666ce409be2c843f9df15ed0f350c3c03120ef22df2bcc |
 | native-control-v4/independent-native-checksum-v4.json | dae0becc7e846d35897db513718f841909f0297f157a07f3c619ceff1dbdc802 |
 | native-linux-v5/failed-v5-diagnostic.zip | 89f0c64b014aefc561ba88affd16b854cf834967958a22a41ec161a9d67b0d89 |
+| native-linux-v5/compiler-setup-failure.zip | 578d5525704a6eaa11f6414656549c0f6a47a688ab834ac87b334b256fe9c1e7 |
+| native-linux-v6/independent-native-linux-checksum-v6.json | 8e5a7a4081ff8a7979ed893dab7af8d044e00a3b4340ce19a8cb920f9c349aa5 |
+| independent-combined-checksum-observer-v7.json | 3d934499eed1a50136c2b27bfadf4441e9c435637969ce656efe8e3ccb2966b7 |
+| setup-observer-v9/independent-host-setup-observer-v10.json | c779813010349250019f3507ba0371b369f67e2a6e97fd78d3fc34716ab292fc |
+| compiler-restoration-v13/independent-compiler-restoration-v13.json | 318534912a9fad2dbdc1a78a2fb0c68ebc6b492f73ccd06201ce9f725fd7f8fd |
+| independent-final-checksum-observer-v14.json | ccf4684459099c9293e278f838a88d4fcaccc47baf464e47d63b4ebb1b765038 |
 
 No physical source, release tag, publication or candidate is used. Counts remain
 140/162 preliminary Remediated, one Closed and 21 remaining issue remediations.
