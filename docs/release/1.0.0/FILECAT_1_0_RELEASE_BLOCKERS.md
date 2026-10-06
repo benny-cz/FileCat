@@ -249,6 +249,14 @@ page limit is not extended without a contract decision. Wider consumers/QuickVie
 borrowed icons, Unix/native desktop/reference hardware and candidate scopes
 remain open. Failed headless F4/observer attempts are retained (E-I06-B1).
 
+QuickView's own decode route additionally passes four real component previews
+at scaling 1: five replacement rounds/24 pictures stay at 1 MiB; every retired
+buffer becomes unusable immediately. Malformed-image/text fallbacks clear the
+image, all 32 readers dispose once and detach releases pixel/page/admission
+charges. Original payload/build/output/oracle/process pins verify. Main-window
+integration, Shell/DPI/more formats/held races/Unix/guest/native/candidate scopes
+remain open; the original observer's nullable-key warning is retained (E-I06-B2).
+
 I136 is verified preliminarily at clean a1c265f. The numbered-volume gap warning preserves
 independent ISO/Joliet/UDF 1.02 and complete RAR 54 search/72 content controls plus safe refusals.
 Affected host checks, four clean CI jobs and all 81 cases per VM pass. Four server digests/six

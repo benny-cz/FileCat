@@ -3552,3 +3552,31 @@ retained picture-memory files and 34 deployed/build observer file copies. Counts
 remain 140/162 preliminary/one Closed/21 remaining issue remediations. Retained
 `release-assets-20261006/independent-records-v19.json` SHA-256:
 `47fdcfed4276fa94fdc4f616369bdf95beefc43b090bba082195ef3615d8f89b`.
+
+372. QuickView own-decode memory/lifetime checks reuse the same unchanged committed
+    6215329 payload under documentation HEAD 0b2cfd3. Four real controls/tabs/listings
+    at scaling 1, real Skia and five replacement rounds decode 24 pictures while
+    retaining exactly 1 MiB. Every old bitmap rejects locking immediately when
+    abandoned. Four malformed-picture/then text fallbacks retain no image; all 32
+    source readers dispose once outside reads, with no later read. Final pixel/
+    shared-page/admission charges are zero and owned processes absent. Both 352-file
+    payload copies/33 references/four compiled-deployed observer files/twenty retained
+    files, complete encoded PNG patterns/four oracle refusals and exact snapshots
+    independently verify. Original CS8714 private warning retained; no product/
+    dependency/persistent setting/physical-source change. Shell/DPI/other formats/
+    main-window/races/Unix/guest/native/candidate scope remains; I06 Open, counts
+    unchanged 140/162 preliminary/one Closed/21 remaining; NO-GO (E-I06-B2).
+
+Independent record audit v20 verifies all 216 selected evidence pins, both
+picture-memory retained-file sets (131 and twenty) and all 42 deployed/build
+observer file copies. Counts remain 140/162 preliminary/one Closed/21 remaining.
+Retained `release-assets-20261006/independent-records-v20.json` SHA-256:
+`f16ed8c88698d9efd98fcd5ac8ea9c54f2db3c76803db6bace9ec30ad0cd866a`.
+
+Next unblocked memory slice: repeat the actual QuickView ownership probe against
+the retained native guest/Unix payloads, preserving their distinct artifact pins;
+then inspect remaining borrowed-icon/strong-reference consumers. Native desktop
+input/frame qualification stays gated on the supported computer-use surface,
+and the physical-source hold stays in force. No owner interaction is needed to
+resume these component checks. Overnight continuation remains active because
+autonomous work remains; no temporary power/remote-control policy is rearmed.
