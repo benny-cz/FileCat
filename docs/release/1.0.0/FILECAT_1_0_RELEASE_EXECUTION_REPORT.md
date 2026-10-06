@@ -7,12 +7,14 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
-Expanded external-configuration checks reproduce I150: actual 313d40b automatic
-Git badges execute the owned global and inherited filter recorders. Two known
-positives/one negative, unchanged 354/546 payload pins, exact environment restoration
-and process cleanup verify (E-I150). Correction/revalidation underway without
-owner interaction; 127/150 preliminarily remediated, one Closed, 22 remain.
-All owner needs stay queued until 08:40 CEST; no candidate/human GO; NO-GO.
+I150 is preliminarily remediated at 874b7ae/52df3d7: identical final native tests
+fail six before and pass six after; unchanged probe blocks both original external
+filter executions while retaining ordinary badges/positive controls. Clean native
+Windows/Mac/Ubuntu and all four successor CI lanes/four digests/six inventories/
+394 exact App names verify. Original ARM64 NUL failure, Ubuntu missing Git and
+observer failures remain retained (E-I150). 128/150 preliminarily remediated, one
+Closed, 21 remain; all 24 campaigns still require final qualification. Owner
+needs stay queued until 08:40 CEST; no candidate/human GO; NO-GO.
 
 Fresh I16/V24 process/file/share-contact component controls independently pass on
 actual 313d40b: 66 process events/26 verified descendants, 594 file-open attempts/
@@ -2419,7 +2421,31 @@ Overall **NO-GO** remains.
      correct and revalidate autonomously. 127/150 preliminary, one Closed, 22
      remain; no candidate/human GO. Owner needs queued until 08:40 CEST.
 
+307. Correct I150 at pushed 874b7ae/52df3d7. Global/system/inherited Git settings
+     are isolated to the child; repository rules remain and capability scope is
+     explicit. Six original host failures correct; affected 14/3 skips and full
+     App 371/23/394 pass. Identical final native test DLL fails six/passes eight
+     positives before and passes 14 after, with three opt-in skips each and only
+     App DLL different. Unchanged actual probe likewise blocks both external
+     filters while retaining known positives/ordinary badges. All 889 source/
+     354/350/350 native pins and cleanup verify; Win 14/3, Mac/Ubuntu 13/4, all six
+     new cases pass. Original Ubuntu lacks Git/seven required skips retained;
+     authorized Git 2.53 installation enables fresh lane. Original CI retains
+     seven ARM64 NUL failures/three passing lanes/three digests/six inventories.
+     Documented /dev/null correction yields successor four passing CI lanes/four
+     digests/six full inventories/394 exact App names and six controls each. ARM64
+     377/17/394/start/draw/installer pass by logs, no per-case ARM64 inventory or
+     physical claim. Mac bounded awake wrappers absent; prior power restoration
+     stands. Observer failures preserved. 128/150 preliminary, one Closed, 21
+     remain; 24/26 checklist steps partly/fully open, no candidate/GO. Continue
+     indirect/reparse/protected-file/native I16; owner needs queued to 08:40 CEST.
+
 ## Evidence invalidated by the campaign's own changes
+
+- I150 changes automatic Git child environment/configuration. Earlier E-V24-D2
+  process/file traces are historical to 313d40b for affected Git paths; finite
+  exact-source filter/regression controls pass at 52df3d7. Broader indirect/reparse,
+  protected-file and installed-candidate observations still need validation.
 
 - I140 adds Unix source-entry identity admission. Earlier Mac native approval/refusal and
   ordinary source passes at 593583e remain historical. Committed replacement v3/v4 pass;

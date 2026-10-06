@@ -1,12 +1,14 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
-I150 is newly open: global/inherited settings execute an owned program during
-automatic Git badges on exact 313d40b, with independent positives/negative and
-payload/environment/cleanup pins (E-I150). High/must-fix; correction underway
-without owner needs. Current counts 127/150 preliminary, one Closed, 22 remain.
-The earlier 149-item count below is historical to the preceding sealed slice.
+I150 is preliminarily remediated at 874b7ae/52df3d7: six identical native baseline
+failures correct, unchanged probe blocks both original external filter executions,
+clean Windows/Mac/Ubuntu and all four successor CI lanes/four digests/six inventories
+verify (E-I150). Original ARM64 portability/missing-prerequisite/observer failures
+remain retained. Current counts 128/150 preliminary, one Closed, 21 remain. Broader
+indirect/reparse/protected-file/native/candidate I16 continues; no owner input
+currently needed. Earlier 149-item counts below are historical to preceding slices.
 
-Current overnight slice: I148 clean Windows/Mac/Ubuntu 63/0 each and all four
+Earlier sealed archive slice (historical): I148 clean Windows/Mac/Ubuntu 63/0 each and all four
 exact-source CI lanes verify. I149 is preliminarily remediated at 313d40b after
 eight RAR signature failures; affected 77/0/full Core 818/56 skips/874 and identical
 before/after controls verify. Clean Windows/Mac/Ubuntu each 77/0 and all four exact

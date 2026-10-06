@@ -101,3 +101,68 @@ The successor uses [Git's documented null path](https://git-scm.com/docs/git)
 `/dev/null` on all platforms. Affected host 14/3/17 passes; exact successor
 native/CI qualification remains required. Private preparation and unavailable-job
 log retrieval failures are retained without overwriting their originals.
+
+## Sealed successor qualification
+
+Preliminarily remediated at `52df3d77844c79290289892a9ef8b26b18c38423`; I16 wider scopes and installed-candidate
+qualification remain open. Fresh clean raw export verifies all 889 Git blobs;
+source ZIP SHA-256 `bb13ef7b9e8d36d3f18e68f3af4777429425cf12b8ed72e19dc172a2b7a2e39f`, producer SHA-256
+`ca23a2664d6b3e9073741fb6fcd8b7f180d38ecdabb87169d10a765104ade01c`. Clean native Windows 14 pass/three declared
+opt-in skips; Mac and Ubuntu each 13 pass/four declared skips. All six new cases
+pass in every native lane, with 354/350/350 payload pins before/after, retained
+outputs, owned process absence and owned temp cleanup independently verified.
+Ubuntu Git is 2.53.0; installation added distro git/git-man/liberror-perl in the
+authorized disposable VM. The original seven missing-prerequisite skips remain
+unqualified and independently sealed; no product failure inferred from them.
+
+The identical final test DLL
+`cd43db2c18abc2e64f72be9bbeb679db1e2bd991a6e0b7657a8309bd98cdf6a1`
+produces six failures/eight positives/three opt-in skips with the original
+313d40b App DLL, then 14 positives/three skips with the final App DLL. All 17
+case names and all 354 payload files compare exactly except `FileCat.dll`.
+An independent unchanged native probe also compares all 546 combined pins with
+only `production/FileCat.dll` differing: both actual external filter cases
+execute before and neither executes after, while ordinary Modified badges and
+both direct positive recorders remain. Final actual App DLL SHA-256
+`448bb5c0ced81eb4940b652c10a97865fc4053b28dd4d44a2d199dc31dc5d83c`.
+
+[Successor CI 37401754075 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37401754075)
+on exact 52df3d7 passes all four required lanes, four server artifact digests and
+six complete unique TRX inventories. All 394 App names match host bytes exactly;
+all six new cases pass in each retained App inventory. Windows App 377/17 skips,
+Mac 346/48, Ubuntu 344/50; Windows Core 817/57, Platform 166/33, Remote 88/28.
+ARM64 logs 377/17/394 plus native package start/drawing and installer compilation
+pass; per-case ARM64 TRX and physical/candidate qualification are unavailable.
+Unchanged archive controls all 77/0 and 30 new archive cases pass; six native PE
+path case-name differences remain explicitly retained instead of normalized.
+Package-release jobs are skipped on this ordinary main push; no stable publication.
+The failed original CI is independently retained with three digests/six full
+inventories, three passing required lanes and the original seven ARM64 failures.
+
+Mac `caffeinate -i` existed only around each completed native Git command; a fresh
+ordinary-user read independently confirms the final owned wrapper absent. No new
+Mac power preference change; the prior lid/awake restoration remains in E-ENV-MAC-1.
+Original assembly-name, host Markdown line-ending, private script-replacement,
+collector-root and premature job-log retrieval failures remain preserved.
+The corrected collector roots immutable downloads in the intended CI directory;
+exact names/digests verify without rerunning the product to repair observation.
+
+The final status observer initially counted the table's ID header as an issue after
+writing these records. Its original script and failed count are retained; fresh
+read-only sealing uses 150 exact unique numeric IDs and independently confirms
+128 preliminary Remediated, one Closed and 21 remaining remediation. Final seal
+`sealed-i150-v2.json` SHA-256
+`d6fce9547f7742dd25e20ec59d5f85c222ab1bb8ec1fb51674eb753f144911c5`.
+
+| Independently sealed record relative to private base or sibling CI directory | SHA-256 |
+|---|---|
+| Probe comparison: `browse-traces-20261006\independent-git-probe-comparison-v1.json` | 558e21caa419a36da4fb4f9cf2c79061cab6e8e9043b7db31d155e96846126a9 |
+| Final test comparison: `browse-traces-20261006\independent-git-test-comparison-v1.json` | 412a023516da2d7925ef2df9c2ea97dadb66c7bea77650c86dbb910fdb32d4d6 |
+| Working host: `browse-traces-20261006\independent-git-host-v2.json` | 02293285f1533b40c0e43837186767815a944d4298c60d8df8f62bd6491ba49a |
+| Native Windows: `browse-traces-20261006\git-clean-v2\windows-executed\independent-guest-v1.json` | f7f9819d8e4bb75c76163ca2cf8b1adf6a961c48b57761bd5f006edd31dbb6e3 |
+| Native Mac: `browse-traces-20261006\git-clean-v2\mac-executed\independent-native-v1.json` | 5f04bbb72100cc9a9296f98c9ba0f08e060515f552894f38e29098106f02e88e |
+| Native Ubuntu: `browse-traces-20261006\git-clean-v2\linux-executed\independent-guest-v1.json` | 312b4a82f654f7619560bfc2d8fc16fbc09bb9b3a1d9becd97a6c3327fbc1229 |
+| Ubuntu missing prerequisite: `browse-traces-20261006\git-clean-v1\linux-executed\independent-failed-prerequisite-v1.json` | 89c4ffd54da6bca9ba04de4cd4d81ea4121de7fcf7d0bca081338315c810ff33 |
+| Successor CI: `ci-37401754075-attempt1\independent-ci.json` | afaafecc0dd9fc5a1f2ad135e3c020ebc714d0801f08d87c6f40a131d8c07541 |
+| Failed original CI: `ci-37400693720-attempt1\independent-failed-ci-v2.json` | d440e3c112090cc5337cda338704c7f1e2ca734903f762a88fae050421ac8d66 |
+| Mac bounded awake process absence: `browse-traces-20261006\mac-git-awake-absence-v1-stdout.log` | 68b8e9451724a564a1f0b493c82bb57ea8ff79f70f7167ffa99ec8568d98ce2b |
