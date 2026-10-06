@@ -5,7 +5,8 @@ changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
 and zero reported loss verify. Six host baseline failures correct; full App
 378/23 skips/401, clean Windows 21/3 and Ubuntu 14/10 pass with source/payload/
 temp/process/listener pins (E-I151). Mac SSH timeout is queued for owner help
-after 08:40 CEST; CI is running. 129/151 preliminary, one Closed, 21 remain;
+after 08:40 CEST; all four exact-source CI lanes/four digests/six inventories/
+401 exact App names and ARM64 startup/drawing/installer verify. 129/151 preliminary, one Closed, 21 remain;
 all 24 campaigns need final qualification, no candidate/human GO; NO-GO.
 
 Earlier sealed I150 slice (historical counts): preliminarily remediated at 874b7ae/52df3d7: six identical native baseline
