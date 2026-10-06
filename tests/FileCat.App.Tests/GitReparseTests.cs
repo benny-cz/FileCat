@@ -98,6 +98,36 @@ public sealed class GitReparseTests
         Assert.Equal(fixture.Repository, GitStatusReader.SafeRepository(fixture.Repository));
     }
 
+    [Theory]
+    [InlineData("\n", false)]
+    [InlineData("\r\n", false)]
+    [InlineData("\n", true)]
+    public void Continued_configured_worktrees_refuse_junctions(string newline, bool quoted)
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows junction boundary; Unix mounted paths need separate qualification."); return; }
+        using var fixture = new Fixture();
+        string target = Directory.CreateDirectory(Path.Join(fixture.Root, "target")).FullName;
+        fixture.Junction("repo/target-link", target);
+        string quote = quoted ? "\"" : string.Empty;
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), $"\tworktree = {quote}../tar\\{newline}get-link{quote}{newline}");
+
+        Assert.Null(GitStatusReader.SafeRepository(fixture.Repository));
+    }
+
+    [Theory]
+    [InlineData("\n", false)]
+    [InlineData("\r\n", false)]
+    [InlineData("\n", true)]
+    public void Continued_ordinary_worktrees_remain_available(string newline, bool quoted)
+    {
+        using var fixture = new Fixture();
+        Directory.CreateDirectory(Path.Join(fixture.Root, "ordinary-target"));
+        string quote = quoted ? "\"" : string.Empty;
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), $"\tworktree = {quote}../../ordinary-\\{newline}target{quote}{newline}");
+
+        Assert.Equal(fixture.Repository, GitStatusReader.SafeRepository(fixture.Repository));
+    }
+
     [Fact]
     public void Linked_configured_worktrees_use_the_actual_git_directory()
     {

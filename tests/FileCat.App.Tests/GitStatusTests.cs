@@ -4,6 +4,23 @@ namespace FileCat.App.Tests;
 
 public sealed class GitStatusTests
 {
+    [Theory]
+    [InlineData("[core]\n\tbare = false # ignored slash\\\n[filter \"owned\"]\n\tclean = unused\n")]
+    [InlineData("[core]\n\tbare = false ; ignored slash\\\n[filter \"owned\"]\n\tclean = unused\n")]
+    [InlineData("[core]\n\tworktree = ..\\\\\n[filter \"owned\"]\n\tclean = unused\n")]
+    public void Configuration_comments_and_escaped_slashes_do_not_hide_the_next_section(string config)
+    {
+        string root = Directory.CreateDirectory(Path.Join(Path.GetTempPath(), "filecat-git-tests", Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string path = Path.Join(root, "config");
+            File.WriteAllText(path, config);
+
+            Assert.False(GitStatusReader.IsHarmless(path, root));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Snapshot_marks_direct_children_and_aggregates_folder_changes()
     {

@@ -303,8 +303,9 @@ internal static class GitStatusReader
         if (!info.Exists) return true;
         if (info.Length > 1_000_000) return false;
         bool core = false;
-        foreach (string raw in File.ReadLines(configPath))
+        foreach (string? raw in LogicalConfigurationLines(configPath))
         {
+            if (raw is null) return false;
             var line = raw.AsSpan().Trim();
             if (line.Length == 0) continue;
             if (line[0] == '[')
@@ -332,6 +333,42 @@ internal static class GitStatusReader
             }
         }
         return true;
+    }
+
+    /// <summary>
+    /// Git removes an unescaped backslash and newline before interpreting a continued value. Check the same logical
+    /// line, keeping quoted/escaped characters intact for the value reader. Comments end the physical line: a slash
+    /// in a comment must not consume a following filter/include section. Null refuses incomplete or oversized input.
+    /// </summary>
+    private static IEnumerable<string?> LogicalConfigurationLines(string configPath)
+    {
+        var line = new StringBuilder();
+        bool quoted = false, continued = false;
+        int characters = 0;
+        foreach (string raw in File.ReadLines(configPath))
+        {
+            if (raw.Length > 1_000_000 - characters - 1) { yield return null; yield break; }
+            characters += raw.Length + 1; // Include physical line endings so empty continued lines are bounded too.
+            continued = false;
+            for (int i = 0; i < raw.Length; i++)
+            {
+                char c = raw[i];
+                if (c == '\\')
+                {
+                    if (i + 1 == raw.Length) { continued = true; break; }
+                    line.Append(c).Append(raw[++i]);
+                    continue;
+                }
+                if (c == '"') quoted = !quoted;
+                if (!quoted && c is '#' or ';') break;
+                line.Append(c);
+            }
+            if (continued) continue;
+            if (quoted) { yield return null; yield break; }
+            yield return line.ToString();
+            line.Clear();
+        }
+        if (continued || quoted || line.Length != 0) yield return null;
     }
 
     /// <summary>A setting's value as Git reads it: its quotes and any comment after it removed.</summary>
