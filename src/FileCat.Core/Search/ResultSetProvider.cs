@@ -102,6 +102,7 @@ public sealed class ResultSet(string id, string title, string provenance)
                 if (_relative.Remove(i))
                 {
                     _items.Remove(i);
+                    _notes.Remove(i);
                     n++;
                 }
             }
@@ -118,6 +119,7 @@ public sealed class ResultSet(string id, string title, string provenance)
         {
             int i = _items.IndexOf(old);
             if (i < 0 || !_relative.Remove(old, out var rel)) return false;
+            _notes.Remove(old, out var note);
             if (_relative.ContainsKey(replacement))
             {
                 _items.RemoveAt(i); // already a member under its new identity
@@ -126,6 +128,7 @@ public sealed class ResultSet(string id, string title, string provenance)
             {
                 _items[i] = replacement;
                 _relative[replacement] = rel;
+                if (note is not null) _notes[replacement] = note;
             }
             ModifiedUtc = DateTime.UtcNow;
         }
