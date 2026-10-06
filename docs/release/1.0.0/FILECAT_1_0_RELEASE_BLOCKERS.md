@@ -2,8 +2,13 @@
 
 I18 package prerequisites and exact asset selection are partially corrected:
 all package jobs now require ARM64, and both upload routes share selected paths
-and a byte manifest. Eight host synthetic controls/static graph checks pass;
-hosted/actual package validation continues. Signing/promotion/duplicate assets/
+and a byte manifest at b9526b9. All four hosted control lanes and independent
+development dispatch pass; actual Windows eight-output compilation/selection,
+Linux/Mac packages and retrieved byte manifests verify. Original main CI retains
+one cold-picture first-feed failure. Fixture-only capacity/diagnostics passes
+64 before/64 after with identical production bytes and full App 386/23/409;
+historical cause is not proven and committed successor CI continues.
+Signing/promotion/duplicate assets/
 protection/immutable retention/candidate gates remain Open (E-I18-A1).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all

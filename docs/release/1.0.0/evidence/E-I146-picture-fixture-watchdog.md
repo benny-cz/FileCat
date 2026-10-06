@@ -92,3 +92,37 @@ GO exists; release recommendation remains NO-GO.
 | `clean-v2/mac-executed-v3/independent-native-v1.json` | `ae58ff2a87760f900bdf096189dc44cb2e2a5057018f96507705f4928e563737` |
 | `clean-v2/mac-executed/independent-observer-failure-v2.json` | `6e6bf952333b01824eb4d1e08c43c63111b86f27d9f713bc8c5c068df7906099` |
 | `../ci-37387554116-attempt1/independent-ci.json` | `9fe191738c2f3fbea6c178a4059993f68f255615d25b77339bec5561a9624607` |
+
+## Separate cold-pool checkpoint follow-up (2026-10-06)
+
+Exact b9526b9 main CI 37454794034 remains failed on one unscheduled eight-picture
+admission case: four first feeds do not reach their ten-second checkpoint. All
+four selector-control receipts and the other three lanes pass. Independent
+development dispatch 37455247699 on the same source passes all four test lanes
+and Linux/Mac package jobs. Original logs, fourteen full inventories per run and
+all fourteen/eighteen selected server artifact digests verify (E-I18-A1).
+This is a different test/checkpoint from the earlier watchdog correction above.
+
+Sixteen fresh one-CPU host processes each run all four unchanged admission cases:
+64 pass, with first-case median 6.974 seconds. The test-only correction temporarily
+reserves at least twelve pool workers for four blocking feeders/four blocking pipe
+readers plus runner/cancellation continuations. Process-wide minima are restored
+and independently asserted after all work drains. The ten-second checkpoint and
+every admission/cancel/source/healthy assertion remain; diagnostics now report
+thread count, pending work, request states/exceptions and first-feed timing.
+
+An identical observer/common production payload with only test DLL/PDB replaced
+passes another 64 cases; first-case median 1.004 seconds. Both controlled sides
+pass, so no controlled failure-before claim is made. Cold injection is a plausible
+historical contributor, not established attribution. Full working App passes
+386/23/409. Committed successor CI remains necessary; no new issue closure,
+native GUI, physical source or candidate qualification is inferred.
+
+The following pins are under private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained item | SHA-256 |
+|---|---|
+| picture-cold-start-v1/independent-cold-start-v1.json | 08b244062ad5dd6abb7cdadb8c632001ba95dbb7dd94a01b8eefc668e7bc7688 |
+| picture-capacity-v1/independent-cold-start-v1.json | 815124225a4020806ffdd5fbdc6f520a2d6f161ab2308a780710aa19c46b070a |
+| picture-full-working-v1/app-full.trx | 8c1d38243cf7fb0f5fefb897beebf11fd4238c3b5f14f20dd4d295b013b414ff |
+| independent-package-fixture-seal-v1.json | 9e9fdefa3ab57f3515e00bbaaede8e725b4a41fa37e63a5613e9a300b82fa81e |

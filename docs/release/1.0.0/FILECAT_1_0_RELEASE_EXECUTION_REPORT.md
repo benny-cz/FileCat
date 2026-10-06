@@ -9,8 +9,13 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 I18 package prerequisites and asset selection are partially corrected: all three
 package jobs now require ARM64 and both upload routes share an exact versioned
-list and byte manifest. Eight host synthetic controls/static graph checks pass;
-hosted/actual package execution continues (E-I18-A1). I18 stays Open.
+list and byte manifest at b9526b9. Eight controls pass on each of four hosted lanes.
+Development dispatch passes all test lanes/Linux and Mac package jobs; actual
+Windows eight-output compilation/selection/935 raw sources/tool restoration and
+all retrieved package bytes verify. Original main CI remains failed on one separate
+cold picture checkpoint. Fixture-only capacity/diagnostics passes 64 before/64
+after with identical production files and full App 386/23/409; committed successor
+CI continues (E-I18-A1/E-I146). I18 stays Open.
 
 I03 native compiler provenance is partially improved at 573ed2c with exact
 927-source/four-mode/local input byte verification and four green CI lanes,
@@ -3073,3 +3078,21 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     required hosted lane; tagged publisher and actual package path have not run.
     Installer suffix mismatch, signing/promotion/duplicates/protection/immutable
     retention/candidate gates stay Open (E-I18-A1). Counts unchanged; NO-GO.
+
+338. I18 b9526b9 actual development validation seals 935 raw Git inputs, 652
+    publish outputs/two final FDD native report-map sets, 510 SC guest payload
+    pins and both real installer binaries/119 frozen compiler pins/cleanup.
+    All eight Windows files/exact emitted paths/ZIP architecture/license/portable
+    checks verify. Development dispatch 37455247699 passes all four test lanes
+    and actual Linux/Mac packaging/install/version/signature/icon steps; eighteen
+    digests/six clean build receipts/fourteen inventories/all package-manifest
+    hashes verify. Original main 37454794034 remains failed on one Windows first-
+    feed checkpoint, with fourteen digests/four receipts/fourteen inventories
+    retained. Every hosted selector control passes in both runs. Separate cold-
+    pool fixture investigation: 64 unchanged/64 capacity-reserved cases pass,
+    all production bytes identical, median first case 6.974 -> 1.004 seconds;
+    pool minima restore, existing limits/deadlines remain and full App 386/23/409
+    passes. Original
+    cause is not proven; committed fixture successor CI continues. No tag,
+    publication, Windows package-install/GUI, physical source or candidate claim.
+    Counts unchanged: 139/161 preliminary, one Closed, 21 remaining; NO-GO.

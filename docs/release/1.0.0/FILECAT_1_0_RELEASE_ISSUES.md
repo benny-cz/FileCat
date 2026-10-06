@@ -1984,7 +1984,7 @@ and complete inventories verified; wider qualification remains.
   Ubuntu 22.04 the `.deb`, tarball and AppImage installed, ran and uninstalled cleanly.
 - **DEC-03 input (E-V19-P1):** Gatekeeper rejects the ad-hoc-signed app, quarantined or not.
 
-- **I18:** package prerequisites now include ARM64 and both upload routes use exact versioned filenames plus a byte manifest. Eight host synthetic controls/static graph checks pass; hosted/actual package validation remains pending. Tagged publication is unexecuted, and signing/promotion/duplicates/protection/immutable retention/candidate gates stay Open ([E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md)).
+- **I18:** b9526b9 package prerequisites include ARM64 and both upload routes use exact filenames/byte manifests. Every hosted control passes. Development dispatch passes four test/two actual package jobs; retrieved Linux/Mac hashes and Windows eight real outputs/935 raw inputs/frozen compiler/cleanup verify. Original main CI retains one first-feed failure. Separate fixture-only capacity/diagnostics passes 64 before/64 after with identical production files and full App 386/23/409; historical attribution is inferred and committed successor CI continues. Tagged publication, signing/promotion/duplicates/protection/immutable retention/candidate gates stay Open ([E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md), [E-I146 follow-up](evidence/E-I146-picture-fixture-watchdog.md)).
 
 ## Initial register entries not yet worked
 
