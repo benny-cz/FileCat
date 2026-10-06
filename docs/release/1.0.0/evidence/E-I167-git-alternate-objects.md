@@ -102,9 +102,36 @@ Private `FileCatReleaseEvidence/git-alternate-objects-20261007-v1`:
 ## CI and remaining work
 
 Original [CI 37541603291](https://github.com/benny-cz/FileCat/actions/runs/37541603291),
-attempt 1, is pinned to a0a8ece. The retained 22:38 UTC snapshot has policy green
-and all four required lanes running; final artifact/inventory collection remains
-pending. The snapshot will not be rewritten as a later result.
+attempt 1, subsequently completes green on policy and all four required lanes,
+including ARM64 package start/draw and installer compilation. The original 22:38 UTC
+in-progress snapshot stays unchanged. Nineteen server artifact digests and all
+archive members, fourteen complete raw TRX inventories with explicit skip reasons,
+four compiler/tool receipts and 92 locked actual dependency graphs verify.
+
+Each App lane retains all 466 cases. All sixty new I167 executions are reconciled:
+fifteen pass per Windows architecture, ten pass/five explicit dedicated junction
+skips per Unix lane. The shared-object effect case's ordinary control runs
+everywhere; its junction branch runs on Windows. Overall App results are 449 pass/
+17 skips per Windows lane, 389 pass/77 skips on Ubuntu, and 391 pass/75 skips on
+macOS. I163/I164/I165/I166 subsets repeat at this producer with their own explicit
+scope/skip inventories. These hosted controls are preliminary; native interaction,
+network and exact-candidate qualification remain separate.
+
+Private `FileCatReleaseEvidence/ci-37541603291-assets-attempt1-v1`:
+
+| Path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | b8393766eae19dca1ebf82cb297b7d7fd57987514de1ba88bd5af947634c6dfd |
+| independent-fixture-ci-v1.json | a7c79bbc5ae35ed64f01623e3e6851931b68ccc16fa8769e1db2c7170e5af65e |
+| independent-producer-policy-ci-v1.json | 96deabad2189c9c3232a851761c51b993fc3ce4be697ff1efa39545c6594b671 |
+| independent-draft-guard-ci-v1.json | 829ab8a7139f31968690836aeac5d11e202e3940abf6079f88b38768d174d6f0 |
+| independent-separation-ci-v1.json | 4a1a5046ffebd6f6e98003d6fa01d4ecdbf868e7a9e51517b711aae04b5cad00 |
+| independent-restore-ci-v1.json | 36a201ea99abe7819bc4c6415f9eee3197064849db748c0be975f3bd56d57c97 |
+| independent-i163-ci-cases-v1.json | 660ffbc0c90e64c12e143e82029c1e26acfa0d94e1772aaf73fa3846b888fff5 |
+| independent-i164-ci-cases-v1.json | 4806375997da8c4fff62e34c3c05ad2121d8f29659bf2d22a673743d2478bf0f |
+| independent-i165-ci-cases-v1.json | 53f3ce6c345dab9bd49c627dbf0f2cf9fab5fb4619776a8b3e9f840072855de7 |
+| independent-i166-ci-cases-v1.json | f99a9ffe41fd321545a08bfce136bca463faa42c3d0ac636812b537ff3dd8469 |
+| independent-i167-ci-cases-v1.json | d3cb51eb4cf430c9c6ba38436ee143fcc0300d0c96fb20840b787840973a6446 |
 
 Broader I16/I17/V23/V24, source/configuration races, full path/parser semantics,
 network/native desktop effects and exact-candidate qualification remain open.
