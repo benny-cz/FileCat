@@ -1,6 +1,6 @@
 # E-I154 — administrator helper accepts managed startup hooks before its entry point
 
-Date 2026-10-06. High pre-consent loader defect under I17/V06/B04. Native baseline verified; correction and qualification in progress. No candidate/stable GO.
+Date 2026-10-06. High pre-consent loader defect under I17/V06/B04. Preliminarily remediated on committed 99e54b3; wider qualification remains open. No candidate/stable GO.
 
 Exact raw source `fd1d780ad3732bf0940f1d5bd896831d7881f6ab`, actual helper/Platform/Core code byte-identical at 78a0716. Publish uses production win-x64 self-contained and framework-dependent/ReadyToRun properties. Both helpers are copied into a fresh protected Program Files fixture in the disposable Windows Insider 26300 guest, with every input size/hash checked. A separate owned startup-hook assembly is explicitly writable by the ordinary account. The private launcher calls the actual `ElevationBroker.Launch`/ShellExecuteEx runas route; only its process environment carries the hook path.
 
@@ -16,7 +16,7 @@ Private root `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-7042
 |---|---|
 | native-baseline-v1/independent-native-baseline-v1.json | 233cf28d621f72cfc9646edab3c939e1a8e05e6c864d5728245ab6f62cd3cbfd |
 
-Repeatable bounded sources are retained at `eng/validation/broker-startup`; no UI automation is used. Identical runtime-config-only comparisons, actual project publish checks, committed native repeat and required CI remain pending. I154 Open.
+At the initial checkpoint, repeatable bounded sources were retained at `eng/validation/broker-startup`; no UI automation is used. Identical runtime-config-only comparisons, actual project publish checks, committed native repeat and required CI remain pending. I154 Open.
 
 ## Controlled and working-source correction
 
@@ -30,4 +30,18 @@ Actual working project publishes produce the disabled runtime property in all fo
 | working-correction-v1/independent-working-publish-v1.json | ab05f9596a50b1a74d23c5da02fc2c3e12c6c3cb240f5cc42e6aaf44639defe6 |
 | working-correction-v1/native-input/native-baseline-v1/independent-native-baseline-v1.json | c2c42d8dfa42a96c363a38ee87deccc757b32aabfa3b8f473711b2aabbfa60ac |
 
-I154 remains Open pending the committed-source/native/CI seal. Wider I17—including native profiler and runtime selection—remains Open regardless of this narrow correction.
+At the working-source checkpoint, I154 remained Open pending the committed-source/native/CI seal. Wider I17—including native profiler and runtime selection—remains Open regardless of this narrow correction.
+
+## Clean committed-source and CI seal
+
+Correction **99e54b3f61cbc7ecc67a5caf620c992e3f9c0a19** exports and verifies all 909 raw Git source files before/after publishing. The four actual Windows architecture/deployment configurations contain `System.StartupHookProvider.IsSupported=false`; public owned hook/launcher sources build from that export. A fresh Windows guest run uses the actual committed self-contained and framework-dependent win-x64 helpers, protected fixture and actual runas broker. Neither produces a hook marker during six seconds; both returned processes are explicitly stopped (exit -1). Two direct hook positives still exit 73. All 431 payload pins, 17 retained output pins, process absence and protected-fixture removal verify. No native dialog or successful plan-refusal/consent behavior is inferred.
+
+[Exact-source CI 37418017968 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37418017968) passes all four required lanes; three tag/manual package jobs skip. Ten server artifact digests, four clean source/SDK/compiler/runtime/image receipts and fourteen complete TRX execution inventories verify. All 408 App executions per lane, 31 selected Git outcomes, 77 archive cases and both cadence cases verify with platform skips retained. The ARM64 package starts/draws; its installer recipe receipt contains the exact runtime-configuration hash from the clean producer and its disabled property. Installer output bytes are not downloaded; producer-reported output hashes do not become independent setup-byte verification. Full truncated theory arguments remain unavailable and no candidate is qualified.
+
+| Retained path | SHA-256 |
+|---|---|
+| broker-loader-20261006/committed-v1/producer.json | d5e70ee0ec9fd16155ad55c59a4e129f7655d1c189349d657490b6996ba10bc2 |
+| broker-loader-20261006/committed-v1/native-input/native-baseline-v1/independent-native-baseline-v1.json | 53b489e72cff29fb44995e7940a0a5e5bf010e598877a5054940bfff5443b52a |
+| ci-37418017968-attempt1/independent-ci.json | ec2546514aa11637655368d7bc7c3c249785f5482da54f7fc226dc769a15cfe7 |
+
+I154 is Remediated, verified preliminarily. I17 remains Open for native profiler/runtime/search/dependencies/pipe/protected-file and limited-caller/native consent/installed-candidate scopes. No stable human GO.

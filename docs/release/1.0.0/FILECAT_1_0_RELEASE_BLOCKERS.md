@@ -3,9 +3,10 @@
 I152 stable metadata links are preliminarily corrected at e3c99d5 with identical
 native zero-contact repeat/host/all three native scopes. Test-only cadence I153
 fd1d780 now passes host/all native/four CI lanes/five digests/six inventories.
-Current 131/154 preliminary, one Closed, 22 remain. I154's actual SC/FDD
-managed startup-hook acceptance is corrected in the working source; committed
-native/CI and wider loader/UI qualification remain open (E-I154).
+Current 132/154 preliminary, one Closed, 21 remain. I154's actual SC/FDD
+managed startup-hook acceptance is preliminarily corrected and sealed on 99e54b3
+with clean native repeats and four green CI lanes. Wider loader/UI/limited-caller
+qualification remains open (E-I154/I17).
 Mac connectivity resumed autonomously; queued native Git checks pass. No new
 owner interaction is needed for this slice (E-I152/E-I153).
 

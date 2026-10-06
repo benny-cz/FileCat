@@ -18,7 +18,7 @@ native repeats pass; all four exact-source CI lanes/five digests/six complete
 inventories now seal, including ARM64 startup/drawing/installer. Original CI
 scheduling history remains unknown.
 Mac SSH resumed autonomously and its queued I151 14/10/350-pin repeat passes.
-Current 131/154 preliminary, one Closed, 22 remain; all campaigns need final
+Current 132/154 preliminary, one Closed, 21 remain; all campaigns need final
 qualification, no candidate/human GO; NO-GO (E-I152/E-I153).
 
 I03/I18 SDK/action/checkout correction is committed at 78a0716: exact 10.0.401 without
@@ -31,12 +31,13 @@ complete execution inventories verify. Truncated/repeated theory displays are
 retained with distinct execution IDs; full arguments remain unavailable. Broader
 provenance/release controls remain open (E-I03-SDK-ACTIONS).
 
-New I154: actual protected SC/FDD broker components load an owned managed hook
+I154 preliminarily remediated at 99e54b3: actual protected SC/FDD broker components load an owned managed hook
 before Main/plan/consent. Already-administrative caller; no unelevated/UAC bypass
 claimed. Configuration-only and actual working four-mode publish/native controls
 block hooks, with two positives/all pins/owned cleanup. Helpers are bounded and
-stopped after six seconds; UI/healthy plans remain unobserved. Committed native/
-CI and wider I17 loader/profiler/runtime qualification remain open (E-I154).
+stopped after six seconds; UI/healthy plans remain unobserved. Clean committed
+native repeat and all four CI lanes/ten digests/fourteen execution inventories
+now seal. Wider I17 loader/profiler/runtime qualification remains open (E-I154).
 
 I03/I18 compiler provenance is preliminarily corrected at 0646053: exact official
 Inno package/119 frozen inputs, complete 122-file native inventory, installed exact
@@ -2857,3 +2858,10 @@ I151 changes Windows automatic Git path admission; earlier Git path execution ev
 Waiting on people, hardware or a candidate: DPI P13's remaining case (locking the phone mid-transfer, with the owner; the disconnect cases are done, E-V21-U1); P07's loader audit (V06, installed
 candidates); I09's device-level zero-write cases (USB connected to host; source-change/capture investigation pending); steps 2, 5, 7 and
 11–26 of the plan. I04's Ubuntu 26.04 environment is now available and the package remedy is under validation.
+
+320. I154 correction 99e54b3 seals preliminary finite startup-hook rejection: clean raw 909-file
+    source producer/four actual Windows publishes, fresh native SC/FDD repeat/two positives/431
+    payload pins/output/process/protected-fixture cleanup and all four exact-source CI lanes verify.
+    Ten server digests/four toolchain receipts/fourteen full execution inventories and actual
+    ARM64 runtime-config hash/startup/drawing/installer receipts verify. Corrected helpers are
+    stopped after six seconds; healthy consent/limited caller/native profiler/candidate remain.
