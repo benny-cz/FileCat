@@ -58,6 +58,15 @@ jobs:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
+      - name: Verify every tracked dependency lock and restored graph
+        shell: pwsh
+        run: ./eng/Validate-DependencyRestore.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-dependency-restore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-dependency-restore/**
+          if-no-files-found: error
       - name: Release asset allowlist controls
         shell: pwsh
         run: |
@@ -143,6 +152,15 @@ jobs:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
+      - name: Verify every tracked dependency lock and restored graph
+        shell: pwsh
+        run: ./eng/Validate-DependencyRestore.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-dependency-restore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-dependency-restore/**
+          if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
       - name: Release asset allowlist controls
@@ -222,6 +240,15 @@ jobs:
         with:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - name: Verify every tracked dependency lock and restored graph
+        shell: pwsh
+        run: ./eng/Validate-DependencyRestore.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-dependency-restore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-dependency-restore/**
           if-no-files-found: error
       - run: dotnet build FileCat.slnx -c Release
       - run: dotnet test tests/FileCat.Core.Tests -c Release --no-build --logger "trx;LogFileName=core-results.trx"
@@ -380,6 +407,15 @@ jobs:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
+      - name: Verify every tracked dependency lock and restored graph
+        shell: pwsh
+        run: ./eng/Validate-DependencyRestore.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-dependency-restore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-dependency-restore/**
+          if-no-files-found: error
       - name: Publish portable, framework-dependent, and installer payloads (x64 and ARM64, D-48)
         shell: pwsh
         run: |
@@ -435,6 +471,15 @@ jobs:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
           if-no-files-found: error
+      - name: Verify every tracked dependency lock and restored graph
+        shell: pwsh
+        run: ./eng/Validate-DependencyRestore.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-dependency-restore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-dependency-restore/**
+          if-no-files-found: error
       - name: Build the tarball, .deb, and AppImage
         run: |
           v="${GITHUB_REF_NAME#v}"
@@ -486,6 +531,15 @@ jobs:
         with:
           name: build-provenance-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/filecat-build-provenance/build.json
+          if-no-files-found: error
+      - name: Verify every tracked dependency lock and restored graph
+        shell: pwsh
+        run: ./eng/Validate-DependencyRestore.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-dependency-restore"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: dependency-restore-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/filecat-dependency-restore/**
           if-no-files-found: error
       - name: Build the app (ad-hoc signed, not notarized)
         run: |

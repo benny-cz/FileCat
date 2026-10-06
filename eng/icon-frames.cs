@@ -1,10 +1,10 @@
 // Writes each frame of FileCat's Windows icon as a PNG of its own (filecat-16.png … filecat-256.png), so that the Linux
 // and macOS packages take their small icons from the frames drawn for small sizes — the 16- and 24-pixel ones by hand —
 // rather than from the large artwork shrunk, which reads poorly at those sizes.
-// usage: dotnet run eng/icon-frames.cs -- <filecat.ico> <out-dir>
+// usage: dotnet run --project eng/IconFrames -- <filecat.ico> <out-dir>
 if (args.Length != 2)
 {
-    Console.Error.WriteLine("usage: dotnet run eng/icon-frames.cs -- <filecat.ico> <out-dir>");
+    Console.Error.WriteLine("usage: dotnet run --project eng/IconFrames -- <filecat.ico> <out-dir>");
     return 2;
 }
 byte[] icon = File.ReadAllBytes(args[0]);

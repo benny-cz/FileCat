@@ -28,7 +28,7 @@ cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
 # 256-pixel artwork shrunk, which reads poorly small. 512 and up are left out: macOS scales the 256 for them.
 FRAMES="$OUT/icon-frames"
 rm -rf "$FRAMES"
-dotnet run "$ROOT/eng/icon-frames.cs" -- "$ROOT/src/FileCat.App/Assets/filecat.ico" "$FRAMES" >/dev/null
+dotnet run --project "$ROOT/eng/IconFrames" -- "$ROOT/src/FileCat.App/Assets/filecat.ico" "$FRAMES" >/dev/null
 ICONSET="$OUT/FileCat.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"

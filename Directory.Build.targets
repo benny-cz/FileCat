@@ -13,4 +13,10 @@
       <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf' Or '%(Filename)' == 'Microsoft.Web.WebView2.WinForms'" />
     </ItemGroup>
   </Target>
+
+  <Target Name="FileCatRequireDependencyLock" BeforeTargets="_GenerateRestoreGraphProjectEntry"
+          Condition="'$(RestorePackagesWithLockFile)' == 'true' and '$(FileCatUpdateDependencyLocks)' != 'true' and '$(MSBuildProjectExtension)' == '.csproj'">
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)/packages.lock.json')"
+           Text="FileCat dependency lock is missing. Regeneration requires explicit FileCatUpdateDependencyLocks=true and review of the resulting lock changes." />
+  </Target>
 </Project>

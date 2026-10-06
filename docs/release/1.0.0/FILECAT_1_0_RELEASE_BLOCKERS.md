@@ -22,11 +22,13 @@ Linux/Mac package install/start/downloaded byte manifests. Draft job skips. Actu
 tagged transport/upload, signing/approved final promotion/protection/immutable
 retention/candidate gates remain Open (E-I18-P4).
 
-I03 restore investigation generates twenty-one isolated multi-RID locks, verifies
-thirteen original controls/63 logical and raw package hash pairs, and shows SDK
-locked mode recreates a missing lock. Prospective project-entry guard refuses
-missing App/Core with healthy restoration. Tracked policy/accepted script RIDs/
-locked publishing/extracted bytes/license/candidate remain Open (E-I03-RESTORE).
+I03 restore correction adopts twenty-two locks/default locked mode/explicit
+maintenance and missing-lock guard after 52 isolated controls, actual five-RID App
+and four helper publishes/1,645 output pins. The packaging icon tool gains an
+explicit locked project; all seven frames remain exact. Working all-project
+restore retains twenty-two independently checked actual graphs. CI builders now
+retain those graphs before building. Committed hosted/package revalidation,
+extracted/native/runtime/license/SBOM/candidate scopes remain Open (E-I03-RESTORE).
 
 I160 atomic nonce correction at 37c88c8 passes clean native controls and all
 fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac

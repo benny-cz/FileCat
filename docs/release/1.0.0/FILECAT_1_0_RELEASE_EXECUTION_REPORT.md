@@ -3197,3 +3197,18 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     with no control rerun for that correction. Repository policy is unchanged;
     accepted script RID/publishing/input/license/candidate checks continue.
     Counts unchanged, I03 Open and NO-GO (E-I03-RESTORE).
+
+348. I03 locked-restore adoption: raw 246ce18 five-RID derivation passes default
+    solution/all twenty-one projects/five App RIDs/four helper modes; changed
+    request/hash/missing App/Core refuse and explicit maintenance restores the
+    exact original lock. Actual file-based icon tool fails missing-lock guard;
+    retained failure leads to explicit locked IconFrames project with seven exact
+    ICO/PNG frames. Release solution build/five actual App ReadyToRun publishes/
+    four native helper SC/FDD publishes pass; 52 commands and 1,645 output pins
+    independently verify. Twenty-two locks and validated recipe are adopted on
+    working 187fad1. New helper verifies/retains all twenty-two actual locked
+    restore graphs; all six CI builder definitions run it before building and
+    retain partial evidence. Staged source/graph/order/PowerShell/whitespace checks
+    pass. Committed hosted and actual package validation continue; broader
+    extracted/native/runtime/license/SBOM/candidate remain Open. Counts unchanged;
+    no physical-source/guest/Mac setup or publication; NO-GO (E-I03-RESTORE).

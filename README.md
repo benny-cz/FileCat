@@ -34,13 +34,30 @@ what failed, and what remains uncertain.
 
 ## Build and run
 
-Requires the .NET 10 SDK. No paid components or accounts are needed.
+Requires the exact .NET SDK selected by `global.json`. No paid components or accounts are needed.
 
 ```
 dotnet build FileCat.slnx
 dotnet test FileCat.slnx
 dotnet run --project src/FileCat.App -- [path] [--left PATH] [--right PATH] [--profile NAME] [--data FOLDER]
 ```
+
+Dependencies restore from the tracked `packages.lock.json` files in locked mode.
+A missing lock, changed dependency request or changed package content fails the restore.
+To deliberately update dependencies, edit `Directory.Packages.props`, then regenerate every
+tracked project lock in PowerShell and review the complete diff:
+
+```powershell
+git ls-files '*.csproj' | ForEach-Object {
+    dotnet restore $_ --force-evaluate -p:FileCatUpdateDependencyLocks=true
+    if ($LASTEXITCODE -ne 0) { throw "Dependency update failed: $_" }
+}
+```
+
+Normal builds and publishes restore the frozen graph. For a separate RID restore, use
+`dotnet restore -p:RuntimeIdentifier=win-x64`; `restore --runtime` narrows the declared
+multi-RID graph and is rejected. The Linux ARM64 graph preserves the packaging script's
+existing restore compatibility; it does not establish stable platform support.
 
 Packages: `pwsh eng/publish.ps1 -Version 0.1.0` builds the self-contained, portable, and
 framework-dependent payloads; `eng/installer/FileCat.iss` builds the per-machine installer.

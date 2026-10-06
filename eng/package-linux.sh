@@ -31,7 +31,7 @@ chmod +x "$PUB/FileCat"
 # shrink the large artwork, which reads poorly small.
 ICONS="$OUT/icons-$RID"
 rm -rf "$ICONS"
-dotnet run "$ROOT/eng/icon-frames.cs" -- "$ROOT/src/FileCat.App/Assets/filecat.ico" "$ICONS" >/dev/null
+dotnet run --project "$ROOT/eng/IconFrames" -- "$ROOT/src/FileCat.App/Assets/filecat.ico" "$ICONS" >/dev/null
 ICON_SIZES="16 24 32 48 64 128 256"
 
 desktop_entry() { # $1: Exec, $2: Icon
