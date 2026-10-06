@@ -7,6 +7,12 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 
 ## Current state (updated 2026-10-06)
 
+I03/I18 compiler provenance is preliminarily corrected at 0646053: exact official
+Inno package/119 frozen inputs, complete 122-file native inventory, installed exact
+license and installer recipe/output receipts. Final-source nine native controls and
+all 19 retained output hashes/cleanup pass. Recipe controls use inert payloads;
+real ARM64 CI 37410913442 is pending (E-I03-INNO). Broader I03/I18 stay open.
+
 I151 is preliminarily remediated at 483032a: unchanged native probe/only App DLL
 changed removes all 14 SMB flows/126 packets; ordinary badge/two exact controls
 and zero reported loss verify. Six host baseline failures correct; full App
@@ -2476,7 +2482,18 @@ Overall **NO-GO** remains.
      Original private UTF-8 writer failure/partial files retained and corrected;
      no native evidence rerun or overwritten (E-I151). Continue compiler provenance.
 
+311. Pin the official Inno 6.7.1 installer and all 119 frozen compiler inputs,
+     record all 122 native installed files, ship its exact upstream license and
+     correct redistributed/runtime notices. Final 0646053 raw-source VMware repeat
+     passes nine acquisition/tamper/collision/x64/ARM64 recipe controls; all 19
+     retained hashes/source/process/registry/tool cleanup verify. Real FileCat
+     ARM64 CI 37410913442 is pending; inert recipe payloads do not qualify packages.
+     Original native stderr, huge observer/partial transfers and two small helper
+     failures remain retained. Wider I03/I18/candidate still open (E-I03-INNO).
+
 ## Evidence invalidated by the campaign's own changes
+
+The compiler/license/notices/installer recipe changes at 0646053 change distributed setup bytes; earlier installer qualification is historical. A pinned tool receipt does not qualify candidate lifecycle or signing.
 
 I151 changes Windows automatic Git path admission; earlier Git path execution evidence remains historical for affected cases. Current finite source is 483032a (E-I151); no installed candidate qualification is implied.
 

@@ -34,6 +34,13 @@ printed "InnoSetup v6.7.1 already installed", and `ISCC` reported "Compiler engi
 Upstream's current stable release is Inno Setup 7.1.0 (2026-08-12, jrsoftware.org/isdl.php, read 2026-09-30); the
 workflow hard-codes the `Inno Setup 6` path.
 
+2026-10-06 correction: 0646053 pins the exact official 6.7.1 package and 119 static
+compiler inputs, retains the complete 122-file native inventory and recipe/output
+receipts, and installs the full exact license. Final-source native controls pass;
+real ARM64 CI is pending. The preceding A01 image-selected observation remains
+historical ([E-I03-INNO](E-I03-INNO-pinned-compiler.md)). No claim of latest-version,
+complete SBOM, signed candidate or native installer lifecycle follows.
+
 ## E-ENV-04 — GitHub state (read-only checks)
 
 HEAD `4f6b062` equal to `origin/main` at the start; no tags, releases, issues or pull requests; private vulnerability

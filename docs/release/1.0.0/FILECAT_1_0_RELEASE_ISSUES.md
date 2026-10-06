@@ -1956,10 +1956,7 @@ and complete inventories verified; wider qualification remains.
 
 ## New detail on open issues
 
-- **I03 / I18:** the Windows installer's compiler is whatever Inno Setup the hosted runner image provides: the A01
-  ARM64 job log shows `choco install innosetup` reporting "InnoSetup v6.7.1 already installed" and `ISCC` from
-  `Inno Setup 6`. Current upstream stable is 7.1.0 (2026-08-12); the workflow hard-codes the `Inno Setup 6` path. The
-  compiler contributes bytes (setup and uninstaller stubs) and must be pinned and inventoried (plan §10.2).
+- **I03 / I18:** the runner-selected Inno Setup compiler gap is preliminarily corrected at 472f7d0/9b0415e/0646053. Exact official package/119 frozen pins, 122 installed-file inventory and recipe/input/output receipts replace Chocolatey/image selection. Native final-source nine-step controls pass with cleanup; real ARM64 CI is pending. The full upstream license is installed and Inno stubs/runtime DependencyInjection notices are corrected. Broader artifact/runtime/restore/pipeline/candidate gates remain open ([E-I03-INNO](evidence/E-I03-INNO-pinned-compiler.md)).
 - **I03:** `eng/publish.ps1` writes `sbom-<version>.json` for each RID under the same name; running it for win-x64 and
   win-arm64 with one version leaves only the last RID's inventory.
   Filename collision remediated to sbom-<version>-<rid>.json; actual assignment/native inventory queries retain both
