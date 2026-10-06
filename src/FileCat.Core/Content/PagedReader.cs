@@ -1,4 +1,5 @@
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.Core.Content;
 
@@ -19,6 +20,9 @@ public sealed class PagedReader : IDisposable
     private readonly int _maxPages;
     private readonly PageCacheBudget _budget;
     private readonly PageCacheBudget.Account _account;
+    private readonly DeviceIoScheduler? _io;
+    private readonly string? _deviceKey;
+    private readonly CancellationTokenSource? _pageDemand;
     private bool _disposed;
     private int _sourceUses;
     private bool _sourceDisposed;
@@ -44,8 +48,19 @@ public sealed class PagedReader : IDisposable
     }
 
     public PagedReader(IContentSource source, int maxPages = 256, PageCacheBudget? budget = null)
+        : this(source, maxPages, budget, null, null) { }
+
+    /// <summary>Uses the provider's shared device workers for pages requested by a visible view.</summary>
+    public PagedReader(IContentSource source, DeviceIoScheduler io, string deviceKey, int maxPages = 256, PageCacheBudget? budget = null)
+        : this(source, maxPages, budget, io, deviceKey) { }
+
+    private PagedReader(IContentSource source, int maxPages, PageCacheBudget? budget, DeviceIoScheduler? io, string? deviceKey)
     {
+        if (io is not null) ArgumentException.ThrowIfNullOrEmpty(deviceKey);
         _source = source;
+        _io = io;
+        _deviceKey = deviceKey;
+        _pageDemand = io is null ? null : new CancellationTokenSource();
         _maxPages = Math.Max(FloorPages, maxPages);
         _length = Math.Max(0, source.Length);
         Revision = source.GetRevision();
@@ -169,6 +184,11 @@ public sealed class PagedReader : IDisposable
         {
             if (_disposed || !_loading.Add(index)) return;
         }
+        if (_io is not null)
+        {
+            _ = RequestDevicePageAsync(index);
+            return;
+        }
         ThreadPool.QueueUserWorkItem(_ =>
         {
             try { LoadPage(index); }
@@ -179,6 +199,34 @@ public sealed class PagedReader : IDisposable
                 PageLoaded?.Invoke();
             }
         });
+    }
+
+    private async Task RequestDevicePageAsync(long index)
+    {
+        int state = 0; // queued, active, complete; cancellation cannot retire a still-running source call
+        void Finished()
+        {
+            lock (_lock) _loading.Remove(index);
+            PageLoaded?.Invoke();
+        }
+        try
+        {
+            await _io!.Run(_deviceKey!, IoPriority.Interactive, _ =>
+            {
+                if (Interlocked.CompareExchange(ref state, 1, 0) != 0) return;
+                try { LoadPage(index); }
+                finally
+                {
+                    Interlocked.Exchange(ref state, 2);
+                    Finished();
+                }
+            }, _pageDemand!.Token).ConfigureAwait(false);
+        }
+        catch (Exception) { }
+        finally
+        {
+            if (Interlocked.CompareExchange(ref state, 2, 0) == 0) Finished();
+        }
     }
 
     private Page? LoadPage(long index)
@@ -342,6 +390,8 @@ public sealed class PagedReader : IDisposable
             disposeSource = _sourceUses == 0;
             if (disposeSource) _sourceDisposed = true;
         }
+        _pageDemand?.Cancel();
+        _pageDemand?.Dispose();
         _budget.Close(_account);
         if (disposeSource) _source.Dispose();
     }

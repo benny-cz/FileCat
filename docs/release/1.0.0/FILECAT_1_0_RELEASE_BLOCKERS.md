@@ -1,10 +1,13 @@
 # FileCat 1.0.0 — open release blockers and required decisions
 
-New I160: exact 573ed2c production nonce guard admits multiple concurrent claims
-in four separate eight-process rounds while sequential replay refuses. All owned
-Registry state/payload/child PIDs/natural exits/original receipts verify. Atomic
-correction continues autonomously; no production plan or consent bypass claimed.
-Current 137/160 preliminary, one Closed, 22 remaining issue remediations (E-I160).
+I160 atomic nonce correction at 37c88c8 passes clean native controls and all
+fourteen new x64/ARM64 CI cases; original exact CI remains failed on one Mac
+picture-demand case (E-I160). New I161 independently reproduces unscheduled
+viewer header and visible page reads. Both paths now use shared device admission;
+identical final observer/only App DLL comparison, source lifetime/cancellation,
+healthy-device/cleanup controls and full host suites pass. Committed native and
+successor four-lane CI validation continue autonomously (E-I161).
+Current 139/161 preliminary, one Closed, 21 remaining issue remediations.
 
 I03 native compiler provenance improves at 573ed2c: 927 raw sources/four clean
 modes/local reported input bytes and all four CI lanes/ten digests/fourteen

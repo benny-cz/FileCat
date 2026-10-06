@@ -13,6 +13,7 @@ using FileCat.App.Services;
 using FileCat.Core.Content;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.Views;
 
@@ -96,7 +97,7 @@ public sealed class ViewerWindow : Window
         _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
         s_open.Add(this);
         Closed += (_, _) => s_open.Remove(this);
-        _reader = new PagedReader(source);
+        _reader = new PagedReader(source, services.Io, _deviceKey);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
         Width = 980;
         Height = 700;
@@ -252,12 +253,19 @@ public sealed class ViewerWindow : Window
 
     private async Task DetectEncodingAsync(bool forceHexIfBinary)
     {
-        var prefix = await Task.Run(() =>
+        byte[] prefix;
+        try
         {
-            var buf = new byte[64 * 1024];
-            int n = _reader.Read(0, buf);
-            return buf[..n];
-        });
+            prefix = await _services.Io.Run(_deviceKey, IoPriority.Interactive, ct =>
+            {
+                ct.ThrowIfCancellationRequested();
+                var buf = new byte[64 * 1024];
+                int n = _reader.Read(0, buf);
+                ct.ThrowIfCancellationRequested();
+                return buf[..n];
+            }, _closing.Token);
+        }
+        catch (OperationCanceledException) when (_closing.IsCancellationRequested) { return; }
         if (_closing.IsCancellationRequested) return;
         _guess = TextDecoding.Detect(prefix);
         int index = Array.FindIndex(TextDecoding.Choices.ToArray(), c => c.Get().WebName == _guess.Encoding.WebName);

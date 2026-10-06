@@ -2,12 +2,74 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
 /// <summary>V12: a closed view retires page demand without disposing a provider in the middle of its call.</summary>
 public sealed class PagedReaderLifetimeTests
 {
+    [Fact]
+    public async Task Shared_device_page_demand_cancels_queued_reads_and_keeps_active_sources_alive()
+    {
+        using var io = new DeviceIoScheduler(TimeSpan.FromMinutes(1), threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        var active = new HeldSource();
+        var queued = new HeldSource(holdRead: false);
+        var healthy = new HeldSource(holdRead: false);
+        var budget = new PageCacheBudget();
+        var activeReader = new PagedReader(active, io, "held", budget: budget);
+        var queuedReader = new PagedReader(queued, io, "held", budget: budget);
+        var healthyReader = new PagedReader(healthy, io, "healthy", budget: budget);
+        try
+        {
+            Assert.False(activeReader.TryRead(0, new byte[1], out _));
+            await active.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            Assert.False(queuedReader.TryRead(0, new byte[1], out _));
+            Assert.Equal(1, queuedReader.PendingLoads);
+            Assert.False(healthyReader.TryRead(0, new byte[1], out _));
+            await Quiescent(healthyReader);
+            var bytes = new byte[PagedReader.PageSize];
+            Assert.True(healthyReader.TryRead(0, bytes, out int read));
+            Assert.Equal(bytes.Length, read);
+            Assert.Equal(healthy.Bytes[..bytes.Length], bytes);
+            Assert.Equal(0, queued.Reads);
+
+            queuedReader.Dispose();
+            await Quiescent(queuedReader);
+            Assert.Equal(1, queued.Disposals);
+            Assert.Equal(0, queued.Reads);
+            activeReader.Dispose();
+            Assert.Equal(1, activeReader.PendingLoads);
+            Assert.Equal(0, active.Disposals);
+            active.Release.Set();
+            await Quiescent(activeReader);
+            Assert.Equal(1, active.Reads);
+            Assert.Equal(1, active.Disposals);
+            healthyReader.Dispose();
+            Assert.Equal(0, budget.UsedBytes);
+            Assert.Equal(0, budget.Readers);
+            Assert.All(new[] { active, queued, healthy }, source =>
+            {
+                Assert.Equal(1, source.Disposals);
+                Assert.Equal(0, source.DisposalsDuringCall);
+                Assert.Equal(source.OriginalSHA256, SHA256.HashData(File.ReadAllBytes(source.Path)));
+            });
+        }
+        finally
+        {
+            active.Release.Set();
+            activeReader.Dispose();
+            queuedReader.Dispose();
+            healthyReader.Dispose();
+            await Quiescent(activeReader);
+            await Quiescent(queuedReader);
+            await Quiescent(healthyReader);
+            active.Cleanup();
+            queued.Cleanup();
+            healthy.Cleanup();
+        }
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]

@@ -10,12 +10,16 @@ Candidate-specific evidence will live in `docs/release/1.0.0/<candidate-id>/` on
 I03 native compiler provenance is partially improved at 573ed2c with exact
 927-source/four-mode/local input byte verification and four green CI lanes,
 ten digests/fourteen inventories/two native report-map sets (E-I03-NATIVE).
-New I160 concurrent nonce claims reproduce in the exact production DLL across
-four separate eight-process rounds. Sequential replay refuses; all native
-PIDs/natural exits/original receipts/payload/Registry restoration verify.
-Atomic correction continues; no production plan or consent bypass demonstrated.
-Current checkpoint: 137/160 preliminary, one Closed, 22 remaining issue
-remediations; all campaigns/final candidate/human GO remain gated (E-I160).
+I160 atomic nonce correction at 37c88c8 passes clean 931-source/four-mode/native
+controls and all fourteen new x64/ARM64 CI cases. Its exact CI run remains failed
+on one Mac picture-demand case; the failed original is retained (E-I160).
+New I161 independently reproduces three simultaneous viewer header reads, then
+finds visible page demand bypassing the header-only correction. Both paths now
+use shared device admission; identical final observer/only App DLL changes,
+healthy device/cancellation/source lifetime/cleanup and full host suites pass.
+Committed native repeats and successor four-lane CI continue (E-I161).
+Current checkpoint: 139/161 preliminary, one Closed, 21 remaining issue
+remediations; all campaigns/final candidate/human GO remain gated.
 
 I158 shared-runtime trust is preliminarily corrected at 69603ec: four clean
 native modes/924 raw sources/receipts, protected SC/FDD handoff and unsafe FDD
@@ -3020,3 +3024,24 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     retained and corrected. No production plan/consent/device is exercised.
     Atomic correction continues autonomously (E-I160); 137/160 preliminary,
     one Closed, 22 remaining issue remediations; no candidate/human stable GO.
+
+334. I160 committed atomic correction 37c88c8 passes the identical final
+    cross-process observer, clean 931-source/four-native-mode receipts and fresh
+    four eight-process rounds with one claim each, sequential refusals, all
+    original child/PID/natural-exit/payload/Registry restoration checks. All
+    fourteen new nonce cases actually pass in x64/ARM64 CI. Exact run
+    37446927662 attempt 1 remains failed on one Mac picture demand case; ten
+    server digests/four source receipts/fourteen complete inventories/original
+    log/native input-output receipts verify. No four-green claim (E-I160).
+
+335. I161: unchanged viewer independently admits three first reads on one device.
+    Captured stacks show encoding/header reads; header-only correction still
+    admits a third visible page read outside device admission. Both source paths
+    now use the shared scheduler. Identical final observer/common Core/only App
+    DLL changes: before fails with three, after passes with two; healthy device,
+    zero queued reads, source lifetime/disposal/exact bytes verify. Host affected
+    App 3/Core 17, full App 386/23/409 and Core 820/56/876 pass. Premature rebuild
+    fails on the held test executable; after natural completion the rebuild and
+    isolated comparison pass. Committed native repeats/successor CI continue.
+    139/161 preliminary, one Closed, 21 remaining issue remediations; all final
+    campaigns/candidate/human GO remain gated (E-I161). USB G: stays on HOLD.

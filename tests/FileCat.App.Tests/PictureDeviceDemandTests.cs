@@ -111,12 +111,12 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             output.WriteLine($"Held viewer reads at checkpoint {activeAtCheckpoint}; third feed entered {sources[2].Entered.Task.IsCompleted}; separate healthy provider device renders 44 x 30.");
             Assert.Equal(services.Io.ThreadsPerDevice, activeAtCheckpoint);
             Assert.False(sources[2].Entered.Task.IsCompleted);
-            Assert.Equal(1, sources[2].Reads); // only its initial header; its queued picture feed is still absent
+            Assert.Equal(0, sources[2].Reads); // its queued initial header has not reached the held device
             foreach (var w in windows) w.Close();
             foreach (var s in sources) s.Release.Set();
             await Task.WhenAll(windows.Select(w => w.PictureLoad ?? Task.CompletedTask));
             await WaitFor(() => sources.All(s => s.Disposals == 1));
-            Assert.Equal(1, sources[2].Reads); // canceled queued feed never reads afterwards
+            Assert.Equal(0, sources[2].Reads); // canceled queued header never reads afterwards
             Assert.All(sources, s => Assert.Equal(0, s.DisposalsDuringRead));
             Assert.All(sources, s => Assert.Equal(s.OriginalHash, SHA256.HashData(File.ReadAllBytes(s.Path))));
         }
@@ -127,6 +127,60 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             await Task.WhenAll(windows.Select(w => w.PictureLoad ?? Task.CompletedTask));
             await JoinReads(sources);
             foreach (var s in sources) s.Cleanup();
+            AccessibilityTests.Close(services, main, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Viewer_headers_share_device_admission_and_canceled_headers_never_read()
+    {
+        var (services, _, main, root) = AccessibilityTests.OpenMainWindow();
+        KeepHeldCallsInsideTheFixtureDeadline(services);
+        var sources = Enumerable.Range(0, 4).Select(i => new Source(root, i, hold: i < 3, heldRead: 1)).ToArray();
+        var windows = new List<ViewerWindow>();
+        try
+        {
+            services.Providers.Register(new Provider(sources));
+            ViewerWindow Open(int i, string device)
+            {
+                var before = ViewerWindow.OpenWindows.ToHashSet();
+                ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
+                var window = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w));
+                windows.Add(window);
+                return window;
+            }
+            Open(0, "held");
+            await sources[0].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Open(1, "held");
+            await sources[1].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Open(2, "held");
+            await Task.WhenAny(sources[2].Entered.Task, Task.Delay(500, TestContext.Current.CancellationToken));
+            int activeAtCheckpoint = sources.Take(3).Sum(s => s.ActiveReads);
+            var healthy = Open(3, "healthy");
+            await WaitFor(() => healthy.PictureLoad is not null);
+            await healthy.PictureLoad!.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            Assert.Equal((44, 30), (healthy.Picture!.Width, healthy.Picture.Height));
+            output.WriteLine($"Header calls at checkpoint {activeAtCheckpoint}; third header entered {sources[2].Entered.Task.IsCompleted}; healthy device 44 x 30; calls: {string.Join(" | ", sources.Take(3).Select(s => s.HeldCallStack))}");
+            Assert.Equal(services.Io.ThreadsPerDevice, activeAtCheckpoint);
+            Assert.False(sources[2].Entered.Task.IsCompleted);
+            Assert.Equal(0, sources[2].Reads);
+            foreach (var window in windows) window.Close();
+            foreach (var source in sources) source.Release.Set();
+            await JoinReads(sources);
+            await WaitFor(() => sources.All(s => s.Disposals == 1));
+            Assert.Equal(0, sources[2].Reads);
+            Assert.All(sources, s => Assert.Equal(0, s.DisposalsDuringRead));
+            Assert.All(sources, s => Assert.Equal(s.OriginalHash, SHA256.HashData(File.ReadAllBytes(s.Path))));
+        }
+        finally
+        {
+            foreach (var window in windows) window.Close();
+            foreach (var source in sources) source.Release.Set();
+            await Task.WhenAll(windows.Select(w => w.PictureLoad ?? Task.CompletedTask));
+            await JoinReads(sources);
+            await WaitFor(() => sources.All(s => s.Disposals == 1));
+            output.WriteLine($"Header fixture cleanup: disposals {string.Join(",", sources.Select(s => s.Disposals))}; disposals during reads {string.Join(",", sources.Select(s => s.DisposalsDuringRead))}; unchanged sources {sources.All(s => s.OriginalHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(s.Path))))}.");
+            foreach (var source in sources) source.Cleanup();
             AccessibilityTests.Close(services, main, root);
         }
     }
@@ -184,14 +238,17 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
     {
         private readonly FileContentSource _file;
         private readonly bool _hold;
+        private readonly int _heldRead;
         private int _reads, _active, _disposals, _disposalsDuringRead;
         public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly ManualResetEventSlim Release = new();
         public string Path { get; }
         public byte[] OriginalHash { get; }
-        public Source(string root, int i, bool hold)
+        public string? HeldCallStack { get; private set; }
+        public Source(string root, int i, bool hold, int heldRead = 2)
         {
             _hold = hold;
+            _heldRead = heldRead;
             Path = System.IO.Path.Combine(root, $"held-device-picture-{i}.png");
             using var bitmap = new SKBitmap(hold ? 320 : 44, hold ? 200 : 30);
             using (var canvas = new SKCanvas(bitmap)) canvas.Clear(SKColors.Teal);
@@ -217,8 +274,9 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             Interlocked.Increment(ref _active);
             try
             {
-                if (_hold && read == 2)
+                if (_hold && read == _heldRead)
                 {
+                    HeldCallStack = Environment.StackTrace;
                     Entered.TrySetResult();
                     if (!Release.Wait(TimeSpan.FromSeconds(25))) throw new IOException("Owned device picture read was not released.");
                 }
