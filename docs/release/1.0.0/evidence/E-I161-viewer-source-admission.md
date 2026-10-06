@@ -1,6 +1,6 @@
 # E-I161 — viewer header and visible page source admission
 
-2026-10-06. High responsiveness/resource-admission defect under I06/I08/V12. Preliminary source correction and host component validation; exact committed native repeats, successor CI and candidate qualification remain pending. No release candidate or human stable GO.
+2026-10-06. High responsiveness/resource-admission defect under I06/I08/V12. Preliminary committed/native/CI remediation at **8975fdf11a733535d640609b827557842002a14a**; broader consumer and final candidate qualification remain open. No release candidate or human stable GO.
 
 The original exact-source macOS CI run **37446927662 attempt 1** on **37c88c8498f1a00693646a044c1149629748ccef** fails the existing picture-viewer demand case: expected two held reads, observed three. Its original failure remains retained in E-I160; its historical scheduling path is not established by that log alone.
 
@@ -26,3 +26,28 @@ Private root: `C:\Users\marek\.codex\visualizations\2026\10\02\01a0fbbf-f37d-704
 | final-comparison-v1/independent-comparison-v1.json | 99a2937ff05ffa93ee6b0299327648db0e500cae445e60e2ef1125a719837d20 |
 
 Current source checkpoint: 139/161 preliminary remediations, one Closed, 21 remaining issue remediations. Every campaign still needs final candidate qualification; NO-GO.
+
+## Exact committed native and CI seal
+
+Clean export verifies **932 raw Git blobs**, blob identities, archive members, unchanged source files and all four native helper publication modes with their actual compiler reports/output receipts. Three self-contained App test payloads are compiled from that export. Windows 26300 guest passes **26/26**; Ubuntu 26.04.1 UID 1000 and physical macOS 27.0.1 UID 501 each pass **25/26 with one declared skip**. All three picture-device demand cases, including the new header case, actually pass in every environment. Each retrieved complete XML/TRX inventory, unique execution identities, transport/payload/result pins, exact fixture bytes, disposal observations, test-runner absence and empty owned test temporary directory independently verify. The Windows payload has 354 pinned files and each Unix payload has 350. No persistent guest/Mac setup changes or physical USB source tests occur in this slice.
+
+[CI 37451501259 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37451501259) succeeds in all four required lanes. Ten original downloaded artifact server digests, four clean source/build receipts, fourteen complete per-case TRX inventories and both native Windows executables/report-map sets verify. All 409 App display names and Core names match with explicitly recorded native path/Windows-only case differences; display multiplicities and unique execution IDs are retained. The new header and page lifetime cases actually pass in each lane (**eight executions**), and all fourteen I160 nonce cases pass across Windows x64/ARM64. ARM64 startup/drawing and installer compilation succeed; tag package jobs remain skipped. Actual generated installer bytes are not retrieved from this run; compiler recipe receipts are producer observations.
+
+The failed original run **37446927662** remains failed. This successor establishes preliminary regression remediation, not native GUI input, physical-source zero-write evidence, complete I06/I08/I17, artifact publication or final candidate qualification.
+
+Paths below remain relative to the private root above; `../` refers to its `FileCatReleaseEvidence` parent.
+
+| Retained path | SHA-256 |
+|---|---|
+| clean-v1/producer.json | 17189d6004d64c8e9fa6a9bd79f3573e3c63dbf7838b9a8141621d06edf398f7 |
+| clean-v1/windows-executed/independent-guest-v1.json | 77ed35937b0958fdfe7f014508981393772521fe10afcea6523e9bafcde0e13d |
+| clean-v1/linux-executed/independent-guest-v1.json | 831a35dfc8a2cace06d147424d65257bf63d4cd5b14609762b67eb7ce4d9a05c |
+| clean-v1/mac-executed-v3/independent-native-v1.json | d50890d334dbca662dd980d1db65d03e83e0272d91d2d7056d4630aa1e924267 |
+| independent-committed-native-v1.json | d2ab8ee1ef9ef37d55099fd7321cea984e9303187d4b2fc8839e0cda2df61407 |
+| ../broker-loader-20261006/viewer-committed-v1/producer-native-bootstrap-v1.json | 7e5a453eb36fedcf4fcb190252e739dfe87e1c44f9054f0f83db63640203bc72 |
+| ../ci-37451501259-attempt1/independent-ci.json | 4565e27fa7fb75943751b9f8f89a2e626fd145175f563ae4595fca2ca625f948 |
+| ../ci-37451501259-attempt1/independent-ci-native-bootstrap-v1.json | f3b3d65960e7f24e6f077f9d63172b91bce23c4c20a96a4730c83da0057f4f96 |
+| ../ci-37451501259-attempt1/independent-ci-native-inputs-v1.json | c469e56466b63f2c3c916526ea5c50b257d41c9cf460d76cfda632c3bfdf0900 |
+| ../ci-37451501259-attempt1/independent-ci-nonce-v1.json | 2614af49bb4a4214a477ace0a06be0a26bc819538ca2db2a5149cb77a7230be4 |
+| ../ci-37451501259-attempt1/independent-ci-viewer-v1.json | 6e7ab751f1fa471be062de52dfd0f85e61c4ac36f1ec8f66304d9dab171effc7 |
+| independent-seal-v1.json | 149c1d117ffbe3098986fdcc8f8e8996d3110560e08a4436f4d74374c17f67e7 |

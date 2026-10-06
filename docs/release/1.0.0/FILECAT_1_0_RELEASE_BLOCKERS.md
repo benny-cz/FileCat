@@ -6,7 +6,9 @@ picture-demand case (E-I160). New I161 independently reproduces unscheduled
 viewer header and visible page reads. Both paths now use shared device admission;
 identical final observer/only App DLL comparison, source lifetime/cancellation,
 healthy-device/cleanup controls and full host suites pass. Committed native and
-successor four-lane CI validation continue autonomously (E-I161).
+clean 932-source/native Windows 26/0 and Mac/Ubuntu 25/1 repeats, all four successor
+CI lanes/ten digests/fourteen inventories/two native report-map sets/eight new
+viewer/page cases and fourteen nonce cases now verify at 8975fdf (E-I161).
 Current 139/161 preliminary, one Closed, 21 remaining issue remediations.
 
 I03 native compiler provenance improves at 573ed2c: 927 raw sources/four clean

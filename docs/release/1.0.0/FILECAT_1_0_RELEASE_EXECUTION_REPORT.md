@@ -17,7 +17,9 @@ New I161 independently reproduces three simultaneous viewer header reads, then
 finds visible page demand bypassing the header-only correction. Both paths now
 use shared device admission; identical final observer/only App DLL changes,
 healthy device/cancellation/source lifetime/cleanup and full host suites pass.
-Committed native repeats and successor four-lane CI continue (E-I161).
+Committed 8975fdf clean Windows 26/0 and Mac/Ubuntu 25/1 each pass; 932 raw sources,
+four native modes/pins/cleanup and all four successor CI lanes/ten digests/fourteen
+inventories/two native report-map sets/eight new cases verify (E-I161).
 Current checkpoint: 139/161 preliminary, one Closed, 21 remaining issue
 remediations; all campaigns/final candidate/human GO remain gated.
 
@@ -3045,3 +3047,15 @@ candidates); I09's device-level zero-write cases (USB connected to host; source-
     isolated comparison pass. Committed native repeats/successor CI continue.
     139/161 preliminary, one Closed, 21 remaining issue remediations; all final
     campaigns/candidate/human GO remain gated (E-I161). USB G: stays on HOLD.
+
+336. I161 source 8975fdf seals preliminary remediation: 932 raw Git blobs/four
+    native modes/compiler receipts and clean Windows 26/0, Ubuntu 25/1 and Mac
+    25/1 native repeats verify every new header case, payload/result/transport
+    hashes, source disposal/bytes and owned temp/runner cleanup. Exact CI
+    37451501259 attempt 1 passes all four lanes; ten original server digests,
+    four clean build receipts/fourteen complete inventories/two native Windows
+    executables/report-map sets/eight new viewer/page cases and fourteen nonce
+    cases verify. ARM64 startup/drawing/installer pass; package jobs skip. The
+    failed original 37446927662 remains failed. No persistent guest/Mac setup
+    changes, USB source or GUI qualification. 139/161 preliminary, one Closed,
+    21 remain; all final campaigns/candidate/human stable GO remain gated.

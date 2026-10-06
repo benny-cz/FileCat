@@ -1,6 +1,6 @@
 # E-I160 — concurrent broker nonce claims
 
-2026-10-06. High replay-guard integrity defect under I17/V06/B04. Preliminary committed/native remediation at 37c88c8; successor CI and wider qualification remain required. No candidate or human stable GO. Initial baseline follows.
+2026-10-06. High replay-guard integrity defect under I17/V06/B04. Preliminary committed/native remediation at 37c88c8 and four-lane successor CI seal at 8975fdf; wider qualification remains required. No candidate or human stable GO. Initial baseline follows.
 
 The exact clean **573ed2cfe31e5698ee668e5aa28b2c82ccc8b942** production Windows platform DLL is unchanged in a synthetic, self-contained component observer. In the disposable Windows 26300 VM, the actual public nonce-claim method is called against only predeclared random owned nonce values. Each process is already administrative. No production plan, consent workflow, file operation or device is invoked.
 
@@ -43,3 +43,10 @@ Additional private roots are `broker-loader-20261006` and `ci-37446927662-attemp
 | ci-37446927662-attempt1/independent-ci-nonce-v1.json | 97da708d2484cbf48e335c3c199ec0c6e676c582c91170a552fd7e4562d44a35 |
 
 These source/artifact pins support their stated preliminary component scopes; full production consent, limited caller and candidate evidence remain open under I17/V06.
+
+Successor **8975fdf11a733535d640609b827557842002a14a**, [CI 37451501259 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37451501259), now passes all four required lanes, all fourteen native nonce cases, ten downloaded server digests/four clean build receipts/fourteen complete inventories and two native Windows executable/report-map sets. I161's committed native/CI seal records the successor without changing the original failure. [E-I161](E-I161-viewer-source-admission.md) retains its complete source/host/native/CI limits and final aggregate seal; the clean 37c88c8 cross-process observer remains the explicitly versioned native nonce evidence.
+
+| Retained path under FileCatReleaseEvidence | SHA-256 |
+|---|---|
+| ci-37451501259-attempt1/independent-ci-nonce-v1.json | 2614af49bb4a4214a477ace0a06be0a26bc819538ca2db2a5149cb77a7230be4 |
+| picture-header-20261006/independent-seal-v1.json | 149c1d117ffbe3098986fdcc8f8e8996d3110560e08a4436f4d74374c17f67e7 |
