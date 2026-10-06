@@ -329,7 +329,8 @@ internal static class GitStatusReader
                 // Git resolves core.worktree against the actual gitdir, including for a shared linked-worktree
                 // config. A relative spelling can cross the same junction as an absolute path.
                 string? relativeTo = opened == "worktree" ? gitDirectory ?? Path.GetDirectoryName(Path.GetFullPath(configPath)) : null;
-                if (!NamesThisComputer(Value(line[(equals + 1)..]), relativeTo)) return false;
+                string? value = Value(line[(equals + 1)..]);
+                if (value is null || !NamesThisComputer(value, relativeTo)) return false;
             }
         }
         return true;
@@ -371,17 +372,43 @@ internal static class GitStatusReader
         if (continued || quoted || line.Length != 0) yield return null;
     }
 
-    /// <summary>A setting's value as Git reads it: its quotes and any comment after it removed.</summary>
-    private static ReadOnlySpan<char> Value(ReadOnlySpan<char> text)
+    /// <summary>Decode the whole logical value, including adjacent quoted segments and Git's five escapes.</summary>
+    private static string? Value(ReadOnlySpan<char> text)
     {
-        text = text.Trim();
-        if (text.Length != 0 && text[0] == '"')
+        var value = new StringBuilder();
+        bool quoted = false;
+        int preserved = 0;
+        for (int i = 0; i < text.Length; i++)
         {
-            int end = text[1..].IndexOf('"');
-            return end < 0 ? text[1..] : text.Slice(1, end);
+            char c = text[i];
+            if (c == '\\')
+            {
+                if (++i == text.Length) return null;
+                c = text[i] switch
+                {
+                    'n' => '\n', 't' => '\t', 'b' => '\b', '\\' => '\\', '"' => '"', _ => '\0',
+                };
+                if (c == '\0') return null;
+            }
+            else if (c == '"')
+            {
+                quoted = !quoted;
+                preserved = value.Length;
+                continue;
+            }
+            else if (!quoted)
+            {
+                if (c is '#' or ';') break;
+                if (c is ' ' or '\t' or '\r' or '\v' or '\f')
+                {
+                    if (value.Length != 0) value.Append(c);
+                    continue; // Outside whitespace is retained only if more value follows.
+                }
+            }
+            value.Append(c);
+            preserved = value.Length;
         }
-        int comment = text.IndexOfAny('#', ';');
-        return (comment < 0 ? text : text[..comment]).TrimEnd();
+        return quoted ? null : value.ToString(0, preserved);
     }
 
     /// <summary>

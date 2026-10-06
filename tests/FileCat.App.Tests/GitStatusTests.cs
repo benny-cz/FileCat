@@ -155,7 +155,8 @@ public sealed class GitStatusTests
             Assert.Equal(work, GitStatusReader.SafeRepository(sub));
 
             // The same settings pointing at this computer are ordinary and keep their badges.
-            File.WriteAllText(config, benign + "\texcludesFile = " + Path.Combine(root, "ignore") + "\n\tworktree = ../repo\n\tpager = less -R\n");
+            string ignore = Path.Combine(root, "ignore").Replace("\\", "\\\\", StringComparison.Ordinal);
+            File.WriteAllText(config, benign + "\texcludesFile = " + ignore + "\n\tworktree = ../repo\n\tpager = less -R\n");
             Assert.Equal(work, GitStatusReader.SafeRepository(sub));
             Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4), $"Took {clock.Elapsed}: a path off this computer was tried.");
         }
