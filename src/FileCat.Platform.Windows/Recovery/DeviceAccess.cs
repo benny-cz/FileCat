@@ -349,6 +349,9 @@ public sealed class BrokeredDeviceSource : PipeDeviceSource
                 try
                 {
                     pipe.Connect(250);
+                    // A same-user process can read the plan's nonce and bind this name before the helper.
+                    // Verify the kernel peer against the held runas process before PipeDeviceSource sends Info.
+                    process.VerifyReadServer(pipe.SafePipeHandle);
                     break;
                 }
                 catch (TimeoutException) { }

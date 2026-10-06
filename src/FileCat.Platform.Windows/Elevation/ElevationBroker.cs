@@ -176,6 +176,16 @@ public sealed partial class ElevatedProcess(SafeProcessHandle handle) : IDisposa
 
     public int ExitCode => GetExitCodeProcess(handle, out uint code) ? unchecked((int)code) : -1;
 
+    /// <summary>Authenticate a read-session server before sending it any protocol request.</summary>
+    internal void VerifyReadServer(SafePipeHandle pipe)
+    {
+        // Keep the runas process handle alive: a name/nonce or a separately opened PID is not the launched peer.
+        uint expected = GetProcessId(handle);
+        if (expected == 0 || WaitForSingleObject(handle, 0) != 0x102 /* WAIT_TIMEOUT */ ||
+            !GetNamedPipeServerProcessId(pipe, out uint actual) || actual != expected)
+            throw new IOException("The administrator helper's read session could not be verified. Nothing was read.");
+    }
+
     public void Dispose() => handle.Dispose();
 
     [LibraryImport("kernel32.dll")]
@@ -184,4 +194,11 @@ public sealed partial class ElevatedProcess(SafeProcessHandle handle) : IDisposa
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetExitCodeProcess(SafeProcessHandle handle, out uint code);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial uint GetProcessId(SafeProcessHandle handle);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetNamedPipeServerProcessId(SafePipeHandle pipe, out uint processId);
 }

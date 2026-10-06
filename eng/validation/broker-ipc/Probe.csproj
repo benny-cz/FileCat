@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><AssemblyName>FileCat</AssemblyName><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><NoWarn>$(NoWarn);CA1416</NoWarn></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="FileCat.Platform.Windows"><HintPath>$(BrokerAssemblyRoot)/FileCat.Platform.Windows.dll</HintPath></Reference>
+    <Reference Include="FileCat.Core"><HintPath>$(BrokerAssemblyRoot)/FileCat.Core.dll</HintPath></Reference>
+    <Reference Include="FileCat.Recovery"><HintPath>$(BrokerAssemblyRoot)/FileCat.Recovery.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>
