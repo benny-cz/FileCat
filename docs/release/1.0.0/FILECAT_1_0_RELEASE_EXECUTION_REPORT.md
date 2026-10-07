@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 172 IDs: 150 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 185 entries; 486 selected private evidence hashes independently reconciled in audit v46. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 173 IDs: 151 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 186 entries; 494 selected private evidence hashes independently reconciled in audit v47. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 8a57103154a75174e21e83371e0eca41c57d282a — tilde worktree admission correction, including prior result-consumer, bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37555498358 attempt 1 at 8a57103 is sealed green on policy/all four required lanes. | I172 retains 19 digests, 14 full inventories (480 App cases per lane), twenty new passes/eight explicit Windows-junction skips, compiler receipts and 92 locked graphs. |
+| Current product producer | cd6ba2e567807a527626d268bc2d746bc0eab80e — completed flat-view source cleanup, including prior tilde worktree, result-consumer, bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
+| Latest product CI | 37557951023 attempt 1 at cd6ba2e is pending. | I173 clean committed affected tests are sealed; original I172 four-platform CI remains independently sealed for its own producer. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: [I172](evidence/E-I172-tilde-git-worktree.md) fixes a complete-reader tilde worktree junction bypass, with four baseline failures, seven new passes, 89 affected clean Git cases and corrected native refusals sealed. The original four-platform CI run is sealed with twenty new passes/eight explicit Windows-junction skips. [I16 home-rule controls](evidence/E-I16-HOME-opened-rule-overrides.md) remain a verified existing defense, not a new defect. Prior result lifetime/removal, Windows worker provenance and I12 records retain their exact scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed slice: [I173](evidence/E-I173-flat-view-source-lifetime.md) releases completed flat-view cancellation sources with either an open or closed result consumer. Two original-code failures and 24 working/clean committed App passes are sealed; original four-platform CI is pending. [I172](evidence/E-I172-tilde-git-worktree.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
@@ -28,7 +28,7 @@ Latest completed slice: [I172](evidence/E-I172-tilde-git-worktree.md) fixes a co
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView and Windows picture-worker module subsets sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Escape dialog retention fixed as I163, Find comparison cancellation as I168 and result-note retention as I169 and bulk-removal latency as I170; closed result consumers as I171; complete remaining worker/render-frame/consumer lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Escape dialog retention fixed as I163, Find comparison cancellation as I168 and result-note retention as I169 and bulk-removal latency as I170; closed result consumers as I171 and completed flat-view sources as I173; complete remaining worker/render-frame/consumer lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -80,7 +80,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
 1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review.
-2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163/I168/I169/I170/I171 fixes. Native frame and unavailable interaction scope remain queued.
+2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163/I168/I169/I170/I171/I173 fixes. Native frame and unavailable interaction scope remain queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
 5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.

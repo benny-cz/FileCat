@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current issue register
 
-Updated 2026-10-07. **150 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 172 total.**
+Updated 2026-10-07. **151 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 173 total.**
 These are issue statuses, not remaining test counts. Subsequent scope closures require their own linked evidence; consolidation itself did not promote a status.
 Remediated does not mean complete candidate qualification. All original findings, comparison results, commits, failure details and closure limits remain in the [frozen full register](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md).
 
@@ -196,6 +196,8 @@ Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the r
 | I171 | <a id="i171"></a>Live result sets retain closed consumer tabs and completion changes disposed banners | Medium (resource lifetime) | Must fix (I06/V12/V13) | Remediated preliminarily — f502fd1; three baseline failures/one live positive; four new and 22 affected App passes from working/clean committed source without skips. Original four-platform CI sealed with all sixteen new passes without skips; broader/native/candidate remains. | [Full record](evidence/E-I171-result-consumer-lifetime.md) |
 
 | I172 | <a id="i172"></a>Tilde-prefixed Git worktrees bypass junction admission | High (path admission) | Must fix (I16/V23 B10/V24) | Remediated preliminarily — 8a57103; one original complete native bypass, four durable baseline failures/three positives; seven new and 89 affected clean Git cases (88 Passed/one explicit capture skip), corrected native refusals sealed. Original four-platform CI sealed with twenty new passes/eight explicit Windows-junction skips; broader/candidate remains. | [Full record](evidence/E-I172-tilde-git-worktree.md) |
+
+| I173 | <a id="i173"></a>Completed flat views retain their cancellation sources | Medium (resource lifetime) | Must fix (I06/V12/V13) | Remediated preliminarily — c6e13f5/cd6ba2e; two original failures after successful unchanged-file searches; working/clean committed 24 affected App passes without skips. Original four-platform CI pending; broader/native/candidate remains. | [Full record](evidence/E-I173-flat-view-source-lifetime.md) |
 
 ## Maintenance
 
