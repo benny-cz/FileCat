@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**203 evidence entries; none is final candidate qualification.** No candidate exists.
+**204 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -20,6 +20,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-ENV-06 | Resumption source, CI outcomes, GitHub controls and current VMware access | `08c2e2d`, `3316f15`, `a5a3c0c` | Preflight facts | [E-ENV-06](evidence/E-ENV-06-resumption.md) | I01, I04, I11, I18, I96 |
 | E-ENV-07 | Fresh Ubuntu desktop matrix provisioning | `34c9d5c`/`407fd63`; generator SHA in record | Preflight/setup | [E-ENV-07](evidence/E-ENV-07-ubuntu-matrix.md) | ENV-04, I04, V19 |
 | E-ENV-MAC-1 | Temporary awake/sudo/desktop-session support | Pinned native C/session/power controls; no production change | Verified preliminary environment controls | [E-ENV-MAC-1](evidence/E-ENV-MAC-1-temporary-native-session.md) | ENV-01, V09, native consent |
+| E-ENV-STORAGE | Evidence inventory and transparent NTFS compression; every original file retained | Main a4504f1; no product change | Verified storage maintenance; 9.10 GB reclaimed, no qualification claim | [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) | Evidence retention, I110 physical-source hold |
 | E-I03-ADVISORIES | Fresh App package advisory query and range comparison | 8502983 actual App assets; 2026-10-06 official feed | Preliminary finite query; native/runtime/unknown advisories/legal/candidate open | [E-I03-ADVISORIES](evidence/E-I03-ADVISORIES-current-app-query.md) | I03, V20 |
 | E-I03-APPIMAGE | Actual wrapper input/transformation and original notice inclusion | 145f569 before; 0d61dbb/CI 37492084054/37492315642 correction | Preliminary correction sealed; static composition/legal obligations/candidate open | [E-I03-APPIMAGE](evidence/E-I03-APPIMAGE-runtime-inputs.md) | I03, I14, V20 |
 | E-I03-CHECKSUM | Native embedded-checksum observations | Actual 145f569/8502983 CI AppImages; immutable appimagetool 8c8c91f source | Finite Linux checksum matches; generic semantics/authenticity/source/candidate open | [E-I03-CHECKSUM](evidence/E-I03-CHECKSUM-native-observations.md) | I03, V20 |

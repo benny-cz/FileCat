@@ -10,7 +10,7 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 189 IDs: 167 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 203 entries; 1069 selected private evidence hashes independently reconciled in audit v78. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 204 entries; 1072 selected private evidence hashes independently reconciled in audit v79. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | 3b84bc1081ca2de6423715ef055e432ef6b5557b — checksum generation error/progress ownership, including GNU filename identity and prior dialog/lifetime, Git/worktree and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
@@ -18,6 +18,8 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
 Latest local slice: [I189](evidence/E-I189-checksum-dialog-generation.md) reproduces obsolete checksum read errors appending to newer output or closed controls. Four original Windows failures/two positives are retained; working and fresh committed builds pass all 34 affected cases without skips, including six additions and 28 exact prior outcomes. Actual dialog/worker/file/hashes/source evidence and original four-lane CI are sealed; all 24 new executions pass without skips. Twenty unresolved scopes and all 24 candidate campaigns remain.
+
+Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) recovers 9.10 GB through transparent compression, preserving all 21,721 original evidence paths and every processed content hash. Another 31.71 GB of installer media remains an optional retention decision. The Mac dependency slice is prepared; its first patterned-input oracle failure is retained while a uniform-color control is prepared.
 
 ## Remaining issue work — 20 entries
 
