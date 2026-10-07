@@ -150,6 +150,100 @@ public sealed class PageViewTests : IDisposable
         Assert.DoesNotContain(served, s => s.Path.Contains("pixel", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_loaded_page_keeps_its_document_until_explicit_navigation(bool markdown)
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        string site = Directory.CreateDirectory(Path.Combine(_dir, "revision")).FullName;
+        string path = Path.Combine(site, markdown ? "owned.md" : "owned.html");
+        byte[] original = RevisionDocument(markdown, false), replacement = RevisionDocument(markdown, true);
+        File.WriteAllBytes(path, original);
+        string? originalTitle = null, cachedTitle = null, refreshedTitle = null;
+        byte[] before = [], cached = [], refreshed = [];
+        int beforeRequests = -1, cachedRequests = -1, refreshedRequests = -1;
+        var served = new ConcurrentQueue<(string Path, bool Found)>();
+        ContentRevision? beforeRevision = null, afterRevision = null;
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            try
+            {
+                using var source = new FileContentSource(path);
+                using var reader = new PagedReader(source);
+                using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-revision"));
+                var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Served += (name, found) => served.Enqueue((name, found));
+                view.Loaded += (ok, why) =>
+                {
+                    if (ok) done.TrySetResult();
+                    else done.TrySetException(new IOException(why ?? "Owned page failed"));
+                };
+                view.SetSize(640, 480);
+                var page = markdown ? HtmlPage.ForMarkdown(reader, path) : new HtmlPage(reader, path);
+                beforeRevision = reader.Revision;
+                view.Show(page);
+                await done.Task.WaitAsync(TimeSpan.FromSeconds(20));
+                await Task.Delay(200);
+                before = await RevisionCapture(view);
+                originalTitle = view.Title;
+                beforeRequests = served.Count(s => s.Path == "/" + page.Name && s.Found);
+                File.WriteAllBytes(path, replacement);
+                File.SetLastWriteTimeUtc(path, new DateTime(beforeRevision!.Value.ModifiedTicks, DateTimeKind.Utc).AddSeconds(10));
+                Assert.True(await Task.Run(() => reader.Refresh()));
+                afterRevision = reader.Revision;
+                await Task.Delay(200);
+                cached = await RevisionCapture(view);
+                cachedTitle = view.Title;
+                cachedRequests = served.Count(s => s.Path == "/" + page.Name && s.Found);
+                Assert.Equal(replacement, File.ReadAllBytes(path));
+                done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                view.Show(page);
+                await done.Task.WaitAsync(TimeSpan.FromSeconds(20));
+                await Task.Delay(200);
+                refreshed = await RevisionCapture(view);
+                refreshedTitle = view.Title;
+                refreshedRequests = served.Count(s => s.Path == "/" + page.Name && s.Found);
+            }
+            finally { Assert.True(StaPump.DestroyWindow(parent)); }
+        }, TimeSpan.FromSeconds(60));
+        TestContext.Current.TestOutputHelper!.WriteLine(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            markdown, NativeWebView2Runtime = WebView2Page.RuntimeVersion,
+            originalTitle, cachedTitle, refreshedTitle, beforeRequests, cachedRequests, refreshedRequests,
+            beforeRevision, afterRevision, OriginalBase64 = Convert.ToBase64String(original),
+            ReplacementBase64 = Convert.ToBase64String(replacement),
+            BeforePNGSHA256 = RevisionHash(before), CachedPNGSHA256 = RevisionHash(cached), RefreshedPNGSHA256 = RevisionHash(refreshed),
+            BeforePNGBase64 = Convert.ToBase64String(before), CachedPNGBase64 = Convert.ToBase64String(cached), RefreshedPNGBase64 = Convert.ToBase64String(refreshed),
+            ActualSourceSHA256 = RevisionHash(File.ReadAllBytes(path)),
+            ActualWindowsWebView2HtmlPageReaderOwnedHiddenWindow = true, NativeDesktopInputHumanReferenceOrCandidateQualified = false
+        }));
+        Assert.NotEqual(beforeRevision, afterRevision);
+        Assert.Equal(1, beforeRequests);
+        Assert.Equal(beforeRequests, cachedRequests);
+        Assert.Equal(2, refreshedRequests);
+        Assert.Equal(originalTitle, cachedTitle);
+        Assert.Equal(markdown ? "owned.md" : "Original page marker", originalTitle);
+        Assert.Equal(markdown ? "owned.md" : "Replacement page marker", refreshedTitle);
+        Assert.Equal(before, cached);
+        Assert.NotEqual(RevisionHash(before), RevisionHash(refreshed));
+    }
+
+    private static byte[] RevisionDocument(bool markdown, bool replacement) => System.Text.Encoding.UTF8.GetBytes(markdown
+        ? replacement ? "# Replacement page marker\n\nNew owned content with a different length.\n" : "# Original page marker\n\nOwned original content.\n"
+        : replacement ? "<!doctype html><html><head><title>Replacement page marker</title></head><body><h1>Replacement page marker</h1><p>New owned content with a different length.</p></body></html>"
+        : "<!doctype html><html><head><title>Original page marker</title></head><body><h1>Original page marker</h1><p>Owned original content.</p></body></html>");
+
+    private static string RevisionHash(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+    private static async Task<byte[]> RevisionCapture(WebView2Page view)
+    {
+        using var stream = new MemoryStream();
+        await view.CaptureAsync(stream);
+        return stream.ToArray();
+    }
+
     /// <summary>A single-threaded apartment with a message pump and a synchronization context, as a UI thread has.</summary>
     private static class StaPump
     {

@@ -52,8 +52,8 @@ public sealed class ViewerWindow : Window
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
     private Task? _pictureLoad;
-    // Decoded pictures and structure reports are snapshots. A reader refresh must not describe them as current content.
-    private long _sourceGeneration, _pictureGeneration, _infoGeneration;
+    // Decoded pictures, structure reports and loaded pages are snapshots. Reader refreshes must not describe them as current.
+    private long _sourceGeneration, _pictureGeneration, _infoGeneration, _pageGeneration;
     private readonly List<Control> _textOnly = []; // toolbar parts that mean nothing for a picture
 
     /// <summary>The longest side a picture is decoded to (actual size beyond it shows the scaled picture, and says so).</summary>
@@ -374,6 +374,7 @@ public sealed class ViewerWindow : Window
         foreach (var part in _textOnly) part.IsVisible = false;
         if (_htmlPage is null)
         {
+            _pageGeneration = _sourceGeneration;
             _htmlPage = Markdown.IsMarkdown(_displayName) ? HtmlPage.ForMarkdown(_reader, _displayName, _closing.Token) : new HtmlPage(_reader, _displayName, _closing.Token);
             _pageView.Show(_htmlPage);
         }
@@ -604,6 +605,8 @@ public sealed class ViewerWindow : Window
                                : "Web page: its scripts do not run and nothing is fetched from the web") +
                            (blocked > 0 ? $" ({blocked.ToString("N0", CultureInfo.CurrentCulture)} {(blocked == 1 ? "request" : "requests")} refused)" : "") +
                            $" · F4 shows its {(markdown ? "text" : "source")} · {Formatters.ExactSize(_reader.Length)}";
+            if (_pageGeneration != _sourceGeneration)
+                _status.Text = "The file changed; reopen the viewer to refresh this page. " + _status.Text;
             return;
         }
         long len = _reader.Length;
@@ -632,7 +635,7 @@ public sealed class ViewerWindow : Window
                 if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
                 else _text.GoToEnd();
             }
-            if (_isPicture || _isInfo) UpdateStatus();
+            if (_isPicture || _isInfo || _isPage) UpdateStatus();
             else _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
         }
         catch (OperationCanceledException) { }
