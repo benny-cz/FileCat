@@ -51,6 +51,14 @@ public sealed class ViewerChecksumLifetimeTests
             await ClipboardExtensions.SetTextAsync(clipboard, "current clipboard before checksum");
             var hex = Field<HexView>(viewer, "_hex");
             if (range) Select(hex, HeldOffset, 4096);
+            // UI layout does not guarantee a page was requested before PendingLoads reaches zero.
+            // Cache the first page explicitly so the ordinary four-page read-count oracle has a fixed baseline.
+            var firstBytes = new byte[32];
+            Assert.Equal(firstBytes.Length, reader.Read(0, firstBytes));
+            Assert.Equal(bytes[..firstBytes.Length], firstBytes);
+            await WaitFor(() => (int)typeof(PagedReader).GetProperty("PendingLoads", Fields)!.GetValue(reader)! == 0);
+            bool firstPageCachedBeforeArm = (bool)typeof(PagedReader).GetMethod("HasPage", Fields)!.Invoke(reader, [0L])!;
+            Assert.True(firstPageCachedBeforeArm);
             source.Arm();
             oldWork = Checksum(viewer);
             var sourceField = typeof(ViewerWindow).GetField("_checksumCts", Fields);
@@ -83,7 +91,7 @@ public sealed class ViewerChecksumLifetimeTests
             }
             bool? currentCleared = sourceField is null ? null : sourceField.GetValue(viewer) is null;
             bool unchanged = SHA256.HashData(bytes).SequenceEqual(SHA256.HashData(File.ReadAllBytes(path)));
-            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, range, beforeStatus, afterStatus, beforeClipboard, afterClipboard, beforeReads, source.ReadsAfterArm, Error = error?.GetType().FullName, CancellationDisposed = cancellationDisposed, CurrentChecksumCleared = currentCleared, OwnedContentUnchanged = unchanged, source.Active, source.DisposalsDuringRead, ActualFileAndPagedReader = true, HeadlessClipboardAndComponentOnly = true }));
+            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, range, beforeStatus, afterStatus, beforeClipboard, afterClipboard, beforeReads, source.ReadsAfterArm, Error = error?.GetType().FullName, CancellationDisposed = cancellationDisposed, CurrentChecksumCleared = currentCleared, OwnedContentUnchanged = unchanged, source.Active, source.DisposalsDuringRead, ActualFileAndPagedReader = true, FirstPageCachedBeforeArm = firstPageCachedBeforeArm, HeadlessClipboardAndComponentOnly = true }));
             Assert.Null(error);
             Assert.True(unchanged);
             Assert.Equal(0, source.DisposalsDuringRead);

@@ -51,6 +51,14 @@ public sealed class ViewerCopyLifetimeTests
             await ClipboardExtensions.SetTextAsync(clipboard, "current clipboard before copy");
             var hex = Field<HexView>(viewer, "_hex");
             Select(hex, range ? HeldOffset : 0, range ? 4096 : bytes.Length);
+            // UI layout does not guarantee a page was requested before PendingLoads reaches zero.
+            // Cache the first page explicitly so the ordinary four-page read-count oracle has a fixed baseline.
+            var firstBytes = new byte[32];
+            Assert.Equal(firstBytes.Length, reader.Read(0, firstBytes));
+            Assert.Equal(bytes[..firstBytes.Length], firstBytes);
+            await WaitFor(() => (int)typeof(PagedReader).GetProperty("PendingLoads", Fields)!.GetValue(reader)! == 0);
+            bool firstPageCachedBeforeArm = (bool)typeof(PagedReader).GetMethod("HasPage", Fields)!.Invoke(reader, [0L])!;
+            Assert.True(firstPageCachedBeforeArm);
             source.Arm();
             oldWork = Copy(viewer);
             var sourceField = typeof(ViewerWindow).GetField("_copyCts", Fields);
@@ -82,7 +90,7 @@ public sealed class ViewerCopyLifetimeTests
             }
             bool? currentCleared = sourceField is null ? null : sourceField.GetValue(viewer) is null;
             bool unchanged = SHA256.HashData(bytes).SequenceEqual(SHA256.HashData(File.ReadAllBytes(path)));
-            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, range, beforeStatus, afterStatus, BeforeClipboardSHA256 = Hash(beforeClipboard), AfterClipboardSHA256 = Hash(afterClipboard), BeforeClipboardCharacters = beforeClipboard.Length, AfterClipboardCharacters = afterClipboard.Length, beforeReads, source.ReadsAfterArm, Error = error?.GetType().FullName, CancellationDisposed = cancellationDisposed, CurrentCopyCleared = currentCleared, OwnedContentUnchanged = unchanged, source.Active, source.DisposalsDuringRead, ActualFileAndPagedReader = true, HeadlessClipboardAndComponentOnly = true }));
+            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, range, beforeStatus, afterStatus, BeforeClipboardSHA256 = Hash(beforeClipboard), AfterClipboardSHA256 = Hash(afterClipboard), BeforeClipboardCharacters = beforeClipboard.Length, AfterClipboardCharacters = afterClipboard.Length, beforeReads, source.ReadsAfterArm, Error = error?.GetType().FullName, CancellationDisposed = cancellationDisposed, CurrentCopyCleared = currentCleared, OwnedContentUnchanged = unchanged, source.Active, source.DisposalsDuringRead, ActualFileAndPagedReader = true, FirstPageCachedBeforeArm = firstPageCachedBeforeArm, HeadlessClipboardAndComponentOnly = true }));
             Assert.Null(error);
             Assert.True(unchanged);
             Assert.Equal(0, source.DisposalsDuringRead);
