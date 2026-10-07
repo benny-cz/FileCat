@@ -1,9 +1,17 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text.Json;
 using FileCat.App.Services;
 
 namespace FileCat.App.Tests;
 
-public sealed class GitAlternateTests
+// The shared-object effect control exercises optional badge admission, whose wall-clock and
+// shared-worker budgets must not compete with unrelated tests in this App test process.
+[CollectionDefinition("Git alternate effect", DisableParallelization = true)]
+public sealed class GitAlternateEffectCollection;
+
+[Collection("Git alternate effect")]
+public sealed class GitAlternateTests(ITestOutputHelper output)
 {
     [Theory]
     [InlineData("../../../target-link/objects")]
@@ -123,21 +131,44 @@ public sealed class GitAlternateTests
         string borrowed = Path.Join(fixture.Root, "borrowed");
         fixture.Git(git, source, "clone", "--shared", source, borrowed);
         File.WriteAllText(Path.Join(borrowed, "a.txt"), "two");
+        File.SetLastWriteTimeUtc(Path.Join(borrowed, "a.txt"), DateTime.UtcNow.AddSeconds(3));
         string objects = Path.Join(borrowed, ".git", "objects");
         string alternates = Path.Join(objects, "info", "alternates");
         Assert.All(Directory.EnumerateFiles(objects, "*", SearchOption.AllDirectories), p => Assert.Equal(alternates, p));
         File.WriteAllText(alternates, "../../../source/.git/objects\n");
         Assert.Equal("one", fixture.Git(git, borrowed, "cat-file", "-p", "HEAD:a.txt"));
 
+        var before = fixture.InputHashes(source, borrowed, alternates);
+        var clock = Stopwatch.StartNew();
+        string? admitted = GitStatusReader.SafeRepository(borrowed);
+        long admissionMilliseconds = clock.ElapsedMilliseconds;
+        string nativeStatus = fixture.Git(git, borrowed, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignore-submodules=all", "--", ".");
+        output.WriteLine(JsonSerializer.Serialize(new { Phase = "ordinary-preconditions", admitted, admissionMilliseconds,
+            nativeStatus, Before = before, NonparallelAppCollection = true, ProductLimitsUnchanged = true }));
+        Assert.Equal(borrowed, admitted);
+        Assert.Equal(" M a.txt\0", nativeStatus);
+        clock.Restart();
         var ordinary = await GitStatusReader.ReadAsync(borrowed, TestContext.Current.CancellationToken, git);
+        var after = fixture.InputHashes(source, borrowed, alternates);
+        output.WriteLine(JsonSerializer.Serialize(new { Phase = "ordinary-result", ElapsedMilliseconds = clock.ElapsedMilliseconds,
+            SnapshotPresent = ordinary is not null, Badge = ordinary?.ForName("a.txt").ToString(), Before = before, After = after }));
+        Assert.Equal(before, after);
         Assert.Equal(GitStatusKind.Modified, ordinary?.ForName("a.txt"));
         if (!OperatingSystem.IsWindows()) return; // The ordinary effect control runs everywhere; junction scope is Windows.
 
         fixture.Junction("source-link", source);
         File.WriteAllText(alternates, "../../../source-link/.git/objects\n");
         Assert.Equal("one", fixture.Git(git, borrowed, "cat-file", "-p", "HEAD:a.txt"));
+        var junctionBefore = fixture.InputHashes(source, borrowed, alternates);
+        string? junctionAdmitted = GitStatusReader.SafeRepository(borrowed);
         var automatic = await GitStatusReader.ReadAsync(borrowed, TestContext.Current.CancellationToken, git);
-
+        var junctionAfter = fixture.InputHashes(source, borrowed, alternates);
+        output.WriteLine(JsonSerializer.Serialize(new { Phase = "junction-result", junctionAdmitted,
+            SnapshotPresent = automatic is not null, Before = junctionBefore, After = junctionAfter,
+            NativeBorrowedBlob = fixture.Git(git, borrowed, "cat-file", "-p", "HEAD:a.txt"), OwnedLocalJunction = true }));
+        Assert.Equal(junctionBefore, junctionAfter);
+        Assert.Equal(before.Take(3), junctionAfter.Take(3));
+        Assert.Null(junctionAdmitted);
         Assert.Null(automatic);
     }
 
@@ -174,6 +205,10 @@ public sealed class GitAlternateTests
             links.Add(link);
             Assert.True((File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0);
         }
+
+        internal string[] InputHashes(string source, string borrowed, string alternates) =>
+            new[] { Path.Join(source, "a.txt"), Path.Join(borrowed, "a.txt"), Path.Join(borrowed, ".git", "index"), alternates }
+                .Select(p => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))).ToLowerInvariant()).ToArray();
 
         internal string Git(string executable, string directory, params string[] arguments)
         {
