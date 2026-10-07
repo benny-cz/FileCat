@@ -57,7 +57,8 @@ public sealed class PictureRevisionStatusTests(ITestOutputHelper output)
                 File.WriteAllBytes(path, replacement);
                 File.SetLastWriteTimeUtc(path, new DateTime(beforeRevision!.Value.ModifiedTicks, DateTimeKind.Utc).AddSeconds(10));
             }
-            typeof(ViewerWindow).GetMethod("CheckForChanges", Fields)!.Invoke(viewer, []);
+            await ((Task)typeof(ViewerWindow).GetMethod("CheckForChanges", Fields)!.Invoke(viewer, [])!)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             string refreshStatus = Field<TextBlock>(viewer, "_status").Text ?? "";
             var afterRevision = reader.Revision;
             var bytes = new byte[checked((int)reader.Length)];

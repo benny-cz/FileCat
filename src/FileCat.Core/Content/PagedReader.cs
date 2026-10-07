@@ -307,8 +307,12 @@ public sealed class PagedReader : IDisposable
     }
 
     /// <summary>Re-reads length and revision; drops cached pages when the content changed (external truncation).</summary>
-    public bool Refresh()
+    public bool Refresh() => Refresh(CancellationToken.None);
+
+    /// <summary>Observes cancellation between metadata calls, retaining the source until an active call returns.</summary>
+    public bool Refresh(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         lock (_lock)
         {
             if (_disposed) return false;
@@ -319,7 +323,9 @@ public sealed class PagedReader : IDisposable
         try
         {
             rev = _source.GetRevision();
+            ct.ThrowIfCancellationRequested();
             len = Math.Max(0, _source.Length);
+            ct.ThrowIfCancellationRequested();
         }
         finally { EndSourceUse(); }
         lock (_lock)

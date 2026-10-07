@@ -69,6 +69,7 @@ public sealed class ViewerWindow : Window
     private readonly CheckBox _wrap = new() { Content = "Wrap", VerticalAlignment = VerticalAlignment.Center };
     private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
     private readonly DispatcherTimer _changeTimer;
+    private bool _checkingChanges;
     private readonly string _displayName;
     private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
     private bool _isHex;
@@ -235,7 +236,7 @@ public sealed class ViewerWindow : Window
             if (_reader.ReadError is not null) Dispatcher.UIThread.Post(UpdateStatus);
         };
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
-        _changeTimer = new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, (_, _) => CheckForChanges());
+        _changeTimer = new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, (_, _) => { _ = CheckForChanges(); });
         Opened += async (_, _) =>
         {
             SetMode(hex);
@@ -611,19 +612,36 @@ public sealed class ViewerWindow : Window
                        (_isHex && sel.Length > 1 ? $" · selected {sel.Length.ToString("N0", CultureInfo.CurrentCulture)} bytes" : string.Empty);
     }
 
-    private void CheckForChanges()
+    private async Task CheckForChanges()
     {
-        if (!_reader.Refresh()) return;
-        _sourceGeneration++;
-        _text.InvalidateVisual();
-        _hex.InvalidateVisual();
-        if (_follow.IsChecked == true)
+        if (_closing.IsCancellationRequested || _checkingChanges) return;
+        _checkingChanges = true;
+        try
         {
-            if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
-            else _text.GoToEnd();
+            bool changed = await _services.Io.Run(_deviceKey, IoPriority.Background,
+                ct => _reader.Refresh(ct), _closing.Token);
+            if (_closing.IsCancellationRequested || !changed) return;
+            _sourceGeneration++;
+            _text.InvalidateVisual();
+            _hex.InvalidateVisual();
+            if (_follow.IsChecked == true)
+            {
+                if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
+                else _text.GoToEnd();
+            }
+            if (_isPicture || _isInfo) UpdateStatus();
+            else _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
         }
-        if (_isPicture || _isInfo) UpdateStatus();
-        else _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException or NotSupportedException)
+        {
+            if (!_closing.IsCancellationRequested)
+                _status.Text = "The file's current state could not be checked: " + ex.Message;
+        }
+        finally
+        {
+            _checkingChanges = false;
+        }
     }
 
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)

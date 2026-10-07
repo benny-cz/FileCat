@@ -56,7 +56,8 @@ public sealed class InfoRevisionStatusTests(ITestOutputHelper output)
                 File.WriteAllBytes(path, replacement);
                 File.SetLastWriteTimeUtc(path, new DateTime(beforeRevision!.Value.ModifiedTicks, DateTimeKind.Utc).AddSeconds(10));
             }
-            typeof(ViewerWindow).GetMethod("CheckForChanges", Fields)!.Invoke(viewer, []);
+            await ((Task)typeof(ViewerWindow).GetMethod("CheckForChanges", Fields)!.Invoke(viewer, [])!)
+                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             string refreshStatus = viewer.StatusText;
             var afterRevision = reader.Revision;
             var bytes = new byte[checked((int)reader.Length)];
