@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — execution dashboard
 
-Updated 2026-10-07. **NO-GO. Contract not frozen; no release candidate exists; no stable publication is authorized.**
+Updated 2026-10-08. **NO-GO. Contract not frozen; no release candidate exists; no stable publication is authorized.**
 
 Start here for current progress and remaining work. Detailed evidence belongs in the [evidence index](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md), current issue dispositions in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md), and required decisions/resources in the [gate register](FILECAT_1_0_RELEASE_BLOCKERS.md).
 The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices once, in chronological order.
@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 203 IDs: 181 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 220 entries; 1570 selected private evidence hashes independently reconciled in audit v119. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 204 IDs: 182 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 221 entries; 1602 selected private evidence hashes independently reconciled in audit v120. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 86e8c6d519c411fa509a2f1d95bf5b064a813cf0 (directory content evidence, CI marker and admission fixture correction). | Exact clean 213 targeted passes/one benchmark skip; five owned mirror controls. This is not a release candidate. |
-| Latest observed CI | 37686386645 attempt 1 at 645b947 is sealed partially: both Windows jobs pass; Ubuntu CI-marker guard and one macOS admission assertion fail. | 101 directory passes/one retained assertion failure; 62 broker passes. Current 86e8c6d batch is locally qualified; its native CI remains to run. |
+| Current product producer | 23591875ddc2140133f4216ae96e7f44006a099e; f2679bc changes only CI mirror helpers. | Exact clean 163 targeted passes/one existing mount skip; nine committed owned mirror controls. This is not a release candidate. |
+| Latest observed CI | 37689672199 attempt 1 at 2600e3c: Windows x64/ARM64 and macOS pass; Ubuntu dependency install times out. | All 447 executed content additions, 102 directory additions and 62 broker cases pass. Ubuntu App/Remote do not run; mirror-list correction awaits native follow-up. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest execution batch: [I203 directory content evidence](evidence/E-I203-directory-content-evidence.md) detects changed or unavailable revisions, lost-byte/caveat substitution, premature EOF and invalid read counts. Baselines reproduce 102 failures/15 positives across 117 new controls; working checks pass 209, and exact committed checks pass those plus four scheduler controls (one existing benchmark skip). Five owned mirror controls pass. The preceding original CI failures and their corrected setup/fixture paths are preserved in [I202](evidence/E-I202-directory-comparison-lifetimes.md). Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest execution batch: [I204 archive/transfer warning handling](evidence/E-I204-archive-transfer-warnings.md) fixes lost warnings, empty Unpack jobs and catalogue worker admission. Baselines reproduce 28 defects/10 positives; 58 new controls and broader clean job/archive/SFTP checks pass (163 tests, one existing mount skip). Original [I203 CI](evidence/E-I203-directory-content-evidence.md#original-follow-up-ci--2600e3c) is sealed; its uncovered Ubuntu mirror-list defect is corrected with nine committed owned CLI controls. Native follow-up runs alongside the next source batch. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) recovers 9.10 GB through transparent compression, preserving all 21,721 original evidence paths and every processed content hash. Another 31.71 GB of installer media remains an optional retention decision.
 
@@ -81,7 +81,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Continue runnable I06/I16/I17 provider-open/metadata, archive enumeration, indirect paths and lifetime/identity review. I203 exact content-integrity qualification and predecessor CI failures are sealed; push the combined committed batch and qualify its original native CI while continuing remaining executable source paths.
+1. Continue runnable I06/I16/I17 provider-open/metadata, indirect paths and lifetime/identity review. I204 archive catalogue/recursive-warning controls and I203 original CI are sealed. Qualify the combined batch’s original native CI while auditing remaining signature-open, metadata and frozen-operation paths.
 2. I06: I200 comparison provider admission controls are sealed locally; original CI all 36 additions pass, one older Windows Git failure is retained. Original aa34410 fixture-producer CI is sealed green; continue other direct/provider admission, source-revision consumers, queued-frame and worker boundaries. Completed corrections, retained adverse results and exact producer/local/CI/native limits are in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md#i06) and its linked records. Native-frame and unavailable-interaction work stay queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows/Mac worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.

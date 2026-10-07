@@ -14,9 +14,28 @@ Original source: 645b947aef3edbfc8cbea5ca2a33081d5d5efe97. Baselines export all 
 
 Working qualification passes 140 Core/69 App cases; exact committed qualification repeats those 209 and adds four existing scheduler replacement/cap controls. All preceding comparison cases retain their names/outcomes; the only skip is `CompareBenchmark.Comparison_stays_truthful_bounded_and_cancelable`, requiring `FILECAT_COMPARE_BENCH=1`. Five actual mirror-CLI owned-file controls also pass from committed bytes. The independent reader verifies 1140 canonical clean Git blobs/modes/archive, 974 actual payload references, 70 retained files, explicit Git/private line-ending normalization and 468 baseline/intermediate/final/clean observations. Earlier successful working stages remain preserved.
 
-The batch also corrects two failures in predecessor CI 37686386645 attempt 1. Ubuntu's five owned mirror controls pass, but sudo strips the CI marker and the native helper refuses before changing APT sources. The workflow now passes only that marker explicitly. A macOS admission fixture sees three held calls against an exact-two assertion; its historical cause is unproven because health was not recorded. The fixture now records health, requires two workers while responsive and the scheduler's hard cap while not responding, retains active ownership/publication checks, and reduces unheld short-read round trips. Actual scheduler watchdog/replacement/cap controls pass separately. Native follow-up CI remains required; no rerun replaces either failure. Full original-attempt details are in [I202](E-I202-directory-comparison-lifetimes.md).
+The batch also corrects two failures in predecessor CI 37686386645 attempt 1. Ubuntu's five owned mirror controls pass, but sudo strips the CI marker and the native helper refuses before changing APT sources. The workflow now passes only that marker explicitly. A macOS admission fixture sees three held calls against an exact-two assertion; its historical cause is unproven because health was not recorded. The fixture now records health, requires two workers while responsive and the scheduler's hard cap while not responding, retains active ownership/publication checks, and reduces unheld short-read round trips. Actual scheduler watchdog/replacement/cap controls pass separately. The original follow-up result is sealed below; no rerun replaces either failure. Full original-attempt details are in [I202](E-I202-directory-comparison-lifetimes.md).
 
 Revision records are weak evidence (length/time/available identity), not an atomic filesystem snapshot. Sources with no revision support can still compare complete bytes; equal unavailable revisions do not prove absence of concurrent edits. Broader alias/provider/identity races, native interactions and final-candidate repeat remain open. No physical source, persistent borrowed-machine setting, signing, freeze, candidate, tag or stable publication changes.
+
+## Original follow-up CI — 2600e3c
+
+Original run 37689672199 attempt 1 at 2600e3cbbd75ced94820570fb67966ed21335551 passes Windows x64, Windows ARM64 and macOS. All **447 executed I203 additions** pass: 96 Core cases on four lanes and 21 App cases on three lanes. All 102 executed I202 directory additions pass, including the corrected macOS admission fixture. Both Windows broker subsets pass (62 cases/64 independently decoded wire and CRC observations). Ubuntu's dependency installation exits 124 at its existing 300-second bound; its Remote/App tests do not execute. This remains partial qualification.
+
+The independent reader verifies 20 server digests and every selected archive member, 12 raw TRX inventories with definitions/outcomes, the 447 raw content observations, 78 lifetime observations, four builder receipts and 92 actual locked restore graphs. Every earlier available case name/outcome is retained. Native mirror configuration executes but replaces zero URIs: the runner actually uses `/etc/apt/apt-mirrors.txt`, outside the helper's then-current two targets. APT tries Azure first, stalls/retries, then reaches the official archive too late for installation to complete. [I204](E-I204-archive-transfer-warnings.md) records the mirror-list correction and its nine committed owned controls; native installation follow-up is still required. No package, candidate or release qualification is inferred.
+
+Private `FileCatReleaseEvidence/ci-37689672199-failed-assets-attempt1-v1`:
+
+| Selected receipt | SHA-256 |
+|---|---|
+| independent-failed-content-ci-v1.json | c90cebf4590aa40657a8d607f2884043bd08e78ec1347ab85177b905db52ae63 |
+| independent-failed-content-ci-audit-v1.json | 01356226a6d6b925b32250d2c758cca4808254c53863d68419c33af2c246d50a |
+
+Private `FileCatReleaseEvidence/aq204-v1`:
+
+| Independent reader | SHA-256 |
+|---|---|
+| seal-content-ci-v2.py | 40683f04f7e7dbc571ce843036bf27e4cce182627af79e2114ead11e0ddf91dd |
 
 Private `FileCatReleaseEvidence/ce203-v1`:
 
