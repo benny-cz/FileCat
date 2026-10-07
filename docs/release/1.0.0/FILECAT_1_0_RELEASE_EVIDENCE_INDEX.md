@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**194 evidence entries; none is final candidate qualification.** No candidate exists.
+**195 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -38,6 +38,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I06-B1 | Retained F3 picture buffers and mode/close lifetime | Exact committed 6215329 assemblies/worker; documentation-only discovery 4e7d38d | Preliminary finite component observations; no invented picture budget, desktop/Unix/all-consumer/candidate open | [E-I06-B1](evidence/E-I06-B1-retained-picture-memory.md) | I06, V12, V16 |
 | E-I06-B2 | QuickView replacement/fallback/detach picture buffers on host/Windows VM/physical Mac/Ubuntu VM | Exact committed 6215329 platform payloads; documentation discovery 0b2cfd3/588a554 | Preliminary component lifetime; borrowed/Shell/DPI/main-window/native/candidate open | [E-I06-B2](evidence/E-I06-B2-quickview-picture-memory.md) | I06, V12, V16 |
 | E-I06-B3 | Borrowed native/tinted bitmap references through cache eviction, clear and release | Exact committed 6215329 Windows payload; discovery 213de8e | Preliminary finite component ownership plus static consumer inventory; native workers/frames/full consumer/candidate open | [E-I06-B3](evidence/E-I06-B3-borrowed-icon-memory.md) | I06, V12, V16 |
+| E-I06-B4 | Cached long-line report layout and actual native Skia offscreen raster controls | Unchanged fa13957; test-only observer/drawing builder overlays | Five bounded controls retained; two actual native raster passes; mock/vector timeout not promoted to a product defect; desktop/reference/Unicode/candidate open | [E-I06-B4](evidence/E-I06-B4-long-line-render-controls.md) | I06, V10/V12/V16 |
 | E-I09-T1 | Where writing goes, on real systems: loop devices, disk images and a VHDX whose files lie on the source's disk; memory and links from it; shares served by the same computer | `7418c04`, `0a52b7b` | Preliminary live | [I09](FILECAT_1_0_RELEASE_ISSUES.md) | I09 |
 | E-I12 | Historical descriptor/title regressions and durable lifecycle coverage | a0a8ece; original CI 37541603291 attempt 1; actual owner-Mac cross-published payload | Preliminary coverage closure; intermittent Mac failure unforced, broader integration/candidate open | [E-I12](evidence/E-I12-regression-coverage.md) | I12, I06, I13, I25 |
 | E-I15-S1 | Installer script and Inno Setup semantics | `4f6b062` | Static | [E-I15](evidence/E-I15-uninstall-vm.md) | I15 |
