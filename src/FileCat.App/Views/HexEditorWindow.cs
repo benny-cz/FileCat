@@ -58,7 +58,7 @@ public sealed class HexEditorWindow : Window
     private string? _message;
     private long _lastCursor = -1;
     private bool _saving, _allowClose, _closed, _saveConfirmed;
-    private CancellationTokenSource? _copyStop, _searchCts;
+    private CancellationTokenSource? _copyStop, _searchCts, _clipboardCts;
     private long _lastHit = -1;
     private int _lastHitLength;
 
@@ -156,6 +156,7 @@ public sealed class HexEditorWindow : Window
             _closed = true;
             _copyStop?.Cancel();
             _searchCts?.Cancel();
+            _clipboardCts?.Cancel();
             s_open.Remove(this);
             _reader.Dispose();
             UnsavedStateChanged?.Invoke();
@@ -222,6 +223,7 @@ public sealed class HexEditorWindow : Window
     /// <summary>Connects the view to the current file, overlay, and reader (after opening or Save As).</summary>
     private void Attach()
     {
+        _clipboardCts?.Cancel();
         _hex.SetReader(_reader);
         _hex.IsModified = _overlay.IsModified;
         _overlay.Changed += OnOverlayChanged;
@@ -445,15 +447,36 @@ public sealed class HexEditorWindow : Window
 
     private async Task CopyAsync()
     {
-        if (Clipboard is null) return;
-        var sel = _hex.Selection;
-        int count = (int)Math.Min(Math.Max(1, sel.Length), 1024 * 1024);
-        var bytes = await Task.Run(() => _hex.ReadSelection(count));
-        string text = _hex.TextColumnActive
-            ? new string(bytes.Select(b => b is >= 0x20 and < 0x7F ? (char)b : '.').ToArray())
-            : string.Join(' ', bytes.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
-        await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, text);
-        Status($"Copied {Formatters.Plural(bytes.Length, "byte", "bytes")} as {(_hex.TextColumnActive ? "text" : "hex")}{(sel.Length > count ? " (the first 1 MiB)" : "")}.");
+        if (_closed || Clipboard is not { } clipboard) return;
+        _clipboardCts?.Cancel();
+        using var cts = _clipboardCts = new CancellationTokenSource();
+        var ct = cts.Token;
+        var reader = _reader;
+        var (start, length) = _hex.Selection;
+        int count = (int)Math.Min(Math.Max(1, length), 1024 * 1024);
+        bool asText = _hex.TextColumnActive;
+        try
+        {
+            var result = await Task.Run(() =>
+            {
+                var bytes = new byte[count];
+                int n = reader.Read(start, bytes, ct);
+                ct.ThrowIfCancellationRequested();
+                string text = asText
+                    ? new string(bytes.Take(n).Select(b => b is >= 0x20 and < 0x7F ? (char)b : '.').ToArray())
+                    : string.Join(' ', bytes.Take(n).Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+                return (Text: text, Count: n);
+            }, ct);
+            if (_closed || ct.IsCancellationRequested || !ReferenceEquals(_clipboardCts, cts) || !ReferenceEquals(_reader, reader)) return;
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, result.Text);
+            if (!_closed && !ct.IsCancellationRequested && ReferenceEquals(_clipboardCts, cts) && ReferenceEquals(_reader, reader))
+                Status($"Copied {Formatters.Plural(result.Count, "byte", "bytes")} as {(asText ? "text" : "hex")}{(length > count ? " (the first 1 MiB)" : "")}.");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        finally
+        {
+            if (ReferenceEquals(_clipboardCts, cts)) _clipboardCts = null;
+        }
     }
 
     private async Task PasteAsync()
