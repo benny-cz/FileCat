@@ -802,19 +802,25 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                         int d = done;
                         Services.Ui.Post(() =>
                         {
-                            if (!left) AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)";
+                            if (!left && ReferenceEquals(_analysis, cts)) AnalysisStatus = $"Analyzing {field?.Title}: {d:N0} of {count:N0}… (Esc cancels)";
                         });
                     }
                 }
             }, cts.Token);
-            AnalysisStatus = null;
-            Banner = $"Sorted by {field?.Title} with every value computed ({count:N0} items).";
-            Listing.Resort();
+            if (!left && ReferenceEquals(_analysis, cts))
+            {
+                AnalysisStatus = null;
+                Banner = $"Sorted by {field?.Title} with every value computed ({count:N0} items).";
+                Listing.Resort();
+            }
         }
         catch (OperationCanceledException)
         {
-            AnalysisStatus = null;
-            if (!left) Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
+            if (ReferenceEquals(_analysis, cts))
+            {
+                AnalysisStatus = null;
+                if (!left) Banner = $"Analysis canceled after {done:N0} of {count:N0} items; the order remains partial.";
+            }
         }
         finally
         {
