@@ -15,9 +15,9 @@ The correction records the detected-source generation when inspection starts and
 
 The original inventory has two failures/four positives. Working and fresh committed-source runs each pass all 64 affected cases without skips: six additions and every 58 preceding picture/Info/direct-content name/outcome, including close during an active inspection. The new cases start no picture worker. The independent seal verifies all 1,109 original and 1,111 clean Git blobs/modes/archive members, exactly the ViewerWindow/new test changes in the correction commit, all three 141-file actual payloads (423 references), forty retained local files and eighteen supported raw observations. It independently decodes both full PNGs and their chunk CRCs/pixels, reconstructs source hashes, lengths and modification times, and checks report dimensions and persistent status. Overlay text alone allows Windows CRLF/Git LF; canonical Git/archive bytes remain strict. No owned test executable remains at sealing.
 
-The first CI status reader reused the preceding hardcoded run number. Its exact-source guard rejects that capture before accepting any result; raw API receipts and failed source remain. Fresh head-SHA discovery finds original [push CI 37616659442](https://github.com/benny-cz/FileCat/actions/runs/37616659442) attempt 1 at 4734e2e. It is pending, with all four test lanes running and the main producer-reference policy green in the latest retained capture. This preparation failure is not a product failure and no test/build/CI rerun replaces it. The preceding sealed CI remains 37613028189 at dae3070, with 585 App cases per lane.
+The first CI status reader reused the preceding hardcoded run number. Its exact-source guard rejects that capture before accepting any result; raw API receipts and failed source remain. Fresh head-SHA discovery finds original [push CI 37616659442](https://github.com/benny-cz/FileCat/actions/runs/37616659442) attempt 1 at 4734e2e. It is sealed green on Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All four full 591-case App inventories retain every preceding 585 name/outcome/skip plus six; all 24 additions pass without skips. App outcomes are 574 Passed/17 NotExecuted on both Windows lanes, 505/86 on Ubuntu and 507/84 on Mac. Core retains 898 Windows/893 Unix names/outcomes/skips; Remote/Platform are unchanged. The independent reader verifies nineteen selected official server digests/every archive member, fourteen full TRX inventories, four compiler receipts, 92 actual locked graphs and seven asset/admission/producer/draft/separation/restore/case proofs. Every new case gets independent PNG/revision/report/status reconstruction. Main producer-reference policy passes; package and draft jobs are skipped. The preparation failure is not a product failure, and no test/build/CI rerun replaces it.
 
-These are actual owned-file/inspector executions with headless component observations on the elevated Windows Insider host. They do not qualify native frames/interaction/DPI, changes during inspection, same-size/time-restored undetectable mutations, descriptor/path replacement, cached Page rendering, complete source/checksum revisions, reference/human/assistive-technology workloads or the installed candidate. Fixtures close and remove their owned temporary roots. No guest, persistent setting, physical-source/USB, contract, candidate, GO or publication change occurs. Prior native/component records retain their exact producer rather than being promoted to this rebuilt source. Next autonomous work is original CI completion and remaining Page/source/checksum/worker boundaries.
+These are actual owned-file/inspector executions with headless component observations on the elevated Windows Insider host. They do not qualify native frames/interaction/DPI, changes during inspection, same-size/time-restored undetectable mutations, descriptor/path replacement, cached Page rendering, complete source/checksum revisions, reference/human/assistive-technology workloads or the installed candidate. Fixtures close and remove their owned temporary roots. No guest, persistent setting, physical-source/USB, contract, candidate, GO or publication change occurs. Prior native/component records retain their exact producer rather than being promoted to this rebuilt source. Next autonomous work is remaining Page/source/checksum/worker boundaries.
 
 Private `FileCatReleaseEvidence/ir192-v1`:
 
@@ -33,3 +33,23 @@ Private `FileCatReleaseEvidence/ir192-v1`:
 | ci-status-identity-guard-v5.json | b5ef78944548a0a9681a859eb8fe397b05b01e8c033a879735321246dcd476a7 |
 | seal-info-revision-v6.py | c6a6394908ab4ee13410353a85eb7c0db5ea89f8e5f1100daaadeecf48aa5cf6 |
 | independent-info-revision-v6.json | 612b868144548e95768a5e7bc94e0b6cbb63d3f6a7db5f7cc0f5c43a1948c419 |
+
+Private `FileCatReleaseEvidence/ci-37616659442-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | f43e3430e14837130986ffd14d96ff94615d26934045e23359c415f6934627f1 |
+| independent-draft-guard-ci-v1.json | 68c7afe0882cc26f6b9fc5a34358964095161d6b65b029162de27b4d7e7f7250 |
+| independent-fixture-ci-v1.json | f62105f5d7a7e4dc689288d7ca6f333fe16ee79ec0384f2bfacec8c4a573eab2 |
+| independent-i192-ci-audit-v1.json | 9c332e7750a9119588b9afd121b625c136f673a8305113ca3a4f8953832446c4 |
+| independent-i192-ci-cases-v1.json | b922ccf53663cd61de74c6aad4d58db245ac7f5c960ca3117d90acf7299c5463 |
+| independent-producer-policy-ci-v1.json | 7825a8836f677a4c39c4f47d9bd0998b3b1364196bc19a58c4ff8cab3b96a63b |
+| independent-restore-ci-v1.json | b537ea6963a4618a3d134499d6d9b874081e91116d8a43425c83c1818b2e8883 |
+| independent-separation-ci-v1.json | 5fed9ffbd5cbba16ecc4783bd01f793f5839c5343734f60c671281334e3940ad |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i192-ci-v1.py | 28c2981e81152afb4cdb89db21510a39be8aa7a5338372dac2d0d99a0dd56108 |
+| verify-i192-ci-v1.py | d28c14c14d0eedba4d0a90fd9983f4fca5ef0334627ef3ed47ff92cc042ab4e5 |
