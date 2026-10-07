@@ -22,6 +22,9 @@ def main():
         ('legacy', 'sources.list', b'deb http://azure.archive.ubuntu.com/ubuntu noble main\ndeb https://azure.archive.ubuntu.com/ubuntu/ noble-updates main\ndeb http://security.ubuntu.com/ubuntu noble-security main\n', 2),
         ('already-canonical', 'sources.list.d/ubuntu.sources', b'URIs: https://archive.ubuntu.com/ubuntu/\nSuites: noble\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n', 0),
         ('unrelated', 'sources.list', b'deb https://azure.archive.ubuntu.com.evil/ubuntu noble main\ndeb https://azure.archive.ubuntu.com/ubuntu-other noble main\ndeb https://packages.microsoft.com/repos/code stable main\n', 0),
+        ('mirror-list', 'apt-mirrors.txt', b'# Hosted mirror priorities\r\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:1\r\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\r\n', 1),
+        ('mirror-list-already-canonical', 'apt-mirrors.txt', b'https://archive.ubuntu.com/ubuntu/\tpriority:1\n', 0),
+        ('mirror-list-unrelated', 'apt-mirrors.txt', b'https://azure.archive.ubuntu.com.evil/ubuntu/\nhttps://azure.archive.ubuntu.com/ubuntu-other/\nhttps://security.ubuntu.com/ubuntu/\n', 0),
     ]
     with tempfile.TemporaryDirectory(prefix='filecat-owned-ci-mirror-') as folder:
         root = Path(folder)
@@ -63,6 +66,23 @@ def main():
             assert result.returncode != 0 and outside.read_bytes() == b'owned outside sentinel' and link.is_symlink()
             (args.evidence_dir / 'linked.stderr').write_bytes(result.stderr)
             controls.append(dict(Case='linked', ExitCode=result.returncode, RejectedBeforeWrite=True, OutsideSHA256=hashlib.sha256(outside.read_bytes()).hexdigest()))
+        # The mirror list is last in the target list: reject it before changing an earlier valid source file.
+        source = root / 'linked-mirror-list'
+        source.mkdir()
+        before = b'deb http://azure.archive.ubuntu.com/ubuntu noble main\n'
+        earlier = source / 'sources.list'
+        earlier.write_bytes(before)
+        link = source / 'apt-mirrors.txt'
+        try:
+            os.symlink(outside, link)
+        except OSError as error:
+            controls.append(dict(Case='linked-mirror-list', Skipped=True, Reason=str(error)))
+        else:
+            result = subprocess.run([sys.executable, str(script), '--sources-root', str(source), '--evidence-file', str(args.evidence_dir / 'linked-mirror-list.json')], capture_output=True, timeout=10)
+            assert result.returncode != 0 and earlier.read_bytes() == before and outside.read_bytes() == b'owned outside sentinel' and link.is_symlink()
+            (args.evidence_dir / 'linked-mirror-list.stderr').write_bytes(result.stderr)
+            controls.append(dict(Case='linked-mirror-list', ExitCode=result.returncode, RejectedBeforeWrite=True,
+                                 EarlierSourceSHA256=hashlib.sha256(earlier.read_bytes()).hexdigest(), OutsideSHA256=hashlib.sha256(outside.read_bytes()).hexdigest()))
     assert not root.exists()
     proof = dict(ActualConfigurationCLIExercised=True, OwnedSourceFilesOnly=True, TemporaryDirectoryRemoved=True,
                  NativeRunnerMirrorOrPackageInstallQualified=False, Controls=controls)

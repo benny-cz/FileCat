@@ -15,7 +15,7 @@ ARCHIVE = b'https://archive.ubuntu.com/ubuntu'
 
 def configure(root):
     root = root.resolve(strict=True)
-    targets = [root / 'sources.list', root / 'sources.list.d/ubuntu.sources']
+    targets = [root / 'sources.list', root / 'sources.list.d/ubuntu.sources', root / 'apt-mirrors.txt']
     # Validate every target before the first write; no following a source file or parent link outside this root.
     for path in targets:
         if path.is_symlink() or (path.exists() and not path.resolve().is_relative_to(root)):
