@@ -1,7 +1,7 @@
 # E-I201 — broker report consistency and uncertain effects
 
-Recorded 2026-10-07. **Preliminary working remediation; exact committed and CI checks pending.**
-Original product: 05ba1e77ea4d31e2d260ad17096ea53d31b3bd31. Scope: I17/V06/V23 broker result consumption, V03 durable outcome truth, and I06 bounded result input.
+Recorded 2026-10-07. **Preliminary remediation; exact committed controls sealed; original CI pending.**
+Original product: 05ba1e77ea4d31e2d260ad17096ea53d31b3bd31; corrected producer: f59343d01d9e6b6a33474700175eb446b9ff1178. Scope: I17/V06/V23 broker result consumption, V03 durable outcome truth, and I06 bounded result input.
 
 A two-step report containing two committed records for index zero was counted as two completed items and journaled Committed, while only root zero was marked completed. A report marked Finished with only the first step bypassed the unknown-effect warning. Null steps and negative indices raised runtime exceptions after report admission. A genuinely unfinished prefix emitted an uncertainty issue but durably recorded Failed or PartiallyApplied for the unreported operation. Skipped was counted as Failed. The standalone JSON parser also accepted a report beyond the existing exchange byte limit.
 
@@ -12,6 +12,8 @@ The correction validates the complete report before applying counters: exact non
 The parser enforces the same 32 MiB input limit. The exchange opens one reader-shared handle, checks its length, allocates at most that limit and reads exactly from that handle; a concurrent writer cannot grow that open file. The finite limit/exchange controls and code inspection support this mechanism; no deterministic size-race or native hostile IPC capture is claimed.
 
 Working overlay: all 54 broker/consent/platform controls pass, preserving the 23 preceding platform outcomes. Core: 49 pass and one existing explicit mounted-filesystem fixture skip (`FILECAT_TEST_MOUNT_INSIDE` unavailable). The corrected tests are byte-identical to the valid baseline tests. Independent working seal verifies 1128 canonical original blobs, all four working overlays, 314 actual payload references, 32 retained files and 64 wire/journal observations across baseline and correction.
+
+Exact committed qualification exports all 1130 raw Git blobs/modes and verifies the archive and unchanged source tree. The four committed source/test paths equal the passing working overlays. Clean f59343d passes the same 54 platform and 49 Core cases/one existing mount skip, preserving all 23 earlier platform and 50 Core names/outcomes. Independent v4 seals 446 payload references, 46 retained files and 96 raw report observations; no owned stage process remains. Original CI 37673555486 attempt 1 is running. The workflow executes Windows platform tests on x64/ARM64; its Unix lanes execute Core/Remote/App and do not run this Windows broker suite.
 
 The first fixture run is retained: its journal reader did not share the live writer, and its runner mode variable was shadowed by a Git mode. Those fixture failures do not establish product defects. V2 closes the journal before inspection and uses a separate Git-mode variable. The fresh baseline then reproduces the 21 product failures. Original files, commands, stdout/stderr, TRX, source snapshots, extraction and failure guard are pinned below.
 
@@ -52,5 +54,19 @@ Private `FileCatReleaseEvidence/br201-v1`:
 | working-v2/results/core.trx | 723f385343eac586a5e7a8ea63bd0c2d68fcf55b40b2cbbeb300a97f17b23d94 |
 | working-v2/results/platform.trx | bb3f5b15facd1a9e180d5a9f4e4e7c9f608003a5c089e1e8989aa6f29c3a7818 |
 | independent-broker-working-v3.json | 7c016e9157320f1641f610f14e8f20ba8f6285951e3f99ff41b8d498fccfdc6f |
+| i17-working-row-v4.json | d9315c4802423ad702c4f0458cbbaba744d0c5710be5f230110b673024c235e2 |
+| independent-broker-observation-reader-v2.py | 3bdba805aeb4b3c1fd7078468ac68ec874f71077e034d6e88a5ed2bc41d26e58 |
+| owned-process-absence-v4.json | 9d60a83dbea54171485205ae6f6e9ee97f933e7f413491f7a05413e81c39c0e5 |
+| seal-broker-clean-v4.py | 591682e6f108303ec292c84ab44d38a7b62d36a2c30ea3f5356b086b03d75648 |
+| write-broker-working-record-v4.py | 01fd99260b8bc81167d02c068cc878e0f0ca13ba00fc04ed60bbb94f59c65809 |
+| write-broker-working-record-v5.py | 1580d60cfcd824fcd5363936bbd4704565087af6440e6b9080c3ceb073cfd5c5 |
+| clean-v2/command.json | 349aa33e5c09c1b1c85c1827a28975e1439e42c3688182958809f82b93c503ee |
+| clean-v2/core-stderr.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| clean-v2/core-stdout.txt | cde21aa96e2e7bd84e6e3f5e20bea5ecb0af202132b5ca74985219827ebff697 |
+| clean-v2/platform-stderr.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| clean-v2/platform-stdout.txt | 37be15d8e4b4dbe8f0cc66f32e7fa24c237b34bae856d38fb1d65cb0691f778c |
+| clean-v2/results/core.trx | 2a6c603e8d09f71e791e8892b9ac79f3094dcbde31a9074078d1c84d4ff72038 |
+| clean-v2/results/platform.trx | be6e853d297777694919eb905e15f29b82eb175f79050e319f8e6d13d10032eb |
+| independent-broker-clean-v4.json | 042ebf946d04b8cba49e837919811b13dda1dd004be63d365ebc9ad4f1da4799 |
 
 The broader I17 limited-account, installed-helper, requester/consent/lifetime and exact-candidate matrix remains open. All 24 final-candidate campaigns, physical-source/USB hold, contract freeze, custody/signing/human GO gates remain. No persistent Mac/VM setup, physical source, release candidate or publication changed.
