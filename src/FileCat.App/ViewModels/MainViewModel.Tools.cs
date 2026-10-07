@@ -129,9 +129,20 @@ public sealed partial class MainViewModel
         var set = Services.ResultSets.Create($"Flat: {(folderName.Length > 0 ? folderName : loc.Path)}", $"All files below {loc.Path}");
         var session = new SearchSession(new SearchQuery { Roots = [loc.Path], IncludeDirectories = false, IncludeHidden = Services.Settings.ShowHidden }, set);
         var cts = new CancellationTokenSource();
-        _ = Task.Run(() => session.Run(cts.Token));
-        OpenResultSet(set, cts);
         _flatViews[set.Id] = cts;
+        _ = Task.Run(() =>
+        {
+            try { session.Run(cts.Token); }
+            finally
+            {
+                Services.Ui.Post(() =>
+                {
+                    _flatViews.Remove(set.Id);
+                    cts.Dispose();
+                });
+            }
+        });
+        OpenResultSet(set, cts);
     }
 
     private readonly Dictionary<string, CancellationTokenSource> _flatViews = new();
