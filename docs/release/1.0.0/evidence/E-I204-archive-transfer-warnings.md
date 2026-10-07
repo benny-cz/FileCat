@@ -1,6 +1,6 @@
 # I204 — archive catalogues and transfer listing warnings
 
-**Preliminary remediation qualified at 23591875ddc2140133f4216ae96e7f44006a099e.** This larger related batch contains 58 new controls and passes 163 clean tests with one existing mount-dependent skip. The separate f2679bcb44a479b652757fa36f8d4ef998b4fd79 CI-only correction passes nine owned mirror-CLI controls; 728 runtime/test/workflow Git identities remain identical to the qualified archive producer. I06 and broader native/provider/race/candidate scope remain open.
+**Preliminary remediation qualified at 23591875ddc2140133f4216ae96e7f44006a099e.** This larger related batch contains 58 new controls and passes 163 clean tests with one existing mount-dependent skip. The separate f2679bcb44a479b652757fa36f8d4ef998b4fd79 CI-only correction passes nine owned mirror-CLI controls; 728 runtime/test/workflow Git identities remain identical to the qualified archive producer. Original c131ba5 four-platform CI and native Ubuntu setup are qualified below; I06 and broader native/provider/race/candidate scope remain open.
 
 | Confirmed defect | Resulting behavior |
 |---|---|
@@ -13,9 +13,36 @@ Baseline source is 2600e3cbbd75ced94820570fb67966ed21335551 with only disclosed 
 
 Working qualification passes 52 Core/45 App cases. A canonical clean export of all 1143 Git blobs/modes repeats these and broadens job/resume/ZIP-update/SFTP coverage to 93 Core/45 App/25 Remote passes. All 58 additions pass with no new skips. The one skip is the existing JobEngine mount test requiring FILECAT_TEST_MOUNT_INSIDE. The independent reader checks raw TRX definitions/outcomes, exact member/file hashes, catalogue identities, warning choices, worker names, ownership/caps, frozen destinations and no late jobs; all 1076 actual payload references and failed/intermediate stages remain pinned. Initial compilation errors, an overbroad text-box selector and six ambiguous Cancel selectors are retained as fixture failures, not product baseline evidence. Final fixture selectors target the actual dialog backdrop.
 
-The preceding original CI 37689672199/2600e3c is sealed in [I203](E-I203-directory-content-evidence.md#original-follow-up-ci--2600e3c): three platform jobs pass; Ubuntu install times out before App/Remote. Its mirror configurator misses apt-mirrors.txt, so APT still chooses Azure first. The old canonical CLI reproduces that missed target. The correction adds only the runner mirror list to the validated targets; every non-mirror byte, priority, repository/signing field and package requirement stays intact. Nine working and committed owned controls pass, including mirror-list no-op/adverse URI cases and a last-target symlink rejected before any earlier file changes. Native APT success remains unproven. No install timeout was increased and no required test/package was removed.
+The preceding original CI 37689672199/2600e3c is sealed in [I203](E-I203-directory-content-evidence.md#original-follow-up-ci--2600e3c): three platform jobs pass; Ubuntu install times out before App/Remote. Its mirror configurator misses apt-mirrors.txt, so APT still chooses Azure first. The old canonical CLI reproduces that missed target. The correction adds only the runner mirror list to the validated targets; every non-mirror byte, priority, repository/signing field and package requirement stays intact. Nine working and committed owned controls pass, including mirror-list no-op/adverse URI cases and a last-target symlink rejected before any earlier file changes. At that local-only stage, native APT success was unproven; the original follow-up qualification is recorded below. No install timeout was increased and no required test/package was removed.
 
 No physical source, persistent borrowed-machine setting, owner gate, contract freeze, candidate, tag or stable publication changes. The physical-source hold and explicit human GO remain in force.
+
+## Original four-platform follow-up — c131ba5
+
+Original run **37693927784, attempt 1**, source **c131ba508900934afa73020b3b02fd2061c09907**, passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All **232 executions of the 58 I204 additions** pass (20 Core and 38 App cases per lane). The same inventories pass all **468 I203 content additions** and **128 I202 directory additions**, including Ubuntu's formerly unavailable App lane. Every available predecessor case name/outcome remains retained; earlier setup and macOS failures are not replaced.
+
+Twenty server artifact digests and every selected archive member, 14 raw TRX inventories/definitions, four builder receipts and 92 actual locked restore graphs verify. Native Ubuntu mirror configuration records exactly one replacement in apt-mirrors.txt, zero in the other two files; the logged receipt equals the uploaded native receipt. Nine owned mirror and five launcher controls pass. The real dependency step completes and logs official-archive downloads and WebKit setup; the original 300-second install bound and package/test scope stay intact. No package, native desktop interaction, hardware or release-candidate qualification is inferred.
+
+Private `FileCatReleaseEvidence/ci-37693927784-assets-attempt1-v1`:
+
+| Selected receipt | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 4a97fa95a94fec8ede6c129f9ca8ae88c5b70b1570227c0f22394d8c7a91dd0f |
+| independent-restore-ci-v1.json | 3a582266fc9d06f0cfa3e6f36e813594f96e7147bda8ea5fe39b6de0dcb55b40 |
+| independent-archive-ci-audit-v2.json | 9a06acf4dc745645daf48fb440c0b3dceb826e366782fe4eda191c890789bafe |
+
+Private `FileCatReleaseEvidence/mp205-v1`:
+
+| Independent reader | SHA-256 |
+|---|---|
+| seal-archive-ci-v2.py | a1536f3a965a82b78f27aa3b4dc2a055b436c99300d9c5cd9b33bd25c9e39b73 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained collector | SHA-256 |
+|---|---|
+| collect-i204-green-ci-v1.py | 4adeb7fbc62d7af9b4a13a154633a799dd8b4da6eee88d60d0728048af1daa7c |
+| collect-i204-green-ci-v2.py | a785a10b148573b8269462924f2735bd22fa6d939a0ad0c001dcaa6794a79eda |
 
 Private `FileCatReleaseEvidence/aq204-v1`:
 

@@ -24,6 +24,14 @@ Original run 37689672199 attempt 1 at 2600e3cbbd75ced94820570fb67966ed21335551 p
 
 The independent reader verifies 20 server digests and every selected archive member, 12 raw TRX inventories with definitions/outcomes, the 447 raw content observations, 78 lifetime observations, four builder receipts and 92 actual locked restore graphs. Every earlier available case name/outcome is retained. Native mirror configuration executes but replaces zero URIs: the runner actually uses `/etc/apt/apt-mirrors.txt`, outside the helper's then-current two targets. APT tries Azure first, stalls/retries, then reaches the official archive too late for installation to complete. [I204](E-I204-archive-transfer-warnings.md) records the mirror-list correction and its nine committed owned controls; native installation follow-up is still required. No package, candidate or release qualification is inferred.
 
+## Original four-platform follow-up — c131ba5
+
+Original run **37693927784, attempt 1**, source **c131ba508900934afa73020b3b02fd2061c09907**, passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All **232 executions of the 58 I204 additions** pass (20 Core and 38 App cases per lane). The same inventories pass all **468 I203 content additions** and **128 I202 directory additions**, including Ubuntu's formerly unavailable App lane. Every available predecessor case name/outcome remains retained; earlier setup and macOS failures are not replaced.
+
+Twenty server artifact digests and every selected archive member, 14 raw TRX inventories/definitions, four builder receipts and 92 actual locked restore graphs verify. Native Ubuntu mirror configuration records exactly one replacement in apt-mirrors.txt, zero in the other two files; the logged receipt equals the uploaded native receipt. Nine owned mirror and five launcher controls pass. The real dependency step completes and logs official-archive downloads and WebKit setup; the original 300-second install bound and package/test scope stay intact. No package, native desktop interaction, hardware or release-candidate qualification is inferred.
+
+Exact follow-up receipts are in [I204](E-I204-archive-transfer-warnings.md#original-four-platform-follow-up--c131ba5).
+
 Private `FileCatReleaseEvidence/ci-37689672199-failed-assets-attempt1-v1`:
 
 | Selected receipt | SHA-256 |
