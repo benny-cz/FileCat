@@ -154,15 +154,20 @@ public sealed class PagedReader : IDisposable
     }
 
     /// <summary>Blocking read for background work (search, checksums). Never call on the UI thread.</summary>
-    public int Read(long offset, Span<byte> destination)
+    public int Read(long offset, Span<byte> destination) => Read(offset, destination, CancellationToken.None);
+
+    /// <summary>Cancels between actual page calls; an active synchronous source read returns before cancellation is reported.</summary>
+    public int Read(long offset, Span<byte> destination, CancellationToken ct)
     {
         int total = 0;
         while (total < destination.Length)
         {
+            ct.ThrowIfCancellationRequested();
             long pos = offset + total;
             if (pos >= Length) break;
             long index = pos / PageSize;
             var page = LoadPage(index);
+            ct.ThrowIfCancellationRequested();
             if (page is null) break;
             int inPage = (int)(pos - index * PageSize);
             int n = Math.Min(destination.Length - total, page.Length - inPage);
