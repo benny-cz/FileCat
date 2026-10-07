@@ -10,7 +10,7 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 194 IDs: 172 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 211 entries; 1234 selected private evidence hashes independently reconciled in audit v92. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 211 entries; 1234 selected private evidence hashes independently reconciled in audit v93. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | d51182ca038aeb9ac1b9ce95723fb1e1436527e8 — coalesced comparison revision checks and truthful unavailable-state warning; earlier corrections and owner About retained. | Earlier component/native evidence keeps its exact producer; changed/rebuilt artifacts require identity and affected revalidation. |

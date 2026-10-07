@@ -58,5 +58,7 @@ Private `FileCatReleaseEvidence/release-assets-20261006`:
 
 | Retained path | SHA-256 |
 |---|---|
-| collect-i193-ci-v1.py | ab7c680995f68db038ac77a1954e1ff94238e2d979b57ac809d5f9cb5da8febd |
-| verify-i193-ci-v1.py | 4e8b1ff2176b9603cf20ab72327f345f315463dc0d9eea00d0c973ee34f743b8 |
+| collect-i194-ci-v1.py | 6d35ddb8d7226a587fc4696f068297255f7dea77ecd5137ec6ed4b5f9787a17f |
+| verify-i194-ci-v1.py | f13a3e931940329365591804f582f1753e045fcb7d449c4939cf078b96f9a9d2 |
+
+The selected-script table was corrected after d921627: it had named I193's collector/verifier while the recorded I194 run used the I194 scripts above. The original committed table and byte-for-byte private snapshot remain; a fresh audit checks the two replacements and preserves every other selected pin. CI results and their independent raw reconstruction are unchanged.
