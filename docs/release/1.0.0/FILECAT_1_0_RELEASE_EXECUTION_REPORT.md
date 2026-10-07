@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 171 IDs: 149 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 182 entries; 436 selected private evidence hashes independently reconciled in audit v42. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 183 entries; 457 selected private evidence hashes independently reconciled in audit v43. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | f502fd169478d0631ea4280adbb5b3f6457cda68 — closed result-consumer correction, including bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37551264824 attempt 1 at f502fd1 is pending; original I170 CI 37548599663 remains sealed green. | The preceding producer retains all 19 digests/14 inventories, sixteen I170 correctness passes and 92 locked graphs; no new CI completion is inferred from them. |
+| Latest product CI | 37551264824 attempt 1 at f502fd1 is sealed green on policy/all four required lanes. | I171 retains 19 digests, 14 full inventories (473 App cases per lane; 884 Core Windows/879 Unix), all sixteen new lifetime passes, compiler receipts and 92 locked graphs. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed local slice: [I171](evidence/E-I171-result-consumer-lifetime.md) releases closed result tabs from live publisher callbacks and completion watchers while keeping live refresh and the producer intact. All four new controls and 22 affected App workflows pass on fresh committed source; three adverse baseline controls fail. Original four-platform CI is pending. [I170](evidence/E-I170-result-set-bulk-removal.md) retains its sealed 54 removal measurements and sixteen hosted correctness passes; reference/native performance acceptance remains open. [I12](evidence/E-I12-regression-coverage.md) remains closed for preliminary regression coverage, with the historical intermittent Mac failure explicitly unforced. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed local slice: [I171](evidence/E-I171-result-consumer-lifetime.md) releases closed result tabs from live publisher callbacks and completion watchers while keeping live refresh and the producer intact. All four new controls and 22 affected App workflows pass on fresh committed source; three adverse baseline controls fail. Original four-platform CI is sealed with all sixteen new lifetime passes. The next [I03 worker subset](evidence/E-I03-WORKER-windows-picture-images.md) seals 46 actual Windows decoder module files and four exact NuGet member matches; wider composition remains open. [I170](evidence/E-I170-result-set-bulk-removal.md) retains its sealed 54 removal measurements and sixteen hosted correctness passes; reference/native performance acceptance remains open. [I12](evidence/E-I12-regression-coverage.md) remains closed for preliminary regression coverage, with the historical intermittent Mac failure explicitly unforced. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
@@ -25,7 +25,7 @@ Latest completed local slice: [I171](evidence/E-I171-result-consumer-lifetime.md
 |---|---|---|
 | [I01](FILECAT_1_0_RELEASE_ISSUES.md#i01) | Owner/service | Reporting is confirmed disabled; approve/enable the route and name responders/response commitments. |
 | [I02](FILECAT_1_0_RELEASE_ISSUES.md#i02) | Owner/provider | Complete SignPath acceptance/policy and the chosen signing path. |
-| [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView mapped-file subset sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
+| [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView and Windows picture-worker module subsets sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
 | [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Escape dialog retention fixed as I163, Find comparison cancellation as I168 and result-note retention as I169 and bulk-removal latency as I170; closed result consumers as I171; complete remaining worker/render-frame/consumer lifetimes, Shell/DPI/race/format scope and wider materialized workloads. |
@@ -81,7 +81,7 @@ Execution priority is the runnable work within the 20 remaining unresolved issue
 
 1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review.
 2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163/I168/I169/I170/I171 fixes. Native frame and unavailable interaction scope remain queued.
-3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView subset; also complete remaining V13 archive/naming variants when executable.
+3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
 5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.
 

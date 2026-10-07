@@ -20,7 +20,37 @@ The first test preflight failed on a missing namespace import before execution; 
 
 The focused working filter initially named non-existent adjacent App classes; it executed exactly the four new controls, and is recorded only as that focused pass. The corrected filter independently runs all 22 real affected cases. The first seal rejected the working module's CRLF bytes against canonical Git LF bytes. Both actual hashes remain recorded; the successful seal independently proves that the only difference is Git's line-ending conversion. No test result or input is rewritten.
 
-Original [CI 37551264824 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37551264824) at f502fd1 is pending at this local seal. No four-platform completion is claimed yet. Broader I06 consumer/worker/frame and materialized-memory scope, native interaction and exact-candidate qualification remain open. No physical source, persistent machine setting, frozen contract, candidate or stable publication changed.
+Original [CI 37551264824 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37551264824) at f502fd1 subsequently completes green on policy/all four required lanes, ARM64 package start/draw and installer compilation. Nineteen server artifact digests/all archive members, fourteen full raw TRX inventories, four tool/compiler receipts and 92 locked graphs reconcile. All sixteen new I171 executions pass without skips. Each full App name inventory equals the preceding producer's inventory plus exactly these four controls:
+
+| Lane | Complete App inventory | Actual outcomes |
+|---|---|---|
+| app-test-results-macos-26 | 473 | 75 NotExecuted, 398 Passed |
+| app-test-results-ubuntu-24.04 | 473 | 77 NotExecuted, 396 Passed |
+| test-results-windows | 473 | 17 NotExecuted, 456 Passed |
+| test-results-windows-arm64 | 473 | 17 NotExecuted, 456 Passed |
+
+Complete Core inventories remain unchanged at 884 cases per Windows lane and 879 per Unix lane. I163–I170 subsets also reconcile, including explicit Unix junction skips. Tag/manual packages are skipped; no selected release artifact or candidate is produced.
+
+Private `FileCatReleaseEvidence/ci-37551264824-assets-attempt1-v1`:
+
+| Path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 57d1086112014540d2542a70f1865aa6601a262a68bfe88c344186c5f008f550 |
+| independent-fixture-ci-v1.json | 89689d3bf2683193525a96f6add2baa0dc50400e909cc51ce2492095cd387987 |
+| independent-producer-policy-ci-v1.json | 2dafa1c16893458410f680c33492316216e8cb707d3ac12d4869e8e8475800d0 |
+| independent-draft-guard-ci-v1.json | 8546d5d9d883616da6c77120f1a8fd7fbd5e31d707bdbb698b3bc20cb5bdb8c0 |
+| independent-separation-ci-v1.json | 2d2ad847a51f4a65e350313bd56aad02fda368aaae4196c342be697977338a20 |
+| independent-restore-ci-v1.json | 05346f6900841db2a1e16181ed05ca1f37790198cf26adc510d02275dc86526f |
+| independent-i163-ci-cases-v1.json | 06b28c08fa23763bf1c7674cef173b1dd46688ebabb39ce632b48def0efa8778 |
+| independent-i164-ci-cases-v1.json | 09227b005c0f67c550132dc1c6c08ca3348b287e3ef48082a12448cc218fd4d2 |
+| independent-i165-ci-cases-v1.json | 57ff33916fda71b4d601d8ff83557153cbb9a8b9be87fdbac3491a3dae7790ac |
+| independent-i166-ci-cases-v1.json | 2fd0591dbba299fc3c9603dfbb77bb3b907434963204e1dcd94b938956ce7518 |
+| independent-i167-ci-cases-v1.json | 2256552094a103dc4a3599eba021cb369d96f98c544c2512323359f473d7a010 |
+| independent-i168-ci-cases-v1.json | c3bcece450bded05563d43bfdbd84497939158ba5d3f95f2a2474cc7217526b8 |
+| independent-i169-ci-cases-v1.json | 2bc9f7ea1a39bb4464c96dd678fe324c060a984b663ea830b457e17754993dd4 |
+| independent-i170-ci-cases-v1.json | 2632d41db1c39d149b83ff340746f2a13fed5e4dbe331771a059c97fa5a26332 |
+| independent-i171-ci-cases-v1.json | 133a0c8eca88e0b65d15c484709e2db37737eeb297068f201ab59d57ceb9fb73 |
+ Broader I06 consumer/worker/frame and materialized-memory scope, native interaction and exact-candidate qualification remain open. No physical source, persistent machine setting, frozen contract, candidate or stable publication changed.
 
 Private `FileCatReleaseEvidence/result-consumer-lifetime-20261007-v1`:
 
