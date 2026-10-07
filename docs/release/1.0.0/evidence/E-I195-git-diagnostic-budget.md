@@ -16,7 +16,9 @@ The correction caps each redirected pipe at four million decoded characters and 
 
 Final working and clean committed-source runs each contain 111 affected Git cases: 110 Passed, one existing packet-capture NotExecuted. All six additions pass without skips, and all preceding 105 names/outcomes are preserved. The full preceding configuration, alternate-store, lazy-fetch, home-environment, worktree, reparse/tree and shared-directory controls remain. The independent seal verifies 1,115 original and 1,117 clean Git blobs/modes/archive members, exact source/test overlays, four actual 141-file payloads (564 references), 149 retained paths and 22 raw native-diagnostic/admission/input-hash/recovery observations. It independently reconstructs every diagnostic byte/hash from the numbered warning lines, including the original failed controls. No owned stage executable or Git process remains at the sealing observation; each control removes its owned temporary root.
 
-Original push CI [37630947723](https://github.com/benny-cz/FileCat/actions/runs/37630947723), attempt 1 at 8aa64cc, and final-producer CI [37631087514](https://github.com/benny-cz/FileCat/actions/runs/37631087514), attempt 1 at b0da4ff, are pending. Neither is rerun or replaced by the local result.
+Original [final-producer CI 37631087514](https://github.com/benny-cz/FileCat/actions/runs/37631087514), attempt 1 at b0da4ff, is sealed green on all four required lanes. Full 611-case App inventories preserve every preceding 605 name/outcome/skip plus six; all 24 new executions pass without skips. App results are 594 Passed/17 NotExecuted on each Windows lane, 525/86 on Ubuntu and 527/84 on Mac. All Core/Remote/Platform names/outcomes/skips remain. The independent reader verifies nineteen selected official server digests/every member, fourteen raw inventories, four compiler receipts, 92 actual locked graphs and seven current CI seals. It reconstructs all 24 native diagnostic-byte/hash, budget refusal, unchanged-input and recovery observations. Producer policy passes; package/draft jobs are skipped.
+
+Initial [fix CI 37630947723](https://github.com/benny-cz/FileCat/actions/runs/37630947723), attempt 1 at 8aa64cc, is green per its independently pinned official run/job responses. Full raw/artifact qualification above applies to final-producer b0da4ff, not to that initial run. The first independent final-CI reader wrongly used Windows pathlib semantics for an absolute Unix Git path; its source and assertion metadata remain. Fresh v2 accepts the appropriate Windows or POSIX path syntax and rechecks the same unchanged original CI data. No test/build/request/CI rerun replaces an original result.
 
 This does not qualify all Git versions, mutable-path swaps, other indirect reads, sustained native resource limits, unavailable network/removable sources, native GUI/input/reference/human tests or a release candidate. No persistent machine setting, physical-source/USB, contract freeze, candidate, GO or publication changes.
 
@@ -38,3 +40,32 @@ Private `FileCatReleaseEvidence/go195-v1`:
 | seal-git-output-v10.py | 5b0d4c1f32aafb83f2a7445c2ac9bdea5468d80b27af1a7479b9b580a59da97c |
 | independent-git-output-v10.json | 4d379bd9336c1e88c8652c395d2c6f94aad9365022cdafe830fbe2d554d10355 |
 | owned-process-absence-v10.json | aa8abfa0ad3fd1ca42f89ee3d5b254e7eb674ec61750798217d28baf22e9edc7 |
+
+Private `FileCatReleaseEvidence/go195-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| ci-status-v13/introduced-runs-stdout | a9328eda0e3057e1731c85c4f9301ee121c44939456b6e0fe2e475c8a2765726 |
+| ci-status-v13/introduced-jobs-stdout | 91127f3e4e5f9bb7b6300c7e87efe8fa9a041f8d694c45200684062fef5905ed |
+| ci-reader-path-guard-v15.json | 6e5e365aec1c4c5a7d6014deb3841d4a1d6f0e4e94cee18c6d313f2f6a6b4faa |
+
+Private `FileCatReleaseEvidence/ci-37631087514-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | cc9d130491612ebd7ee0350badf99cd57a989ded850ec49307c381c6c4b9e635 |
+| independent-draft-guard-ci-v1.json | 0a2d702cc94be4c1f10609b9bc9d0f55d5252ee495c6ba0393f3cebe190c1d88 |
+| independent-fixture-ci-v1.json | cd7583678a438bae2e99a8684821795dfc594e316d22438a53c5c4f02da4710d |
+| independent-i195-ci-audit-v2.json | 96e74e7b369bc79e09765fbedc813c17c979102e1e91e8533bc2cb1ce4b6466e |
+| independent-i195-ci-cases-v1.json | 4e7401be178d2e4a53fcbb4f9c36555f71713137f2ebdd5a46854c25c25bbbe9 |
+| independent-producer-policy-ci-v1.json | 8ad787a162309a24c825756b03b3302e0a6c974a68b4a77e9106829d43e1b132 |
+| independent-restore-ci-v1.json | 3fc5d33ebad72a4cc49ea3527a2866c37fb3103e4627e696dae2831db6dcf2e6 |
+| independent-separation-ci-v1.json | 2f98772e59ac17e248a967573aa44d99c995d9b00653faf52b2bc0eb16e24d4a |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i195-ci-v1.py | 3a40c24407e8d779a3e4f56f5b756b6a8eb9dbfe70c479dbda5395a47896bf3e |
+| verify-i195-ci-v1.py | e40081f3be5028ea14d56b0a725fe82c96e7e5d6be997d7b97dbc8f9382e3e85 |
+| verify-i195-ci-v2.py | d5e283f29a72ab18ced7b2baa364f850c0d3c8f8c2d591b5027c1893d08b9cca |

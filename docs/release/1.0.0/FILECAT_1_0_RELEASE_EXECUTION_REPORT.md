@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 195 IDs: 173 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 212 entries; 1248 selected private evidence hashes independently reconciled in audit v94. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 212 entries; 1262 selected private evidence hashes independently reconciled in audit v96. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | b0da4ff600d5dee39e8224e477521ac4a4240c34 — automatic Git diagnostics bounded/discarded; introduced at 8aa64cc; final test newline cleanup. Earlier fixes and owner About retained. | Earlier evidence keeps its exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37631087514 attempt 1 at b0da4ff is pending; preceding initial fix run 37630947723 at 8aa64cc also pending. Earlier d51182c run remains sealed green on all four platforms. | Local success does not substitute for either original CI outcome. |
+| Latest product CI | 37631087514 attempt 1 at b0da4ff sealed green on all four platforms: 611 App names preserve each preceding 605 plus six; all 24 additions pass without skips. Initial fix CI 37630947723 at 8aa64cc is green per official run/job responses. | Full raw/artifact qualification applies to b0da4ff; all preceding App/Core/Remote/Platform outcomes/skips remain. Package/draft jobs skipped. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest execution slice: [I195](evidence/E-I195-git-diagnostic-budget.md) closes an automatic Git diagnostic-retention gap. Actual native controls, two original failures and intermediate cleanup failures remain; final working/clean 110 passes plus one existing skip preserve all prior outcomes, input hashes and badge recovery. Original CI is pending. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest execution slice: [I195](evidence/E-I195-git-diagnostic-budget.md) closes an automatic Git diagnostic-retention gap. Actual native controls, two original failures and intermediate cleanup failures remain; final working/clean 110 passes plus one existing skip preserve all prior outcomes, input hashes and badge recovery. Original final-producer CI is sealed green. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) recovers 9.10 GB through transparent compression, preserving all 21,721 original evidence paths and every processed content hash. Another 31.71 GB of installer media remains an optional retention decision.
 
@@ -37,7 +37,7 @@ Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md
 | [I11](FILECAT_1_0_RELEASE_ISSUES.md#i11) | Hardware/people | Obtain the mandatory external platform, participant and assistive-technology evidence. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | Finite Git/configuration/admission and home-rule controls are indexed in the register/catalogue. I195 diagnostic budget corrected; original CI pending. Continue other indirect paths, identity races and native/candidate scope. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | Finite Git/configuration/admission and home-rule controls are indexed in the register/catalogue. I195 diagnostic budget corrected; original final-producer CI sealed green. Continue other indirect paths, identity races and native/candidate scope. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -81,7 +81,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review; I195 Git diagnostic budget is corrected and local controls sealed; original CI pending. Continue other indirect metadata/configuration paths and identity races.
+1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review; I195 Git diagnostic budget and original final-producer CI are sealed. Continue other indirect metadata/configuration paths and identity races.
 2. I06: continue cached Page, source/checksum revisions, queued-frame and worker boundaries. Completed corrections, retained adverse results and exact producer/local/CI/native limits are in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md#i06) and its linked records. Native-frame and unavailable-interaction work stay queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows/Mac worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
