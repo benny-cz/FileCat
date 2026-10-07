@@ -71,6 +71,7 @@ public sealed class CompareWindow : Window
     private TextSide? _leftText, _rightText;
     private string? _textProblem;
     private (ContentRevision? Left, ContentRevision? Right) _revisions;
+    private bool _checkingInputs;
     private bool _closed, _reopening, _binaryForced, _settingOptions, _settingDifference, _searching, _contentFocused;
     private int _view;
     private Shown _shown;
@@ -692,18 +693,33 @@ public sealed class CompareWindow : Window
     /// </summary>
     private async void CheckInputs()
     {
-        if (_closed || _reopening || _bytes is null || _changedBanner.IsVisible || _revisions is (null, null)) return;
-        var (left, right) = (_leftView, _rightView);
-        var before = _revisions;
-        var now = await Task.Run(() => (Revision(left), Revision(right)));
-        if (_closed || !ReferenceEquals(left, _leftView) || !ReferenceEquals(right, _rightView)) return;
-        var changed = new List<string>();
-        if (before.Left is { } l && now.Item1 != l) changed.Add(Path.GetFileName(_leftName.TrimEnd('/', '\\')));
-        if (before.Right is { } r && now.Item2 != r) changed.Add(Path.GetFileName(_rightName.TrimEnd('/', '\\')));
-        if (changed.Count == 0) return;
-        _changed.Text = (changed.Count == 2 ? "Both files changed" : $"\"{changed[0]}\" changed") + " after they were compared: what is shown is the earlier content. " +
-                        (_reopen is null ? "Close this window and compare the files again." : "F5 compares them again.");
-        _changedBanner.IsVisible = true;
+        if (_closed || _reopening || _checkingInputs || _bytes is null || _changedBanner.IsVisible || _revisions is (null, null)) return;
+        _checkingInputs = true;
+        try
+        {
+            var (left, right) = (_leftView, _rightView);
+            var before = _revisions;
+            var now = await Task.Run(() => (Revision(left), Revision(right)));
+            if (_closed || !ReferenceEquals(left, _leftView) || !ReferenceEquals(right, _rightView)) return;
+            if (before.Left is not null && now.Item1 is null || before.Right is not null && now.Item2 is null)
+            {
+                _changed.Text = "The files' current state could not be checked: what is shown is the earlier comparison. " +
+                                (_reopen is null ? "Close this window and compare the files again." : "F5 compares them again.");
+                _changedBanner.IsVisible = true;
+                return;
+            }
+            var changed = new List<string>();
+            if (before.Left is { } l && now.Item1 != l) changed.Add(Path.GetFileName(_leftName.TrimEnd('/', '\\')));
+            if (before.Right is { } r && now.Item2 != r) changed.Add(Path.GetFileName(_rightName.TrimEnd('/', '\\')));
+            if (changed.Count == 0) return;
+            _changed.Text = (changed.Count == 2 ? "Both files changed" : $"\"{changed[0]}\" changed") + " after they were compared: what is shown is the earlier content. " +
+                            (_reopen is null ? "Close this window and compare the files again." : "F5 compares them again.");
+            _changedBanner.IsVisible = true;
+        }
+        finally
+        {
+            _checkingInputs = false;
+        }
     }
 
     /// <summary>Shows the comparison with the current options; lines are aligned off the UI thread (a million take a second).</summary>
