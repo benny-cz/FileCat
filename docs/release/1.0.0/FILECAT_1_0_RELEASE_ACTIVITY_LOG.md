@@ -455,3 +455,13 @@ Original I187 CI 37586182003 attempt 1 subsequently completes green on policy/al
 Independent evidence audit v74 SHA-256 7825c0b865e857b7d3eb7e0f67b48f382e3ca99b44bc19c234c527e6c2538ae4 reconciles all 972 selected pins, complete raw inventories and original CI archives, including the retained locale-only checker failure and raw-only continuation.
 
 Tracking v55 SHA-256 d6f120e0f4625b2feb58043e4daa75c1497bea2035c3bdcf2f03f9981c53da5f passes all 479 links/fragments, 201 catalogue entries, current counts and frozen histories.
+
+## 2026-10-07 — GNU checksum Unix file identity
+
+[I188](evidence/E-I188-escaped-gnu-checksum-names.md) reproduces four original Mac name-identity failures at d04a5d7, including two false all-match results for a directory lookalike. Four ordinary/legacy positives pass. Actual distinct owned files and read-only manifest verification jobs are used. Correction 4c86041 preserves explicitly escaped GNU Unix backslashes while retaining Windows/unescaped separator handling; working Mac passes all 27 and working/clean Windows pass 23 with four explicit Unix filename skips.
+
+Independent seal e3a636f2700052c0c4bd1a90a36225aa56633fd3c54c47d3eb2608b50e9d31ec verifies 53 retained files, 574 actual payload references, 1,098 original and 1,100 clean raw blobs/modes/archive members, exact independent hashes/job observations and Mac restoration. The retained prototype terminal-state assertion is corrected before fixed tests after actual contract inspection; original earlier wrong-path failures remain. The clean helper then fails on an absent App assembly name after successful results are retained; a fresh reader uses the Core assembly, with no build/test rerun. Both owned Mac stages/awake helpers are removed after nine result hashes per stage reconcile. No persistent machine/VM/USB/contract/candidate/publication changes.
+
+Counts become 188 findings/166 preliminary remediations/two preliminary closures/20 unresolved scopes; catalogue 202 entries. Original producer CI is pending. Broader format/revision/native/human/reference and exact-candidate work remain.
+
+Independent audit v75 SHA-256 063df1d6afa55dfccce9271512bab523e0da9f3bb619fa19ed677f3c6620c8a4 reconciles all 991 selected pins, canonical source/payloads, original Mac failures and restored stages. Tracking v56 SHA-256 a8fa63eb8dfbf516e4cfa2adae461ac1b1f6a1f410818324a256bd912bd4a370 verifies 482 local links/fragments, 202 evidence entries, current classifications and unchanged frozen histories/authority.
