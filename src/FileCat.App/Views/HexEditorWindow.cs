@@ -543,12 +543,14 @@ public sealed class HexEditorWindow : Window
 
     private async Task FindAsync(bool forward)
     {
+        if (_closed) return;
         var pattern = _search.Text ?? "";
         if (pattern.Length == 0) { _search.Focus(); return; }
         byte[]? bytes = _hexSearch.IsChecked == true ? ContentSearch.ParseHex(pattern) : null;
         if (_hexSearch.IsChecked == true && bytes is null) { Status("Hex search expects bytes such as \"4D 5A 90\"."); return; }
         _searchCts?.Cancel();
-        var cts = _searchCts = new CancellationTokenSource();
+        using var cts = _searchCts = new CancellationTokenSource();
+        var ct = cts.Token;
         var sel = _hex.Selection;
         // F3 again continues after (or before) the match that is still selected; otherwise the search starts at the cursor.
         bool continuing = _lastHit >= 0 && sel.Start == _lastHit && sel.Length == _lastHitLength;
@@ -556,37 +558,44 @@ public sealed class HexEditorWindow : Window
         bool matchCase = _matchCase.IsChecked == true;
         var reader = _reader;
         Status("Searching…");
-        long found;
         try
         {
-            found = await Task.Run(() =>
+            long found = await Task.Run(() =>
             {
                 if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(reader, from, bytes, cts.Token) : ContentSearch.FindBytesBackward(reader, from, bytes, cts.Token);
-                if (forward) return ContentSearch.FindText(reader, s_latin1, from, pattern, matchCase, cts.Token);
+                    return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
+                if (forward) return ContentSearch.FindText(reader, s_latin1, from, pattern, matchCase, ct);
                 long start = Math.Max(0, from - 4 * 1024 * 1024), last = -1, p = start;
                 while (true)
                 {
-                    long hit = ContentSearch.FindText(reader, s_latin1, p, pattern, matchCase, cts.Token);
+                    long hit = ContentSearch.FindText(reader, s_latin1, p, pattern, matchCase, ct);
                     if (hit < 0 || hit >= from) break;
                     last = hit;
                     p = hit + 1;
                 }
                 return last;
-            }, cts.Token);
+            }, ct);
+            if (_closed || !ReferenceEquals(_searchCts, cts) || !ReferenceEquals(reader, _reader)) return;
+            ct.ThrowIfCancellationRequested();
+            if (found < 0)
+            {
+                Status($"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
+                return;
+            }
+            _lastHit = found;
+            _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
+            _hex.GoTo(found, select: true, _lastHitLength);
+            _hex.Focus();
+            Status($"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
         }
-        catch (OperationCanceledException) { Status("Search stopped."); return; }
-        if (!ReferenceEquals(reader, _reader)) return;
-        if (found < 0)
+        catch (OperationCanceledException)
         {
-            Status($"\"{pattern}\" was not found {(forward ? "after" : "before")} the cursor.");
-            return;
+            if (!_closed && ReferenceEquals(_searchCts, cts) && ReferenceEquals(reader, _reader)) Status("Search stopped.");
         }
-        _lastHit = found;
-        _lastHitLength = bytes?.Length ?? s_latin1.GetByteCount(pattern);
-        _hex.GoTo(found, select: true, _lastHitLength);
-        _hex.Focus();
-        Status($"Found at 0x{found:X}. F3 finds the next match, Shift+F3 the previous one.");
+        finally
+        {
+            if (ReferenceEquals(_searchCts, cts)) _searchCts = null;
+        }
     }
 
     // ---- Saving ----------------------------------------------------------------------------------------------------
