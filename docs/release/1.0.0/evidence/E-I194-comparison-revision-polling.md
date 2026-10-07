@@ -18,7 +18,7 @@ Two evidence-reader mistakes remain: the first parses two JSON lines as one; the
 
 The fixture temporarily reserves forty minimum pool workers so all original held calls can start without starving its controller. Every case restores both original worker and completion-port minima and removes its owned temporary root. This is bounded headless resource-demand evidence, not native latency/reference performance. No owned test executable remains at sealing.
 
-Original [push CI 37625381893](https://github.com/benny-cz/FileCat/actions/runs/37625381893) attempt 1 at d51182c is pending in the latest exact-head capture; producer-reference policy passes. Prior original four-platform CI remains sealed at c073192 with 599 App cases per lane.
+Original [push CI 37625381893](https://github.com/benny-cz/FileCat/actions/runs/37625381893), attempt 1 at d51182c, is sealed green on Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. Every full 605-case App inventory preserves all preceding 599 names/outcomes/skips plus six; all 24 additions pass without skips. App outcomes are 588 Passed/17 NotExecuted on both Windows lanes, 519/86 on Ubuntu and 521/84 on Mac. Core retains 898 Windows/893 Unix names/outcomes/skips; Remote/Platform are unchanged. The independent reader verifies nineteen selected official server digests/every archive member, fourteen complete raw inventories, four compiler receipts, 92 actual locked graphs and seven current asset/admission/producer/draft/separation/restore/case proofs. It reconstructs all 24 new input/metadata/UI/coalescing/close/reopen/disposal/status/pool-restoration observations. All prior viewer polling, picture/Info revision, actual changed-file/F5 and comparison-lifetime outcomes remain. Producer policy passes; package/draft jobs are skipped. No test/build/request/CI rerun replaces an original result.
 
 The correction does not qualify real unresponsive network/removable sources, shared scheduling across all comparison windows, byte-view page/worker bounds, initial/reopen metadata admission, same-size/time-restored undetectable changes, native GUI frames/input, reference/human/assistive-technology tests or an installed candidate. A held earlier poll suppresses activation checks until it returns; reopening still captures the replacement sources' revisions during comparison. Earlier source/native/adverse records retain their exact producers. No persistent guest/host setting, physical-source/USB, frozen contract, candidate, GO or stable publication changes.
 
@@ -40,3 +40,23 @@ Private `FileCatReleaseEvidence/cr194-v1`:
 | seal-comparison-polling-v8.py | a8056b09ac6c436abf0e0f2e43307d4f340bf1c1a720642a296612c754d20cf8 |
 | independent-comparison-polling-v8.json | da694032e4c38748f28e1058874f41c827969b7614ec0d2ceff1201f250fa131 |
 | owned-process-absence-v8.json | 3b705fc6c1e1a07fad4cf600dc5d0e5cb7444867470d281e92484a3056dcb63b |
+
+Private `FileCatReleaseEvidence/ci-37625381893-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | aa052fd3364f4c10df409fc9b42f9ed0a26e7c17e9ce95b124f3adc5c4ae2245 |
+| independent-draft-guard-ci-v1.json | c4607253f59326f2b479c33de68ea8ab5fc98d12a9bb03b525d80981b7bdecfc |
+| independent-fixture-ci-v1.json | 780a7b543f1baea3ba34e2a9b7ad0b0a26c7ec4fec894a087bbae401bb0355f2 |
+| independent-i194-ci-audit-v1.json | d31d22429665db8a2702f1033dcae3d277c28b14b3911cc5204842477cfc5c89 |
+| independent-i194-ci-cases-v1.json | 4a86294d0509d3d5c8eda0d526546e4eb870a2e22ace13b38fae7b45a614ffe1 |
+| independent-producer-policy-ci-v1.json | f6e74a5305f20a48bf393d192e3f3511667f70a7b6b20a07c7f769aaa375a9c6 |
+| independent-restore-ci-v1.json | 6a6e29a0bf6dd896aa7e2d08897e169758e2299bbf0798242edb93808518ade8 |
+| independent-separation-ci-v1.json | 8bf8d8ded5d69b63db699bb2b17682d9f12f9ad2fb2cd3245ce7775c0d8d62ba |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i193-ci-v1.py | ab7c680995f68db038ac77a1954e1ff94238e2d979b57ac809d5f9cb5da8febd |
+| verify-i193-ci-v1.py | 4e8b1ff2176b9603cf20ab72327f345f315463dc0d9eea00d0c973ee34f743b8 |
