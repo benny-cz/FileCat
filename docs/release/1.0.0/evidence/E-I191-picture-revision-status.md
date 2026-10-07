@@ -17,9 +17,9 @@ Original corrected-checkpoint inventory is two failures/four positives. Working 
 
 The first fixture incorrectly waited for a constructor-started timer rather than completed PNG recognition. All six initial cases stop with a null picture checkpoint before status observations; these are retained fixture failures, not six product failures. Fresh v2 waits for actual picture recognition and establishes the two supported adverse results. The CI collector generator then looks for “Locked restore” instead of the existing “Restore” marker and fails before generating a collector or making any request; its failed source/receipt and dependent missing-file lookup are retained. Fresh v8 corrects only that preparation marker. Neither preflight failure is erased by a CI, product or build rerun.
 
-Original [push CI 37613028189](https://github.com/benny-cz/FileCat/actions/runs/37613028189) attempt 1 is pending; its latest captured state has Ubuntu and Mac green while both Windows lanes continue. Earlier full green CI remains at 5720459. Changed/rebuilt artifacts keep their own producer; no prior loaded-module, native raster or candidate evidence is silently promoted.
+Original [push CI 37613028189](https://github.com/benny-cz/FileCat/actions/runs/37613028189) attempt 1 is sealed green on Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All four complete 585-case App inventories retain every preceding 579 name/outcome/skip plus six; all 24 additions pass without skips. App outcomes are 568 Passed/17 NotExecuted on both Windows lanes, 499/86 on Ubuntu and 501/84 on Mac. Core retains 898 Windows/893 Unix names/outcomes/skips; all Remote/Platform inventories are unchanged. The independent raw reader verifies nineteen selected official server digests/every archive member, fourteen complete TRX inventories, four compiler receipts and 92 actual locked graphs. Seven current asset/admission/producer/draft/separation/restore/case proofs are verified; the new cases receive independent PNG pixel/revision/status reconstruction. The original main reference guard passes; package and draft jobs are skipped. No test/build/request/CI rerun is used to obtain this green result. Changed/rebuilt artifacts keep their own producer; no prior loaded-module, native raster or candidate evidence is silently promoted.
 
-These controls use actual owned local files and workers with headless window/state observation on the elevated Windows Insider host. They do not qualify native interaction/frames/DPI, same-size/time-restored undetectable mutations, descriptor/path replacement, changes during feeder reads, other cached Info/Page representations, complete source/checksum revision semantics, memory/reference/assistive-technology workloads or the installed candidate. Each fixture closes its viewer and removes its owned temporary root; no guest, persistent settings, physical-source/USB, contract, candidate, GO or publication change occurs. Next autonomous work is original CI completion and the remaining revision/worker/cache boundaries.
+These controls use actual owned local files and workers with headless window/state observation on the elevated Windows Insider host. They do not qualify native interaction/frames/DPI, same-size/time-restored undetectable mutations, descriptor/path replacement, changes during feeder reads, other cached Info/Page representations, complete source/checksum revision semantics, memory/reference/assistive-technology workloads or the installed candidate. Each fixture closes its viewer and removes its owned temporary root; no guest, persistent settings, physical-source/USB, contract, candidate, GO or publication change occurs. Next autonomous work is the remaining revision/worker/cache boundaries.
 
 Private `FileCatReleaseEvidence/pr191-v1`:
 
@@ -40,3 +40,23 @@ Private `FileCatReleaseEvidence/pr191-v1`:
 | seal-revision-v6.py | 86b4bf2f9dc04872f9b476bc8a1f662568a7bae8e057e723e7ff76359768072a |
 | seal-local-final-v9.py | 9ddc7502a8fd6ef878bd5a70fd60fdaa3b1767755ea00127a41c9ebad3ea211e |
 | independent-local-final-v9.json | 50234efaa1295cd160f1946cb915c18893a13499ba13e2f87f6dc18d22eb01f7 |
+
+Private `FileCatReleaseEvidence/ci-37613028189-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | ab90f3088acd50e4f6a15100456d51bf417807bf9b8cfaf18b36b8d4fff867cb |
+| independent-draft-guard-ci-v1.json | 197fb1dad1595bf586fa928dd24d3431a673cfa70e8c99bc80f093754991e67a |
+| independent-fixture-ci-v1.json | 9231cb7da6d67e40054ab7c0f35565b44e3c25f39d91a4f6147717996ba56cc9 |
+| independent-i191-ci-cases-v1.json | 45160dd4c8774e5933fb5488325d4f9a255df0b53b6ae4e7208c0e114d842dbe |
+| independent-producer-policy-ci-v1.json | 8e6fb628be22320b529a356ae65b28221f5c1c8b1989d0ef46c1a9295d79821c |
+| independent-restore-ci-v1.json | 01efc20ab8ff1bd91f8c5a37fff8874187f1301fefc6710533e33d682cd98699 |
+| independent-separation-ci-v1.json | 5dc4b7757e0cd5ce380580b8c60d95fe90f6248c666a1325ec30812fdeaab451 |
+| independent-i191-ci-audit-v1.json | 785942d18384b76267e5f95a061662effb26882bb5a917986923cd43371dd29a |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i191-ci-v1.py | 2c680ebb75580ddee7afa6ce0174a2395306658d307d6b78a8b926f7719d1f29 |
+| verify-i191-ci-v1.py | 2e1f3641f36fb8ff554eae3d4bc3af2398c6973cb4f618cf0b2e91e6dcc8e1e0 |
