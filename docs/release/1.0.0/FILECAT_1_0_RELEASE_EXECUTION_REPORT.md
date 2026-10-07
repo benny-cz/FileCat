@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 199 IDs: 177 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 216 entries; 1388 selected private evidence hashes independently reconciled in audit v109. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 200 IDs: 178 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 217 entries; 1407 selected private evidence hashes independently reconciled in audit v110. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 419a358c54db4ed50705d6cfdfac00b95f199e26 (I199). | Exact clean local controls and original four-platform CI pass. This is not a release candidate. |
+| Current product producer | d82397dc8adb3521d83dffe2bd46b2a4dc53f61d (I200). | Exact clean local controls pass; original four-platform CI pending. This is not a release candidate. |
 | Latest product CI | 37655285201 attempt 1 at 419a358: all four platforms green; every preceding 636 App outcome/skip retained plus six, all 24 additions pass. Complete original artifacts/results/provenance and provider admission observations are independently sealed. | Preliminary hosted component evidence; package/draft jobs skipped. Native/human/reference/exact-candidate gates remain. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest execution slice: [I199](evidence/E-I199-viewer-provider-admission.md) routes F3 provider opens through bounded device workers and cancels queued opens at shutdown. Working/exact clean 147 passes preserve all 141 preceding outcomes plus six; original failures, 423 payload references and eighteen provider/ownership observations are sealed. Original four-platform CI is sealed, including all 24 new passes. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest execution slice: [I200](evidence/E-I200-comparison-provider-admission.md) routes initial/repeat comparison opens through device workers, retains pair ownership and prevents late admission after shutdown. Working/exact clean 176 passes preserve all 147 preceding outcomes plus nine additions/twenty comparison regressions; original failures, 423 payload references and 27 raw observations are sealed. Original producer CI is pending. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) recovers 9.10 GB through transparent compression, preserving all 21,721 original evidence paths and every processed content hash. Another 31.71 GB of installer media remains an optional retention decision.
 
@@ -30,7 +30,7 @@ Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView and Windows/Mac picture-worker subsets sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Finite cache/admission, borrowed-resource, consumer/lifetime and picture/revision controls are indexed in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md#i06) and [evidence catalogue](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md). I199 F3 provider admission controls and original four-platform CI are sealed; wider qualification remains. Finish remaining consumer/initial admission/provider-open, worker/frame lifetimes, Shell/DPI/race/format scope, wider materialized workloads and candidate qualification. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Finite cache/admission, borrowed-resource, consumer/lifetime and picture/revision controls are indexed in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md#i06) and [evidence catalogue](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md). I200 comparison provider admission controls are sealed locally; original CI pending and wider qualification remains. Finish remaining consumer/initial admission/provider-open, worker/frame lifetimes, Shell/DPI/race/format scope, wider materialized workloads and candidate qualification. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -82,7 +82,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
 1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review; I195 Git diagnostic budget and original final-producer CI are sealed. Continue other indirect metadata/configuration paths and identity races.
-2. I06: I199 F3 provider admission controls and original four-platform CI are sealed. Continue other direct/provider admission, source-revision consumers, queued-frame and worker boundaries. Completed corrections, retained adverse results and exact producer/local/CI/native limits are in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md#i06) and its linked records. Native-frame and unavailable-interaction work stay queued.
+2. I06: I200 comparison provider admission controls are sealed locally; original CI pending. Continue other direct/provider admission, source-revision consumers, queued-frame and worker boundaries. Completed corrections, retained adverse results and exact producer/local/CI/native limits are in the [issue register](FILECAT_1_0_RELEASE_ISSUES.md#i06) and its linked records. Native-frame and unavailable-interaction work stay queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows/Mac worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
 5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.
@@ -102,7 +102,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 177 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 178 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |
