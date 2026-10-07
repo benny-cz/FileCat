@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 174 IDs: 152 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 187 entries; 519 selected private evidence hashes independently reconciled in audit v49. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 187 entries; 538 selected private evidence hashes independently reconciled in audit v50. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | 2503ab0623fd05a98fd5781ebe7ccb4623adf06d — current folder-analysis ownership, including prior flat-view cleanup, tilde worktree, result-consumer, bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37559419195 attempt 1 at 2503ab0 is pending. | I174 clean committed affected tests are sealed; original I173 CI remains independently sealed for its own producer. |
+| Latest product CI | 37559419195 attempt 1 at 2503ab0 is sealed green on policy/all four required lanes. | I174 retains 19 digests, 14 full inventories (485 App cases per lane), twelve new passes without skips, compiler receipts and 92 locked graphs. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: [I174](evidence/E-I174-analysis-current-demand.md) prevents an older folder analysis from clearing a running replacement status. Two original replacement failures/one single-analysis positive and six working/clean committed passes are sealed; original four-platform CI is pending. [I173](evidence/E-I173-flat-view-source-lifetime.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed slice: [I174](evidence/E-I174-analysis-current-demand.md) prevents an older folder analysis from clearing a running replacement status. Two original replacement failures/one single-analysis positive and six working/clean committed passes are sealed; original four-platform CI adds twelve new passes without skips. [I173](evidence/E-I173-flat-view-source-lifetime.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
