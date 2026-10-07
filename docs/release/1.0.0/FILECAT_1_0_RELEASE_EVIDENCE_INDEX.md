@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**192 evidence entries; none is final candidate qualification.** No candidate exists.
+**193 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -53,6 +53,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I177 | Viewer-search current completion ownership and source cleanup | fcae763 original; 9f5f135 correction | Preliminary complete-viewer headless controls sealed; seven original failures/one positive/54 affected passes; original CI sealed with 32 new passes; wider/native/candidate open | [E-I177](evidence/E-I177-viewer-search-ownership.md) | I177, I06, V12/V13 |
 | E-I178 | Content-search cancellation at actual page boundaries | 9f5f135 original; 4f25c58 correction | Preliminary complete Core/App headless controls sealed; three original failures/three positives/46 Core and 54 App affected passes; original CI sealed with 24 new passes; wider/native/candidate open | [E-I178](evidence/E-I178-content-search-page-cancellation.md) | I178, I06, V12/V13 |
 | E-I179 | Hex-editor search current completion ownership and source cleanup | 4f25c58 original; e9a9a98 correction | Preliminary complete-editor headless controls sealed; six original failures/two positives/eight new passes/63 affected passes and two explicit skips; original CI sealed with 32 new passes; wider/native/candidate open | [E-I179](evidence/E-I179-hex-editor-search-ownership.md) | I179, I06, V04/V12/V13 |
+| E-I180 | Report-read current live completion ownership and source cleanup | 4f25c58 original; unchanged report module at e9a9a98; 90f2beb correction | Preliminary complete-report headless controls sealed; three original failures/two positives/five new passes/thirteen affected passes without skips; original CI pending; wider/native/candidate open | [E-I180](evidence/E-I180-report-read-ownership.md) | I180, I06, V10/V12 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
