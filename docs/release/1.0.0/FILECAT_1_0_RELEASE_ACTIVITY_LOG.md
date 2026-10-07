@@ -471,3 +471,13 @@ Original I188 CI 37590686259 attempt 1 completes green on policy/all four lanes.
 Independent audit v76 SHA-256 c46d72ba66272390c8e2475b76a4a1669dd6d11fcf6d938eb0c46d37cefd713f reconciles all 1026 selected pins, complete original inventories, locked graphs and retained collector/verifier failures.
 
 Tracking v57 SHA-256 7853a6389be39816339d6232d4b995c6cf475414b9afeb501007f2c63810cf72 passes 482 local links/fragments, 202 entries, classifications and unchanged frozen histories/authority.
+
+## 2026-10-07 — checksum generation late errors and current demand
+
+[I189](evidence/E-I189-checksum-dialog-generation.md) reproduces four obsolete read-error failures at original 4c86041: held actual UI continuations append file-sharing errors after replacement or closure of the complete dialog. Two ordinary positives pass. Actual owned 65,536-byte files, real workers/hashes and fully drained selection handlers are retained. Correction 3b84bc1 owns cancellation per computation, guards late errors/hash/progress completion, disposes after work and cancels on dialog exit; a separate initial-start marker avoids duplicate clipboard computation.
+
+Working and fresh locked committed builds pass all 34 affected cases without skips (28 exact prior outcomes plus six additions). Independent seal fcd10393bdec5096a60ec3335ededea2f4e7596cab6b9cde3afeeccc87f21203 verifies 23 retained files, 423 actual payload references, 1,100 original and 1,102 clean raw blobs/modes/archive members and exact independent SHA-256/SHA-512/MD5 observations. Owned fixtures clean up; no product/test/controller preflight failure occurs. The preceding I188 completion-doc push times out after eight seconds; the fresh IPv4 push succeeds before the I189 source push. No lost commit, CI rerun or machine/physical-source/contract/candidate/publication change.
+
+Counts become 189 findings/167 preliminary remediations/two preliminary closures/20 unresolved scopes; catalogue 203 entries. Original producer CI 37593773630 is pending. Broader queued frames/native/revision/race and exact-candidate work remain.
+
+Independent audit v77 SHA-256 cfffb3b72daf49b92b0efdb3a80ebb0cdf81dbc4b24daddb59b04a8a2a174406 reconciles all 1034 selected pins, exact original failures, source/payloads and clean dialog observations. Tracking v58 SHA-256 af3486266a54ceba4d5a84bc0d3ce48652f16d129ca4c740fb8818884b99a8b4 passes 485 local links/fragments, 203 entries and current counts with frozen histories/authority unchanged.
