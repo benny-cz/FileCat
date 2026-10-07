@@ -71,6 +71,7 @@ public sealed class ViewerWindow : Window
     private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _checksumCts;
     private long _lastHit = -1;
     private int _lastHitLength;
     private LineIndex? _lines;
@@ -914,30 +915,48 @@ public sealed class ViewerWindow : Window
 
     private async Task ChecksumAsync()
     {
+        if (_closing.IsCancellationRequested) return;
+        _checksumCts?.Cancel();
+        using var cts = _checksumCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
         var (start, length) = _isHex && _hex.Selection.Length > 1 ? _hex.Selection : (0L, _reader.Length);
         _status.Text = "Computing checksums…";
-        var result = await Task.Run(() =>
+        try
         {
-            using var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
-            uint crc = 0;
-            var buf = new byte[1024 * 1024];
-            long pos = start, end = start + length;
-            while (pos < end)
+            var result = await Task.Run(() =>
             {
-                int n = _reader.Read(pos, buf.AsSpan(0, (int)Math.Min(buf.Length, end - pos)));
-                if (n <= 0) break;
-                sha.AppendData(buf, 0, n);
-                crc = Crc32.Append(crc, buf.AsSpan(0, n));
-                pos += n;
+                using var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+                uint crc = 0;
+                var buf = new byte[1024 * 1024];
+                long pos = start, end = start + length;
+                while (pos < end)
+                {
+                    int n = _reader.Read(pos, buf.AsSpan(0, (int)Math.Min(buf.Length, end - pos)), ct);
+                    if (n <= 0) break;
+                    sha.AppendData(buf, 0, n);
+                    crc = Crc32.Append(crc, buf.AsSpan(0, n));
+                    pos += n;
+                }
+                ct.ThrowIfCancellationRequested();
+                return (Sha: Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant(), Crc: crc, Read: pos - start);
+            }, ct);
+            if (ct.IsCancellationRequested || !ReferenceEquals(_checksumCts, cts)) return;
+            var scope = length == _reader.Length ? "whole file" : $"range 0x{start:X}–0x{start + length - 1:X}";
+            var message = $"{scope}, {result.Read:N0} bytes\nSHA-256: {result.Sha}\nCRC-32: {result.Crc:x8}";
+            if (result.Read < length) message += "\nWarning: the content ended early; the checksum covers only the bytes read.";
+            _status.Text = $"SHA-256 {result.Sha[..16]}… · CRC-32 {result.Crc:x8} ({scope})";
+            if (Clipboard is { } clipboard)
+            {
+                await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, message);
+                if (!ct.IsCancellationRequested && ReferenceEquals(_checksumCts, cts))
+                    _status.Text += " · copied to the clipboard";
             }
-            return (Sha: Convert.ToHexString(sha.GetHashAndReset()).ToLowerInvariant(), Crc: crc, Read: pos - start);
-        });
-        var scope = length == _reader.Length ? "whole file" : $"range 0x{start:X}–0x{start + length - 1:X}";
-        var message = $"{scope}, {result.Read:N0} bytes\nSHA-256: {result.Sha}\nCRC-32: {result.Crc:x8}";
-        if (result.Read < length) message += "\nWarning: the content ended early; the checksum covers only the bytes read.";
-        _status.Text = $"SHA-256 {result.Sha[..16]}… · CRC-32 {result.Crc:x8} ({scope})";
-        if (Clipboard is not null) await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, message);
-        _status.Text += " · copied to the clipboard";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        finally
+        {
+            if (ReferenceEquals(_checksumCts, cts)) _checksumCts = null;
+        }
     }
 }
 
