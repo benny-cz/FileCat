@@ -52,8 +52,8 @@ public sealed class ViewerWindow : Window
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
     private Task? _pictureLoad;
-    // The decoded picture is a snapshot. A later reader refresh must not describe it as current content.
-    private long _sourceGeneration, _pictureGeneration;
+    // Decoded pictures and structure reports are snapshots. A reader refresh must not describe them as current content.
+    private long _sourceGeneration, _pictureGeneration, _infoGeneration;
     private readonly List<Control> _textOnly = []; // toolbar parts that mean nothing for a picture
 
     /// <summary>The longest side a picture is decoded to (actual size beyond it shows the scaled picture, and says so).</summary>
@@ -457,6 +457,7 @@ public sealed class ViewerWindow : Window
 
     private async Task LoadInfoAsync()
     {
+        _infoGeneration = _sourceGeneration;
         ShowInfoText("Reading the file's structure…");
         try
         {
@@ -586,6 +587,8 @@ public sealed class ViewerWindow : Window
         {
             int lines = _infoText.Count(c => c == '\n');
             _status.Text = $"The file's structure: {lines.ToString("N0", CultureInfo.CurrentCulture)} lines · Ctrl+F finds in it · F4 shows the bytes · {Formatters.ExactSize(_reader.Length)}";
+            if (_infoGeneration != _sourceGeneration)
+                _status.Text = "The file changed; reopen the viewer to refresh this structure report. " + _status.Text;
             return;
         }
         if (_isPage)
@@ -619,7 +622,7 @@ public sealed class ViewerWindow : Window
             if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
             else _text.GoToEnd();
         }
-        if (_isPicture) UpdateStatus();
+        if (_isPicture || _isInfo) UpdateStatus();
         else _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
     }
 
