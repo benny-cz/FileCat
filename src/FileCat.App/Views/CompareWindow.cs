@@ -42,6 +42,8 @@ public sealed class CompareWindow : Window
     private ViewSource _leftView, _rightView;
     private readonly string _leftName, _rightName;
     private readonly Func<(IContentSource Left, IContentSource Right)>? _reopen;
+    private readonly Func<Task<(IContentSource Left, IContentSource Right)>>? _reopenAsync;
+    private bool CanReopen => _reopen is not null || _reopenAsync is not null;
     private readonly ListBox _rows = new();
     private readonly HexCompareView _hex = new() { IsVisible = false };
     private readonly ComboBox _differenceBox = new() { MinWidth = 320, MaxWidth = 560, VerticalAlignment = VerticalAlignment.Center };
@@ -97,20 +99,22 @@ public sealed class CompareWindow : Window
 
     /// <summary>
     /// Opens a comparison of two contents (opened by the caller off the UI thread); the window disposes them.
-    /// <paramref name="reopen"/> opens both again for "Compare again" (it runs off the UI thread); without it the window
-    /// cannot compare anew.
+    /// <paramref name="reopen"/> opens both again off the UI thread. <paramref name="reopenAsync"/> instead lets a provider
+    /// factory retain its own asynchronous admission and ownership boundaries. Without either the window cannot compare anew.
     /// </summary>
     public static CompareWindow Open(string leftName, IContentSource left, string rightName, IContentSource right,
-        Func<(IContentSource Left, IContentSource Right)>? reopen = null)
+        Func<(IContentSource Left, IContentSource Right)>? reopen = null,
+        Func<Task<(IContentSource Left, IContentSource Right)>>? reopenAsync = null)
     {
-        var window = new CompareWindow(leftName, left, rightName, right, reopen);
+        var window = new CompareWindow(leftName, left, rightName, right, reopen, reopenAsync);
         s_open.Add(window);
         window.Closed += (_, _) => s_open.Remove(window);
         window.Show();
         return window;
     }
 
-    private CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right, Func<(IContentSource, IContentSource)>? reopen)
+    private CompareWindow(string leftName, IContentSource left, string rightName, IContentSource right,
+        Func<(IContentSource, IContentSource)>? reopen, Func<Task<(IContentSource, IContentSource)>>? reopenAsync)
     {
         _left = left;
         _right = right;
@@ -119,6 +123,7 @@ public sealed class CompareWindow : Window
         _leftName = leftName;
         _rightName = rightName;
         _reopen = reopen;
+        _reopenAsync = reopenAsync;
         Title = $"Compare: {Path.GetFileName(leftName.TrimEnd('/', '\\'))} ↔ {Path.GetFileName(rightName.TrimEnd('/', '\\'))}";
         Width = 1200; Height = 760; MinWidth = 640; MinHeight = 320;
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (Exception) { }
@@ -131,7 +136,7 @@ public sealed class CompareWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(_differenceBox, "Difference");
         ToolTip.SetTip(_differenceBox, "Go to a difference (Alt+D)");
         ToolTip.SetTip(_again, "Read both files again and compare them (F5)");
-        _again.IsVisible = reopen is not null;
+        _again.IsVisible = CanReopen;
         _rows.ItemTemplate = new FuncDataTemplate<object>((item, _) => item switch
         {
             CompareRow row => BuildRow(row),
@@ -277,8 +282,8 @@ public sealed class CompareWindow : Window
                 _differenceBox.Focus();
                 _differenceBox.IsDropDownOpen = _differenceBox.ItemCount > 0;
                 break;
-            case Key.F5 when e.KeyModifiers == KeyModifiers.None && _reopen is not null:
-            case Key.R when e.KeyModifiers == KeyModifiers.Control && _reopen is not null:
+            case Key.F5 when e.KeyModifiers == KeyModifiers.None && CanReopen:
+            case Key.R when e.KeyModifiers == KeyModifiers.Control && CanReopen:
                 CompareAgain();
                 break;
             default:
@@ -655,14 +660,14 @@ public sealed class CompareWindow : Window
     /// <summary>F5: both files are opened and compared again (after they were edited, say).</summary>
     public async void CompareAgain()
     {
-        if (_reopen is null || _closed || _reopening) return;
+        if (!CanReopen || _closed || _reopening) return;
         _reopening = true;
         _again.IsEnabled = false;
         _work?.Cancel();
         _summary.Text = "Reading the files again…";
         try
         {
-            var (left, right) = await Task.Run(_reopen);
+            var (left, right) = await (_reopenAsync is not null ? _reopenAsync() : Task.Run(_reopen!));
             if (_closed)
             {
                 left.Dispose();
@@ -704,7 +709,7 @@ public sealed class CompareWindow : Window
             if (before.Left is not null && now.Item1 is null || before.Right is not null && now.Item2 is null)
             {
                 _changed.Text = "The files' current state could not be checked: what is shown is the earlier comparison. " +
-                                (_reopen is null ? "Close this window and compare the files again." : "F5 compares them again.");
+                                (!CanReopen ? "Close this window and compare the files again." : "F5 compares them again.");
                 _changedBanner.IsVisible = true;
                 return;
             }
@@ -713,7 +718,7 @@ public sealed class CompareWindow : Window
             if (before.Right is { } r && now.Item2 != r) changed.Add(Path.GetFileName(_rightName.TrimEnd('/', '\\')));
             if (changed.Count == 0) return;
             _changed.Text = (changed.Count == 2 ? "Both files changed" : $"\"{changed[0]}\" changed") + " after they were compared: what is shown is the earlier content. " +
-                            (_reopen is null ? "Close this window and compare the files again." : "F5 compares them again.");
+                            (!CanReopen ? "Close this window and compare the files again." : "F5 compares them again.");
             _changedBanner.IsVisible = true;
         }
         finally

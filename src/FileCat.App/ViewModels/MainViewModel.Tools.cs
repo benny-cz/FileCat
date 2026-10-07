@@ -225,24 +225,42 @@ public sealed partial class MainViewModel
         return index >= 0 && !listing.Store[index].IsContainer ? listing.GetItemRef(index) : null;
     }
 
-    /// <summary>Opens a comparison window for two files (contents open off the UI thread; F5 there opens them again).</summary>
+    /// <summary>Opens both contents on their device workers; F5 uses the same admission and ownership boundaries.</summary>
     private async Task OpenFileComparisonAsync(ItemRef a, ItemRef b)
     {
         string Display(ItemRef i) => i.FileSystemPath ?? Services.Providers.Display(i.Parent).TrimEnd('/', '\\') + "/" + i.Name;
-        (IContentSource Left, IContentSource Right) OpenBoth()
+        async Task<IContentSource> OpenItemAsync(ItemRef item)
         {
-            var l = Services.Providers.For(a.Parent).OpenContent(a) ?? throw new InvalidDataException($"\"{a.Name}\" has no content to compare.");
-            try { return (l, Services.Providers.For(b.Parent).OpenContent(b) ?? throw new InvalidDataException($"\"{b.Name}\" has no content to compare.")); }
+            var provider = Services.Providers.For(item.Parent);
+            var source = await Services.Io.Run(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive,
+                _ => provider.OpenContent(item));
+            if (Services.Io.IsStopped)
+            {
+                source?.Dispose();
+                throw new OperationCanceledException("Comparison admission stopped.");
+            }
+            return source ?? throw new InvalidDataException($"\"{item.Name}\" has no content to compare.");
+        }
+        async Task<(IContentSource Left, IContentSource Right)> OpenBothAsync()
+        {
+            var left = await OpenItemAsync(a);
+            try { return (left, await OpenItemAsync(b)); }
             catch
             {
-                l.Dispose();
+                left.Dispose();
                 throw;
             }
         }
         try
         {
-            var (left, right) = await Task.Run(OpenBoth);
-            Views.CompareWindow.Open(Display(a), left, Display(b), right, OpenBoth);
+            var (left, right) = await OpenBothAsync();
+            if (Services.Io.IsStopped)
+            {
+                left.Dispose();
+                right.Dispose();
+                throw new OperationCanceledException("Comparison admission stopped.");
+            }
+            Views.CompareWindow.Open(Display(a), left, Display(b), right, reopenAsync: OpenBothAsync);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException or NotSupportedException)
         {
