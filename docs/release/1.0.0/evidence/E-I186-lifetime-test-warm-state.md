@@ -12,7 +12,7 @@ Fresh locked committed Windows build at b0bb08c passes all eighteen without skip
 
 The owned ten-minute Mac awake helper stops and its process is confirmed absent. All nine result files are hash-compared before the owned stage is removed; restoration SHA-256 e8beb380f8e7d0c549a786e00f0435bd54f5d0de4063de3a4eaf84af59321588. No persistent Mac setting changes, VM changes or physical-source access occur.
 
-Original push CI [37582929698](https://github.com/benny-cz/FileCat/actions/runs/37582929698), attempt 1 at b0bb08c remains pending at this local seal. These finite file/component/headless controls do not qualify native desktop/clipboard/shutdown, human UX, reference performance, physical sources or installed candidate behavior.
+Original push CI [37582929698](https://github.com/benny-cz/FileCat/actions/runs/37582929698), attempt 1 at b0bb08c is sealed green on policy and all four required lanes. Each full 552-case App inventory has unchanged names, outcomes and skips; all eighteen updated cases pass on every lane (72 distinct executions), each recording the verified first-page cache precondition, exact hashes, current lifetime and unchanged owned bytes. Core retains 890 Windows/885 Unix names and all earlier finite subsets retain names/outcomes/skips. Nineteen selected server digests/every member, fourteen raw inventories, four compiler/tool receipts and 92 locked dependency graphs reconcile. ARM64 package version-start/headless drawing and installer compilation pass; these do not provide native installed-candidate qualification. These finite file/component/headless controls do not qualify native desktop/clipboard/shutdown, human UX, reference performance, physical sources or installed candidate behavior.
 
 Private `FileCatReleaseEvidence/wc186-v1`:
 
@@ -28,3 +28,38 @@ Private `FileCatReleaseEvidence/wc186-v1`:
 | clean-v5/results/clean.trx | 8e8d7900b116d4b4ea0014846225093e67085f2888deac5fde2970303700f67b |
 | independent-warm-v6.json | 4bac7957d2963a2b9569ccafb20131568efc75ce6d0c28b8a62d426b62646e81 |
 | mac-restoration-v7.json | e8beb380f8e7d0c549a786e00f0435bd54f5d0de4063de3a4eaf84af59321588 |
+
+Private `FileCatReleaseEvidence/ci-37582929698-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 89a3737e38eac315c32933c0a70f10c23edc8bc8f26aba76e6302146ba04ee8c |
+| independent-draft-guard-ci-v1.json | e02ce2f44073b06a9df4fe2869cb82c261bd71a850055f7d336ea2dd729f6342 |
+| independent-fixture-ci-v1.json | c59683887dd122be354abd053a9659123c2c96ccf8116c9d318bd4a6ae82cb68 |
+| independent-i163-ci-cases-v1.json | 7169e33e5e625abf188958ddb2edf7d18244ce7a7f83cbde9d786b9db9b18a0b |
+| independent-i164-ci-cases-v1.json | e111a85361fcb81ba6802a18e9b37f2688f645daeadddbd424b0f687bea2ff7e |
+| independent-i165-ci-cases-v1.json | a9c278de03929d3c4326f77eb6b9ed778683af6b0de720d8d214df7aef2079fa |
+| independent-i166-ci-cases-v1.json | 08bdfd8b00febb966741aa27ec8febf79827dbf767c4b70a95cb6f5cb12a0b9d |
+| independent-i167-ci-cases-v1.json | 9c7d6e13b3d8f1977e56e234c1003811125c840db74367478f5df56c2f868ac2 |
+| independent-i168-ci-cases-v1.json | 428129cab07360bd65a253cbad7b9f4bbe78d3def2c8892d0e7663859b0ec06b |
+| independent-i169-ci-cases-v1.json | ec5a6dade05e3aac196bda6693f40eebdff4fac86f2030b2797a3e85a79561bd |
+| independent-i170-ci-cases-v1.json | 24bfcb76a366cde17a4aad533a0ce8027c834e22b737892001b3592177ef15de |
+| independent-i171-ci-cases-v1.json | 8935f53910c8bacebcefa673a880b743634e5eb8400024768b7b0819368548c8 |
+| independent-i172-ci-cases-v1.json | 579a3360660638e5b8c3bb380603bb9f1b1f875cc0a91fdf6475087e03589060 |
+| independent-i173-ci-cases-v1.json | 4f0227402e5ea657ca2ad4ecc5361e122b836d09515e72b516088dd5ed7b37be |
+| independent-i174-ci-cases-v1.json | d4e233d19a7328bc60ba6de393a756002bff993a5a201b0eaf3061d7b2401879 |
+| independent-i175-ci-cases-v1.json | c1d685e607feb1cf2a9acb8643b885979e1c150deb4f18a5e597d810311403a5 |
+| independent-i176-ci-cases-v1.json | acf0086a546226d672ec02c15b2e62fc204138e53d391e76d69059a37934eabe |
+| independent-i177-ci-cases-v1.json | ab73f6760c679e5a6b6cbf5e1bd57cc6df0e1c658859bc30da7f9d23f412e5e9 |
+| independent-i178-ci-cases-v1.json | 63bbc201e7ca4423337be6ed2babaab338323bd72ce106e60eb7113e43586d76 |
+| independent-i179-ci-cases-v1.json | 782ef4220b57b4eaac558104fb7f2973bdeafa67503459ab1cefd46e9d4c5b70 |
+| independent-i180-ci-cases-v1.json | b11ac0ee1bc2a42e037932fd6693a687bc75a4764c66ca818ca3789f8a2a4bc7 |
+| independent-i181-ci-cases-v1.json | 9d8889374f87d3e6c9729b55e4303eaf8deb3f7b3e063b3de6b5caad2aa87d17 |
+| independent-i182-ci-cases-v1.json | 59c92ecb16ddb9b62e785288502be535386d061ec8d4cf99eb06a7061d1ca90d |
+| independent-i183-ci-cases-v1.json | 766966d5e218acd269971abafd9e3af6d78e80426d59a38ef00b5a61b97b1cb1 |
+| independent-i184-ci-cases-v1.json | 1b6a44744ee7ec6101cbbb9938e6771c785693fcea56676425033ac78caeaedc |
+| independent-i185-ci-cases-v1.json | 13321f775ab0e2654745282e25de6675205c7ffb08f416b65a3ba9fa5e426f26 |
+| independent-i186-ci-cases-v1.json | d72b53b83e43d95025a77419003f39c258ee4076e6a822ef79c4d265517ef32a |
+| independent-producer-policy-ci-v1.json | e2100bdc1080dd483a5b2407a5590950a567aaaa43c31e8818b3869780673c4a |
+| independent-restore-ci-v1.json | 3b968d7849af03e7da092e30e217ced6d7b6d2144a9baa4c4d446b3961119823 |
+| independent-separation-ci-v1.json | 355cdf7fa0b17e6e4f226d7152840983a245f91b0c0c0efce003c8d39e22600c |
