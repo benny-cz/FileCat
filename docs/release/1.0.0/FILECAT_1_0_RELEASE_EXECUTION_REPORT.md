@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 174 IDs: 152 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 187 entries; 538 selected private evidence hashes independently reconciled in audit v50. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 175 IDs: 153 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 188 entries; 549 selected private evidence hashes independently reconciled in audit v51. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 2503ab0623fd05a98fd5781ebe7ccb4623adf06d — current folder-analysis ownership, including prior flat-view cleanup, tilde worktree, result-consumer, bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37559419195 attempt 1 at 2503ab0 is sealed green on policy/all four required lanes. | I174 retains 19 digests, 14 full inventories (485 App cases per lane), twelve new passes without skips, compiler receipts and 92 locked graphs. |
+| Current product producer | 641827885a00e68e90372a459364bbd998d518cc — bounded worktree-descendant admission for automatic Git badges, including prior ownership/lifetime, Git/admission and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
+| Latest product CI | 37562601681 attempt 1 at 6418278 is running; latest sealed predecessor is 37559419195 at 2503ab0. | I175 original CI remains pending; no qualification is inferred from submission. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: [I174](evidence/E-I174-analysis-current-demand.md) prevents an older folder analysis from clearing a running replacement status. Two original replacement failures/one single-analysis positive and six working/clean committed passes are sealed; original four-platform CI adds twelve new passes without skips. [I173](evidence/E-I173-flat-view-source-lifetime.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed local slice: [I175](evidence/E-I175-git-worktree-descendants.md) refuses junctions below default, configured and linked Windows worktrees before automatic Git status. Five original failures/three ordinary positives, 96 working/clean committed Git passes with one explicit capture skip and corrected native refusals are sealed; original CI remains pending. [I174](evidence/E-I174-analysis-current-demand.md), [I173](evidence/E-I173-flat-view-source-lifetime.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
@@ -35,7 +35,7 @@ Latest completed slice: [I174](evidence/E-I174-analysis-current-demand.md) preve
 | [I11](FILECAT_1_0_RELEASE_ISSUES.md#i11) | Hardware/people | Obtain the mandatory external platform, participant and assistive-technology evidence. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165/I166/I167 corrections and CI sealed; home ignore/attribute overrides verified; I172 tilde worktree correction and original four-platform CI sealed; continue other indirect paths and identity races. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165/I166/I167 corrections and CI sealed; home ignore/attribute overrides verified; I172 tilde worktree correction and original four-platform CI sealed; I175 worktree-descendant correction has local/native controls sealed with original CI pending; continue other indirect paths and identity races. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -100,7 +100,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 150 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 153 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |
