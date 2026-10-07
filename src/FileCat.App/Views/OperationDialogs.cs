@@ -543,10 +543,11 @@ public static class OperationDialogs
             computing = true;
             Compare();
             var kind = kinds[Math.Max(0, algorithm.SelectedIndex)];
-            long total = files.Sum(f => new FileInfo(f).Length), done = 0;
+            long total = 0, done = 0;
             var lines = new List<string>();
             try
             {
+                total = files.Sum(f => new FileInfo(f).Length);
                 foreach (var f in files)
                 {
                     var hash = await Task.Run(() =>
