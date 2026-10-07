@@ -10,7 +10,7 @@ Six durable complete-editor headless controls cover replace/close/ordinary compl
 
 Original: four adverse failures/two ordinary positives. Working and fresh locked committed builds retain the same 83 selected cases: 81 pass and two existing POSIX-only cases explicitly skip on Windows, exactly 77 prior outcomes plus six passing additions. The independent seal verifies 21 retained files, 423 actual payload file references, all 1,091 original canonical blobs/modes and all 1,093 clean committed blobs/modes plus every archive member. Working/committed differences are CRLF only. Clean FileCat.dll SHA-256 bbf233bb61c0403d15729d43bf55a11ceb340c41e13e7087c2db0c2838b8e1e9. Owned fixtures clean up. No product/fixture preflight failure occurs.
 
-Original push CI [37580524539](https://github.com/benny-cz/FileCat/actions/runs/37580524539), attempt 1 at 9230f10 remains pending at this local seal. Headless controls do not qualify native clipboard/shutdown, Save As attachment renewal, source/overlay revision races, text-column/cap/single-byte boundary matrices, provider errors, reference performance, physical sources, human UX or installed candidate behavior. No persistent machine, physical-source, contract, candidate or publication changes.
+Original push CI [37580524539](https://github.com/benny-cz/FileCat/actions/runs/37580524539), attempt 1 at 9230f10 is preserved as failed: all 24 new hex-editor-copy executions pass across all four App lanes, but the macOS lane fails one older checksum positive control whose source-read-count warm precondition was unspecified. Its correct whole-file hashes and disposed lifetime are retained; this is [I186](E-I186-lifetime-test-warm-state.md). All 23 published server digests/every member and 14 raw inventories are independently preserved. Subsequent original CI [37581221791](https://github.com/benny-cz/FileCat/actions/runs/37581221791) at 7fef878 is sealed green and retains all six editor-copy names/outcomes; its exact evidence is in [I185](E-I185-checksum-dialog-metadata-error.md). The original failed run is not replaced by that later producer. Headless controls do not qualify native clipboard/shutdown, Save As attachment renewal, source/overlay revision races, text-column/cap/single-byte boundary matrices, provider errors, reference performance, physical sources, human UX or installed candidate behavior. No persistent machine, physical-source, contract, candidate or publication changes.
 
 Private `FileCatReleaseEvidence/hc184-v1`:
 
@@ -24,3 +24,21 @@ Private `FileCatReleaseEvidence/hc184-v1`:
 | clean-v4/command.json | af252e3d17164423a9a076229640b8b101f70afcd72ea5d8f6cff24e11a95c4d |
 | clean-v4/results/clean.trx | d6d53ed8686ebd63c62c2dd3e3d5061128a9307acbf78b7c753ecb2a7ac26cc6 |
 | independent-hex-copy-v5.json | dd1adcd5a4ddfaf4cf19b336edbc423385aac95c6fbb4146762fc58cd2268d6a |
+
+Private `FileCatReleaseEvidence/ci-37580524539-assets-attempt1-failure-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-original-failure-v1.json | dfc605e4de4643a03024e12c2902b409bb72cd190f07bab24f3df54c86c39a66 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i184-original-failure-v1.py | 50c4850de9b7069d31090db17b660148c30e0c5cb1cf6ffdea58aff24f47340a |
+
+Private `FileCatReleaseEvidence/ci-i184-failure-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| failed-macos-job-log-stdout | 5bd94ce06306eee92e20e6c35243e628e94d1827c346bd36b88ea336d23c617e |
