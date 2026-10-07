@@ -99,6 +99,55 @@ public sealed class GitReparseTests
     }
 
     [Theory]
+    [InlineData("~anchor/../../target-link")]
+    [InlineData("~/../../target-link")]
+    [InlineData("\"~anchor\"/../../target-link")]
+    public void Tilde_prefixed_worktrees_refuse_junctions(string worktree)
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows junction boundary; Unix mounted paths need separate qualification."); return; }
+        using var fixture = new Fixture();
+        Directory.CreateDirectory(Path.Join(fixture.GitDirectory, "~anchor"));
+        Directory.CreateDirectory(Path.Join(fixture.GitDirectory, "~"));
+        string target = Directory.CreateDirectory(Path.Join(fixture.Root, "target")).FullName;
+        fixture.Junction("repo/target-link", target);
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), "\tworktree = " + worktree + "\n");
+
+        Assert.Null(GitStatusReader.SafeRepository(fixture.Repository));
+    }
+
+    [Theory]
+    [InlineData("~anchor/../../../ordinary-target")]
+    [InlineData("~/../../../ordinary-target")]
+    [InlineData("\"~anchor\"/../../../ordinary-target")]
+    public void Ordinary_tilde_prefixed_worktrees_remain_available(string worktree)
+    {
+        using var fixture = new Fixture();
+        Directory.CreateDirectory(Path.Join(fixture.GitDirectory, "~anchor"));
+        Directory.CreateDirectory(Path.Join(fixture.GitDirectory, "~"));
+        Directory.CreateDirectory(Path.Join(fixture.Root, "ordinary-target"));
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), "\tworktree = " + worktree + "\n");
+
+        Assert.Equal(fixture.Repository, GitStatusReader.SafeRepository(fixture.Repository));
+    }
+
+    [Fact]
+    public void Linked_tilde_prefixed_worktrees_use_the_actual_git_directory()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows junction boundary; Unix mounted paths need separate qualification."); return; }
+        using var fixture = new Fixture();
+        string target = Directory.CreateDirectory(Path.Join(fixture.Root, "target")).FullName;
+        fixture.Junction("repo/target-link", target);
+        string metadata = Directory.CreateDirectory(Path.Join(fixture.GitDirectory, "worktrees", "owned")).FullName;
+        Directory.CreateDirectory(Path.Join(metadata, "~anchor"));
+        File.WriteAllText(Path.Join(metadata, "commondir"), "../..\n");
+        string linked = Directory.CreateDirectory(Path.Join(fixture.Root, "linked")).FullName;
+        File.WriteAllText(Path.Join(linked, ".git"), "gitdir: ../repo/.git/worktrees/owned\n");
+        File.AppendAllText(Path.Join(fixture.GitDirectory, "config"), "\tworktree = ~anchor/../../../../target-link\n");
+
+        Assert.Null(GitStatusReader.SafeRepository(linked));
+    }
+
+    [Theory]
     [InlineData("\n", false)]
     [InlineData("\r\n", false)]
     [InlineData("\n", true)]

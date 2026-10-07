@@ -428,14 +428,16 @@ internal static class GitStatusReader
     /// <summary>
     /// Whether a setting's value keeps Git on this computer. With a supplied base, relative core.worktree values
     /// resolve against the actual Git directory and receive the same local-path checks as absolute values. Other
-    /// relative settings and home-relative spellings retain their existing admission behavior. Network spellings
+    /// relative settings and home-relative rule paths retain their existing admission behavior. Network spellings
     /// are refused from the text before a file-system call; on Windows existing ancestors are checked for links.
     /// </summary>
     private static bool NamesThisComputer(ReadOnlySpan<char> value, string? relativeTo = null)
     {
         if (value.Length == 0) return true;
         string text = value.ToString();
-        if (text.StartsWith('~')) return true; // "~" is expanded in this user's home folder.
+        // core.worktree is an ordinary path relative to the gitdir, even when it starts with a literal "~".
+        // Ignore/attribute rule paths retain their home-relative handling and command-line overrides.
+        if (relativeTo is null && text.StartsWith('~')) return true;
         if (!Path.IsPathRooted(text) && relativeTo is null) return true;
         try { return IsLocalPath(relativeTo is null ? Path.GetFullPath(text) : Path.GetFullPath(text, relativeTo)); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException) { return false; }
