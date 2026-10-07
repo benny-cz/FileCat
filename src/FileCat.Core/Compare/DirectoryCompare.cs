@@ -35,7 +35,7 @@ public sealed record DirectoryCompareResult(
 /// <summary>
 /// Two-panel compare-and-mark (plan §16.2, OPS-008): non-recursive; folders compare by presence; files by
 /// name plus the chosen criteria with timestamp tolerance at the coarser filesystem's known precision.
-/// A content check hashes both files. A pair the criteria cannot decide (content that cannot be read, a size or time a
+/// A content check reads both files. A pair the criteria cannot decide (content that cannot be read, a size or time a
 /// listing does not give) is marked and counted as not compared, never as the same; names pair as
 /// <see cref="NamePairing"/> says.
 /// </summary>
@@ -49,6 +49,11 @@ public static class DirectoryCompare
         Func<string, string, bool?>? contentEqual,
         CancellationToken ct,
         bool caseInsensitiveNames = true)
+        => CompareAsync(left, right, criteria, tolerance, contentEqual is null ? null : (l, r) => Task.FromResult(contentEqual(l, r)), ct, caseInsensitiveNames).GetAwaiter().GetResult();
+
+    public static async Task<DirectoryCompareResult> CompareAsync(
+        IReadOnlyList<EntryData> left, IReadOnlyList<EntryData> right, CompareCriteria criteria, TimeSpan tolerance,
+        Func<string, string, Task<bool?>>? contentEqual, CancellationToken ct, bool caseInsensitiveNames = true)
     {
         var leftMarks = new HashSet<string>(StringComparer.Ordinal);
         var rightMarks = new HashSet<string>(StringComparer.Ordinal);
@@ -82,7 +87,7 @@ public static class DirectoryCompare
                 same++;
                 continue;
             }
-            switch (Decide(le, re, criteria, tolerance, contentEqual))
+            switch (await DecideAsync(le, re, criteria, tolerance, contentEqual).ConfigureAwait(false))
             {
                 case true:
                     same++;
@@ -108,6 +113,9 @@ public static class DirectoryCompare
     /// else told them apart. Undecided used to count as the same (V13: no false equality).
     /// </summary>
     internal static bool? Decide(EntryData l, EntryData r, CompareCriteria criteria, TimeSpan tolerance, Func<string, string, bool?>? contentEqual)
+        => DecideAsync(l, r, criteria, tolerance, contentEqual is null ? null : (a, b) => Task.FromResult(contentEqual(a, b))).GetAwaiter().GetResult();
+
+    private static async Task<bool?> DecideAsync(EntryData l, EntryData r, CompareCriteria criteria, TimeSpan tolerance, Func<string, string, Task<bool?>>? contentEqual)
     {
         bool sizesKnown = l.Size >= 0 && r.Size >= 0;
         bool sizeOpen = false, timeOpen = false;
@@ -122,10 +130,11 @@ public static class DirectoryCompare
             if (newer is null) timeOpen = true;
             else if (newer != 0) return false;
         }
-        if ((criteria & CompareCriteria.Content) != 0 && contentEqual is not null)
+        if ((criteria & CompareCriteria.Content) != 0)
         {
             if (sizesKnown && l.Size != r.Size) return false;
-            if (contentEqual(l.Name, r.Name) is not { } equal) return null;
+            if (contentEqual is null) return null;
+            if (await contentEqual(l.Name, r.Name).ConfigureAwait(false) is not { } equal) return null;
             if (!equal) return false;
             sizeOpen = false; // the same content is the same size
         }
@@ -134,18 +143,30 @@ public static class DirectoryCompare
 
     /// <summary>Streams two contents and compares bytes; null when either cannot be read.</summary>
     public static bool? ContentEqual(IContentSource a, IContentSource b, CancellationToken ct)
+        => ContentEqualAsync(() => Task.FromResult(a.Length), () => Task.FromResult(b.Length),
+            (offset, buffer, start) => Task.FromResult(a.Read(offset, buffer.AsSpan(start))),
+            (offset, buffer, start) => Task.FromResult(b.Read(offset, buffer.AsSpan(start))), ct).GetAwaiter().GetResult();
+
+    internal static async Task<bool?> ContentEqualAsync(Func<Task<long>> leftLength, Func<Task<long>> rightLength,
+        Func<long, byte[], int, Task<int>> leftRead, Func<long, byte[], int, Task<int>> rightRead, CancellationToken ct)
     {
         try
         {
-            if (a.Length >= 0 && b.Length >= 0 && a.Length != b.Length) return false;
+            ct.ThrowIfCancellationRequested();
+            long aLength = await leftLength().ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            long bLength = await rightLength().ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            if (aLength >= 0 && bLength >= 0 && aLength != bLength) return false;
             var ba = new byte[1 << 20];
             var bb = new byte[1 << 20];
             long offset = 0;
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
-                int na = ReadFull(a, offset, ba);
-                int nb = ReadFull(b, offset, bb);
+                int na = await ReadFull(leftRead, offset, ba, ct).ConfigureAwait(false);
+                int nb = await ReadFull(rightRead, offset, bb, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
                 if (na != nb) return false;
                 if (na == 0) return true;
                 if (!ba.AsSpan(0, na).SequenceEqual(bb.AsSpan(0, nb))) return false;
@@ -158,12 +179,13 @@ public static class DirectoryCompare
         }
     }
 
-    private static int ReadFull(IContentSource s, long offset, byte[] buffer)
+    private static async Task<int> ReadFull(Func<long, byte[], int, Task<int>> read, long offset, byte[] buffer, CancellationToken ct)
     {
         int total = 0;
         while (total < buffer.Length)
         {
-            int n = s.Read(offset + total, buffer.AsSpan(total));
+            ct.ThrowIfCancellationRequested();
+            int n = await read(offset + total, buffer, total).ConfigureAwait(false);
             if (n <= 0) break;
             total += n;
         }

@@ -279,61 +279,94 @@ public sealed partial class MainViewModel
             Notify("Compare needs a target panel with a folder.", true);
             return;
         }
-        if (left.Listing.State == ListingState.Loading || right.Listing.State == ListingState.Loading)
+        if (left.Listing.State != ListingState.Complete || right.Listing.State != ListingState.Complete ||
+            left.Listing.IsRefreshing || right.Listing.IsRefreshing || left.Listing.Issues.Count != 0 || right.Listing.Issues.Count != 0)
         {
-            Notify("Wait until both listings are complete.");
+            Notify("Compare needs two complete listings without read errors. Reread both folders first.");
             return;
         }
-        var size = new CheckBox { Content = "Size", IsChecked = true };
-        var time = new CheckBox { Content = "Modification time", IsChecked = true };
-        var content = new CheckBox { Content = "Content (reads both files; slower)" };
-        var recursive = new CheckBox { Content = "Include subfolders: a preview of every difference below, marking nothing" };
-        var body = new StackPanel { Spacing = 6, Children =
+        int leftGeneration = left.Listing.Generation, rightGeneration = right.Listing.Generation;
+        using var stop = new CancellationTokenSource();
+        bool Current() => !left.Listing.IsDisposed && !right.Listing.IsDisposed &&
+            left.Listing.Generation == leftGeneration && right.Listing.Generation == rightGeneration && !Services.Io.IsStopped;
+        void Changed(object? sender, ListingChange change) { if (!Current()) stop.Cancel(); }
+        void Closed() => stop.Cancel();
+        left.Listing.Changed += Changed; right.Listing.Changed += Changed;
+        left.Closed += Closed; right.Closed += Closed;
+        try
         {
-            new TextBlock { Text = $"Compare {left.DisplayPath}\nwith {right.DisplayPath}", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-            new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { size, time, content } },
-            recursive,
-            new TextBlock { Text = "Names always match; folders compare by presence. Without subfolders, items that differ or exist on one side only are marked in both panels.", Classes = { "muted", "small" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-        } };
-        var go = await Dialogs.ShowCustomAsync("Compare directories", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Compare", "ok", IsDefault: true)]);
-        if (go as string != "ok") return;
-        var criteria = (size.IsChecked == true ? CompareCriteria.Size : 0) | (time.IsChecked == true ? CompareCriteria.Time : 0) | (content.IsChecked == true ? CompareCriteria.Content : 0);
-        var fs = Services.Platform.FileOperations;
-        var leftEntries = Snapshot(left.Listing);
-        var rightEntries = Snapshot(right.Listing);
-        var lp = Services.Providers.For(left.Location);
-        var rp = Services.Providers.For(right.Location);
-        var lloc = left.Location;
-        var rloc = right.Location;
-        // Timestamp tolerance at the coarser file system's known precision (FAT/SMB 2 s).
-        var tol = TimeSpan.FromSeconds(2);
-        if (lloc.IsFileSystem && rloc.IsFileSystem)
-        {
-            var a = fs.GetVolumeInfo(lloc.Path).TimestampPrecision;
-            var b = fs.GetVolumeInfo(rloc.Path).TimestampPrecision;
-            tol = a > b ? a : b;
-            if (tol < TimeSpan.FromSeconds(1)) tol = TimeSpan.FromSeconds(1);
+            var size = new CheckBox { Content = "Size", IsChecked = true };
+            var time = new CheckBox { Content = "Modification time", IsChecked = true };
+            var content = new CheckBox { Content = "Content (reads both files; slower)" };
+            var recursive = new CheckBox { Content = "Include subfolders: a preview of every difference below, marking nothing" };
+            var body = new StackPanel { Spacing = 6, Children =
+            {
+                new TextBlock { Text = $"Compare {left.DisplayPath}\nwith {right.DisplayPath}", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { size, time, content } },
+                recursive,
+                new TextBlock { Text = "Names always match; folders compare by presence. Without subfolders, items that differ or exist on one side only are marked in both panels.", Classes = { "muted", "small" }, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+            } };
+            var go = await Dialogs.ShowCustomAsync("Compare directories", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Compare", "ok", IsDefault: true)]);
+            if (go as string != "ok" || !Current() || stop.IsCancellationRequested) return;
+            var criteria = (size.IsChecked == true ? CompareCriteria.Size : 0) | (time.IsChecked == true ? CompareCriteria.Time : 0) | (content.IsChecked == true ? CompareCriteria.Content : 0);
+            var fs = Services.Platform.FileOperations;
+            var leftEntries = Snapshot(left.Listing);
+            var rightEntries = Snapshot(right.Listing);
+            var lp = Services.Providers.For(left.Location);
+            var rp = Services.Providers.For(right.Location);
+            var lloc = left.Location;
+            var rloc = right.Location;
+            // Timestamp tolerance at the coarser file system's known precision (FAT/SMB 2 s).
+            var tol = TimeSpan.FromSeconds(2);
+            if (lloc.IsFileSystem && rloc.IsFileSystem)
+            {
+                var a = await Services.Io.Run(lp.GetDeviceKey(lloc), Core.Threading.IoPriority.Normal, _ =>
+                {
+                    stop.Token.ThrowIfCancellationRequested();
+                    return fs.GetVolumeInfo(lloc.Path).TimestampPrecision;
+                });
+                if (!Current() || stop.IsCancellationRequested) return;
+                var b = await Services.Io.Run(rp.GetDeviceKey(rloc), Core.Threading.IoPriority.Normal, _ =>
+                {
+                    stop.Token.ThrowIfCancellationRequested();
+                    return fs.GetVolumeInfo(rloc.Path).TimestampPrecision;
+                });
+                if (!Current() || stop.IsCancellationRequested) return;
+                tol = a > b ? a : b;
+                if (tol < TimeSpan.FromSeconds(1)) tol = TimeSpan.FromSeconds(1);
+            }
+            if (recursive.IsChecked == true)
+            {
+                CompareTrees(left, right, criteria, tol);
+                return;
+            }
+            if ((criteria & CompareCriteria.Content) != 0) Notify("Comparing contents…");
+            var io = new ComparisonIo(Services.Io, Services.Providers);
+            var result = await Task.Run(() => DirectoryCompare.CompareAsync(leftEntries, rightEntries, criteria, tol, async (ln, rn) =>
+            {
+                try
+                {
+                    return await io.ContentEqualAsync(lp.GetItemRef(lloc, leftEntries.First(e => e.Name == ln)),
+                        rp.GetItemRef(rloc, rightEntries.First(e => e.Name == rn)), stop.Token);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException) { return null; }
+            }, stop.Token, caseInsensitiveNames: OperatingSystem.IsWindows() && lloc.IsFileSystem && rloc.IsFileSystem));
+            if (!Current() || stop.IsCancellationRequested) return;
+            left.Listing.UnmarkEverything();
+            right.Listing.UnmarkEverything();
+            left.Listing.MarkNames(result.LeftMarks, true);
+            right.Listing.MarkNames(result.RightMarks, true);
+            var label = result.Describe(criteria, (criteria & CompareCriteria.Time) != 0 ? tol : TimeSpan.Zero);
+            left.ComparisonLabel = label;
+            right.ComparisonLabel = label;
+            Notify(result.LeftMarks.Count + result.RightMarks.Count == 0 ? "The folders match." : label);
         }
-        if (recursive.IsChecked == true)
+        catch (OperationCanceledException) { }
+        finally
         {
-            CompareTrees(left, right, criteria, tol);
-            return;
+            left.Listing.Changed -= Changed; right.Listing.Changed -= Changed;
+            left.Closed -= Closed; right.Closed -= Closed;
         }
-        if ((criteria & CompareCriteria.Content) != 0) Notify("Comparing contents…");
-        var result = await Task.Run(() => DirectoryCompare.Compare(leftEntries, rightEntries, criteria, tol, (ln, rn) =>
-        {
-            using var sa = lp.OpenContent(lp.GetItemRef(lloc, leftEntries.First(e => e.Name == ln)));
-            using var sb = rp.OpenContent(rp.GetItemRef(rloc, rightEntries.First(e => e.Name == rn)));
-            return sa is null || sb is null ? null : DirectoryCompare.ContentEqual(sa, sb, CancellationToken.None);
-        }, CancellationToken.None, caseInsensitiveNames: OperatingSystem.IsWindows() && lloc.IsFileSystem && rloc.IsFileSystem));
-        left.Listing.UnmarkEverything();
-        right.Listing.UnmarkEverything();
-        left.Listing.MarkNames(result.LeftMarks, true);
-        right.Listing.MarkNames(result.RightMarks, true);
-        var label = result.Describe(criteria, (criteria & CompareCriteria.Time) != 0 ? tol : TimeSpan.Zero);
-        left.ComparisonLabel = label;
-        right.ComparisonLabel = label;
-        Notify(result.LeftMarks.Count + result.RightMarks.Count == 0 ? "The folders match." : label);
     }
 
     /// <summary>
@@ -344,6 +377,7 @@ public sealed partial class MainViewModel
     {
         var lloc = left.Location!;
         var rloc = right.Location!;
+        string leftName = left.DisplayPath, rightName = right.DisplayPath;
         var leftPanel = left.Panel;
         var rightPanel = right.Panel;
         var how = new List<string> { "name" };
@@ -356,17 +390,18 @@ public sealed partial class MainViewModel
         static bool Writable(Location l, LocationCapabilities c) => l.IsFileSystem && (c & LocationCapabilities.TransferTarget) != 0;
         // Folders inside each other (also through a link) are compared, but not offered for synchronizing (I94).
         string? overlap = lloc.IsFileSystem && rloc.IsFileSystem ? SyncPlanner.Overlap(lloc.Path, rloc.Path, Services.Platform.FileOperations.GetFinalPath) : null;
-        var sync = overlap is not null ? null : new Views.SyncContext(left.DisplayPath, right.DisplayPath, Writable(lloc, lcaps), Writable(rloc, rcaps),
+        var sync = overlap is not null ? null : new Views.SyncContext(leftName, rightName, Writable(lloc, lcaps), Writable(rloc, rcaps),
             (lcaps & LocationCapabilities.Recycle) != 0, (rcaps & LocationCapabilities.Recycle) != 0, OperatingSystem.IsWindows(),
             (items, sourceIsLeft, permanent) => StartSync(items, sourceIsLeft, permanent, lloc, rloc));
-        Views.DirectoryDiffWindow.Start(left.DisplayPath, right.DisplayPath,
+        Views.DirectoryDiffWindow.StartAsync(leftName, rightName,
             $"Compared by {string.Join(", ", how)}; folders on one side are listed once; links to folders are not followed." +
             (overlap is null ? "" : $" Synchronize is not offered. {overlap}"),
-            (progress, ct) => TreeCompare.Compare(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress),
+            (progress, ct) => Task.Run(() => TreeCompare.CompareAsync(Services.Providers, lloc, rloc, criteria, tolerance, caseInsensitive, ct, progress,
+                new ComparisonIo(Services.Io, Services.Providers))),
             (entries, leftSide) =>
             {
-                var set = Services.ResultSets.Create($"{(leftSide ? "Left" : "Right")} differences: {Path.GetFileName((leftSide ? left : right).DisplayPath.TrimEnd('\\', '/'))}",
-                    $"Items that differ between {left.DisplayPath} and {right.DisplayPath}");
+                var set = Services.ResultSets.Create($"{(leftSide ? "Left" : "Right")} differences: {Path.GetFileName((leftSide ? leftName : rightName).TrimEnd('\\', '/'))}",
+                    $"Items that differ between {leftName} and {rightName}");
                 foreach (var e in entries)
                 {
                     var data = leftSide ? e.Left : e.Right;

@@ -32,6 +32,7 @@ public sealed class DirectoryDiffWindow : Window
     ];
 
     private TreeCompareResult? _result;
+    private bool _closed, _finished;
     private readonly Action<IReadOnlyList<TreeDiffEntry>, bool> _openSide;
     private readonly CancellationTokenSource _stop = new();
     private readonly Button _stopButton = new() { Content = "Stop", Classes = { "danger" } };
@@ -61,6 +62,11 @@ public sealed class DirectoryDiffWindow : Window
     public static DirectoryDiffWindow Start(string leftName, string rightName, string criteria,
         Func<Action<string>, CancellationToken, TreeCompareResult> compare, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide, SyncContext? sync = null,
         Action<TreeDiffEntry>? compareFiles = null)
+        => StartAsync(leftName, rightName, criteria, (progress, ct) => Task.Run(() => compare(progress, ct)), openSide, sync, compareFiles);
+
+    public static DirectoryDiffWindow StartAsync(string leftName, string rightName, string criteria,
+        Func<Action<string>, CancellationToken, Task<TreeCompareResult>> compare, Action<IReadOnlyList<TreeDiffEntry>, bool> openSide, SyncContext? sync = null,
+        Action<TreeDiffEntry>? compareFiles = null)
     {
         var window = new DirectoryDiffWindow(leftName, rightName, criteria, openSide) { _syncContext = sync, _compareFiles = compareFiles };
         window._compareHint.IsVisible = compareFiles is not null;
@@ -68,7 +74,9 @@ public sealed class DirectoryDiffWindow : Window
         s_open.Add(window);
         window.Closed += (_, _) =>
         {
+            window._closed = true;
             window._stop.Cancel();
+            if (window._finished) window._stop.Dispose();
             s_open.Remove(window);
         };
         window.Show();
@@ -78,7 +86,7 @@ public sealed class DirectoryDiffWindow : Window
 
     public bool IsComparing => _result is null;
 
-    private async Task RunAsync(Func<Action<string>, CancellationToken, TreeCompareResult> compare)
+    private async Task RunAsync(Func<Action<string>, CancellationToken, Task<TreeCompareResult>> compare)
     {
         int folders = 0;
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -88,16 +96,25 @@ public sealed class DirectoryDiffWindow : Window
             if (clock.ElapsedMilliseconds < 200) return;
             clock.Restart();
             int n = folders;
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (_result is null) _summary.Text = $"Comparing… {n:N0} folders so far: {folder}"; });
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (!_closed && _result is null) _summary.Text = $"Comparing… {n:N0} folders so far: {folder}"; });
         }
+        TreeCompareResult result;
         try
         {
-            _result = await Task.Run(() => compare(Progress, _stop.Token));
+            result = await compare(Progress, _stop.Token);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            _result = new TreeCompareResult([new TreeDiffEntry(".", TreeDiffKind.Unknown, null, null, ex.Message)], false, folders);
+            result = new TreeCompareResult([new TreeDiffEntry(".", TreeDiffKind.Unknown, null, null, ex.Message)], false, folders);
         }
+        catch (OperationCanceledException) { result = new TreeCompareResult([], false, folders, Canceled: true); }
+        finally
+        {
+            _finished = true;
+            if (_closed) _stop.Dispose();
+        }
+        if (_closed) return;
+        _result = result;
         _stopButton.IsVisible = false;
         _openLeft.IsEnabled = _openRight.IsEnabled = true;
         _sync.IsEnabled = _syncContext is not null && _result.Entries.Any(e => e.IsDifference);
@@ -180,18 +197,18 @@ public sealed class DirectoryDiffWindow : Window
     /// <summary>The synchronization preview for this comparison; null before it finishes or without a context.</summary>
     public SyncWindow? OpenSync()
     {
-        if (_result is null || _syncContext is null) return null;
+        if (_closed || _result is null || _syncContext is null) return null;
         var window = new SyncWindow(_result, _syncContext);
         window.Show(this);
         return window;
     }
 
-    public void OpenSide(bool left) => _openSide(Shown().Where(e => left ? e.Left is not null : e.Right is not null).ToList(), left);
+    public void OpenSide(bool left) { if (!_closed) _openSide(Shown().Where(e => left ? e.Left is not null : e.Right is not null).ToList(), left); }
 
     /// <summary>Compares the contents of the selected entry's two files; false when it is not a file on both sides.</summary>
     public bool CompareSelected()
     {
-        if (_compareFiles is null || _list.SelectedItem is not TreeDiffEntry { Left: not null, Right: not null, IsFolder: false } entry) return false;
+        if (_closed || _compareFiles is null || _list.SelectedItem is not TreeDiffEntry { Left: not null, Right: not null, IsFolder: false } entry) return false;
         _compareFiles(entry);
         return true;
     }

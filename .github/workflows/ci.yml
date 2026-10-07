@@ -288,15 +288,29 @@ jobs:
           FILECAT_TEST_BLOCK_DEVICE="$RAW" dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~UnixDeviceTests"
           hdiutil detach "$DISK"
       # Saved passwords against a real Secret Service: GNOME Keyring in a private D-Bus session (macOS uses its keychain).
-      - if: runner.os == 'Linux'
+      - name: Prepare Linux native test dependencies
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends gnome-keyring dbus libsecret-1-0
-          dbus-run-session -- bash -c 'gnome-keyring-daemon --components=secrets --daemonize --unlock <<< "ci-keyring" > /dev/null &&
+          /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
+          bash eng/validation/prepare-linux-ci-dependencies.sh
+      - name: Retain Linux dependency launcher controls
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-dependency-launcher-controls
+          path: ${{ runner.temp }}/linux-dependency-controls
+          if-no-files-found: error
+      - if: runner.os == 'Linux'
+        name: Linux Secret Service controls
+        timeout-minutes: 3
+        run: |
+          echo "Starting the private Secret Service (at most 20 seconds)."
+          dbus-run-session -- bash -e -c 'timeout --kill-after=5s 20s gnome-keyring-daemon --components=secrets --daemonize --unlock <<< "ci-keyring" &&
             FILECAT_REQUIRE_SECRET_STORE=1 dotnet test tests/FileCat.Core.Tests -c Release --no-build --filter "FullyQualifiedName~SecretStoreTests"'
       # D-54: a real Samba server with a guest share, listed by smbclient or gvfs and mounted by gvfs in a D-Bus session.
       - if: runner.os == 'Linux'
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends samba smbclient gvfs-backends gvfs-fuse dbus
           sudo mkdir -p /srv/filecat-public && echo hello | sudo tee /srv/filecat-public/hello.txt > /dev/null && sudo chmod -R a+rX /srv/filecat-public
           printf '[filecat-public]\n  path = /srv/filecat-public\n  guest ok = yes\n  read only = yes\n' | sudo tee -a /etc/samba/smb.conf > /dev/null
           sudo systemctl restart smbd
@@ -306,14 +320,12 @@ jobs:
       # results folder, so later steps keep theirs).
       - if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y -qq --no-install-recommends dosfstools exfatprogs
           truncate -s 64M "$RUNNER_TEMP/fc-vfat.img" && mkfs.vfat -F 32 -n FCFAT "$RUNNER_TEMP/fc-vfat.img" > /dev/null
           truncate -s 64M "$RUNNER_TEMP/fc-exfat.img" && mkfs.exfat -n FCEXFAT "$RUNNER_TEMP/fc-exfat.img" > /dev/null
           sudo mkdir -p /mnt/fc-vfat /mnt/fc-exfat
           sudo mount -o loop "$RUNNER_TEMP/fc-vfat.img" /mnt/fc-vfat
           # The runner's kernel may lack exFAT: then exfat-fuse mounts it (type "fuseblk", which the reader recognizes by its boot sector).
           if ! sudo mount -o loop "$RUNNER_TEMP/fc-exfat.img" /mnt/fc-exfat 2>/dev/null; then
-            sudo apt-get install -y -qq --no-install-recommends exfat-fuse
             sudo mount.exfat-fuse "$(sudo losetup -f --show "$RUNNER_TEMP/fc-exfat.img")" /mnt/fc-exfat
           fi
           grep -E ' /mnt/fc-(v|ex)fat ' /proc/self/mountinfo
@@ -321,8 +333,6 @@ jobs:
             dotnet test tests/FileCat.Core.Tests -c Release --no-build --results-directory "$RUNNER_TEMP/root-results" --filter "FullyQualifiedName~UnixFatRecordTests"
           sudo umount /mnt/fc-vfat /mnt/fc-exfat
       # Real-server SFTP tests start a user-mode sshd (macOS ships one).
-      - if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends openssh-server
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
@@ -334,7 +344,6 @@ jobs:
       # D-51: web pages drawn by WebKitGTK, on a virtual X display; a missing engine fails here instead of skipping.
       - if: runner.os == 'Linux'
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libwebkit2gtk-4.1-0 xvfb
           FILECAT_REQUIRE_WEBKIT=1 xvfb-run -a dotnet test tests/FileCat.App.Tests -c Release --no-build --filter "FullyQualifiedName~LinuxPageEngineTests" --blame-hang-timeout 3m --blame-hang-dump-type mini
       # D-51 on macOS: WKWebView on the runner's display, from a program whose main thread runs the run loop.
       - if: runner.os == 'macOS'
@@ -342,7 +351,6 @@ jobs:
       - name: Linux tar desktop launcher paths
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y -qq --no-install-recommends python3-gi desktop-file-utils
           evidence="filecat-desktop-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           result=0
           /usr/bin/python3 eng/validation/validate-linux-desktop-entry.py \

@@ -52,7 +52,11 @@ public static class TreeCompare
     public const int MaxEntries = 1_000_000;
 
     public static TreeCompareResult Compare(ProviderRegistry providers, Location left, Location right, CompareCriteria criteria, TimeSpan tolerance,
-        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null)
+        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null)
+        => CompareAsync(providers, left, right, criteria, tolerance, caseInsensitiveNames, ct, progress, io).GetAwaiter().GetResult();
+
+    public static async Task<TreeCompareResult> CompareAsync(ProviderRegistry providers, Location left, Location right, CompareCriteria criteria, TimeSpan tolerance,
+        bool caseInsensitiveNames, CancellationToken ct, Action<string>? progress = null, ComparisonIo? io = null)
     {
         var entries = new List<TreeDiffEntry>();
         int folders = 0;
@@ -60,7 +64,7 @@ public static class TreeCompare
         var lp = providers.For(left);
         var rp = providers.For(right);
 
-        void Walk(Location l, Location r, string relative)
+        async Task Walk(Location l, Location r, string relative)
         {
             ct.ThrowIfCancellationRequested();
             if (entries.Count >= MaxEntries)
@@ -70,8 +74,8 @@ public static class TreeCompare
             }
             folders++;
             progress?.Invoke(relative);
-            var (leftItems, leftError) = List(lp, l, ct);
-            var (rightItems, rightError) = List(rp, r, ct);
+            var (leftItems, leftError) = await List(lp, l, ct, io).ConfigureAwait(false);
+            var (rightItems, rightError) = await List(rp, r, ct, io).ConfigureAwait(false);
             if (leftError is not null || rightError is not null)
             {
                 entries.Add(new TreeDiffEntry(relative.Length == 0 ? "." : relative, TreeDiffKind.Unknown, null, null,
@@ -87,13 +91,13 @@ public static class TreeCompare
                 if (left0 is not { } le)
                 {
                     var only = right0!.Value;
-                    Add(OneSided(new TreeDiffEntry(relative.Length == 0 ? only.Name : relative + "/" + only.Name, TreeDiffKind.RightOnly, null, only), rp, r, only));
+                    Add(await OneSided(new TreeDiffEntry(relative.Length == 0 ? only.Name : relative + "/" + only.Name, TreeDiffKind.RightOnly, null, only), rp, r, only).ConfigureAwait(false));
                     continue;
                 }
                 string path = relative.Length == 0 ? le.Name : relative + "/" + le.Name;
                 if (right0 is not { } re)
                 {
-                    Add(OneSided(new TreeDiffEntry(path, TreeDiffKind.LeftOnly, le, null), lp, l, le));
+                    Add(await OneSided(new TreeDiffEntry(path, TreeDiffKind.LeftOnly, le, null), lp, l, le).ConfigureAwait(false));
                     continue;
                 }
                 if (le.IsContainer != re.IsContainer)
@@ -115,24 +119,24 @@ public static class TreeCompare
                         Add(new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, "The folder cannot be opened"));
                         continue;
                     }
-                    Walk(cl, cr, path);
+                    await Walk(cl, cr, path).ConfigureAwait(false);
                     continue;
                 }
-                Add(CompareFiles(path, l, le, r, re));
+                Add(await CompareFiles(path, l, le, r, re).ConfigureAwait(false));
             }
         }
 
         // A folder on one side only, on a disk or share: all it holds, for a plan to state and a removal to check.
-        TreeDiffEntry OneSided(TreeDiffEntry entry, ResourceProvider provider, Location folder, EntryData data)
+        async Task<TreeDiffEntry> OneSided(TreeDiffEntry entry, ResourceProvider provider, Location folder, EntryData data)
         {
             if (data.Kind != EntryKind.Directory || data.Has(EntryFlags.Link) || provider.GetChildLocation(folder, data) is not { IsFileSystem: true } inside)
                 return entry;
             progress?.Invoke(entry.RelativePath);
-            var contents = FileSystem.FolderContents.Read(inside.Path, ct);
+            var contents = io is null ? FileSystem.FolderContents.Read(inside.Path, ct) : await io.ReadFolderContentsAsync(inside, ct).ConfigureAwait(false);
             return entry with { Contents = contents, Detail = contents is null ? "What it holds could not be read in full" : "Holds " + contents.Describe() };
         }
 
-        TreeDiffEntry CompareFiles(string path, Location l, EntryData le, Location r, EntryData re)
+        async Task<TreeDiffEntry> CompareFiles(string path, Location l, EntryData le, Location r, EntryData re)
         {
             bool sizesKnown = le.Size >= 0 && re.Size >= 0;
             bool sizeDiffers = (criteria & (CompareCriteria.Size | CompareCriteria.Content)) != 0 && sizesKnown && le.Size != re.Size;
@@ -148,9 +152,14 @@ public static class TreeCompare
             {
                 try
                 {
-                    using var a = lp.OpenContent(lp.GetItemRef(l, le));
-                    using var b = rp.OpenContent(rp.GetItemRef(r, re));
-                    bool? equal = a is null || b is null ? null : DirectoryCompare.ContentEqual(a, b, ct);
+                    bool? equal;
+                    if (io is not null) equal = await io.ContentEqualAsync(lp.GetItemRef(l, le), rp.GetItemRef(r, re), ct).ConfigureAwait(false);
+                    else
+                    {
+                        using var a = lp.OpenContent(lp.GetItemRef(l, le));
+                        using var b = rp.OpenContent(rp.GetItemRef(r, re));
+                        equal = a is null || b is null ? null : DirectoryCompare.ContentEqual(a, b, ct);
+                    }
                     if (equal is null) return new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, "The content could not be read");
                     contentDiffers = !equal.Value;
                     if (equal.Value) sizeOpen = false; // the same content is the same size
@@ -173,7 +182,7 @@ public static class TreeCompare
 
         try
         {
-            Walk(left, right, "");
+            await Walk(left, right, "").ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -183,14 +192,16 @@ public static class TreeCompare
         return new TreeCompareResult(entries, complete, folders);
     }
 
-    private static (List<EntryData> Items, string? Error) List(ResourceProvider provider, Location location, CancellationToken ct)
+    private static async Task<(List<EntryData> Items, string? Error)> List(ResourceProvider provider, Location location, CancellationToken ct, ComparisonIo? io)
     {
         var items = new List<EntryData>();
         try
         {
-            provider.EnumerateAsync(location, new Sink(items), ct).GetAwaiter().GetResult();
+            var sink = new Sink(items);
+            if (io is null) await provider.EnumerateAsync(location, sink, ct).ConfigureAwait(false);
+            else await io.EnumerateAsync(provider, location, sink, ct).ConfigureAwait(false);
             items.RemoveAll(e => e.Kind == EntryKind.Parent);
-            return (items, null);
+            return (items, sink.Error);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -204,7 +215,8 @@ public static class TreeCompare
 
     private sealed class Sink(List<EntryData> into) : IEnumerationSink
     {
+        public string? Error { get; private set; }
         public void AddBatch(ReadOnlySpan<EntryData> entries) => into.AddRange(entries.ToArray());
-        public void ReportIssue(string message) { }
+        public void ReportIssue(string message) => Error ??= message;
     }
 }
