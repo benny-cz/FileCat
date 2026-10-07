@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**183 evidence entries; none is final candidate qualification.** No candidate exists.
+**184 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -42,6 +42,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I12 | Historical descriptor/title regressions and durable lifecycle coverage | a0a8ece; original CI 37541603291 attempt 1; actual owner-Mac cross-published payload | Preliminary coverage closure; intermittent Mac failure unforced, broader integration/candidate open | [E-I12](evidence/E-I12-regression-coverage.md) | I12, I06, I13, I25 |
 | E-I15-S1 | Installer script and Inno Setup semantics | `4f6b062` | Static | [E-I15](evidence/E-I15-uninstall-vm.md) | I15 |
 | E-I15-V1 | Install and uninstall into a folder holding user files; default folder with one run | Scripts `4f6b062` / `5b061cc`; payload `f87ad32` | Preliminary runtime | [E-I15](evidence/E-I15-uninstall-vm.md) | I15 |
+| E-I16-HOME | Complete FileCat transport suppresses home-directed ignore/attribute rules | Exact f502fd1 App payload; native owned Git comparisons | Finite negative defect hypothesis/positive existing defense; two complete-path cases pass, wider aliases/races/native/candidate open | [E-I16-HOME](evidence/E-I16-HOME-opened-rule-overrides.md) | I16, V23, V24 |
 | E-I17-S1/R1 | Consent text hid steps after the 60th; HKU hives mislabeled | parent of `33b7de2` | Static + preliminary automated | [E-I17](evidence/E-I17-consent.md) | I17 |
 | E-I17-V1…V3 | Consent fix; runtime checks of the installed helper | `33b7de2`, `5c54181` | Preliminary runtime | [E-I17](evidence/E-I17-consent.md) | I17 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |

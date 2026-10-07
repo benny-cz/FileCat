@@ -200,3 +200,13 @@ Independent seal SHA-256 1f83ee9bf0f2dddb8ab9b6635ea01f6de31df76556d8478ff9244a8
 Counts remain 171 findings/149 preliminary remediations/two preliminary closures/20 unresolved scopes; catalogue becomes 183 entries. Broader reachable/static/legal/signature/SBOM/containment, desktop/participant and candidate scope remain open; this finite provenance result does not close I03/I08.
 
 Audit v43 rechecks 457 selected hashes and all prior/new raw source, actual payload, native/CI and control seals, including sixteen distinct I171 hosted passes and all 46 Windows module snapshots; SHA-256 cbe89a327cf7e8dddacbd8f63b8ed856e075c187c9b9c16ff6c47b62c8a812c4. Tracking proof v24 preserves histories/authority/IDs and verifies counts, 183 entries, displayed totals and 425 local links/fragments; SHA-256 8c5dbdf7e11ce7d0d0d7f3a88a336601b236fe772ff5ca5f8c69d7bde0cf36cf.
+
+## 2026-10-07 — full FileCat home-rule overrides
+
+[E-I16-HOME](evidence/E-I16-HOME-opened-rule-overrides.md) compares native Git's two controlled home-junction effects with the complete actual FileCat reader and production transport at f502fd1. The parser admits those spellings, but FileCat already explicitly overrides ignore/attribute settings to /dev/null. Both full-path controls pass: hidden.txt is Untracked and the controlled attribute is unspecified. The initial defect announcement omitted that existing defense; no issue or product change is registered.
+
+Independent seal SHA-256 175f4b606df77b77a01d18b3db998eed2b80ec540ddb1947029c8700dacc5f48 verifies 238 retained files, all 141 original inputs, two actual 55-file observer payloads, controlled effects and unchanged/restored owned fixtures/configs. The literal-newline fixture error and wrong observer-project preflight remain; corrected fresh comparisons pass. Only child HOME values change; no host setting, remote server, physical source or desktop input is used.
+
+Counts remain 171 findings/149 preliminary remediations/two preliminary closures/20 unresolved scopes; catalogue becomes 184 entries. Wider I16 settings/aliases/races/platforms and exact-candidate scope remain open; no contract, candidate or publication changed.
+
+Audit v44 rechecks 460 selected hashes and all prior/new raw source, actual payload, native/CI and complete-path control seals; SHA-256 107fcc5966b7bebbee9b9af4fb1a55ecafd00e3706bf8793f428c7e538887446. Tracking proof v25 preserves histories/authority/IDs and verifies counts, 184 entries, displayed totals and 428 local links/fragments; SHA-256 6678ffa41a1b58b6a073d256a6e4a9289de27291f6d6c30f7545ef2673a09884.
