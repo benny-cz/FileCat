@@ -7,8 +7,10 @@ using FileCat.Core.Archives;
 using FileCat.Core.Edit;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Core.Threading;
 using FileCat.Remote.Sftp;
 using Location = FileCat.Core.Resources.Location;
+using ResourceProvider = FileCat.Core.Resources.ResourceProvider;
 
 namespace FileCat.App.ViewModels;
 
@@ -23,6 +25,7 @@ public sealed partial class MainViewModel
     private readonly Dictionary<string, FileSystemWatcher> _sessionWatchers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _announcedEdits = new(StringComparer.Ordinal);
     private readonly Dictionary<Job, (string SessionId, string Sha256)> _sessionCommits = new();
+    private readonly HashSet<string> _preparingEdits = new(StringComparer.Ordinal);
 
     /// <summary>Starts watching the saved sessions; returns a startup message when some have uncommitted changes.</summary>
     public string? RestoreEditSessions()
@@ -43,32 +46,11 @@ public sealed partial class MainViewModel
             Notify(reason + " Use F3 to view the member, or F5 to extract a copy.", true);
             return;
         }
-        if (Copies(item) > 1)
-        {
-            Notify("This name appears more than once in the archive, so its edit could not be written back unambiguously. Extract the copy you want with F5.", true);
-            return;
-        }
-        var existing = Services.EditSessions.Find(ArchiveFile(folder), member);
-        if (existing is not null)
-        {
-            if (Services.EditSessions.StateOf(existing) == EditState.Modified) await ShowSessionAsync(existing);
-            else OpenSessionEditor(existing);
-            return;
-        }
-        EditSessionRecord session;
-        try
-        {
-            Notify($"Extracting \"{item.Name}\" for editing…");
-            session = await Task.Run(() => Services.EditSessions.Create(Services.Zip, item));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
-        {
-            Notify($"Cannot edit \"{item.Name}\": {ex.Message}", true);
-            return;
-        }
-        Watch(session);
-        OpenSessionEditor(session);
-        Notify($"Editing a copy of \"{item.Name}\" from {Path.GetFileName(session.ArchivePath)}. Save in the editor, then commit with F4 on the member again (or File → Edit sessions). Nothing is written to the archive until you commit.");
+        string archive = ArchiveFile(folder);
+        await PrepareEditSessionAsync(item, "zip:" + archive + "/" + member,
+            () => Services.EditSessions.Find(archive, member),
+            (provider, ct) => Services.EditSessions.Create(provider, item, ct),
+            $"Extracting \"{item.Name}\" for editing…");
     }
 
     /// <summary>F4 on a file on a server: a private copy, read once, edited in the configured editor.</summary>
@@ -76,37 +58,86 @@ public sealed partial class MainViewModel
     {
         if (item.Parent.Session is not { } profileId || Services.FindRemoteProfile(profileId) is not { } profile) return;
         string remotePath = Services.SftpProvider.PathOf(item);
-        var existing = Services.EditSessions.FindRemote(profileId, remotePath);
-        if (existing is not null)
-        {
-            if (Services.EditSessions.StateOf(existing) == EditState.Modified) await ShowSessionAsync(existing);
-            else OpenSessionEditor(existing);
-            return;
-        }
-        EditSessionRecord session;
-        try
-        {
-            Notify($"Copying \"{item.Name}\" from {profile.Display} for editing…");
-            session = await Task.Run(() =>
+        await PrepareEditSessionAsync(item, "sftp:" + profileId + ":" + remotePath,
+            () => Services.EditSessions.FindRemote(profileId, remotePath),
+            (provider, ct) =>
             {
-                using var content = Services.SftpProvider.OpenContent(item) ?? throw new IOException("This item has no content to edit.");
-                var revision = content.GetRevision() ?? new ContentRevision(content.Length, 0);
-                return Services.EditSessions.CreateRemote(profileId, profile.Display, remotePath, content, revision, Services.SftpProvider.GetOriginMark(item.Parent));
-            });
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
-        {
-            Notify($"Cannot edit \"{item.Name}\": {ex.Message}", true);
-            return;
-        }
-        Watch(session);
-        OpenSessionEditor(session);
-        Notify($"Editing a copy of \"{item.Name}\" from {profile.Display}. Save in the editor, then commit with F4 on the file again (or File → Edit sessions). Nothing is written to the server until you commit.");
+                using var content = provider.OpenContent(item) ?? throw new IOException("This item has no content to edit.");
+                var revision = content.GetRevision() ?? throw new IOException("The file's revision is unavailable; copy it with F5 instead.");
+                return Services.EditSessions.CreateRemote(profileId, profile.Display, remotePath, content, revision, Services.SftpProvider.GetOriginMark(item.Parent), ct);
+            }, $"Copying \"{item.Name}\" from {profile.Display} for editing…");
     }
 
-    private void OpenSessionEditor(EditSessionRecord session)
+    private async Task PrepareEditSessionAsync(ItemRef item, string key, Func<EditSessionRecord?> find,
+        Func<ResourceProvider, CancellationToken, EditSessionRecord> create, string progress)
     {
-        if (!File.Exists(session.WorkingPath))
+        if (ActiveTab is not { } tab || Services.Io.IsStopped || !_preparingEdits.Add(key)) return;
+        using var scope = new PreparationScope(tab, Services.Io);
+        try
+        {
+            Notify(progress);
+            var provider = Services.Providers.For(item.Parent);
+            // Do not pass cancellation to the scheduler: an active synchronous call must keep this owner
+            // until it returns. The scope is checked between reads and before publishing the record/editor.
+            var prepared = await Services.Io.Run(provider.GetDeviceKey(item.Parent), IoPriority.Normal, _ =>
+            {
+                scope.Check(); var existing = find(); scope.Check();
+                if (existing is not null)
+                {
+                    var state = Services.EditSessions.StateOf(existing); scope.Check();
+                    return (Session: existing, State: state, Created: false);
+                }
+                var session = create(new EditPreparationProvider(provider, scope.Check), scope.Stop.Token);
+                return (Session: session, State: EditState.Unchanged, Created: true);
+            });
+            if (!scope.Current) return;
+            var session = prepared.Session;
+            if (!prepared.Created && prepared.State == EditState.Modified) { await ShowSessionAsync(session); return; }
+            if (prepared.State == EditState.Missing) { Notify("The working copy is gone; discard this session and start a new edit.", true); return; }
+            Watch(session); OpenSessionEditor(session, checkedExists: true);
+            if (prepared.Created) Notify($"Editing a copy of \"{item.Name}\" from {session.DisplayTarget}. Save in the editor, then commit with F4 on the file again (or File → Edit sessions). Nothing is written to the source until you commit.");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        {
+            if (scope.Current) Notify($"Cannot edit \"{item.Name}\": {ex.Message}", true);
+        }
+        finally { _preparingEdits.Remove(key); }
+    }
+
+    private sealed class EditPreparationProvider(ResourceProvider inner, Action check) : ResourceProvider
+    {
+        public override string Scheme => inner.Scheme;
+        public override string GetDisplayPath(Location l) => inner.GetDisplayPath(l);
+        public override Location? GetParent(Location l) => inner.GetParent(l);
+        public override Location? GetChildLocation(Location l, in EntryData e) => inner.GetChildLocation(l, e);
+        public override LocationCapabilities GetCapabilities(Location l) => inner.GetCapabilities(l);
+        public override Task EnumerateAsync(Location l, IEnumerationSink sink, CancellationToken ct) => inner.EnumerateAsync(l, sink, ct);
+        public override IContentSource? OpenContent(ItemRef item)
+        {
+            check(); var source = inner.OpenContent(item);
+            if (source is null) { check(); return null; }
+            try { check(); return new EditPreparationContent(FileCat.Core.Content.ProgressiveContent.Sequential(source)!, check); }
+            catch { source.Dispose(); throw; }
+        }
+    }
+
+    private sealed class EditPreparationContent(IContentSource inner, Action check) : IContentSource, IPartialContent
+    {
+        public string DisplayName => inner.DisplayName;
+        public bool CanSeek => inner.CanSeek;
+        public string? LocalPath => inner.LocalPath;
+        public long Length { get { check(); long value = inner.Length; check(); return value; } }
+        public ContentRevision? GetRevision() { check(); var value = inner.GetRevision(); check(); return value; }
+        public IReadOnlyList<(long Offset, long Length)> MissingRanges => inner is IPartialContent p ? p.MissingRanges : [];
+        public string? Caveat => inner is IPartialContent p ? p.Caveat : null;
+        public int Read(long offset, Span<byte> buffer) { check(); int n = inner.Read(offset, buffer); check(); return n; }
+        public void Dispose() => inner.Dispose();
+    }
+
+    private void OpenSessionEditor(EditSessionRecord session, bool checkedExists = false)
+    {
+        if (!checkedExists && !File.Exists(session.WorkingPath))
         {
             Notify("The working copy is gone; discard this session and start a new edit.", true);
             return;

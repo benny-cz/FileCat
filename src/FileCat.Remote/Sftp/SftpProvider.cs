@@ -199,7 +199,7 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
             string path = PathOf(item, lease.Channel);
             var stat = lease.Channel.Stat(path) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
             if (stat.IsDirectory) throw new IOException($"\"{item.Name}\" is a folder.");
-            return new SftpContentSource(lease, lease.Channel.OpenRead(path, stat.Size), GetDisplayPath(item.Parent.WithPath(path)), stat);
+            return new SftpContentSource(lease, lease.Channel.OpenRead(path, stat.Size), GetDisplayPath(item.Parent.WithPath(path)), path, stat);
         }
         catch (Exception ex)
         {
@@ -215,7 +215,7 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
 }
 
 /// <summary>Random-access content of a remote file over one leased connection.</summary>
-internal sealed class SftpContentSource(SftpLease lease, Stream stream, string displayName, RemoteStat stat) : IContentSource
+internal sealed class SftpContentSource(SftpLease lease, Stream stream, string displayName, string path, RemoteStat stat) : IContentSource
 {
     private readonly object _lock = new();
     private bool _disposed;
@@ -246,7 +246,19 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
         }
     }
 
-    public ContentRevision? GetRevision() => new ContentRevision(stat.Size, stat.ModifiedUtc.Ticks);
+    public ContentRevision? GetRevision()
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            try
+            {
+                return lease.Channel.Stat(path) is { IsDirectory: false } current
+                    ? new ContentRevision(current.Size, current.ModifiedUtc.Ticks) : null;
+            }
+            catch (RemoteDisconnectedException) { lease.Broken = true; throw; }
+        }
+    }
 
     public void Dispose()
     {

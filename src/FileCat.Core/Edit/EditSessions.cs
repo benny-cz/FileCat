@@ -108,12 +108,13 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     /// read at as the base that commits are checked against.
     /// </summary>
     public EditSessionRecord CreateRemote(string profileId, string serverDisplay, string remotePath, IContentSource source, ContentRevision revision,
-        string? originMark)
+        string? originMark, CancellationToken ct = default)
     {
-        if (revision.Length > MaxMemberBytes)
-            throw new IOException($"Files over {MaxMemberBytes / (1024 * 1024 * 1024)} GiB are not edited through sessions; copy the file with F5 instead.");
+        ct.ThrowIfCancellationRequested();
+        ValidateLength(revision.Length);
+        if (source.GetRevision() != revision) throw new IOException("The file's revision is unavailable or changed before its edit could be copied.");
         string name = remotePath[(remotePath.LastIndexOf('/') + 1)..];
-        return CreateSession(name, working => WriteWorkingCopy(source, working), working =>
+        return CreateSession(name, working => WriteWorkingCopy(source, working, ct, revision), (working, copy) =>
         {
             if (originMark is not null) fs.WriteOriginMark(working, originMark);
             return new EditSessionRecord
@@ -123,10 +124,10 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
                 ServerDisplay = serverDisplay,
                 RemotePath = remotePath,
                 RemoteBaseline = revision,
-                BaseSha256 = Hash(working),
+                BaseSha256 = copy.Sha256,
                 WorkingPath = working,
             };
-        });
+        }, ct);
     }
 
     /// <summary>
@@ -147,72 +148,131 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     }
 
     /// <summary>A session folder with the working copy under the edited file's own name (or a safe stand-in).</summary>
-    private EditSessionRecord CreateSession(string fileName, Action<string> write, Func<string, EditSessionRecord> describe)
+    private sealed record WorkingCopy(string Sha256, uint Crc, long Length);
+
+    private EditSessionRecord CreateSession(string fileName, Func<string, WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         string id = Guid.NewGuid().ToString("N");
         string dir = Path.Combine(Root, id);
         Directory.CreateDirectory(dir);
         string working = Path.Combine(dir, SafeNames.Validate(fileName) is null ? fileName : "file" + Path.GetExtension(fileName));
         try
         {
-            write(working);
-            var record = describe(working) with { Id = id, CreatedUtc = DateTime.UtcNow };
+            var copy = write(working);
+            ct.ThrowIfCancellationRequested();
+            var record = describe(working, copy) with { Id = id, CreatedUtc = DateTime.UtcNow };
+            ct.ThrowIfCancellationRequested();
             Save(record);
             return record;
         }
         catch
         {
             try { Directory.Delete(dir, recursive: true); }
-            catch (IOException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             throw;
         }
     }
 
-    private static void WriteWorkingCopy(IContentSource source, string working)
+    private static void ValidateLength(long length)
     {
+        if (length < 0) throw new IOException("The file's complete length is unavailable; copy it with F5 instead of starting an edit session.");
+        if (length > MaxMemberBytes) throw new IOException("Files over 1 GiB are not edited through sessions; copy the file with F5 instead.");
+    }
+
+    private static void CheckComplete(IContentSource source)
+    {
+        if (source is IPartialContent partial && (partial.MissingRanges.Count > 0 || partial.Caveat is not null))
+            throw new IOException("This source contains lost or uncertain bytes and cannot be used as an edit-session baseline.");
+    }
+
+    /// <summary>The caller owns the source. Nothing is published unless exact bytes, EOF and available revisions agree.</summary>
+    private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        long length = source.Length; ValidateLength(length); CheckComplete(source);
+        var before = source.GetRevision();
+        if (before is { } revision && revision.Length != length || expected is { } pinned && before != pinned)
+            throw new IOException("The file changed before its edit could be copied.");
         using var output = new FileStream(working, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[1024 * 1024];
-        for (long offset = 0; ;)
+        uint crc = 0; long offset = 0;
+        while (true)
         {
-            int n = source.Read(offset, buffer);
-            if (n <= 0) break;
+            ct.ThrowIfCancellationRequested(); CheckComplete(source);
+            // A one-byte read at the declared end checks actual EOF (and archive checksum validation) without
+            // accepting or writing bytes beyond either the declared size or the edit-session size limit.
+            int want = (int)Math.Min(buffer.Length, length - offset + 1);
+            int n = source.Read(offset, buffer.AsSpan(0, want));
+            ct.ThrowIfCancellationRequested(); CheckComplete(source);
+            if (n < 0 || n > want) throw new InvalidDataException("The edit source returned an invalid byte count.");
+            if (n == 0)
+            {
+                if (offset != length) throw new IOException("The file ended before its complete edit could be copied.");
+                break;
+            }
+            if (n > length - offset) throw new IOException("The file grew beyond its declared edit-session length.");
             output.Write(buffer, 0, n);
+            hash.AppendData(buffer, 0, n); crc = Crc32.Append(crc, buffer.AsSpan(0, n));
             offset += n;
         }
+        ct.ThrowIfCancellationRequested();
+        if (source.Length != length || source.GetRevision() != before) throw new IOException("The file's length or revision changed while its edit was copied.");
+        CheckComplete(source);
+        return new WorkingCopy(Convert.ToHexString(hash.GetHashAndReset()), crc, offset);
     }
 
     /// <summary>
     /// Extracts <paramref name="member"/> into a new private working copy. The copy carries the archive's download mark,
     /// so programs that open it apply the same checks as for the archive.
     /// </summary>
-    public EditSessionRecord Create(ZipProvider zip, ItemRef member)
+    public EditSessionRecord Create(ResourceProvider zip, ItemRef member, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         if (member.Parent.Scheme != Schemes.Zip || member.Parent.Container is not { IsFileSystem: true } archiveFile)
             throw new NotSupportedException("Edit sessions work on members of archives in folders.");
         string archive = Path.GetFullPath(archiveFile.Path);
         string memberPath = member.Parent.Path.Length == 0 ? member.Name : member.Parent.Path + "/" + member.Name;
         var baseline = ArchiveBaseline.Of(archive);
+        uint expectedCrc; long expectedLength;
+        using (var catalog = System.IO.Compression.ZipFile.OpenRead(archive))
+        {
+            if (catalog.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to prepare an edit.");
+            System.IO.Compression.ZipArchiveEntry? found = null;
+            foreach (var entry in catalog.Entries)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (ArchivePaths.Normalize(entry.FullName) != memberPath) continue;
+                if (found is not null) throw new IOException("This name appears more than once in the archive; extract the copy you want with F5.");
+                found = entry;
+            }
+            if (found is null || found.FullName.EndsWith('/')) throw new FileNotFoundException("The archive member no longer exists.");
+            expectedCrc = found.Crc32; expectedLength = found.Length; ValidateLength(expectedLength);
+        }
+        if (!baseline.Matches(archive)) throw new IOException("The archive changed while its edit was being prepared.");
         return CreateSession(member.Name, working =>
         {
+            ct.ThrowIfCancellationRequested();
             using var source = Content.ProgressiveContent.Sequential(zip.OpenContent(member)) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
-            if (source.Length > MaxMemberBytes)
-                throw new IOException($"Members over {MaxMemberBytes / (1024 * 1024 * 1024)} GiB are not edited through sessions; extract it with F5 instead.");
-            WriteWorkingCopy(source, working);
-        }, working =>
+            var copy = WriteWorkingCopy(source, working, ct);
+            if (copy.Length != expectedLength || copy.Crc != expectedCrc || !baseline.Matches(archive))
+                throw new IOException("The archive member changed or is damaged; no edit session was created.");
+            return copy;
+        }, (working, copy) =>
         {
             if (fs.ReadOriginMark(archive) is { } mark) fs.WriteOriginMark(working, mark);
-            var (crc, length) = Checksum(working);
             return new EditSessionRecord
             {
                 ArchivePath = archive,
                 MemberPath = memberPath,
                 Baseline = baseline,
-                MemberCrc32 = crc,
-                MemberLength = length,
-                BaseSha256 = Hash(working),
+                MemberCrc32 = copy.Crc,
+                MemberLength = copy.Length,
+                BaseSha256 = copy.Sha256,
                 WorkingPath = working,
             };
-        });
+        }, ct);
     }
 
     public void Save(EditSessionRecord record)
