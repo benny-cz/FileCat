@@ -50,7 +50,7 @@ The manifests retain all 136 discovery/fixture/working/clean files and their exa
 
 Original 6e9dadf run 37681607535 attempt 1 preserves 20 selected server digests/every member and 12 available raw TRX inventories. All 102 executed new directory cases pass: 26 App cases on Windows x64/ARM64/macOS and six Core cases on all four platforms. Ubuntu Remote/App is not executed. The unchanged broker suite also passes 62 executions/64 wire-CRC observations on the two Windows lanes. Five owned dependency-launcher controls pass in the Linux runner. Every available preceding case name/outcome remains accounted for; no rerun replaces this failure.
 
-The bounded install exits 124 while downloading from `azure.archive.ubuntu.com`, after visible package progress and a retry for `libnfs14`. The follow-up changes only the disposable runner's existing Ubuntu source files: exact Azure Ubuntu mirror URIs become the [official Ubuntu archive](https://documentation.ubuntu.com/project/how-ubuntu-is-made/concepts/package-archive/). Source suites, components, signing-key configuration and unrelated repositories remain intact; target file/parent escapes are rejected. Five actual-CLI owned-file controls pass, including CRLF Deb822, legacy format, unchanged canonical/unrelated sources and a rejected symlink. This proves the transformation, not native mirror/download success. Runtime and test code remain byte-for-byte as in 6e9dadf; native follow-up CI is still required.
+The bounded install exits 124 while downloading from `azure.archive.ubuntu.com`, after visible package progress and a retry for `libnfs14`. The follow-up changes only the disposable runner's existing Ubuntu source files: exact Azure Ubuntu mirror URIs become the [official Ubuntu archive](https://documentation.ubuntu.com/project/how-ubuntu-is-made/concepts/package-archive/). Source suites, components, signing-key configuration and unrelated repositories remain intact; target file/parent escapes are rejected. Five actual-CLI owned-file controls pass, including CRLF Deb822, legacy format, unchanged canonical/unrelated sources and a rejected symlink. This proves the transformation, not native mirror/download success. At the 645b947 mirror producer, runtime and test identities remain identical to 6e9dadf (721 Git identities independently verified); that original follow-up result is retained below. The subsequent correction and current pending native scope are tracked in [I203](E-I203-directory-content-evidence.md).
 
 Private `FileCatReleaseEvidence/dc202-v1`:
 
@@ -76,3 +76,41 @@ Private `FileCatReleaseEvidence/release-assets-20261006`:
 | Selected receipt or reader | SHA-256 |
 |---|---|
 | collect-i202-failed-ci-v1.py | f8cebddd587b55ff6d835ddd8c52b0ac91788518bee248f0cb6b0b368c93e646 |
+
+## Committed mirror follow-up and original failure disposition
+
+Exact 645b947 committed export verifies 1138 blobs, all 721 runtime/test identities unchanged from 6e9dadf, and five owned mirror controls/no skips. Original CI 37686386645 attempt 1 passes the two Windows jobs, fails Ubuntu before the native rewrite (exit 2 because sudo removes `GITHUB_ACTIONS`) and fails one macOS held-read assertion (three calls observed, two expected). Twenty selected server digests/every member and twelve raw inventories are independently verified. All 62 broker executions/64 wire-CRC observations pass; 101 directory executions pass and one assertion fails, with every other available preceding outcome retained. The historical cause of the macOS count is unproven; no device-health observation exists for that attempt. Ubuntu Remote/App does not execute and the native source-rewrite receipt is absent.
+
+Committed 86e8c6d519c411fa509a2f1d95bf5b064a813cf0 explicitly passes the CI marker and qualifies the fixture with recorded health-dependent caps/fewer unheld short reads. It passes the combined local checks recorded in [I203](E-I203-directory-content-evidence.md); native follow-up and candidate qualification remain open. The original failed attempt is not replaced or rerun.
+
+Private `FileCatReleaseEvidence/dc202-v1`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| run-mirror-clean-v1.py | ec29ea0822ade21fda05ee26b63f3dbba5843b68345d25ac7c97a8b4ea48ffd7 |
+| independent-mirror-clean-v1.json | f2f5deba7667c98726e433cbbebf73dd14f8a1db6365e6a5621d57e769665592 |
+| mirror-clean-v1/command.json | 8ad766733c5ba2dfa324948188f5dd696161e092c7b18848f7c03f333deb0a3a |
+| mirror-clean-v1/controls/controls.json | 393a08ab680861b8900214c9ef28bdf27e21512620bd3b73c2bf9ce429f573e7 |
+| mirror-ci-failure-v1/ubuntu-log-stdout | 06a18f367383f22f08db0551d8d4349ece98934c63a3f65494037fdf47f98c9a |
+| mirror-mac-failure-v1/mac-log-stdout | 78c2d533fede661157dde6e7eaf87c9611869d2d8bb33a152a9ef3f88622928c |
+| capture-mirror-ci-failure-v1.py | 09dc414fd7f6b70d214e9cc6181eaa80bd23009c2f5374ccd0911c65d28d1aa9 |
+| capture-mirror-mac-failure-v1.py | e19a432bca5c9202d39c913d3a6dba23d8b54d5da9e17e61aed3f30b51c392bc |
+
+Private `FileCatReleaseEvidence/ci-37686386645-failed-assets-attempt1-v1`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| independent-failed-mirror-ci-v1.json | 300f289ffb69df9e2e02d8ff89321fa9b64867afbbb57f188ae36d5273f30e96 |
+| independent-failed-mirror-ci-audit-v1.json | c69c5cba8b521bdfe482933e028ec7e46a14147585078d4c6759d8d7bf590b5b |
+
+Private `FileCatReleaseEvidence/ce203-v1`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| verify-mirror-ci-v1.py | 94bd5fff405304b25317c6dd7fd3f44cbb81b929905a88c52b404e2ecc3df0b9 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| collect-i202-mirror-failed-ci-v2.py | d15cb30c28a7fcf733a9d9375a8c2f90a46f73b07c74d04223fe5759947e31c0 |
