@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**189 evidence entries; none is final candidate qualification.** No candidate exists.
+**190 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -202,6 +202,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I174 | Current folder analysis owns progress and completion status | cd6ba2e before; 2503ab0 correction | Preliminary headless metadata/scheduler controls; two baseline failures/one positive/six affected passes; original CI sealed with twelve new passes; wider/native/candidate open | [E-I174](evidence/E-I174-analysis-current-demand.md) | I06, V12 |
 | E-I175 | Git worktree descendants and bounded automatic admission | 2503ab0 original; 6418278 correction | Preliminary complete-reader/native/original CI controls sealed; 22 new passes/ten explicit boundary skips; swaps/network/Unix/candidate open | [E-I175](evidence/E-I175-git-worktree-descendants.md) | I175, I16, V23/V24 |
 | E-I176 | Git shared commondir budget and automatic filter admission | 6418278 original; fcae763 correction | Preliminary complete-reader/native controls sealed; four baseline failures/four positives; 104 clean Git passes/one explicit capture skip; original CI sealed with 32 new passes; wider/candidate open | [E-I176](evidence/E-I176-git-shared-directory-budget.md) | I176, I16, V23/V24 |
+| E-I177 | Viewer-search current completion ownership and source cleanup | fcae763 original; 9f5f135 correction | Preliminary complete-viewer headless controls sealed; seven original failures/one positive/54 affected passes; original CI pending; wider/native/candidate open | [E-I177](evidence/E-I177-viewer-search-ownership.md) | I177, I06, V12/V13 |
 
 ## History and maintenance
 
