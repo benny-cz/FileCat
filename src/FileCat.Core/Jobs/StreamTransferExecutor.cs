@@ -149,7 +149,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Issue(IssueSeverity.Error, dir.Name, "The folder could not be read: " + ex.Message, StepOutcome.Failed);
             return false;
         }
-        bool all = true;
+        // A non-fatal listing problem can leave members unknown. Keep the readable members, but never claim the
+        // entire root arrived (a remote move uses that claim before considering deletion of its source).
+        foreach (string warning in sink.Issues)
+            Issue(IssueSeverity.Warning, dir.Name, "Folder listing warning: " + warning, StepOutcome.PartiallyApplied);
+        bool all = sink.Issues.Count == 0;
         foreach (var c in children)
         {
             Job.Checkpoint();
@@ -502,12 +506,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
 
     private sealed class ListSink(List<EntryData> list) : IEnumerationSink
     {
+        public List<string> Issues { get; } = [];
         public void AddBatch(ReadOnlySpan<EntryData> entries)
         {
             foreach (var e in entries) list.Add(e);
         }
 
-        public void ReportIssue(string message) { }
+        public void ReportIssue(string message) => Issues.Add(message);
     }
 }
 

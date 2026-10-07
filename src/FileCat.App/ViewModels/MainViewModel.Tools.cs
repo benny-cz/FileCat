@@ -502,36 +502,55 @@ public sealed partial class MainViewModel
         {
             bool other = Services.Archives.IsContainer(Path.GetFileName(archive));
             var root = other ? FileCat.Archives.ArchiveProvider.ForFile(archive) : ZipProvider.ForFile(archive);
-            FileCat.Core.Resources.ResourceProvider provider = other ? Services.Archives : Services.Zip;
+            var provider = Services.Providers.For(root);
             List<ItemRef> members;
+            List<string> warnings;
             try
             {
-                members = await Task.Run(() =>
+                // The approved archive paths and destination belong to this operation, independently of tab changes.
+                // Share bounded device workers with listings and viewers; retain the wait while an active call returns.
+                (members, warnings) = await Services.Io.Run(provider.GetDeviceKey(root), Core.Threading.IoPriority.Normal, _ =>
                 {
+                    if (Services.Io.IsStopped) throw new OperationCanceledException("Archive admission stopped.");
                     var list = new List<EntryData>();
-                    provider.EnumerateAsync(root, new CollectSink(list), CancellationToken.None).GetAwaiter().GetResult();
-                    return list.Select(e => provider.GetItemRef(root, e)).ToList();
+                    var sink = new CollectSink(list);
+                    provider.EnumerateAsync(root, sink, CancellationToken.None).GetAwaiter().GetResult();
+                    if (Services.Io.IsStopped) throw new OperationCanceledException("Archive admission stopped.");
+                    return (list.Select(e => provider.GetItemRef(root, e)).ToList(), sink.Issues);
                 });
             }
+            catch (OperationCanceledException) when (Services.Io.IsStopped) { return; }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
             {
                 Notify($"\"{Path.GetFileName(archive)}\" cannot be read as {(other ? "an archive" : "a ZIP archive")}: {ex.Message}", true);
                 continue;
             }
+            if (Services.Io.IsStopped) return;
+            if (members.Count == 0)
+            {
+                Notify($"\"{Path.GetFileName(archive)}\" has no members to extract." + (warnings.Count == 0 ? "" : " " + string.Join(" ", warnings)), warnings.Count > 0);
+                continue;
+            }
+            if (warnings.Count > 0 && !await Dialogs.ConfirmAsync("Archive warnings",
+                $"\"{Path.GetFileName(archive)}\" reported these warnings:\n\n{string.Join("\n", warnings)}\n\nExtraction can only use the listed members. Extract them anyway?",
+                "Extract listed members")) continue;
+            if (Services.Io.IsStopped) return;
             var dest = r.Checked ? Path.Combine(r.Text, Path.GetFileNameWithoutExtension(archive)) : r.Text;
-            var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.Extract, Sources = members, Destination = Location.FileSystem(dest), Description = $"Unpack \"{Path.GetFileName(archive)}\" to {dest}" });
+            var job = Services.Jobs.Submit(new JobRequest { Kind = JobKind.Extract, Sources = members, Destination = Location.FileSystem(dest),
+                Description = warnings.Count == 0 ? $"Unpack \"{Path.GetFileName(archive)}\" to {dest}" : $"Extract listed members of \"{Path.GetFileName(archive)}\" to {dest}" });
             Track(job, tab);
         }
     }
 
     private sealed class CollectSink(List<EntryData> list) : IEnumerationSink
     {
+        public List<string> Issues { get; } = [];
         public void AddBatch(ReadOnlySpan<EntryData> entries)
         {
             foreach (var e in entries) list.Add(e);
         }
 
-        public void ReportIssue(string message) { }
+        public void ReportIssue(string message) => Issues.Add(message);
     }
 
     // ---- Quick view --------------------------------------------------------------------------------------------
