@@ -118,7 +118,7 @@ public static partial class Checksums
     /// <summary>One manifest line in the widely read form: GNU "hash  name" (names with a backslash or line break escaped), or SFV "name crc".</summary>
     public static string ManifestLine(ChecksumKind kind, string hash, string relativePath)
     {
-        string name = relativePath.Replace('\\', '/');
+        string name = kind == ChecksumKind.Crc32 || OperatingSystem.IsWindows() ? relativePath.Replace('\\', '/') : relativePath;
         if (kind == ChecksumKind.Crc32) return $"{name} {hash}";
         return name.Contains('\n') || name.Contains('\\') || name.Contains('\r')
             ? $"\\{hash}  {name.Replace("\\", "\\\\").Replace("\n", "\\n").Replace("\r", "\\r")}"
@@ -207,6 +207,7 @@ public static partial class ChecksumManifests
         ManifestEntry Bad(string problem) => new(number, line.Length > 120 ? line[..120] + "…" : line, null, announced ?? ChecksumKind.Sha256, "", problem);
         string name, hex;
         ChecksumKind? kind;
+        bool escapedGnuName = false;
         if (BsdLine().Match(line) is { Success: true } bsd)
         {
             kind = FromTag(bsd.Groups["tag"].Value);
@@ -220,6 +221,7 @@ public static partial class ChecksumManifests
             name = gnu.Groups["name"].Value;
             if (line.StartsWith('\\'))
             {
+                escapedGnuName = true;
                 if (Unescape(name) is not { } unescaped) return Bad("The file name has an unknown escape sequence.");
                 name = unescaped;
             }
@@ -234,15 +236,15 @@ public static partial class ChecksumManifests
         else return Bad("This line is not a checksum line.");
         if (kind is not { } k) return Bad($"A checksum with {hex.Length} digits matches no algorithm FileCat verifies.");
         if (hex.Length != Checksums.HexLength(k)) return Bad($"The checksum has {hex.Length} digits; {Checksums.Name(k)} has {Checksums.HexLength(k)}.");
-        string? problem = Resolve(root, name, out var full);
+        string? problem = Resolve(root, name, out var full, literalBackslash: escapedGnuName && !OperatingSystem.IsWindows());
         return new ManifestEntry(number, name, full, k, hex.ToLowerInvariant(), problem);
     }
 
     /// <summary>Resolves a listed name inside <paramref name="root"/>; absolute names and <c>..</c> are refused.</summary>
-    internal static string? Resolve(string root, string name, out string? full)
+    internal static string? Resolve(string root, string name, out string? full, bool literalBackslash = false)
     {
         full = null;
-        string normalized = name.Replace('\\', '/');
+        string normalized = literalBackslash ? name : name.Replace('\\', '/');
         if (normalized.Length == 0) return "The line has no file name.";
         if (normalized.StartsWith('/') || normalized.Length >= 2 && normalized[1] == ':' || System.IO.Path.IsPathRooted(normalized))
             return "Not verified: absolute paths are refused; a manifest lists files in and below its own folder.";
