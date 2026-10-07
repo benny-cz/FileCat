@@ -37,8 +37,28 @@ public static class ElevationPlanCodec
 
     public static ElevationResult ParseResult(ReadOnlySpan<byte> json)
     {
+        if (json.Length > MaxPlanBytes) throw new InvalidDataException("The result is too large.");
         try { return JsonSerializer.Deserialize<ElevationResult>(json, Options) ?? throw new InvalidDataException("The result is empty."); }
         catch (JsonException ex) { throw new InvalidDataException("The result is not valid: " + ex.Message, ex); }
+    }
+
+    /// <summary>
+    /// A report describes an ordered prefix of this plan, or an unchanged refusal. Check the whole report before
+    /// counting any step: duplicate/missing indices must never turn an unreported operation into a completed one.
+    /// This checks consistency, not authentication of the user-writable exchange.
+    /// </summary>
+    internal static bool IsValidResult(ElevationResult result, ElevationPlan plan)
+    {
+        if (result.Nonce != plan.Nonce || result.Steps is null || result.Steps.Count > plan.Steps.Count) return false;
+        if (!result.Consented) return !result.Finished && !result.Stopped && result.Steps.Count == 0;
+        if (result.Refused is not null || (result.Finished || result.Stopped) && result.Steps.Count != plan.Steps.Count) return false;
+        for (int i = 0; i < result.Steps.Count; i++)
+        {
+            var step = result.Steps[i];
+            if (step is null || step.Index != i || !Enum.IsDefined(step.Outcome) || step.Message is null ||
+                step.ItemsDone < 0 || step.ItemsFailed < 0) return false;
+        }
+        return true;
     }
 
     public static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));

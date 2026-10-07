@@ -39,10 +39,18 @@ public sealed class ElevationExchange : IDisposable
     public ElevationResult? ReadResult()
     {
         string path = Path.Combine(Directory, ResultFile);
-        if (!File.Exists(path)) return null;
-        var info = new FileInfo(path);
-        if (info.Length > ElevationPlanCodec.MaxPlanBytes) throw new InvalidDataException("The administrator helper's report is too large.");
-        return ElevationPlanCodec.ParseResult(File.ReadAllBytes(path));
+        try
+        {
+            // Size and read the same handle; sharing permits readers, but no writer can grow this file while read.
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            long length = stream.Length;
+            if (length > ElevationPlanCodec.MaxPlanBytes) throw new InvalidDataException("The administrator helper's report is too large.");
+            var bytes = new byte[(int)length];
+            stream.ReadExactly(bytes);
+            return ElevationPlanCodec.ParseResult(bytes);
+        }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
     }
 
     /// <summary>Asks the broker to stop at its next safe boundary; completed steps stay completed.</summary>

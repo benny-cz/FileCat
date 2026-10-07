@@ -42,10 +42,16 @@ internal sealed class ElevatedJobExecutor(Job job, JobJournal journal) : IJobExe
         ElevationResult? result;
         try { result = exchange.ReadResult(); }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { result = null; }
-        if (result is null || result.Nonce != plan.Nonce)
+        ApplyResult(plan, result, step);
+    }
+
+    /// <summary>Applies the latest broker report after its process has exited; no operation is retried here.</summary>
+    internal void ApplyResult(ElevationPlan plan, ElevationResult? result, int step)
+    {
+        if (result is null || !ElevationPlanCodec.IsValidResult(result, plan))
         {
-            journal.Done(step, StepOutcome.Uncertain, "no report");
-            throw new IOException("The administrator helper ended without a report, so its effect is unknown. Refresh the affected locations and review them.");
+            journal.Done(step, StepOutcome.Uncertain, "no valid report");
+            throw new IOException("The administrator helper ended without a valid report for this plan, so its effect is unknown. Refresh the affected locations and review them.");
         }
         if (!result.Consented)
         {
@@ -58,7 +64,7 @@ internal sealed class ElevatedJobExecutor(Job job, JobJournal journal) : IJobExe
         int done = 0;
         foreach (var r in result.Steps)
         {
-            string what = r.Index < plan.Steps.Count ? ElevationPlanCodec.Describe(plan.Steps[r.Index], plan.UserSid) : $"Step {r.Index + 1}";
+            string what = ElevationPlanCodec.Describe(plan.Steps[r.Index], plan.UserSid);
             switch (r.Outcome)
             {
                 case ElevatedOutcome.Committed:
@@ -76,6 +82,11 @@ internal sealed class ElevatedJobExecutor(Job job, JobJournal journal) : IJobExe
                     job.RootFailed(r.Index);
                     job.AddIssue(new JobIssue(IssueSeverity.Warning, what, r.Message, StepOutcome.CanceledBeforeChange));
                     break;
+                case ElevatedOutcome.Skipped:
+                    job.ItemSkipped();
+                    job.RootFailed(r.Index);
+                    job.AddIssue(new JobIssue(IssueSeverity.Info, what, r.Message, StepOutcome.Skipped));
+                    break;
                 default:
                     job.ItemFailed();
                     job.RootFailed(r.Index);
@@ -83,11 +94,12 @@ internal sealed class ElevatedJobExecutor(Job job, JobJournal journal) : IJobExe
                     break;
             }
         }
-        if (!result.Finished && result.Steps.Count < plan.Steps.Count && !result.Stopped)
+        bool unreported = result.Steps.Count < plan.Steps.Count;
+        if (unreported)
             job.AddIssue(new JobIssue(IssueSeverity.Error, "",
                 $"The administrator helper stopped unexpectedly after {result.Steps.Count} of {plan.Steps.Count} steps; the rest were not reported. Review the affected locations.",
                 StepOutcome.Uncertain));
-        journal.Done(step, done == plan.Steps.Count ? StepOutcome.Committed : done > 0 ? StepOutcome.PartiallyApplied : StepOutcome.Failed);
+        journal.Done(step, unreported ? StepOutcome.Uncertain : done == plan.Steps.Count ? StepOutcome.Committed : done > 0 ? StepOutcome.PartiallyApplied : StepOutcome.Failed);
         if (result.Stopped && job.IsCancellationRequested) throw new OperationCanceledException();
     }
 }
