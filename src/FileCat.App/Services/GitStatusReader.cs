@@ -232,8 +232,9 @@ internal static class GitStatusReader
         var dirs = new List<string> { gitDir };
         string commonDir = Path.Join(gitDir, "commondir");
         if (!IsLocalPath(commonDir)) return null;
-        if (File.Exists(commonDir) && new FileInfo(commonDir).Length <= 4096)
+        if (File.Exists(commonDir))
         {
+            if (new FileInfo(commonDir).Length > 4096) return null;
             string common = File.ReadAllText(commonDir).Trim();
             string full = Path.GetFullPath(Path.IsPathRooted(common) ? common : Path.Join(gitDir, common));
             if (!IsLocalPath(full)) return null;
