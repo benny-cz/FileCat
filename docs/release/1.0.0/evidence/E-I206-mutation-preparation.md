@@ -1,6 +1,6 @@
 # I206 — archive approval and link preparation
 
-**Preliminary remediation qualified at 23b77b63762520a6a951305b0a8e36f68b26ed20.** The related batch passes 159 working and canonical clean checks (142 App/17 Core), including 47 additions, without skips. Forty distinct baseline controls fail and seven are positive. Native follow-up and exact-candidate qualification remain.
+**Preliminary remediation qualified at 23b77b63762520a6a951305b0a8e36f68b26ed20.** The related batch passes 159 working and canonical clean checks (142 App/17 Core), including 47 additions, without skips. Forty distinct baseline controls fail and seven are positive. Original four-platform CI is sealed green below; exact-candidate qualification remains.
 
 | Confirmed gap | Resulting behavior |
 |---|---|
@@ -25,7 +25,7 @@ All 21 raw stages, source ZIP/Git blob/mode identities, 3056 actual payload refe
 
 ## Remaining work
 
-This closes this preliminary archive/link preparation subset of I06/V05/V15/V17. External edit-session preparation, other operation/provider admission and lifetime paths, larger workloads, native desktop and exact-candidate qualification remain. No claim is made that every mutation or parser allocation is bounded. In particular, the in-box ZIP reader can allocate its central directory before the entry limit is checked. The read-only next-batch source inventory records hypotheses, not additional reproduced findings.
+This closes this preliminary archive/link preparation subset of I06/V02/V07/V11/V12/V17/V23. External edit-session preparation, other operation/provider admission and lifetime paths, larger workloads, native desktop and exact-candidate qualification remain. No claim is made that every mutation or parser allocation is bounded. In particular, the in-box ZIP reader can allocate its central directory before the entry limit is checked. The read-only next-batch source inventory records hypotheses, not additional reproduced findings.
 
 The preceding [I205 native CI](E-I205-metadata-preparation.md#original-four-platform-follow-up--4a4f4ef) is separately sealed green on all four lanes. The physical-source validation hold, owner/resource/participant gates and explicit stable human GO remain. No candidate, tag, publication or borrowed-machine setting changes.
 
@@ -73,3 +73,32 @@ Private `FileCatReleaseEvidence/ap206-v1`:
 | working-v4/results/app.trx | 0443ebdf3b2d90a311b3f0c9469e2bc7d490a3f63a144443da0ea0d60746f682 |
 | working-v8/results/app.trx | ca4b1a3103d8491a35f022b3ce788887634cdab9344fc7f2e401cecff9ffa9c4 |
 | working-v15/results/app.trx | 5ec91c4e61c4b8c09a07dd08e119880880c87a250c745c869578a8b78b4b7a02 |
+
+## Original four-platform follow-up — a96b598
+
+Original CI 37701094259 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26, including all 188 executions of the 47 mutation additions. Every available predecessor name/outcome remains. Independent readers recheck 20 server artifact digests/every selected member, 14 full raw TRX inventories, four builder receipts and 92 actual locked restore graphs. Metadata/archive/content/directory additions pass again (188/232/468/128). Native Ubuntu dependency preparation and nine mirror/five launcher controls succeed. Packaging/draft jobs are skipped on the main push; installed GUI, hardware and candidate qualification remain.
+
+The CI source is a96b5981a3a69d817fd7e7d785edba9e5dd56116; its 796 runtime/test/eng/workflow Git identities match the locally qualified 23b77b6 product. Local and hosted producer identities remain distinct. Current campaign mappings now use the final plan's archive/local-operation/tool/lifetime scopes (V02/V07/V11/V12/V17/V23), correcting the previous V05/V15 labels; the complete prior records and rows are preserved in this batch's before snapshots.
+
+Private `FileCatReleaseEvidence/ci-37701094259-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 4516747c100cdcd6cbbc0bf2aed754ec7733cc9c7a9e534a97fd4680aaccbd01 |
+| independent-restore-ci-v1.json | 31084129177d637976210dba7da586b53ca9e19d1348ceb375e6e1f0c99a59ef |
+| independent-mutation-ci-audit-v1.json | f52d2f55333645f75ce5fe74836d771e40671dba3a053ee84ab1ec7db3d748f0 |
+| run-native-stdout | 3aeaf2b333a7fb4bad62264843f8355e6652d3696e28a475082601d1982d04c1 |
+| jobs-native-stdout | 4043aff46a51519fc7c3cd7128f9ac80a6859cdf7cecb6afde3093947da456f1 |
+| artifacts-stdout | 7530e5991d0988a16191e629c305d1ae3486a0c085aa57d837ae44e2c4ce8e55 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| File | SHA-256 |
+|---|---|
+| collect-i206-green-ci-v1.py | cec9cf2e173d5fe7f500d0e9161b3faa63335dceba80a5a34e368070792108f8 |
+
+Private `FileCatReleaseEvidence/ap206-v1`:
+
+| File | SHA-256 |
+|---|---|
+| seal-mutation-ci-v1.py | cad390481985db5980325b7d78e62612d73e5d24c692921922eb01d96ca88873 |
