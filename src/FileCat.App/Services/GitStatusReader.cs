@@ -162,8 +162,8 @@ internal static class GitStatusReader
             {
                 string dotGit = Path.Join(dir.FullName, ".git");
                 if (!IsLocalPath(dotGit)) return null;
-                if (Directory.Exists(dotGit)) return Trusted(dotGit) ? dir.FullName : null;
-                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && Trusted(linked) ? dir.FullName : null;
+                if (Directory.Exists(dotGit)) return Trusted(dotGit) && TreeIsLocal(dir.FullName) ? dir.FullName : null;
+                if (File.Exists(dotGit)) return LinkedGitDir(dotGit, dir.FullName) is { } linked && Trusted(linked) && TreeIsLocal(dir.FullName) ? dir.FullName : null;
             }
         }
         // A path a repository's files name can be unusable as a path at all (ArgumentException, NotSupportedException):
@@ -182,7 +182,7 @@ internal static class GitStatusReader
         if (SharedWith(gitDir) is not { } dirs) return false;
         foreach (string dir in dirs)
         {
-            if (!MetadataTreeIsLocal(dir)) return false;
+            if (!TreeIsLocal(dir)) return false;
             if (!IsHarmless(Path.Join(dir, "config"), gitDir) || !IsHarmless(Path.Join(dir, "config.worktree"), gitDir)) return false;
             if (!AlternateObjectDirectoriesAreLocal(Path.Join(dir, "objects"))) return false;
         }
@@ -190,17 +190,17 @@ internal static class GitStatusReader
     }
 
     /// <summary>
-    /// Git reads more metadata than the configuration files inspected above (refs, index and object packs among
-    /// them). On Windows a link anywhere in that tree can send the child to a share. Refuse stable linked metadata
+    /// Git reads both repository metadata and the worktree, including files below untracked junctions. On Windows a
+    /// link anywhere in either tree can send the child to a share. Refuse stable linked trees
     /// before launching Git, walking only ordinary directories with bounded optional-badge work. This admission
     /// snapshot does not prevent an attacker from swapping a path after the check.
     /// </summary>
-    private static bool MetadataTreeIsLocal(string gitDir)
+    private static bool TreeIsLocal(string root)
     {
         if (!OperatingSystem.IsWindows()) return true;
         const int maxEntries = 10_000, maxDepth = 64, maxPathChars = 1_048_576;
         var pending = new Stack<(string Path, int Depth)>();
-        pending.Push((gitDir, 0));
+        pending.Push((root, 0));
         long started = Stopwatch.GetTimestamp();
         int entries = 0, pathChars = 0;
         while (pending.TryPop(out var directory))
@@ -439,7 +439,11 @@ internal static class GitStatusReader
         // Ignore/attribute rule paths retain their home-relative handling and command-line overrides.
         if (relativeTo is null && text.StartsWith('~')) return true;
         if (!Path.IsPathRooted(text) && relativeTo is null) return true;
-        try { return IsLocalPath(relativeTo is null ? Path.GetFullPath(text) : Path.GetFullPath(text, relativeTo)); }
+        try
+        {
+            string full = relativeTo is null ? Path.GetFullPath(text) : Path.GetFullPath(text, relativeTo);
+            return IsLocalPath(full) && (relativeTo is null || !Directory.Exists(full) || TreeIsLocal(full));
+        }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException) { return false; }
     }
 
@@ -462,7 +466,7 @@ internal static class GitStatusReader
             if (!visited.Add(directory)) continue;
             if (visited.Count > maxDirectories || !IsLocalPath(directory)) return false;
             if (!Directory.Exists(directory)) continue; // Missing local stores cannot redirect a read.
-            if (!MetadataTreeIsLocal(directory)) return false;
+            if (!TreeIsLocal(directory)) return false;
             foreach (string name in new[] { "alternates", "http-alternates" })
             {
                 string path = Path.Join(directory, "info", name);
