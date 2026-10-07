@@ -628,6 +628,7 @@ public sealed class ViewerWindow : Window
                 ct => _reader.Refresh(ct), _closing.Token);
             if (_closing.IsCancellationRequested || !changed) return;
             _sourceGeneration++;
+            _checksumCts?.Cancel(); // A hash in progress belongs to the source revision before this refresh.
             _text.InvalidateVisual();
             _hex.InvalidateVisual();
             if (_follow.IsChecked == true)
