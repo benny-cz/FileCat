@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**186 evidence entries; none is final candidate qualification.** No candidate exists.
+**187 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -199,6 +199,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 <a id="commits-made-by-the-campaign"></a>
 | E-I173 | Completed flat-view producer releases its cancellation source | 8a57103 before; c6e13f5/cd6ba2e correction | Preliminary headless ownership controls; two baseline failures/24 affected passes; original CI sealed with eight new passes; wider/native/candidate open | [E-I173](evidence/E-I173-flat-view-source-lifetime.md) | I06, V12/V13 |
+
+| E-I174 | Current folder analysis owns progress and completion status | cd6ba2e before; 2503ab0 correction | Preliminary headless metadata/scheduler controls; two baseline failures/one positive/six affected passes; original CI pending; wider/native/candidate open | [E-I174](evidence/E-I174-analysis-current-demand.md) | I06, V12 |
 
 ## History and maintenance
 
