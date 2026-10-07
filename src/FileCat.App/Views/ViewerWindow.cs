@@ -72,6 +72,7 @@ public sealed class ViewerWindow : Window
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _checksumCts;
+    private CancellationTokenSource? _copyCts;
     private long _lastHit = -1;
     private int _lastHitLength;
     private LineIndex? _lines;
@@ -899,17 +900,39 @@ public sealed class ViewerWindow : Window
 
     private async Task CopyAsync()
     {
-        if (Clipboard is null) return;
-        if (_isHex && !_isInfo)
+        if (_closing.IsCancellationRequested || Clipboard is not { } clipboard) return;
+        _copyCts?.Cancel();
+        using var cts = _copyCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
+        bool hex = _isHex && !_isInfo;
+        try
         {
-            var bytes = await Task.Run(() => _hex.ReadSelection(1024 * 1024));
-            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, Convert.ToHexString(bytes));
-            _status.Text = $"Copied {bytes.Length:N0} bytes as hex.";
+            string text;
+            int copiedBytes = 0;
+            if (hex)
+            {
+                var (start, length) = _hex.Selection;
+                if (length == 0) length = 1;
+                var result = await Task.Run(() =>
+                {
+                    var bytes = new byte[(int)Math.Min(length, 1024 * 1024)];
+                    int n = _reader.Read(start, bytes, ct);
+                    ct.ThrowIfCancellationRequested();
+                    return (Text: Convert.ToHexString(bytes.AsSpan(0, n)), Count: n);
+                }, ct);
+                text = result.Text;
+                copiedBytes = result.Count;
+            }
+            else text = (_isInfo ? _info : _text).GetSelectedOrVisibleText();
+            if (ct.IsCancellationRequested || !ReferenceEquals(_copyCts, cts)) return;
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, text);
+            if (!ct.IsCancellationRequested && ReferenceEquals(_copyCts, cts))
+                _status.Text = hex ? $"Copied {copiedBytes:N0} bytes as hex." : "Copied text.";
         }
-        else
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        finally
         {
-            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(Clipboard, (_isInfo ? _info : _text).GetSelectedOrVisibleText());
-            _status.Text = "Copied text.";
+            if (ReferenceEquals(_copyCts, cts)) _copyCts = null;
         }
     }
 
