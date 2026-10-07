@@ -73,4 +73,31 @@ Private `FileCatReleaseEvidence/co200-v1`:
 |---|---|
 | ci-reader-path-guard-v12.json | 948eed06e06763fcb7cf87056e12706c6b5f35abcbf4f68e768177fb5d86a5ae |
 
+
+## Git fixture diagnostic follow-up
+
+The original Windows failure has no admission/process diagnostics; its historical cause remains unproven. The shared-object control now runs in a nonparallel App collection, with an explicit modified-file timestamp and native porcelain/admission preconditions. It records admission/read timing, native borrowed bytes, Modified badge, junction refusal and four unchanged input hashes. All original byte/badge/refusal assertions remain. Product runtime sources, time/worker budgets and fallback behavior are unchanged; no test retries, new skips or CI reruns were added. Isolation applies within this App test process, not the whole hosted runner.
+
+Fixture producer aa3441068e9e552ca89ad1aa860a1dfd36ded3de changes only `GitAlternateTests.cs` over the failure-record checkpoint. Working and exact clean runs each pass 286 cases with one existing unavailable-SMB-capture skip: all 176 preceding affected outcomes and 111 Git names/outcomes agree with the earlier original green inventory. The fifteen alternate cases pass. Independent v4 verifies both 1128-blob source archives/modes/exports, one fixture overlay, 282 actual payload references, 24 retained files and twenty Git/comparison case observations. Native porcelain and independent SHA-256 of known one/two bytes agree; admitted ordinary stores yield Modified, while owned junction stores are refused with recorded inputs unchanged. The prepared v1 observation reader was never executed; v2 uses explicit NUL/path-separator characters.
+
+Original [fixture-producer CI 37664869211](https://github.com/benny-cz/FileCat/actions/runs/37664869211), attempt 1 at aa34410, is pending. The original d82397d Windows failure and all four native inventories above remain unchanged. No historical-cause or candidate qualification is claimed.
+
+Private `FileCatReleaseEvidence/ga200-followup-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| GitAlternateTests-original.cs | c3f6f792deb272d8b1d626fe6077c76e0ca998f1b5a79258115d5a4717ba6ada |
+| GitAlternateTests-diagnostic-v1.cs | 49dc183d9930a1554d59109d439c0b2498309f96f4e5a61709324e693214c194 |
+| working-v2/command.json | f4274afea8d5791b2fe87bb50238df0efce55b4a6c17de8d89674db773cead8c |
+| working-v2/results/app.trx | 47272bd1d96ae95de37e665c80a3df0240a98ea9f3ef38d525f23f1584fa6e7c |
+| clean-v3/command.json | b6a025436fcb1a0d21000db7392732aab18562c811d7a5862f19c7a94e4c88e1 |
+| clean-v3/results/app.trx | 236b73d845005af76d047145357f544fe8a7908ca9e98fd20c24b82d797682cb |
+| run-git-diagnostic-working-v2.py | 239ee07a39b02964ea8af6e48b6a7934d8512302ebbfd3b22bb060fe31043c75 |
+| run-git-diagnostic-clean-v3.py | ba930797b369c8c013272a59a2cdf8240e51afe5351a80867a607a5637f13a7d |
+| independent-git-effect-observation-reader-v1.py | c4d643e5ea5de670aba72b3937025eac48730db23818efda1e0b7719073fe979 |
+| independent-git-effect-observation-reader-v2.py | 0daeb2bc5ef34057365e44e731f6333c60318e331fef65a407596ad15de45f37 |
+| seal-git-fixture-followup-v4.py | 268684718e1bfa9fc00e0bc45f45458ee7716932b963412fe377c7faa08e1a53 |
+| owned-process-absence-v4.json | 3f83d68b120106f254d837c06e0b8200f809a437f500c16e28dc91e49746ede7 |
+| independent-git-fixture-followup-v4.json | 4eaf717dd96abcd3fc687777b4ae24e6f76783ac01eff0e47a7caf17b5176859 |
+
 No native desktop/input, actual remote/archive device, human, physical/reference or candidate qualification is claimed. Physical-source/USB hold, contract freeze, candidate formation and explicit human GO/publication gates remain. No persistent machine setup or physical source changed.
