@@ -106,7 +106,13 @@ internal static class PictureWorker
             canvas.Clear(SKColors.Transparent);
             canvas.SetMatrix(Orientation(origin, outW, outH));
             using var image = SKImage.FromBitmap(decoded);
-            canvas.DrawImage(image, new SKRect(0, 0, turned ? outH : outW, turned ? outW : outH), new SKSamplingOptions(SKCubicResampler.Mitchell));
+            int targetW = turned ? outH : outW, targetH = turned ? outW : outH;
+            // Integer rotation/mirroring at the decoded size must keep each pixel, including alpha. Cubic sampling
+            // blends neighbors even at 1:1; reserve it for an actual resize after any codec-native downsampling.
+            var sampling = decodedSize.Width == targetW && decodedSize.Height == targetH
+                ? new SKSamplingOptions(SKFilterMode.Nearest)
+                : new SKSamplingOptions(SKCubicResampler.Mitchell);
+            canvas.DrawImage(image, new SKRect(0, 0, targetW, targetH), sampling);
         }
 
         var format = Encoding.ASCII.GetBytes(codec.EncodedFormat.ToString().ToUpperInvariant());
