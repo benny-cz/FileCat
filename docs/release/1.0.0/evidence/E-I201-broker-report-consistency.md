@@ -1,6 +1,6 @@
 # E-I201 — broker report consistency and uncertain effects
 
-Recorded 2026-10-07. **Preliminary remediation; exact committed controls sealed; original CI pending.**
+Recorded 2026-10-07. **Preliminary remediation; exact committed controls sealed; original CI partial sealed; Ubuntu setup timeout retained.**
 Original product: 05ba1e77ea4d31e2d260ad17096ea53d31b3bd31; corrected producer: f59343d01d9e6b6a33474700175eb446b9ff1178. Scope: I17/V06/V23 broker result consumption, V03 durable outcome truth, and I06 bounded result input.
 
 A two-step report containing two committed records for index zero was counted as two completed items and journaled Committed, while only root zero was marked completed. A report marked Finished with only the first step bypassed the unknown-effect warning. Null steps and negative indices raised runtime exceptions after report admission. A genuinely unfinished prefix emitted an uncertainty issue but durably recorded Failed or PartiallyApplied for the unreported operation. Skipped was counted as Failed. The standalone JSON parser also accepted a report beyond the existing exchange byte limit.
@@ -13,7 +13,7 @@ The parser enforces the same 32 MiB input limit. The exchange opens one reader-s
 
 Working overlay: all 54 broker/consent/platform controls pass, preserving the 23 preceding platform outcomes. Core: 49 pass and one existing explicit mounted-filesystem fixture skip (`FILECAT_TEST_MOUNT_INSIDE` unavailable). The corrected tests are byte-identical to the valid baseline tests. Independent working seal verifies 1128 canonical original blobs, all four working overlays, 314 actual payload references, 32 retained files and 64 wire/journal observations across baseline and correction.
 
-Exact committed qualification exports all 1130 raw Git blobs/modes and verifies the archive and unchanged source tree. The four committed source/test paths equal the passing working overlays. Clean f59343d passes the same 54 platform and 49 Core cases/one existing mount skip, preserving all 23 earlier platform and 50 Core names/outcomes. Independent v4 seals 446 payload references, 46 retained files and 96 raw report observations; no owned stage process remains. Original CI 37673555486 attempt 1 is running. The workflow executes Windows platform tests on x64/ARM64; its Unix lanes execute Core/Remote/App and do not run this Windows broker suite.
+Exact committed qualification exports all 1130 raw Git blobs/modes and verifies the archive and unchanged source tree. The four committed source/test paths equal the passing working overlays. Clean f59343d passes the same 54 platform and 49 Core cases/one existing mount skip, preserving all 23 earlier platform and 50 Core names/outcomes. Independent v4 seals 446 payload references, 46 retained files and 96 raw report observations; no owned stage process remains. Original CI 37673555486 attempt 1 completed: Windows x64/ARM64 and macOS passed; Ubuntu reached its 30-minute job limit before Remote/App tests. The workflow executes Windows platform tests on x64/ARM64; its Unix lanes execute Core/Remote/App and do not run this Windows broker suite.
 
 The first fixture run is retained: its journal reader did not share the live writer, and its runner mode variable was shadowed by a Git mode. Those fixture failures do not establish product defects. V2 closes the journal before inspection and uses a separate Git-mode variable. The fresh baseline then reproduces the 21 product failures. Original files, commands, stdout/stderr, TRX, source snapshots, extraction and failure guard are pinned below.
 
@@ -70,3 +70,29 @@ Private `FileCatReleaseEvidence/br201-v1`:
 | independent-broker-clean-v4.json | 042ebf946d04b8cba49e837919811b13dda1dd004be63d365ebc9ad4f1da4799 |
 
 The broader I17 limited-account, installed-helper, requester/consent/lifetime and exact-candidate matrix remains open. All 24 final-candidate campaigns, physical-source/USB hold, contract freeze, custody/signing/human GO gates remain. No persistent Mac/VM setup, physical source, release candidate or publication changed.
+
+## Original CI attempt and setup timeout
+
+Original f59343d run 37673555486 attempt 1 retains 19 selected server digests/every ZIP member and 12 available raw TRX inventories. Its two Windows lanes pass all 62 new broker executions, with 64 independently decoded wire/CRC observations; every available preceding case name/outcome is preserved. Ubuntu build/Core passed, then the combined package/keyring/test step timed out. The log has no intermediate progress and does not establish which subcommand stalled. Ubuntu Remote/App and four-platform qualification are unavailable in this run; no rerun replaced it. Later documentation producer 5957b80 has a separate green API status, not attributed to f59343d here. Current 6e9dadf CI 37681607535 also retains three passed platform jobs and an Ubuntu package-download timeout after the [I202 batch](E-I202-directory-comparison-lifetimes.md).
+
+Private `FileCatReleaseEvidence/ci-37673555486-cancelled-assets-attempt1-v1`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| independent-cancelled-broker-ci-v1.json | 88433670a79c1773ea168c50d8273cbf0fa6723dec04d7ae58bb62451336e98a |
+| independent-cancelled-broker-ci-audit-v1.json | bc69135b34c69a603c94bcf8b8f0a62bbdf9861f2d64d7a0d8b91663304ae82e |
+
+Private `FileCatReleaseEvidence/br201-v1`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| verify-cancelled-broker-ci-v1.py | 1f568cb252c0e335c586c7343020b8189093f0121e7390e5bd152b115ebdd202 |
+| ci-cancelled-capture-v1/jobs-stdout | 9dfe393697c1b4e3c2607f91f50a9516b92ab8a0d723501734b05f9ff415e5c6 |
+| ci-cancelled-capture-v1/annotations-stdout | 93bf01c07e1677c0a85db3bbf4fbdb3124fa5991dad6ee8e54113e3968047a0a |
+| ci-cancelled-capture-v1/ubuntu-log-stdout | 87094f29bf221f7ffc9d0dcfda9981930c1c930abf43dc873ceb143ddedf6166 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Selected receipt or reader | SHA-256 |
+|---|---|
+| collect-i201-cancelled-ci-v3.py | f9bb25e9099a64815929c6bde6064cf7eff1e7b6aabfc47670cab040c3e9eb3d |

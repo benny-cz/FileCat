@@ -292,6 +292,8 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 10
         run: |
+          /usr/bin/python3 eng/validation/validate-linux-ci-mirror.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls-mirror"
+          sudo -n /usr/bin/python3 eng/validation/configure-linux-ci-mirror.py --evidence-file "$RUNNER_TEMP/linux-dependency-controls-mirror/native-source-rewrite.json"
           /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
           bash eng/validation/prepare-linux-ci-dependencies.sh
       - name: Retain Linux dependency launcher controls
@@ -299,7 +301,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-dependency-launcher-controls
-          path: ${{ runner.temp }}/linux-dependency-controls
+          path: |
+            ${{ runner.temp }}/linux-dependency-controls
+            ${{ runner.temp }}/linux-dependency-controls-mirror
           if-no-files-found: error
       - if: runner.os == 'Linux'
         name: Linux Secret Service controls
