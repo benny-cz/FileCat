@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**190 evidence entries; none is final candidate qualification.** No candidate exists.
+**191 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -46,6 +46,12 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I17-S1/R1 | Consent text hid steps after the 60th; HKU hives mislabeled | parent of `33b7de2` | Static + preliminary automated | [E-I17](evidence/E-I17-consent.md) | I17 |
 | E-I17-V1…V3 | Consent fix; runtime checks of the installed helper | `33b7de2`, `5c54181` | Preliminary runtime | [E-I17](evidence/E-I17-consent.md) | I17 |
 | E-I172 | Tilde-prefixed Git worktree path admission | f502fd1 original; clean 8a57103 correction | Native/automated preliminary remediation sealed; four baseline failures, seven new passes, 89 affected cases with explicit skip; original CI sealed (twenty new passes/eight explicit skips); broader/candidate open | [E-I172](evidence/E-I172-tilde-git-worktree.md) | I172, I16, V23, V24 |
+| E-I173 | Completed flat-view producer releases its cancellation source | 8a57103 before; c6e13f5/cd6ba2e correction | Preliminary headless ownership controls; two baseline failures/24 affected passes; original CI sealed with eight new passes; wider/native/candidate open | [E-I173](evidence/E-I173-flat-view-source-lifetime.md) | I06, V12/V13 |
+| E-I174 | Current folder analysis owns progress and completion status | cd6ba2e before; 2503ab0 correction | Preliminary headless metadata/scheduler controls; two baseline failures/one positive/six affected passes; original CI sealed with twelve new passes; wider/native/candidate open | [E-I174](evidence/E-I174-analysis-current-demand.md) | I06, V12 |
+| E-I175 | Git worktree descendants and bounded automatic admission | 2503ab0 original; 6418278 correction | Preliminary complete-reader/native/original CI controls sealed; 22 new passes/ten explicit boundary skips; swaps/network/Unix/candidate open | [E-I175](evidence/E-I175-git-worktree-descendants.md) | I175, I16, V23/V24 |
+| E-I176 | Git shared commondir budget and automatic filter admission | 6418278 original; fcae763 correction | Preliminary complete-reader/native controls sealed; four baseline failures/four positives; 104 clean Git passes/one explicit capture skip; original CI sealed with 32 new passes; wider/candidate open | [E-I176](evidence/E-I176-git-shared-directory-budget.md) | I176, I16, V23/V24 |
+| E-I177 | Viewer-search current completion ownership and source cleanup | fcae763 original; 9f5f135 correction | Preliminary complete-viewer headless controls sealed; seven original failures/one positive/54 affected passes; original CI sealed with 32 new passes; wider/native/candidate open | [E-I177](evidence/E-I177-viewer-search-ownership.md) | I177, I06, V12/V13 |
+| E-I178 | Content-search cancellation at actual page boundaries | 9f5f135 original; 4f25c58 correction | Preliminary complete Core/App headless controls sealed; three original failures/three positives/46 Core and 54 App affected passes; original CI pending; wider/native/candidate open | [E-I178](evidence/E-I178-content-search-page-cancellation.md) | I178, I06, V12/V13 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
@@ -198,11 +204,6 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-X02 | Fresh Linux native suites | `ecf5349` / `cc97a8d` plus hash-bound I99 App inputs | Preliminary native | [E-X02](evidence/E-X02-fresh-linux-native.md) | S10, V19, ENV-04, I99 |
 
 <a id="commits-made-by-the-campaign"></a>
-| E-I173 | Completed flat-view producer releases its cancellation source | 8a57103 before; c6e13f5/cd6ba2e correction | Preliminary headless ownership controls; two baseline failures/24 affected passes; original CI sealed with eight new passes; wider/native/candidate open | [E-I173](evidence/E-I173-flat-view-source-lifetime.md) | I06, V12/V13 |
-| E-I174 | Current folder analysis owns progress and completion status | cd6ba2e before; 2503ab0 correction | Preliminary headless metadata/scheduler controls; two baseline failures/one positive/six affected passes; original CI sealed with twelve new passes; wider/native/candidate open | [E-I174](evidence/E-I174-analysis-current-demand.md) | I06, V12 |
-| E-I175 | Git worktree descendants and bounded automatic admission | 2503ab0 original; 6418278 correction | Preliminary complete-reader/native/original CI controls sealed; 22 new passes/ten explicit boundary skips; swaps/network/Unix/candidate open | [E-I175](evidence/E-I175-git-worktree-descendants.md) | I175, I16, V23/V24 |
-| E-I176 | Git shared commondir budget and automatic filter admission | 6418278 original; fcae763 correction | Preliminary complete-reader/native controls sealed; four baseline failures/four positives; 104 clean Git passes/one explicit capture skip; original CI sealed with 32 new passes; wider/candidate open | [E-I176](evidence/E-I176-git-shared-directory-budget.md) | I176, I16, V23/V24 |
-| E-I177 | Viewer-search current completion ownership and source cleanup | fcae763 original; 9f5f135 correction | Preliminary complete-viewer headless controls sealed; seven original failures/one positive/54 affected passes; original CI sealed with 32 new passes; wider/native/candidate open | [E-I177](evidence/E-I177-viewer-search-ownership.md) | I177, I06, V12/V13 |
 
 ## History and maintenance
 
