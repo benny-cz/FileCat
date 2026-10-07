@@ -86,25 +86,33 @@ public sealed partial class MainViewModel
         // While the search still runs, the tab follows new results at a bounded rate.
         var last = DateTime.MinValue;
         bool pending = false;
-        set.Changed += () => Services.Ui.Post(() =>
+        bool open = true;
+        Action changed = () => Services.Ui.Post(() =>
         {
-            if (pending || tab.Location?.Session != set.Id) return;
+            if (!open || pending || tab.Location?.Session != set.Id) return;
             var wait = TimeSpan.FromMilliseconds(600) - (DateTime.UtcNow - last);
             pending = true;
             _ = Task.Delay(wait > TimeSpan.Zero ? wait : TimeSpan.Zero).ContinueWith(_ => Services.Ui.Post(() =>
             {
                 pending = false;
                 last = DateTime.UtcNow;
-                if (tab.Location?.Session == set.Id) tab.Refresh();
+                if (open && tab.Location?.Session == set.Id) tab.Refresh();
             }));
         });
+        set.Changed += changed;
+        tab.Closed += () =>
+        {
+            open = false;
+            set.Changed -= changed;
+        };
         tab.Banner = set.Provenance + (running is null ? "" : " — still searching (Esc in the Find window stops it)");
-        if (running is not null) _ = WatchSearchCompletionAsync(set, tab, running);
+        if (running is not null) _ = WatchSearchCompletionAsync(set, tab, running, () => open);
     }
 
-    private async Task WatchSearchCompletionAsync(ResultSet set, TabViewModel tab, CancellationTokenSource running)
+    private async Task WatchSearchCompletionAsync(ResultSet set, TabViewModel tab, CancellationTokenSource running, Func<bool> isOpen)
     {
-        while (!running.IsCancellationRequested && !set.IsComplete && set.Issues.Count == 0) await Task.Delay(500);
+        while (isOpen() && !running.IsCancellationRequested && !set.IsComplete && set.Issues.Count == 0) await Task.Delay(500);
+        if (!isOpen()) return;
         tab.Banner = set.Provenance + (set.IsComplete ? " — complete" : " — stopped before completion") + (set.Issues.Count > 0 ? $"; {set.Issues.Count} location(s) could not be searched" : "");
     }
 
