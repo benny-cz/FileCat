@@ -529,7 +529,7 @@ public static class OperationDialogs
         body.Children.Add(save);
         var results = new List<(string Path, string Hash)>();
         var computedKind = ChecksumKind.Sha256;
-        bool computing = false;
+        bool computing = false, dialogOpen = true, computationStarted = false;
         CancellationTokenSource? cts = null;
         void Compare()
         {
@@ -564,9 +564,13 @@ public static class OperationDialogs
         }
         async Task Compute()
         {
+            if (!dialogOpen) return;
+            computationStarted = true;
             cts?.Cancel();
-            cts = new CancellationTokenSource();
-            var token = cts.Token;
+            var demand = new CancellationTokenSource();
+            cts = demand;
+            var token = demand.Token;
+            bool Current() => dialogOpen && ReferenceEquals(cts, demand) && !token.IsCancellationRequested;
             save.IsEnabled = false;
             results.Clear();
             progress.IsVisible = true;
@@ -587,13 +591,14 @@ public static class OperationDialogs
                         string value = Checksums.Compute(f, kind, token, n =>
                         {
                             long now = Interlocked.Add(ref done, n);
-                            Dispatcher.UIThread.Post(() => progress.Value = total > 0 ? 100.0 * now / total : 0);
+                            Dispatcher.UIThread.Post(() => { if (Current()) progress.Value = total > 0 ? 100.0 * now / total : 0; });
                         });
+                        token.ThrowIfCancellationRequested();
                         // Kept for the checks beside files (D-57): a checksum file added later need not read it again.
                         if (before is { } stamp) Core.Verification.VerificationService.Current?.Remember(f, stamp, new Dictionary<ChecksumKind, string> { [kind] = value });
                         return value;
                     }, token);
-                    if (token.IsCancellationRequested) return;
+                    if (!Current()) return;
                     results.Add((f, hash));
                     lines.Add($"{hash}  {Path.GetFileName(f)}");
                     output.Text = string.Join(Environment.NewLine, lines);
@@ -604,16 +609,18 @@ public static class OperationDialogs
             catch (OperationCanceledException) { }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                output.Text += Environment.NewLine + "Error: " + ErrorText.Describe(ex);
+                if (Current()) output.Text += Environment.NewLine + "Error: " + ErrorText.Describe(ex);
             }
             finally
             {
-                if (!token.IsCancellationRequested)
+                if (Current())
                 {
                     computing = false;
                     progress.IsVisible = false;
                     Compare();
                 }
+                if (ReferenceEquals(cts, demand)) cts = null;
+                demand.Dispose();
             }
         }
         save.Click += async (_, _) => await SaveManifestAsync(vm, computedKind, results.ToList());
@@ -635,10 +642,18 @@ public static class OperationDialogs
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException) { }
         }
-        if (cts is null) _ = Compute(); // unless a pasted value of another length started it
-        var r = await vm.Dialogs.ShowCustomAsync($"Checksums of {Formatters.Plural(files.Count, "file", "files")}", body,
-            [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
-        cts?.Cancel();
+        if (!computationStarted) _ = Compute(); // unless a pasted value of another length started it
+        object? r;
+        try
+        {
+            r = await vm.Dialogs.ShowCustomAsync($"Checksums of {Formatters.Plural(files.Count, "file", "files")}", body,
+                [new DialogButton("Copy", "copy"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+        }
+        finally
+        {
+            dialogOpen = false;
+            cts?.Cancel();
+        }
         if (r as string == "copy" && output.Text is { Length: > 0 } text) vm.CopyTextToClipboard(text);
     }
 
