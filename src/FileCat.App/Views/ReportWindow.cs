@@ -32,6 +32,7 @@ public sealed class ReportWindow : Window
     private readonly TextBlock _status = new() { Classes = { "small" }, VerticalAlignment = VerticalAlignment.Center, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
     private readonly CancellationTokenSource _closing = new();
     private CancellationTokenSource? _reading;
+    private CancellationTokenSource? _searching;
     private PagedReader? _reader;
     private string _text = "";
     private long _lastHit = -1;
@@ -104,6 +105,7 @@ public sealed class ReportWindow : Window
             ThemeManager.ThemeChanged -= OnThemeChanged;
             _closing.Cancel();
             _reading?.Cancel();
+            _searching?.Cancel();
             _reader?.Dispose();
         };
     }
@@ -127,6 +129,7 @@ public sealed class ReportWindow : Window
     {
         if (_closing.IsCancellationRequested) return;
         _reading?.Cancel();
+        _searching?.Cancel();
         using var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
         var ct = cts.Token;
         _refresh.IsEnabled = false;
@@ -167,6 +170,7 @@ public sealed class ReportWindow : Window
 
     private void Show(string text)
     {
+        _searching?.Cancel();
         _text = text;
         var old = _reader;
         _reader = new PagedReader(new MemoryContentSource("Report", Encoding.UTF8.GetBytes(text)));
@@ -230,37 +234,53 @@ public sealed class ReportWindow : Window
 
     private async Task FindAsync(bool forward)
     {
+        _searching?.Cancel();
+        if (_closing.IsCancellationRequested) return;
         string pattern = _search.Text ?? "";
         if (pattern.Length == 0 || _reader is not { } reader)
         {
             _search.Focus();
             return;
         }
+        using var cts = _searching = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
         var encoding = new UTF8Encoding(false);
         bool matchCase = _matchCase.IsChecked == true;
         long from = _lastHit >= 0 ? (forward ? _lastHit + Math.Max(1, _lastHitLength) : _lastHit) : _view.TopOffset;
-        long found = await Task.Run(() =>
+        try
         {
-            if (forward) return ContentSearch.FindText(reader, encoding, from, pattern, matchCase, _closing.Token);
-            long last = -1, at = 0;
-            while (true)
+            long found = await Task.Run(() =>
             {
-                long hit = ContentSearch.FindText(reader, encoding, at, pattern, matchCase, _closing.Token);
-                if (hit < 0 || hit >= from) return last;
-                last = hit;
-                at = hit + 1;
+                if (forward) return ContentSearch.FindText(reader, encoding, from, pattern, matchCase, ct);
+                long last = -1, at = 0;
+                while (true)
+                {
+                    long hit = ContentSearch.FindText(reader, encoding, at, pattern, matchCase, ct);
+                    if (hit < 0 || hit >= from) return last;
+                    last = hit;
+                    at = hit + 1;
+                }
+            }, ct);
+            if (ct.IsCancellationRequested || _closing.IsCancellationRequested || !ReferenceEquals(_searching, cts) || !ReferenceEquals(_reader, reader)) return;
+            if (found < 0)
+            {
+                _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this place.";
+                return;
             }
-        });
-        if (found < 0)
-        {
-            _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this place.";
-            return;
+            _lastHit = found;
+            _lastHitLength = encoding.GetByteCount(pattern);
+            _view.SetHighlight(pattern, matchCase);
+            _view.ScrollToOffset(found);
+            UpdateStatus();
         }
-        _lastHit = found;
-        _lastHitLength = encoding.GetByteCount(pattern);
-        _view.SetHighlight(pattern, matchCase);
-        _view.ScrollToOffset(found);
-        UpdateStatus();
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // A newer search, refresh, or closure owns the report now.
+        }
+        finally
+        {
+            if (ReferenceEquals(_searching, cts)) _searching = null;
+        }
     }
 
     private async Task CopyAsync(bool all)
