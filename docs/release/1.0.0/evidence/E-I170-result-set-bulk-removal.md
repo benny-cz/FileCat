@@ -28,7 +28,36 @@ Working and fresh committed runs each pass all 29 affected Core cases without sk
 
 The clean locked SDK 10.0.401 run exports and verifies all 1,063 canonical Git blobs from 22c263d before/after execution, including archive bytes, Git SHA-1 and modes. Actual clean `FileCat.Core.dll` SHA-256: c7259115da887725f0baaddce2bcee90a730e7450c08bc1f085f0f90ec51cb14. The probe binary/config/dependencies remain byte-identical across measured payloads except the exact corrected Core image and its symbols. Windows .NET runtime 10.0.12 is recorded; these are finite development payloads, not selected release artifacts.
 
-Original [CI 37548599663 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37548599663) at 22c263d is pending at the local seal. Its hosted correctness cases will be recorded after original inventories/artifacts are retrieved and verified; hosted performance acceptance is not claimed.
+Original [CI 37548599663 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/37548599663) at 22c263d subsequently completes green on policy/all four required lanes, ARM64 package start/draw and installer compilation. Nineteen server digests/all archive members, fourteen full raw TRX inventories, four tool/compiler receipts and 92 locked graphs reconcile. All sixteen new I170 correctness executions pass without skips. Full Core names equal the preceding original CI inventory plus exactly four new controls:
+
+| Lane | Complete Core inventory | Actual outcomes |
+|---|---|---|
+| app-test-results-macos-26 | 879 | 43 NotExecuted, 836 Passed |
+| app-test-results-ubuntu-24.04 | 879 | 42 NotExecuted, 837 Passed |
+| test-results-windows | 884 | 57 NotExecuted, 827 Passed |
+| test-results-windows-arm64 | 884 | 57 NotExecuted, 827 Passed |
+
+Each App lane retains all 469 cases. I163–I169 subsets repeat at this producer with their own exact controls and explicit Unix junction skips. No hosted performance, native desktop, exclusive-reference or candidate qualification is inferred. Tag/manual packages remain skipped; no selected release artifact or stable publication is produced.
+
+Private `FileCatReleaseEvidence/ci-37548599663-assets-attempt1-v1`:
+
+| Path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 0a804385339f2c462e54953a38ce0a664c73608269943db5c46b78aa089eb57a |
+| independent-fixture-ci-v1.json | 038d7af48f0fd9f89755fe9319994f08af04684a12481490fa5222019e1c072e |
+| independent-producer-policy-ci-v1.json | 492ecc17515afb0cf5c20dd041fb3c4f6bfa0a7e7dbee5514e83eb4d07624ed9 |
+| independent-draft-guard-ci-v1.json | e322236a9f89b66fd732cd31d0b3dc9817d45862f940433dea7586132bbe5c9d |
+| independent-separation-ci-v1.json | 9aa501e71927439ad3a34813191e1edaf7f524a8b9006c7514429f21cd78adff |
+| independent-restore-ci-v1.json | f0baf426856e3d440d8fb1053cf31d499592005a6d9a5aebf4f28fd22a1dc13b |
+| independent-i163-ci-cases-v1.json | d24398013af2aee0a008e95860b49c1acc41766dbea5416cc19cda25dffea15c |
+| independent-i164-ci-cases-v1.json | 1e0b3973f7e8f1925b44516426fce0499473d1ccbc4c546c8c238527d5a9bc62 |
+| independent-i165-ci-cases-v1.json | a9cfa9a8adadb4c2d39a1cc087f276807dd209320792df3b0ce5022094e81ee3 |
+| independent-i166-ci-cases-v1.json | bd2c0a25224641318fa9e52319e528393a816aef485015cf964916e218e644b8 |
+| independent-i167-ci-cases-v1.json | 74e8ae55df49b4daf7f9e35b1c82d34efface6492eecf5f484fdce457d120da6 |
+| independent-i168-ci-cases-v1.json | cf638ee2a00be884df391e7f820f3843d2c9a66dddebc256970ecf34ab66d7cd |
+| independent-i169-ci-cases-v1.json | 764781f97e797e697d2004ad84f326d426f4a06949103851328a28f20d07b36f |
+| independent-i170-ci-cases-v1.json | ea1a18303fc9b7c5763e8e258271b77ca2aa2cea315ac2aabf49eed063d8fd46 |
+
 
 The first payload-copy preflight stopped before probe compilation on an assumption that all 82 inputs were flat. The corrected copy preserves subdirectories and verifies existing bytes; its first successful compiled probe is unchanged throughout the measurements. The first SSH push timed out; the bounded retry succeeded. Existing unrelated compiler warnings remain. No physical source, persistent machine setting, frozen contract, candidate or stable publication changed. Broader I06 materialized memory/consumer lifetimes, V13/native interaction and V16 reference acceptance remain open.
 
