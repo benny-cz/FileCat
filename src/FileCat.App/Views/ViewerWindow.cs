@@ -696,6 +696,7 @@ public sealed class ViewerWindow : Window
 
     private async Task FindAsync(bool forward)
     {
+        if (_closing.IsCancellationRequested) return;
         var pattern = _search.Text ?? string.Empty;
         if (pattern.Length == 0)
         {
@@ -703,7 +704,7 @@ public sealed class ViewerWindow : Window
             return;
         }
         _searchCts?.Cancel();
-        var cts = _searchCts = new CancellationTokenSource();
+        _searchCts = null;
         // In Info mode Find searches the report, as text.
         bool info = _isInfo && _infoReader is not null;
         var reader = info ? _infoReader! : _reader;
@@ -718,6 +719,8 @@ public sealed class ViewerWindow : Window
         }
         var enc = info ? new UTF8Encoding(false) : _text.Encoding;
         bool matchCase = _matchCase.IsChecked == true;
+        using var cts = _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
         _status.Text = "Searching…";
         long found;
         try
@@ -725,46 +728,52 @@ public sealed class ViewerWindow : Window
             found = await Task.Run(() =>
             {
                 if (bytes is not null)
-                    return forward ? ContentSearch.FindBytes(reader, from, bytes, cts.Token) : ContentSearch.FindBytesBackward(reader, from, bytes, cts.Token);
+                    return forward ? ContentSearch.FindBytes(reader, from, bytes, ct) : ContentSearch.FindBytesBackward(reader, from, bytes, ct);
                 if (!forward)
                 {
                     // Backward text search: search forward from a window before the position and keep the last hit.
                     long start = Math.Max(0, from - 4 * 1024 * 1024), last = -1, p = start;
                     while (true)
                     {
-                        long hit = ContentSearch.FindText(reader, enc, p, pattern, matchCase, cts.Token);
+                        long hit = ContentSearch.FindText(reader, enc, p, pattern, matchCase, ct);
                         if (hit < 0 || hit >= from) break;
                         last = hit;
                         p = hit + 1;
                     }
                     return last;
                 }
-                return ContentSearch.FindText(reader, enc, from, pattern, matchCase, cts.Token);
-            }, cts.Token);
+                return ContentSearch.FindText(reader, enc, from, pattern, matchCase, ct);
+            }, ct);
+            if (_closing.IsCancellationRequested || !ReferenceEquals(_searchCts, cts)) return;
+            ct.ThrowIfCancellationRequested();
+            if (found < 0)
+            {
+                _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.";
+                return;
+            }
+            _lastHit = found;
+            _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
+            view.SetHighlight(bytes is null ? pattern : null, matchCase);
+            if (info)
+            {
+                _info.ScrollToOffset(found);
+                UpdateStatus();
+                return;
+            }
+            if (_isHex) _hex.GoTo(found, select: true, _lastHitLength);
+            else _text.ScrollToOffset(found);
+            _hex.GoTo(found, select: true, _lastHitLength);
+            UpdateStatus();
         }
         catch (OperationCanceledException)
         {
-            _status.Text = "Search canceled.";
-            return;
+            if (!_closing.IsCancellationRequested && ReferenceEquals(_searchCts, cts))
+                _status.Text = "Search canceled.";
         }
-        if (found < 0)
+        finally
         {
-            _status.Text = $"\"{pattern}\" was not found {(forward ? "after" : "before")} this position.";
-            return;
+            if (ReferenceEquals(_searchCts, cts)) _searchCts = null;
         }
-        _lastHit = found;
-        _lastHitLength = bytes?.Length ?? Math.Max(1, enc.GetByteCount(pattern));
-        view.SetHighlight(bytes is null ? pattern : null, matchCase);
-        if (info)
-        {
-            _info.ScrollToOffset(found);
-            UpdateStatus();
-            return;
-        }
-        if (_isHex) _hex.GoTo(found, select: true, _lastHitLength);
-        else _text.ScrollToOffset(found);
-        _hex.GoTo(found, select: true, _lastHitLength);
-        UpdateStatus();
     }
 
     private async Task GoToAsync()
