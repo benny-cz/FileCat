@@ -141,23 +141,59 @@ public static class DirectoryCompare
         return sizeOpen || timeOpen ? null : true;
     }
 
-    /// <summary>Streams two contents and compares bytes; null when either cannot be read.</summary>
+    /// <summary>Streams two contents; null for unavailable bytes, inconsistent reads or changed revision evidence.</summary>
     public static bool? ContentEqual(IContentSource a, IContentSource b, CancellationToken ct)
-        => ContentEqualAsync(() => Task.FromResult(a.Length), () => Task.FromResult(b.Length),
+        => ContentEqualAsync(() => Task.FromResult(ReadState(a, ct)), () => Task.FromResult(ReadState(b, ct)),
             (offset, buffer, start) => Task.FromResult(a.Read(offset, buffer.AsSpan(start))),
             (offset, buffer, start) => Task.FromResult(b.Read(offset, buffer.AsSpan(start))), ct).GetAwaiter().GetResult();
 
-    internal static async Task<bool?> ContentEqualAsync(Func<Task<long>> leftLength, Func<Task<long>> rightLength,
+    internal readonly record struct ContentState(long Length, ContentRevision? Revision, bool Unavailable)
+    {
+        public bool Consistent => Revision is not { } revision || Length < 0 || revision.Length == Length;
+    }
+
+    internal static ContentState ReadState(IContentSource source, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        long length = source.Length;
+        ct.ThrowIfCancellationRequested();
+        var revision = source.GetRevision();
+        ct.ThrowIfCancellationRequested();
+        bool unavailable = false;
+        if (source is IPartialContent partial)
+        {
+            unavailable = partial.MissingRanges.Count > 0;
+            ct.ThrowIfCancellationRequested();
+            if (!unavailable) unavailable = partial.Caveat is not null;
+            ct.ThrowIfCancellationRequested();
+        }
+        return new(length, revision, unavailable);
+    }
+
+    internal static async Task<bool?> ContentEqualAsync(Func<Task<ContentState>> leftState, Func<Task<ContentState>> rightState,
         Func<long, byte[], int, Task<int>> leftRead, Func<long, byte[], int, Task<int>> rightRead, CancellationToken ct)
     {
         try
         {
             ct.ThrowIfCancellationRequested();
-            long aLength = await leftLength().ConfigureAwait(false);
+            var a = await leftState().ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            long bLength = await rightLength().ConfigureAwait(false);
+            var b = await rightState().ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            if (aLength >= 0 && bLength >= 0 && aLength != bLength) return false;
+            if (a.Unavailable || b.Unavailable || !a.Consistent || !b.Consistent) return null;
+
+            async Task<bool?> Finish(bool result)
+            {
+                ct.ThrowIfCancellationRequested();
+                var afterA = await leftState().ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                var afterB = await rightState().ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                // Null revisions are supported, but gaining or losing evidence during a read is not stability.
+                return afterA == a && afterB == b ? result : null;
+            }
+
+            if (a.Length >= 0 && b.Length >= 0 && a.Length != b.Length) return await Finish(false).ConfigureAwait(false);
             var ba = new byte[1 << 20];
             var bb = new byte[1 << 20];
             long offset = 0;
@@ -167,9 +203,13 @@ public static class DirectoryCompare
                 int na = await ReadFull(leftRead, offset, ba, ct).ConfigureAwait(false);
                 int nb = await ReadFull(rightRead, offset, bb, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
-                if (na != nb) return false;
-                if (na == 0) return true;
-                if (!ba.AsSpan(0, na).SequenceEqual(bb.AsSpan(0, nb))) return false;
+                // A known length is a promise: an early ending or bytes past it are unavailable content, not a difference.
+                static bool BadEnd(long length, long offset, int count, int capacity)
+                    => length >= 0 && (offset > length || count > length - offset || count < capacity && offset + count != length);
+                if (BadEnd(a.Length, offset, na, ba.Length) || BadEnd(b.Length, offset, nb, bb.Length)) return null;
+                if (na != nb) return await Finish(false).ConfigureAwait(false);
+                if (na == 0) return await Finish(true).ConfigureAwait(false);
+                if (!ba.AsSpan(0, na).SequenceEqual(bb.AsSpan(0, nb))) return await Finish(false).ConfigureAwait(false);
                 offset += na;
             }
         }
@@ -186,7 +226,8 @@ public static class DirectoryCompare
         {
             ct.ThrowIfCancellationRequested();
             int n = await read(offset + total, buffer, total).ConfigureAwait(false);
-            if (n <= 0) break;
+            if (n < 0 || n > buffer.Length - total) throw new InvalidDataException("Content returned an invalid byte count.");
+            if (n == 0) break;
             total += n;
         }
         return total;

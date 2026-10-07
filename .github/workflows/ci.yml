@@ -293,7 +293,7 @@ jobs:
         timeout-minutes: 10
         run: |
           /usr/bin/python3 eng/validation/validate-linux-ci-mirror.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls-mirror"
-          sudo -n /usr/bin/python3 eng/validation/configure-linux-ci-mirror.py --evidence-file "$RUNNER_TEMP/linux-dependency-controls-mirror/native-source-rewrite.json"
+          sudo -n env GITHUB_ACTIONS="$GITHUB_ACTIONS" /usr/bin/python3 eng/validation/configure-linux-ci-mirror.py --evidence-file "$RUNNER_TEMP/linux-dependency-controls-mirror/native-source-rewrite.json"
           /usr/bin/python3 eng/validation/validate-linux-ci-dependencies.py --evidence-dir "$RUNNER_TEMP/linux-dependency-controls"
           bash eng/validation/prepare-linux-ci-dependencies.sh
       - name: Retain Linux dependency launcher controls

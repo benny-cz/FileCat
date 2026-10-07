@@ -160,7 +160,7 @@ public static class TreeCompare
                         using var b = rp.OpenContent(rp.GetItemRef(r, re));
                         equal = a is null || b is null ? null : DirectoryCompare.ContentEqual(a, b, ct);
                     }
-                    if (equal is null) return new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, "The content could not be read");
+                    if (equal is null) return new TreeDiffEntry(path, TreeDiffKind.Unknown, le, re, "The content could not be read completely or its revision changed");
                     contentDiffers = !equal.Value;
                     if (equal.Value) sizeOpen = false; // the same content is the same size
                 }

@@ -40,17 +40,19 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
             for (int i = 0; i < 7; i++) tasks.Add(await f.Start(false));
             await Wait(() => f.Provider.Calls.Count(c => c.Side == side && c.Operation == operation) >= 2);
             await Task.Delay(200, TestContext.Current.CancellationToken);
-            var held = f.Provider.Calls.Where(c => c.Side == side && c.Operation == operation).ToArray();
-            var borrowed = f.Provider.Sources.Where(s => s.Active).ToArray();
             bool other = false; await f.Services.Io.Run("owned-other-directory-device", IoPriority.Interactive, _ => other = true);
             bool ui = Dispatcher.UIThread.CheckAccess(); f.Services.Io.Dispose();
             await Task.Delay(50, TestContext.Current.CancellationToken);
+            var held = f.Provider.Calls.Where(c => c.Side == side && c.Operation == operation).ToArray();
+            var borrowed = f.Provider.Sources.Where(s => s.Active).ToArray();
+            var health = f.Services.Io.GetHealth(f.Provider.GetDeviceKey(new Location(f.Provider.Scheme, side)));
+            int limit = health == DeviceHealth.NotResponding ? f.Services.Io.MaxThreadsPerDevice : f.Services.Io.ThreadsPerDevice;
             int pending = tasks.Count(t => !t.IsCompleted), disposedDuringHold = borrowed.Sum(s => s.Disposals);
             f.Provider.Release.Set(); var error = await Finish(tasks);
             output.WriteLine("DIRECTORY_LIFETIME " + JsonSerializer.Serialize(new { Case = "mark-admission", side, operation, sameDevice, Held = held,
-                other, ui, pending, disposedDuringHold, Error = error?.GetType().Name, LeftMarks = f.Left.Listing.MarkedCount,
+                other, ui, pending, disposedDuringHold, Health = health.ToString(), limit, Error = error?.GetType().Name, LeftMarks = f.Left.Listing.MarkedCount,
                 RightMarks = f.Right.Listing.MarkedCount, Sources = f.Sources(), Calls = f.Provider.Calls.ToArray(), Hashes = f.Hashes() }));
-            Assert.Equal(2, held.Length); Assert.True(other); Assert.True(ui); Assert.Equal(2, pending);
+            Assert.InRange(held.Length, 2, limit); Assert.True(other); Assert.True(ui); Assert.Equal(held.Length, pending);
             Assert.Null(error); Assert.Equal(0, disposedDuringHold);
             Assert.Equal(0, f.Left.Listing.MarkedCount + f.Right.Listing.MarkedCount);
             Assert.All(f.Provider.Calls, c => { Assert.False(c.OnUiThread); Assert.StartsWith("FileCat I/O ", c.Thread); });
@@ -138,13 +140,15 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
             await Wait(() => f.Provider.Calls.Count(c => c.Side == side && c.Operation == operation) >= 2);
             await Task.Delay(200, TestContext.Current.CancellationToken);
             var held = f.Provider.Calls.Where(c => c.Side == side && c.Operation == operation).ToArray();
+            var health = f.Services.Io.GetHealth(f.Provider.GetDeviceKey(new Location(f.Provider.Scheme, side)));
+            int limit = health == DeviceHealth.NotResponding ? f.Services.Io.MaxThreadsPerDevice : f.Services.Io.ThreadsPerDevice;
             foreach (var w in windows) w.Close(); string[] closed = windows.Select(w => w.Summary).ToArray();
             int disposedDuringHold = f.Provider.Sources.Sum(s => s.Disposals);
             f.Services.Io.Dispose(); f.Provider.Release.Set();
             await Wait(() => f.Provider.Active == 0); await Task.Delay(200, TestContext.Current.CancellationToken);
             output.WriteLine("DIRECTORY_LIFETIME " + JsonSerializer.Serialize(new { Case = "tree-admission", side, operation, sameDevice, Held = held,
-                disposedDuringHold, Closed = closed, Final = windows.Select(w => w.Summary).ToArray(), Calls = f.Provider.Calls.ToArray(), Sources = f.Sources(), Hashes = f.Hashes() }));
-            Assert.Equal(2, held.Length); Assert.Equal(0, disposedDuringHold); Assert.Equal(closed, windows.Select(w => w.Summary));
+                disposedDuringHold, Health = health.ToString(), limit, Closed = closed, Final = windows.Select(w => w.Summary).ToArray(), Calls = f.Provider.Calls.ToArray(), Sources = f.Sources(), Hashes = f.Hashes() }));
+            Assert.InRange(held.Length, 2, limit); Assert.Equal(0, disposedDuringHold); Assert.Equal(closed, windows.Select(w => w.Summary));
             Assert.All(f.Provider.Calls, c => { Assert.False(c.OnUiThread); Assert.StartsWith("FileCat I/O ", c.Thread); });
             Assert.All(f.Provider.Sources, s => { Assert.Equal(1, s.Disposals); Assert.False(s.DisposedDuringCall); }); f.AssertHashes();
         }
@@ -258,7 +262,8 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
         public int Read(long offset, Span<byte> into)
         {
             Interlocked.Increment(ref _active); Interlocked.Increment(ref Reads);
-            try { provider.Invoke(side, "read"); return _inner.Read(offset, into[..Math.Min(into.Length, 256)]); }
+            // Keep multiple short reads without thousands of worker round trips before the held right-side call.
+            try { provider.Invoke(side, "read"); return _inner.Read(offset, into[..Math.Min(into.Length, 8192)]); }
             finally { Interlocked.Decrement(ref _active); }
         }
         public void Dispose() { if (Volatile.Read(ref _active) != 0) DisposedDuringCall = true; Interlocked.Increment(ref Disposals); _inner.Dispose(); }

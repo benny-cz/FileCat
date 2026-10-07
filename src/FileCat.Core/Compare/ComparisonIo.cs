@@ -43,8 +43,8 @@ public sealed class ComparisonIo(DeviceIoScheduler io, ProviderRegistry provider
         if (a is null) return null;
         using var b = await Open(rp, right, ct).ConfigureAwait(false);
         if (b is null) return null;
-        return await DirectoryCompare.ContentEqualAsync(() => Run(lp, left.Parent, ct, () => a.Length),
-            () => Run(rp, right.Parent, ct, () => b.Length),
+        return await DirectoryCompare.ContentEqualAsync(() => Run(lp, left.Parent, ct, () => DirectoryCompare.ReadState(a, ct)),
+            () => Run(rp, right.Parent, ct, () => DirectoryCompare.ReadState(b, ct)),
             (offset, buffer, start) => Run(lp, left.Parent, ct, () => a.Read(offset, buffer.AsSpan(start))),
             (offset, buffer, start) => Run(rp, right.Parent, ct, () => b.Read(offset, buffer.AsSpan(start))), ct).ConfigureAwait(false);
     }
