@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**204 evidence entries; none is final candidate qualification.** No candidate exists.
+**205 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -27,6 +27,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I03-INNO | Pinned compiler, exact license and installer recipe/output receipts | 472f7d0/9b0415e/0646053 | Preliminary tool/recipe validation; inert recipe payload explicitly identified | [E-I03-INNO](evidence/E-I03-INNO-pinned-compiler.md) | I03, I18, V19/V20 |
 | E-I03-INVENTORY | Reject failed or inconsistent package inventories | 145f569 before; 1d6d53f/CI 37487426601/37487590559 | Preliminary correction sealed; full SBOM/candidate open | [E-I03-INVENTORY](evidence/E-I03-INVENTORY-failure-gate.md) | I03, I18, V20 |
 | E-I03-LOADED | Actual executable file mappings and native dependency origins in Linux QuickView | Exact 6215329 Linux payload; ordinary Ubuntu 26.04.1 run | Finite native component observation; 69 file snapshots/35 OS origins/eight NuGet matches; worker/full desktop/static/legal/SBOM/candidate open | [E-I03-LOADED](evidence/E-I03-LOADED-linux-component-images.md) | I03, V20 |
+| E-I03-MAC | Actual ordinary-user Mac picture-worker mapped files and exact package origins | Exact 3b84bc1 development payload; arm64 Mac | Finite native worker observation; 29 copies/494 unavailable paths, 23 declared slices, four exact NuGet members; full composition/containment/legal/candidate open | [E-I03-MAC](evidence/E-I03-MAC-picture-worker-images.md) | I03, I06 fidelity follow-up, I08, V10, V20 |
 | E-I03-WORKER | Actual Windows picture-worker module files and exact package origins | Exact f502fd1 App payload; real low-integrity decoder on Windows host | Finite native worker observation; 46 file snapshots/two PE readers/four exact members; full load/static/legal/signature/SBOM/candidate open | [E-I03-WORKER](evidence/E-I03-WORKER-windows-picture-images.md) | I03, I08, V10, V20 |
 | E-I03-NATIVE | Native compiler input receipts and actual linked-symbol maps | 573ed2c; CI 37443418957 | Preliminary partial provenance; resource inputs/licenses/hosted input bytes/candidate open | [E-I03-NATIVE](evidence/E-I03-NATIVE-compiler-inputs.md) | I03, I18, V20 |
 | E-I03-NOTICES | Pinned full notice texts and package consistency checks | 145f569; CI 37482955415/37483079672 attempt 1 | Preliminary exact-source packaging sealed; full legal/native/SBOM/candidate open | [E-I03-NOTICES](evidence/E-I03-NOTICES-pinned-full-texts.md) | I03, I10, I14, V20 |
