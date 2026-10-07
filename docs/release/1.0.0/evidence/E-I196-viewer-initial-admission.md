@@ -13,7 +13,9 @@ Nine new controls add shutdown while either metadata call is held and rejection 
 
 The first working build has a retained CS0103 fixture-edit error: a queue assertion was mistakenly inserted into QuickView. Its one coverage mapping exists, while no test DLL/TRX was produced. Fresh v4 corrects it. Two independent-reader mistakes (missing zipfile import; expecting zero files instead of the actual one mapping after that failed build) remain with source and tool-reported metadata; neither changed or reran source/build/test results. Fresh v9 verifies original 1117 and clean 1119 canonical Git blobs/modes/archive members, seven changed product/test paths from discovery, four exact overlay/export stages, 424 payload references (423 successful/baseline executable-stage entries plus the failed build's one mapping), sixty retained private files and 25 raw admission/input/thread/ownership observations. Its process query finds no owned stage executable.
 
-Original [producer CI 37638630916](https://github.com/benny-cz/FileCat/actions/runs/37638630916), attempt 1 at 7a86b40, is pending. Local evidence does not qualify that run or any native desktop/input/human/reference, remote/removable hardware, aggregate containment or exact candidate. Physical-source/USB hold, contract/freeze, candidate and explicit GO/publication gates remain unchanged. No persistent machine setup was changed.
+Original [producer CI 37638630916](https://github.com/benny-cz/FileCat/actions/runs/37638630916), attempt 1 at 7a86b40, is sealed green on all four required lanes. Full 620-case App inventories retain every preceding 611 name/outcome/skip plus nine; all 36 additions pass without skips. App results are 603 Passed/17 NotExecuted on each Windows lane, 534/86 on Ubuntu and 536/84 on Mac. All Core/Remote/Platform names/outcomes/skips remain. The independent reader verifies nineteen selected official server digests/every member, fourteen raw inventories, four compiler receipts, 92 actual locked graphs and seven current CI seals; all 36 initial-metadata/input/thread/source-ownership observations are reconstructed. Producer reference policy passes; package/draft jobs are skipped. No original run was rerun or substituted.
+
+Local/component/hosted evidence does not qualify native desktop/input/human/reference, remote/removable hardware, aggregate containment or an exact candidate. Physical-source/USB hold, contract/freeze, candidate and explicit GO/publication gates remain unchanged. No persistent machine setup was changed.
 
 Private `FileCatReleaseEvidence/va196-v1`:
 
@@ -34,3 +36,23 @@ Private `FileCatReleaseEvidence/va196-v1`:
 | seal-reader-import-guard-v8.json | 3012626ab367e65c9beec33d5099bbcf81e2665070f9fae35d05f05992528af7 |
 | seal-reader-partial-payload-guard-v9.json | 3e69d29122911ab7551d7895027c94c2a95b2a8b04b9d61ee30882aa4d5db377 |
 | global-reader-generation-guard-v11.json | 671ed5c60216c3563494504dadb09cb7233bceb3b3bfdb5df6a8c562cf8798de |
+
+Private `FileCatReleaseEvidence/ci-37638630916-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 129210234e0b4296c71c5e5c2b45028b11e52271670953a10052b8dde4d3f915 |
+| independent-draft-guard-ci-v1.json | e49ab59518f0020a6555c048cff35c0c0543cb09151859c19959ccd546ca261b |
+| independent-fixture-ci-v1.json | d3811336fdae914d0d63d47a14444d5c4e46361492cdef3adcd9570c26b93c3a |
+| independent-i196-ci-audit-v1.json | 4a7721de70ede327b6f8609ef64aa19144e3ff467bd689b5fea408a3689a74cd |
+| independent-i196-ci-cases-v1.json | 2ed092e9bd5bcb5a417e761edd49ef582490523027bca2a2b488fb0e6dc496bb |
+| independent-producer-policy-ci-v1.json | c156fc04302906a5555984d70d055043bbc5f40e5374b6bb6ca6e3b740265da3 |
+| independent-restore-ci-v1.json | f91bfe37af995d5bf4633129c492eeb03e3ba37230324c92879285a6081fedab |
+| independent-separation-ci-v1.json | 4ee4e77ca466b85d2fb6293c3b57c39df54460ee4a1b6d3b39da04fb9b1b6e10 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i196-ci-v1.py | c6fc3fc70c89c923b0716ff63f03f760c3d595023a13c5a39e17dbb57e621e6b |
+| verify-i196-ci-v1.py | c93680294df6b6644e8784394ef22a525427634af5c30a5e791e3fe45689fea2 |
