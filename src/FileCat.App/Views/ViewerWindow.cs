@@ -52,6 +52,8 @@ public sealed class ViewerWindow : Window
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
     private Task? _pictureLoad;
+    // The decoded picture is a snapshot. A later reader refresh must not describe it as current content.
+    private long _sourceGeneration, _pictureGeneration;
     private readonly List<Control> _textOnly = []; // toolbar parts that mean nothing for a picture
 
     /// <summary>The longest side a picture is decoded to (actual size beyond it shows the scaled picture, and says so).</summary>
@@ -325,6 +327,7 @@ public sealed class ViewerWindow : Window
 
     private async Task LoadPictureAsync()
     {
+        _pictureGeneration = _sourceGeneration;
         _picture.ShowMessage("Decoding the picture…");
         try
         {
@@ -575,6 +578,8 @@ public sealed class ViewerWindow : Window
                   (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
                   $" · {Formatters.ExactSize(_reader.Length)}"
                 : Formatters.ExactSize(_reader.Length);
+            if (_pictureGeneration != _sourceGeneration)
+                _status.Text = "The file changed; reopen the viewer to refresh this picture. " + _status.Text;
             return;
         }
         if (_isInfo)
@@ -606,6 +611,7 @@ public sealed class ViewerWindow : Window
     private void CheckForChanges()
     {
         if (!_reader.Refresh()) return;
+        _sourceGeneration++;
         _text.InvalidateVisual();
         _hex.InvalidateVisual();
         if (_follow.IsChecked == true)
@@ -613,7 +619,8 @@ public sealed class ViewerWindow : Window
             if (_isHex) _hex.GoTo(Math.Max(0, _reader.Length - 1));
             else _text.GoToEnd();
         }
-        _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
+        if (_isPicture) UpdateStatus();
+        else _status.Text = "The file changed on disk; showing its current content. " + _status.Text;
     }
 
     private async void OnWindowKeyDown(object? sender, KeyEventArgs e)
