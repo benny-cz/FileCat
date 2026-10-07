@@ -13,9 +13,20 @@ The first correction retains 140 passes and one read-count failure: the original
 
 Independent v7 verifies original 1121 and clean 1123 canonical Git blobs/modes/archive members, exactly two changed paths, all baseline/intermediate/final overlays, 564 actual payload references, thirty retained private files and sixteen raw input/hash/revision/cancellation/read/ownership observations. Its process query finds no owned stage executable. A preparation assumption that the intermediate status still said Computing checksums failed before any mutation; inspection disproved it, and the failed preparation/missing-source tool outputs are retained in the refinement metadata. Automatic approval review rejected the first clean-runner preparation as a possible retained-evidence overwrite before execution; a fresh checksum-specific filename with exclusive creation was approved and used. Existing evidence remains intact.
 
-Original [producer CI 37648735698](https://github.com/benny-cz/FileCat/actions/runs/37648735698), attempt 1 at ba05bf2, is pending. No native desktop/OS clipboard, human, physical/reference or exact-candidate qualification is claimed. No physical source or persistent machine setup changed. Physical-source/USB hold, contract/freeze, candidate and explicit human GO/publication gates remain.
+Original [producer CI 37648735698](https://github.com/benny-cz/FileCat/actions/runs/37648735698), attempt 1 at ba05bf2, is sealed green on all four required lanes. Each complete 636-case App inventory preserves all preceding 632 names/outcomes/skips plus four; all sixteen new executions pass without skips. Every Core/Remote/Windows Platform name/outcome/skip remains. Nineteen official artifact digests/every member, fourteen full raw inventories, four compiler receipts, 92 actual locked graphs, seven CI seals and all sixteen input/hash/cancellation/thread/read/status/clipboard observations are independently verified. Producer reference policy passes; package/draft jobs are skipped. No original run was rerun or substituted.
+
+| Original CI lane | App Passed / NotExecuted |
+|---|---|
+| macOS 26 | 552 /84 |
+| Ubuntu 24.04 | 550 /86 |
+| Windows x64 | 619 /17 |
+| Windows ARM64 | 619 /17 |
+
+No native desktop/OS clipboard, human, physical/reference or exact-candidate qualification is claimed. No physical source or persistent machine setup changed. Physical-source/USB hold, contract/freeze, candidate and explicit human GO/publication gates remain.
 
 The first global checker selected a prefix inside a quoted guard string and failed compilation on line 9. Its exact truncated fragment and reader hashes are retained; the fresh checker matches a complete statement boundary. No original source/build/test/CI result changed.
+
+The initial CI case reader hit a global-variable collision after sealing six proofs. A fresh continuation reads only saved raw results in an isolated namespace; the six earlier seals remain unchanged. The independent v2 reader rechecks all seven proofs and all sixteen new observations. Automatic review rejected replacing the prepared verifier, so the unused v1 is retained and fresh v2 was used. The artifact HTTP read failure and resumed unsealed capture are also preserved.
 
 Private `FileCatReleaseEvidence/cv198-v1`:
 
@@ -41,3 +52,25 @@ Private `FileCatReleaseEvidence/cv198-v1`:
 | run-checksum-clean-v6.py | 0ab81d10ee101f4f224f105d06b3bb9201532a4328491a49728951b2013aa603 |
 | safe-fresh-runner-review-v9.json | d3d603580a0be804e69d4bf548b88722d2e9ce77c844a6715429138476b03d63 |
 | global-prefix-fragment-guard-v10.json | 2bd945ac870ca963801c5455d4b66f854cf9083c540c80e83c4ebfdc260e1e7b |
+| ci-case-namespace-guard-v15.json | 2bbfe6b5a5f4ed3810afbbf3698302bfcf3bffa5dace6c3d048932b5622768fb |
+
+Private `FileCatReleaseEvidence/ci-37648735698-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | ae9ca8e959eaf80392d7f41451d0363014b10a5f48e982e87afb4e6fcb62cb76 |
+| independent-draft-guard-ci-v1.json | 85e5f6889655e5bd9264039bdfe07383c198bebc6cb718eabbcdafc1521062d5 |
+| independent-fixture-ci-v1.json | f2b6c66f095b47a5b0f04fd6d1e92be5449ee17ab5f2ebe67d54bc8cb6690fa8 |
+| independent-i198-ci-audit-v1.json | 976a9f0cb235b52e7ad32b0cf3c63d38b2383a692e6df907ffed802b2faf31bc |
+| independent-i198-ci-cases-v1.json | ca28190d24e0d57d6ed18081a211678f7277782e6583db561f04be30cf4aa271 |
+| independent-producer-policy-ci-v1.json | 4debd447737bce81c9d4b554b002f33fb34daed95b8b25926a51133123c70eb6 |
+| independent-restore-ci-v1.json | 6a8f77b17334ff7fee6a06234c9159c2cd24804c1d3d9944df1e1df15345eaae |
+| independent-separation-ci-v1.json | 14c4b07a914725563c9fccc14569ed8574740377f703dcd6951b5f2036a010bf |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i198-ci-v1.py | 1f1f26bd3301d09e15d4c3a30f8e4d145b0624a82adebf7d41c4751cbad9805d |
+| continue-i198-ci-cases-v2.py | 3639b90f78325342b06bbc0407a3b71064f39d4b94de0db3394179b5080f0a77 |
+| verify-i198-ci-v2.py | 9674df0504e2b740946c0aad2b086756772b19d0cec771746f78388a970c06e2 |
