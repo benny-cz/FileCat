@@ -125,34 +125,44 @@ public sealed class ReportWindow : Window
 
     private async Task ReadCoreAsync()
     {
+        if (_closing.IsCancellationRequested) return;
         _reading?.Cancel();
-        var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        using var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        var ct = cts.Token;
         _refresh.IsEnabled = false;
         if (_text.Length == 0) Show("Reading…");
         _status.Text = $"Reading {_subject}…";
-        string text;
         try
         {
-            text = await Task.Run(() => _produce(cts.Token), cts.Token);
-        }
-        catch (Exception) when (cts.IsCancellationRequested)
-        {
-            return; // closed, or read again
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException or System.ComponentModel.Win32Exception)
-        {
-            text = $"It could not be read: {ex.Message}";
+            string text;
+            try
+            {
+                text = await Task.Run(() => _produce(ct), ct);
+            }
+            catch (Exception) when (ct.IsCancellationRequested)
+            {
+                return; // closed, or read again
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException or System.ComponentModel.Win32Exception)
+            {
+                text = $"It could not be read: {ex.Message}";
+            }
+            if (ct.IsCancellationRequested || _closing.IsCancellationRequested || !ReferenceEquals(_reading, cts)) return;
+            _readAt = DateTime.Now;
+            long top = _view.TopOffset;
+            Show(text);
+            // Refresh keeps the place in the report.
+            if (top > 0 && top < Encoding.UTF8.GetByteCount(text)) _view.ScrollToOffset(top);
+            UpdateStatus();
         }
         finally
         {
-            if (_reading == cts) _refresh.IsEnabled = true;
+            if (ReferenceEquals(_reading, cts))
+            {
+                _reading = null;
+                if (!_closing.IsCancellationRequested) _refresh.IsEnabled = true;
+            }
         }
-        _readAt = DateTime.Now;
-        long top = _view.TopOffset;
-        Show(text);
-        // Refresh keeps the place in the report.
-        if (top > 0 && top < Encoding.UTF8.GetByteCount(text)) _view.ScrollToOffset(top);
-        UpdateStatus();
     }
 
     private void Show(string text)
