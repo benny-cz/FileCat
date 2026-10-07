@@ -204,7 +204,7 @@ public sealed partial class MainViewModel
             finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
             if (destLocation?.Scheme == Schemes.Zip)
             {
-                await AddToArchiveAsync(kind, finalItems.ToList(), destLocation, request.Options);
+                await AddToArchiveAsync(kind, finalItems, destLocation, request.Options);
                 return;
             }
             if (kind == JobKind.Move && newName is null && destLocation is { } dl && ItemSources.Parents(finalItems)!.Contains(dl))
@@ -464,6 +464,7 @@ public sealed partial class MainViewModel
             }
             if (loc.Scheme == Schemes.Zip)
             {
+                if (items.Count > MaxArchiveBatch) { Notify($"Delete at most {MaxArchiveBatch:N0} members at a time.", true); return; }
                 await DeleteArchiveMembersAsync(loc, items.ToList());
                 return;
             }
@@ -569,7 +570,7 @@ public sealed partial class MainViewModel
         {
             var tab = origin.Tab;
             if (origin.Location.Scheme == Schemes.ResultSet) FollowSetChanges(job, origin.Location);
-            if (tab.Location == origin.Location && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile))
+            if (tab.Location == origin.Location && job.Request.Sources.Count > 0 && job.Kind is not (JobKind.CreateDirectory or JobKind.CreateFile))
             {
                 // Unmark what the job finished; failed and skipped roots stay marked for a retry.
                 try { tab.Listing.MarkItems(job.Request.Sources, job.CompletedRootIndices, false); }

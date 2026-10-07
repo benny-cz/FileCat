@@ -6,6 +6,7 @@ using FileCat.App.Services;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using Location = FileCat.Core.Resources.Location;
 
@@ -26,17 +27,6 @@ public sealed partial class MainViewModel
 
     private static string InArchive(Location folder, string name) => folder.Path.Length == 0 ? name : folder.Path + "/" + name;
 
-    /// <summary>"Rewrites the whole 1.2 GB archive" for archives large enough for the cost to matter.</summary>
-    private static string RewriteCost(string archive)
-    {
-        try
-        {
-            long length = new FileInfo(archive).Length;
-            return length >= 64L * 1024 * 1024 ? $" The whole archive ({Formatters.SizeWithUnit(length)}) is rewritten, which takes a while." : "";
-        }
-        catch (IOException) { return ""; }
-    }
-
     private bool CheckWritable(Location zip)
     {
         if (Services.Providers.For(zip) is ZipProvider provider && provider.WhyReadOnly(zip) is { } reason)
@@ -47,8 +37,9 @@ public sealed partial class MainViewModel
         return true;
     }
 
-    private void SubmitArchive(ArchivePlan plan, IReadOnlyList<ItemRef> sources, Location? refreshed, string description, string? focus = null)
+    private void SubmitArchive(ArchivePlan plan, IReadOnlyList<ItemRef> sources, Location? refreshed, string description, string? focus = null, TabViewModel? origin = null)
     {
+        if (Services.Io.IsStopped) return;
         var job = Services.Jobs.Submit(new JobRequest
         {
             Kind = JobKind.ArchiveUpdate,
@@ -57,7 +48,7 @@ public sealed partial class MainViewModel
             Destination = refreshed,
             Description = description,
         });
-        if (ActiveTab is { } tab)
+        if ((origin ?? ActiveTab) is { } tab)
         {
             Track(job, tab);
             if (focus is not null) _focusAfter[job] = focus;
@@ -92,27 +83,10 @@ public sealed partial class MainViewModel
             Notify("Two selected items have the same name; an archive folder holds each name once.", true);
             return;
         }
-        ArchiveBaseline baseline;
-        HashSet<string> existing;
-        try
-        {
-            (baseline, existing) = await Task.Run(() =>
-            {
-                var b = ArchiveBaseline.Of(archive);
-                using var zip = ZipFile.OpenRead(archive);
-                // Every member and every folder above one: a new name clashes with either.
-                var taken = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var entry in zip.Entries)
-                    for (string path = ArchivePaths.Normalize(entry.FullName).TrimEnd('/'); path.Length > 0 && taken.Add(path);)
-                        path = path.LastIndexOf('/') is var slash and >= 0 ? path[..slash] : "";
-                return (b, taken);
-            });
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
-        {
-            Notify($"Cannot read the archive: {ex.Message}", true);
-            return;
-        }
+        var origin = ActiveTab;
+        var prepared = await PrepareArchiveAsync(destination, names: true);
+        if (prepared is null) return;
+        var baseline = prepared.Baseline; var existing = prepared.Names;
         bool replace = options.Conflicts == ConflictPolicy.Replace;
         int clashes = names.Count(existing.Contains);
         if (clashes > 0 && options.Conflicts is ConflictPolicy.Ask or ConflictPolicy.ReplaceIfNewer or ConflictPolicy.KeepBothRenameExisting or ConflictPolicy.KeepBothRenameIncoming)
@@ -128,13 +102,13 @@ public sealed partial class MainViewModel
             if (answer is not ("skip" or "replace")) return;
             replace = answer as string == "replace";
         }
-        string cost = RewriteCost(archive);
+        string cost = prepared.Cost;
         if (cost.Length > 0 && !await Dialogs.ConfirmAsync("Update archive", $"Add {Formatters.Plural(items.Count, "item", "items")} to {Path.GetFileName(archive)}?{cost}", "Add"))
             return;
         var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
             InArchive(destination, i.Name), i.FileSystemPath)).ToList();
         SubmitArchive(new ArchivePlan(archive, baseline, changes, ReplaceExisting: replace), items, destination,
-            $"Add {Formatters.Plural(items.Count, "item", "items")} to \"{Path.GetFileName(archive)}\"");
+            $"Add {Formatters.Plural(items.Count, "item", "items")} to \"{Path.GetFileName(archive)}\"", origin: origin);
     }
 
     private async Task DeleteArchiveMembersAsync(Location folder, IReadOnlyList<ItemRef> items)
@@ -142,6 +116,10 @@ public sealed partial class MainViewModel
         if (!CheckWritable(folder)) return;
         if (items.Count > MaxArchiveBatch) { Notify($"Delete at most {MaxArchiveBatch:N0} members at a time.", true); return; }
         string archive = ArchiveFile(folder);
+        var origin = ActiveTab;
+        using var scope = origin is null ? null : new PreparationScope(origin, Services.Io);
+        var prepared = await PrepareArchiveAsync(folder, scope: scope);
+        if (prepared is null) return;
         int folders = items.Count(i => i.IsContainer), files = items.Count - folders;
         var parts = new List<string>();
         if (files > 0) parts.Add(Formatters.Plural(files, "member", "members"));
@@ -149,28 +127,25 @@ public sealed partial class MainViewModel
         bool duplicates = items.Any(i => i.Ordinal > 0);
         if (!await Dialogs.ConfirmAsync("Delete from archive",
                 $"Delete {string.Join(" and ", parts)} from {Path.GetFileName(archive)}? This cannot be undone; archive members do not go to the Recycle Bin." +
-                (duplicates ? " Duplicate names are deleted one copy at a time, exactly as selected." : "") + RewriteCost(archive),
+                (duplicates ? " Duplicate names are deleted one copy at a time, exactly as selected." : "") + prepared.Cost,
                 "Delete", danger: true))
             return;
-        ArchiveBaseline baseline;
-        try { baseline = ArchiveBaseline.Of(archive); }
-        catch (IOException ex) { Notify(ex.Message, true); return; }
         var changes = items.Select(i => new ArchiveChange(ArchiveChangeKind.Delete, MemberPath(i),
-            Ordinal: i.IsContainer ? null : DuplicateOrdinal(i))).ToList();
-        SubmitArchive(new ArchivePlan(archive, baseline, changes), items, folder,
-            $"Delete {Formatters.Plural(items.Count, "item", "items")} from \"{Path.GetFileName(archive)}\"");
+            Ordinal: i.IsContainer || prepared.Copies.GetValueOrDefault(MemberPath(i)) <= 1 ? null : i.Ordinal)).ToList();
+        SubmitArchive(new ArchivePlan(archive, prepared.Baseline, changes), items, folder,
+            $"Delete {Formatters.Plural(items.Count, "item", "items")} from \"{Path.GetFileName(archive)}\"", origin: origin);
     }
 
-    /// <summary>Which copy of a duplicated name a row is (0 = first), or null when the name is unique in its folder.</summary>
-    private int? DuplicateOrdinal(ItemRef item) => Copies(item) > 1 ? item.Ordinal : null;
-
-    private int Copies(ItemRef item) =>
-        Services.Providers.For(item.Parent) is ZipProvider zip ? zip.CopiesOf(item.Parent, item.Name) : 1;
+    // External edit sessions still use the provider's catalog; their separate admission audit remains outstanding.
+    private int Copies(ItemRef item) => Services.Providers.For(item.Parent) is ZipProvider zip ? zip.CopiesOf(item.Parent, item.Name) : 1;
 
     private async Task CreateArchiveFolderAsync(TabViewModel tab, Location folder)
     {
         if (!CheckWritable(folder)) return;
         string archive = ArchiveFile(folder);
+        using var scope = new PreparationScope(tab, Services.Io);
+        var prepared = await PrepareArchiveAsync(folder, scope: scope);
+        if (prepared is null) return;
         var r = await Dialogs.PromptAsync(new PromptOptions("Create folder in archive", $"Folder name in {Path.GetFileName(archive)} (use / for nested folders):")
         {
             Validate = n => ArchivePaths.Problem(InArchive(folder, n.Trim('/'))),
@@ -178,11 +153,8 @@ public sealed partial class MainViewModel
         });
         if (r is null) return;
         string member = InArchive(folder, r.Text.Trim('/'));
-        ArchiveBaseline baseline;
-        try { baseline = ArchiveBaseline.Of(archive); }
-        catch (IOException ex) { Notify(ex.Message, true); return; }
-        SubmitArchive(new ArchivePlan(archive, baseline, [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, member)]), [], folder,
-            $"Create folder \"{r.Text.Trim('/')}\" in \"{Path.GetFileName(archive)}\"", r.Text.Trim('/').Split('/')[0]);
+        SubmitArchive(new ArchivePlan(archive, prepared.Baseline, [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, member)]), [], folder,
+            $"Create folder \"{r.Text.Trim('/')}\" in \"{Path.GetFileName(archive)}\"", r.Text.Trim('/').Split('/')[0], tab);
     }
 
     private async Task RenameArchiveMemberAsync(TabViewModel tab, Location folder)
@@ -190,7 +162,10 @@ public sealed partial class MainViewModel
         if (!tab.Listing.TryGetFocused(out var row) || row.Kind == EntryKind.Parent) return;
         if (!CheckWritable(folder)) return;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
-        if (Copies(item) > 1)
+        using var scope = new PreparationScope(tab, Services.Io);
+        var prepared = await PrepareArchiveAsync(folder, scope: scope);
+        if (prepared is null) return;
+        if (prepared.Copies.GetValueOrDefault(MemberPath(item)) > 1)
         {
             Notify("This name appears more than once in the archive; rename is not offered for duplicated names. Delete the copy you do not want (F8).", true);
             return;
@@ -204,13 +179,10 @@ public sealed partial class MainViewModel
             ConfirmText = "Rename",
         });
         if (newName is null) return;
-        string cost = RewriteCost(archive);
+        string cost = prepared.Cost;
         if (cost.Length > 0 && !await Dialogs.ConfirmAsync("Rename in archive", $"Rename \"{item.Name}\" to \"{newName}\"?{cost}", "Rename")) return;
-        ArchiveBaseline baseline;
-        try { baseline = ArchiveBaseline.Of(archive); }
-        catch (IOException ex) { Notify(ex.Message, true); return; }
-        SubmitArchive(new ArchivePlan(archive, baseline, [new ArchiveChange(ArchiveChangeKind.Rename, MemberPath(item), NewMemberPath: InArchive(folder, newName))]),
-            [item], folder, $"Rename \"{item.Name}\" to \"{newName}\" in \"{Path.GetFileName(archive)}\"", newName);
+        SubmitArchive(new ArchivePlan(archive, prepared.Baseline, [new ArchiveChange(ArchiveChangeKind.Rename, MemberPath(item), NewMemberPath: InArchive(folder, newName))]),
+            [item], folder, $"Rename \"{item.Name}\" to \"{newName}\" in \"{Path.GetFileName(archive)}\"", newName, tab);
     }
 
     /// <summary>
@@ -221,7 +193,10 @@ public sealed partial class MainViewModel
     {
         var sel = SourceSelection();
         if (sel is null) return;
-        var items = sel.Value.Items.ToList();
+        var origin = sel.Value.Tab;
+        if (sel.Value.Items.Count > MaxArchiveBatch) { ItemSources.Release(sel.Value.Items); Notify($"Pack at most {MaxArchiveBatch:N0} items at a time.", true); return; }
+        List<ItemRef> items;
+        try { items = sel.Value.Items.ToList(); } finally { ItemSources.Release(sel.Value.Items); }
         if (items.Any(i => i.FileSystemPath is null))
         {
             Notify("Pack works on files and folders on disk.", true);
@@ -267,7 +242,12 @@ public sealed partial class MainViewModel
             return;
         }
         if (!archive.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) archive += ".zip";
-        if (Directory.Exists(archive)) { Notify("A folder with that name exists; choose a file name for the archive.", true); return; }
+        if (Services.Io.IsStopped) return;
+        FileSystemItemInfo? archiveInfo;
+        try { archiveInfo = await MutationIoAsync(archive, () => Services.Platform.FileOperations.TryGetInfo(archive), () => { if (Services.Io.IsStopped) throw new OperationCanceledException(); }); }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (!Services.Io.IsStopped) Notify("Cannot read the archive path: " + ex.Message, true); return; }
+        if (archiveInfo?.IsDirectory == true) { Notify("A folder with that name exists; choose a file name for the archive.", true); return; }
         if (items.Any(i => PathUtil.IsSameOrUnder(archive, i.FileSystemPath!)))
         {
             Notify("The archive cannot be created inside a folder that is being packed.", true);
@@ -275,14 +255,14 @@ public sealed partial class MainViewModel
         }
         var compression = level.SelectedIndex switch { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.NoCompression, _ => CompressionLevel.Optimal };
         var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile, i.Name, i.FileSystemPath)).ToList();
-        if (File.Exists(archive))
+        if (archiveInfo is not null)
         {
             var zip = ZipProvider.ForFile(archive);
             await AddToArchiveAsync(JobKind.Copy, items, zip, new TransferOptions());
             return;
         }
         SubmitArchive(new ArchivePlan(archive, null, changes, compression), items, Location.FileSystem(Path.GetDirectoryName(archive)!),
-            $"Pack {Formatters.Plural(items.Count, "item", "items")} into \"{Path.GetFileName(archive)}\"", Path.GetFileName(archive));
+            $"Pack {Formatters.Plural(items.Count, "item", "items")} into \"{Path.GetFileName(archive)}\"", Path.GetFileName(archive), origin);
     }
 
     /// <summary>Test archive: decompress every member of the selected ZIPs (or the open archive) and compare checksums.</summary>
@@ -297,8 +277,9 @@ public sealed partial class MainViewModel
         }
         var sel = SourceSelection();
         if (sel is null) return;
-        var zips = sel.Value.Items.Where(i => i.FileSystemPath is { } p && !i.IsContainer &&
-                                              Services.Providers.TryGet(Schemes.Zip, out var z) && z is ZipProvider zp && zp.IsContainer(i.Name)).ToList();
+        List<ItemRef> zips;
+        try { zips = sel.Value.Items.Where(i => i.FileSystemPath is { } p && !i.IsContainer &&
+                                              Services.Providers.TryGet(Schemes.Zip, out var z) && z is ZipProvider zp && zp.IsContainer(i.Name)).ToList(); } finally { ItemSources.Release(sel.Value.Items); }
         if (zips.Count == 0)
         {
             Notify("Select ZIP archives (or open one) to test them.", true);

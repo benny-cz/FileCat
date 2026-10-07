@@ -24,16 +24,17 @@ public sealed partial class MainViewModel
     /// Where a single link is proposed: under the item's own name, or, where that is taken (always so in the item's own
     /// folder), "name - link", as Explorer proposes "- Shortcut".
     /// </summary>
-    internal static string FreeLinkPath(string folder, string name)
+    internal static string FreeLinkPath(string folder, string name, Func<string, bool>? exists = null)
     {
+        exists ??= path => File.Exists(path) || Directory.Exists(path);
         string path = Path.Combine(folder, name);
-        if (!File.Exists(path) && !Directory.Exists(path)) return path;
+        if (!exists(path)) return path;
         string stem = Path.GetFileNameWithoutExtension(name), extension = Path.GetExtension(name);
         if (stem.Length == 0) (stem, extension) = (name, "");
         for (int n = 1; n < 100; n++)
         {
             path = Path.Combine(folder, $"{stem} - link{(n > 1 ? $" ({n})" : "")}{extension}");
-            if (!File.Exists(path) && !Directory.Exists(path)) return path;
+            if (!exists(path)) return path;
         }
         return Path.Combine(folder, name);
     }
@@ -42,18 +43,28 @@ public sealed partial class MainViewModel
     {
         var sel = SourceSelection();
         if (sel is null) return;
+        using var initialScope = new PreparationScope(sel.Value.Tab, Services.Io, sel.Value.Items);
+        if (sel.Value.Items.Count > MaxLinks) { Notify($"Create at most {MaxLinks:N0} links at a time.", true); return; }
         var items = sel.Value.Items.ToList();
         if (items.Any(i => i.FileSystemPath is null))
         {
             Notify("Links point only to files and folders on disk.", true);
             return;
         }
-        if (items.Count > MaxLinks) { Notify($"Create at most {MaxLinks:N0} links at a time.", true); return; }
-        var fs = Services.Platform.FileOperations;
-        bool? canSymlink = await Task.Run(() => fs.CanCreateSymbolicLinks);
-
+        var origin = sel.Value.Tab; var context = origin.Location;
         var destination = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : Path.GetDirectoryName(items[0].FileSystemPath!)!;
-        string initial = items.Count == 1 ? FreeLinkPath(destination, items[0].Name) : AppendSeparator(destination);
+        var fs = Services.Platform.FileOperations;
+        bool? canSymlink; string initial;
+        try
+        {
+            canSymlink = await MutationIoAsync(destination, () => fs.CanCreateSymbolicLinks, initialScope.Check);
+            initial = items.Count == 1
+                ? await MutationIoAsync(destination, () => FreeLinkPath(destination, items[0].Name, p => { initialScope.Check(); return fs.TryGetInfo(p) is not null; }), initialScope.Check)
+                : AppendSeparator(destination);
+        }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        { if (initialScope.Current) Notify("Cannot prepare links: " + ex.Message, true); return; }
         var pathBox = new TextBox { Text = initial, MinWidth = 560 };
         Avalonia.Automation.AutomationProperties.SetName(pathBox, "Link path");
         bool allFolders = items.All(i => i.IsContainer), allFiles = items.All(i => !i.IsContainer);
@@ -80,35 +91,66 @@ public sealed partial class MainViewModel
         IReadOnlyList<LinkPreview> rows = [];
         string? pathProblem = "Checking…";
         (string, LinkKind, bool)? plannedFor = null;
-        int generation = 0;
+        int generation = 0; bool open = true;
+        Task? previewWork = null; bool requested = false;
         (string, LinkKind, bool) Current() => (pathBox.Text ?? "", Kind(), relative.IsChecked == true);
 
         LinkKind Kind() => kinds.First(k => k.Button.IsChecked == true).Kind;
-        async void Refresh()
+        void Refresh()
         {
-            int mine = ++generation;
+            if (!open) return;
+            ++generation; plannedFor = null; requested = true;
+            // One owned preview per dialog. Edits replace the pending request instead of growing the device queue.
+            if (previewWork is null || previewWork.IsCompleted) previewWork = RefreshPendingAsync();
+        }
+        async Task RefreshPendingAsync()
+        {
+            while (open && requested && !Services.Io.IsStopped) { requested = false; await RefreshAsync(); }
+        }
+        async Task RefreshAsync()
+        {
+            int mine = generation;
+            void Check() { if (!open || mine != generation || Services.Io.IsStopped) throw new OperationCanceledException(); }
             var kind = Kind();
             relative.IsEnabled = kind == LinkKind.Symbolic;
             privilege.IsVisible = kind == LinkKind.Symbolic && canSymlink == false;
             var options = new LinkOptions(kind, relative.IsChecked == true && kind == LinkKind.Symbolic);
-            string text = pathBox.Text ?? "";
-            var key = Current();
-            var (problem, result) = await Task.Run(() =>
+            string text = pathBox.Text ?? ""; var key = Current();
+            plannedFor = null; pathProblem = "Checking…"; summary.Text = pathProblem;
+            string? problem; IReadOnlyList<LinkPreview> result;
+            try
             {
-                try
+                Check();
+                var resolved = ResolveLinkPath(text, items.Count, context);
+                problem = resolved.Error; result = [];
+                if (problem is null)
                 {
-                    if (!ResolveLinkPath(text, items.Count, out var folder, out var name, out var error)) return (error, (IReadOnlyList<LinkPreview>)[]);
-                    return ((string?)null, LinkPlanner.Preview(items, folder!, name is null ? null : [name], options, fs.GetVolumeInfo, p => fs.TryGetInfo(p) is not null));
+                    string folder = resolved.Folder!;
+                    var directory = await MutationIoAsync(folder, () => fs.TryGetInfo(folder), Check);
+                    if (directory?.IsDirectory != true) problem = $"The folder \"{folder}\" does not exist.";
+                    else
+                    {
+                        var volumes = new Dictionary<string, VolumeInfo>(PathUtil.SafetyComparer);
+                        foreach (string path in items.Select(i => Path.GetDirectoryName(i.FileSystemPath!)!).Prepend(folder).Distinct(PathUtil.SafetyComparer))
+                        { Check(); volumes[path] = await MutationIoAsync(path, () => fs.GetVolumeInfo(path), Check); }
+                        var occupied = new HashSet<string>(PathUtil.SafetyComparer);
+                        foreach (var item in items)
+                        {
+                            Check(); string path = Path.Combine(folder, resolved.Name ?? item.Name);
+                            if (await MutationIoAsync(path, () => fs.TryGetInfo(path), Check) is not null) occupied.Add(path);
+                        }
+                        Check(); result = LinkPlanner.Preview(items, folder, resolved.Name is null ? null : [resolved.Name], options, p => volumes[p], occupied.Contains);
+                    }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-                {
-                    return (ex.Message, []);
-                }
-            });
-            if (mine != generation) return;
-            pathProblem = problem;
-            rows = result;
-            plannedFor = key;
+                Check();
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                if (!open || mine != generation || Services.Io.IsStopped) return;
+                problem = ex.Message; result = [];
+            }
+            pathProblem = problem; rows = result; plannedFor = key;
             preview.ItemsSource = rows.Take(1000).Select(r => r.Problem is null
                 ? $"{Path.GetFileName(r.LinkPath)}  →  {r.TargetText}"
                 : $"⚠ {Path.GetFileName(r.LinkPath)}: {r.Problem}").ToList();
@@ -120,7 +162,7 @@ public sealed partial class MainViewModel
         }
         var debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         debounce.Tick += (_, _) => { debounce.Stop(); Refresh(); };
-        pathBox.TextChanged += (_, _) => { debounce.Stop(); debounce.Start(); };
+        pathBox.TextChanged += (_, _) => { ++generation; plannedFor = null; debounce.Stop(); if (open) debounce.Start(); };
         foreach (var (_, button) in kinds) button.IsCheckedChanged += (_, _) => { if (button.IsChecked == true) Refresh(); };
         relative.IsCheckedChanged += (_, _) => Refresh();
 
@@ -145,8 +187,9 @@ public sealed partial class MainViewModel
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Create", "create", IsDefault: true)], pathBox,
             // Only a preview of exactly what is entered can be created.
             () => plannedFor == Current() && pathProblem is null && rows.Count > 0 && rows.All(r => r.Problem is null));
-        debounce.Stop();
-        if (answer as string != "create" || plannedFor != Current() || pathProblem is not null || rows.Count == 0 || rows.Any(r => r.Problem is not null)) return;
+        open = false; ++generation; debounce.Stop();
+        if (previewWork is not null) await previewWork;
+        if (Services.Io.IsStopped || answer as string != "create" || plannedFor != Current() || pathProblem is not null || rows.Count == 0 || rows.Any(r => r.Problem is not null)) return;
         string linkFolder = Path.GetDirectoryName(rows[0].LinkPath)!;
         var job = Services.Jobs.Submit(new JobRequest
         {
@@ -156,40 +199,22 @@ public sealed partial class MainViewModel
             NewNames = rows.Select(r => Path.GetFileName(r.LinkPath)).ToList(),
             Link = new LinkOptions(Kind(), relative.IsChecked == true && Kind() == LinkKind.Symbolic),
         });
-        if (ActiveTab is { } tab) Track(job, tab);
+        Track(job, origin);
     }
 
     /// <summary>
     /// The typed link path. For several items, or text ending in a separator, it is the existing folder for links named
     /// like their targets; otherwise it is the full path of the one link (so the preview shows exactly what is created).
     /// </summary>
-    private bool ResolveLinkPath(string text, int count, out string? folder, out string? name, out string? error)
+    private (string? Folder, string? Name, string? Error) ResolveLinkPath(string text, int count, Location? context)
     {
-        folder = name = error = null;
         var t = text.Trim();
-        if (t.Length == 0) { error = "Enter where to create the link."; return false; }
-        if (!Services.Providers.TryParse(t, ActiveTab?.Location, out var loc) || loc is not { IsFileSystem: true })
-        {
-            error = "Links are created only in folders on disk.";
-            return false;
-        }
-        if (count > 1 || t.EndsWith('\\') || t.EndsWith('/'))
-        {
-            if (!Directory.Exists(loc.Path))
-            {
-                error = $"The folder \"{loc.Path}\" does not exist.";
-                return false;
-            }
-            folder = loc.Path;
-            return true;
-        }
-        folder = Path.GetDirectoryName(loc.Path);
-        name = Path.GetFileName(loc.Path);
-        if (folder is null || name.Length == 0 || !Directory.Exists(folder))
-        {
-            error = $"The folder \"{folder ?? loc.Path}\" does not exist.";
-            return false;
-        }
-        return true;
+        if (t.Length == 0) return (null, null, "Enter where to create the link.");
+        // Only the file-system parser is needed here; archive parsers can probe the disk while interpreting input.
+        if (!Services.Providers.Get(Schemes.FileSystem).TryParse(t, context, out var loc) || loc is not { IsFileSystem: true })
+            return (null, null, "Links are created only in folders on disk.");
+        if (count > 1 || t.EndsWith('\\') || t.EndsWith('/')) return (loc.Path, null, null);
+        string? folder = Path.GetDirectoryName(loc.Path); string name = Path.GetFileName(loc.Path);
+        return folder is null || name.Length == 0 ? (null, null, "Enter a folder and link name.") : (folder, name, null);
     }
 }
