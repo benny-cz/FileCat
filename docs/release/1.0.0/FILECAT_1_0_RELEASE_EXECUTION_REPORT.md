@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 171 IDs: 149 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 184 entries; 460 selected private evidence hashes independently reconciled in audit v44. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 172 IDs: 150 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 185 entries; 470 selected private evidence hashes independently reconciled in audit v45. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | f502fd169478d0631ea4280adbb5b3f6457cda68 — closed result-consumer correction, including bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37551264824 attempt 1 at f502fd1 is sealed green on policy/all four required lanes. | I171 retains 19 digests, 14 full inventories (473 App cases per lane; 884 Core Windows/879 Unix), all sixteen new lifetime passes, compiler receipts and 92 locked graphs. |
+| Current product producer | 8a57103154a75174e21e83371e0eca41c57d282a — tilde worktree admission correction, including prior result-consumer, bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
+| Latest product CI | 37555498358 attempt 1 at 8a57103 is pending. | Previous I171 run 37551264824 is sealed green: 19 digests, 14 full inventories, sixteen new lifetime passes and 92 locked graphs. No pending run is claimed as passing. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: [I16 home-rule controls](evidence/E-I16-HOME-opened-rule-overrides.md) verify the full FileCat reader/transport suppresses both owned outside-home rules; the isolated admission hypothesis does not establish a product defect. Latest product correction [I171](evidence/E-I171-result-consumer-lifetime.md) releases closed result consumers, with 22 affected clean passes and all sixteen new four-platform executions sealed. The [Windows worker subset](evidence/E-I03-WORKER-windows-picture-images.md) seals 46 module files and four exact package-member matches. [I170](evidence/E-I170-result-set-bulk-removal.md) retains its removal measurements and hosted correctness controls; reference/native performance acceptance remains open. [I12](evidence/E-I12-regression-coverage.md) remains closed for preliminary regression coverage, with the historical intermittent Mac failure explicitly unforced. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed slice: [I172](evidence/E-I172-tilde-git-worktree.md) fixes a complete-reader tilde worktree junction bypass, with four baseline failures, seven new passes, 89 affected clean Git cases and corrected native refusals sealed. The original four-platform CI run is pending. [I16 home-rule controls](evidence/E-I16-HOME-opened-rule-overrides.md) remain a verified existing defense, not a new defect. Prior result lifetime/removal, Windows worker provenance and I12 records retain their exact scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
@@ -35,7 +35,7 @@ Latest completed slice: [I16 home-rule controls](evidence/E-I16-HOME-opened-rule
 | [I11](FILECAT_1_0_RELEASE_ISSUES.md#i11) | Hardware/people | Obtain the mandatory external platform, participant and assistive-technology evidence. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165/I166/I167 corrections and CI sealed; home ignore/attribute overrides verified; continue other home/indirect paths and identity races. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165/I166/I167 corrections and CI sealed; home ignore/attribute overrides verified; I172 tilde worktree correction passes clean/native controls; continue other indirect paths and identity races. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -100,7 +100,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 148 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 150 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |
