@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 176 IDs: 154 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 189 entries; 578 selected private evidence hashes independently reconciled in audit v53. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 189 entries; 598 selected private evidence hashes independently reconciled in audit v54. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | fcae7632a4cf13f089243e28065df2b140d613de — oversized shared-directory refusal for automatic Git badges, including prior worktree/ownership/lifetime and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37564957822 attempt 1 at fcae763 is pending. | Previous producer CI 37562601681 remains sealed at 6418278; its 493-case inventories and explicit boundary skips retain that identity. |
+| Latest product CI | 37564957822 attempt 1 at fcae763 is sealed green on policy/all four required lanes. | I176 retains 19 digests, 14 full inventories (501 App cases per lane), all 32 new passes without skips, compiler receipts and 92 locked graphs. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest local slice: [I176](evidence/E-I176-git-shared-directory-budget.md) proves harmless owned filter execution through oversized shared commondir and refuses it before automatic Git. Four original failures/four positives, 104 working/clean Git passes with one explicit capture skip and corrected native refusals are sealed; original CI is pending. [I175](evidence/E-I175-git-worktree-descendants.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed slice: [I176](evidence/E-I176-git-shared-directory-budget.md) proves harmless owned filter execution through oversized shared commondir and refuses it before automatic Git. Four original failures/four positives, 104 working/clean Git passes with one explicit capture skip and corrected native refusals are sealed; original four-platform CI is sealed with all 32 new passes without skips. [I175](evidence/E-I175-git-worktree-descendants.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 
@@ -35,7 +35,7 @@ Latest local slice: [I176](evidence/E-I176-git-shared-directory-budget.md) prove
 | [I11](FILECAT_1_0_RELEASE_ISSUES.md#i11) | Hardware/people | Obtain the mandatory external platform, participant and assistive-technology evidence. |
 | [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
-| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165/I166/I167 corrections and CI sealed; home ignore/attribute overrides verified; I172 tilde worktree correction and original four-platform CI sealed; I175 worktree-descendant correction and original CI sealed; I176 shared commondir correction has local/native controls sealed and original CI pending; continue other indirect paths and identity races. |
+| [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | I164/I165/I166/I167 corrections and CI sealed; home ignore/attribute overrides verified; I172 tilde worktree correction and original four-platform CI sealed; I175 worktree-descendant correction and original CI sealed; I176 shared commondir correction and original four-platform CI sealed; continue other indirect paths and identity races. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
 | [I18](FILECAT_1_0_RELEASE_ISSUES.md#i18) | Owner/service + candidate | Freeze protected promotion/retention policy; qualify exact tagged transport and publisher. |
 | [I25](FILECAT_1_0_RELEASE_ISSUES.md#i25) | Integration/re-audit | Retain rendered Markdown scope; complete remaining integration and candidate qualification. |
@@ -79,7 +79,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review; shared commondir budget correction is sealed locally as I176; next review covers other indirect metadata/configuration paths and identity races.
+1. Continue I16/I17 V23/V24 home/indirect-path, identity, lifetime and boundary review; shared commondir budget correction and original CI are sealed as I176; next review covers other indirect metadata/configuration paths and identity races.
 2. I06: continue remaining consumer/dialog/worker references and materialized workloads after the sealed I163/I168/I169/I170/I171/I173/I174 fixes. Native frame and unavailable interaction scope remain queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
