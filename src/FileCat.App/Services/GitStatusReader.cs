@@ -548,38 +548,53 @@ internal static class GitStatusReader
         start.ArgumentList.Add("core.excludesFile=" + emptyFile);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = new Process { StartInfo = start };
+        using var reading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Task<string>? output = null, errors = null;
         bool started = false;
         try
         {
             if (!process.Start()) return null;
             started = true;
-            var errors = process.StandardError.ReadToEndAsync(cancellationToken);
-            string output = await ReadLimitedAsync(process.StandardOutput, cancellationToken).ConfigureAwait(false);
+            // Both redirected pipes have a budget. Drain diagnostics without keeping their text, and observe
+            // either limit immediately: waiting for stdout first could leave a noisy child running until timeout.
+            errors = ReadLimitedAsync(process.StandardError, reading.Token, keepText: false);
+            output = ReadLimitedAsync(process.StandardOutput, reading.Token);
+            Task<string> first = await Task.WhenAny(output, errors).ConfigureAwait(false);
+            await first.ConfigureAwait(false);
+            await Task.WhenAll(output, errors).ConfigureAwait(false);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-            await errors.ConfigureAwait(false);
-            return process.ExitCode == 0 ? output : null;
+            return process.ExitCode == 0 ? await output.ConfigureAwait(false) : null;
         }
         catch (InvalidDataException) { return null; }
         finally
         {
+            reading.Cancel();
             if (started && !process.HasExited)
             {
                 try { process.Kill(entireProcessTree: true); }
                 catch (InvalidOperationException) { }
             }
+            // Cancellation/limit failure on one pipe must not leave the other read or its exception unobserved.
+            foreach (var task in new[] { output, errors })
+            {
+                if (task is null) continue;
+                try { await task.ConfigureAwait(false); }
+                catch (Exception ex) when (ex is OperationCanceledException or InvalidDataException or IOException) { }
+            }
         }
     }
 
-    private static async Task<string> ReadLimitedAsync(StreamReader reader, CancellationToken cancellationToken)
+    private static async Task<string> ReadLimitedAsync(StreamReader reader, CancellationToken cancellationToken, bool keepText = true)
     {
-        var text = new StringBuilder();
+        var text = keepText ? new StringBuilder() : null;
         var buffer = new char[8192];
-        int count;
+        int count, characters = 0;
         while ((count = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
         {
-            if (text.Length + count > MaxOutputChars) throw new InvalidDataException("Git status output exceeds the icon budget.");
-            text.Append(buffer, 0, count);
+            if (count > MaxOutputChars - characters) throw new InvalidDataException("Git status output exceeds the icon budget.");
+            characters += count;
+            text?.Append(buffer, 0, count);
         }
-        return text.ToString();
+        return text?.ToString() ?? string.Empty;
     }
 }
