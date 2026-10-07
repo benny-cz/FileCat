@@ -1,6 +1,6 @@
 # I205 — signature, overlap and attributes preparation
 
-**Preliminary remediation qualified at d6062cc24d835b9155f84774671b883f3d299a97.** This related batch passes 153 working and canonical clean checks (115 App/38 Core), including 47 additions, with zero skips. The unchanged c131ba5 baseline has 40 failing controls and seven positives. Native CI, wider provider/path races and exact-candidate qualification remain.
+**Preliminary remediation qualified at d6062cc24d835b9155f84774671b883f3d299a97.** This related batch passes 153 working and canonical clean checks (115 App/38 Core), including 47 additions, with zero skips. The unchanged c131ba5 baseline has 40 failing controls and seven positives. Original four-platform CI is sealed green below; wider provider/path races and exact-candidate qualification remain.
 
 | Confirmed gap | Resulting behavior |
 |---|---|
@@ -9,7 +9,7 @@
 | Attributes/Unix permissions collect metadata on the UI and silently omit unreadable selected items. Windows can show every checkbox checked for an empty metadata list. | Every selected item must have readable information, and Unix permissions must also be readable, before the dialog opens. A constant-size intersection/union summary preserves uniform/mixed states and detects changed permissions. Failed preparation creates no job; cancelled preparation releases its captured selection. |
 | Preparation can publish after its originating tab changes or closes. | Refresh/navigation/close/shutdown stop further work and suppress late dialogs/previews/navigation/notifications. Active synchronous calls retain their owner until return; eight concurrent requests share finite device workers while another device progresses. An attributes dialog already shown keeps its captured selection for an explicitly approved ordinary job. |
 
-The tests invoke the actual Enter, Attributes and CompareDirectories commands in headless Avalonia. Fixtures create genuine owned ZIP/TAR files and wrap real FileContentSource reads; held/error/short-read controls explicitly substitute the registered filesystem provider. Metadata controls explicitly replace only AppServices.Platform's file-operation dependency after creating the normal app, recording actual callback threads and delegating ordinary item information to the real owned files. Final-path alias/unknown outcomes are disclosed synthetic controls. No physical device, installed native UI or remote-server claim is made. The two state controls and three approved timestamp jobs use the OS's actual supported attributes/permissions branch; Unix branch execution remains for native follow-up CI.
+The tests invoke the actual Enter, Attributes and CompareDirectories commands in headless Avalonia. Fixtures create genuine owned ZIP/TAR files and wrap real FileContentSource reads; held/error/short-read controls explicitly substitute the registered filesystem provider. Metadata controls explicitly replace only AppServices.Platform's file-operation dependency after creating the normal app, recording actual callback threads and delegating ordinary item information to the real owned files. Final-path alias/unknown outcomes are disclosed synthetic controls. No physical device, installed native UI or remote-server claim is made. The two state controls and three approved timestamp jobs use the OS's actual supported attributes/permissions branch; The original native Ubuntu/macOS CI now verifies the Unix branch as well.
 
 Forty original failing controls verify absent provider admission, UI metadata/final-path callbacks, propagated IO/access errors and incomplete metadata/unknown overlap outcomes. Seven positives preserve uniform/mixed states, approved captured jobs and lexical overlap. Held baseline callbacks have a bounded owned rescue timer so the old synchronous UI route cannot deadlock the fixture; final controls check callback admission before queueing additional requests. Assertions, worker limits and deadlines remain intact. Initial ambiguous ResourceProvider, nullable notification, Button symbol and missing extension import compilation errors are retained; they are not product baseline evidence. Earlier 40/45-case and intermediate corrected passing inventories remain immutable.
 
@@ -64,3 +64,32 @@ Private `FileCatReleaseEvidence/mp205-v1`:
 | clean-v12/results/core.trx | e4b1f2b3e0f65aa0bd715021c14abd0d4c29c30f936d025ffb83a670f42c0840 |
 | baseline-v10/source.zip | 103aac46e854c9973829b7df415ed249ef5bad75981d19fe9d32659170b9e31d |
 | clean-v12/source.zip | 97569c6f6246987f7a3179669d901011abafa9b2e238da6ad6cc39ade85148a4 |
+
+## Original four-platform follow-up — 4a4f4ef
+
+Original CI 37697121508 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All 188 executions of the 47 additions pass, including the real OS attribute/permission branch; every available predecessor name/outcome remains. Independent readers recheck 20 server artifact digests/every selected member, 14 full raw TRX inventories, four exact builder receipts and 92 actual locked restore graphs. The earlier 232 archive, 468 content and 128 directory additions pass again. Native Ubuntu setup and its nine mirror/five launcher controls succeed. Packaging/draft jobs are skipped on this main push; no package, installed GUI, hardware or release candidate is qualified.
+
+The CI source is 4a4f4ef0c1a17170c41a4cff8f90eae71916fde3; its 794 runtime/test/eng/workflow Git identities match the locally qualified d6062cc product. Local and native evidence retain separate exact producer identities. Original earlier failures and preliminary closure limits remain.
+
+Private `FileCatReleaseEvidence/ci-37697121508-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 7a2c1fdd3260f5725652e81dc321c0ef9844c491f442dd870184e650ebf79d9e |
+| independent-restore-ci-v1.json | 9c0e5c5e82199ff01423a9133185d13518e3c378b909898f2ca17959fb0e1d2e |
+| independent-metadata-ci-audit-v1.json | 4bd0bfb66cff93c5982f047c4fb2c6e617d618e16a4d040834c75c9adb8949cf |
+| run-native-stdout | 969de5c3735848e04797d280da5b9ce8327c1344e53e248897e786c8a9223e9e |
+| jobs-native-stdout | 4361af8a3bdaad49e6aa6161be00d84ea592167824d1a230393409e8725898c6 |
+| artifacts-stdout | d89c87afe2d844d6cc27ed2128ab12d24fde61bc95b1b4f444793f70fb36b8af |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| File | SHA-256 |
+|---|---|
+| collect-i205-green-ci-v1.py | 6097c64e03d05a47d28c162e462e6a74fbe5fe8234d2763e4eebd3bb15e88d85 |
+
+Private `FileCatReleaseEvidence/mp205-v1`:
+
+| File | SHA-256 |
+|---|---|
+| seal-metadata-ci-v1.py | ee68c7dc154ca44e36b5e7512029fcea17820ce9695d5ba6a97f88eee341d37b |
