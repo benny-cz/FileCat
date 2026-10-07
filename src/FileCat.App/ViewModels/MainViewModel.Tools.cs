@@ -337,7 +337,7 @@ public sealed partial class MainViewModel
             }
             if (recursive.IsChecked == true)
             {
-                CompareTrees(left, right, criteria, tol);
+                await CompareTreesAsync(left, right, criteria, tol, Current, stop.Token);
                 return;
             }
             if ((criteria & CompareCriteria.Content) != 0) Notify("Comparing contents…");
@@ -373,7 +373,7 @@ public sealed partial class MainViewModel
     /// Recursive comparison (plan §16.2): a preview window that changes nothing; each side's differences open as a result
     /// set in that side's panel, for the usual commands.
     /// </summary>
-    private void CompareTrees(TabViewModel left, TabViewModel right, CompareCriteria criteria, TimeSpan tolerance)
+    private async Task CompareTreesAsync(TabViewModel left, TabViewModel right, CompareCriteria criteria, TimeSpan tolerance, Func<bool> current, CancellationToken ct)
     {
         var lloc = left.Location!;
         var rloc = right.Location!;
@@ -389,7 +389,24 @@ public sealed partial class MainViewModel
         var rcaps = Services.Providers.For(rloc).GetCapabilities(rloc);
         static bool Writable(Location l, LocationCapabilities c) => l.IsFileSystem && (c & LocationCapabilities.TransferTarget) != 0;
         // Folders inside each other (also through a link) are compared, but not offered for synchronizing (I94).
-        string? overlap = lloc.IsFileSystem && rloc.IsFileSystem ? SyncPlanner.Overlap(lloc.Path, rloc.Path, Services.Platform.FileOperations.GetFinalPath) : null;
+        string? overlap = lloc.IsFileSystem && rloc.IsFileSystem ? SyncPlanner.Overlap(lloc.Path, rloc.Path, _ => null) : null;
+        if (overlap is null && lloc.IsFileSystem && rloc.IsFileSystem)
+        {
+            const string unknown = "The final paths of both folders could not be verified; their overlap is unknown.";
+            try
+            {
+                var files = Services.Platform.FileOperations;
+                var a = await Services.Io.Run(Services.Providers.For(lloc).GetDeviceKey(lloc), Core.Threading.IoPriority.Normal, _ =>
+                { ct.ThrowIfCancellationRequested(); return files.GetFinalPath(lloc.Path); });
+                if (!current() || ct.IsCancellationRequested) return;
+                var b = await Services.Io.Run(Services.Providers.For(rloc).GetDeviceKey(rloc), Core.Threading.IoPriority.Normal, _ =>
+                { ct.ThrowIfCancellationRequested(); return files.GetFinalPath(rloc.Path); });
+                if (!current() || ct.IsCancellationRequested) return;
+                overlap = string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b) ? unknown : SyncPlanner.Overlap(lloc.Path, rloc.Path, p => p == lloc.Path ? a : b);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { overlap = unknown; }
+        }
+        if (!current() || ct.IsCancellationRequested) return;
         var sync = overlap is not null ? null : new Views.SyncContext(leftName, rightName, Writable(lloc, lcaps), Writable(rloc, rcaps),
             (lcaps & LocationCapabilities.Recycle) != 0, (rcaps & LocationCapabilities.Recycle) != 0, OperatingSystem.IsWindows(),
             (items, sourceIsLeft, permanent) => StartSync(items, sourceIsLeft, permanent, lloc, rloc));
@@ -451,30 +468,39 @@ public sealed partial class MainViewModel
     /// Ctrl+PgDn on a file that is not a known archive: open it by its signature, as ZIP (e.g. .docx, .apk) or as one of
     /// the read-only formats (a TAR, 7z, RAR, compressed file, or disc image under another name).
     /// </summary>
-    internal bool TryOpenAsArchive(TabViewModel tab, in EntryData e)
+    internal async Task<bool> TryOpenAsArchiveAsync(TabViewModel tab, EntryData e)
     {
         if (e.IsContainer || tab.Location is null) return false;
         var item = tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex);
         if (item.FileSystemPath is not { } path) return false;
-        FileCat.Archives.ArchiveKind? other;
+        using var scope = new PreparationScope(tab, Services.Io);
+        int focus = tab.Listing.FocusedStoreIndex;
+        bool Current() => scope.Current && tab.Listing.FocusedStoreIndex == focus;
+        void Check() { scope.Check(); if (!Current()) throw new OperationCanceledException(); }
         try
         {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            Span<byte> sig = stackalloc byte[4];
-            if (fs.Read(sig) >= 4 && sig[0] == 'P' && sig[1] == 'K')
+            var provider = Services.Providers.For(item.Parent);
+            var destination = await Services.Io.Run(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive, _ =>
             {
-                tab.Navigate(ZipProvider.ForFile(path));
-                return true;
-            }
-            other = FileCat.Archives.ArchiveFormats.BySignature(fs);
+                Check();
+                using var source = provider.OpenContent(item) ?? throw new NotSupportedException("This item has no readable content.");
+                using var stream = new SignatureStream(source, Check);
+                Span<byte> sig = stackalloc byte[4];
+                if (stream.ReadAtLeast(sig, 4, throwOnEndOfStream: false) == 4 && sig[0] == 'P' && sig[1] == 'K') return ZipProvider.ForFile(path);
+                var kind = FileCat.Archives.ArchiveFormats.BySignature(stream);
+                return kind is null ? null : FileCat.Archives.ArchiveProvider.ForFile(path, kind);
+            });
+            // Stale preparation neither navigates nor reports a late failure.
+            if (!Current()) return true;
+            if (destination is null) return false;
+            tab.Navigate(destination);
+            return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (OperationCanceledException) { return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
-            return false;
+            return !Current();
         }
-        if (other is null) return false;
-        tab.Navigate(FileCat.Archives.ArchiveProvider.ForFile(path, other));
-        return true;
     }
 
     /// <summary>Unpack (Alt+F6/Alt+F9): extracts whole archives into the target panel's folder.</summary>
@@ -574,25 +600,28 @@ public sealed partial class MainViewModel
         var tab = ActiveTab;
         var sel = tab?.Listing.GetSelection();
         if (tab is null || sel is null || sel.Count == 0) return;
-        if (sel.Any(s => s.FileSystemPath is null))
+        using var scope = new PreparationScope(tab, Services.Io, sel);
+        AttributeMetadata metadata;
+        try { metadata = await ReadAttributeMetadataAsync(sel, scope); }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            Notify("Attributes can be changed for file-system items.", true);
+            if (scope.Current) Notify(ex is NotSupportedException ? ex.Message : "The marked items no longer exist or cannot be read. " + ex.Message, true);
             return;
         }
         if (!OperatingSystem.IsWindows())
         {
-            await ChangeUnixAttributesAsync(tab, sel);
+            await ChangeUnixAttributesAsync(tab, sel, metadata, scope);
             return;
         }
-        var infos = sel.Select(s => Services.Platform.FileOperations.TryGetInfo(s.FileSystemPath!)).Where(i => i is not null).Cast<FileSystemItemInfo>().ToList();
-        bool? State(FileAttributes a) => infos.All(i => (i.Attributes & a) != 0) ? true : infos.All(i => (i.Attributes & a) == 0) ? false : null;
+        bool? State(FileAttributes a) => metadata.State(a);
         CheckBox Box(string label, FileAttributes a) => new() { Content = label, IsThreeState = true, IsChecked = State(a), Tag = a };
         var boxes = new[] { Box("Read-only", FileAttributes.ReadOnly), Box("Hidden", FileAttributes.Hidden), Box("System", FileAttributes.System), Box("Archive", FileAttributes.Archive) };
-        var modified = new TextBox { Text = infos.Count == 1 ? infos[0].ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : string.Empty, PlaceholderText = "unchanged (yyyy-MM-dd HH:mm:ss)" };
-        var created = new TextBox { Text = infos.Count == 1 ? infos[0].CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : string.Empty, PlaceholderText = "unchanged" };
+        var modified = new TextBox { Text = metadata.Single?.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? string.Empty, PlaceholderText = "unchanged (yyyy-MM-dd HH:mm:ss)" };
+        var created = new TextBox { Text = metadata.Single?.CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? string.Empty, PlaceholderText = "unchanged" };
         Avalonia.Automation.AutomationProperties.SetName(modified, "Modified");
         Avalonia.Automation.AutomationProperties.SetName(created, "Created");
-        var recursive = new CheckBox { Content = "Also apply to everything inside the marked folders (links are not followed)", IsVisible = sel.Any(s => s.IsContainer) };
+        var recursive = new CheckBox { Content = "Also apply to everything inside the marked folders (links are not followed)", IsVisible = metadata.HasFolders };
         var body = new StackPanel { Spacing = 6, MinWidth = 480 };
         body.Children.Add(new TextBlock { Text = sel.Count == 1 ? sel[0].Name : Formatters.Plural(sel.Count, "item", "items"), FontWeight = Avalonia.Media.FontWeight.SemiBold });
         body.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { boxes[0], boxes[1], boxes[2], boxes[3] } });
@@ -603,7 +632,7 @@ public sealed partial class MainViewModel
         body.Children.Add(created);
         body.Children.Add(recursive);
         var r = await Dialogs.ShowCustomAsync("Attributes and times", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Apply", "ok", IsDefault: true)]);
-        if (r as string != "ok") return;
+        if (r as string != "ok" || Services.Io.IsStopped) return;
         FileAttributes set = 0, clear = 0;
         foreach (var b in boxes)
         {
@@ -613,8 +642,8 @@ public sealed partial class MainViewModel
         }
         DateTime? Parse(TextBox t, DateTime? original) =>
             DateTime.TryParse(t.Text, out var d) && (original is null || Math.Abs((d.ToUniversalTime() - original.Value).TotalSeconds) >= 1) ? d.ToUniversalTime() : null;
-        var mod = Parse(modified, infos.Count == 1 ? infos[0].ModifiedUtc : null);
-        var cre = Parse(created, infos.Count == 1 ? infos[0].CreatedUtc : null);
+        var mod = Parse(modified, metadata.Single?.ModifiedUtc);
+        var cre = Parse(created, metadata.Single?.CreatedUtc);
         if (set == 0 && clear == 0 && mod is null && cre is null)
         {
             Notify("Nothing to change.");
@@ -626,6 +655,7 @@ public sealed partial class MainViewModel
             Sources = sel,
             Attributes = new AttributeChangeSet(set, clear, mod, cre, recursive.IsChecked == true),
         });
+        scope.SelectionTransferred = true;
         Track(job, tab);
     }
 }

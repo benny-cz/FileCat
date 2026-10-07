@@ -28,17 +28,9 @@ public sealed partial class MainViewModel
     ];
 
     [UnsupportedOSPlatform("windows")]
-    private async Task ChangeUnixAttributesAsync(TabViewModel tab, IReadOnlyList<ItemRef> sel)
+    private async Task ChangeUnixAttributesAsync(TabViewModel tab, IReadOnlyList<ItemRef> sel, AttributeMetadata metadata, PreparationScope scope)
     {
-        var paths = sel.Select(s => s.FileSystemPath!).ToList();
-        var modes = paths.Select(UnixPermissions.Stat).Where(s => s is not null).Select(s => s!.Value.Mode).ToList();
-        var infos = paths.Select(p => Services.Platform.FileOperations.TryGetInfo(p)).OfType<FileSystemItemInfo>().ToList();
-        if (modes.Count == 0 || infos.Count == 0)
-        {
-            Notify("The marked items no longer exist or cannot be read.", true);
-            return;
-        }
-        bool? State(UnixFileMode bit) => modes.All(m => (m & bit) != 0) ? true : modes.All(m => (m & bit) == 0) ? false : null;
+        bool? State(UnixFileMode bit) => metadata.State(bit);
 
         UnixFileMode touched = 0;
         bool updating = false;
@@ -129,14 +121,14 @@ public sealed partial class MainViewModel
         ShowOctal();
 
         bool mac = OperatingSystem.IsMacOS();
-        bool? hiddenState = infos.All(i => (i.Attributes & FileAttributes.Hidden) != 0) ? true : infos.All(i => (i.Attributes & FileAttributes.Hidden) == 0) ? false : null;
+        bool? hiddenState = metadata.State(FileAttributes.Hidden);
         var hidden = new CheckBox { Content = "Hidden in Finder", IsChecked = hiddenState, IsThreeState = hiddenState is null, IsVisible = mac };
-        var modified = new TextBox { Text = infos.Count == 1 ? infos[0].ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : string.Empty, PlaceholderText = "unchanged (yyyy-MM-dd HH:mm:ss)" };
+        var modified = new TextBox { Text = metadata.Single?.ModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? string.Empty, PlaceholderText = "unchanged (yyyy-MM-dd HH:mm:ss)" };
         // Linux file systems keep a creation time but offer no way to set it.
-        var created = new TextBox { Text = infos.Count == 1 ? infos[0].CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : string.Empty, PlaceholderText = "unchanged", IsVisible = mac };
+        var created = new TextBox { Text = metadata.Single?.CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? string.Empty, PlaceholderText = "unchanged", IsVisible = mac };
         Avalonia.Automation.AutomationProperties.SetName(modified, "Modified");
         Avalonia.Automation.AutomationProperties.SetName(created, "Created");
-        bool folders = sel.Any(s => s.IsContainer);
+        bool folders = metadata.HasFolders;
         var recursive = new CheckBox { Content = "Also apply to everything inside the marked folders (links are not followed)", IsVisible = folders };
 
         var body = new StackPanel { Spacing = 6, MinWidth = 480 };
@@ -157,7 +149,7 @@ public sealed partial class MainViewModel
         body.Children.Add(created);
         body.Children.Add(recursive);
         var answer = await Dialogs.ShowCustomAsync("Permissions and times", body, [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Apply", "ok", IsDefault: true)]);
-        if (answer as string != "ok") return;
+        if (answer as string != "ok" || Services.Io.IsStopped) return;
 
         UnixFileMode set = 0, clear = 0;
         foreach (var (box, bit) in boxes)
@@ -174,11 +166,11 @@ public sealed partial class MainViewModel
         }
         DateTime? Parse(TextBox t, DateTime? original) =>
             DateTime.TryParse(t.Text, out var d) && (original is null || Math.Abs((d.ToUniversalTime() - original.Value).TotalSeconds) >= 1) ? d.ToUniversalTime() : null;
-        var mod = Parse(modified, infos.Count == 1 ? infos[0].ModifiedUtc : null);
-        var cre = mac ? Parse(created, infos.Count == 1 ? infos[0].CreatedUtc : null) : null;
+        var mod = Parse(modified, metadata.Single?.ModifiedUtc);
+        var cre = mac ? Parse(created, metadata.Single?.CreatedUtc) : null;
         bool deep = recursive.IsChecked == true && folders;
         // Without folders to go into, boxes set back to what every item already has change nothing.
-        bool permissionsChange = deep ? (set | clear) != 0 : modes.Any(m => ((m & ~clear) | set) != m);
+        bool permissionsChange = deep ? (set | clear) != 0 : metadata.ModesChange(set, clear);
         if (!permissionsChange && setAttributes == 0 && clearAttributes == 0 && mod is null && cre is null)
         {
             Notify("Nothing to change.");
@@ -191,6 +183,7 @@ public sealed partial class MainViewModel
             Attributes = new AttributeChangeSet(setAttributes, clearAttributes, mod, cre, deep,
                 permissionsChange ? set : 0, permissionsChange ? clear : 0),
         });
+        scope.SelectionTransferred = true;
         Track(job, tab);
     }
 }

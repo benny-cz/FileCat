@@ -205,7 +205,7 @@ public sealed partial class MainViewModel
                 tab?.GoUp();
                 break;
             case CommandIds.Enter:
-                if (tab is not null && !tab.TryEnterFocused(out var entered) && !TryOpenAsArchive(tab, entered)) Notify("The focused item cannot be entered: it is neither a folder nor a ZIP-compatible archive.");
+                if (tab is not null && !tab.TryEnterFocused(out var entered) && !await TryOpenAsArchiveAsync(tab, entered)) Notify("The focused item cannot be entered: it is neither a folder nor a supported archive.");
                 break;
             case CommandIds.Root:
                 tab?.GoRoot();
