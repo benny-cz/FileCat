@@ -352,6 +352,8 @@ public static class OperationDialogs
 
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var compareResult = Muted(string.Empty);
+        bool dialogOpen = true;
+        CancellationTokenSource? comparison = null;
         if (!c.Incoming.IsDirectory && !c.Existing.IsDirectory)
         {
             var viewIn = new Button { Content = "View incoming" };
@@ -361,10 +363,27 @@ public static class OperationDialogs
             var compare = new Button { Content = "Compare content" };
             compare.Click += async (_, _) =>
             {
+                if (!dialogOpen || comparison is not null) return;
+                var request = CancellationTokenSource.CreateLinkedTokenSource(job.Token);
+                comparison = request;
                 compare.IsEnabled = false;
                 compareResult.Text = "Comparing…";
-                compareResult.Text = await Task.Run(() => CompareFiles(c.SourcePath, c.DestinationPath));
-                compare.IsEnabled = true;
+                try
+                {
+                    string result = await Task.Run(() => CompareFiles(c.SourcePath, c.DestinationPath, request.Token), request.Token);
+                    if (dialogOpen && !request.IsCancellationRequested)
+                        compareResult.Text = result;
+                }
+                catch (OperationCanceledException) when (request.IsCancellationRequested)
+                {
+                    if (dialogOpen) compareResult.Text = "Comparison stopped.";
+                }
+                finally
+                {
+                    comparison = null;
+                    request.Dispose();
+                    if (dialogOpen) compare.IsEnabled = true;
+                }
             };
             tools.Children.Add(viewIn);
             tools.Children.Add(viewEx);
@@ -386,8 +405,17 @@ public static class OperationDialogs
         if (c.SuggestedExistingName is not null && !c.TypeMismatch)
             buttons.Add(new DialogButton("Rename existing", DecisionAction.KeepBothRenameExisting));
         buttons.Add(new DialogButton("Cancel operation", DecisionAction.CancelJob, IsCancel: true));
-        var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons);
-        return r is DecisionAction a ? new Decision(a, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
+        try
+        {
+            var r = await vm.Dialogs.ShowCustomAsync(c.Title, body, buttons);
+            return r is DecisionAction a ? new Decision(a, applyAll.IsChecked == true) : new Decision(DecisionAction.CancelJob);
+        }
+        finally
+        {
+            dialogOpen = false;
+            comparison?.Cancel();
+            // The worker owns disposal, after its synchronous read has returned.
+        }
     }
 
     private static async Task<Decision> ErrorAsync(MainViewModel vm, Job job, ErrorRequest e)
@@ -455,15 +483,18 @@ public static class OperationDialogs
         return s.Count == 0 ? "—" : string.Join(", ", s);
     }
 
-    private static string CompareFiles(string a, string b)
+    private static string CompareFiles(string a, string b, CancellationToken ct)
     {
         try
         {
+            ct.ThrowIfCancellationRequested();
             var fa = new FileInfo(a);
             var fb = new FileInfo(b);
             if (fa.Length != fb.Length) return $"Different: sizes differ ({Formatters.ExactSize(fa.Length)} vs {Formatters.ExactSize(fb.Length)}).";
-            var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, CancellationToken.None);
-            var hb = PortableFileOperations.HashFile(b, HashAlgorithmName.SHA256, CancellationToken.None);
+            var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, ct);
+            ct.ThrowIfCancellationRequested();
+            var hb = PortableFileOperations.HashFile(b, HashAlgorithmName.SHA256, ct);
+            ct.ThrowIfCancellationRequested();
             return ha.AsSpan().SequenceEqual(hb) ? "Identical content (SHA-256 of both files matches)." : "Different content (same size, different SHA-256).";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
