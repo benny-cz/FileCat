@@ -80,7 +80,7 @@ The original Windows failure has no admission/process diagnostics; its historica
 
 Fixture producer aa3441068e9e552ca89ad1aa860a1dfd36ded3de changes only `GitAlternateTests.cs` over the failure-record checkpoint. Working and exact clean runs each pass 286 cases with one existing unavailable-SMB-capture skip: all 176 preceding affected outcomes and 111 Git names/outcomes agree with the earlier original green inventory. The fifteen alternate cases pass. Independent v4 verifies both 1128-blob source archives/modes/exports, one fixture overlay, 282 actual payload references, 24 retained files and twenty Git/comparison case observations. Native porcelain and independent SHA-256 of known one/two bytes agree; admitted ordinary stores yield Modified, while owned junction stores are refused with recorded inputs unchanged. The prepared v1 observation reader was never executed; v2 uses explicit NUL/path-separator characters.
 
-Original [fixture-producer CI 37664869211](https://github.com/benny-cz/FileCat/actions/runs/37664869211), attempt 1 at aa34410, is pending. The original d82397d Windows failure and all four native inventories above remain unchanged. No historical-cause or candidate qualification is claimed.
+Original [fixture-producer CI 37664869211](https://github.com/benny-cz/FileCat/actions/runs/37664869211), attempt 1 at aa34410, **passes all four required lanes**. Every preceding 642 App name/outcome/skip is retained plus the nine comparison additions; all 36 new comparison executions pass without skips. All fifteen alternate cases retain their expected outcome per lane (Windows 15 pass, Unix 10 pass/five explicit junction skips). The shared-object ordinary effect passes on all four lanes; both Windows junction effects are refused. Independent reader reconstructs all ten Git phase records and all 36 comparison observations from raw output, including known input hashes/native porcelain/borrowed bytes/unchanged inputs. The Windows fixture failure is followed by an isolated, instrumented passing control without claiming its historical cause. The original d82397d Windows failure and all four native inventories above remain unchanged. No historical-cause or candidate qualification is claimed.
 
 Private `FileCatReleaseEvidence/ga200-followup-v1`:
 
@@ -99,5 +99,29 @@ Private `FileCatReleaseEvidence/ga200-followup-v1`:
 | seal-git-fixture-followup-v4.py | 268684718e1bfa9fc00e0bc45f45458ee7716932b963412fe377c7faa08e1a53 |
 | owned-process-absence-v4.json | 3f83d68b120106f254d837c06e0b8200f809a437f500c16e28dc91e49746ede7 |
 | independent-git-fixture-followup-v4.json | 4eaf717dd96abcd3fc687777b4ae24e6f76783ac01eff0e47a7caf17b5176859 |
+
+
+Independent fixture CI audit v1 seals nineteen selected server digests/every member, fourteen complete inventories, four compiler receipts, 92 locked graphs and eight CI seals. App cases per lane: Windows/ARM64 634 pass/17 explicit skips, Ubuntu 565 pass/86 skips, macOS 567 pass/84 skips; each totals 651. Prior Core/Remote/Platform outcomes and skip reasons remain. Producer policy passes; source package/draft jobs are skipped. No CI rerun, stable tag, draft promotion or candidate qualification occurred.
+
+Private `FileCatReleaseEvidence/ci-37664869211-assets-attempt1-v1`:
+
+| Retained path | SHA-256 |
+|---|---|
+| independent-assets-ci.json | d8d374f82b0f81b46854ce8128257ddb3305ea059985a1a21c264c4211028f42 |
+| independent-draft-guard-ci-v1.json | b024f72c5a617096d56590a0824ed9534b5a7b304547bb9a3f3bfe9a773b04d2 |
+| independent-fixture-ci-v1.json | 5afd2ebb2b3cdd1643dae3941a204a34c7b9209f0429bd55c23b02833a993076 |
+| independent-git-effect-ci-v1.json | bc88122ea3acc80bd93a0b2f2ac3518c96a76e1dfd204f79a88459167d54eaef |
+| independent-git-fixture-ci-audit-v1.json | 455e12cf289bc7038848208bf28ac5529bdd8f1e296f94769f700529eea63fbd |
+| independent-i200-ci-cases-v1.json | b282c6b9ae186e0f3197d2df3c3dc81cc14c29762f6199a4b2ce35a6fdd2c18d |
+| independent-producer-policy-ci-v1.json | 7a96ffe103f8e67ed3ef288ce25315b6a349d67e1aa5363eabd8a8d86f88ede1 |
+| independent-restore-ci-v1.json | 776f9a7929e6b3f369a736db68e46bbe18f38b412ae79121739907e466be70e8 |
+| independent-separation-ci-v1.json | 841c7e4f6a66c888233489a6903a782fb050b514c62091b32a95263e2f0b08de |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| Retained path | SHA-256 |
+|---|---|
+| collect-i200-fixture-ci-v1.py | ca3b18048eb5f30b5b60cdfc01d253560c43a490d4919d2986f76165a57214fd |
+| verify-i200-fixture-ci-v1.py | 85e9f0a38cf1032ec17807f50409bcb7eee19cea4b70d41e855775d49bac17c7 |
 
 No native desktop/input, actual remote/archive device, human, physical/reference or candidate qualification is claimed. Physical-source/USB hold, contract freeze, candidate formation and explicit human GO/publication gates remain. No persistent machine setup or physical source changed.
