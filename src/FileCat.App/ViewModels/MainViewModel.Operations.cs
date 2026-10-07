@@ -882,14 +882,16 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// Opens content once, off the UI thread (a remote item may connect and ask for a password), and hands it to the
-    /// viewer, which owns it from then on.
+    /// Opens content once on a bounded device worker (a remote item may connect and ask for a password), and hands it
+    /// to the viewer, which owns it from then on. Shutdown cancels queued opens; active calls finish before transfer.
     /// </summary>
     private async Task ViewItemAsync(ItemRef item, string name, bool hex)
     {
         try
         {
-            var source = await Task.Run(() => Services.Providers.For(item.Parent).OpenContent(item));
+            var provider = Services.Providers.For(item.Parent);
+            var source = await Services.Io.Run(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive,
+                _ => provider.OpenContent(item));
             if (source is null)
             {
                 Notify("This item has no viewable content.", true);
