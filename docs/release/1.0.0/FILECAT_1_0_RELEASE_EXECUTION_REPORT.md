@@ -10,14 +10,14 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 173 IDs: 151 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 186 entries; 494 selected private evidence hashes independently reconciled in audit v47. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 186 entries; 511 selected private evidence hashes independently reconciled in audit v48. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Current product producer | cd6ba2e567807a527626d268bc2d746bc0eab80e — completed flat-view source cleanup, including prior tilde worktree, result-consumer, bulk removal, note lifetime, Find/admission/no-fetch and owner About changes. | Earlier component/native evidence keeps its own exact producer; changed/rebuilt artifacts require identity and affected revalidation. |
-| Latest product CI | 37557951023 attempt 1 at cd6ba2e is pending. | I173 clean committed affected tests are sealed; original I172 four-platform CI remains independently sealed for its own producer. |
+| Latest product CI | 37557951023 attempt 1 at cd6ba2e is sealed green on policy/all four required lanes. | I173 retains 19 digests, 14 full inventories (482 App cases per lane), eight new passes without skips, compiler receipts and 92 locked graphs. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest completed slice: [I173](evidence/E-I173-flat-view-source-lifetime.md) releases completed flat-view cancellation sources with either an open or closed result consumer. Two original-code failures and 24 working/clean committed App passes are sealed; original four-platform CI is pending. [I172](evidence/E-I172-tilde-git-worktree.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest completed slice: [I173](evidence/E-I173-flat-view-source-lifetime.md) releases completed flat-view cancellation sources with either an open or closed result consumer. Two original-code failures and 24 working/clean committed App passes are sealed; original four-platform CI adds eight new passes without skips. [I172](evidence/E-I172-tilde-git-worktree.md) and earlier records retain their exact producer and scope. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 ## Remaining issue work — 20 entries
 

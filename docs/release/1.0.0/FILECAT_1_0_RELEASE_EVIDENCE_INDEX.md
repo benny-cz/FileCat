@@ -198,7 +198,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-X02 | Fresh Linux native suites | `ecf5349` / `cc97a8d` plus hash-bound I99 App inputs | Preliminary native | [E-X02](evidence/E-X02-fresh-linux-native.md) | S10, V19, ENV-04, I99 |
 
 <a id="commits-made-by-the-campaign"></a>
-| E-I173 | Completed flat-view producer releases its cancellation source | 8a57103 before; c6e13f5/cd6ba2e correction | Preliminary headless ownership controls; two baseline failures/24 affected passes; original CI pending; wider/native/candidate open | [E-I173](evidence/E-I173-flat-view-source-lifetime.md) | I06, V12/V13 |
+| E-I173 | Completed flat-view producer releases its cancellation source | 8a57103 before; c6e13f5/cd6ba2e correction | Preliminary headless ownership controls; two baseline failures/24 affected passes; original CI sealed with eight new passes; wider/native/candidate open | [E-I173](evidence/E-I173-flat-view-source-lifetime.md) | I06, V12/V13 |
 
 ## History and maintenance
 
