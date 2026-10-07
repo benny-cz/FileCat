@@ -54,6 +54,9 @@ public sealed class DeviceIoScheduler : IDisposable
     public int ThreadsPerDevice { get; }
     public int MaxThreadsPerDevice { get; }
 
+    /// <summary>Shutdown has begun; callers must not publish newly admitted work.</summary>
+    public bool IsStopped => _disposed;
+
     /// <summary>Raised (on a pool thread) when a device changes between responsive and not responding.</summary>
     public event Action<string, DeviceHealth>? HealthChanged;
 

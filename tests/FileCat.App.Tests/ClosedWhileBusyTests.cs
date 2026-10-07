@@ -57,7 +57,7 @@ public sealed class ClosedWhileBusyTests
             compare.Close();
 
             // A viewer and a hex editor of a large file, closed as they open.
-            ViewerLauncher.OpenPath(services, Path.Combine(files, "big1.txt"));
+            await ViewerLauncher.OpenPath(services, Path.Combine(files, "big1.txt"));
             for (int i = 0; i < 100 && ViewerWindow.OpenWindows.Count == 0; i++) await Task.Delay(10, ct);
             foreach (var w in ViewerWindow.OpenWindows.ToList()) w.Close();
             Assert.Null(HexEditorWindow.OpenOrActivate(services, Path.Combine(files, "big2.txt")));

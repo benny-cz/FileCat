@@ -90,6 +90,9 @@ public sealed class ViewerWindow : Window
     public string DisplayName => _displayName;
 
     public ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey = null)
+        : this(services, source, displayName, hex, deviceKey, null) { }
+
+    internal ViewerWindow(AppServices services, IContentSource source, string displayName, bool hex, string? deviceKey, PagedReader? preparedReader)
     {
         _services = services;
         _deviceKey = deviceKey ?? "viewer-content";
@@ -100,9 +103,8 @@ public sealed class ViewerWindow : Window
         }
         _displayName = displayName;
         _pageView = new PageView(services.Paths.PageViewDataDirectory) { IsVisible = false };
-        s_open.Add(this);
         Closed += (_, _) => s_open.Remove(this);
-        _reader = new PagedReader(source, services.Io, _deviceKey);
+        _reader = preparedReader ?? new PagedReader(source, services.Io, _deviceKey);
         Title = $"{Path.GetFileName(displayName.TrimEnd('\\', '/'))} — FileCat Viewer";
         Width = 980;
         Height = 700;
@@ -154,7 +156,7 @@ public sealed class ViewerWindow : Window
         Border? lostNotice = null;
         if (source is IPartialContent partial && (partial.MissingRanges.Count > 0 || partial.Caveat is not null))
         {
-            string notice = string.Join(" ", new[] { partial.Caveat, partial.MissingRanges.Count > 0 ? PartialContent.Describe(partial.MissingRanges, source.Length) : null }.Where(t => t is not null));
+            string notice = string.Join(" ", new[] { partial.Caveat, partial.MissingRanges.Count > 0 ? PartialContent.Describe(partial.MissingRanges, _reader.Length) : null }.Where(t => t is not null));
             lostNotice = new Border
             {
                 Padding = new Thickness(8, 4),
@@ -239,6 +241,7 @@ public sealed class ViewerWindow : Window
         _changeTimer = new DispatcherTimer(TimeSpan.FromSeconds(1.5), DispatcherPriority.Background, (_, _) => { _ = CheckForChanges(); });
         Opened += async (_, _) =>
         {
+            if (!s_open.Contains(this)) s_open.Add(this);
             SetMode(hex);
             await DetectEncodingAsync(forceHexIfBinary: !hex);
             if (_closing.IsCancellationRequested) return;
@@ -1014,20 +1017,43 @@ public sealed class ViewerWindow : Window
 /// <summary>Opens viewer windows for items of any provider that exposes content.</summary>
 public static class ViewerLauncher
 {
-    /// <summary>Shows content already opened (off the UI thread) for the item; the window disposes it.</summary>
-    public static void Open(AppServices services, ItemRef item, IContentSource source, bool hex)
+    /// <summary>Admits initial metadata off the UI thread; transfers the source to a shown window or disposes it on failure.</summary>
+    public static async Task Open(AppServices services, ItemRef item, IContentSource source, bool hex)
     {
-        var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
-        new ViewerWindow(services, source, name, hex, services.Providers.For(item.Parent).GetDeviceKey(item.Parent)).Show();
+        PagedReader? reader = null;
+        ViewerWindow? window = null;
+        bool transferred = false;
+        try
+        {
+            var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
+            string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
+            reader = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new PagedReader(source, services.Io, deviceKey));
+            if (services.Io.IsStopped) throw new OperationCanceledException("Viewer admission stopped.");
+            window = new ViewerWindow(services, source, name, hex, deviceKey, reader);
+            window.Show();
+            transferred = true;
+        }
+        finally
+        {
+            if (!transferred)
+            {
+                window?.Close();
+                if (reader is not null) reader.Dispose();
+                else source.Dispose();
+            }
+        }
     }
 
-    public static void OpenPath(AppServices services, string path)
+    public static async Task OpenPath(AppServices services, string path)
     {
         try
         {
-            new ViewerWindow(services, new FileContentSource(path), path, hex: false).Show();
+            var item = ItemRef.ForFileSystemPath(path, EntryKind.File);
+            string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
+            var source = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new FileContentSource(path));
+            await Open(services, item, source, hex: false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
             // The caller shows its own errors; a missing file simply opens nothing.
         }

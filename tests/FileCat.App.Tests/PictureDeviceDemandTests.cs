@@ -86,34 +86,40 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
         KeepHeldCallsInsideTheFixtureDeadline(services);
         var sources = Enumerable.Range(0, 4).Select(i => new Source(root, i, hold: i < 3)).ToArray();
         var windows = new List<ViewerWindow>();
+        Task<ViewerWindow>? queued = null;
         try
         {
             services.Providers.Register(new Provider(sources));
-            ViewerWindow Open(int i, string device)
+            async Task<ViewerWindow> Open(int i, string device)
             {
                 var before = ViewerWindow.OpenWindows.ToHashSet();
-                ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
+                await ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
                 var window = Assert.Single(ViewerWindow.OpenWindows.Where(w => !before.Contains(w)));
                 windows.Add(window);
                 return window;
             }
-            Open(0, "held");
+            await Open(0, "held");
             await sources[0].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-            Open(1, "held");
+            await Open(1, "held");
             await sources[1].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-            Open(2, "held");
+            queued = Open(2, "held");
             await Task.WhenAny(sources[2].Entered.Task, Task.Delay(1500, TestContext.Current.CancellationToken));
             int activeAtCheckpoint = sources.Take(3).Sum(s => s.ActiveReads);
-            var healthy = Open(3, "healthy");
+            var healthy = await Open(3, "healthy");
             await WaitFor(() => healthy.PictureLoad is not null);
             await healthy.PictureLoad!.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
             Assert.Equal((44, 30), (healthy.Picture!.Width, healthy.Picture.Height));
             output.WriteLine($"Held viewer reads at checkpoint {activeAtCheckpoint}; third feed entered {sources[2].Entered.Task.IsCompleted}; separate healthy provider device renders 44 x 30.");
             Assert.Equal(services.Io.ThreadsPerDevice, activeAtCheckpoint);
             Assert.False(sources[2].Entered.Task.IsCompleted);
+            Assert.False(queued.IsCompleted);
             Assert.Equal(0, sources[2].Reads); // its queued initial header has not reached the held device
             foreach (var w in windows) w.Close();
+            services.Io.Dispose(); // Retire queued initial metadata before releasing the held device.
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queued);
             foreach (var s in sources) s.Release.Set();
+            if (queued is not null) { try { await queued; } catch (OperationCanceledException) { } }
+            foreach (var w in windows) w.Close();
             await Task.WhenAll(windows.Select(w => w.PictureLoad ?? Task.CompletedTask));
             await WaitFor(() => sources.All(s => s.Disposals == 1));
             Assert.Equal(0, sources[2].Reads); // canceled queued header never reads afterwards
@@ -124,6 +130,8 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
         {
             foreach (var w in windows) w.Close();
             foreach (var s in sources) s.Release.Set();
+            if (queued is not null) { try { await queued; } catch (OperationCanceledException) { } }
+            foreach (var w in windows) w.Close();
             await Task.WhenAll(windows.Select(w => w.PictureLoad ?? Task.CompletedTask));
             await JoinReads(sources);
             foreach (var s in sources) s.Cleanup();
@@ -138,33 +146,37 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
         KeepHeldCallsInsideTheFixtureDeadline(services);
         var sources = Enumerable.Range(0, 4).Select(i => new Source(root, i, hold: i < 3, heldRead: 1)).ToArray();
         var windows = new List<ViewerWindow>();
+        Task<ViewerWindow>? queued = null;
         try
         {
             services.Providers.Register(new Provider(sources));
-            ViewerWindow Open(int i, string device)
+            async Task<ViewerWindow> Open(int i, string device)
             {
                 var before = ViewerWindow.OpenWindows.ToHashSet();
-                ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
+                await ViewerLauncher.Open(services, new ItemRef(new Location("picturedevicefixture", device), $"p{i}.png", EntryKind.File), sources[i], hex: false);
                 var window = Assert.Single(ViewerWindow.OpenWindows, w => !before.Contains(w));
                 windows.Add(window);
                 return window;
             }
-            Open(0, "held");
+            await Open(0, "held");
             await sources[0].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-            Open(1, "held");
+            await Open(1, "held");
             await sources[1].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-            Open(2, "held");
+            queued = Open(2, "held");
             await Task.WhenAny(sources[2].Entered.Task, Task.Delay(500, TestContext.Current.CancellationToken));
             int activeAtCheckpoint = sources.Take(3).Sum(s => s.ActiveReads);
-            var healthy = Open(3, "healthy");
+            var healthy = await Open(3, "healthy");
             await WaitFor(() => healthy.PictureLoad is not null);
             await healthy.PictureLoad!.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
             Assert.Equal((44, 30), (healthy.Picture!.Width, healthy.Picture.Height));
             output.WriteLine($"Header calls at checkpoint {activeAtCheckpoint}; third header entered {sources[2].Entered.Task.IsCompleted}; healthy device 44 x 30; calls: {string.Join(" | ", sources.Take(3).Select(s => s.HeldCallStack))}");
             Assert.Equal(services.Io.ThreadsPerDevice, activeAtCheckpoint);
             Assert.False(sources[2].Entered.Task.IsCompleted);
+            Assert.False(queued.IsCompleted);
             Assert.Equal(0, sources[2].Reads);
             foreach (var window in windows) window.Close();
+            services.Io.Dispose(); // Retire queued initial metadata before releasing the held device.
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queued);
             foreach (var source in sources) source.Release.Set();
             await JoinReads(sources);
             await WaitFor(() => sources.All(s => s.Disposals == 1));
@@ -176,6 +188,8 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
         {
             foreach (var window in windows) window.Close();
             foreach (var source in sources) source.Release.Set();
+            if (queued is not null) { try { await queued; } catch (OperationCanceledException) { } }
+            foreach (var window in windows) window.Close();
             await Task.WhenAll(windows.Select(w => w.PictureLoad ?? Task.CompletedTask));
             await JoinReads(sources);
             await WaitFor(() => sources.All(s => s.Disposals == 1));

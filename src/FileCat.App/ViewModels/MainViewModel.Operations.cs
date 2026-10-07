@@ -895,7 +895,7 @@ public sealed partial class MainViewModel
                 Notify("This item has no viewable content.", true);
                 return;
             }
-            ViewerLauncher.Open(Services, item, source, hex);
+            await ViewerLauncher.Open(Services, item, source, hex);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)

@@ -357,9 +357,9 @@ public static class OperationDialogs
         if (!c.Incoming.IsDirectory && !c.Existing.IsDirectory)
         {
             var viewIn = new Button { Content = "View incoming" };
-            viewIn.Click += (_, _) => ViewerLauncher.OpenPath(vm.Services, c.SourcePath);
+            viewIn.Click += async (_, _) => await ViewerLauncher.OpenPath(vm.Services, c.SourcePath);
             var viewEx = new Button { Content = "View existing" };
-            viewEx.Click += (_, _) => ViewerLauncher.OpenPath(vm.Services, c.DestinationPath);
+            viewEx.Click += async (_, _) => await ViewerLauncher.OpenPath(vm.Services, c.DestinationPath);
             var compare = new Button { Content = "Compare content" };
             compare.Click += async (_, _) =>
             {
