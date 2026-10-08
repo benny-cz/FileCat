@@ -71,6 +71,29 @@ public sealed class ReviewedSourceContentTests(ITestOutputHelper output)
         Assert.Equal(allowLinks, review is not null); Assert.Equal(allowLinks, matched); Assert.False(after); if (review is not null) Assert.Null(Assert.Single(review.Items).Content);
     }
 
+    [Theory]
+    [InlineData("root-metadata")]
+    [InlineData("child-metadata")]
+    [InlineData("root-identity")]
+    [InlineData("child-identity")]
+    [InlineData("tree-added")]
+    public void Revalidation_refuses_an_unreviewed_version_before_opening_its_content(string change)
+    {
+        using var f = new Fixture(); bool directory = change.StartsWith("child-", StringComparison.Ordinal) || change == "tree-added";
+        if (directory) { File.Delete(f.Source); Directory.CreateDirectory(f.Source); File.WriteAllText(Path.Join(f.Source, "child"), "owned source bytes"); }
+        string changedPath = change.StartsWith("child-", StringComparison.Ordinal) ? Path.Join(f.Source, "child") : f.Source;
+        var files = new ChangedIdentity(changedPath);
+        var review = Assert.IsType<FileTreeReview>(FileTreeReview.Capture(f.Source, files, f.Provider));
+        if (change.EndsWith("metadata", StringComparison.Ordinal)) File.AppendAllText(changedPath, " changed");
+        else if (change.EndsWith("identity", StringComparison.Ordinal)) files.Changed = true;
+        else Change(f.Source, "tree-added");
+        var approved = review.Items.Select(i => i.Path).ToHashSet(StringComparer.Ordinal);
+        f.Provider.Opened.Clear(); bool matched = review.Matches(files, f.Provider);
+        var unreviewedOpens = f.Provider.Opened.Where(p => p == changedPath && change != "tree-added" || !approved.Contains(p)).ToArray();
+        Emit("source-version-before-content", new { change, matched, Opened = f.Provider.Opened.ToArray(), UnreviewedOpens = unreviewedOpens, SyntheticIdentity = change.EndsWith("identity", StringComparison.Ordinal) });
+        Assert.False(matched); Assert.Empty(unreviewedOpens);
+    }
+
     private static void Change(string path, string change)
     {
         if (change is "same-bytes" or "tree-bytes")
@@ -90,7 +113,7 @@ public sealed class ReviewedSourceContentTests(ITestOutputHelper output)
     private sealed class Fixture : IDisposable
     {
         public readonly string Root = Directory.CreateDirectory(Path.Join(Path.GetTempPath(), "filecat-source-content", Guid.NewGuid().ToString("N"))).FullName;
-        public readonly Files Files = new(); public readonly LocalFileSystemProvider Provider = new(); public readonly JobManager Jobs;
+        public readonly Files Files = new(); public readonly TrackingProvider Provider = new(); public readonly JobManager Jobs;
         public string Source => Path.Join(Root, "source.txt"); public string Destination => Path.Join(Root, "not-created");
         public Fixture() { File.WriteAllText(Source, "owned source bytes"); var providers = new ProviderRegistry(); providers.Register(Provider); Jobs = new(Files, providers, Path.Join(Root, "journals")) { MaxConcurrent = 0 }; }
         public void Dispose() { foreach (var job in Jobs.Jobs) job.Cancel(); SpinWait.SpinUntil(() => !Jobs.HasActiveWork, TimeSpan.FromSeconds(3)); Directory.Delete(Root, true); }
@@ -106,6 +129,23 @@ public sealed class ReviewedSourceContentTests(ITestOutputHelper output)
     {
         public bool Changed;
         public override FileSystemItemInfo? TryGetInfo(string path) { var info = base.TryGetInfo(path); return info is null ? null : info with { IsLink = true, LinkTarget = Changed ? "other-target" : "reviewed-target" }; }
+    }
+    private sealed class ChangedIdentity(string path) : PortableFileOperations
+    {
+        public bool Changed;
+        public override string? GetFileIdentity(string source) => source == path ? Changed ? "changed-identity" : "reviewed-identity" : base.GetFileIdentity(source);
+    }
+    private sealed class TrackingProvider : ResourceProvider
+    {
+        private readonly LocalFileSystemProvider _inner = new();
+        public readonly System.Collections.Concurrent.ConcurrentQueue<string> Opened = new();
+        public override string Scheme => Schemes.FileSystem;
+        public override string GetDisplayPath(Location location) => _inner.GetDisplayPath(location);
+        public override Location? GetParent(Location location) => _inner.GetParent(location);
+        public override LocationCapabilities GetCapabilities(Location location) => _inner.GetCapabilities(location);
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => _inner.EnumerateAsync(location, sink, ct);
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => _inner.GetChildLocation(parent, entry);
+        public override IContentSource? OpenContent(ItemRef item) { Opened.Enqueue(item.FileSystemPath!); return _inner.OpenContent(item); }
     }
     private sealed class NoContent : ResourceProvider
     {

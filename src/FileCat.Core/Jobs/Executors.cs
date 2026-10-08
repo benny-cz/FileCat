@@ -470,8 +470,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             bool pathMatches = Job.Request.ExpectedSources is not { } expected ||
                 expected.TryGetValue(source, out var review) && review.Matches(path, Fs, Job.Checkpoint);
-            bool treeMatches = Job.Request.ExpectedSourceTrees is not { } trees ||
-                trees.TryGetValue(source, out var reviewed) && reviewed.Tree.Matches(Fs, reviewed.Provider, Job.Checkpoint);
+            bool treeMatches = pathMatches && (Job.Request.ExpectedSourceTrees is not { } trees ||
+                trees.TryGetValue(source, out var reviewed) && reviewed.Tree.Matches(Fs, reviewed.Provider, Job.Checkpoint));
             if (pathMatches && treeMatches) return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }

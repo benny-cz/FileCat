@@ -15,6 +15,10 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
 
     public static FileTreeReview? Capture(string root, IFileSystemOperations files, ResourceProvider provider,
         Action? check = null, long byteLimit = JournalRecovery.StagedReviewByteLimit, int itemLimit = 1000, bool allowLinks = false)
+        => Capture(root, files, provider, check, byteLimit, itemLimit, allowLinks, expected: null);
+
+    private static FileTreeReview? Capture(string root, IFileSystemOperations files, ResourceProvider provider,
+        Action? check, long byteLimit, int itemLimit, bool allowLinks, IReadOnlyDictionary<string, Item>? expected)
     {
         if (itemLimit <= 0 || byteLimit < 0) return null;
         try
@@ -26,6 +30,9 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
                 check?.Invoke(); if (items.Count == itemLimit || next.Depth > 128) return null;
                 var version = SourcePathReview.Capture(next.Path, files, check);
                 if (version is null) return null;
+                // Do not open content belonging to a changed identity/version or a newly discovered descendant.
+                // Complete hashes are compared afterward, but known path changes must stop before that read.
+                if (expected is not null && (!expected.TryGetValue(next.Path, out var approved) || approved.Version != version)) return null;
                 bool link = version.Info.IsLink || (version.Info.Attributes & FileAttributes.ReparsePoint) != 0;
                 if (link && !allowLinks) return null;
                 JournalRecovery.StagedFileReview? content = null;
@@ -53,7 +60,8 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
 
     public bool Matches(IFileSystemOperations files, ResourceProvider provider, Action? check = null)
     {
-        var current = Capture(Root, files, provider, check, allowLinks: AllowLinks);
+        var expected = Items.ToDictionary(i => i.Path, StringComparer.Ordinal);
+        var current = Capture(Root, files, provider, check, JournalRecovery.StagedReviewByteLimit, 1000, AllowLinks, expected);
         return current is not null && current.Items.SequenceEqual(Items);
     }
 }
