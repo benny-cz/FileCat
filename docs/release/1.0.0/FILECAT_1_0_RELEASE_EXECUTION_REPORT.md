@@ -9,15 +9,15 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 207 IDs: 185 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 224 entries; 1738 selected private evidence hashes independently reconciled in audit v123. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 208 IDs: 186 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 225 entries; 1776 selected private evidence hashes independently reconciled in audit v124. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | a45b052f4f35a78d5bbe14c2e0b88343dc804b04. | Exact clean 342 targeted passes, including 61 additions; seven existing remote-environment skips, no new skips. This is not a release candidate. |
-| Latest observed CI | 37701094259 attempt 1 at a96b598: all four required lanes pass. | All 188 mutation additions pass; 20 server digests, 14 raw inventories and 92 locked graphs sealed. New edit-session batch native CI remains pending. |
+| Current product producer | d8d81e897800381452c9feb700d197132e562cbf. | Exact clean 390 targeted passes, including 45 additions; seven existing remote-environment skips, no new skips. This is not a release candidate. |
+| Latest observed CI | 37703721332 attempt 1 at f9cb197: all four required lanes pass. | All 244 edit-copy/F4 additions pass; 20 server digests, 14 raw inventories and 92 locked graphs sealed. New frozen-commit batch native CI remains pending. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest execution batch: [I207 edit-session integrity/preparation](evidence/E-I207-edit-preparation.md) combines exact working-copy bounds/EOF/revisions, current SFTP stat, ZIP duplicate/CRC checks and owned/coalesced F4 preparation. Fifty-six baseline failures/five positives become 61 passing additions and 342 working/canonical passes. Seven existing remote-environment skips remain explicit. Original [I206 CI](evidence/E-I206-mutation-preparation.md#original-four-platform-follow-up--a96b598) is sealed green across all four lanes. Twenty unresolved scopes and all 24 final-candidate campaigns remain.
+Latest execution batch: [I208 frozen edit commits](evidence/E-I208-edit-commit.md) keeps copied bytes and preapproval archive versions through commit execution, owns each session through acknowledgment and preserves later editor changes. All 45 additions and 390 working/canonical checks pass; seven existing environment skips remain explicit. Original [I207 CI](evidence/E-I207-edit-preparation.md#original-four-platform-follow-up--f9cb197) is sealed green on all four lanes. Twenty unresolved scopes and all 24 final-candidate campaigns remain.
 
 Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) recovers 9.10 GB through transparent compression, preserving all 21,721 original evidence paths and every processed content hash. Another 31.71 GB of installer media remains an optional retention decision.
 
@@ -30,7 +30,7 @@ Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView and Windows/Mac picture-worker subsets sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Exact cache, consumer/revision and preparation subsets are in the [catalogue](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md). I206 native CI is sealed; I207 initial edit-copy/F4 controls pass 342 clean checks, including 61 additions, with seven existing environment skips. Continue session actions/watchers, interrupted operations, other provider/admission lifetimes, larger workloads, Shell/DPI/races/formats, native and candidate qualification. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Exact consumer/revision/preparation subsets remain in the [catalogue](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md). I207 native CI is sealed; I208 frozen commits/approval/job ownership pass 390 clean checks, including 45 additions, with seven existing environment skips. Continue review/reopen/watch/save-copy, standalone discard adverse cases, interrupted operations, other provider/admission lifetimes, larger workloads, Shell/DPI/races/formats, native and candidate qualification. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -81,7 +81,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Continue runnable I06 session review/reopen/watch/commit/save/discard and interrupted-operation preparation, then other provider/admission and worker/frame lifetime controls in related batches. Initial edit-copy/F4 preparation is qualified locally in I207; the preceding archive/link batch has sealed original four-platform CI. Collect new native evidence alongside this further source work.
+1. Continue runnable I06 existing-session review/reopen/state hashing, watcher debounce/closure/discard demand, save-copy picker/source lifetimes and standalone discard failure/shutdown variants together with interrupted run-again/staged-file identity and preparation. I208 commit/competing-discard subset is locally qualified; I207 original four-platform CI is sealed. Collect new native evidence alongside further source work.
 2. Continue runnable I16/I17 indirect paths, source/path identity races and limited-account/consent/token/lifetime controls. Earlier corrections, adverse results and exact local/CI/native limits remain in the issue register and linked evidence; unavailable native-frame/interaction tasks stay queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows/Mac worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
@@ -102,7 +102,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 185 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 186 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |

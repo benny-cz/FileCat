@@ -25,7 +25,7 @@ Revision evidence remains length/modification time (plus a native ID when suppli
 
 This qualifies the initial creation/preparation subset of I06 and V07/V08/V11/V12/V23. Existing-session review/reopen/watch/commit/save/discard admission and completion lifetimes, interrupted-operation preparation, larger workloads, real editors/remote servers/native interaction and exact-candidate qualification remain. The next read-only inventory records hypotheses, not additional reproduced defects. No physical source or persistent machine setting is changed; the physical-source hold and explicit stable human GO remain.
 
-The preceding [I206 native CI](E-I206-mutation-preparation.md#original-four-platform-follow-up--a96b598) is separately sealed green. Native follow-up for this new producer remains pending. No candidate, tag or publication is created.
+The preceding [I206 native CI](E-I206-mutation-preparation.md#original-four-platform-follow-up--a96b598) is separately sealed green. Original four-platform CI is sealed green below; candidate qualification remains. No candidate, tag or publication is created.
 
 ## Provenance
 
@@ -68,3 +68,32 @@ Private `FileCatReleaseEvidence/es207-v1`:
 | working-v3/app-stdout.txt | b9a4e0eaf76a6edc624ad2da96162a8012b8eb76bbc6761956aa5fd8942222ad |
 | working-v3/app-stderr.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
 | next-session-operation-readonly-v1.json | 5ddf6934a223abc155afa30f53c373eb43eda22612dad160c9a08b78c6741011 |
+
+## Original four-platform follow-up — f9cb197
+
+Original CI 37703721332 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26, including all 244 executions of the 61 edit-copy/F4 additions. Every available predecessor name/outcome remains. Independent readers verify 20 server artifact digests/every selected member, 14 full raw TRX inventories, four builder receipts and 92 actual locked restore graphs. Mutation/metadata/archive/content/directory additions pass again (188/188/232/468/128). Native Ubuntu setup and nine mirror/five launcher controls pass. Package/draft jobs are skipped on the main push; installed/native GUI, external hardware and candidate qualification remain.
+
+CI source f9cb197ef10e5d7449c03a110b6f9961a57374ca has all 799 runtime/test/eng/workflow identities equal to the locally qualified a45b052 product. Local and hosted producers stay distinct. The subsequent [I208 commit subset](E-I208-edit-commit.md) qualifies frozen commit bytes and approval/job ownership separately; the broader session scope above remains.
+
+Private `FileCatReleaseEvidence/ci-37703721332-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 167f1bde98089f49e419ccfe1f76254a9071ca1fece53cc98bd869d1d765454f |
+| independent-restore-ci-v1.json | cde4124bf5e5df549c67f428fe213dee7e1d3b824cb43185f58eb65e9aa1830c |
+| independent-edit-ci-audit-v1.json | 6bbc3e8f5f3f93897a52c72db1ddcd65f517f4374f73d945bd993e51c28e10c0 |
+| run-native-stdout | e725775207b8b5b1b33a1cf34aa581cb8c573463a5365ffb8996cc6f6d5773e2 |
+| jobs-native-stdout | c7b1a25962429a6d1bce9ee4fee1478e36e91e1c7ff86e84822c7dd14547b38f |
+| artifacts-stdout | 1cdc74a95cb2782b2c59d426ed29abf8ddee25ded4d0603a5c283e6c78f626c2 |
+
+Private `FileCatReleaseEvidence/release-assets-20261006`:
+
+| File | SHA-256 |
+|---|---|
+| collect-i207-green-ci-v1.py | 7ccb5f3644455dd4508eac1b8c43188a47a127101a2555611db48b14a169d94d |
+
+Private `FileCatReleaseEvidence/sc208-v1`:
+
+| File | SHA-256 |
+|---|---|
+| seal-edit-ci-v1.py | aaf093f6ac54610786b460750dc53f9da910350bd10019d5c6b5e8b6b47a23b4 |
