@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**225 evidence entries; none is final candidate qualification.** No candidate exists.
+**226 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -86,6 +86,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I206 | Archive approval revisions, duplicate identity, empty-source completion and bounded/coalesced link preparation | Exact 23b77b63762520a6a951305b0a8e36f68b26ed20; baseline 4a4f4ef; canonical source/payload/TRX/observations | Preliminary headless/owned-file; metadata and volume controls disclosed | [E-I206](evidence/E-I206-mutation-preparation.md) | I06, I206, V02, V07, V11, V12, V17, V23 |
 | E-I207 | Complete edit-copy integrity, current remote revisions and owned/coalesced F4 preparation | Exact a45b052f4f35a78d5bbe14c2e0b88343dc804b04; unchanged a96b598 baseline; canonical source/payload/TRX/observations | Preliminary headless/owned-file; synthetic remote and editor refusal disclosed | [E-I207](evidence/E-I207-edit-preparation.md) | I06, I207, V07, V08, V11, V12, V23 |
 | E-I208 | Frozen edit-commit bytes, reviewed target versions and session/job ownership | Exact d8d81e897800381452c9feb700d197132e562cbf; unchanged f9cb197 baseline; canonical source/payload/TRX/observations | Preliminary owned-file/headless and synthetic remote; actual limits explicit | [E-I208](evidence/E-I208-edit-commit.md) | I06, I208, V07, V08, V11, V12, V23 |
+| E-I209 | Session review/watch/reopen/discard demand and confirmation bytes | Exact b7f12b139d25d7204b88b734093d92bc24928922; unchanged b2ec0c6 baseline; canonical source/payload/TRX and full App | Preliminary owned-file/headless; native/candidate remain | [E-I209](evidence/E-I209-session-review-lifetimes.md) | I06, I209, V07, V08, V11, V12, V23 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |

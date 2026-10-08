@@ -22,7 +22,7 @@ Independent readers verify all seven local stages, canonical source ZIPs/Git blo
 
 This qualifies the edit-commit and competing-discard subset of I06/V07/V08/V11/V12/V23. Existing-session review/reopen/state hashing, watcher debounce/closure/discard demand, save-copy picker/source lifetimes, standalone discard failure/shutdown cases, interrupted run-again/staged-file identity, broader providers/workloads, real remote servers/editors/native interactions and final-candidate qualification remain. The read-only next-scope record contains hypotheses, not additional reproduced issues. No physical-source or persistent machine setup changes occur; the physical hold and explicit stable human GO remain.
 
-The preceding [I207 original CI](E-I207-edit-preparation.md#original-four-platform-follow-up--f9cb197) is separately sealed green. Native follow-up for this new producer is pending. No candidate, tag or stable publication is created.
+The preceding [I207 original CI](E-I207-edit-preparation.md#original-four-platform-follow-up--f9cb197) is separately sealed green. Original native follow-up is retained below: three lanes passed, Windows x64 has two failures; correction follow-up remains pending. No candidate, tag or stable publication is created.
 
 ## Provenance
 
@@ -60,3 +60,29 @@ Private `FileCatReleaseEvidence/sc208-v1`:
 | working-v2/command.json | 1203b98c591ae3ded02598f1828a884dc082b711cb3bc619e59f1ae96ce0fb2e |
 | working-v3/command.json | c89e80c7344b759d5c04d314f245c8c40a225f7de7b28d23ab61568e31c8bfb1 |
 | baseline-v4/command.json | 37bde8ac599c264879e6063a653d16e1fa65eb661535630f40258e49e11d2e54 |
+
+## Original four-platform follow-up — b2ec0c6
+
+Original CI 37706345533 attempt 1 passes Windows ARM64, Ubuntu 24.04 and macOS 26. Windows x64 fails two App fixtures: the existing F4/server-edit workflow cannot find its Commit button, and the new SFTP shared-device admission case observes pending=false. Across four lanes, 179 frozen-commit additions pass and one fails; all 180 observations remain. The initial collector printed 180 under a passing label because it counted observations; raw inventories and the independent reader distinguish 179 passes/one failure. Every predecessor name remains; the existing F4 Windows outcome changes to Failed. This run is not all green.
+
+Independent readers verify 20 server digests/every selected member, 14 full raw inventories, four builder receipts and 92 actual locked graphs. Earlier edit/mutation/metadata/archive/content/directory additions pass again (244/188/188/232/468/128). Package/draft jobs are skipped. All 801 runtime/test/eng/workflow identities equal d8d81e8; local qualification and hosted failure remain separate.
+
+[I209](E-I209-session-review-lifetimes.md) corrects fixture checkpoints and qualifies review/watch/reopen/standalone discard separately. New hosted follow-up, real editor/network/native and candidate scopes remain pending.
+
+Private `FileCatReleaseEvidence/ci-37706345533-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 37779f889fb5b71d4f87faff6908e037e434a99fd13056dbd9dff931a7bc0cf6 |
+| independent-restore-ci-v1.json | a1c20aca0e26889b6dc4aa9cf504fad3fa7f52665214e731c5d3b54b97d812aa |
+| independent-commit-ci-audit-v1.json | 58d15c5db7567cb30bb3cc4239d7d7140c8c0e7f35b0e51518f0b51c934e599e |
+| run-native-stdout | a7212f7338763686a52dd3c07ee02dd1961ffcfdd9fb3ff5b47372d119a85411 |
+| jobs-native-stdout | ad36272ed82457a543b9907aa9208ba2910bf9a6a7b50920d1f645c41a787efc |
+| artifacts-stdout | 00f814617941571ee8fed7b83f43a0a989a1918afc6afa6e50c651f31727b947 |
+
+Private `FileCatReleaseEvidence/wl209-v1`:
+
+| File | SHA-256 |
+|---|---|
+| collect-commit-ci-failed-v1.py | e088b0b33adb2396e3745e9f8236a1e96c03567946692ef0ee2fa1113994377e |
+| seal-commit-ci-failure-v1.py | 963ca4133b3347d0c60bc83a293730bfab11d4a5de8eb76a834b84fcfdf1c6e9 |
