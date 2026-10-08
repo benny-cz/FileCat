@@ -468,7 +468,14 @@ internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        if (_position >= length || count == 0) return 0;
+        if (count == 0) return 0;
+        if (_position >= length)
+        {
+            // A copy checks its source revision before disposing the reader. End the data transfer and consume its
+            // final reply now, so that metadata query can use the control connection without waiting on this reader.
+            CloseData();
+            return 0;
+        }
         if (_data is null || _dataPosition != _position)
         {
             CloseData();
@@ -485,6 +492,7 @@ internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string
         }
         _position += n;
         _dataPosition = _position;
+        if (n == 0) CloseData();
         return n;
     }
 
@@ -514,6 +522,9 @@ internal sealed class FtpReadStream(FtpChannel channel, FtpClient client, string
     }
 
     private bool _broken;
+
+    /// <summary>Release a partial transfer before a metadata command; the next read reopens at its retained position.</summary>
+    internal void FinishTransfer() => CloseData();
 
     protected override void Dispose(bool disposing)
     {

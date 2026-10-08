@@ -253,6 +253,9 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
             ObjectDisposedException.ThrowIf(_disposed, this);
             try
             {
+                // FTP uses the same control connection for metadata and a data transfer's final reply. A viewer or
+                // resumed copy may ask for the revision part way through the file; release that transfer first.
+                if (stream is Ftp.FtpReadStream ftp) ftp.FinishTransfer();
                 return lease.Channel.Stat(path) is { IsDirectory: false } current
                     ? new ContentRevision(current.Size, current.ModifiedUtc.Ticks) : null;
             }

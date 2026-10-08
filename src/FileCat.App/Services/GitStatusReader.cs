@@ -142,6 +142,11 @@ internal static class GitStatusReader
                 finally { Gate.Release(); }
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+            // Git is optional here too: an installation can disappear or become unusable after PATH discovery,
+            // and a child repository can become inaccessible. Leave its icon plain and keep listing the others.
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            catch (Win32Exception) { }
         }
         return states.Count == 0 ? null : new GitStatusSnapshot(states);
     }
