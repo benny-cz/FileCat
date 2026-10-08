@@ -70,7 +70,7 @@ public sealed class CompareRevisionPollingTests(ITestOutputHelper output)
             disposedWhileHeld = left.Disposals;
             left.Release.Set();
             await WaitFor(() => left.Active == 0);
-            if (action == "live") await WaitFor(() => right.Queries == left.Queries);
+            if (action == "live") await WaitFor(() => right.Queries == left.Queries && !Field<bool>(window, "_checkingInputs"));
             else await WaitFor(() => left.Disposals == 1);
             await Task.Delay(100, TestContext.Current.CancellationToken);
             bool afterBanner = Field<Border>(window, "_changedBanner").IsVisible;
@@ -127,6 +127,54 @@ public sealed class CompareRevisionPollingTests(ITestOutputHelper output)
             output.WriteLine(JsonSerializer.Serialize(new { PoolMinimumRestored = true, restoredWorkers, restoredPorts }));
             Assert.Equal(temp.TrimEnd(Path.DirectorySeparatorChar), Path.GetDirectoryName(Path.GetFullPath(root)));
             Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Entering_the_last_revision_call_does_not_mean_its_banner_has_been_applied()
+    {
+        string root = Directory.CreateDirectory(Path.Join(Path.GetTempPath(), "filecat-compare-completion-" + Guid.NewGuid().ToString("N"))).FullName;
+        string l = Path.Join(root, "left.txt"), r = Path.Join(root, "right.txt");
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes("owned comparison completion input\n");
+        File.WriteAllBytes(l, bytes); File.WriteAllBytes(r, bytes);
+        using var left = new PollSource(l, hold: true, fail: true);
+        using var right = new PollSource(r, hold: true, fail: false);
+        CompareWindow? window = null;
+        try
+        {
+            window = CompareWindow.Open(l, left, r, right);
+            await WaitFor(() => !window.IsComparing && Field<Task>(window, "_loading").IsCompleted &&
+                Field<Task>(window, "_runs").IsCompleted && !Field<bool>(window, "_checkingInputs"));
+            left.Arm(); right.Arm();
+            typeof(CompareWindow).GetMethod("CheckInputs", Fields)!.Invoke(window, []);
+            await left.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            left.Release.Set();
+            await right.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            bool oldQueryPredicate = left.Active == 0 && right.Queries == left.Queries;
+            bool checkingAtLastCall = Field<bool>(window, "_checkingInputs");
+            bool bannerAtLastCall = Field<Border>(window, "_changedBanner").IsVisible;
+            Assert.True(oldQueryPredicate); Assert.True(checkingAtLastCall); Assert.False(bannerAtLastCall);
+            Assert.Equal(1, right.Active); Assert.Equal(0, left.Disposals); Assert.Equal(0, right.Disposals);
+            right.Release.Set();
+            await WaitFor(() => !Field<bool>(window, "_checkingInputs"));
+            bool finalBanner = Field<Border>(window, "_changedBanner").IsVisible;
+            string text = Field<TextBlock>(window, "_changed").Text ?? "";
+            Assert.True(finalBanner); Assert.Contains("current state could not be checked", text);
+            Assert.Equal(bytes, File.ReadAllBytes(l)); Assert.Equal(bytes, File.ReadAllBytes(r));
+            window.Close(); await WaitFor(() => left.Disposals == 1 && right.Disposals == 1);
+            output.WriteLine("COMPARE_COMPLETION " + JsonSerializer.Serialize(new { oldQueryPredicate, checkingAtLastCall, bannerAtLastCall, finalBanner, text,
+                LeftQueries = left.Queries, RightQueries = right.Queries, LeftActive = left.Active, RightActive = right.Active,
+                LeftDisposals = left.Disposals, RightDisposals = right.Disposals,
+                LeftDisposedDuringCall = left.DisposedDuringCall, RightDisposedDuringCall = right.DisposedDuringCall,
+                LeftMetadataOnUI = left.MetadataOnUI, RightMetadataOnUI = right.MetadataOnUI,
+                SHA256 = Convert.ToHexString(SHA256.HashData(bytes)), ActualOwnedSourcesAndComparisonWindow = true,
+                HistoricalCISchedulingCauseProved = false, NativeGUIOrPhysicalQualified = false }));
+        }
+        finally
+        {
+            left.Release.Set(); right.Release.Set(); window?.Close();
+            if (window is not null) await WaitFor(() => left.Disposals == 1 && right.Disposals == 1);
+            Directory.Delete(root, true);
         }
     }
 

@@ -76,14 +76,21 @@ public sealed class DirectoryDiffTests
             vm.Workspace.Panels[1].ActiveTab!.Navigate(Location.FileSystem(inner));
             vm.Workspace.Activate(vm.Workspace.Panels[0]);
             foreach (var p in vm.Workspace.Panels)
-                for (int i = 0; i < 250 && p.ActiveTab!.Listing.State != Core.Listing.ListingState.Complete; i++) await Task.Delay(20, ct);
+            {
+                for (int i = 0; i < 500 && (p.ActiveTab!.Listing.State != Core.Listing.ListingState.Complete || p.ActiveTab.Listing.IsRefreshing); i++) await Task.Delay(20, ct);
+                Assert.Equal(Core.Listing.ListingState.Complete, p.ActiveTab!.Listing.State);
+                Assert.False(p.ActiveTab.Listing.IsRefreshing); Assert.Empty(p.ActiveTab.Listing.Issues);
+            }
 
-            vm.Execute(CommandIds.CompareDirectories);
+            // Observe the actual async command completion, rather than assuming native path/volume checks finish
+            // inside a five-second window. A canceled/failed command still leaves Assert.Single failing below.
+            var comparison = (Task)typeof(FileCat.App.ViewModels.MainViewModel).GetMethod("CompareDirectoriesAsync",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(vm, [])!;
             for (int i = 0; i < 250 && !window.GetVisualDescendants().OfType<CheckBox>().Any(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true); i++)
                 await Task.Delay(20, ct);
             window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true).IsChecked = true;
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            for (int i = 0; i < 250 && DirectoryDiffWindow.OpenWindows.Count == 0; i++) await Task.Delay(20, ct);
+            await comparison.WaitAsync(TimeSpan.FromSeconds(15), ct);
             var diff = Assert.Single(DirectoryDiffWindow.OpenWindows);
             for (int i = 0; i < 250 && diff.IsComparing; i++) await Task.Delay(20, ct);
             Assert.False(diff.OffersSync);
