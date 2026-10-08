@@ -363,7 +363,8 @@ public sealed class TruthfulOutcomeTests : IDisposable
 
         // A crash mid-copy leaves a short file under the real name: the fill record lets recovery point at it.
         var journalDir = _dir.Dir("crash-journal");
-        var crashed = new InterruptedJob(Path.Combine(journalDir, "job-x.fcj"), "Copy", "Copy", DateTime.UtcNow.AddMinutes(-1), [], dst, [], [], 0, 2)
+        var crashed = new InterruptedJob(Path.Combine(journalDir, "job-x.fcj"), "Copy", "Copy", DateTime.UtcNow.AddMinutes(-1),
+            [Path.Combine(src, "one.txt"), Path.Combine(src, "two.txt")], dst, [], [], 0, 2)
         {
             FillDirectories = [new FillDirectory(src, dst)],
         };

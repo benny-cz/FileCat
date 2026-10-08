@@ -491,7 +491,7 @@ public static partial class JournalRecovery
 
     /// <summary>
     /// Sorts the files the interrupted job's direct copies may have left (created after the job started, named like a
-    /// file in a source folder the job copied from into that folder). A copy cut short by the interruption is shorter
+    /// file in a source folder the job copied from into that folder, and inside its known source selection). A copy cut short by the interruption is shorter
     /// than its source and holds exactly the source's first bytes (direct copies are never pre-sized, and the copy
     /// engine sets the time last): only such a file is <see cref="CopyReview.Incomplete"/>, and deleting it loses nothing
     /// the source does not hold. A file that differs in any other way (changed since, by the user or anything else, or
@@ -503,6 +503,26 @@ public static partial class JournalRecovery
         var incomplete = new List<IncompleteCopy>();
         var differing = new List<string>();
         bool limitReached = job.FillDirectoriesCut;
+        if (job.FillDirectories.Count == 0) return new CopyReview(incomplete, differing, limitReached);
+        // A fill record identifies a folder, not every file in it. Never admit an unrelated namesake merely
+        // because it has a matching prefix. An unavailable or over-budget selection cannot authorize cleanup.
+        check?.Invoke();
+        if (job.SourceCount < 0 || job.SourceCount > limit || LoadSources(job) is not { } selection || selection.Count != job.SourceCount)
+            return new CopyReview(incomplete, differing, true);
+        var selectedPaths = new HashSet<string>(selection.Select(PathUtil.NormalizeForCompare), PathUtil.SafetyComparer);
+        var selectedFolders = new List<string>();
+        foreach (var path in selection)
+        {
+            check?.Invoke();
+            try
+            {
+                var folder = new DirectoryInfo(path);
+                if (folder.Exists && folder.LinkTarget is null && (folder.Attributes & FileAttributes.ReparsePoint) == 0)
+                    selectedFolders.Add(PathUtil.NormalizeForCompare(path));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            { return new CopyReview(incomplete, differing, true); }
+        }
         var since = job.CreatedUtc.AddSeconds(-2);
         int inspected = 0;
         foreach (var group in job.FillDirectories.GroupBy(f => f.Destination, PathUtil.SafetyComparer))
@@ -525,7 +545,9 @@ public static partial class JournalRecovery
                     if (dst.CreationTimeUtc < since || dst.LinkTarget is not null || (dst.Attributes & FileAttributes.ReparsePoint) != 0 ||
                         dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal) || dst.Name.StartsWith(LegacyStagedPrefix, StringComparison.Ordinal)) continue;
                     var sources = sourceFolders.Select(folder => new FileInfo(Path.Combine(folder, dst.Name)))
-                        .Where(s => s.Exists && s.LinkTarget is null).ToList();
+                        .Where(s => (selectedPaths.Contains(PathUtil.NormalizeForCompare(s.FullName)) ||
+                            selectedFolders.Any(folder => PathUtil.IsSameOrUnder(s.FullName, folder))) &&
+                            s.Exists && s.LinkTarget is null).ToList();
                     if (sources.Count == 0) continue;
                     // Complete: the same size and time as a source it could have come from.
                     if (sources.Any(s => s.Length == dst.Length && Math.Abs((s.LastWriteTimeUtc - dst.LastWriteTimeUtc).TotalSeconds) <= 2)) continue;

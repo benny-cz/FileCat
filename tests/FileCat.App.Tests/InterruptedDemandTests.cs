@@ -114,8 +114,9 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
     [InlineData("close")]
     public async Task Ending_demand_during_the_kept_file_alert_leaves_the_old_journal_open(string end)
     {
-        using var f = await Fixture.Create(); var cut = Path.Join(f.Destination, "cut.txt"); var source = Path.Join(f.SourceFolder, "cut.txt");
-        File.WriteAllText(source, "the whole source"); File.WriteAllText(cut, "the whole");
+        using var f = await Fixture.Create(); var cut = Path.Join(f.Destination, "source.txt");
+        // The alert must originate from the job's actual selected source, rather than an unrelated sibling.
+        File.WriteAllText(cut, "source"); File.SetCreationTimeUtc(cut, DateTime.UtcNow);
         var job = f.Interrupted with { FillDirectories = [new FillDirectory(f.SourceFolder, f.Destination)] };
         var run = f.Vm.RunInterruptedAgainAsync(job); await Wait(() => f.HasDialog); File.WriteAllText(cut, "newer destination bytes"); f.Click("Copy the rest");
         await Wait(() => f.Button("OK") is not null || run.IsCompleted); Assert.NotNull(f.Button("OK"));
