@@ -15,7 +15,7 @@ public sealed class WindowsIconDemandTests
     private sealed class Image : IImage, IDisposable
     {
         public Size Size => new(16, 16);
-        public bool Disposed;
+        public volatile bool Disposed;
         public void Draw(DrawingContext context, Rect sourceRect, Rect destRect) { }
         public void Dispose() => Disposed = true;
     }
@@ -65,15 +65,58 @@ public sealed class WindowsIconDemandTests
         return (int)cache.GetType().GetProperty("Count", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(cache)!;
     }
 
+    private static bool Contains(NativeIconSource source, string key)
+    {
+        var cache = typeof(NativeIconSource).GetField("_perItem", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(source)!;
+        var gate = cache.GetType().GetField("_gate", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cache)!;
+        lock (gate)
+        {
+            var entries = cache.GetType().GetField("_entries", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cache)!;
+            return (bool)entries.GetType().GetMethod("ContainsKey")!.Invoke(entries, [(source.PixelSize, key)])!;
+        }
+    }
+
     private static IImage? Picture(object? plan) =>
         (IImage?)plan?.GetType().GetProperty("Image")!.GetValue(plan);
 
     private static async Task Wait(Func<bool> condition)
     {
         var timer = Stopwatch.StartNew();
-        while (!condition() && timer.Elapsed < TimeSpan.FromSeconds(15))
+        while (true)
+        {
+            // Accept the observed sample. A second predicate call can start more demand and invalidate it.
+            if (condition()) return;
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15), "The owned icon load did not reach its checkpoint.");
             await Task.Delay(10, TestContext.Current.CancellationToken);
-        Assert.True(condition(), "The owned icon load did not reach its checkpoint.");
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task A_checkpoint_accepts_one_idle_sample_before_new_icon_demand_starts()
+    {
+        var source = Source(); var next = new Loads(); int samples = 0;
+        try
+        {
+            await Wait(() =>
+            {
+                int sample = ++samples;
+                bool idle = Volatile.Read(ref next.Active) == 0;
+                if (sample == 1)
+                {
+                    Request(source, "checkpoint-next", next);
+                    Assert.True(SpinWait.SpinUntil(() => Volatile.Read(ref next.Active) == 1,
+                        TimeSpan.FromSeconds(3)), "Owned follow-up icon demand did not enter");
+                }
+                TestContext.Current.TestOutputHelper?.WriteLine("ICON_CHECKPOINT_SAMPLE " +
+                    System.Text.Json.JsonSerializer.Serialize(new { sample, idle,
+                        StartedAfterSample = Volatile.Read(ref next.Started), ActiveAfterSample = Volatile.Read(ref next.Active),
+                        ActualNativeIconSource = true, ControlledLoadResult = true,
+                        NativeDesktop = false, PhysicalSource = false, NativeHelperExercised = false }));
+                return idle;
+            });
+            Assert.Equal(1, samples); Assert.Equal(1, next.Started); Assert.Equal(1, next.Active);
+        }
+        finally { next.Release.TrySetResult(); await Wait(() => Volatile.Read(ref next.Active) == 0); }
     }
 
     [AvaloniaFact]
@@ -141,20 +184,34 @@ public sealed class WindowsIconDemandTests
     public async Task Completing_evicted_requests_cannot_repopulate_more_than_the_cache_budget()
     {
         var source = Source();
-        var loads = new Loads();
+        var held = new Loads { Image = new Image() };
+        var published = new Loads(); published.Release.SetResult();
         try
         {
-            for (int i = 0; i < 5000; i++) Request(source, "eviction|" + i, loads);
-            await Wait(() => Volatile.Read(ref loads.Started) >= 4);
-            await Task.Delay(100, TestContext.Current.CancellationToken);
-            loads.Release.SetResult();
-            await Wait(() => Volatile.Read(ref loads.Active) == 0);
-            await Task.Delay(200, TestContext.Current.CancellationToken);
-            int retained = Count(source, "_perItem");
-            TestContext.Current.TestOutputHelper?.WriteLine($"Actual requests 5000; completed starts {loads.Started}; peak active {loads.Peak}; retained {retained}.");
-            Assert.InRange(retained, 1, 4096);
+            Request(source, "evicted-held", held);
+            await Wait(() => Volatile.Read(ref held.Active) == 1);
+            // A held four-worker queue admits at most 260 entries, so flooding it never reaches the 4096-entry
+            // eviction boundary. Publish each fresh key while one older load remains held to force real eviction.
+            for (int i = 0; i < 4096; i++)
+            {
+                string key = "published|" + i;
+                await Wait(() => Request(source, key, published) is not null);
+            }
+            int before = Count(source, "_perItem"); bool heldRetainedBefore = Contains(source, "evicted-held");
+            Assert.Equal(4096, before); Assert.Equal(4096, published.Started);
+            Assert.False(heldRetainedBefore); Assert.False(held.Image.Disposed);
+            held.Release.SetResult();
+            await Wait(() => held.Image.Disposed && Volatile.Read(ref held.Active) == 0);
+            int after = Count(source, "_perItem"); bool heldRetainedAfter = Contains(source, "evicted-held");
+            TestContext.Current.TestOutputHelper?.WriteLine("ICON_REAL_EVICTION " +
+                System.Text.Json.JsonSerializer.Serialize(new { PublishedStarts = published.Started,
+                    HeldStarts = held.Started, before, after, heldRetainedBefore, heldRetainedAfter,
+                    UnpublishedImageDisposed = held.Image.Disposed, DefaultCapacity = 4096,
+                    ActualNativeIconSource = true, ControlledLoadResult = true, NativeDesktop = false,
+                    PhysicalSource = false, NativeHelperExercised = false }));
+            Assert.Equal(4096, after); Assert.False(heldRetainedAfter); Assert.Equal(1, held.Started);
         }
-        finally { loads.Release.TrySetResult(); await Wait(() => Volatile.Read(ref loads.Active) == 0); }
+        finally { held.Release.TrySetResult(); await Wait(() => Volatile.Read(ref held.Active) == 0); }
     }
 
     [AvaloniaFact]
