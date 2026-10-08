@@ -216,11 +216,13 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     }
 
     /// <summary>The caller owns the source. Nothing is published unless exact bytes, EOF and available revisions agree.</summary>
-    private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null)
+    private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null, Action? check = null)
     {
-        ct.ThrowIfCancellationRequested();
+        void Check() { ct.ThrowIfCancellationRequested(); check?.Invoke(); }
+        Check();
         long length = source.Length; ValidateLength(length); CheckComplete(source);
         var before = source.GetRevision();
+        Check();
         if (before is { } revision && revision.Length != length || expected is { } pinned && before != pinned)
             throw new IOException("The file changed before its edit could be copied.");
         using var output = new FileStream(working, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -229,12 +231,12 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         uint crc = 0; long offset = 0;
         while (true)
         {
-            ct.ThrowIfCancellationRequested(); CheckComplete(source);
+            Check(); CheckComplete(source);
             // A one-byte read at the declared end checks actual EOF (and archive checksum validation) without
             // accepting or writing bytes beyond either the declared size or the edit-session size limit.
             int want = (int)Math.Min(buffer.Length, length - offset + 1);
             int n = source.Read(offset, buffer.AsSpan(0, want));
-            ct.ThrowIfCancellationRequested(); CheckComplete(source);
+            Check(); CheckComplete(source);
             if (n < 0 || n > want) throw new InvalidDataException("The edit source returned an invalid byte count.");
             if (n == 0)
             {
@@ -246,9 +248,9 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
             hash.AppendData(buffer, 0, n); crc = Crc32.Append(crc, buffer.AsSpan(0, n));
             offset += n;
         }
-        ct.ThrowIfCancellationRequested();
+        Check();
         if (source.Length != length || source.GetRevision() != before) throw new IOException("The file's length or revision changed while its edit was copied.");
-        CheckComplete(source);
+        Check(); CheckComplete(source);
         return new WorkingCopy(Convert.ToHexString(hash.GetHashAndReset()), crc, offset);
     }
 
@@ -402,6 +404,78 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             throw;
         }
+    }
+
+    /// <summary>Capture a save-copy source completely on its caller's admitted worker, before any destination replacement.</summary>
+    public EditCommitCopy PrepareSaveCopy(EditSessionRecord record, string tempRoot, ResourceProvider provider, Action check)
+    {
+        check();
+        string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
+        try
+        {
+            using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)))
+                ?? throw new IOException("The working copy cannot be read completely.");
+            check();
+            var bytes = WriteWorkingCopy(source, path, default, check: check);
+            check();
+            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) fs.WriteOriginMark(path, mark);
+            check(); return new EditCommitCopy(path, bytes.Sha256, bytes.Crc, bytes.Length);
+        }
+        catch
+        {
+            try { if (File.Exists(path)) File.Delete(path); Directory.Delete(directory); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            throw;
+        }
+    }
+
+    /// <summary>Copy owned bytes into a unique sibling first. Publish only after the native copy returns and demand remains active.</summary>
+    public static void PublishSaveCopy(EditCommitCopy copy, string destination, IFileSystemOperations files, Action check)
+    {
+        check();
+        string staged = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!, ".filecat-edit-copy-" + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            files.CopyFile(copy.Path, staged, new FileCopyOptions { FlushDestination = true }, null, default);
+            check();
+            VerifySaveCopy(copy, staged, check);
+            check();
+            files.Move(staged, destination, replaceExisting: true, writeThrough: true);
+            check();
+        }
+        finally
+        {
+            // Never remove the destination. Even a failed copy may have created only part of this owned stage.
+            if (File.Exists(staged)) files.DeleteFile(staged);
+        }
+    }
+
+    private static void VerifySaveCopy(EditCommitCopy copy, string path, Action check)
+    {
+        using var source = new CommitContent(path);
+        if (source.Length != copy.Length) throw new IOException("The saved copy's length does not match the complete edit.");
+        var revision = source.GetRevision();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[1024 * 1024]; long offset = 0;
+        while (true)
+        {
+            check();
+            int want = (int)Math.Min(buffer.Length, copy.Length - offset + 1);
+            int count = source.Read(offset, buffer.AsSpan(0, want));
+            check();
+            if (count < 0 || count > want || count > copy.Length - offset) throw new IOException("The saved copy changed while it was verified.");
+            if (count == 0)
+            {
+                if (offset != copy.Length) throw new IOException("The saved copy ended before the complete edit.");
+                break;
+            }
+            hash.AppendData(buffer, 0, count); offset += count;
+        }
+        if (source.Length != copy.Length || source.GetRevision() != revision || Convert.ToHexString(hash.GetHashAndReset()) != copy.Sha256)
+            throw new IOException("The saved copy does not match the complete edit.");
+        check();
     }
 
     private sealed class CommitContent : IContentSource

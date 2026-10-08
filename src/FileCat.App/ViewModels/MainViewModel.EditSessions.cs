@@ -49,6 +49,7 @@ public sealed partial class MainViewModel
     }
     private readonly Dictionary<Job, SessionCommit> _sessionCommits = new();
     private readonly HashSet<string> _sessionActions = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _sessionCopyActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> _preparingEdits = new(StringComparer.Ordinal);
 
     /// <summary>Starts watching the saved sessions; returns a startup message when some have uncommitted changes.</summary>
@@ -553,20 +554,47 @@ public sealed partial class MainViewModel
 
     private async Task SaveSessionCopyAsync(EditSessionRecord session)
     {
-        if (View.TopLevel is not { } top || !File.Exists(session.WorkingPath)) return;
-        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save a copy of the edited file",
-            SuggestedFileName = Path.GetFileName(session.WorkingPath),
-        });
-        string? path = file?.TryGetLocalPath();
-        if (path is null) return;
+        // A conflict dialog can call this while its commit owner is held; copies have their own one-per-session owner.
+        if (!EditSessionsActive || View.TopLevel is not { } top || !_sessionCopyActions.Add(session.Id)) return;
+        EditCommitCopy? copy = null;
         try
         {
-            await Task.Run(() => File.Copy(session.WorkingPath, path, overwrite: true));
+            CheckSessionAction();
+            using var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save a copy of the edited file",
+                SuggestedFileName = Path.GetFileName(session.WorkingPath),
+            });
+            CheckSessionAction();
+            string? path = file?.TryGetLocalPath();
+            if (path is null) return;
+            path = Path.GetFullPath(path);
+            if (Core.FileSystem.PathUtil.SafetyComparer.Equals(path, Path.GetFullPath(session.WorkingPath)))
+            { Notify("Choose a different destination from the working copy. Your edit is kept.", true); return; }
+
+            var local = Location.FileSystem(session.WorkingPath); var provider = Services.Providers.For(local);
+            copy = await Services.Io.Run(provider.GetDeviceKey(local), IoPriority.Normal,
+                _ => Services.EditSessions.PrepareSaveCopy(session, Services.Paths.TempDirectory, provider, CheckSessionAction));
+            // Do not pass scheduler cancellation: an active source/copy keeps its owner until the call returns.
+            CheckSessionAction();
+            await MutationIoAsync(path, () =>
+            {
+                EditSessionStore.PublishSaveCopy(copy, path, Services.Platform.FileOperations, CheckSessionAction);
+                return true;
+            }, CheckSessionAction);
+            CheckSessionAction();
             Notify($"Saved a copy to {path}. The edit session stays open.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Notify($"Cannot save the copy: {ex.Message}", true); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException)
+        { if (EditSessionsActive) Notify($"Cannot save the copy: {ex.Message}. Your edit is kept.", true); }
+        finally
+        {
+            try { if (copy is not null) await Task.Run(copy.Dispose); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { if (EditSessionsActive) Notify($"The temporary save copy could not be removed: {ex.Message}", true); }
+            _sessionCopyActions.Remove(session.Id);
+        }
     }
 
     private async Task DiscardSessionAsync(EditSessionRecord session, EditState state)
