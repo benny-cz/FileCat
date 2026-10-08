@@ -69,6 +69,6 @@ DEC-06 (shared page-cache target) and DEC-11 (required Markdown rendering with a
 - The overnight continuation remains active while autonomous work remains. The former 08:40 CEST no-interaction cutoff has elapsed; ask only when resuming a task that actually needs the owner.
 - Current slices use owned files, pinned product payloads and component/CLI probes. No physical-source hold is relaxed.
 - Preserve exact guest/Mac setup baselines and restore owned temporary changes when their use ends. Do not reinstall removed Linux compiler packages without a new need.
-- GitHub SSH on port 443 is used for authorized main pushes. Current copy/upload runtime 49680a88d2f9004d3566f7ff92140ca82a24a4d6 and test-only correction 01161959f296c40144ba318fffd370346d9c51f2 are pushed; final original four-platform CI and exact source/artifacts are sealed. Earlier failed/refused observations, including the original Ubuntu admission fixture failure, remain at their sources. No persistent Git/SSH configuration changed.
+- GitHub SSH on port 443 is used for authorized main pushes. Current remote-upload producer e87773f6fcf3b77b564577c3d355562d6ddfb0de is pushed; its original four-platform CI and exact canonical source/artifacts are sealed. Earlier failed/refused/timeout observations and unavailable outputs remain at their sources. No persistent Git/SSH configuration changed.
 
 Update a gate row when its state changes; keep old chronology in the activity log/history rather than appending competing state summaries here.
