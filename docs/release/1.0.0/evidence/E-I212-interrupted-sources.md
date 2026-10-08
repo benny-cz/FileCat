@@ -109,3 +109,43 @@ Private `FileCatReleaseEvidence/is212-v1`:
 | independent-interrupted-source-clean-v1.json | 0644f3fceadc2c5d5761b533789ca029c8d2ab61b0b9cba38a395146958673dd |
 | update-documents-v1.py | 08475226726a7fa8d880a068fb9bf1c271ff0c379651c0f01c79800986b2dc9c |
 | document-transitions-v1.json | 4fa795a83f81bc7638a6197e4934e35d508874d76a2bb20ca77de027f4bff473 |
+
+## Original four-platform follow-up — 8696012
+
+CI 37719895437 attempt 1 preserves 300 passing executions of all 75 I212 additions. Windows x64/ARM64 and macOS 26 pass; Ubuntu 24.04 fails the existing range-copy read-count case. Its exact clipboard bytes and ownership/lifetime observations pass; two source reads are observed instead of one. Every predecessor name/outcome/skip is retained except that explicitly recorded Passed→Failed transition. I213 reproduces duplicate same-page reads with offset/thread traces and qualifies the fix; the original CI failure is preserved rather than replaced by a rerun.
+
+Independent readers verify 20 server artifact digests/every ZIP member, 14 full raw TRX inventories, four build receipts and 92 actual locked dependency graphs, plus nine owned mirror and five launcher controls. Packages/draft publication are skipped on this main push. Collector v1's wrong clipboard field name fails after retaining all 20 downloads; v2 uses the actual raw field names and rechecks the same original bytes without any runtime/CI rerun. Native desktop/physical/recursive/atomic identity and candidate scope remain.
+
+Private `FileCatReleaseEvidence/ci-37719895437-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 99235221ce3cd58f1d07f17a257ac4b20b5c95c18a23699bd7570f9cb2478725 |
+| independent-restore-ci-v1.json | 031061eb3f5a1fd912b1aced700a08264539e8f67d91accaf2b859f51e5b9dfc |
+| independent-interrupted-source-ci-audit-v1.json | b1f192ef7ee642ef29ef7904411dea02e44b4a89ff5d42d1bfb2c5332080ab3b |
+| run-native-stdout | 5bea7bb8477a3cb139b6e3c89a06b716801b27f03b62bc5fe203ab6a1a243e29 |
+| jobs-native-stdout | 0c0015206b0be8ad3946313753c478b5af8ce1d7a1bab0e4bc89b01e5a1b47cd |
+| artifacts-stdout | 8fd0bea79d9f41b566fc940d903ef87382a3cfc66f8d912196e899009acdb25a |
+
+Private `FileCatReleaseEvidence/pc213-v1`:
+
+| File | SHA-256 |
+|---|---|
+| prepare-native-reader-v1.py | 63a936fa24c0fb3c600220659efbe3d3d1be5c3e3ea95a01236b56334d712b66 |
+| collect-original-interrupted-ci-v1.py | 093773c756cc03bcd9223d32e528a467fdc8d87068a01a99a512563347431e17 |
+| collect-original-interrupted-ci-v2.py | 34033904620f07b67ae6949dfd0382a568d97c169022fc6b812d14ed23e75956 |
+| seal-original-interrupted-ci-v1.py | f89826893c6cd6afddbda22d539cfb52e57f8ecccd7c1e7938d32290e9e2b819 |
+| collector-guard-failure-v1.json | b1606b246e22f064e3a4e36cc9410fbeab203138fa4fb36343b64c080d9e326b |
+| prepare-final-runner-v1.py | c7d62020832288680f93e399d792e9db861787e466e33107523ef14fe6eb9cc0 |
+| finalize-pending-recipes-v1.py | 771e19b513babf7599bfc4d38ca061b4e75353a12ad74875c99b4a1c7f839ed1 |
+| query-prior-ci-v1.py | c88a204912e1968a0e4d9add2a456e45f374216778e3ec4b89b564c7e35569a4 |
+| prior-ci-query-v1/runs-stdout | d06a124997230321c0a2fdf090ad4044adc3e635afaf6a9e659ada2c5a6eee0a |
+| prior-ci-query-v1/jobs-37719895437-stdout | 0c0015206b0be8ad3946313753c478b5af8ce1d7a1bab0e4bc89b01e5a1b47cd |
+| query-product-ci-v1.py | 6315b7149997763e426bde4a7fe84a00987e3a647aa78330b3199a6bad8e8a81 |
+| product-ci-query-v1/observation.json | 186194d4d26e44655a6507f2dcea91f29da2a7bf551e316594abd11fff964d2a |
+| product-ci-query-v1/runs-stdout | 654997d795fde6b36f7ad5dcd4b662f544ddc9e9c53d735e49d51033f2d6f52d |
+| product-ci-query-v1/jobs-37725195680-stdout | bc5e1d4e0d9bf1d2cf8d466a27e73a05f66ce13cc4cc60ef832443ee75540757 |
+| query-product-ci-v2.py | a9c41037c6a3e7382e5c99504043403773f1255fad3e1210747b294896dea284 |
+| product-ci-query-v2/observation.json | 22ebdb57135b278496d88bd92e8b1be0e7dcc559fff83526402e84119f86cc54 |
+| product-ci-query-v2/runs-stdout | 654997d795fde6b36f7ad5dcd4b662f544ddc9e9c53d735e49d51033f2d6f52d |
+| product-ci-query-v2/jobs-37725195680-stdout | dd51cb8db32268b759968e8e06c928867badd1ee1b6805db86ee3a283379ceb2 |
