@@ -187,6 +187,8 @@ jobs:
             ${{ runner.temp }}/filecat-release-assets-controls/dependency-notice-manifest/**
           if-no-files-found: error
       - run: dotnet test tests/FileCat.Platform.Windows.Tests -c Release --no-build --logger "trx;LogFileName=platform-results.trx"
+      # The owned FTP/TLS fixture is also required on the native ARM64 runner.
+      - run: python -m pip install --quiet pyftpdlib pyopenssl
       # The remote clients ship for ARM64 too (release records E-A02: no lane ran them there).
       - run: dotnet test tests/FileCat.Remote.Tests -c Release --no-build --logger "trx;LogFileName=remote-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
       - run: dotnet test tests/FileCat.App.Tests -c Release --no-build --logger "trx;LogFileName=app-results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
