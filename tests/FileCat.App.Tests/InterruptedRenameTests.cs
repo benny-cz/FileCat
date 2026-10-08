@@ -93,9 +93,13 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
         try
         {
             await Wait(() => occupied == 2); f.Click("Finish renaming"); Assert.False(run.IsCompleted); f.End(end); int atEnd = f.Files.Calls.Count;
+            if (end == "close") Assert.False(f.Window.IsVisible); else Assert.True(f.Services.Io.IsStopped);
+            // Placement saving precedes OnClosed. A watchdog worker can finish the approved move during that save.
+            // The accepted close/stop boundary prohibits later calls; it does not undo an earlier reviewed move.
+            bool viaAtEnd = Exists(f.Via), targetAtEnd = Exists(f.Target); var bytesAtEnd = Bytes(viaAtEnd ? f.Via : f.Target);
             gate.Set(); await Task.WhenAll(first, second); await f.Drain(run);
-            Emit(f, "queued-rename-end", new { end, Before = atEnd, After = f.Files.Calls.Count, Completed = await run, f.Ended, Via = Exists(f.Via), Target = Exists(f.Target) });
-            Assert.Equal(atEnd, f.Files.Calls.Count); Assert.False(await run); Assert.False(f.Ended); Assert.Equal("reviewed", File.ReadAllText(f.Via)); Assert.False(Exists(f.Target));
+            Emit(f, "queued-rename-end", new { end, Before = atEnd, After = f.Files.Calls.Count, Completed = await run, f.Ended, ViaAtEnd = viaAtEnd, TargetAtEnd = targetAtEnd, BytesAtEnd = bytesAtEnd, Via = Exists(f.Via), Target = Exists(f.Target), FinalBytes = Bytes(viaAtEnd ? f.Via : f.Target) });
+            Assert.Equal(atEnd, f.Files.Calls.Count); Assert.False(await run); Assert.False(f.Ended); Assert.Equal(viaAtEnd, Exists(f.Via)); Assert.Equal(targetAtEnd, Exists(f.Target)); Assert.Equal("reviewed", bytesAtEnd); Assert.Equal(bytesAtEnd, Bytes(viaAtEnd ? f.Via : f.Target));
         }
         finally { gate.Set(); await Task.WhenAll(first, second); await f.Drain(run); }
     }
