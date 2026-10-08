@@ -35,8 +35,12 @@ public sealed class CompareRevisionLifetimeTests
         {
             window = CompareWindow.Open(leftPath, left, rightPath, right,
                 () => (new FileContentSource(leftPath), new FileContentSource(rightPath)));
-            for (int i = 0; i < 300 && window.IsComparing; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
-            Assert.False(window.IsComparing);
+            // Activation can still own an unarmed check after comparison finishes. Drain it before arming;
+            // otherwise the explicit CheckInputs request correctly coalesces without reaching the held call.
+            await WaitFor(() => !window.IsComparing &&
+                ((Task)typeof(CompareWindow).GetField("_loading", fields)!.GetValue(window)!).IsCompleted &&
+                ((Task)typeof(CompareWindow).GetField("_runs", fields)!.GetValue(window)!).IsCompleted &&
+                !(bool)typeof(CompareWindow).GetField("_checkingInputs", fields)!.GetValue(window)!);
             Assert.StartsWith("Identical: every byte was compared", window.Summary);
             Assert.True(((Task)typeof(CompareWindow).GetField("_runs", fields)!.GetValue(window)!).IsCompleted);
             left.Arm();
@@ -92,6 +96,16 @@ public sealed class CompareRevisionLifetimeTests
         {
             Assert.Equal(tempRoot.TrimEnd(Path.DirectorySeparatorChar), Path.GetDirectoryName(Path.GetFullPath(root)));
             Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task WaitFor(Func<bool> ready)
+    {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        while (!ready())
+        {
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(10), "Comparison warmup did not drain.");
+            await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
 
