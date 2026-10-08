@@ -91,9 +91,33 @@ static void ValidateAppIdentity(JsonElement index, string lockPath, string paylo
         if (!runtimes.Add(RequiredString(runtime, "ID") + "/" + RequiredString(runtime, "Version")))
             throw new InvalidDataException("Duplicate runtime notice identity.");
     using var depsDocument = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(payloadPath, "FileCat.deps.json")));
+    var libraries = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
     foreach (var library in depsDocument.RootElement.GetProperty("libraries").EnumerateObject())
-        if (library.Name.StartsWith("runtimepack.", StringComparison.OrdinalIgnoreCase) && !runtimes.Contains(library.Name["runtimepack.".Length..]))
-            throw new InvalidDataException("Published runtime pack has no matching pinned notice snapshot.");
+    {
+        if (!libraries.TryAdd(library.Name, library.Value))
+            throw new InvalidDataException("Duplicate published dependency identity.");
+        if (library.Name.StartsWith("runtimepack.", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!runtimes.Contains(library.Name["runtimepack.".Length..]))
+                throw new InvalidDataException("Published runtime pack has no matching pinned notice snapshot.");
+        }
+        else
+        {
+            int separator = library.Name.LastIndexOf('/');
+            string kind = RequiredString(library.Value, "type");
+            bool knownPackage = separator > 0 && packages.ContainsKey(library.Name[..separator]);
+            if ((kind == "package" || knownPackage) && (separator <= 0 || kind != "package"
+                || !packages.TryGetValue(library.Name[..separator], out var identity)
+                || library.Name[(separator + 1)..] != identity.Version
+                || RequiredString(library.Value, "sha512") != "sha512-" + identity.Hash))
+                throw new InvalidDataException("Published package identity differs from the pinned dependency notice snapshot.");
+        }
+    }
+    string runtimeTarget = RequiredString(depsDocument.RootElement.GetProperty("runtimeTarget"), "name");
+    var target = depsDocument.RootElement.GetProperty("targets").GetProperty(runtimeTarget);
+    foreach (var library in target.EnumerateObject())
+        if (!libraries.ContainsKey(library.Name))
+            throw new InvalidDataException("Published runtime target has a dependency missing from its library inventory.");
 
 }
 

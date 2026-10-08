@@ -1,0 +1,62 @@
+{
+  "SchemaVersion": 1,
+  "Scope": "Seven retained actual publish dependency manifests from preliminary E-I03-NOTICES controls; package bytes and legal eligibility are not qualified here",
+  "Manifests": [
+    {
+      "Name": "actual-sc-win-x64",
+      "Path": "actual-sc-win-x64/FileCat.deps.json",
+      "Bytes": 53043,
+      "SHA256": "04480621787bee70e5c3d262f6634beb989a27aa5bf6396b7f83ebc07a962654",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    },
+    {
+      "Name": "actual-sc-win-arm64",
+      "Path": "actual-sc-win-arm64/FileCat.deps.json",
+      "Bytes": 53067,
+      "SHA256": "ee1010d62cdd751a46d8290bc224cec6ae850e714f296179b13a110454d1543e",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    },
+    {
+      "Name": "actual-sc-linux-x64",
+      "Path": "actual-sc-linux-x64/FileCat.deps.json",
+      "Bytes": 52036,
+      "SHA256": "5722c9fb0586cd682a0340b437211cc82459df209528dd0640c9c2c528b33d60",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    },
+    {
+      "Name": "actual-sc-linux-arm64",
+      "Path": "actual-sc-linux-arm64/FileCat.deps.json",
+      "Bytes": 52074,
+      "SHA256": "45b007aab2b12fd58e032de6853a6d2355037d21b7bb81f24f2c114b33df9e0c",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    },
+    {
+      "Name": "actual-sc-osx-arm64",
+      "Path": "actual-sc-osx-arm64/FileCat.deps.json",
+      "Bytes": 51628,
+      "SHA256": "a1230a763ff715b2cf0ba56d74428cb80277c46744c613e71337c2019686f2db",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    },
+    {
+      "Name": "retained-fdd-win-x64",
+      "Path": "retained-fdd-win-x64/FileCat.deps.json",
+      "Bytes": 25485,
+      "SHA256": "25eaeb4aa87b1b2570ebe788fe86c444b973155878c39888127fc30796c15481",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    },
+    {
+      "Name": "retained-fdd-win-arm64",
+      "Path": "retained-fdd-win-arm64/FileCat.deps.json",
+      "Bytes": 25501,
+      "SHA256": "84d749403fc949e35e23ce8101d54e2ffa28623be62fee2b90b5344148db6237",
+      "OriginalQualificationProofSHA256": "e62491c03fc66110d774a54aee6f88ddb7600401f9efe1bb06ff5fef15791b6c",
+      "ActualBinaryPackageQualifiedByThisFixture": false
+    }
+  ]
+}

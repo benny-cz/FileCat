@@ -14,3 +14,8 @@ eng/installer/licenses/InnoSetup-6.7.1.txt -text
 # Frozen notice/snapshot bytes retain original line endings and whitespace.
 licenses/dependencies/** -text -whitespace
 licenses/appimage-runtime/** -text -whitespace
+
+# Retained publish metadata keeps its exact producer bytes.
+eng/validation/fixtures/dependency-notices/** -text
+# Original generated manifest CRLF is part of the pinned fixture bytes.
+eng/validation/fixtures/dependency-notices/*/FileCat.deps.json -whitespace
