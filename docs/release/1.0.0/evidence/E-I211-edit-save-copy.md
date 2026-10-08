@@ -79,3 +79,35 @@ Private `FileCatReleaseEvidence/cp211-v1`:
 | independent-save-copy-clean-v1.json | e1a799503e384c569193b34e38a3a4e2774f51f79327679ed2cdd52a250b5f4d |
 | update-documents-v1.py | ce71b56599a37b17fff35cb260297038ef1042d62c8c840979039a7019e407e8 |
 | document-transitions-v1.json | 3ac58c8721d42646ea915edfc9e1f1956454895aae698a0641972261a0775a4b |
+
+## Original four-platform follow-up — 6a97825
+
+CI 37716725620 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All 47 save-copy additions pass on all four lanes (188 executions), with 188 reconstructed picker/worker/file observations. Every predecessor name/outcome/skip is retained, including all 180 I210 controls, 212 I209 controls and 180 I208 controls. Independent capture/readers verify 20 server artifact digests and every ZIP member, 14 full raw TRX inventories, four build receipts and 92 actual locked dependency graphs. Packages/draft publication are skipped on this main push. This resolves the prior pending component CI subset; native picker/identity, physical/hardware and candidate scope remain.
+
+Private `FileCatReleaseEvidence/ci-37716725620-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 4fdfdd4ba330e257c5c0c4d6100d7d5dad85576d89e447708a27073b23e94fe3 |
+| independent-restore-ci-v1.json | fd56bf948ff989a8f757d7aa3c4d5e586d7cf38ab486e81036b29e53baa0dbbe |
+| independent-save-copy-ci-audit-v1.json | 968cf3715d0d86895701b38988fb791101626c16d3a643969064394e16992cd3 |
+| run-native-stdout | 32414327dfc026030c5773208b00328e3d14429cf66d62e1922746b56e99107b |
+| jobs-native-stdout | 693dc84a52fd7c8d548221ff0c9fb94f273d7da667f86e2e66e325f6b030897e |
+| artifacts-stdout | d409e056ff9552f908e3e001dd280ec75a785987d07fbeb0d629d2b806ba41b8 |
+
+Private `FileCatReleaseEvidence/is212-v1`:
+
+| File | SHA-256 |
+|---|---|
+| prepare-prior-ci-v1.py | f46b6087df57d62680a3cc33946aaa61e49686087538cbb215ce5e2ab0fcba7f |
+| collect-prior-save-copy-ci-v1.py | 15f38a1d0ac383e668d7230bcbfce4439dec243d4e606c7d644411ad0066d726 |
+| seal-prior-save-copy-ci-v1.py | e6888a5080c732cf1709bd2c75a46760b8e09036984412232b7c0f0dc5222b8f |
+| query-prior-ci-v1.py | e5ba3d7b10a89634b7b8ae0b68595c6768e413cb1b9691efb4a56eb804bda29b |
+| prior-ci-query-v1/runs-stdout | 7fa9ae19f2a3ab081024d52f418cd6a233e8c29064384d32d9e13cefd61e6636 |
+| prior-ci-query-v1/jobs-37716725620-stdout | 693dc84a52fd7c8d548221ff0c9fb94f273d7da667f86e2e66e325f6b030897e |
+| query-prior-doc-ci-v1.py | 0cc0f05e1d8d94d9fc98a0bc366ad16d8941cc2d1e31bf30c932a92839cb5653 |
+| prior-doc-ci-query-v1/runs-stdout | 085d45de43c7b13021d4fa50e44d8198caee66781d4be6654a604068831cd0b1 |
+| prior-doc-ci-query-v1/jobs-37717829442-stdout | b6ea2facbf412431a986a81343ca21bab7324a18c10f48f71b6698133b2d9c78 |
+| query-product-ci-v1.py | 7b660f815beb7e9b4d1812c93d1d344a1926aad8489db19922e4fe5082e59db3 |
+| product-ci-query-v1/runs-stdout | 8b8b08ac1a282b197c4320015f9d545fd270f0512804955dc94544f138eec352 |
+| product-ci-query-v1/jobs-37719895437-stdout | 3469680b683c055cba894e9a0c785313bd8c29f0408fec8c5399ea837984d132 |
