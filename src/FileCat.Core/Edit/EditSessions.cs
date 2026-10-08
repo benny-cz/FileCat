@@ -53,7 +53,10 @@ public sealed record EditSessionRecord
 }
 
 /// <summary>What the working copy holds compared with its base.</summary>
-public enum EditState { Unchanged, Modified, Missing }
+public enum EditState { Unchanged, Modified, Missing, Unavailable }
+
+/// <summary>A complete working-file read, used to bind a discard decision to the reviewed bytes.</summary>
+public sealed record EditWorkingReview(EditState State, string? Sha256);
 
 /// <summary>Why a commit cannot simply replace the member.</summary>
 public enum CommitCheck
@@ -309,11 +312,43 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         File.Move(temp, Path.Combine(dir, RecordFile), overwrite: true);
     }
 
-    public EditState StateOf(EditSessionRecord record)
+    public EditState StateOf(EditSessionRecord record) => StateOf(record, new LocalFileSystemProvider());
+
+    /// <summary>Only a complete bounded read establishes whether the working copy matches its base.</summary>
+    public EditState StateOf(EditSessionRecord record, Resources.ResourceProvider provider, Action? check = null) => ReviewWorking(record, provider, check).State;
+
+    public EditWorkingReview ReviewWorking(EditSessionRecord record, Resources.ResourceProvider provider, Action? check = null)
     {
-        if (!File.Exists(record.WorkingPath)) return EditState.Missing;
-        try { return Hash(record.WorkingPath) == record.BaseSha256 ? EditState.Unchanged : EditState.Modified; }
-        catch (IOException) { return EditState.Modified; } // an editor holding the file: treat as changed, check again on commit
+        void Check() => check?.Invoke();
+        try
+        {
+            Check();
+            using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)));
+            Check();
+            if (source is null) return new(EditState.Unavailable, null);
+            long length = source.Length; Check(); ValidateLength(length); CheckComplete(source);
+            var before = source.GetRevision(); Check();
+            if (before is { } revision && revision.Length != length) return new(EditState.Unavailable, null);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buffer = new byte[1024 * 1024]; long offset = 0;
+            while (true)
+            {
+                Check(); CheckComplete(source);
+                int want = (int)Math.Min(buffer.Length, length - offset + 1);
+                int n = source.Read(offset, buffer.AsSpan(0, want));
+                Check(); CheckComplete(source);
+                if (n < 0 || n > want || n > length - offset) return new(EditState.Unavailable, null);
+                if (n == 0) { if (offset != length) return new(EditState.Unavailable, null); break; }
+                hash.AppendData(buffer, 0, n); offset += n;
+            }
+            Check(); long afterLength = source.Length; Check(); var after = source.GetRevision(); Check(); CheckComplete(source);
+            if (afterLength != length || after != before) return new(EditState.Unavailable, null);
+            string sha256 = Convert.ToHexString(hash.GetHashAndReset());
+            return new(sha256 == record.BaseSha256 ? EditState.Unchanged : EditState.Modified, sha256);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { Check(); return new(EditState.Missing, null); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        { Check(); return new(EditState.Unavailable, null); }
     }
 
     /// <summary>Whether a commit would replace exactly the member the edit started from.</summary>

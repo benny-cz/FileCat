@@ -90,6 +90,10 @@ public sealed class SftpConnectTests
             Core.Edit.EditSessionRecord? session = null;
             await WaitAsync(() => (session = s.Services.EditSessions.FindRemote(s.Remote.Location!.Session!, "/home/user/remote.txt")) is not null);
             Assert.NotNull(session);
+            // The persistent record is published before F4 finishes watching/launching. A second F4 during
+            // that preparation is intentionally coalesced; wait for its actual completion before saving.
+            await WaitAsync(() => ((ICollection<string>)typeof(MainViewModel).GetField("_preparingEdits", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(s.Vm)!).Count == 0);
+            Assert.Empty((ICollection<string>)typeof(MainViewModel).GetField("_preparingEdits", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(s.Vm)!);
             Assert.Equal("hello", File.ReadAllText(session!.WorkingPath));
             Assert.Equal("hello", s.Server.Read("/home/user/remote.txt"));
 

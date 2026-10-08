@@ -26,6 +26,7 @@ public partial class MainWindow : Window, IViewActions
     private readonly DispatcherTimer _notificationTimer;
     private bool _suppressTextInput;
     private bool _forceClose;
+    private Task? _interruptedStartup;
     private readonly CommandSearchBar _commandSearch;
 
     public MainWindow() : this(null!, null) { }
@@ -166,26 +167,35 @@ public partial class MainWindow : Window, IViewActions
                 RebuildPanels();
                 Dispatcher.UIThread.Post(FocusActivePanel, DispatcherPriority.Loaded);
             }, DispatcherPriority.Background);
-            _ = LoadInterruptedAsync();
+            _interruptedStartup = LoadInterruptedAsync();
         };
     }
 
     /// <summary>Jobs whose journal has no end are shown as interrupted, never silently resumed (plan §9.3).</summary>
     private async Task LoadInterruptedAsync()
     {
-        var dir = _vm.Services.Paths.JournalDirectory;
-        var interrupted = await Task.Run(() => Core.Jobs.JournalRecovery.Scan(dir));
-        var messages = new List<string>();
-        if (interrupted.Count > 0)
+        try
         {
-            _vm.Operations.LoadInterrupted(interrupted);
-            _vm.Operations.IsOpen = true;
-            messages.Add($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.");
+            var dir = _vm.Services.Paths.JournalDirectory;
+            var interrupted = await Task.Run(() => Core.Jobs.JournalRecovery.Scan(dir));
+            if (!_vm.EditSessionsActive) return;
+            var messages = new List<string>();
+            if (interrupted.Count > 0)
+            {
+                _vm.Operations.LoadInterrupted(interrupted);
+                _vm.Operations.IsOpen = true;
+                messages.Add($"{Formatters.Plural(interrupted.Count, "operation was", "operations were")} interrupted when FileCat last closed. Review them in the operations pane.");
+            }
+            int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
+            if (!_vm.EditSessionsActive) return;
+            if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");
+            if (await _vm.RestoreEditSessionsAsync() is { } sessions) messages.Add(sessions);
+            if (!_vm.EditSessionsActive) return;
+            if (messages.Count > 0) _vm.Notify(string.Join(" ", messages), true);
         }
-        int hex = await Task.Run(() => Platform.Windows.HexSaveJournal.Pending(_vm.Services.Paths.HexRecoveryDirectory).Count);
-        if (hex > 0) messages.Add($"{Formatters.Plural(hex, "hex save was", "hex saves were")} interrupted. Finish or roll back with Tools → Recover interrupted hex save.");
-        if (_vm.RestoreEditSessions() is { } sessions) messages.Add(sessions);
-        if (messages.Count > 0) _vm.Notify(string.Join(" ", messages), true);
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { if (_vm.EditSessionsActive) _vm.Notify($"Cannot review interrupted work: {ex.Message}", true); }
     }
 
     private const int MaxDragItems = 5000;
@@ -813,6 +823,12 @@ public partial class MainWindow : Window, IViewActions
             return;
         }
         SavePlacement();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _vm.StopEditSessions();
+        base.OnClosed(e);
     }
 
     private async Task ConfirmCloseAsync()

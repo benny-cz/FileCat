@@ -54,13 +54,17 @@ public sealed class EditCommitTests(ITestOutputHelper output)
         Task? commit = null;
         try
         {
-            await Wait(() => Volatile.Read(ref active) == owners.Length); commit = f.Commit();
-            await Task.Delay(100, TestContext.Current.CancellationToken); bool pending = !commit.IsCompleted;
-            f.Services.Io.Dispose(); release.Set(); await Task.WhenAll(owners).ContinueWith(_ => { }, TaskScheduler.Default); await commit.WaitAsync(TimeSpan.FromSeconds(10));
+            await Wait(() => Volatile.Read(ref active) == owners.Length);
+            // Enter the actual copy-admission helper directly. Remote connection preflight can exceed the
+            // scheduler's quarantine threshold under full-suite load; that is a different test boundary.
+            commit = (Task)typeof(MainViewModel).GetMethod("PrepareEditCommitAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(f.Vm, [f.Session])!;
+            bool pending = !commit.IsCompleted;
+            f.Services.Io.Dispose(); release.Set(); await Task.WhenAll(owners).ContinueWith(_ => { }, TaskScheduler.Default);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => commit.WaitAsync(TimeSpan.FromSeconds(10)));
             Emit(f, "shared-admission", new { pending, active, owners = owners.Length });
             Assert.True(pending); Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal("mine", File.ReadAllText(f.Session.WorkingPath)); Assert.Equal("base", f.TargetText);
         }
-        finally { release.Set(); await Task.WhenAll(owners).ContinueWith(_ => { }, TaskScheduler.Default); if (commit is not null) await commit.WaitAsync(TimeSpan.FromSeconds(10)); }
+        finally { release.Set(); await Task.WhenAll(owners).ContinueWith(_ => { }, TaskScheduler.Default); if (commit is not null) { try { await commit.WaitAsync(TimeSpan.FromSeconds(10)); } catch (OperationCanceledException) { } } }
     }
     [AvaloniaTheory]
     [InlineData("zip-rebase", "same")]

@@ -22,7 +22,24 @@ namespace FileCat.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
-    private readonly Dictionary<string, FileSystemWatcher> _sessionWatchers = new(StringComparer.Ordinal);
+    private sealed class SessionWatch
+    {
+        public SessionWatch(EditSessionRecord session) { Session = session; Token = Stop.Token; }
+        public EditSessionRecord Session { get; }
+        public FileSystemWatcher? Watcher;
+        public readonly CancellationTokenSource Stop = new();
+        public readonly CancellationToken Token;
+        public bool Running, Pending;
+    }
+    private readonly Dictionary<string, SessionWatch> _sessionWatchers = new(StringComparer.Ordinal);
+    private volatile bool _editSessionsStopped;
+    internal bool EditSessionsActive => !_editSessionsStopped && !Services.Io.IsStopped;
+
+    internal void StopEditSessions()
+    {
+        _editSessionsStopped = true;
+        foreach (string id in _sessionWatchers.Keys.ToArray()) Unwatch(id);
+    }
     private readonly HashSet<string> _announcedEdits = new(StringComparer.Ordinal);
     private sealed class SessionCommit(EditSessionRecord session, EditCommitCopy copy)
     {
@@ -35,13 +52,39 @@ public sealed partial class MainViewModel
     private readonly HashSet<string> _preparingEdits = new(StringComparer.Ordinal);
 
     /// <summary>Starts watching the saved sessions; returns a startup message when some have uncommitted changes.</summary>
-    public string? RestoreEditSessions()
+    public async Task<string?> RestoreEditSessionsAsync()
     {
-        var sessions = Services.EditSessions.LoadAll();
-        foreach (var s in sessions) Watch(s);
-        int modified = sessions.Count(s => Services.EditSessions.StateOf(s) == EditState.Modified);
-        return modified == 0 ? null
-            : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet. Review them in File → Edit sessions.";
+        try
+        {
+            var sessions = await LoadEditSessionsAsync(); int modified = 0, unavailable = 0;
+            foreach (var session in sessions)
+            {
+                var state = await ReadEditStateAsync(session); CheckSessionAction();
+                if (state == EditState.Modified) modified++;
+                if (state == EditState.Unavailable) unavailable++;
+                Watch(session);
+            }
+            if (modified == 0 && unavailable == 0) return null;
+            return (modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
+                (unavailable == 0 ? "" : $" {(Formatters.Plural(unavailable, "working copy cannot", "working copies cannot"))} be read.") +
+                " Review them in File → Edit sessions.";
+        }
+        catch (OperationCanceledException) { return null; }
+    }
+
+    private Task<IReadOnlyList<EditSessionRecord>> LoadEditSessionsAsync(Action? check = null) =>
+        MutationIoAsync(Services.EditSessions.Root, Services.EditSessions.LoadAll, check ?? CheckSessionAction);
+
+    private async Task<EditState> ReadEditStateAsync(EditSessionRecord session, Action? check = null) =>
+        (await ReadEditReviewAsync(session, check)).State;
+
+    private async Task<EditWorkingReview> ReadEditReviewAsync(EditSessionRecord session, Action? check = null)
+    {
+        check ??= CheckSessionAction; check();
+        var location = Location.FileSystem(session.WorkingPath); var provider = Services.Providers.For(location);
+        var state = await Services.Io.Run(provider.GetDeviceKey(location), IoPriority.Normal,
+            _ => Services.EditSessions.ReviewWorking(session, provider, check));
+        check(); return state;
     }
 
     private async Task EditArchiveMemberAsync(ItemRef item)
@@ -78,7 +121,7 @@ public sealed partial class MainViewModel
     private async Task PrepareEditSessionAsync(ItemRef item, string key, Func<EditSessionRecord?> find,
         Func<ResourceProvider, CancellationToken, EditSessionRecord> create, string progress)
     {
-        if (ActiveTab is not { } tab || Services.Io.IsStopped || !_preparingEdits.Add(key)) return;
+        if (ActiveTab is not { } tab || !EditSessionsActive || !_preparingEdits.Add(key)) return;
         using var scope = new PreparationScope(tab, Services.Io);
         try
         {
@@ -91,17 +134,20 @@ public sealed partial class MainViewModel
                 scope.Check(); var existing = find(); scope.Check();
                 if (existing is not null)
                 {
-                    var state = Services.EditSessions.StateOf(existing); scope.Check();
-                    return (Session: existing, State: state, Created: false);
+                    return (Session: existing, State: EditState.Unchanged, Created: false);
                 }
                 var session = create(new EditPreparationProvider(provider, scope.Check), scope.Stop.Token);
                 return (Session: session, State: EditState.Unchanged, Created: true);
             });
             if (!scope.Current) return;
             var session = prepared.Session;
-            if (!prepared.Created && prepared.State == EditState.Modified) { await ShowSessionAsync(session); return; }
-            if (prepared.State == EditState.Missing) { Notify("The working copy is gone; discard this session and start a new edit.", true); return; }
-            Watch(session); OpenSessionEditor(session, checkedExists: true);
+            void Check() { scope.Check(); CheckSessionAction(); }
+            var state = prepared.Created ? prepared.State : await ReadEditStateAsync(session, Check);
+            Check();
+            if (!prepared.Created && state == EditState.Modified) { await ShowSessionAsync(session); return; }
+            if (state == EditState.Missing) { Notify("The working copy is gone; discard this session and start a new edit.", true); return; }
+            if (state == EditState.Unavailable) { Notify("The working copy cannot be read; it is kept. Try again when the editor has finished saving.", true); return; }
+            Watch(session); OpenSessionEditor(session);
             if (prepared.Created) Notify($"Editing a copy of \"{item.Name}\" from {session.DisplayTarget}. Save in the editor, then commit with F4 on the file again (or File → Edit sessions). Nothing is written to the source until you commit.");
         }
         catch (OperationCanceledException) { }
@@ -142,14 +188,10 @@ public sealed partial class MainViewModel
         public void Dispose() => inner.Dispose();
     }
 
-    private void OpenSessionEditor(EditSessionRecord session, bool checkedExists = false)
+    // The caller has just completed a worker-owned state read; do not probe the path again on the UI.
+    private void OpenSessionEditor(EditSessionRecord session)
     {
-        if (!checkedExists && !File.Exists(session.WorkingPath))
-        {
-            Notify("The working copy is gone; discard this session and start a new edit.", true);
-            return;
-        }
-        LaunchEditor(session.WorkingPath);
+        if (EditSessionsActive) LaunchEditor(session.WorkingPath);
     }
 
     /// <summary>
@@ -158,83 +200,150 @@ public sealed partial class MainViewModel
     /// </summary>
     private void Watch(EditSessionRecord session)
     {
-        if (_sessionWatchers.ContainsKey(session.Id) || Path.GetDirectoryName(session.WorkingPath) is not { } dir || !Directory.Exists(dir)) return;
-        var watcher = new FileSystemWatcher(dir, Path.GetFileName(session.WorkingPath))
+        if (!EditSessionsActive || _sessionWatchers.ContainsKey(session.Id)) return;
+        var owner = new SessionWatch(session); _sessionWatchers[session.Id] = owner;
+        _ = StartSessionWatchAsync(owner);
+    }
+
+    private bool Current(SessionWatch owner) => EditSessionsActive && !owner.Token.IsCancellationRequested &&
+        _sessionWatchers.TryGetValue(owner.Session.Id, out var current) && ReferenceEquals(current, owner);
+
+    private void CheckWatch(SessionWatch owner)
+    { CheckSessionAction(); owner.Token.ThrowIfCancellationRequested(); }
+
+    private async Task StartSessionWatchAsync(SessionWatch owner)
+    {
+        FileSystemWatcher? created = null;
+        try
         {
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
-        };
-        void Changed(object? sender, FileSystemEventArgs e) => Services.Ui.Post(async () =>
+            var location = Location.FileSystem(owner.Session.WorkingPath);
+            created = await Services.Io.Run(Services.Providers.For(location).GetDeviceKey(location), IoPriority.Normal, _ =>
+            {
+                CheckWatch(owner);
+                var watcher = new FileSystemWatcher(Path.GetDirectoryName(owner.Session.WorkingPath)!, Path.GetFileName(owner.Session.WorkingPath))
+                { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size };
+                try
+                {
+                    void Changed(object? sender, FileSystemEventArgs e) => Services.Ui.Post(() => QueueSessionProbe(owner));
+                    watcher.Changed += Changed; watcher.Created += Changed; watcher.Renamed += (s, e) => Changed(s, e);
+                    CheckWatch(owner); watcher.EnableRaisingEvents = true; return watcher;
+                }
+                catch { watcher.Dispose(); throw; }
+            }); // No scheduler cancellation: retain ownership until native creation returns.
+            if (Current(owner)) { owner.Watcher = created; created = null; }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        { if (Current(owner)) Unwatch(owner.Session.Id); }
+        finally { created?.Dispose(); }
+    }
+
+    private void QueueSessionProbe(SessionWatch owner)
+    {
+        if (!Current(owner) || _announcedEdits.Contains(owner.Session.Id)) return;
+        owner.Pending = true;
+        if (!owner.Running) { owner.Running = true; _ = ProbeEditSessionAsync(owner); }
+    }
+
+    private async Task ProbeEditSessionAsync(SessionWatch owner)
+    {
+        try
         {
-            await Task.Delay(750); // let the editor finish writing
-            var current = Services.EditSessions.LoadAll().FirstOrDefault(s => s.Id == session.Id);
-            if (current is null || Services.EditSessions.StateOf(current) != EditState.Modified || !_announcedEdits.Add(current.Id)) return;
-            Notify($"\"{current.DisplayName}\" changed in the editor. Commit it to {current.DisplayTarget} with F4 on the file, or File → Edit sessions.");
-        });
-        watcher.Changed += Changed;
-        watcher.Created += Changed;
-        watcher.Renamed += (s, e) => Changed(s, e);
-        watcher.EnableRaisingEvents = true;
-        _sessionWatchers[session.Id] = watcher;
+            while (Current(owner) && owner.Pending && !_announcedEdits.Contains(owner.Session.Id))
+            {
+                owner.Pending = false;
+                await Task.Delay(750, owner.Token); // One delayed owner, even during a burst of editor saves.
+                CheckWatch(owner);
+                var current = (await LoadEditSessionsAsync(() => CheckWatch(owner))).FirstOrDefault(s => s.Id == owner.Session.Id);
+                if (current is null) return;
+                var state = await ReadEditStateAsync(current, () => CheckWatch(owner));
+                if (!Current(owner)) return;
+                if (state == EditState.Modified && _announcedEdits.Add(current.Id))
+                    Notify($"\"{current.DisplayName}\" changed in the editor. Commit it to {current.DisplayTarget} with F4 on the file, or File → Edit sessions.");
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException) { }
+        finally { owner.Running = false; }
     }
 
     private void Unwatch(string id)
     {
-        if (_sessionWatchers.Remove(id, out var watcher)) watcher.Dispose();
+        if (_sessionWatchers.Remove(id, out var owner)) { owner.Stop.Cancel(); owner.Stop.Dispose(); owner.Watcher?.Dispose(); }
         _announcedEdits.Remove(id);
     }
 
     /// <summary>File → Edit sessions: every open edit with its state.</summary>
     private async Task ShowEditSessionsAsync()
     {
-        var sessions = Services.EditSessions.LoadAll();
-        if (sessions.Count == 0)
+        try
         {
-            Notify("No edits are open. F4 on a member of a ZIP archive or on a file on a server starts one.");
-            return;
+            var sessions = await LoadEditSessionsAsync();
+            if (sessions.Count == 0)
+            {
+                Notify("No edits are open. F4 on a member of a ZIP archive or on a file on a server starts one.");
+                return;
+            }
+            var items = new List<ChoiceItem>();
+            foreach (var session in sessions) items.Add(new ChoiceItem(session.DisplayName, $"{Describe(await ReadEditStateAsync(session))} · {session.DisplayContainer}"));
+            CheckSessionAction();
+            var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
+            {
+                Hint = "Enter shows the actions: commit, reopen the editor, save a copy, or discard.",
+            });
+            CheckSessionAction();
+            if (pick.Index >= 0) await ShowSessionAsync(sessions[pick.Index]);
         }
-        var items = sessions.Select(s => new ChoiceItem(s.DisplayName, $"{Describe(Services.EditSessions.StateOf(s))} · {s.DisplayContainer}")).ToList();
-        var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
-        {
-            Hint = "Enter shows the actions: commit, reopen the editor, save a copy, or discard.",
-        });
-        if (pick.Index >= 0) await ShowSessionAsync(sessions[pick.Index]);
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (EditSessionsActive) Notify($"Cannot review the edit sessions: {ex.Message}", true); }
     }
 
     private static string Describe(EditState state) => state switch
     {
         EditState.Modified => "changed, not committed",
         EditState.Missing => "working copy missing",
+        EditState.Unavailable => "working copy cannot be read completely",
         _ => "no changes",
     };
 
     private async Task ShowSessionAsync(EditSessionRecord session)
     {
-        var state = Services.EditSessions.StateOf(session);
-        var body = new StackPanel { Spacing = 6 };
-        body.Children.Add(new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = session.DisplayContainer });
-        body.Children.Add(new TextBlock
+        try
         {
-            HorizontalAlignment = HorizontalAlignment.Left,
-            TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
-            Text = $"{Describe(state)}. Working copy: {session.WorkingPath}" +
-                   (session.LastCommitUtc is { } at ? $". Last committed {at.ToLocalTime():g}." : "."),
-        });
-        var buttons = new List<DialogButton> { new("Close", "close", IsCancel: true), new("Discard…", "discard", IsDanger: true), new("Save copy…", "copy") };
-        if (state != EditState.Missing) buttons.Add(new DialogButton("Reopen editor", "reopen", IsDefault: state != EditState.Modified));
-        if (state == EditState.Modified) buttons.Add(new DialogButton("Commit", "commit", IsDefault: true));
-        var answer = await Dialogs.ShowCustomAsync(session.IsRemote ? "Server file edit" : "Archive edit", body, buttons);
-        switch (answer as string)
-        {
-            case "commit": await CommitSessionAsync(session); break;
-            case "reopen": OpenSessionEditor(session); break;
-            case "copy": await SaveSessionCopyAsync(session); break;
-            case "discard": await DiscardSessionAsync(session, state); break;
+            var state = await ReadEditStateAsync(session);
+            var body = new StackPanel { Spacing = 6 };
+            body.Children.Add(new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = session.DisplayContainer });
+            body.Children.Add(new TextBlock
+            {
+                HorizontalAlignment = HorizontalAlignment.Left,
+                TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
+                Text = $"{Describe(state)}. Working copy: {session.WorkingPath}" +
+                       (session.LastCommitUtc is { } at ? $". Last committed {at.ToLocalTime():g}." : "."),
+            });
+            var buttons = new List<DialogButton> { new("Close", "close", IsCancel: true), new("Discard…", "discard", IsDanger: true), new("Save copy…", "copy") };
+            if (state is EditState.Unchanged or EditState.Modified) buttons.Add(new DialogButton("Reopen editor", "reopen", IsDefault: state != EditState.Modified));
+            if (state == EditState.Modified) buttons.Add(new DialogButton("Commit", "commit", IsDefault: true));
+            var answer = await Dialogs.ShowCustomAsync(session.IsRemote ? "Server file edit" : "Archive edit", body, buttons);
+            CheckSessionAction();
+            switch (answer as string)
+            {
+                case "commit": await CommitSessionAsync(session); break;
+                case "reopen":
+                    var now = await ReadEditStateAsync(session); CheckSessionAction();
+                    if (now is EditState.Unchanged or EditState.Modified) OpenSessionEditor(session);
+                    else Notify(Describe(now) + ". Your edit is kept.", true);
+                    break;
+                case "copy": await SaveSessionCopyAsync(session); break;
+                case "discard": await DiscardSessionAsync(session, state); break;
+            }
         }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (EditSessionsActive) Notify($"Cannot review the edit: {ex.Message}", true); }
     }
 
     private async Task CommitSessionAsync(EditSessionRecord session)
     {
-        if (Services.Io.IsStopped || !_sessionActions.Add(session.Id)) return;
+        if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
         var origin = ActiveTab;
         try
         {
@@ -244,7 +353,7 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
-            if (!Services.Io.IsStopped) Notify($"Cannot commit the edit: {ex.Message}. Your working copy is kept.", true);
+            if (EditSessionsActive) Notify($"Cannot commit the edit: {ex.Message}. Your working copy is kept.", true);
         }
         finally
         {
@@ -252,7 +361,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    private void CheckSessionAction() { if (Services.Io.IsStopped) throw new OperationCanceledException(); }
+    private void CheckSessionAction() { if (!EditSessionsActive) throw new OperationCanceledException(); }
 
     private async Task<EditCommitCopy> PrepareEditCommitAsync(EditSessionRecord session)
     {
@@ -261,7 +370,7 @@ public sealed partial class MainViewModel
         {
             CheckSessionAction(); return Services.EditSessions.PrepareCommit(session, Services.Paths.TempDirectory);
         }); // Own active synchronous work until it returns, even during shutdown.
-        if (Services.Io.IsStopped) { copy.Dispose(); throw new OperationCanceledException(); }
+        if (!EditSessionsActive) { copy.Dispose(); throw new OperationCanceledException(); }
         return copy;
     }
 
@@ -344,7 +453,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            if (!Services.Io.IsStopped) Notify($"Cannot reach {profile.Display}: {ex.Message} Your edit is kept.", true);
+            if (EditSessionsActive) Notify($"Cannot reach {profile.Display}: {ex.Message} Your edit is kept.", true);
             return;
         }
         ContentRevision? expected = session.RemoteBaseline;
@@ -429,7 +538,7 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
-            if (!Services.Io.IsStopped) Notify($"The commit finished, but the session could not be updated: {ex.Message}", true);
+            if (EditSessionsActive) Notify($"The commit finished, but the session could not be updated: {ex.Message}", true);
         }
         finally
         {
@@ -437,7 +546,7 @@ public sealed partial class MainViewModel
             // release their snapshots too. Shutdown can suppress acknowledgment, never snapshot ownership.
             try { await Task.Run(commit.Copy.Dispose); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            { if (!Services.Io.IsStopped) Notify($"The temporary commit copy could not be removed: {ex.Message}", true); }
+            { if (EditSessionsActive) Notify($"The temporary commit copy could not be removed: {ex.Message}", true); }
             _sessionCommits.Remove(job); _sessionActions.Remove(session.Id);
         }
     }
@@ -462,9 +571,12 @@ public sealed partial class MainViewModel
 
     private async Task DiscardSessionAsync(EditSessionRecord session, EditState state)
     {
-        if (Services.Io.IsStopped || !_sessionActions.Add(session.Id)) return;
+        if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
         try
         {
+            var reviewed = await ReadEditReviewAsync(session);
+            state = reviewed.State;
+            if (state == EditState.Unavailable) { Notify("The working copy cannot be read completely. Your edit is kept; try again when it is available.", true); return; }
             if (!await Dialogs.ConfirmAsync("Discard edit",
                 state == EditState.Modified
                     ? $"Discard your uncommitted changes to \"{session.DisplayName}\"? The working copy is deleted; {session.DisplayTarget} keeps its current content."
@@ -472,14 +584,26 @@ public sealed partial class MainViewModel
                 "Discard", danger: state == EditState.Modified))
                 return;
             CheckSessionAction();
-            await MutationIoAsync(session.WorkingPath, () => { Services.EditSessions.Discard(session); return true; }, CheckSessionAction);
+            bool discarded = await MutationIoAsync(session.WorkingPath, () =>
+            {
+                // Recheck after device admission, without another queued gap between review and deletion.
+                var local = Location.FileSystem(session.WorkingPath);
+                var current = Services.EditSessions.ReviewWorking(session, Services.Providers.For(local), CheckSessionAction);
+                if (current != reviewed) return false;
+                CheckSessionAction(); Services.EditSessions.Discard(session); return true;
+            }, CheckSessionAction);
+            if (!discarded)
+            {
+                Notify("The working copy changed or became unavailable while you reviewed the discard. Your edit is kept; review it again before discarding.", true);
+                return;
+            }
             Unwatch(session.Id);
             Notify("The edit was discarded.");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            if (!Services.Io.IsStopped) Notify($"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
+            if (EditSessionsActive) Notify($"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
         }
         finally { _sessionActions.Remove(session.Id); }
     }
