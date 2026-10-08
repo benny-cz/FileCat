@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
+using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -368,8 +370,8 @@ public static class JournalRecovery
         catch (UnauthorizedAccessException) { return true; }
     }
 
-    /// <summary>Staged partial files that belong to the interrupted job (safe to delete: never published).</summary>
-    public static IReadOnlyList<string> FindStagedLeftovers(InterruptedJob job)
+    /// <summary>Potential staged paths, bounded by <paramref name="limit"/>. Review their current bytes before deletion.</summary>
+    public static IReadOnlyList<string> FindStagedLeftovers(InterruptedJob job, int limit = 1000, Action? check = null)
     {
         var id = Path.GetFileNameWithoutExtension(job.JournalPath);
         var shortId = id.Length >= 8 ? id[^8..] : id;
@@ -379,17 +381,76 @@ public static class JournalRecovery
             try
             {
                 if (!Directory.Exists(dir)) continue;
-                list.AddRange(Directory.EnumerateFiles(dir, StagedPrefix + shortId + "-*"));
-                list.AddRange(Directory.EnumerateFiles(dir, LegacyStagedPrefix + shortId + "-*"));
+                foreach (var prefix in new[] { StagedPrefix, LegacyStagedPrefix })
+                    foreach (var path in Directory.EnumerateFiles(dir, prefix + shortId + "-*"))
+                    {
+                        check?.Invoke();
+                        if (list.Count >= limit) return list;
+                        if (!list.Contains(path, PathUtil.SafetyComparer)) list.Add(path);
+                    }
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
         foreach (var intent in job.OpenIntents)
         {
+            check?.Invoke();
+            if (list.Count >= limit) return list;
             if (intent.Staged is { } s && File.Exists(s) && !list.Contains(s)) list.Add(s);
         }
         return list;
+    }
+
+    public const long StagedReviewByteLimit = 64L * 1024 * 1024;
+    public sealed record StagedFileReview(string Path, long Length, DateTime ModifiedUtc, DateTime CreatedUtc, string Sha256);
+
+    /// <summary>
+    /// Captures one finite, complete staged file through its registered provider. A name alone never authorizes
+    /// deletion. Unknown, partial, linked, changing or over-budget content stays unreviewed and must be kept.
+    /// This is a conservative byte/metadata check, not an atomic native file-identity guarantee.
+    /// </summary>
+    public static StagedFileReview? ReviewStagedFile(string path, ResourceProvider provider, Action? check = null, long byteLimit = StagedReviewByteLimit)
+    {
+        void Check() => check?.Invoke();
+        try
+        {
+            Check(); var before = new FileInfo(path);
+            if (!before.Exists || before.LinkTarget is not null || (before.Attributes & FileAttributes.ReparsePoint) != 0) return null;
+            long length = before.Length; var modified = before.LastWriteTimeUtc; var created = before.CreationTimeUtc;
+            if (length < 0 || length > byteLimit) return null;
+            Check(); using var source = ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(path, EntryKind.File)));
+            Check(); if (source is null || source.Length != length || !Complete(source)) return null;
+            var revision = source.GetRevision(); Check();
+            if (revision is { } r && r.Length != length) return null;
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var bytes = new byte[64 * 1024]; long offset = 0;
+            while (true)
+            {
+                Check(); if (!Complete(source)) return null;
+                int want = (int)Math.Min(bytes.Length, length - offset + 1);
+                int n = source.Read(offset, bytes.AsSpan(0, want)); Check();
+                if (!Complete(source) || n < 0 || n > want || n > length - offset) return null;
+                if (n == 0) { if (offset != length) return null; break; }
+                hash.AppendData(bytes, 0, n); offset += n;
+            }
+            Check(); var after = new FileInfo(path);
+            if (!after.Exists || after.LinkTarget is not null || (after.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                after.Length != length || after.LastWriteTimeUtc != modified || after.CreationTimeUtc != created ||
+                source.Length != length || source.GetRevision() != revision || !Complete(source)) return null;
+            Check(); return new(path, length, modified, created, Convert.ToHexString(hash.GetHashAndReset()));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { return null; }
+
+        static bool Complete(IContentSource source) => source is not IPartialContent p || p.MissingRanges.Count == 0 && p.Caveat is null;
+    }
+
+    /// <summary>Rechecks the complete reviewed version immediately before deletion; returns false if it must be kept.</summary>
+    public static bool DeleteReviewedStagedFile(StagedFileReview reviewed, ResourceProvider provider, Action? check = null)
+    {
+        if (ReviewStagedFile(reviewed.Path, provider, check) != reviewed) return false;
+        check?.Invoke();
+        try { File.Delete(reviewed.Path); return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
     /// <summary>Renames that were under way: the item still has its temporary name (<see cref="PendingIntent.Via"/>).</summary>
@@ -441,14 +502,16 @@ public static class JournalRecovery
     /// copied from a source that changed since) is <see cref="CopyReview.Differing"/>: it is reported and never deleted.
     /// Bounded; reads at most the first megabyte of a file and its source; deletes nothing itself (release issue I19).
     /// </summary>
-    public static CopyReview ReviewCopies(InterruptedJob job, int limit = 1000)
+    public static CopyReview ReviewCopies(InterruptedJob job, int limit = 1000, Action? check = null)
     {
         var incomplete = new List<IncompleteCopy>();
         var differing = new List<string>();
         bool limitReached = job.FillDirectoriesCut;
         var since = job.CreatedUtc.AddSeconds(-2);
+        int inspected = 0;
         foreach (var group in job.FillDirectories.GroupBy(f => f.Destination, PathUtil.SafetyComparer))
         {
+            check?.Invoke();
             var sourceFolders = group.Select(f => f.Source).Distinct(PathUtil.SafetyComparer).ToList();
             IEnumerable<FileInfo> files;
             try
@@ -461,6 +524,8 @@ public static class JournalRecovery
             {
                 foreach (var dst in files)
                 {
+                    check?.Invoke();
+                    if (inspected++ >= limit) return new CopyReview(incomplete, differing, true);
                     if (dst.CreationTimeUtc < since || dst.LinkTarget is not null || (dst.Attributes & FileAttributes.ReparsePoint) != 0 ||
                         dst.Name.StartsWith(StagedPrefix, StringComparison.Ordinal) || dst.Name.StartsWith(LegacyStagedPrefix, StringComparison.Ordinal)) continue;
                     var sources = sourceFolders.Select(folder => new FileInfo(Path.Combine(folder, dst.Name)))
@@ -486,13 +551,14 @@ public static class JournalRecovery
         }
         return new CopyReview(incomplete, differing, limitReached);
 
-        static (CopyContent Content, string? Source) Classify(FileInfo dst, IReadOnlyList<FileInfo> sources)
+        (CopyContent Content, string? Source) Classify(FileInfo dst, IReadOnlyList<FileInfo> sources)
         {
             // Direct copies are smaller than the limit, and so is anything cut short from one.
             if (dst.Length >= TransferExecutor.DirectCopyLimit) return (CopyContent.Differing, null);
             foreach (var s in sources)
             {
-                if (s.Length < dst.Length || !StartsWithSameBytes(dst.FullName, dst.Length, s.FullName)) continue;
+                check?.Invoke();
+                if (s.Length < dst.Length || !StartsWithSameBytes(dst.FullName, dst.Length, s.FullName, check)) continue;
                 // The same bytes as its source with only the time not set yet is a complete copy.
                 return s.Length == dst.Length ? (CopyContent.Complete, null) : (CopyContent.Incomplete, s.FullName);
             }
@@ -507,12 +573,13 @@ public static class JournalRecovery
     /// review (size, times) and still holds exactly its source's first bytes; anything else is kept and named in
     /// <paramref name="kept"/>. Links are never deleted here. Returns how many files were deleted.
     /// </summary>
-    public static int DeleteIncompleteCopies(IReadOnlyList<IncompleteCopy> copies, out IReadOnlyList<string> kept)
+    public static int DeleteIncompleteCopies(IReadOnlyList<IncompleteCopy> copies, out IReadOnlyList<string> kept, Action? check = null)
     {
         int deleted = 0;
         var keptList = new List<string>();
         foreach (var c in copies)
         {
+            check?.Invoke();
             try
             {
                 var now = new FileInfo(c.Path);
@@ -520,12 +587,12 @@ public static class JournalRecovery
                 if (!now.Exists || now.LinkTarget is not null || (now.Attributes & FileAttributes.ReparsePoint) != 0 ||
                     now.Length != c.Length || now.LastWriteTimeUtc != c.ModifiedUtc || now.CreationTimeUtc != c.CreatedUtc ||
                     !source.Exists || source.LinkTarget is not null || source.Length <= c.Length ||
-                    !StartsWithSameBytes(c.Path, c.Length, source.FullName))
+                    !StartsWithSameBytes(c.Path, c.Length, source.FullName, check))
                 {
                     if (now.Exists) keptList.Add(c.Path);
                     continue;
                 }
-                File.Delete(c.Path);
+                check?.Invoke(); File.Delete(c.Path);
                 deleted++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -541,7 +608,7 @@ public static class JournalRecovery
     /// True when <paramref name="path"/> is <paramref name="length"/> bytes long and those bytes are exactly the first
     /// bytes of <paramref name="source"/>. Files are opened for reading only, never locking out other programs.
     /// </summary>
-    private static bool StartsWithSameBytes(string path, long length, string source)
+    private static bool StartsWithSameBytes(string path, long length, string source, Action? check = null)
     {
         if (length > TransferExecutor.DirectCopyLimit) return false;
         try
@@ -554,9 +621,11 @@ public static class JournalRecovery
             long left = length;
             while (left > 0)
             {
+                check?.Invoke();
                 int want = (int)Math.Min(x.Length, left);
                 a.ReadExactly(x, 0, want);
                 b.ReadExactly(y, 0, want);
+                check?.Invoke();
                 if (!x.AsSpan(0, want).SequenceEqual(y.AsSpan(0, want))) return false;
                 left -= want;
             }
@@ -588,9 +657,11 @@ public static class JournalRecovery
     }
 
     /// <summary>Marks the journal as reconciled so it no longer appears as interrupted.</summary>
-    public static void Close(InterruptedJob job, string resolution)
+    public static void Close(InterruptedJob job, string resolution) => TryClose(job, resolution);
+
+    /// <summary>Reconciles durably before removing the source manifest. A failed append keeps the manifest.</summary>
+    public static bool TryClose(InterruptedJob job, string resolution)
     {
-        TryDelete(JobJournal.ManifestPathOf(job.JournalPath));
         try
         {
             // Start on a fresh line in case the crash left a torn record without a newline.
@@ -600,15 +671,39 @@ public static class JournalRecovery
                 needsNewline = fs.Length > 0 && SeekLastByte(fs) != '\n';
             }
             var record = Line(new JsonObject { ["t"] = "end", ["state"] = "Interrupted", ["summary"] = resolution, ["time"] = DateTime.UtcNow.ToString("O") });
-            File.AppendAllText(job.JournalPath, (needsNewline ? "\n" : string.Empty) + record);
+            using (var fs = new FileStream(job.JournalPath, FileMode.Open, FileAccess.Write, FileShare.Read))
+            {
+                fs.Seek(0, SeekOrigin.End);
+                fs.Write(Encoding.UTF8.GetBytes((needsNewline ? "\n" : string.Empty) + record));
+                fs.Flush(flushToDisk: true);
+            }
+            TryDelete(JobJournal.ManifestPathOf(job.JournalPath));
+            return true;
         }
-        catch (IOException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
 
         static int SeekLastByte(FileStream fs)
         {
             fs.Seek(-1, SeekOrigin.End);
             return fs.ReadByte();
         }
+    }
+
+    /// <summary>Rejects a journal that ended, disappeared or is held by a live writer.</summary>
+    public static bool IsInterrupted(InterruptedJob job)
+    {
+        if (InUse(job.JournalPath)) return false;
+        try
+        {
+            bool began = false;
+            foreach (var record in JobJournal.ReadRecords(job.JournalPath))
+            {
+                if (record.Type == "end") return false;
+                if (record.Type == "begin") began = true;
+            }
+            return began;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
     private static string Line(JsonObject o)

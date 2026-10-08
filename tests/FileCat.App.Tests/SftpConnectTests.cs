@@ -103,7 +103,10 @@ public sealed class SftpConnectTests
             var job = await LastJobAsync(s.Services, 1);
             Assert.Equal(JobState.Completed, job.State);
             Assert.Equal("hello, edited", s.Server.Read("/home/user/remote.txt"));
-            await WaitAsync(() => s.Services.EditSessions.StateOf(s.Services.EditSessions.LoadAll().Single()) == Core.Edit.EditState.Unchanged);
+            // Job completion precedes the asynchronous session acknowledgement. LoadAll is a best-effort
+            // persisted-record read; don't throw from the wait predicate if it momentarily finds no record.
+            await WaitAsync(() => s.Services.EditSessions.LoadAll().FirstOrDefault() is { } current &&
+                s.Services.EditSessions.StateOf(current) == Core.Edit.EditState.Unchanged);
             Assert.Equal(Core.Edit.EditState.Unchanged, s.Services.EditSessions.StateOf(s.Services.EditSessions.LoadAll().Single()));
         }
         finally

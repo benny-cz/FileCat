@@ -664,64 +664,7 @@ public sealed partial class MainViewModel
     /// blindly). Partial files of the interruption are removed first, sources that no longer exist (already moved)
     /// are left out, and items that already arrived are skipped. False when nothing was started.
     /// </summary>
-    public async Task<bool> RunInterruptedAgainAsync(InterruptedJob job)
-    {
-        var kind = job.Kind == nameof(JobKind.Move) ? JobKind.Move : JobKind.Copy;
-        if (Location.Deserialize(job.Destination) is not { } destination)
-        {
-            Notify("The destination of this operation is not recorded; select the items and the destination again.");
-            return false;
-        }
-        var (sources, staged, review) = await Task.Run(() =>
-        {
-            var paths = JournalRecovery.LoadSources(job);
-            var existing = paths?.Select(p => Directory.Exists(p) ? ItemRef.ForFileSystemPath(p, EntryKind.Directory)
-                : File.Exists(p) ? ItemRef.ForFileSystemPath(p, EntryKind.File) : null).OfType<ItemRef>().ToList();
-            return (existing, JournalRecovery.FindStagedLeftovers(job), JournalRecovery.ReviewCopies(job));
-        });
-        if (sources is null)
-        {
-            Notify("Not all source items of this operation are recorded; select them again to repeat it.");
-            return false;
-        }
-        if (sources.Count == 0)
-        {
-            Notify("None of the source items exist any more: nothing is left to " + (kind == JobKind.Move ? "move." : "copy."));
-            return false;
-        }
-        var done = kind == JobKind.Move ? "moved" : "copied";
-        // Every file deleted first is named: staged files the interruption never published, and copies it cut short (each
-        // provably the first part of a source that is still there). Files that differ otherwise stay and are skipped.
-        var partial = staged.Concat(review.Incomplete.Select(i => i.Path)).ToList();
-        var message = $"{job.Title}: {sources.Count:N0} of {job.SourceCount:N0} source items still exist. Items that already arrived in {Services.Providers.Display(destination)} are skipped, so only the rest is {done}."
-            + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted:\n" + InterruptedJobText.Bullets(partial) : string.Empty)
-            + InterruptedJobText.CopyNotes(review);
-        if (!await Dialogs.ConfirmAsync("Run again", message, kind == JobKind.Move ? "Move the rest" : "Copy the rest")) return false;
-        int deleted = 0;
-        foreach (var f in staged)
-        {
-            try
-            {
-                File.Delete(f);
-                deleted++;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        }
-        IReadOnlyList<string> kept = [];
-        if (review.Incomplete.Count > 0) deleted += await Task.Run(() => JournalRecovery.DeleteIncompleteCopies(review.Incomplete, out kept));
-        JournalRecovery.Close(job, $"Continued by a new operation; {deleted} partial file(s) deleted.");
-        // A partial file that changed after the review was kept: its name exists, so the new job skips it; say so.
-        if (kept.Count > 0)
-            await Dialogs.AlertAsync("Run again", $"{Formatters.Plural(kept.Count, "file was", "files were")} kept because it changed after the review, so the new operation skips it:\n" + InterruptedJobText.Bullets(kept));
-        Services.Jobs.Submit(new JobRequest
-        {
-            Kind = kind,
-            Sources = sources,
-            Destination = destination,
-            Options = new TransferOptions { Conflicts = ConflictPolicy.Skip, Verify = Enum.TryParse<VerifyMode>(Services.Settings.DefaultVerify, out var verify) ? verify : VerifyMode.Native },
-        });
-        return true;
-    }
+    public Task<bool> RunInterruptedAgainAsync(InterruptedJob job) => RunInterruptedOwnedAsync(job);
 
     /// <summary>At exit or sign-out: running jobs stop at their next safe boundary and journal the rest (plan §9.3).</summary>
     public void StopJobsForExit(TimeSpan wait)
