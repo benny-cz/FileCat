@@ -63,6 +63,7 @@ public static class PictureDecoder
         int maxSide, CancellationToken ct, bool drainFeed)
     {
         ct.ThrowIfCancellationRequested();
+        maxSide = Math.Clamp(maxSide, PictureWorker.MinSide, PictureWorker.MaxSide);
         if (length > PictureWorker.MaxInputBytes)
             throw new InvalidDataException($"at {Formatters.SizeWithUnit(length)} it is larger than FileCat shows as a picture");
         using var admission = await Admission.EnterAsync(ct).ConfigureAwait(false);
@@ -134,6 +135,7 @@ public static class PictureDecoder
     /// <summary>The worker's answer, checked field by field: a reason, or the pixels of a picture no larger than asked.</summary>
     internal static DecodedPicture Read(Stream output, int maxSide)
     {
+        maxSide = Math.Clamp(maxSide, PictureWorker.MinSide, PictureWorker.MaxSide);
         Span<byte> magic = stackalloc byte[4];
         if (!ReadFully(output, magic)) throw new InvalidDataException(Died);
         if (magic.SequenceEqual(PictureWorker.FailureMagic))

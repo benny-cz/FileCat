@@ -25,6 +25,9 @@ internal static class PictureWorker
     /// <summary>The longest side the decoded output may have.</summary>
     public const int MaxSide = 8192;
 
+    /// <summary>The smallest requested output side accepted by the worker.</summary>
+    public const int MinSide = 16;
+
     internal static ReadOnlySpan<byte> SuccessMagic => "FCPX"u8;
     internal static ReadOnlySpan<byte> FailureMagic => "FCPE"u8;
 
@@ -34,7 +37,7 @@ internal static class PictureWorker
         using var output = Console.OpenStandardOutput();
         try
         {
-            int maxSide = args.Length > 1 && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int wanted) ? Math.Clamp(wanted, 16, MaxSide) : 2048;
+            int maxSide = args.Length > 1 && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int wanted) ? Math.Clamp(wanted, MinSide, MaxSide) : 2048;
             using var input = Console.OpenStandardInput();
             var bytes = ReadAll(input);
             if (bytes is null) return Fail(output, $"it is larger than {MaxInputBytes / (1024 * 1024)} MiB, which is more than FileCat shows");
