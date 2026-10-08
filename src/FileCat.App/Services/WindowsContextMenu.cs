@@ -85,8 +85,11 @@ internal static class WindowsContextMenu
             : null;
         if (executable is not null) return new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
         if (assembly.Length == 0) return null;
-        var start = new ProcessStartInfo(process is not null && Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
-            ? process : "dotnet") { UseShellExecute = false, CreateNoWindow = true };
+        // A custom host without an apphost must not search its current folder for the runtime.
+        string? dotnet = process is not null && Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
+            ? process : FileCat.Core.Tools.ToolLauncher.FindOnPath("dotnet");
+        if (dotnet is null) return null;
+        var start = new ProcessStartInfo(dotnet) { UseShellExecute = false, CreateNoWindow = true };
         start.ArgumentList.Add(assembly);
         return start;
     }

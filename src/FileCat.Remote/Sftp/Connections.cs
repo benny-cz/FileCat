@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 using FileCat.Core.Diagnostics;
 using FileCat.Core.State;
 
@@ -101,6 +102,7 @@ public sealed class SftpConnections : IDisposable
     public static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(10);
     private const int MaxAuthenticationAttempts = 3;
     private readonly Timer _sweeper;
+    private volatile bool _disposed;
 
     private readonly Func<string, RemoteProfile?> _profiles;
     private readonly ISftpConnector _connector;
@@ -153,12 +155,14 @@ public sealed class SftpConnections : IDisposable
     /// <summary>A connection for exclusive use until the lease is disposed; connects (and asks the user) when needed.</summary>
     public SftpLease Lease(string profileId, CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var profile = _profiles(profileId) ?? throw new IOException("This connection is not configured any more.");
         var pool = _pools.GetOrAdd(profileId, _ => new Pool(profile.IsFtp ? MaxPerFtpServer : MaxPerServer));
         if (!pool.Slots.Wait(TimeSpan.FromMinutes(2), ct))
             throw new IOException($"All {pool.Size} connections to {profile.Display} are busy; try again when a transfer finishes.");
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             ISftpChannel? channel = null;
             lock (pool)
             {
@@ -172,12 +176,26 @@ public sealed class SftpConnections : IDisposable
             {
                 // One connection attempt at a time per server, so prompts never stack up.
                 pool.Connecting.Wait(ct);
-                try { channel = Connect(profile, ct); }
+                try
+                {
+                    ObjectDisposedException.ThrowIf(_disposed, this);
+                    channel = Connect(profile, ct);
+                }
                 finally { pool.Connecting.Release(); }
             }
-            pool.Home ??= channel.HomeDirectory;
-            pool.Closed = false;
-            return new SftpLease(this, pool, channel);
+            lock (pool)
+            {
+                // The owner may have closed while a connection was waiting for a prompt.
+                if (_disposed)
+                {
+                    try { channel.Dispose(); }
+                    catch (Exception ex) { AppLog.Warn("Could not close a connection after shutdown", ex); }
+                    throw new ObjectDisposedException(nameof(SftpConnections));
+                }
+                pool.Home ??= channel.HomeDirectory;
+                pool.Closed = false;
+                return new SftpLease(this, pool, channel);
+            }
         }
         catch
         {
@@ -188,12 +206,16 @@ public sealed class SftpConnections : IDisposable
 
     internal void Return(Pool pool, ISftpChannel channel, bool broken)
     {
-        if (!broken && channel.IsConnected && !pool.Closed)
+        try
         {
-            lock (pool) pool.Idle.Push((channel, DateTime.UtcNow));
+            lock (pool)
+            {
+                if (!broken && !_disposed && channel.IsConnected && !pool.Closed)
+                    pool.Idle.Push((channel, DateTime.UtcNow));
+                else channel.Dispose();
+            }
         }
-        else channel.Dispose();
-        pool.Slots.Release();
+        finally { pool.Slots.Release(); }
     }
 
     /// <summary>Closes the idle connections of a server; leased ones close when their work returns them.</summary>
@@ -329,15 +351,26 @@ public sealed class SftpConnections : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _sweeper.Dispose();
+        ExceptionDispatchInfo? failure = null;
         foreach (var pool in _pools.Values)
         {
             pool.Closed = true;
             lock (pool)
             {
-                while (pool.Idle.TryPop(out var c)) c.Channel.Dispose();
+                while (pool.Idle.TryPop(out var c))
+                {
+                    try { c.Channel.Dispose(); }
+                    catch (Exception ex)
+                    {
+                        if (failure is null) failure = ExceptionDispatchInfo.Capture(ex);
+                        else AppLog.Warn("Could not close another connection during shutdown", ex);
+                    }
+                }
             }
         }
+        failure?.Throw();
     }
 
     internal sealed class Pool(int size)

@@ -1,3 +1,4 @@
+using FileCat.Core.Diagnostics;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
@@ -265,11 +266,22 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
 
     public void Dispose()
     {
-        lock (_lock)
+        try
         {
-            if (_disposed) return;
-            _disposed = true;
-            stream.Dispose();
+            lock (_lock)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                stream.Dispose();
+            }
+        }
+        catch
+        {
+            // A failed transfer close leaves the connection unsafe to reuse, but still returns its slot.
+            lease.Broken = true;
+            try { lease.Dispose(); }
+            catch (Exception ex) { AppLog.Warn("Could not close a failed remote content connection", ex); }
+            throw;
         }
         lease.Dispose();
     }

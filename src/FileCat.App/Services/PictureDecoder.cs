@@ -208,7 +208,9 @@ public static class PictureDecoder
         if (dll.Length == 0 && process is not null) return (process, arguments);
         string host = Path.Combine(Path.GetDirectoryName(dll)!, OperatingSystem.IsWindows() ? "FileCat.exe" : "FileCat");
         if (File.Exists(host)) return (host, arguments);
-        string dotnet = process is not null && Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase) ? process : "dotnet";
+        // A custom host without an apphost must not search its current folder for the runtime.
+        string dotnet = process is not null && Path.GetFileNameWithoutExtension(process).Equals("dotnet", StringComparison.OrdinalIgnoreCase) ? process
+            : FileCat.Core.Tools.ToolLauncher.FindOnPath("dotnet") ?? throw new InvalidOperationException("The .NET runtime could not be found for the picture worker.");
         return (dotnet, $"\"{dll}\" {arguments}");
     }
 
