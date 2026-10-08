@@ -1,6 +1,8 @@
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
+using FileCat.Core.Diagnostics;
 using DiscUtils;
 using DiscUtils.Iso9660;
 using DiscUtils.Udf;
@@ -498,18 +500,40 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 
     public Stream Open(int index, CancellationToken ct)
     {
-        _data?.Dispose();
-        _file?.Dispose();
-        _file = ArchiveFormats.OpenShared(path);
-        _data = decompress(_file);
-        return new BorrowedStream(_data);
+        CloseMember();
+        try
+        {
+            _file = ArchiveFormats.OpenShared(path);
+            _data = decompress(_file);
+            return new BorrowedStream(_data);
+        }
+        catch
+        {
+            try { CloseMember(); }
+            catch (Exception ex) { AppLog.Warn("Archive member close failed after opening failed", ex); }
+            throw;
+        }
     }
 
-    public void Dispose()
+    private void CloseMember()
     {
-        _data?.Dispose();
-        _file?.Dispose();
+        var data = _data;
+        var file = _file;
+        _data = null;
+        _file = null;
+        Exception? failure = null;
+        try { data?.Dispose(); }
+        catch (Exception ex) { failure = ex; }
+        try { file?.Dispose(); }
+        catch (Exception ex)
+        {
+            if (failure is null) failure = ex;
+            else AppLog.Warn("Archive source close failed after member close", ex);
+        }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
+
+    public void Dispose() => CloseMember();
 }
 
 /// <summary>

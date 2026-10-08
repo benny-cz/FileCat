@@ -170,9 +170,11 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
             }
             sink.AddBatch(batch.ToArray());
         }
-        catch (RemoteDisconnectedException)
+        catch (Exception ex)
         {
-            lease.Broken = true;
+            if (ex is RemoteDisconnectedException) lease.Broken = true;
+            try { lease.Dispose(); }
+            catch (Exception closeError) { AppLog.Warn("Could not close a remote connection after listing failed", closeError); }
             throw;
         }
     }, ct);
