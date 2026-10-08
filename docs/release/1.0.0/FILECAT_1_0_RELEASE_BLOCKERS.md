@@ -3,7 +3,7 @@
 Updated 2026-10-08. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable remaining work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries issue dispositions. Environment rows retain their last qualified observations; recheck a service or guest before reuse. The current owned-file transfer batch performed no VM/Mac availability check or setup change.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable remaining work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries issue dispositions. Environment rows retain their last qualified observations; recheck a service or guest before reuse. The current owned-file transfer batch confirmed two running VMware guests by inventory only; no guest/Mac setup changed.
 
 ## Safety and publication holds
 
@@ -69,6 +69,6 @@ DEC-06 (shared page-cache target) and DEC-11 (required Markdown rendering with a
 - The overnight continuation remains active while autonomous work remains. The former 08:40 CEST no-interaction cutoff has elapsed; ask only when resuming a task that actually needs the owner.
 - Current slices use owned files, pinned product payloads and component/CLI probes. No physical-source hold is relaxed.
 - Preserve exact guest/Mac setup baselines and restore owned temporary changes when their use ends. Do not reinstall removed Linux compiler packages without a new need.
-- GitHub SSH on port 443 is used for authorized main pushes. Current complete-verification producer 8900f14a7cae6a6b94c60b1e1386bc8a3a1d14fd is pushed; its original four-platform CI and exact source/artifacts are sealed. Earlier failed/refused observations remain at their sources. No persistent Git/SSH configuration changed.
+- GitHub SSH on port 443 is used for authorized main pushes. Current copy/upload runtime 49680a88d2f9004d3566f7ff92140ca82a24a4d6 and test-only correction 01161959f296c40144ba318fffd370346d9c51f2 are pushed; final original four-platform CI and exact source/artifacts are sealed. Earlier failed/refused observations, including the original Ubuntu admission fixture failure, remain at their sources. No persistent Git/SSH configuration changed.
 
 Update a gate row when its state changes; keep old chronology in the activity log/history rather than appending competing state summaries here.
