@@ -1,9 +1,9 @@
 # FileCat 1.0.0 — current gates and dependencies
 
-Updated 2026-10-06. **NO-GO. No candidate and no stable publication approval.**
+Updated 2026-10-08. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable remaining work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries issue dispositions.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable remaining work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries issue dispositions. Environment rows retain their last qualified observations; recheck a service or guest before reuse. The current owned-file cleanup batch performed no VM/Mac availability check or setup change.
 
 ## Safety and publication holds
 
@@ -69,6 +69,6 @@ DEC-06 (shared page-cache target) and DEC-11 (required Markdown rendering with a
 - The overnight continuation remains active while autonomous work remains. The former 08:40 CEST no-interaction cutoff has elapsed; ask only when resuming a task that actually needs the owner.
 - Current slices use owned files, pinned product payloads and component/CLI probes. No physical-source hold is relaxed.
 - Preserve exact guest/Mac setup baselines and restore owned temporary changes when their use ends. Do not reinstall removed Linux compiler packages without a new need.
-- GitHub SSH on port 443 recovered from two HTTPS timeouts. Native slice 2a018f3 is pushed and independently confirmed as server main. No persistent Git/SSH configuration changed.
+- GitHub SSH on port 443 is used for authorized main pushes. Both cleanup product commits are pushed; current product producer is 1f3f9923d438f769d3157c9b9a54485d51f30467. Its original four-platform CI and exact source/artifacts are sealed. No persistent Git/SSH configuration changed.
 
 Update a gate row when its state changes; keep old chronology in the activity log/history rather than appending competing state summaries here.
