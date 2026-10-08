@@ -246,9 +246,18 @@ public sealed record FillDirectory(string Source, string Destination);
 
 /// <summary>
 /// A file an interrupted direct copy provably left incomplete: shorter than <paramref name="Source"/> and holding exactly
-/// its first bytes. Size and times are those seen at the review; deletion checks them again.
+/// its first bytes. Size, times and the complete partial-file hash are those seen at the review; deletion checks
+/// them again. A legacy metadata-only review cannot authorize deletion.
 /// </summary>
-public sealed record IncompleteCopy(string Path, string Source, long Length, DateTime ModifiedUtc, DateTime CreatedUtc);
+public sealed record IncompleteCopy(string Path, string Source, long Length, DateTime ModifiedUtc, DateTime CreatedUtc,
+    string? ContentSHA256)
+{
+    public IncompleteCopy(string Path, string Source, long Length, DateTime ModifiedUtc, DateTime CreatedUtc)
+        : this(Path, Source, Length, ModifiedUtc, CreatedUtc, null) { }
+
+    public void Deconstruct(out string Path, out string Source, out long Length, out DateTime ModifiedUtc, out DateTime CreatedUtc)
+        => (Path, Source, Length, ModifiedUtc, CreatedUtc) = (this.Path, this.Source, this.Length, this.ModifiedUtc, this.CreatedUtc);
+}
 
 /// <param name="Incomplete">Copies cut short by the interruption: they may be deleted.</param>
 /// <param name="Differing">Files the job may have created that differ from their source in any other way (changed since,
@@ -520,7 +529,7 @@ public static partial class JournalRecovery
                     if (sources.Count == 0) continue;
                     // Complete: the same size and time as a source it could have come from.
                     if (sources.Any(s => s.Length == dst.Length && Math.Abs((s.LastWriteTimeUtc - dst.LastWriteTimeUtc).TotalSeconds) <= 2)) continue;
-                    var (content, source) = Classify(dst, sources);
+                    var (content, source, contentHash) = Classify(dst, sources);
                     if (content == CopyContent.Complete) continue;
                     if (content == CopyContent.Differing)
                     {
@@ -530,7 +539,7 @@ public static partial class JournalRecovery
                     else
                     {
                         if (incomplete.Count >= limit) { limitReached = true; continue; }
-                        incomplete.Add(new IncompleteCopy(dst.FullName, source!, dst.Length, dst.LastWriteTimeUtc, dst.CreationTimeUtc));
+                        incomplete.Add(new IncompleteCopy(dst.FullName, source!, dst.Length, dst.LastWriteTimeUtc, dst.CreationTimeUtc, contentHash));
                     }
                 }
             }
@@ -538,18 +547,18 @@ public static partial class JournalRecovery
         }
         return new CopyReview(incomplete, differing, limitReached);
 
-        (CopyContent Content, string? Source) Classify(FileInfo dst, IReadOnlyList<FileInfo> sources)
+        (CopyContent Content, string? Source, string? ContentHash) Classify(FileInfo dst, IReadOnlyList<FileInfo> sources)
         {
             // Direct copies are smaller than the limit, and so is anything cut short from one.
-            if (dst.Length >= TransferExecutor.DirectCopyLimit) return (CopyContent.Differing, null);
+            if (dst.Length >= TransferExecutor.DirectCopyLimit) return (CopyContent.Differing, null, null);
             foreach (var s in sources)
             {
                 check?.Invoke();
-                if (s.Length < dst.Length || !StartsWithSameBytes(dst.FullName, dst.Length, s.FullName, check)) continue;
+                if (s.Length < dst.Length || !StartsWithSameBytes(dst.FullName, dst.Length, s.FullName, out var contentHash, check)) continue;
                 // The same bytes as its source with only the time not set yet is a complete copy.
-                return s.Length == dst.Length ? (CopyContent.Complete, null) : (CopyContent.Incomplete, s.FullName);
+                return s.Length == dst.Length ? (CopyContent.Complete, null, null) : (CopyContent.Incomplete, s.FullName, contentHash);
             }
-            return (CopyContent.Differing, null);
+            return (CopyContent.Differing, null, null);
         }
     }
 
@@ -557,7 +566,7 @@ public static partial class JournalRecovery
 
     /// <summary>
     /// Deletes the incomplete copies the user confirmed, each only after checking again that it is unchanged since the
-    /// review (size, times) and still holds exactly its source's first bytes; anything else is kept and named in
+    /// review (size, times and complete partial-file hash) and still holds exactly its source's first bytes; anything else is kept and named in
     /// <paramref name="kept"/>. Links are never deleted here. Returns how many files were deleted.
     /// </summary>
     public static int DeleteIncompleteCopies(IReadOnlyList<IncompleteCopy> copies, out IReadOnlyList<string> kept, Action? check = null)
@@ -571,10 +580,10 @@ public static partial class JournalRecovery
             {
                 var now = new FileInfo(c.Path);
                 var source = new FileInfo(c.Source);
-                if (!now.Exists || now.LinkTarget is not null || (now.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                if (c.ContentSHA256 is null || !now.Exists || now.LinkTarget is not null || (now.Attributes & FileAttributes.ReparsePoint) != 0 ||
                     now.Length != c.Length || now.LastWriteTimeUtc != c.ModifiedUtc || now.CreationTimeUtc != c.CreatedUtc ||
                     !source.Exists || source.LinkTarget is not null || source.Length <= c.Length ||
-                    !StartsWithSameBytes(c.Path, c.Length, source.FullName, check))
+                    !StartsWithSameBytes(c.Path, c.Length, source.FullName, out var contentHash, check) || contentHash != c.ContentSHA256)
                 {
                     if (now.Exists) keptList.Add(c.Path);
                     continue;
@@ -595,8 +604,9 @@ public static partial class JournalRecovery
     /// True when <paramref name="path"/> is <paramref name="length"/> bytes long and those bytes are exactly the first
     /// bytes of <paramref name="source"/>. Files are opened for reading only, never locking out other programs.
     /// </summary>
-    private static bool StartsWithSameBytes(string path, long length, string source, Action? check = null)
+    private static bool StartsWithSameBytes(string path, long length, string source, out string? contentHash, Action? check = null)
     {
+        contentHash = null;
         if (length > TransferExecutor.DirectCopyLimit) return false;
         try
         {
@@ -605,6 +615,7 @@ public static partial class JournalRecovery
             if (a.Length != length || b.Length < length) return false;
             var x = new byte[64 * 1024];
             var y = new byte[64 * 1024];
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             long left = length;
             while (left > 0)
             {
@@ -614,9 +625,10 @@ public static partial class JournalRecovery
                 b.ReadExactly(y, 0, want);
                 check?.Invoke();
                 if (!x.AsSpan(0, want).SequenceEqual(y.AsSpan(0, want))) return false;
+                hash.AppendData(x, 0, want);
                 left -= want;
             }
-            return true;
+            check?.Invoke(); contentHash = Convert.ToHexString(hash.GetHashAndReset()); return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
