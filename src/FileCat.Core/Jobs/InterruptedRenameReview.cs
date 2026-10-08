@@ -5,9 +5,8 @@ namespace FileCat.Core.Jobs;
 
 public static partial class JournalRecovery
 {
-    public sealed record RenameItemReview(string Path, SourcePathReview Version, StagedFileReview? Content);
     public sealed record RenameParentReview(string Path, bool IsLink, string? LinkTarget, string? Identity, string? FinalPath);
-    public sealed record RenameReview(PendingIntent Intent, IReadOnlyList<RenameItemReview> Items, IReadOnlyList<RenameParentReview> Parents)
+    public sealed record RenameReview(PendingIntent Intent, IReadOnlyList<FileTreeReview.Item> Items, IReadOnlyList<RenameParentReview> Parents)
     {
         public long Bytes => Items.Sum(i => i.Content?.Length ?? 0);
     }
@@ -24,37 +23,14 @@ public static partial class JournalRecovery
         if (intent.Operation != JobJournal.RenameViaOp || intent.Via is not { } via || intent.Target is null || itemLimit <= 0) return null;
         try
         {
-            var items = new List<RenameItemReview>(); var pending = new Stack<(string Path, int Depth)>(); pending.Push((via, 0));
-            long remaining = byteLimit;
-            while (pending.TryPop(out var next))
-            {
-                check?.Invoke(); if (items.Count == itemLimit || next.Depth > 128) return null;
-                var version = SourcePathReview.Capture(next.Path, files, check);
-                if (version is null || version.Info.IsLink || (version.Info.Attributes & FileAttributes.ReparsePoint) != 0) return null;
-                StagedFileReview? content = null;
-                if (version.Info.IsDirectory)
-                {
-                    foreach (var path in Directory.EnumerateFileSystemEntries(next.Path))
-                    {
-                        check?.Invoke(); if (items.Count + pending.Count + 1 >= itemLimit) return null;
-                        pending.Push((path, next.Depth + 1));
-                    }
-                }
-                else
-                {
-                    content = ReviewStagedFile(next.Path, provider, check, remaining);
-                    if (content is null) return null;
-                    remaining -= content.Length;
-                }
-                if (!version.Matches(next.Path, files, check)) return null;
-                items.Add(new(next.Path, version, content));
-            }
+            var tree = FileTreeReview.Capture(via, files, provider, check, byteLimit, itemLimit);
+            if (tree is null) return null;
             var parents = new List<RenameParentReview>();
             foreach (var path in new[] { via, intent.Target, intent.Path }.Select(p => Path.GetDirectoryName(Path.GetFullPath(p))!).Distinct(PathUtil.SafetyComparer))
             {
                 var parent = ReviewRenameParent(path, files, check); if (parent is null) return null; parents.Add(parent);
             }
-            return new(intent, items.OrderBy(i => i.Path, StringComparer.Ordinal).ToArray(), parents.OrderBy(p => p.Path, StringComparer.Ordinal).ToArray());
+            return new(intent, tree.Items, parents.OrderBy(p => p.Path, StringComparer.Ordinal).ToArray());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { return null; }
     }

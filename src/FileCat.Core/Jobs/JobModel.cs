@@ -172,6 +172,12 @@ public sealed class JobRequest
     /// </summary>
     public IReadOnlyDictionary<ItemRef, SourcePathReview>? ExpectedSources { get; init; }
     /// <summary>
+    /// A bounded interrupted copy/move review of complete ordinary-file bytes and descendant membership.
+    /// Each tree must match before destination creation and before its root is processed. Links retain only
+    /// their literal metadata; this is not an atomic native mutation or a guarantee about followed targets.
+    /// </summary>
+    public IReadOnlyDictionary<ItemRef, ReviewedSourceTree>? ExpectedSourceTrees { get; init; }
+    /// <summary>
     /// With <see cref="OnlyAsCompared"/>: all each folder held when compared, keyed by the source. A folder goes only while
     /// it still holds just that; one without an entry here is not removed.
     /// </summary>
