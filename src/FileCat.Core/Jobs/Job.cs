@@ -306,7 +306,15 @@ public sealed class Job
 
     internal void AddBytes(long bytes) => Interlocked.Add(ref _bytesDone, bytes);
 
-    internal void AddVerifyTotal(long bytes) => Interlocked.Add(ref _verifyTotal, bytes);
+    internal void AddVerifyTotal(long bytes, bool currentItem = false)
+    {
+        if (!currentItem) { Interlocked.Add(ref _verifyTotal, bytes); return; }
+        lock (_lock)
+        {
+            if (_itemPlanned >= 0) _itemPlanned += bytes;
+            Interlocked.Add(ref _verifyTotal, bytes);
+        }
+    }
 
     internal void AddVerified(long bytes) => Interlocked.Add(ref _verifyDone, bytes);
 

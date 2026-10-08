@@ -1143,12 +1143,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             {
                 Job.Checkpoint();
                 long planned = 2 * Math.Max(0, now.Size), started = Job.VerifyBytesDone;
-                Job.AddVerifyTotal(planned);
+                Job.AddVerifyTotal(planned, currentItem: true);
                 try { matching = ContentEqual(src, target); }
                 finally
                 {
                     // Refused reads are no longer pending work; only bytes actually read belong to this added check.
-                    Job.AddVerifyTotal(Job.VerifyBytesDone - started - planned);
+                    Job.AddVerifyTotal(Job.VerifyBytesDone - started - planned, currentItem: true);
                 }
                 var after = Fs.TryGetInfo(src); var copyAfter = Fs.TryGetInfo(target);
                 matching &= after is { IsDirectory: false, IsLink: false } && after.Size == now.Size && after.ModifiedUtc == now.ModifiedUtc &&
