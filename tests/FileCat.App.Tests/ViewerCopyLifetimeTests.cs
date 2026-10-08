@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -28,6 +29,19 @@ public sealed class ViewerCopyLifetimeTests
     [InlineData("complete", false)]
     [InlineData("complete", true)]
     public async Task Viewer_copy_completion_belongs_to_its_current_live_demand(string action, bool range)
+        => await RunCopy(action, range, false);
+
+    [AvaloniaTheory]
+    [InlineData("replace", false)]
+    [InlineData("replace", true)]
+    [InlineData("close", false)]
+    [InlineData("close", true)]
+    [InlineData("complete", false)]
+    [InlineData("complete", true)]
+    public async Task A_copy_and_an_explicit_visible_page_request_share_the_active_page_read(string action, bool range)
+        => await RunCopy(action, range, true);
+
+    private static async Task RunCopy(string action, bool range, bool competing)
     {
         string temp = Path.GetFullPath(Path.GetTempPath());
         string root = Path.Join(temp, "filecat-viewer-copy-" + Guid.NewGuid().ToString("N"));
@@ -65,6 +79,11 @@ public sealed class ViewerCopyLifetimeTests
             var oldCancellation = sourceField?.GetValue(viewer) as CancellationTokenSource;
             await source.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             Assert.False(oldWork.IsCompleted);
+            if (competing)
+            {
+                Assert.False(reader.TryRead(HeldOffset, new byte[1], out _));
+                await WaitFor(() => (int)typeof(PagedReader).GetProperty("PendingLoads", Fields)!.GetValue(reader)! > 0 || source.ReadsAfterArm >= (range ? 2 : 3));
+            }
             if (action == "replace")
             {
                 Select(hex, 64, 32);
@@ -90,7 +109,7 @@ public sealed class ViewerCopyLifetimeTests
             }
             bool? currentCleared = sourceField is null ? null : sourceField.GetValue(viewer) is null;
             bool unchanged = SHA256.HashData(bytes).SequenceEqual(SHA256.HashData(File.ReadAllBytes(path)));
-            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, range, beforeStatus, afterStatus, BeforeClipboardSHA256 = Hash(beforeClipboard), AfterClipboardSHA256 = Hash(afterClipboard), BeforeClipboardCharacters = beforeClipboard.Length, AfterClipboardCharacters = afterClipboard.Length, beforeReads, source.ReadsAfterArm, Error = error?.GetType().FullName, CancellationDisposed = cancellationDisposed, CurrentCopyCleared = currentCleared, OwnedContentUnchanged = unchanged, source.Active, source.DisposalsDuringRead, ActualFileAndPagedReader = true, FirstPageCachedBeforeArm = firstPageCachedBeforeArm, HeadlessClipboardAndComponentOnly = true }));
+            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, range, competing, beforeStatus, afterStatus, BeforeClipboardSHA256 = Hash(beforeClipboard), AfterClipboardSHA256 = Hash(afterClipboard), BeforeClipboardCharacters = beforeClipboard.Length, AfterClipboardCharacters = afterClipboard.Length, beforeReads, source.ReadsAfterArm, ArmedReads = source.ArmedReads.ToArray(), Error = error?.GetType().FullName, CancellationDisposed = cancellationDisposed, CurrentCopyCleared = currentCleared, OwnedContentUnchanged = unchanged, source.Active, source.DisposalsDuringRead, ActualFileAndPagedReader = true, FirstPageCachedBeforeArm = firstPageCachedBeforeArm, HeadlessClipboardAndComponentOnly = true }));
             Assert.Null(error);
             Assert.True(unchanged);
             Assert.Equal(0, source.DisposalsDuringRead);
@@ -138,12 +157,14 @@ public sealed class ViewerCopyLifetimeTests
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
+    private sealed record SourceReadCall(long Offset, int Count, string Thread);
     private sealed class HeldSource(string path) : IContentSource
     {
         private readonly FileContentSource _inner = new(path);
         private int _armed, _counting, _reads, _active, _disposals, _during;
         public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly ManualResetEventSlim Release = new();
+        public readonly ConcurrentQueue<SourceReadCall> ArmedReads = new();
         public int Active => Volatile.Read(ref _active);
         public int Disposals => Volatile.Read(ref _disposals);
         public int DisposalsDuringRead => Volatile.Read(ref _during);
@@ -159,7 +180,7 @@ public sealed class ViewerCopyLifetimeTests
             Interlocked.Increment(ref _active);
             try
             {
-                if (Volatile.Read(ref _counting) != 0) Interlocked.Increment(ref _reads);
+                if (Volatile.Read(ref _counting) != 0) { Interlocked.Increment(ref _reads); ArmedReads.Enqueue(new(offset, buffer.Length, Thread.CurrentThread.Name ?? "")); }
                 if (offset == HeldOffset && Interlocked.Exchange(ref _armed, 0) == 1)
                 {
                     Entered.TrySetResult();

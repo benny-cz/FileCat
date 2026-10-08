@@ -30,6 +30,9 @@ public sealed class PagedReader : IDisposable
     private readonly Dictionary<long, LinkedListNode<Page>> _pages = new();
     private readonly LinkedList<Page> _lru = new();
     private readonly HashSet<long> _loading = new();
+    // Blocking copy/search reads and visible-page workers share the same actual source call.
+    // A refreshed generation owns a separate load; it must not wait for the old generation's bytes.
+    private readonly Dictionary<(long Index, long Generation), TaskCompletionSource<Page?>> _readsInFlight = new();
     // Pages that could not be read, and when: views show the content as ending there (ReadError says why) instead of
     // asking for the page on every render, and try again after a pause, in case the cause was passing.
     private readonly Dictionary<long, DateTime> _failed = new();
@@ -214,16 +217,28 @@ public sealed class PagedReader : IDisposable
             lock (_lock) _loading.Remove(index);
             PageLoaded?.Invoke();
         }
+        async Task FinishSharedAsync(Task<Page?> shared)
+        {
+            // A visible-page waiter must yield its device worker. The owner still pins the
+            // source; page demand stays active until the shared call actually returns.
+            try
+            {
+                try { await shared.ConfigureAwait(false); }
+                finally { Interlocked.Exchange(ref state, 2); Finished(); }
+            }
+            catch (Exception) { } // Same completion/error handling as the scheduled page call.
+        }
         try
         {
-            await _io!.Run(_deviceKey!, IoPriority.Interactive, _ =>
+            await _io!.Run(_deviceKey!, IoPriority.Interactive, ct =>
             {
                 if (Interlocked.CompareExchange(ref state, 1, 0) != 0) return;
-                try { LoadPage(index); }
+                Task<Page?>? shared = null;
+                try { StartPage(index, out shared); }
                 finally
                 {
-                    Interlocked.Exchange(ref state, 2);
-                    Finished();
+                    if (shared is not null) _ = FinishSharedAsync(shared);
+                    else { Interlocked.Exchange(ref state, 2); Finished(); }
                 }
             }, _pageDemand!.Token).ConfigureAwait(false);
         }
@@ -236,12 +251,46 @@ public sealed class PagedReader : IDisposable
 
     private Page? LoadPage(long index)
     {
-        long generation;
+        var page = StartPage(index, out var shared);
+        return shared is null ? page : shared.GetAwaiter().GetResult();
+    }
+
+    private Page? StartPage(long index, out Task<Page?>? shared)
+    {
+        shared = null;
+        (long Index, long Generation) key;
+        TaskCompletionSource<Page?> load;
+        bool owner;
         lock (_lock)
         {
             if (_disposed) return null;
             if (_pages.TryGetValue(index, out var existing)) return existing.Value;
-            generation = _generation;
+            key = (index, _generation);
+            owner = !_readsInFlight.TryGetValue(key, out load!);
+            if (owner) _readsInFlight.Add(key, load = new(TaskCreationOptions.RunContinuationsAsynchronously));
+        }
+        if (!owner) { shared = load.Task; return null; }
+        try
+        {
+            var page = LoadPageOwned(index, key.Generation);
+            load.TrySetResult(page);
+            return page;
+        }
+        catch (Exception ex)
+        {
+            load.TrySetException(ex);
+            _ = load.Task.Exception; // The owner observes the failure even when there is no waiter.
+            throw;
+        }
+        finally { lock (_lock) _readsInFlight.Remove(key); }
+    }
+
+    private Page? LoadPageOwned(long index, long generation)
+    {
+        lock (_lock)
+        {
+            if (_disposed || generation != _generation) return null;
+            if (_pages.TryGetValue(index, out var existing)) return existing.Value;
             _sourceUses++;
         }
         byte[] buffer;

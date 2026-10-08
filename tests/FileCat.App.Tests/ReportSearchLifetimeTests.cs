@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -61,7 +62,12 @@ public sealed class ReportSearchLifetimeTests
             if (action == "replace")
             {
                 Field<TextBox>(window, "_search").Text = "fresh";
-                await Find(window, true).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                var replacement = Find(window, true);
+                // Both searches need the held page; the replacement shares its active read.
+                Assert.False(replacement.IsCompleted);
+                Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
+                source.Release.Set();
+                await replacement.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 Assert.Equal(64, Field<long>(window, "_lastHit"));
             }
             else if (action == "refresh") await Read(window).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
@@ -76,11 +82,12 @@ public sealed class ReportSearchLifetimeTests
             catch (Exception ex) { error = ex; }
             string? highlightAfter = typeof(TextViewer).GetField("_highlight", Fields)!.GetValue(Field<TextViewer>(window, "_view")) as string;
             bool unchanged = hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path)));
-            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, oldMatch, productions, hitBefore, HitAfterRelease = Field<long>(window, "_lastHit"), statusBefore, StatusAfterRelease = window.StatusText, highlightBefore, highlightAfter, SameTextAfterRelease = textBefore == window.Text, SameReaderAfterRelease = ReferenceEquals(readerBefore, Field<PagedReader>(window, "_reader")), Error = error?.GetType().FullName, OwnedContentUnchanged = unchanged, source.Active, source.Disposals, source.DisposalsDuringRead, CompleteActualReportAndMemoryReader = true }));
+            TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, oldMatch, productions, hitBefore, HitAfterRelease = Field<long>(window, "_lastHit"), statusBefore, StatusAfterRelease = window.StatusText, highlightBefore, highlightAfter, SameTextAfterRelease = textBefore == window.Text, SameReaderAfterRelease = ReferenceEquals(readerBefore, Field<PagedReader>(window, "_reader")), Error = error?.GetType().FullName, OwnedContentUnchanged = unchanged, source.Active, source.Disposals, source.DisposalsDuringRead, ArmedReads = source.ArmedReads.ToArray(), CompleteActualReportAndMemoryReader = true }));
             Assert.True(unchanged);
             Assert.Null(error);
             Assert.Equal(0, source.Active);
             Assert.Equal(0, source.DisposalsDuringRead);
+            Assert.Single(source.ArmedReads.Where(c => c.Offset == HeldOffset));
             if (action == "complete") Assert.Equal(HeldOffset + 10, Field<long>(window, "_lastHit"));
             else
             {
@@ -128,7 +135,9 @@ public sealed class ReportSearchLifetimeTests
     }
     private sealed class HeldSource(IContentSource inner) : IContentSource
     {
-        private int _armed, _active, _disposals, _during;
+        private int _armed, _active, _disposals, _during, _observe;
+        public sealed record SourceRead(long Offset, int Bytes, string Thread);
+        public readonly ConcurrentQueue<SourceRead> ArmedReads = new();
         public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly ManualResetEventSlim Release = new();
         public int Active => Volatile.Read(ref _active);
@@ -139,9 +148,10 @@ public sealed class ReportSearchLifetimeTests
         public bool CanSeek => inner.CanSeek;
         public string? LocalPath => inner.LocalPath;
         public ContentRevision? GetRevision() => inner.GetRevision();
-        public void Arm() => Interlocked.Exchange(ref _armed, 1);
+        public void Arm() { Interlocked.Exchange(ref _observe, 1); Interlocked.Exchange(ref _armed, 1); }
         public int Read(long offset, Span<byte> buffer)
         {
+            if (Volatile.Read(ref _observe) != 0) ArmedReads.Enqueue(new(offset, buffer.Length, Thread.CurrentThread.Name ?? ""));
             Interlocked.Increment(ref _active);
             try
             {
