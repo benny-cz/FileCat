@@ -264,7 +264,7 @@ public sealed record PendingIntent(int Step, string Operation, string Path, stri
     public string? Via { get; init; }
 }
 
-public static class JournalRecovery
+public static partial class JournalRecovery
 {
     /// <summary>
     /// Staged files are named ".fc-{job}-{n}.tmp". No '~': .NET expands any path with one as a possible 8.3 short name,
@@ -458,33 +458,20 @@ public static class JournalRecovery
         job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is { } via && (File.Exists(via) || Directory.Exists(via))).ToList();
 
     /// <summary>
-    /// Gives every item left with a temporary name its new name, or its original name when the new one is taken; an
-    /// item keeps the temporary name only when both are taken. Returns one line per item that did not get its new name.
+    /// Immediately reviews and finishes finite temporary items, restoring the original name when the new one is
+    /// taken. Callers with a confirmation dialog must retain ReviewRename's result across that dialog and use
+    /// FinishReviewedRename. Unreviewable or unresolved items keep their temporary names and are reported.
     /// </summary>
     public static IReadOnlyList<string> FinishRenames(IReadOnlyList<PendingIntent> leftovers, out int finished)
     {
         finished = 0;
         var report = new List<string>();
+        var files = new PortableFileOperations(); var provider = new LocalFileSystemProvider();
         foreach (var r in leftovers)
         {
-            if (r.Via is not { } via || r.Target is not { } target) continue;
-            bool isDirectory = Directory.Exists(via);
-            string? outcome = null;
-            foreach (var destination in new[] { target, r.Path })
-            {
-                if (File.Exists(destination) || Directory.Exists(destination)) continue;
-                try
-                {
-                    if (isDirectory) Directory.Move(via, destination);
-                    else File.Move(via, destination);
-                    outcome = destination;
-                    break;
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-            }
-            if (outcome == target) finished++;
-            else if (outcome is not null) report.Add($"{Path.GetFileName(outcome)}: the new name \"{Path.GetFileName(target)}\" is taken, so it has its original name again.");
-            else report.Add($"{via}: neither \"{Path.GetFileName(target)}\" nor \"{Path.GetFileName(r.Path)}\" is free; it keeps this temporary name.");
+            var reviewed = ReviewRename(r, files, provider);
+            if (reviewed is null) { report.Add($"{r.Via}: this temporary item could not be completely reviewed; it is kept."); continue; }
+            var outcome = FinishReviewedRename(reviewed, files, provider); finished += outcome.Finished; report.AddRange(outcome.Report);
         }
         return report;
     }

@@ -141,32 +141,37 @@ public sealed partial class MainViewModel
         {
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), CheckSessionAction)) return false;
             var review = await ReviewInterruptedAsync(job);
-            var renames = new List<PendingIntent>(); bool renameLimited = false;
+            var renames = new List<JournalRecovery.RenameReview>(); var unreviewedRenames = new List<string>(); bool renameLimited = false;
+            long renameBytes = JournalRecovery.StagedReviewByteLimit; int renameItems = 1000;
             foreach (var intent in job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is not null))
             {
-                if (renames.Count == 1000) { renameLimited = true; break; }
-                if (await MutationIoAsync(intent.Via!, () => File.Exists(intent.Via) || Directory.Exists(intent.Via), CheckSessionAction)) renames.Add(intent);
+                if (renames.Count + unreviewedRenames.Count == 1000) { renameLimited = true; break; }
+                var version = await MutationIoAsync(intent.Via!, () => JournalRecovery.ReviewRename(intent, Services.Jobs.FileOperations, Services.Providers.For(Location.FileSystem(intent.Via!)), CheckSessionAction, renameBytes, renameItems), CheckSessionAction);
+                if (version is null) unreviewedRenames.Add(intent.Via!);
+                else { renames.Add(version); renameBytes -= version.Bytes; renameItems -= version.Items.Count; }
             }
             var partial = review.Staged.Select(s => s.Path).Concat(review.Copies.Incomplete.Select(c => c.Path)).ToList();
             var message = (partial.Count > 0 ? "These reviewed partial files will be deleted:\n" + InterruptedJobText.Bullets(partial) : "No completely reviewed partial files remain.")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
-            if (renames.Count > 0) message += "\n\nThese interrupted renames will be finished (the original name is used when the new name is taken):\n" + InterruptedJobText.Bullets(renames.Select(r => r.Path + " → " + r.Target).ToList());
+            if (renames.Count > 0) message += "\n\nThese reviewed interrupted renames will be finished if their contents and paths remain unchanged (the original name is used when the new name is taken):\n" + InterruptedJobText.Bullets(renames.Select(r => r.Intent.Path + " → " + r.Intent.Target).ToList());
+            if (unreviewedRenames.Count > 0) message += "\n\nThese temporary items could not be completely reviewed and will be kept with the journal:\n" + InterruptedJobText.Bullets(unreviewedRenames);
             if (renameLimited) message += "\n\nThe rename review reached its limit. Remaining temporary names are kept; inspect them separately.";
             var intents = job.OpenIntents.Where(i => i.Operation != JobJournal.RenameViaOp).Take(10).Select(i => $"• {i.Operation}: {i.Path}{(i.Target is null ? "" : " → " + i.Target)}");
             message += "\n\nSteps that were in progress (inspect these items yourself):\n" + string.Join("\n", intents);
             string action = (renames.Count > 0, partial.Count > 0) switch { (true, true) => "Finish renaming and delete partial files", (true, false) => "Finish renaming", (false, true) => "Delete partial files", _ => "OK" };
             if (!await Dialogs.ConfirmAsync("Interrupted operation", message, action)) return false;
             CheckSessionAction(); var result = await DeleteInterruptedPartialsAsync(review);
-            int renamed = 0; var notRenamed = new List<string>();
+            int renamed = 0; var notRenamed = new List<string>(); bool unresolvedRenames = renameLimited || unreviewedRenames.Count > 0;
             foreach (var rename in renames)
             {
-                var outcome = await MutationIoAsync(rename.Via!, () => { CheckSessionAction(); var report = JournalRecovery.FinishRenames([rename], out int count); return (Count: count, Report: report); }, CheckSessionAction);
-                renamed += outcome.Count; notRenamed.AddRange(outcome.Report);
+                var outcome = await MutationIoAsync(rename.Intent.Via!, () => JournalRecovery.FinishReviewedRename(rename, Services.Jobs.FileOperations, Services.Providers.For(Location.FileSystem(rename.Intent.Via!)), CheckSessionAction), CheckSessionAction);
+                renamed += outcome.Finished; notRenamed.AddRange(outcome.Report); unresolvedRenames |= !outcome.Resolved;
             }
             if (result.Kept.Count > 0) await Dialogs.AlertAsync("Interrupted operation", "These files were kept because they changed or could not be completely reviewed:\n" + InterruptedJobText.Bullets(result.Kept));
             CheckSessionAction();
             if (notRenamed.Count > 0) await Dialogs.AlertAsync("Interrupted rename", string.Join("\n", notRenamed.Take(20)));
             CheckSessionAction();
+            if (unresolvedRenames) { Notify("Temporary rename items remain unresolved. The old journal is kept for review.", true); if (renames.Count > 0) RefreshAll(); return false; }
             bool closed = await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job, $"Reviewed; {result.Deleted} partial file(s) deleted, {renamed} rename(s) finished."), CheckSessionAction);
             Notify(closed ? $"Removed {Formatters.Plural(result.Deleted, "partial file", "partial files")}; finished {Formatters.Plural(renamed, "rename", "renames")}." : "The old journal could not be closed. It is kept for review.", !closed);
             if (renames.Count > 0) RefreshAll();
