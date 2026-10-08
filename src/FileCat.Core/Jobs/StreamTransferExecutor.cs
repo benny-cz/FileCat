@@ -80,6 +80,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 Job.RootFailed(index);
                 continue;
             }
+            if ((root.Flags & EntryFlags.Link) != 0)
+            {
+                Job.ItemSkipped();
+                Issue(IssueSeverity.Info, root.Name, LinkSkipMessage(root.Parent), StepOutcome.Skipped);
+                Job.RootFailed(index);
+                continue;
+            }
             string targetDir;
             try
             {
@@ -124,6 +131,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         return null;
     }
+
+    private static string LinkSkipMessage(Location parent) =>
+        parent.Scheme is Schemes.Archive or Schemes.Zip
+            ? "Links inside archives are not followed or extracted."
+            : "Links are not followed implicitly while copying; open the target explicitly to copy its contents.";
 
     private bool CopyContainer(ItemRef dir, string dst, string destRoot)
     {
@@ -172,11 +184,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 all = false;
                 continue;
             }
-            // A link to a folder inside a copied tree can point back up it: never follow one (plan §8.1).
-            if (c.IsContainer && c.Has(EntryFlags.Link))
+            // Link targets require an explicit scope choice; folder links can also recurse back up the tree.
+            if (c.Has(EntryFlags.Link))
             {
                 Job.ItemSkipped();
-                Issue(IssueSeverity.Info, c.Name, "Links to folders are not followed while copying; open the link and copy its contents if you need them.", StepOutcome.Skipped);
+                Issue(IssueSeverity.Info, c.Name, LinkSkipMessage(location), StepOutcome.Skipped);
                 all &= Job.Kind != JobKind.Move;
                 continue;
             }
@@ -187,6 +199,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 continue;
             }
             var child = provider.GetItemRef(location, c);
+            Job.Checkpoint();
+            if ((child.Flags & EntryFlags.Link) != 0)
+            {
+                Job.ItemSkipped();
+                Issue(IssueSeverity.Info, c.Name, LinkSkipMessage(child.Parent), StepOutcome.Skipped);
+                all &= Job.Kind != JobKind.Move;
+                continue;
+            }
             all &= c.IsContainer ? CopyContainer(child, childDst, destRoot) : CopyItem(child, childDst);
         }
         return all;
@@ -263,6 +283,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         bool partial = content is IPartialContent;
         bool resumable = false;
         int failures = 0;
+        void DisposeContent()
+        {
+            // Clear ownership before calling a provider that may throw during disposal.
+            var owned = content;
+            content = null;
+            owned?.Dispose();
+        }
         void CheckLength()
         {
             Job.Checkpoint();
@@ -285,82 +312,88 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         try
         {
-            // Keep metadata admission inside the lifetime/cleanup scope too: a refused query still closes its content.
-            RetainVersion();
-            using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
+            try
             {
-                var buffer = new byte[BufferSize];
-                var clock = System.Diagnostics.Stopwatch.StartNew();
-                while (true)
+                // Keep metadata admission inside the lifetime/cleanup scope too: a refused query still closes its content.
+                RetainVersion();
+                using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
                 {
-                    CheckLength();
-                    int want = expectedLength is { } length && length - written < buffer.Length
-                        ? (int)(length - written) + 1 : buffer.Length;
-                    int n;
-                    try
+                    var buffer = new byte[BufferSize];
+                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    while (true)
                     {
-                        n = content!.Read(written, buffer.AsSpan(0, want));
-                    }
-                    catch (Exception ex) when (resumable && ex is IOException or UnauthorizedAccessException)
-                    {
-                        content?.Dispose();
-                        content = Resume(provider, item, ex, ++failures, revision!.Value, outStream, ref written);
-                        if (content is null)
+                        CheckLength();
+                        int want = expectedLength is { } length && length - written < buffer.Length
+                            ? (int)(length - written) + 1 : buffer.Length;
+                        int n;
+                        try
                         {
-                            // Skipped: the item fails, and its partial copy goes.
-                            throw new SkippedTransferException(ex);
+                            n = content!.Read(written, buffer.AsSpan(0, want));
                         }
-                        // Resume may have explicitly restarted a changed file. Retain the version supplying this
-                        // new copy, rather than attaching the interrupted version to read-back or remote deletion.
-                        RetainVersion();
-                        continue;
+                        catch (Exception ex) when (resumable && ex is IOException or UnauthorizedAccessException)
+                        {
+                            DisposeContent();
+                            content = Resume(provider, item, ex, ++failures, revision!.Value, outStream, ref written);
+                            if (content is null)
+                            {
+                                // Skipped: the item fails, and its partial copy goes.
+                                throw new SkippedTransferException(ex);
+                            }
+                            // Resume may have explicitly restarted a changed file. Retain the version supplying this
+                            // new copy, rather than attaching the interrupted version to read-back or remote deletion.
+                            RetainVersion();
+                            continue;
+                        }
+                        CheckLength();
+                        if (n < 0 || n > want || written > long.MaxValue - n || expectedLength is { } expected && n > expected - written)
+                            throw new IOException("The source exceeded its copy length or returned an invalid read count.");
+                        if (n == 0)
+                        {
+                            if (expectedLength is { } exact && written != exact)
+                                throw new IOException("The source ended before its copy length.");
+                            break;
+                        }
+                        outStream.Write(buffer, 0, n);
+                        written += n;
+                        Job.AddBytes(n);
+                        Job.Throttle(written, clock);
                     }
                     CheckLength();
-                    if (n < 0 || n > want || written > long.MaxValue - n || expectedLength is { } expected && n > expected - written)
-                        throw new IOException("The source exceeded its copy length or returned an invalid read count.");
-                    if (n == 0)
-                    {
-                        if (expectedLength is { } exact && written != exact)
-                            throw new IOException("The source ended before its copy length.");
-                        break;
-                    }
-                    outStream.Write(buffer, 0, n);
-                    written += n;
-                    Job.AddBytes(n);
-                    Job.Throttle(written, clock);
+                    if (content is not Content.ProgressiveContent && content.Length is >= 0 and var finalLength && finalLength != written)
+                        throw new IOException("The source ended at a different length than it states.");
+                    // Some providers query a server here. One final query covers the whole copy, avoiding a query per buffer.
+                    // This is weak provider evidence; it cannot detect a change that restores the original revision.
+                    if (content!.GetRevision() != revision) throw new IOException("The source revision changed during copying.");
+                    lost = (content as IPartialContent)?.MissingRanges;
+                    caveat = (content as IPartialContent)?.Caveat;
+                    // Through the open handle: no second open, and later writes on it cannot change the time. The time is the
+                    // one the source stated when this content was opened, where it gives one: an FTP server's listing may
+                    // carry only the minute, or for older files the day, where its MDTM gives the second (I43).
+                    long modified = revision is { ModifiedTicks: > MinimumFileTimeTicks } stated ? stated.ModifiedTicks : item.Modified;
+                    if (modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(modified, DateTimeKind.Utc));
                 }
-                CheckLength();
-                if (content is not Content.ProgressiveContent && content.Length is >= 0 and var finalLength && finalLength != written)
-                    throw new IOException("The source ended at a different length than it states.");
-                // Some providers query a server here. One final query covers the whole copy, avoiding a query per buffer.
-                // This is weak provider evidence; it cannot detect a change that restores the original revision.
-                if (content!.GetRevision() != revision) throw new IOException("The source revision changed during copying.");
-                lost = (content as IPartialContent)?.MissingRanges;
-                caveat = (content as IPartialContent)?.Caveat;
-                // Through the open handle: no second open, and later writes on it cannot change the time. The time is the
-                // one the source stated when this content was opened, where it gives one: an FTP server's listing may
-                // carry only the minute, or for older files the day, where its MDTM gives the second (I43).
-                long modified = revision is { ModifiedTicks: > MinimumFileTimeTicks } stated ? stated.ModifiedTicks : item.Modified;
-                if (modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(modified, DateTimeKind.Utc));
-            }
-            if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
-                Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);
-            // "Read back and compare content", before the copy takes its name. Recovered content with lost parts reads the
-            // same guesses again, so it is not read back; its caveat says what it is.
-            if (Job.Request.Options.Verify == VerifyMode.ReadBack && !partial)
-            {
-                content?.Dispose();
-                content = null;
-                if (VerifyCopy(provider, item, staged, written, revision) is not true and var verified)
+                if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
+                    Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);
+                // "Read back and compare content", before the copy takes its name. Recovered content with lost parts reads the
+                // same guesses again, so it is not read back; its caveat says what it is.
+                if (Job.Request.Options.Verify == VerifyMode.ReadBack && !partial)
                 {
-                    Job.AddBytes(-written);
-                    try { File.Delete(staged); } catch (IOException) { }
-                    Job.ItemFailed();
-                    Issue(IssueSeverity.Error, item.Name, verified is false
-                        ? "Read-back verification found different content; the copy was discarded."
-                        : "Not copied: the source could not be read again to verify the copy, so the copy was discarded.", verified is false ? StepOutcome.Failed : StepOutcome.Skipped);
-                    return false;
+                    DisposeContent();
+                    if (VerifyCopy(provider, item, staged, written, revision) is not true and var verified)
+                    {
+                        Job.AddBytes(-written);
+                        try { File.Delete(staged); } catch (IOException) { }
+                        Job.ItemFailed();
+                        Issue(IssueSeverity.Error, item.Name, verified is false
+                            ? "Read-back verification found different content; the copy was discarded."
+                            : "Not copied: the source could not be read again to verify the copy, so the copy was discarded.", verified is false ? StepOutcome.Failed : StepOutcome.Skipped);
+                        return false;
+                    }
                 }
+            }
+            finally
+            {
+                DisposeContent();
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
@@ -374,9 +407,12 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             else Issue(IssueSeverity.Error, item.Name, "Could not extract: " + ErrorText.Describe(ex), StepOutcome.Failed);
             return false;
         }
-        finally
+        catch
         {
-            content?.Dispose();
+            // Keep the original unexpected failure, but release the owned partial copy and its progress first.
+            Job.AddBytes(-written);
+            try { if (File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
+            throw;
         }
         // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
         int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged, durable: replace);
@@ -434,6 +470,12 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 Job.AddVerifyTotal(-2 * length);
                 if (d.Action == DecisionAction.Skip) return null;
                 throw new OperationCanceledException();
+            }
+            catch
+            {
+                Job.AddVerified(-verified);
+                Job.AddVerifyTotal(-2 * length);
+                throw;
             }
         }
     }
