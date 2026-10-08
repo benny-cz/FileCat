@@ -292,8 +292,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             if (s.FileSystemPath is not { } p)
             {
-                files++;
-                if (s.Size > 0) bytes += s.Size;
+                // Provider folders are counted as their members arrive, without a phantom file for the root.
+                if (!s.IsContainer)
+                {
+                    files++;
+                    if (s.Size > 0) bytes += s.Size;
+                }
                 continue;
             }
             if (File.Exists(p))
@@ -318,6 +322,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
 
     private bool UploadLocalFolder(string local, string destFolder, string name)
     {
+        if (!AdmitName(name, local)) return false;
         string dst = RemotePath.Combine(destFolder, name);
         Job.SetCurrent(local);
         if (!EnsureFolder(destFolder, name, local)) return false;
@@ -380,6 +385,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
 
     private bool UploadLocalFile(string local, string destFolder, string name)
     {
+        if (!AdmitName(name, local)) return false;
         FileSystemItemInfo? info = Fs.TryGetInfo(local);
         if (info is null)
         {
@@ -410,31 +416,60 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
 
     private bool UploadProviderItem(ItemRef item, string destFolder, string name)
     {
+        Job.Checkpoint();
+        if (!AdmitName(name, item.Name)) return false;
+        if ((item.Flags & EntryFlags.Link) != 0)
+        {
+            SkipLink(item.Name);
+            return false;
+        }
         var provider = providers.Get(item.Parent.Scheme);
         if (item.IsContainer)
         {
             var location = provider.GetChildLocation(item.Parent, new EntryData(item.Name, item.Kind));
-            if (location is null || !EnsureFolder(destFolder, name, item.Name)) return false;
+            if (location is null)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, item.Name, "This folder cannot be opened for copying.", StepOutcome.Failed);
+                return false;
+            }
+            if (!EnsureFolder(destFolder, name, item.Name)) return false;
             var children = new List<EntryData>();
-            try { provider.EnumerateAsync(location, new ListSink(children), Job.Token).GetAwaiter().GetResult(); }
+            var sink = new ListSink(children);
+            try { provider.EnumerateAsync(location, sink, Job.Token).GetAwaiter().GetResult(); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 Job.ItemFailed();
                 Issue(IssueSeverity.Error, item.Name, "The folder could not be read: " + ErrorText.Describe(ex), StepOutcome.Failed);
                 return false;
             }
-            bool all = true;
+            // Readable members may still arrive, but an incomplete listing cannot certify the whole root.
+            foreach (string warning in sink.Issues)
+                Issue(IssueSeverity.Warning, item.Name, "Folder listing warning: " + warning, StepOutcome.PartiallyApplied);
+            bool all = sink.Issues.Count == 0;
             foreach (var c in children)
             {
+                Job.Checkpoint();
                 if (c.Kind == EntryKind.Parent) continue;
-                if (!c.IsContainer && Options.Filter is { } filter && !filter.IsMatch(c.Name)) continue;
-                if (c.Has(EntryFlags.Link) && c.IsContainer)
+                if (!AdmitName(c.Name, c.Name))
                 {
-                    Job.ItemSkipped();
-                    Issue(IssueSeverity.Info, c.Name, "Links to folders are not followed while copying; it was skipped.", StepOutcome.Skipped);
+                    all = false;
+                    continue;
+                }
+                if (!c.IsContainer && Options.Filter is { } filter && !filter.IsMatch(c.Name)) continue;
+                if (c.Has(EntryFlags.Link))
+                {
+                    SkipLink(c.Name);
                     continue;
                 }
                 var child = provider.GetItemRef(location, c);
+                Job.Checkpoint();
+                // Result providers may supply additional safety flags with the actual item reference.
+                if ((child.Flags & EntryFlags.Link) != 0)
+                {
+                    SkipLink(c.Name);
+                    continue;
+                }
                 Job.AddTotals(c.IsContainer ? 0 : 1, c.IsContainer ? 0 : Math.Max(0, c.Size));
                 all &= UploadProviderItem(child, RemotePath.Combine(destFolder, name), c.Name);
             }
@@ -444,6 +479,20 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             DateTime.MinValue, FileAttributes.Normal);
         return UploadFile(() => new ContentStream(Core.Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("This item has no content to copy.")), incoming,
             provider.GetDisplayPath(item.Parent).TrimEnd('/', '\\') + "/" + item.Name, destFolder, name);
+    }
+
+    private bool AdmitName(string name, string sourceDisplay)
+    {
+        if (RemotePath.ProblemWithName(name) is not { } problem) return true;
+        Job.ItemFailed();
+        Issue(IssueSeverity.Error, sourceDisplay, $"\"{name}\" cannot be a name on the server: {problem}", StepOutcome.Failed);
+        return false;
+    }
+
+    private void SkipLink(string name)
+    {
+        Job.ItemSkipped();
+        Issue(IssueSeverity.Info, name, "Links are not followed while copying to a server; it was skipped. Open the target explicitly to copy its contents.", StepOutcome.Skipped);
     }
 
     /// <param name="unchanged">Whether the source is still the file the upload started with; without it, uploads restart after a break.</param>
@@ -623,6 +672,15 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             DiscardTemp(destFolder, temp);
             Job.AddBytes(-written);
             Journal.Done(step, StepOutcome.CanceledBeforeChange);
+            throw;
+        }
+        catch
+        {
+            // Unexpected provider/read/disposal failures still release our staged copy before the job records the
+            // original failure. They are not converted into a successful partial upload or silently retried.
+            DiscardTemp(destFolder, temp);
+            Job.AddBytes(-written);
+            Journal.Done(step, StepOutcome.Failed);
             throw;
         }
         if (!ok || differs)
@@ -812,8 +870,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
 
     private sealed class ListSink(List<EntryData> into) : IEnumerationSink
     {
+        public List<string> Issues { get; } = [];
         public void AddBatch(ReadOnlySpan<EntryData> entries) => into.AddRange(entries.ToArray());
-        public void ReportIssue(string message) { }
+        public void ReportIssue(string message) => Issues.Add(message);
     }
 }
 
