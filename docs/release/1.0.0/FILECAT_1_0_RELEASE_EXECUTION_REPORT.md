@@ -9,16 +9,16 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 
 | Measure | Current state | Meaning |
 |---|---|---|
-| Issue register | 213 IDs: 191 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 230 entries; 2236 selected private evidence hashes independently reconciled in audit v135. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Issue register | 214 IDs: 192 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 231 entries; 2361 selected private evidence hashes independently reconciled in audit v136. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
-| Current product producer | 2516b14ebbd3b01eefec3e707cbbd671d2e67418. | Exact canonical 1605 expanded passes, including 23 additions; 67 existing skips. Full App 1076 passes/23 explicit skips. This is not a candidate. |
-| Last fully audited CI | 37725195680 attempt 1 at 2516b14: all four required lanes pass. | All 92 I213 additions and the previous Ubuntu copy case pass; every other predecessor outcome/skip and exact original artifact bytes retained. |
-| Current batch CI | Original 2516b14 producer fully audited green. | Component CI record complete; native desktop, wider provider/admission, physical holds and candidate qualification remain. |
+| Current product producer | ce5b119004e6adbb22bdcf9375cea4f570ee6d7f. | Exact canonical 1658 expanded passes, including 53 additions; 67 existing skips. Full App 1106 passes/23 explicit skips. This is not a candidate. |
+| Last fully audited CI | 37729215497 attempt 1 at ce5b119: all four required lanes pass. | All 212 I214 additions and every earlier addition pass; five original failure-to-pass transitions and exact artifact bytes retained. |
+| Current batch CI | Original failed 7cd5ab0 and corrected ce5b119 attempts fully audited. | Component CI complete; the original unrelated Windows comparison timeout cause still needs investigation. |
 | Candidate / REP / publication | Not started because prerequisite gates remain open. | No freeze, candidate qualification, GO or stable publication is claimed. |
 
-Latest execution batch: [I213 shared page reads](evidence/E-I213-shared-page-reads.md) qualifies 23 additions, 1605 canonical expanded passes/67 existing skips and full App 1076/23. [Original CI](evidence/E-I213-shared-page-reads.md#original-four-platform-follow-up--2516b14) passes all four lanes/92 additions and restores the old Ubuntu case. The original I212 failure and first-fix regression remain sealed. Twenty unresolved scopes and all 24 candidate campaigns remain.
+Latest execution batch: [I214 interrupted renames](evidence/E-I214-interrupted-renames.md) qualifies 53 additions and bounded content/tree/parent review before every move. Canonical checks pass 1658/67 existing skips; full App passes 1106/23. Unresolved temporary items retain the journal. [I213 original CI](evidence/E-I213-shared-page-reads.md#original-four-platform-follow-up--2516b14) remains sealed on all four lanes. Twenty unresolved scopes and all 24 candidate campaigns remain.
 
 Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) recovers 9.10 GB through transparent compression, preserving all 21,721 original evidence paths and every processed content hash. Another 31.71 GB of installer media remains an optional retention decision.
 
@@ -31,7 +31,7 @@ Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md
 | [I03](FILECAT_1_0_RELEASE_ISSUES.md#i03) | Autonomous + external | Linux QuickView and Windows/Mac picture-worker subsets sealed; finish other native/worker/load paths, static/source/license/SBOM gaps and candidate provenance. |
 | [I04](FILECAT_1_0_RELEASE_ISSUES.md#i04) | Owner + platforms | Approve support tiers; qualify the resulting artifacts on required clean platforms. |
 | [I05](FILECAT_1_0_RELEASE_ISSUES.md#i05) | Owner/contract | Resolve media/record promises and reconcile claims to evidence. |
-| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Exact subsets remain in the [catalogue](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md). I213 qualifies concurrent page reads and all four native CI lanes/92 additions; 300 I212 additions remain passing and the original Ubuntu failure remains sealed. Continue native staged/rename/path/destination alias identity, same-size/time content and recursive identity, discard/copy cleanup access/sharing, wider providers/admission/workloads, Shell/DPI/formats and candidate qualification. |
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | Exact subsets remain in the [catalogue](FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md). I214 qualifies bounded rename bytes/descendants and available parent/item guards with 53 additions and all four CI lanes/212 executions. Investigate the preserved existing comparison timeout; continue native atomic identity, copy/move root content/recursive review, cleanup sharing/access, wider providers/admission/workloads, Shell/DPI/formats and candidate qualification. |
 | [I07](FILECAT_1_0_RELEASE_ISSUES.md#i07) | Reference hardware | Run frozen acceptance workloads on the exclusive reference machine. |
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Trace actual containment and ordinary-user permissions; reconcile public claims. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
@@ -82,7 +82,7 @@ Every row requires exact-candidate reruns after freeze. The action column descri
 
 Execution priority is the runnable work within the 20 remaining unresolved issues from the original 21 (owner direction, 2026-10-06). Keep unavailable owner/service/hardware/participant tasks queued; move to another executable issue rather than waiting on them. Publication and physical-source holds remain in force.
 
-1. Continue runnable I06 staged/rename/path/destination alias identity, same-size/time root content and recursive identity, then discard/copy cleanup access/sharing and other provider/admission cases. I213 page coalescing is locally and natively qualified on all four CI lanes; I212 original CI failure remains sealed. Continue other executable work.
+1. Force and diagnose the retained Windows comparison-revision Entered timeout (possible unarmed activation-check overlap; hypothesis only). Then continue I06 copy/move source-root content/recursive review, cleanup sharing/access and wider provider/admission controls. I214 local and four-platform CI records are sealed; native atomic aliases remain unqualified.
 2. Continue runnable I16/I17 indirect paths, source/path identity races and limited-account/consent/token/lifetime controls. Earlier corrections, adverse results and exact local/CI/native limits remain in the issue register and linked evidence; unavailable native-frame/interaction tasks stay queued.
 3. I03: continue remaining native/runtime/static provenance beyond the Linux QuickView/Windows/Mac worker subsets; also complete remaining V13 archive/naming variants when executable.
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
@@ -103,7 +103,7 @@ Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): c
 | 7 — reporting/signing/dependencies/preview preparation | In progress: locked restore, notices, receipts and provenance controls tested. Reporting/provider/legal/signing/preview approvals remain. |
 | 8 — fixtures/harnesses | Available in owned VMs/Mac/files; physical hold, some hardware and people remain gated. |
 | 9 — native S10 suites | Preliminary host/native/four-lane runs sealed at their own identities. |
-| 10 — high-risk validation/remediation | In progress; 190 preliminary remediations and retained adverse controls. |
+| 10 — high-risk validation/remediation | In progress; 192 preliminary remediations and retained adverse controls. |
 | 11–13 — workflows/performance/human cases/remediation | In progress; campaign gaps above, with reference hardware/native UI/people gates. |
 | 14 — pipeline/docs/release controls/preview | In progress: producer, draft, action/tool/notice/provenance guards implemented and tested. Actual protected promotion, signing and approved preview remain. |
 | 15–26 — freeze/candidate/FQ/REP/GO/publication | Not reachable until prerequisites pass. |

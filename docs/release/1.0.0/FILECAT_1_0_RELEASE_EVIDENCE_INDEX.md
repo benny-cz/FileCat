@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**230 evidence entries; none is final candidate qualification.** No candidate exists.
+**231 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -91,6 +91,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I211 | Edit save-copy picker/source/target ownership and exact staged bytes | Exact 6a9782567bccbbcb33ef9516e7277b97e2c4e1ac; unchanged 4966004 baseline; canonical source/payload/TRX and full App | Preliminary owned-file/headless; native/identity/candidate remain | [E-I211](evidence/E-I211-edit-save-copy.md) | I06, I211, V07, V08, V11, V12, V23 |
 | E-I212 | Interrupted source review, confirmation and queued root guards | Exact 8696012ac55a046e845f36e2e39d144e6d88d1d7; unchanged 698b47b baseline; canonical source/payload/TRX and full App | Preliminary owned-file/headless; content/recursive/native identity/candidate remain | [E-I212](evidence/E-I212-interrupted-sources.md) | I06, I212, V03, V08, V11, V12, V23 |
 | E-I213 | Concurrent page-call coalescing and viewer copy/search ownership | Exact 2516b14ebbd3b01eefec3e707cbbd671d2e67418; unchanged 1d1a9e3 baseline; canonical source/payload/TRX and full App | Preliminary owned-file/headless; native/physical/candidate remain | [E-I213](evidence/E-I213-shared-page-reads.md) | I06, I213, V10, V12, V13 |
+| E-I214 | Interrupted rename content/tree/parent approval and unresolved-journal retention | Exact ce5b119004e6adbb22bdcf9375cea4f570ee6d7f; unchanged 4993607 baseline; source/payload/TRX and full App | Preliminary owned-file/headless; native/physical/candidate remain | [E-I214](evidence/E-I214-interrupted-renames.md) | I06, I214, V03, V08, V11, V12, V23 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
