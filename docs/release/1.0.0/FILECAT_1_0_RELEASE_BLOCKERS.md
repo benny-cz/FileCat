@@ -1,9 +1,9 @@
 # FileCat 1.0.0 — current gates and dependencies
 
-Updated 2026-10-08. **NO-GO. No candidate and no stable publication approval.**
+Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable remaining work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries issue dispositions. Environment rows retain their last qualified observations; recheck a service or guest before reuse. The current remote/Git/worker batch temporarily used the Ubuntu guest for two actual server implementations, restored its owned packages/accounts/files/listeners and shut it down normally. Final VMware inventory shows zero running guests. The follow-up Windows controls use owned files/processes and child-only E-temp settings. Test namespaces are removed; nine loaded compiler files remain inventoried until released. No Mac, USB or host policy setup changed in this batch.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable remaining work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries issue dispositions. Environment rows retain their last qualified observations; recheck a service or guest before reuse. The preceding actual-server batch restored its owned Ubuntu packages/accounts/files/listeners and stopped the guest; its final inventory had zero running VMs. The latest lifecycle/helper batch changes no Mac/VM/USB/account/network/host policy. Its canonical and native owned E-temp trees are removed after bounded process checks, preserving logs/refusals. Earlier nine compiler-cache files and aborted C-temp cleanup remain qualified by their original records. Exact 6ac0b95 local/native/CI evidence is indexed; none resolves the owner, platform, people, physical-source or candidate gates.
 
 ## Safety and publication holds
 

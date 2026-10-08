@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**252 evidence entries; none is final candidate qualification.** No candidate exists.
+**254 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -113,6 +113,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I229-SLOW | Pending slow plain/TLS FTP data and independent direct comparison | Actual cae0f04 canonical Core/Remote; owned pyftpdlib loopback controls | Full/partial/seek/revision bytes verified; genuine pending TLS data and retained timeout/shutdown fixture limitation; no new product defect established | [E-I229-SLOW](evidence/E-I229-SLOW-pending-ftp-data.md) | I06, I229, V08 |
 | E-I230 | Unavailable Git fallback during parent status refresh | Exact cae0f04; original/working controlled native observations retain their identities | Six canonical controls/24 four-lane passes; optional-badge resilience; wider I16/native/candidate open | [E-I230](evidence/E-I230-git-optional-launch.md) | I16, I230, V24 |
 | E-I231 | Parent picture request and absolute response-bound correction | Exact 8a5833f; CI 37842873148 attempt 1 | Eight controlled failures/six positives; fourteen canonical/56 native passes with raw dimension/header guards; earlier incomplete runs retained | [E-I231](evidence/E-I231-picture-request-bounds.md) | I08, I231, V10, V23 |
+| E-I232 | Remote content/channel/owner teardown and finite pool capacity | Exact 6ac0b95; CI 37852919347 attempt 1 | Preliminary component correction: 60 canonical/240 CI passes; original close failures and provisional shutdown gap retained | [E-I232](evidence/E-I232-remote-lease-teardown.md) | I06, V08, V12, V23 |
+| E-I233 | Automatic runtime lookup under a custom host without sibling apphost | Exact 6ac0b95; native repeat and CI 37852919347 attempt 1 | Preliminary scoped correction: six canonical/18 CI passes/six menu platform skips; native lure and exact-source repeat retained | [E-I233](evidence/E-I233-custom-host-runtime-lookup.md) | I16, I08, V10, V23, V24 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
