@@ -68,6 +68,32 @@ public enum CommitCheck
     ArchiveMissing,
 }
 
+/// <summary>The archive version reviewed before an explicit overwrite/rebase decision.</summary>
+public sealed record EditCommitReview(CommitCheck Check, ArchiveBaseline? Baseline);
+
+/// <summary>Owned commit bytes, independent of subsequent editor saves. Dispose only after the job has returned.</summary>
+public sealed class EditCommitCopy : IDisposable
+{
+    private FileStream? _pin;
+    public string Path { get; }
+    public string Sha256 { get; }
+    public uint Crc32 { get; }
+    public long Length { get; }
+    internal EditCommitCopy(string path, string sha256, uint crc32, long length)
+    {
+        Path = path; Sha256 = sha256; Crc32 = crc32; Length = length;
+        _pin = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+    }
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _pin, null)?.Dispose();
+        // This GUID folder contains only this owned snapshot; the published working copy is elsewhere.
+        if (File.Exists(Path)) File.Delete(Path);
+        string directory = System.IO.Path.GetDirectoryName(Path)!;
+        if (Directory.Exists(directory)) Directory.Delete(directory);
+    }
+}
+
 /// <summary>
 /// Protected session records and working copies under the user's local data (one folder per session, so the editor sees
 /// the member's own file name). Temporary copies are removed only on Discard; deletion is not secure erasure.
@@ -291,18 +317,70 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     }
 
     /// <summary>Whether a commit would replace exactly the member the edit started from.</summary>
-    public CommitCheck Check(EditSessionRecord record)
+    public CommitCheck Check(EditSessionRecord record) => ReviewCommit(record).Check;
+
+    public EditCommitReview ReviewCommit(EditSessionRecord record, CancellationToken ct = default)
     {
-        if (!File.Exists(record.ArchivePath)) return CommitCheck.ArchiveMissing;
-        if (record.Baseline.Matches(record.ArchivePath)) return CommitCheck.Ready;
+        ct.ThrowIfCancellationRequested();
         try
         {
+            var baseline = ArchiveBaseline.Of(record.ArchivePath);
+            if (baseline == record.Baseline) return new(CommitCheck.Ready, baseline);
             using var archive = System.IO.Compression.ZipFile.OpenRead(record.ArchivePath);
-            var matches = archive.Entries.Where(e => ArchivePaths.Normalize(e.FullName) == record.MemberPath).ToList();
-            if (matches.Count != 1) return CommitCheck.MemberChanged;
-            return matches[0].Crc32 == record.MemberCrc32 && matches[0].Length == record.MemberLength ? CommitCheck.ArchiveChanged : CommitCheck.MemberChanged;
+            if (archive.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to review an edit commit.");
+            System.IO.Compression.ZipArchiveEntry? found = null; bool duplicate = false;
+            foreach (var entry in archive.Entries)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (ArchivePaths.Normalize(entry.FullName) != record.MemberPath) continue;
+                duplicate |= found is not null; found = entry;
+            }
+            if (!baseline.Matches(record.ArchivePath)) throw new IOException("The archive changed while its edit commit was reviewed.");
+            var check = !duplicate && found is not null && !found.FullName.EndsWith('/') && found.Crc32 == record.MemberCrc32 && found.Length == record.MemberLength
+                ? CommitCheck.ArchiveChanged : CommitCheck.MemberChanged;
+            return new(check, baseline);
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { return CommitCheck.ArchiveMissing; }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { return new(CommitCheck.ArchiveMissing, null); }
+    }
+
+    /// <summary>Capture one complete bounded working file before queueing, with hash/CRC from those same bytes.</summary>
+    public EditCommitCopy PrepareCommit(EditSessionRecord record, string tempRoot, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
+        try
+        {
+            // Editors that already hold a write handle cause a conservative sharing refusal on Windows.
+            // Unix sharing is advisory: length/time checks still apply; this is not a hostile-writer snapshot guarantee.
+            using var source = new CommitContent(record.WorkingPath);
+            var copy = WriteWorkingCopy(source, path, ct);
+            File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
+            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) fs.WriteOriginMark(path, mark);
+            ct.ThrowIfCancellationRequested();
+            return new EditCommitCopy(path, copy.Sha256, copy.Crc, copy.Length);
+        }
+        catch
+        {
+            try { if (File.Exists(path)) File.Delete(path); Directory.Delete(directory); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            throw;
+        }
+    }
+
+    private sealed class CommitContent : IContentSource
+    {
+        private readonly FileStream _stream; private readonly string _path;
+        public CommitContent(string path) { _path = path; _stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.RandomAccess); }
+        public string DisplayName => _path;
+        public long Length => _stream.Length;
+        public bool CanSeek => true;
+        public string? LocalPath => _path;
+        public DateTime ModifiedUtc => File.GetLastWriteTimeUtc(_path);
+        public ContentRevision? GetRevision() => new ContentRevision(Length, ModifiedUtc.Ticks);
+        public int Read(long offset, Span<byte> buffer) => RandomAccess.Read(_stream.SafeFileHandle, buffer, offset);
+        public void Dispose() => _stream.Dispose();
     }
 
     /// <summary>The update that writes the working copy back; <paramref name="rebase"/> accepts the archive's current version.</summary>
@@ -310,16 +388,34 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         new(record.ArchivePath, rebase ? ArchiveBaseline.Of(record.ArchivePath) : record.Baseline,
             [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, record.WorkingPath)]);
 
+    public ArchivePlan CommitPlan(EditSessionRecord record, EditCommitReview review, EditCommitCopy copy) =>
+        new(record.ArchivePath, review.Baseline ?? throw new IOException("The reviewed archive is unavailable."),
+            [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, copy.Path)]);
+
     /// <summary>After a successful commit: the archive's new version and the committed content become the base.</summary>
     public EditSessionRecord Committed(EditSessionRecord record, string committedSha256)
     {
-        var (crc, length) = Checksum(record.WorkingPath);
+        return CommittedArchive(record, committedSha256, null);
+    }
+
+    public EditSessionRecord Committed(EditSessionRecord record, EditCommitCopy copy) => CommittedArchive(record, copy.Sha256, copy);
+
+    private EditSessionRecord CommittedArchive(EditSessionRecord record, string committedSha256, EditCommitCopy? copy)
+    {
+        var baseline = ArchiveBaseline.Of(record.ArchivePath);
+        using var archive = System.IO.Compression.ZipFile.OpenRead(record.ArchivePath);
+        if (archive.Entries.Count > ZipProvider.MaxEntries) throw new InvalidDataException("Too many archive members to confirm an edit commit.");
+        var matches = archive.Entries.Where(e => ArchivePaths.Normalize(e.FullName) == record.MemberPath).Take(2).ToArray();
+        if (matches.Length != 1 || matches[0].FullName.EndsWith('/')) throw new IOException("The committed archive member is missing or ambiguous; the previous edit baseline is kept.");
+        var member = matches[0];
+        if (copy is not null && (member.Crc32 != copy.Crc32 || member.Length != copy.Length) || !baseline.Matches(record.ArchivePath))
+            throw new IOException("The archive changed after the commit; the previous edit baseline is kept.");
         var updated = record with
         {
-            Baseline = ArchiveBaseline.Of(record.ArchivePath),
+            Baseline = baseline,
             BaseSha256 = committedSha256,
-            MemberCrc32 = crc,
-            MemberLength = length,
+            MemberCrc32 = member.Crc32,
+            MemberLength = member.Length,
             LastCommitUtc = DateTime.UtcNow,
         };
         Save(updated);
@@ -334,18 +430,4 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         return Convert.ToHexString(SHA256.HashData(stream));
     }
 
-    private static (uint Crc, long Length) Checksum(string path)
-    {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1024 * 1024, FileOptions.SequentialScan);
-        var buffer = new byte[1024 * 1024];
-        uint crc = 0;
-        long length = 0;
-        int n;
-        while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
-        {
-            crc = Crc32.Append(crc, buffer.AsSpan(0, n));
-            length += n;
-        }
-        return (crc, length);
-    }
 }

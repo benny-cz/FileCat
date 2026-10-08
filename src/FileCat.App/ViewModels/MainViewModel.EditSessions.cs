@@ -24,7 +24,14 @@ public sealed partial class MainViewModel
 {
     private readonly Dictionary<string, FileSystemWatcher> _sessionWatchers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _announcedEdits = new(StringComparer.Ordinal);
-    private readonly Dictionary<Job, (string SessionId, string Sha256)> _sessionCommits = new();
+    private sealed class SessionCommit(EditSessionRecord session, EditCommitCopy copy)
+    {
+        public EditSessionRecord Session { get; } = session;
+        public EditCommitCopy Copy { get; } = copy;
+        public bool Finishing { get; set; }
+    }
+    private readonly Dictionary<Job, SessionCommit> _sessionCommits = new();
+    private readonly HashSet<string> _sessionActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> _preparingEdits = new(StringComparer.Ordinal);
 
     /// <summary>Starts watching the saved sessions; returns a startup message when some have uncommitted changes.</summary>
@@ -227,14 +234,53 @@ public sealed partial class MainViewModel
 
     private async Task CommitSessionAsync(EditSessionRecord session)
     {
-        if (session.IsRemote)
+        if (Services.Io.IsStopped || !_sessionActions.Add(session.Id)) return;
+        var origin = ActiveTab;
+        try
         {
-            await CommitRemoteAsync(session);
-            return;
+            if (session.IsRemote) await CommitRemoteAsync(session, origin);
+            else await CommitArchiveSessionAsync(session, origin);
         }
-        var check = await Task.Run(() => Services.EditSessions.Check(session));
-        bool rebase = false;
-        switch (check)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
+        {
+            if (!Services.Io.IsStopped) Notify($"Cannot commit the edit: {ex.Message}. Your working copy is kept.", true);
+        }
+        finally
+        {
+            if (!_sessionCommits.Values.Any(c => c.Session.Id == session.Id)) _sessionActions.Remove(session.Id);
+        }
+    }
+
+    private void CheckSessionAction() { if (Services.Io.IsStopped) throw new OperationCanceledException(); }
+
+    private async Task<EditCommitCopy> PrepareEditCommitAsync(EditSessionRecord session)
+    {
+        CheckSessionAction(); var local = Location.FileSystem(session.WorkingPath);
+        var copy = await Services.Io.Run(Services.Providers.For(local).GetDeviceKey(local), IoPriority.Normal, _ =>
+        {
+            CheckSessionAction(); return Services.EditSessions.PrepareCommit(session, Services.Paths.TempDirectory);
+        }); // Own active synchronous work until it returns, even during shutdown.
+        if (Services.Io.IsStopped) { copy.Dispose(); throw new OperationCanceledException(); }
+        return copy;
+    }
+
+    private void SubmitEditCommit(EditSessionRecord session, EditCommitCopy copy, JobRequest request, TabViewModel? origin)
+    {
+        try
+        {
+            CheckSessionAction(); _ = Operations; // Register the finish observer before a fast job can return.
+            var job = Services.Jobs.Submit(request);
+            _sessionCommits[job] = new SessionCommit(session, copy);
+            if (origin is not null) Track(job, origin);
+        }
+        catch { copy.Dispose(); throw; }
+    }
+
+    private async Task CommitArchiveSessionAsync(EditSessionRecord session, TabViewModel? origin)
+    {
+        var review = await MutationIoAsync(session.ArchivePath, () => Services.EditSessions.ReviewCommit(session), CheckSessionAction);
+        switch (review.Check)
         {
             case CommitCheck.ArchiveMissing:
                 if (await Dialogs.ConfirmAsync("Archive not found",
@@ -246,7 +292,7 @@ public sealed partial class MainViewModel
                         $"{Path.GetFileName(session.ArchivePath)} changed after you started editing, but \"{session.MemberPath}\" itself did not. Commit your edit into the archive as it is now?",
                         "Commit into current archive"))
                     return;
-                rebase = true;
+                CheckSessionAction();
                 break;
             case CommitCheck.MemberChanged:
                 var answer = await Dialogs.ShowCustomAsync("Edit conflict",
@@ -261,36 +307,24 @@ public sealed partial class MainViewModel
                      new DialogButton("Save my copy…", "copy", IsDefault: true)]);
                 if (answer as string == "copy") await SaveSessionCopyAsync(session);
                 if (answer as string != "overwrite") return;
-                rebase = true;
+                CheckSessionAction();
                 break;
         }
-        string sha;
-        ArchivePlan plan;
-        try
-        {
-            sha = await Task.Run(() => EditSessionStore.Hash(session.WorkingPath));
-            plan = Services.EditSessions.CommitPlan(session, rebase);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Notify($"Cannot read the working copy: {ex.Message}. Close it in the editor and try again.", true);
-            return;
-        }
-        var job = Services.Jobs.Submit(new JobRequest
+        CheckSessionAction();
+        var copy = await PrepareEditCommitAsync(session);
+        SubmitEditCommit(session, copy, new JobRequest
         {
             Kind = JobKind.ArchiveUpdate,
-            Archive = plan,
+            Archive = Services.EditSessions.CommitPlan(session, review, copy),
             Description = $"Commit \"{Path.GetFileName(session.MemberPath)}\" into \"{Path.GetFileName(session.ArchivePath)}\"",
-        });
-        _sessionCommits[job] = (session.Id, sha);
-        if (ActiveTab is { } tab) Track(job, tab);
+        }, origin);
     }
 
     /// <summary>
     /// Commits to the server: the file must still be the version the edit started from (checked now, and again by the
     /// job just before it replaces the file). A changed or missing file asks first and never overwrites silently.
     /// </summary>
-    private async Task CommitRemoteAsync(EditSessionRecord session)
+    private async Task CommitRemoteAsync(EditSessionRecord session, TabViewModel? origin)
     {
         if (Services.FindRemoteProfile(session.ProfileId) is not { } profile)
         {
@@ -301,10 +335,16 @@ public sealed partial class MainViewModel
         }
         var folder = SftpProvider.At(profile, RemotePath.Parent(session.RemotePath) ?? "/");
         ContentRevision? now;
-        try { now = await Task.Run(() => RemoteRevision(folder, session.RemotePath)); }
+        try
+        {
+            CheckSessionAction();
+            now = await Services.Io.Run(Services.Providers.For(folder).GetDeviceKey(folder), IoPriority.Normal, _ =>
+            { CheckSessionAction(); return RemoteRevision(folder, session.RemotePath); });
+            CheckSessionAction();
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            Notify($"Cannot reach {profile.Display}: {ex.Message} Your edit is kept.", true);
+            if (!Services.Io.IsStopped) Notify($"Cannot reach {profile.Display}: {ex.Message} Your edit is kept.", true);
             return;
         }
         ContentRevision? expected = session.RemoteBaseline;
@@ -333,25 +373,17 @@ public sealed partial class MainViewModel
                 expected = now;
                 break;
         }
-        string sha;
-        try { sha = await Task.Run(() => EditSessionStore.Hash(session.WorkingPath)); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Notify($"Cannot read the working copy: {ex.Message}. Close it in the editor and try again.", true);
-            return;
-        }
-        var job = Services.Jobs.Submit(new JobRequest
+        CheckSessionAction(); var copy = await PrepareEditCommitAsync(session);
+        SubmitEditCommit(session, copy, new JobRequest
         {
             Kind = JobKind.Copy,
-            Sources = [ItemRef.ForFileSystemPath(session.WorkingPath, EntryKind.File)],
+            Sources = [ItemRef.ForFileSystemPath(copy.Path, EntryKind.File)],
             Destination = folder,
             NewName = session.DisplayName,
             ExpectedTarget = expected,
             Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
             Description = $"Commit \"{session.DisplayName}\" to {profile.Display}",
-        });
-        _sessionCommits[job] = (session.Id, sha);
-        if (ActiveTab is { } tab) Track(job, tab);
+        }, origin);
     }
 
     /// <summary>The server file's revision now (links followed), or null when it is gone.</summary>
@@ -363,46 +395,50 @@ public sealed partial class MainViewModel
 
     private void OnEditCommitFinished(Job job)
     {
-        if (!_sessionCommits.Remove(job, out var commit)) return;
-        var session = Services.EditSessions.LoadAll().FirstOrDefault(s => s.Id == commit.SessionId);
-        if (session is null) return;
-        if (session.IsRemote)
-        {
-            _ = OnRemoteCommitFinishedAsync(job, session, commit.Sha256);
-            return;
-        }
-        if (job.State == JobState.Completed)
-        {
-            try
-            {
-                Services.EditSessions.Committed(session, commit.Sha256);
-                _announcedEdits.Remove(session.Id);
-                Notify($"Committed \"{Path.GetFileName(session.MemberPath)}\" into {Path.GetFileName(session.ArchivePath)}. The edit stays open for more changes; discard it when you are done.");
-            }
-            catch (IOException ex) { Notify($"The commit finished, but the session could not be updated: {ex.Message}", true); }
-        }
-        else Notify($"\"{Path.GetFileName(session.MemberPath)}\" was not committed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
+        if (!_sessionCommits.TryGetValue(job, out var commit) || commit.Finishing) return;
+        commit.Finishing = true;
+        _ = FinishEditCommitAsync(job, commit);
     }
 
-    private async Task OnRemoteCommitFinishedAsync(Job job, EditSessionRecord session, string sha)
+    private async Task FinishEditCommitAsync(Job job, SessionCommit commit)
     {
-        if (job.State != JobState.Completed)
-        {
-            Notify($"\"{session.DisplayName}\" was not committed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
-            return;
-        }
+        var session = commit.Session;
         try
         {
-            // The new version on the server becomes the base for the next commit.
-            var folder = job.Request.Destination!;
-            var revision = await Task.Run(() => RemoteRevision(folder, session.RemotePath));
-            if (revision is { } r) Services.EditSessions.CommittedRemote(session, sha, r);
+            CheckSessionAction();
+            if (job.State != JobState.Completed)
+            {
+                Notify($"\"{session.DisplayName}\" was not committed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
+                return;
+            }
+            if (session.IsRemote)
+            {
+                var folder = job.Request.Destination!;
+                var revision = await Services.Io.Run(Services.Providers.For(folder).GetDeviceKey(folder), IoPriority.Normal, _ =>
+                { CheckSessionAction(); return RemoteRevision(folder, session.RemotePath); });
+                CheckSessionAction();
+                if (revision is not { } r || r.Length != commit.Copy.Length) throw new IOException("The committed server file is missing or changed; the previous edit baseline is kept.");
+                await MutationIoAsync(session.WorkingPath, () => Services.EditSessions.CommittedRemote(session, commit.Copy.Sha256, r), CheckSessionAction);
+            }
+            else
+                await MutationIoAsync(session.ArchivePath, () => Services.EditSessions.Committed(session, commit.Copy), CheckSessionAction);
+            CheckSessionAction();
             _announcedEdits.Remove(session.Id);
-            Notify($"Committed \"{session.DisplayName}\" to {session.ServerDisplay}. The edit stays open for more changes; discard it when you are done.");
+            Notify($"Committed \"{session.DisplayName}\" to {session.DisplayTarget}. The edit stays open for more changes; discard it when you are done.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
-            Notify($"The commit finished, but the session could not be updated: {ex.Message}", true);
+            if (!Services.Io.IsStopped) Notify($"The commit finished, but the session could not be updated: {ex.Message}", true);
+        }
+        finally
+        {
+            // JobFinished is delivered only after the executor and journal have returned. Failed/canceled jobs
+            // release their snapshots too. Shutdown can suppress acknowledgment, never snapshot ownership.
+            try { await Task.Run(commit.Copy.Dispose); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { if (!Services.Io.IsStopped) Notify($"The temporary commit copy could not be removed: {ex.Message}", true); }
+            _sessionCommits.Remove(job); _sessionActions.Remove(session.Id);
         }
     }
 
@@ -426,21 +462,25 @@ public sealed partial class MainViewModel
 
     private async Task DiscardSessionAsync(EditSessionRecord session, EditState state)
     {
-        if (!await Dialogs.ConfirmAsync("Discard edit",
+        if (Services.Io.IsStopped || !_sessionActions.Add(session.Id)) return;
+        try
+        {
+            if (!await Dialogs.ConfirmAsync("Discard edit",
                 state == EditState.Modified
                     ? $"Discard your uncommitted changes to \"{session.DisplayName}\"? The working copy is deleted; {session.DisplayTarget} keeps its current content."
                     : $"Close the edit of \"{session.DisplayName}\" and delete its working copy?",
                 "Discard", danger: state == EditState.Modified))
-            return;
-        Unwatch(session.Id);
-        try
-        {
-            await Task.Run(() => Services.EditSessions.Discard(session));
+                return;
+            CheckSessionAction();
+            await MutationIoAsync(session.WorkingPath, () => { Services.EditSessions.Discard(session); return true; }, CheckSessionAction);
+            Unwatch(session.Id);
             Notify("The edit was discarded.");
         }
+        catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Notify($"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
+            if (!Services.Io.IsStopped) Notify($"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
         }
+        finally { _sessionActions.Remove(session.Id); }
     }
 }
