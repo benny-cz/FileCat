@@ -265,6 +265,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 Issue(IssueSeverity.Error, source.Name, $"\"{name}\" cannot be a name on the server.", StepOutcome.Failed);
                 continue;
             }
+            // A local path bypasses provider admission; retain the same explicit link scope there too.
+            if (source.FileSystemPath is { } linkPath &&
+                ((source.Flags & EntryFlags.Link) != 0 || Fs.TryGetInfo(linkPath) is { IsLink: true }))
+            {
+                SkipLink(source.Name);
+                Job.RootFailed(i);
+                continue;
+            }
             bool ok = source.FileSystemPath is { } local
                 ? Directory.Exists(local) && !IsLink(local) ? UploadLocalFolder(local, destFolder, name) : UploadLocalFile(local, destFolder, name)
                 : UploadProviderItem(source, destFolder, name);
@@ -300,6 +308,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 }
                 continue;
             }
+            // Do not count a selected link's target or recursively enumerate a linked root.
+            if ((s.Flags & EntryFlags.Link) != 0 || Fs.TryGetInfo(p) is { IsLink: true }) continue;
             if (File.Exists(p))
             {
                 files++;
@@ -391,6 +401,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         {
             Job.ItemFailed();
             Issue(IssueSeverity.Error, local, "The file no longer exists.", StepOutcome.Failed);
+            return false;
+        }
+        if (info.IsLink)
+        {
+            SkipLink(local);
             return false;
         }
         bool ok = UploadFile(() => new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 1, FileOptions.SequentialScan),
