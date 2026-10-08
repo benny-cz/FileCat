@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**236 evidence entries; none is final candidate qualification.** No candidate exists.
+**237 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -97,6 +97,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I217 | Windows icon single-sample checkpoint and real-capacity eviction | Exact 2dc1417804d8aa3936089bdd10a90e67565d401b; original failure/forced failure/current full App/original CI | Two Windows addition passes/two explicit other-platform skips; native helper/desktop/candidate remain | [E-I217](evidence/E-I217-icon-checkpoint-eviction.md) | I06, I217, V12, V23 |
 | E-I218 | Approved partial bytes, cleanup access/sharing and exact legacy API | Exact 8fb5512 and retained final 1f3f992 scope; unchanged baseline/canonical/original native artifacts | Preliminary owned-file/headless; 228 native passes/24 platform skips; wider native/physical/candidate remain | [E-I218](evidence/E-I218-interrupted-copy-cleanup.md) | I06, I218, V03, V11, V12, V23 |
 | E-I219 | Recorded selection and manifest admission before partial cleanup | Exact 1f3f9923d438f769d3157c9b9a54485d51f30467; thirty controls/canonical full suites/original four-lane CI | 120 native selection passes; initial descendant snapshots/atomic aliases/physical/candidate remain | [E-I219](evidence/E-I219-interrupted-copy-selection.md) | I06, I219, V01, V03, V11, V12, V23 |
+| E-I220 | Reviewed transfer versions, copied-move deletion, file/discovery work plans and bounded caption oracle | Exact ae19f8600e2e24b169c6352a093348ca3dc61e83; original baselines/intermediate producers/final canonical source and four-lane CI | 119 additions/468 native passes/eight skips; owned/component, native atomic/physical/reference/candidate remain | [E-I220](evidence/E-I220-transfer-version-and-progress.md) | I06, I220, V02, V03, V12, V23 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
