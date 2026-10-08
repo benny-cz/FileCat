@@ -561,13 +561,18 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     staged.Position = 0;
                     Issue(IssueSeverity.Info, item.Name, "The transfer was interrupted, and the file could not be shown to be unchanged at its source, so it was copied again from the start.", StepOutcome.Committed);
                 }
-                return next;
+                var resumed = next;
+                next = null; // The caller takes ownership only after every admission check succeeds.
+                return resumed;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                next?.Dispose();
                 error = ex;
                 failures = Math.Max(failures + 1, 2);
+            }
+            finally
+            {
+                next?.Dispose();
             }
         }
     }
