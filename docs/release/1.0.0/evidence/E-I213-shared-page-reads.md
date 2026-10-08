@@ -155,3 +155,35 @@ Private `FileCatReleaseEvidence/pc213-v1`:
 | independent-page-coalescing-clean-v1.json | ff356447b9304273ec4275a0ad00f1de7d9c8825b2e20c1211b252ae878b4f29 |
 | update-documents-v1.py | 113233f946f5210864c0e4cb41fb332602271cee2750632e9811ff0a84510782 |
 | document-transitions-v1.json | 2c9f8a297f96f5e77216104d3bf36dd0b52f399ef62e438e8e7918d8aa6632f5 |
+
+## Original four-platform follow-up — 2516b14
+
+CI 37725195680 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All 23 additions pass on every lane (92 executions), with independently reconstructed source-call, byte, lifetime and device-yield observations. The original existing range-copy case now passes on all four lanes with one read at offset 131072, exact 8192-character clipboard hash, current-demand ownership and safe source lifetime. The I212 Ubuntu Failed→Passed transition is the only changed predecessor outcome; every other name/outcome/skip and the original failed attempt remain preserved. All 300 I212 additions, 188 I211, 180 I210, 212 I209 and 180 I208 executions remain passing.
+
+Independent readers verify 20 server artifact digests/every ZIP member, 14 full raw TRX inventories, four exact build receipts and 92 actual locked dependency graphs, plus nine owned mirror/five launcher controls. Packages/draft publication are skipped on this main push. This resolves the pending component CI record; native desktop, broader admission, physical/hardware and candidate scope remain.
+
+Private `FileCatReleaseEvidence/ci-37725195680-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | faf4a7b9560801e5b94bc504cd927f39b356c147c0c5a6ead756765683446cb3 |
+| independent-restore-ci-v1.json | 353e96bf12a5361f7b05224fce8aca7ed4e65e7646a38657c02f958b58ef246b |
+| independent-page-ci-audit-v1.json | 823c2c1b2995fa4be8f99b7d858cb0dc7949b24892a4280dcaacec42724a918b |
+| run-native-stdout | ba6b3d68db15ca3f9021101c472e429f763bbee1f2586023585f212fff44033c |
+| jobs-native-stdout | 0074a2cf58f7e7484a54d3eb0090d88f3f52584fdc13aa461d6693bcaaad2104 |
+| artifacts-stdout | ef8afbe60230696b5884e8a0306655aa741d09a19fd2f0f5767dc40759bd4bb0 |
+
+Private `FileCatReleaseEvidence/pc213-v1`:
+
+| File | SHA-256 |
+|---|---|
+| prepare-green-ci-v1.py | debf9a987d38a1cff1d7c58990fa1df711349f401e94421c1743619414c7d3c0 |
+| collect-page-ci-v1.py | a9fa3e4ec5a23464bc6b41702560d5b48d62ddbb0c62b5901ed9e755259544e5 |
+| prepare-green-reader-v1.py | 85724d0f8915bdfd886eeb8c378ab23e1897e4b91ffa65269bc650b8d3b713e3 |
+| seal-page-ci-v1.py | affeeb24353acadfa277448637a7e5e8d807c7d99d06dea3099f34f929901a86 |
+| query-product-ci-v3.py | b7bed3e16f8d26941339decae766150cac718ef3bc269b4ba2ce31f1702129de |
+| product-ci-query-v3/observation.json | 68924dc7987b9d2169f499bbb9f5d8644bb380cbb065263b27d9146edbde90ad |
+| product-ci-query-v3/runs-stdout | dd18d7542e2fdddca61412c7d66ef11d2dc8824cdf4e204ed64ff034460c70d1 |
+| product-ci-query-v3/jobs-37725195680-stdout | 0074a2cf58f7e7484a54d3eb0090d88f3f52584fdc13aa461d6693bcaaad2104 |
+| update-green-documents-v1.py | 1fc728c47b3ea7daed3b2b59939bafc1dad6d8536152c947cb07ba32354d396b |
+| green-document-transitions-v1.json | 9c36f5d33a821c0fef70b2f27287f181ae9bb664e80a210e8a3c87d4a073ecce |
