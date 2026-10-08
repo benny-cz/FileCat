@@ -164,8 +164,29 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
     public async Task A_failed_journal_close_preserves_the_durable_source_manifest()
     {
         using var f = await Fixture.Create(); var manifest = JobJournal.ManifestPathOf(f.Interrupted.JournalPath); File.WriteAllText(manifest, "owned source manifest");
-        using (new FileStream(f.Interrupted.JournalPath, FileMode.Open, FileAccess.Read, FileShare.Read)) JournalRecovery.Close(f.Interrupted, "owned locked journal");
-        bool retained = File.Exists(manifest); Emit(f, "close-manifest", new { Retained = retained, Ended = f.Ended });
+        string failure;
+        if (OperatingSystem.IsWindows())
+        {
+            failure = "Windows sharing refusal";
+            using var held = new FileStream(f.Interrupted.JournalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            Assert.Throws<IOException>(() => { using var denied = new FileStream(f.Interrupted.JournalPath, FileMode.Open, FileAccess.Write, FileShare.Read); });
+            JournalRecovery.Close(f.Interrupted, "owned locked journal");
+        }
+        else
+        {
+            // POSIX sharing is advisory and this open can permit a successful append. Exercise an actual
+            // ordinary-user write refusal instead; restore the owned fixture's original mode afterwards.
+            failure = "POSIX write permission refusal";
+            var mode = File.GetUnixFileMode(f.Interrupted.JournalPath);
+            File.SetUnixFileMode(f.Interrupted.JournalPath, mode & ~(UnixFileMode.UserWrite | UnixFileMode.GroupWrite | UnixFileMode.OtherWrite));
+            try
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => { using var denied = new FileStream(f.Interrupted.JournalPath, FileMode.Open, FileAccess.Write, FileShare.Read); });
+                JournalRecovery.Close(f.Interrupted, "owned read-only journal");
+            }
+            finally { File.SetUnixFileMode(f.Interrupted.JournalPath, mode); }
+        }
+        bool retained = File.Exists(manifest); Emit(f, "close-manifest", new { Retained = retained, Ended = f.Ended, Failure = failure, AppendRefusalVerified = true });
         Assert.True(retained); Assert.False(f.Ended); Assert.Equal("owned source manifest", File.ReadAllText(manifest));
     }
 

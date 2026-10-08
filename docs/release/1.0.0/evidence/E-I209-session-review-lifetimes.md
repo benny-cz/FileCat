@@ -19,7 +19,7 @@ The cap is 1 GiB per working-file review; record enumeration and aggregate sessi
 
 ## CI correction and next work
 
-Original [I208 CI](E-I208-edit-commit.md#original-four-platform-follow-up--b2ec0c6) has three passing lanes and two Windows x64 failures. The existing F4 fixture issued its second F4 when the record appeared, while initial preparation could still coalesce it; it now waits for actual preparation completion. The admission fixture included remote preflight and a timer while holding local workers; after eight seconds the scheduler can correctly admit a replacement. It now enters the actual copy-admission helper directly and observes its synchronous queue checkpoint before shutdown. Full commit/SFTP workflows remain in regressions. These corrections qualify intended checkpoints; clean App success does not prove every historical timing cause or a green hosted rerun. New native CI remains pending.
+Original [I208 CI](E-I208-edit-commit.md#original-four-platform-follow-up--b2ec0c6) has three passing lanes and two Windows x64 failures. The existing F4 fixture issued its second F4 when the record appeared, while initial preparation could still coalesce it; it now waits for actual preparation completion. The admission fixture included remote preflight and a timer while holding local workers; after eight seconds the scheduler can correctly admit a replacement. It now enters the actual copy-admission helper directly and observes its synchronous queue checkpoint before shutdown. Full commit/SFTP workflows remain in regressions. These corrections qualify intended checkpoints; clean App success does not prove every historical timing cause or a green hosted rerun. The original qualification ended with native CI pending; the subsequent original-attempt results are sealed below.
 
 Save-copy picker/source lifetimes and interrupted-operation review/staged identity are next, followed by the remaining discard/provider/identity/native/candidate matrix. No persistent Mac/VM setup or physical source is changed.
 
@@ -61,3 +61,25 @@ Private `FileCatReleaseEvidence/wl209-v1`:
 | baseline-v3/command.json | 89f8f3f89acfef07d953789e5053e2e538186d5522c8f262012d1e2b95619cc1 |
 | working-v4/command.json | 92d080023f6e1c0917062bd7127cbcdb39d6cf5cda6e66dcf3efe1e0afc6147f |
 | working-v6/command.json | 3604013a2726b444f6b1e5a1c2022420013c31127b842d9b115c79888acb5430 |
+
+## Original four-platform follow-up — 58f2617
+
+CI 37710440173 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All 53 additions pass on all four lanes (212 executions); both original I208 Windows failures now pass and every predecessor name is retained. The original failed attempt remains preserved. Independent capture/readers verify 20 server artifact digests and every ZIP member, 14 complete raw TRX inventories, four build receipts and 92 actual dependency graphs. The prior 45 commit additions pass 180 executions; earlier edit/mutation/metadata/archive/content/directory additions also retain all four passing repeats. Owned Linux mirror/launcher controls pass nine/five checks. Packages and draft publication are explicitly skipped on this normal main push; no native desktop, hardware, candidate or stable publication qualification is claimed.
+
+Private `FileCatReleaseEvidence/ci-37710440173-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 67a5fccce998d37c08635bd9df39ca983296dd8e69119a0f30f64c4b3a50e82f |
+| independent-restore-ci-v1.json | 9116b48c2f7ac835b51b86c3da9ecdc246f09f6ca07e137aeaa25bd13a539574 |
+| independent-session-ci-audit-v1.json | ee5cec43a0cb106981d328ae0255b66691b1edfa31a141d7b156eb35ccc12535 |
+| run-native-stdout | 6231b73c6b246dbffd3d622c229b32398e0cc2ae6e2e9e09eee57da75b0260de |
+| jobs-native-stdout | 53287b7f90e8a84b0d1e7aec877ac510791d578af61298e7e7091931c660c35a |
+| artifacts-stdout | 6096e9769e656b315412a91038cd4ab7e5d474b126f875ab69593b4aaca361fb |
+
+Private `FileCatReleaseEvidence/wl209-v1`:
+
+| File | SHA-256 |
+|---|---|
+| collect-session-ci-green-v1.py | 1f6744cc90b786e72bc0b88f334105cc09bdd43cee518c1fb77de93680fb0b15 |
+| seal-session-ci-green-v1.py | af6584475d11da60c351a9bf394945ad744bdafa6503d1ae7ddc3bc352db9394 |
