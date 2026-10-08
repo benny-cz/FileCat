@@ -142,8 +142,10 @@ public sealed class InterruptedDemandTests(ITestOutputHelper output)
         if (change is "shutdown" or "close") f.End(change);
         if (change == "cancel") f.Escape(); else f.Click("Delete partial files");
         if (change is "shutdown" or "close" or "cancel") await Task.Delay(200, TestContext.Current.CancellationToken);
-        else await Wait(() => f.Ended || f.Button("OK") is not null);
-        if (f.Button("OK") is not null) { f.Click("OK"); await Wait(() => f.Ended); }
+        // Poll the UI acknowledgement, not the journal: a recovery scan briefly opens it exclusively and
+        // would inject a sharing failure into the very reconciliation write this control is observing.
+        else await Wait(() => f.Vm.Notification != notification || f.Button("OK") is not null);
+        if (f.Button("OK") is not null) { f.Click("OK"); await Wait(() => f.Vm.Notification != notification); }
         Emit(f, "cleanup-button", new { change, Retained = File.Exists(f.Staged), Ended = f.Ended, Jobs = f.Services.Jobs.Jobs.Count });
         Assert.Equal(change != "unchanged", File.Exists(f.Staged)); Assert.Equal(change is not ("shutdown" or "close" or "cancel"), f.Ended); Assert.Single(f.Services.Jobs.Jobs);
         if (change is "shutdown" or "close") Assert.Equal(notification, f.Vm.Notification);
