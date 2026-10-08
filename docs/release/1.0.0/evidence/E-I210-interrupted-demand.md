@@ -23,7 +23,7 @@ The private independent reader rechecks every retained source archive/Git blob/m
 
 Automatic staged review reads at most 64 MiB across up to 1,000 staged paths. Files outside that budget remain, with an explicit message. Copy review checks a finite number of directory entries and supports cancellation; incomplete deletion still compares its source prefix immediately before removal. Interrupted renames retain the existing algorithm, now worker-admitted and guarded by ended demand; native rename identity/replacement qualification is pending.
 
-SHA-256 plus metadata is a conservative version check. It does not establish an atomic native identity or eliminate parent-link/read-to-delete races. Cross-device copy-source/destination admission, source disappearance/replacement while approval is open, multi-process journal races, larger workloads, remaining resource/provider cases and native/candidate reruns remain within I06/V03/V11/V12/V23. Save-copy picker/source lifetimes are the next executable slice; unrelated owner, physical-source and publication holds remain.
+SHA-256 plus metadata is a conservative version check. It does not establish an atomic native identity or eliminate parent-link/read-to-delete races. Cross-device copy-source/destination admission, source disappearance/replacement while approval is open, multi-process journal races, larger workloads, remaining resource/provider cases and native/candidate reruns remain within I06/V03/V11/V12/V23. The [I211 save-copy follow-up](E-I211-edit-save-copy.md) qualifies that caller/lifetime subset. Broader identity/resource work and unrelated owner, physical-source and publication holds remain.
 
 ## Provenance
 
@@ -93,7 +93,7 @@ Private `FileCatReleaseEvidence/ir210-v1`:
 
 CI 37713228605 attempt 1 at 7c708ee fails `A_failed_journal_close_preserves_the_durable_source_manifest` on Ubuntu. Its exact observation is Retained=false, Ended=true: POSIX sharing permitted a successful append, so manifest removal was correct. The fixture had not established the intended append failure. The original official job log and job snapshot are preserved; this is one retrieved failed job, not a complete four-lane artifact audit.
 
-The fixture now verifies an actual sharing refusal on Windows. On POSIX it removes write permission from the owned journal, verifies an ordinary-user write refusal and restores the original mode in finally. All 37 affected Windows controls pass on the working overlay; 141 actual payload references and canonical unchanged production files verify independently. The POSIX correction and the next exact fixture producer's native results remain pending. This changes the test precondition, not the product's successful-close behavior. The full 517/964 qualification above remains pinned to 7c708ee.
+The fixture now verifies an actual sharing refusal on Windows. On POSIX it removes write permission from the owned journal, verifies an ordinary-user write refusal and restores the original mode in finally. All 37 affected Windows controls pass on the working overlay; 141 actual payload references and canonical unchanged production files verify independently. At this working checkpoint, the POSIX correction and the next exact fixture producer's native results were pending; the original-attempt follow-up below resolves that subset. This changes the test precondition, not the product's successful-close behavior. The full 517/964 qualification above remains pinned to 7c708ee.
 
 Private `FileCatReleaseEvidence/ir210-v1`:
 
@@ -109,3 +109,48 @@ Private `FileCatReleaseEvidence/ir210-v1`:
 | ubuntu-ci-failure-v1/decoded-log.txt | 8860ca6693fa33bcad9387f92cf80ec76a0442e83241ca439de18f4d313a279f |
 | interrupted-ci-query-v2/jobs-37713228605-stdout | 0c9192b1858a363c872e32e60307f45f8f8f94d226c6a70ae66fc54187344d4d |
 | tracker-guard-v1.json | 843a60213a203d0a9aa92ab0b2b5075fc005eda55864265adf377c6ea04fb2ce |
+
+## Original four-platform follow-up — 4966004
+
+CI 37715108315 attempt 1 passes Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26. All 45 additions pass on all four lanes (180 executions), with 148 reconstructed App observations and four actual append-refusal checks. The corrected POSIX test now establishes the refused write, preserves the durable manifest and restores its original mode; the Windows test establishes a sharing refusal. Every predecessor name/outcome/skip is retained. The earlier Ubuntu sharing fixture failure remains preserved.
+
+The final official snapshot of predecessor CI 37713228605 shows Windows x64/ARM64 success and Ubuntu/macOS failure. The separately retrieved original Mac job log confirms the same ineffective sharing-refusal fixture and Retained=false/Ended=true observation. These are two retrieved failed job logs and final official job metadata, not a complete predecessor artifact audit; the corrected original attempt above is independently audited on all four lanes.
+
+Independent capture/readers verify 20 server artifact digests and every ZIP member, 14 complete raw TRX inventories, four build receipts and 92 actual dependency graphs. Hosted owned mirror/launcher controls pass nine/five checks. Packages and draft publication are explicitly skipped on this normal main push; no native desktop/hardware/candidate publication is claimed. Exact clean Windows source4966004 also passes all 37 affected App controls; its runtime/test/engineering tree differs from the fully qualified 7c708ee tree only in the refusal fixture, with production unchanged.
+
+The first collector used another observation's field names and stopped with KeyError after downloading/verifying 20 artifacts. Its corrected continuation rechecks the same original-attempt data; no CI/tests are rerun to replace a failure.
+
+Private `FileCatReleaseEvidence/ci-37715108315-assets-attempt1-v1`:
+
+| File | SHA-256 |
+|---|---|
+| independent-assets-ci.json | 202c0e555171492fb81dd9d59138f08548ca3fa1af02d7817e614e07e225ad58 |
+| independent-restore-ci-v1.json | c92171bdaea53aa6cb93e68b5861a1418bd44f60d6a3407db70bf67024af450e |
+| independent-interrupted-ci-audit-v1.json | 0eaa8c195a95d98566a95f40e8f20a0a34fcdee6ac7f14583a85b2be27276fef |
+| run-native-stdout | fa6fda8584a005c9b6614e48b5c6af258fb3d55756bcdb39fb004ac8fdda6b49 |
+| jobs-native-stdout | 7441c337ad1a52e721006d9a8eb7f77b5e724edb451649a95bde018a0347fd88 |
+| artifacts-stdout | 864c64df40dd479cfb6e79ff784af968c3e00ec5e7bb33bd7e2d8ece99082157 |
+
+Private `FileCatReleaseEvidence/jr210-followup-v1`:
+
+| File | SHA-256 |
+|---|---|
+| prepare-native-collector-v1.py | 4b927d1f64f1a020446de4cce9b612c1f8e067efea17bfcfe0ed43fcc6aaf621 |
+| collect-interrupted-ci-v1.py | 1dac593f2eb8e58f921d567ada611ff0d97779dbff6bf838dcff85fb9dbb4cd2 |
+| collect-interrupted-ci-v2.py | 25340ea72ee4b616e91d64e86179ed663540b8835b0e8a78c638c76f0280f0b6 |
+| seal-interrupted-ci-v1.py | 5746ea6b0020d7245422c3b0d3eb318d6fbc854f9c2e0574ae02937424468622 |
+| native-collector-guard-v1.json | 2798122799c0cef4e1d04953d3c563c43177b0698135583a527afdcd3b4d7d4e |
+| query-final-ci-v3.py | 3cfb1a09811ccd6da6f713f2cdd3f8ee6d94b2f94c1ba1e7b3039a7d8b2e8575 |
+| seal-refusal-clean-v1.py | ab0b2b6d56a3057e5767bd17e4eed1242cca1763d094f8aa0f196ab514ffe4b6 |
+| independent-refusal-clean-v1.json | cd81d3189450e12efac1e958e9b5a5d2a62877ef0bba9cdc01db5aa4720be177 |
+| run-refusal-clean-v1.py | 3b90e2fdd122e2d0c6d2f1022e030d021a213627f94fc99af8fad25890f00de6 |
+| clean-v1/command.json | 100c662df414887dca1f331ceb1c985bab1758e4f87092e67d15654d99003f52 |
+| clean-v1/source.zip | 6404d0d22ff1be93a1d7c6311d2cb7bef6be1348dc1b8ab78aca0d72c64bce5d |
+| clean-v1/results/app.trx | 07a8cf2a3d31f5ce5ed695ecaa37cecf41953990c176bf47ae5981529ea63500 |
+| query-original-final-v1.py | e8848e649b4eacb4bec21a8173b4a303fa3d7abe04e84e2efe6b60fafd075389 |
+| original-ci-final-v1/run-stdout | d3bfc781599f53316044d5302311bb5c78ac009b26a9a1456e148c5bfd982b4f |
+| original-ci-final-v1/jobs-stdout | 1ca3600d763defc15e9f64a36a0fbbee4841c93ef5a74f033ab9f03144832f57 |
+| retrieve-original-mac-failure-v1.py | e52640da1c958e6ffceab4e970444a69d20730f6ee7acee318c328632496a45f |
+| original-mac-failure-v1/job-log-stdout | 5604aece03d99b00f82c9ede6b6d50105e5b28b282a540ce90102de373a5408c |
+| original-mac-failure-v1/decoded-log.txt | a2c170d9624da2a06f57c75e7d2d20b026899f4eca99f98619607ee07c71e09b |
+| original-mac-failure-v1/job-observation.json | 1ff61225bfa9e29d0840458b1cc9d863149098710ea9f9feaba189ec0e1002cb |
