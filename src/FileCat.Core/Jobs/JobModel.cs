@@ -167,6 +167,11 @@ public sealed class JobRequest
     /// </summary>
     public IReadOnlyDictionary<ItemRef, (long Size, long ModifiedTicks)>? ExpectedTargets { get; init; }
     /// <summary>
+    /// For a reviewed local copy/move: root source metadata/identity/path must still match before execution and each
+    /// root mutation. This is a conservative path check, not a content or recursive snapshot or an atomic handle guard.
+    /// </summary>
+    public IReadOnlyDictionary<ItemRef, SourcePathReview>? ExpectedSources { get; init; }
+    /// <summary>
     /// With <see cref="OnlyAsCompared"/>: all each folder held when compared, keyed by the source. A folder goes only while
     /// it still holds just that; one without an entry here is not removed.
     /// </summary>

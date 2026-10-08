@@ -335,6 +335,11 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     public override void Execute()
     {
         var destDir = Job.Request.Destination!.Path;
+        // A queued recovery may outlive the UI review. Refuse the whole request before destination creation or
+        // discovery when any reviewed root changed or became unavailable.
+        if (Job.Request.ExpectedSources is not null)
+            foreach (var source in Job.Request.Sources)
+                if (!SourceStillReviewed(source)) return;
         using var discoveryCts = CancellationTokenSource.CreateLinkedTokenSource(Job.Token);
         var discovery = Task.Run(() => Discover(discoveryCts.Token), discoveryCts.Token);
         try
@@ -411,6 +416,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private Result ProcessRoot(ItemRef root, string destDir)
     {
         var src = root.FileSystemPath!;
+        if (!SourceStillReviewed(root)) return Result.Failed;
         var info = Fs.TryGetInfo(src);
         if (info is null)
         {
@@ -454,6 +460,20 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Skipped;
         }
         return info.IsDirectory && !info.IsLink ? CopyDirectory(src, dst, info) : CopyFileItem(src, dst, info);
+    }
+
+    private bool SourceStillReviewed(ItemRef source)
+    {
+        if (Job.Request.ExpectedSources is not { } expected) return true;
+        var path = source.FileSystemPath!;
+        try
+        {
+            if (expected.TryGetValue(source, out var review) && review.Matches(path, Fs, Job.Checkpoint)) return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
+        Job.ItemFailed();
+        Issue(IssueSeverity.Error, path, "Not continued: a source changed or could not be checked after review. Select the sources again to decide what to copy or move.", StepOutcome.CanceledBeforeChange);
+        return false;
     }
 
     private VolumeInfo Volume(string path)

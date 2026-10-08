@@ -85,25 +85,31 @@ public sealed partial class MainViewModel
             { Notify("The local destination of this operation is not recorded; select the items and the destination again."); return false; }
             var paths = await MutationIoAsync(job.JournalPath, () => JournalRecovery.LoadSources(job), CheckSessionAction);
             if (paths is null) { Notify("Not all source items of this operation are recorded; select them again to repeat it."); return false; }
-            var sources = new List<ItemRef>();
+            var sources = new List<ItemRef>(); var sourceReviews = new Dictionary<ItemRef, SourcePathReview>();
             foreach (var path in paths)
             {
-                var item = await MutationIoAsync(path, () => Directory.Exists(path) ? ItemRef.ForFileSystemPath(path, EntryKind.Directory) : File.Exists(path) ? ItemRef.ForFileSystemPath(path, EntryKind.File) : null, CheckSessionAction);
-                if (item is not null) sources.Add(item);
+                var version = await MutationIoAsync(path, () => SourcePathReview.Capture(path, Services.Jobs.FileOperations, CheckSessionAction), CheckSessionAction);
+                if (version is not null)
+                {
+                    var item = ItemRef.ForFileSystemPath(path, version.Info.IsDirectory ? EntryKind.Directory : EntryKind.File);
+                    sources.Add(item); sourceReviews[item] = version;
+                }
             }
-            if (sources.Count == 0) { Notify("None of the source items exist any more: nothing is left to " + (kind == JobKind.Move ? "move." : "copy.")); return false; }
+            if (sources.Count == 0) { Notify("None of the source items could be found and checked. Select the sources again to decide what to " + (kind == JobKind.Move ? "move." : "copy.")); return false; }
             var review = await ReviewInterruptedAsync(job);
             var partial = review.Staged.Select(s => s.Path).Concat(review.Copies.Incomplete.Select(i => i.Path)).ToList();
-            var message = $"{job.Title}: {sources.Count:N0} of {job.SourceCount:N0} source items still exist. Items that already arrived in {Services.Providers.Display(destination)} are skipped, so only the rest is {(kind == JobKind.Move ? "moved" : "copied")}."
+            var message = $"{job.Title}: {sources.Count:N0} of {job.SourceCount:N0} source items are available for review. Items that already arrived in {Services.Providers.Display(destination)} are skipped, so only the rest is {(kind == JobKind.Move ? "moved" : "copied")}."
                 + (partial.Count > 0 ? $"\n\nFirst, {Formatters.Plural(partial.Count, "partial file", "partial files")} left by the interruption will be deleted:\n" + InterruptedJobText.Bullets(partial) : "")
                 + InterruptedJobText.CopyNotes(review.Copies) + StagedReviewNotes(review);
             if (!await Dialogs.ConfirmAsync("Run again", message, kind == JobKind.Move ? "Move the rest" : "Copy the rest")) return false;
+            if (!await InterruptedSourcesStillReviewedAsync(sourceReviews)) return false;
             CheckSessionAction(); var result = await DeleteInterruptedPartialsAsync(review);
             if (result.Kept.Count > 0)
                 await Dialogs.AlertAsync("Run again", "These files were kept because they changed or could not be completely reviewed. The new operation skips existing destination files:\n" + InterruptedJobText.Bullets(result.Kept));
             CheckSessionAction();
+            if (!await InterruptedSourcesStillReviewedAsync(sourceReviews)) return false;
             // Submission is the UI admission boundary. The old journal stays open through every approval/alert.
-            Services.Jobs.Submit(new JobRequest { Kind = kind, Sources = sources, Destination = destination,
+            Services.Jobs.Submit(new JobRequest { Kind = kind, Sources = sources, Destination = destination, ExpectedSources = sourceReviews,
                 Options = new TransferOptions { Conflicts = ConflictPolicy.Skip, Verify = Enum.TryParse<VerifyMode>(Services.Settings.DefaultVerify, out var verify) ? verify : VerifyMode.Native } });
             submitted = true;
             bool closed = await MutationIoAsync(job.JournalPath, () => JournalRecovery.TryClose(job, $"Continued by a new operation; {result.Deleted} partial file(s) deleted."), CheckSessionAction);
@@ -114,6 +120,18 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         { if (EditSessionsActive) Notify($"Cannot continue this operation: {ex.Message}", true); return false; }
         finally { _interruptedActions.Remove(job.JournalPath); }
+    }
+
+    private async Task<bool> InterruptedSourcesStillReviewedAsync(IReadOnlyDictionary<ItemRef, SourcePathReview> reviews)
+    {
+        foreach (var (item, reviewed) in reviews)
+        {
+            var path = item.FileSystemPath!;
+            if (await MutationIoAsync(path, () => reviewed.Matches(path, Services.Jobs.FileOperations, CheckSessionAction), CheckSessionAction)) continue;
+            Notify("A source changed or could not be checked while this operation was being reviewed. The old journal is kept; select the sources again to decide what to copy or move.", true);
+            return false;
+        }
+        return true;
     }
 
     internal async Task<bool> CleanupInterruptedAsync(InterruptedJob job)
