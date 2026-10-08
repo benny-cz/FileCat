@@ -285,6 +285,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                             // Skipped: the item fails, and its partial copy goes.
                             throw new SkippedTransferException(ex);
                         }
+                        // Resume may have explicitly restarted a changed file. Retain the version supplying this
+                        // new copy, rather than attaching the interrupted version to read-back or remote deletion.
+                        revision = content.GetRevision();
+                        partial = content is IPartialContent;
+                        resumable = content.CanSeek && revision is not null && !partial;
                         continue;
                     }
                     if (n <= 0) break;
@@ -309,7 +314,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 content?.Dispose();
                 content = null;
-                if (VerifyCopy(provider, item, staged, written) is not true and var verified)
+                if (VerifyCopy(provider, item, staged, written, revision) is not true and var verified)
                 {
                     Job.AddBytes(-written);
                     try { File.Delete(staged); } catch (IOException) { }
@@ -361,7 +366,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     /// server, decompressed again from an archive — and compared with the copy on disk by SHA-256. False: they differ;
     /// null: the source could not be read again and the user skipped.
     /// </summary>
-    private bool? VerifyCopy(ResourceProvider provider, ItemRef item, string staged, long length)
+    private bool? VerifyCopy(ResourceProvider provider, ItemRef item, string staged, long length, ContentRevision? copiedRevision)
     {
         Job.SetCurrent(item.Name + " (verifying)");
         Job.AddVerifyTotal(2 * length);
@@ -378,9 +383,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 byte[] theirs;
                 using (var again = Content.ProgressiveContent.Sequential(provider.OpenContent(item)) ?? throw new IOException("The item has no readable content any more."))
-                    theirs = HashContent(again, Progress);
+                    theirs = HashContent(again, length, copiedRevision, Progress);
                 streamDone = 0;
-                var ours = PortableFileOperations.HashFile(staged, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+                var ours = PortableFileOperations.HashFile(staged, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
                 return theirs.AsSpan().SequenceEqual(ours);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
@@ -396,19 +401,42 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
     }
 
-    private byte[] HashContent(IContentSource source, Action<long> progress)
+    private byte[] HashContent(IContentSource source, long length, ContentRevision? copiedRevision, Action<long> progress)
     {
+        var revision = source.GetRevision();
+        if (copiedRevision is not null && revision != copiedRevision) throw new IOException("The source revision changed before read-back verification.");
+        void CheckVersion()
+        {
+            Job.Checkpoint();
+            long stated = source.Length;
+            if (stated >= 0 && stated != length ||
+                revision is { } r && r.Length != length ||
+                source is IPartialContent partial && (partial.MissingRanges.Count != 0 || partial.Caveat is not null))
+                throw new IOException("The source changed or is incomplete during read-back verification.");
+        }
+        CheckVersion();
         using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
         var buffer = new byte[BufferSize];
         long offset = 0;
-        int n;
-        while ((n = source.Read(offset, buffer)) > 0)
+        while (true)
         {
-            Job.Checkpoint();
+            CheckVersion();
+            int want = length - offset < buffer.Length ? (int)(length - offset) + 1 : buffer.Length;
+            int n = source.Read(offset, buffer.AsSpan(0, want));
+            CheckVersion();
+            if (n < 0 || n > want || n > length - offset) throw new IOException("The source exceeded its read-back length or returned an invalid read count.");
+            if (n == 0)
+            {
+                if (offset != length) throw new IOException("The source ended before its read-back length.");
+                break;
+            }
             hash.AppendData(buffer, 0, n);
             offset += n;
             progress(offset);
         }
+        // Some real providers query a server for revisions. Check the complete read once more, without adding a
+        // network metadata request for every buffer. This remains weak provider evidence, not an atomic snapshot.
+        if (source.GetRevision() != revision) throw new IOException("The source revision changed during read-back verification.");
         return hash.GetHashAndReset();
     }
 

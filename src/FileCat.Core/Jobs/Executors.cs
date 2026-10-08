@@ -1016,7 +1016,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             return Result.Failed;
         }
         if (!CopiedItemStillReviewed(src, writeTo)) return Result.Failed;
-        if (Options.Verify == VerifyMode.ReadBack && !ContentEqual(src, writeTo))
+        if (Options.Verify == VerifyMode.ReadBack && !ContentEqual(src, writeTo, info.Size))
         {
             TryDeleteStaged(writeTo);
             Job.ItemFailed();
@@ -1173,7 +1173,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 Job.Checkpoint();
                 long planned = 2 * Math.Max(0, now.Size), started = Job.VerifyBytesDone;
                 Job.AddVerifyTotal(planned, currentItem: true);
-                try { matching = ContentEqual(src, target); }
+                try { matching = ContentEqual(src, target, now.Size); }
                 finally
                 {
                     // Refused reads are no longer pending work; only bytes actually read belong to this added check.
@@ -1393,8 +1393,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Warning, src, "Security metadata lost: the download origin (Mark of the Web) could not be written to the copy.", StepOutcome.Committed);
     }
 
-    private bool ContentEqual(string a, string b)
+    private bool ContentEqual(string a, string b, long length)
     {
+        if (length < 0) return false;
         Job.SetCurrent(a + " (verifying)");
         long counted = 0;
         void Read(long done)
@@ -1403,9 +1404,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Job.AddVerified(done - counted);
             counted = done;
         }
-        var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, Job.Token, Read);
+        var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, Job.Token, Read, length);
         counted = 0;
-        var hb = PortableFileOperations.HashFile(b, HashAlgorithmName.SHA256, Job.Token, Read);
+        var hb = PortableFileOperations.HashFile(b, HashAlgorithmName.SHA256, Job.Token, Read, length);
         return ha.AsSpan().SequenceEqual(hb);
     }
 

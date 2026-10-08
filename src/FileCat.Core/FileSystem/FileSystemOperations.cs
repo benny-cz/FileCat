@@ -570,23 +570,41 @@ public class PortableFileOperations : IFileSystemOperations
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
     public virtual string? GetFinalPath(string path) => UnixFiles.RealPath(path);
 
-    /// <summary>Streaming content hash for verification and checksum features.</summary>
-    public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)
+    /// <summary>Hashes the finite file length observed at opening; growth or truncation refuses the result.</summary>
+    public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null, long? expectedLength = null)
     {
+        ct.ThrowIfCancellationRequested();
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
-        return HashStream(fs, algorithm, ct, progress);
+        long length = fs.Length;
+        if (expectedLength is { } expected && expected != length) throw new IOException("The file length changed before verification.");
+        var hash = HashStream(fs, algorithm, ct, progress, length);
+        if (fs.Length != length) throw new IOException("The file length changed during verification.");
+        return hash;
     }
 
-    /// <summary>The hash of a stream read to its end; <paramref name="progress"/> gets the bytes read so far.</summary>
-    public static byte[] HashStream(Stream stream, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null)
+    /// <summary>
+    /// The hash of a stream read to its end; <paramref name="progress"/> gets the bytes read so far. A stated
+    /// <paramref name="expectedLength"/> bounds the read to that many bytes and one end-of-content probe.
+    /// </summary>
+    public static byte[] HashStream(Stream stream, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null, long? expectedLength = null)
     {
+        if (expectedLength < 0) throw new ArgumentOutOfRangeException(nameof(expectedLength));
         using var hash = IncrementalHash.CreateHash(algorithm);
         var buffer = new byte[BufferSize];
         long done = 0;
-        int n;
-        while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
+        while (true)
         {
             ct.ThrowIfCancellationRequested();
+            // Avoid overflow for a stated long.MaxValue length. The extra byte distinguishes exact EOF from growth.
+            int want = expectedLength is { } limit && limit - done < buffer.Length ? (int)(limit - done) + 1 : buffer.Length;
+            int n = stream.Read(buffer, 0, want);
+            if (n < 0 || n > want || expectedLength is { } maximum && n > maximum - done)
+                throw new IOException("The content exceeded its verification length or returned an invalid read count.");
+            if (n == 0)
+            {
+                if (expectedLength is { } length && done != length) throw new IOException("The content ended before its verification length.");
+                break;
+            }
             hash.AppendData(buffer, 0, n);
             done += n;
             progress?.Invoke(done);
