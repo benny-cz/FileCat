@@ -181,8 +181,10 @@ public sealed class SftpJobTests : IDisposable
         var job = await RunAsync(new JobRequest { Kind = JobKind.Move, Sources = [ItemRef.ForFileSystemPath(file, EntryKind.File)], Destination = Remote("/up") });
         Assert.True(job.State.IsFinished());
         Assert.True(File.Exists(file));
-        Assert.Equal("first version", _server.Read("/up/draft.txt"));
-        Assert.Contains(job.Issues, i => i.Message.Contains("changed here during the copy, so it was not deleted", StringComparison.Ordinal));
+        Assert.Equal("first version", File.ReadAllText(file));
+        Assert.False(_server.Exists("/up/draft.txt"));
+        Assert.Empty(Names("/up"));
+        Assert.Contains(job.Issues, i => i.Message.Contains("source changed during uploading", StringComparison.Ordinal));
     }
 
     [Fact]

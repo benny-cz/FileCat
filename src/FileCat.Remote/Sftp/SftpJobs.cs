@@ -147,7 +147,7 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
                 Issue(IssueSeverity.Error, path, $"Could not {what}: {ex.Message}", StepOutcome.Failed, "refused");
                 return false;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 bool lost = ex is RemoteDisconnectedException;
                 var d = Job.Ask(new ErrorRequest($"Could not {what}", ErrorText.Describe(ex) + (lost ? " Retry connects again." : ""), path, CanRetry: true,
@@ -388,7 +388,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             return false;
         }
         bool ok = UploadFile(() => new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 1, FileOptions.SequentialScan),
-            info, local, destFolder, name, unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc);
+            info, local, destFolder, name, unchanged: () => Fs.TryGetInfo(local) is { } now && now.Size == info.Size && now.ModifiedUtc == info.ModifiedUtc,
+            refreshSource: () => info = Fs.TryGetInfo(local) ?? throw new FileNotFoundException("The upload source no longer exists.", local));
         if (ok && Moving)
         {
             // The copy is published and its size checked: only now may the source go, and only if it is still the file that
@@ -446,7 +447,8 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     }
 
     /// <param name="unchanged">Whether the source is still the file the upload started with; without it, uploads restart after a break.</param>
-    private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name, Func<bool>? unchanged = null)
+    private bool UploadFile(Func<Stream> openSource, FileSystemItemInfo incoming, string sourceDisplay, string destFolder, string name, Func<bool>? unchanged = null,
+        Func<FileSystemItemInfo>? refreshSource = null)
     {
         Job.SetCurrent(sourceDisplay);
         string dst = RemotePath.Combine(destFolder, name);
@@ -505,6 +507,10 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         long written = 0;
         bool differs = false;
         bool timeKept = true;
+        ContentRevision? uploadedRevision = null;
+        bool partial = false;
+        IReadOnlyList<(long Offset, long Length)>? lost = null;
+        string? caveat = null;
         long freshBytes = 0;
         var freshTime = TimeSpan.Zero;
         var freshClock = new Stopwatch();
@@ -519,6 +525,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                 {
                     start = 0;
                     Issue(IssueSeverity.Info, dst, "The upload was interrupted and went again from the start: over this connection that is quicker than continuing where the server's copy ends.", StepOutcome.Committed);
+                }
+                // A user-approved retry may intentionally copy the new local version. Check resume against the old
+                // version first, then retain this attempt's version for bounds, timestamps, verification and deletion.
+                if (refreshSource is not null)
+                {
+                    var previous = incoming;
+                    incoming = refreshSource();
+                    Job.AddTotals(0, Math.Max(0, incoming.Size) - Math.Max(0, previous.Size));
                 }
                 // Where the server's copy is continued, it is opened first: a server that cannot continue (an FTP server
                 // refusing APPE, I47) makes the upload start again instead.
@@ -564,25 +578,40 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
                         Job.AddBytes(n);
                         Job.Throttle(written - start, clock);
                         Job.Checkpoint();
-                    });
+                    }, input is ContentStream ? null : incoming.Size - start, Job.Checkpoint);
                     // A new copy goes with requests in flight together (I39); a continued one appends where the server's copy ends.
                     if (start == 0) Channel.UploadNew(paced, temp!);
                     else paced.CopyTo(appendTo!, BufferSize);
+                    paced.EnsureComplete();
+                    if (input is ContentStream content)
+                    {
+                        uploadedRevision = content.Revision;
+                        partial = content.IsPartial;
+                        lost = content.MissingRanges;
+                        caveat = content.Caveat;
+                    }
                 }
-                bool keepTime = Options.PreserveTimestamps && incoming.ModifiedUtc > DateTime.MinValue;
-                if (keepTime) Channel.SetModified(temp!, incoming.ModifiedUtc);
+                if (unchanged is not null && !unchanged())
+                    throw new IOException("The source changed during uploading, so the copy was not published.");
+                DateTime modified = uploadedRevision is { ModifiedTicks: > 0 } opened && opened.ModifiedTicks <= DateTime.MaxValue.Ticks
+                    ? new DateTime(opened.ModifiedTicks, DateTimeKind.Utc) : incoming.ModifiedUtc;
+                bool keepTime = Options.PreserveTimestamps && modified > DateTime.MinValue;
+                if (keepTime) Channel.SetModified(temp!, modified);
                 var stat = Channel.Stat(temp!);
                 if (stat is not { } s || s.Size != written)
                     throw new IOException($"The server holds {(stat is { } x ? x.Size : 0):N0} bytes of the {written:N0} sent, so the copy was not published.");
                 // Whether the time held, as the server reports it (whole seconds; two for servers on FAT). A server that
                 // reports no time cannot be checked and is not blamed.
-                timeKept = !keepTime || s.ModifiedUtc == DateTime.MinValue || Math.Abs((s.ModifiedUtc - incoming.ModifiedUtc).TotalSeconds) < 2;
+                timeKept = !keepTime || s.ModifiedUtc == DateTime.MinValue || Math.Abs((s.ModifiedUtc - modified).TotalSeconds) < 2;
                 // "Read back and compare content": the server's copy, before it takes the name.
-                if (Options.Verify == VerifyMode.ReadBack && !ServerCopyMatches(openSource, temp!, written, sourceDisplay))
+                // Recovered/uncertain bytes would compare equal to the same guesses. Preserve their warning instead.
+                if (Options.Verify == VerifyMode.ReadBack && !partial && !ServerCopyMatches(openSource, temp!, written, sourceDisplay, uploadedRevision))
                 {
                     differs = true;
                     return;
                 }
+                if (unchanged is not null && !unchanged())
+                    throw new IOException("The source changed during verification, so the copy was not published.");
                 Publish(destFolder, name, temp!, replace);
                 temp = null;
             });
@@ -592,12 +621,14 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
             // Cancelled part way: the partial copy goes as well (release issue I33: it stayed on the server under its
             // hidden temporary name); nothing was published under the file's name.
             DiscardTemp(destFolder, temp);
+            Job.AddBytes(-written);
             Journal.Done(step, StepOutcome.CanceledBeforeChange);
             throw;
         }
         if (!ok || differs)
         {
             DiscardTemp(destFolder, temp);
+            Job.AddBytes(-written);
             Journal.Done(step, StepOutcome.Failed);
             Job.ItemFailed();
             if (differs) Issue(IssueSeverity.Error, dst, "Read-back verification found different content on the server; the copy was discarded, and nothing was published under this name.", StepOutcome.Failed);
@@ -605,6 +636,10 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
         Journal.Done(step, StepOutcome.Committed);
         Job.ItemDone();
+        if (caveat is not null)
+            Issue(IssueSeverity.Warning, sourceDisplay, caveat + (lost is { Count: > 0 } ? " " + PartialContent.Describe(lost, written) : ""), StepOutcome.Committed);
+        else if (lost is { Count: > 0 })
+            Issue(IssueSeverity.Warning, sourceDisplay, PartialContent.Describe(lost, written) + " Check the file before relying on it.", StepOutcome.Committed);
         if (!timeKept && _timesNotKept++ == 0) _firstTimeNotKept = dst;
         return true;
     }
@@ -614,7 +649,7 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
     /// (SHA-256 of both). Reading all of it also catches what a resume's check of the last 64 KiB cannot: bytes before
     /// that tail that changed on the server during a break.
     /// </summary>
-    private bool ServerCopyMatches(Func<Stream> openSource, string temp, long length, string sourceDisplay)
+    private bool ServerCopyMatches(Func<Stream> openSource, string temp, long length, string sourceDisplay, ContentRevision? uploadedRevision)
     {
         Job.SetCurrent(sourceDisplay + " (verifying)");
         Job.AddVerifyTotal(2 * length);
@@ -628,7 +663,11 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         try
         {
             byte[] ours, theirs;
-            using (var source = openSource()) ours = PortableFileOperations.HashStream(source, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
+            using (var source = openSource())
+            {
+                if (source is ContentStream content) content.RequireRevision(uploadedRevision);
+                ours = PortableFileOperations.HashStream(source, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
+            }
             streamDone = 0;
             using (var copy = Channel.OpenRead(temp, length)) theirs = PortableFileOperations.HashStream(copy, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
             return ours.AsSpan().SequenceEqual(theirs);
@@ -782,8 +821,10 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
 /// A source as an upload reads it: after each stretch, <paramref name="read"/> counts it, paces the job and lets a pause
 /// or a cancel take effect, so an upload that reads at its own pace (SSH.NET's) stays under the job's control.
 /// </summary>
-internal sealed class PacedRead(Stream inner, Action<int> read) : Stream
+internal sealed class PacedRead(Stream inner, Action<int> read, long? expectedLength = null, Action? checkpoint = null) : Stream
 {
+    private long _done;
+    private bool _ended;
     public override bool CanRead => true;
     public override bool CanSeek => false;
     public override bool CanWrite => false;
@@ -797,9 +838,28 @@ internal sealed class PacedRead(Stream inner, Action<int> read) : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        int n = inner.Read(buffer, offset, count);
+        checkpoint?.Invoke();
+        _ = buffer.AsSpan(offset, count);
+        if (count == 0 || _ended) return 0;
+        if (expectedLength < 0) throw new IOException("The upload source has an invalid length.");
+        int want = expectedLength is { } limit && limit - _done < count ? (int)(limit - _done) + 1 : count;
+        int n = inner.Read(buffer, offset, want);
+        if (n < 0 || n > want || n > long.MaxValue - _done || expectedLength is { } maximum && n > maximum - _done)
+            throw new IOException("The upload source exceeded its length or returned an invalid read count.");
+        if (n == 0)
+        {
+            if (expectedLength is { } exact && _done != exact) throw new IOException("The upload source ended before its length.");
+            _ended = true;
+        }
+        _done += n;
         if (n > 0) read(n);
         return n;
+    }
+
+    public void EnsureComplete()
+    {
+        if (!_ended && Read(new byte[1], 0, 1) != 0)
+            throw new IOException("The server did not consume the complete upload source.");
     }
 
     public override void Flush() { }
@@ -812,6 +872,17 @@ internal sealed class PacedRead(Stream inner, Action<int> read) : Stream
 internal sealed class ContentStream(IContentSource source) : Stream
 {
     private long _position;
+    private long _initialLength;
+    private long? _expectedLength;
+    private ContentRevision? _revision, _requiredRevision;
+    private bool _started, _ended;
+    private readonly bool _progressive = source is Core.Content.ProgressiveContent;
+
+    public ContentRevision? Revision => _revision;
+    public bool IsPartial => source is IPartialContent;
+    public IReadOnlyList<(long Offset, long Length)>? MissingRanges => (source as IPartialContent)?.MissingRanges.ToArray();
+    public string? Caveat => (source as IPartialContent)?.Caveat;
+    public void RequireRevision(ContentRevision? revision) => _requiredRevision = revision;
 
     public override bool CanRead => true;
     public override bool CanSeek => false;
@@ -826,9 +897,45 @@ internal sealed class ContentStream(IContentSource source) : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        int n = source.Read(_position, buffer.AsSpan(offset, count));
+        Span<byte> into = buffer.AsSpan(offset, count);
+        if (count == 0 || _ended) return 0;
+        // Initialize while the owning upload's using block is active, so a failed revision query still disposes it.
+        if (!_started)
+        {
+            _revision = source.GetRevision();
+            _initialLength = source.Length;
+            if (_revision is { Length: < -1 } || _initialLength < -1)
+                throw new IOException("The upload provider has an invalid length.");
+            if (_requiredRevision is { } required && _revision != required)
+                throw new IOException("The upload provider changed before verification.");
+            // Actual progressive archive members enforce their own deliberate declaration slack and damage limits.
+            _expectedLength = _progressive ? null : _revision is { Length: >= 0 } stated ? stated.Length : _initialLength >= 0 ? _initialLength : null;
+            _started = true;
+        }
+        CheckLength();
+        int want = _expectedLength is { } limit && limit - _position < count ? (int)(limit - _position) + 1 : count;
+        int n = source.Read(_position, into[..want]);
+        CheckLength();
+        if (n < 0 || n > want || n > long.MaxValue - _position || _expectedLength is { } maximum && n > maximum - _position)
+            throw new IOException("The upload provider exceeded its length or returned an invalid read count.");
         _position += n;
+        if (n == 0)
+        {
+            if (_expectedLength is { } exact && _position != exact || !_progressive && source.Length is >= 0 and var final && final != _position)
+                throw new IOException("The upload provider ended at a different length than it states.");
+            // Some providers query a server here: two queries per accepted complete read, rather than per buffer.
+            if (source.GetRevision() != _revision) throw new IOException("The upload provider revision changed while reading.");
+            _ended = true;
+        }
         return n;
+    }
+
+    private void CheckLength()
+    {
+        if (_progressive) return;
+        long current = source.Length;
+        if (current < -1 || _initialLength >= 0 && current != _initialLength || current >= 0 && _expectedLength is { } expected && current != expected)
+            throw new IOException("The upload provider length changed or contradicts its revision.");
     }
 
     public override void Flush() { }
