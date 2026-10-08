@@ -55,8 +55,13 @@ public sealed class InterruptedCopyVersionTests(ITestOutputHelper output)
         output.WriteLine("COPY_VERSION " + JsonSerializer.Serialize(new { length, change, deleted, Kept = kept,
             ReviewedSHA256 = before, CurrentApprovalSHA256 = approvedNow, FinalSHA256 = Hash(f.Target),
             metadataMatches, targetExists, SourceSHA256 = Hash(f.Source),
+            ReviewedLength = reviewed.Length, CurrentLength = info.Exists ? info.Length : (long?)null,
+            ReviewedModifiedUtc = reviewed.ModifiedUtc, CurrentModifiedUtc = info.LastWriteTimeUtc,
+            ReviewedCreatedUtc = reviewed.CreatedUtc, CurrentCreatedUtc = info.CreationTimeUtc,
             OwnedRealInitialCopy = true, EndRecordRemovedToModelInterruption = true,
             NativeDesktop = false, PhysicalSource = false, AtomicAliasIdentityQualified = false }));
+        if (change is "both-preserved" or "both-source-restamped")
+            Assert.True(metadataMatches, "The owned timestamp-preservation precondition must hold before the byte guard is qualified.");
         Assert.Equal(unchanged ? 1 : 0, deleted);
         Assert.Equal(!unchanged && change != "target-removed", targetExists);
         Assert.Equal(targetExists ? [f.Target] : Array.Empty<string>(), kept);
@@ -177,6 +182,9 @@ public sealed class InterruptedCopyVersionTests(ITestOutputHelper output)
                 File.WriteAllLines(journal, File.ReadAllLines(journal).Where(l => !l.Contains("\"t\":\"end\"", StringComparison.Ordinal)));
                 f.Job = Assert.Single(JournalRecovery.Scan(journals));
                 File.WriteAllBytes(f.Target, f.Prefix); File.SetCreationTimeUtc(f.Target, DateTime.UtcNow);
+                // A fixed earlier mtime also stabilizes Unix creation-time fallback across later in-place writes.
+                // The assertion and emitted timestamps above enforce the actual native precondition in every run.
+                File.SetLastWriteTimeUtc(f.Target, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
                 return f;
             }
             catch { f.Dispose(); throw; }

@@ -628,9 +628,9 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         try
         {
             byte[] ours, theirs;
-            using (var source = openSource()) ours = PortableFileOperations.HashStream(source, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+            using (var source = openSource()) ours = PortableFileOperations.HashStream(source, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
             streamDone = 0;
-            using (var copy = Channel.OpenRead(temp, length)) theirs = PortableFileOperations.HashStream(copy, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress);
+            using (var copy = Channel.OpenRead(temp, length)) theirs = PortableFileOperations.HashStream(copy, System.Security.Cryptography.HashAlgorithmName.SHA256, Job.Token, Progress, length);
             return ours.AsSpan().SequenceEqual(theirs);
         }
         catch

@@ -258,23 +258,48 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         string? caveat = null;
         // A source that can be read at any offset and describes its version can resume after a dropped connection or a
         // phone that locked part way; any other source fails the item as before.
-        var revision = content.GetRevision();
+        ContentRevision? revision = null;
+        long? expectedLength = null;
         bool partial = content is IPartialContent;
-        bool resumable = content.CanSeek && revision is not null && !partial;
+        bool resumable = false;
         int failures = 0;
+        void CheckLength()
+        {
+            Job.Checkpoint();
+            long stated = content!.Length;
+            if (stated < -1 || expectedLength is { } expected && stated >= 0 && stated != expected)
+                throw new IOException("The source length changed or contradicts its copy revision.");
+        }
+        void RetainVersion()
+        {
+            revision = content!.GetRevision();
+            long stated = content.Length;
+            if (revision is { Length: < -1 }) throw new IOException("The source stated an invalid copy revision length.");
+            // Progressive archive members enforce their own declared-size slack, ratio and checksum limits.
+            // Ordinary providers must deliver exactly the version/length they opened, even without read-back.
+            expectedLength = content is Content.ProgressiveContent ? null
+                : revision is { Length: >= 0 } r ? r.Length : stated >= 0 ? stated : null;
+            partial = content is IPartialContent;
+            resumable = content.CanSeek && revision is { Length: >= 0 } && !partial;
+            CheckLength();
+        }
         try
         {
+            // Keep metadata admission inside the lifetime/cleanup scope too: a refused query still closes its content.
+            RetainVersion();
             using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
             {
                 var buffer = new byte[BufferSize];
                 var clock = System.Diagnostics.Stopwatch.StartNew();
                 while (true)
                 {
-                    Job.Checkpoint();
+                    CheckLength();
+                    int want = expectedLength is { } length && length - written < buffer.Length
+                        ? (int)(length - written) + 1 : buffer.Length;
                     int n;
                     try
                     {
-                        n = content!.Read(written, buffer);
+                        n = content!.Read(written, buffer.AsSpan(0, want));
                     }
                     catch (Exception ex) when (resumable && ex is IOException or UnauthorizedAccessException)
                     {
@@ -287,17 +312,29 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                         }
                         // Resume may have explicitly restarted a changed file. Retain the version supplying this
                         // new copy, rather than attaching the interrupted version to read-back or remote deletion.
-                        revision = content.GetRevision();
-                        partial = content is IPartialContent;
-                        resumable = content.CanSeek && revision is not null && !partial;
+                        RetainVersion();
                         continue;
                     }
-                    if (n <= 0) break;
+                    CheckLength();
+                    if (n < 0 || n > want || written > long.MaxValue - n || expectedLength is { } expected && n > expected - written)
+                        throw new IOException("The source exceeded its copy length or returned an invalid read count.");
+                    if (n == 0)
+                    {
+                        if (expectedLength is { } exact && written != exact)
+                            throw new IOException("The source ended before its copy length.");
+                        break;
+                    }
                     outStream.Write(buffer, 0, n);
                     written += n;
                     Job.AddBytes(n);
                     Job.Throttle(written, clock);
                 }
+                CheckLength();
+                if (content is not Content.ProgressiveContent && content.Length is >= 0 and var finalLength && finalLength != written)
+                    throw new IOException("The source ended at a different length than it states.");
+                // Some providers query a server here. One final query covers the whole copy, avoiding a query per buffer.
+                // This is weak provider evidence; it cannot detect a change that restores the original revision.
+                if (content!.GetRevision() != revision) throw new IOException("The source revision changed during copying.");
                 lost = (content as IPartialContent)?.MissingRanges;
                 caveat = (content as IPartialContent)?.Caveat;
                 // Through the open handle: no second open, and later writes on it cannot change the time. The time is the
@@ -501,7 +538,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     /// </summary>
     private static bool Unchanged(IContentSource source, ContentRevision revision, FileStream staged, long written)
     {
-        if (source.GetRevision() is not { } now || now.Length != revision.Length || now.ModifiedTicks != revision.ModifiedTicks || written > now.Length) return false;
+        if (source.GetRevision() is not { } now || now != revision || written > now.Length) return false;
         int n = (int)Math.Min(ResumeCheckBytes, written);
         int head = (int)Math.Min(ResumeCheckBytes, written - n);
         return ReadsTheSame(source, staged, 0, head) && ReadsTheSame(source, staged, written - n, n);
@@ -515,7 +552,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         for (int done = 0; done < count;)
         {
             int got = source.Read(offset + done, theirs.AsSpan(done));
-            if (got <= 0) return false;
+            if (got <= 0 || got > count - done) return false;
             done += got;
         }
         staged.Position = offset;
