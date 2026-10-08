@@ -182,9 +182,11 @@ public sealed class InterruptedCopyVersionTests(ITestOutputHelper output)
                 File.WriteAllLines(journal, File.ReadAllLines(journal).Where(l => !l.Contains("\"t\":\"end\"", StringComparison.Ordinal)));
                 f.Job = Assert.Single(JournalRecovery.Scan(journals));
                 File.WriteAllBytes(f.Target, f.Prefix); File.SetCreationTimeUtc(f.Target, DateTime.UtcNow);
-                // A fixed earlier mtime also stabilizes Unix creation-time fallback across later in-place writes.
-                // The assertion and emitted timestamps above enforce the actual native precondition in every run.
-                File.SetLastWriteTimeUtc(f.Target, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                // Keep mtime earlier than later writes, within recovery's two-second job-creation admission window.
+                // An arbitrary historical mtime also makes Unix creation-time fallback historical and excludes the fixture.
+                File.SetLastWriteTimeUtc(f.Target, f.Job.CreatedUtc.AddMilliseconds(-500));
+                Assert.True(File.GetCreationTimeUtc(f.Target) >= f.Job.CreatedUtc.AddSeconds(-2),
+                    "The owned partial must satisfy the actual creation-time admission window.");
                 return f;
             }
             catch { f.Dispose(); throw; }
