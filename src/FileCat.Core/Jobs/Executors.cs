@@ -328,6 +328,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private readonly Dictionary<string, VolumeInfo> _volumes = new(PathUtil.SafetyComparer);
     private ReviewedSourceTree? _sourceTree;
     private int _stagedCounter;
+    private readonly object _totalsLock = new();
+    private long _discoveredItems, _discoveredBytes, _discoveredVerify;
+    private long _admittedItems, _admittedBytes, _admittedVerify;
+    private bool _discoveryComplete, _discoveryReliable = true;
     private bool Move => Job.Kind == JobKind.Move;
     private TransferOptions Options => Job.Request.Options;
 
@@ -374,11 +378,10 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (ct.IsCancellationRequested) return;
             var p = root.FileSystemPath!;
             var info = Fs.TryGetInfo(p);
-            if (info is null) continue;
+            if (info is null) { _discoveryReliable = false; continue; }
             if (!info.IsDirectory || info.IsLink)
             {
-                Job.AddTotals(1, Math.Max(0, info.Size));
-                Job.AddVerifyTotal(VerifyWork(info.IsLink ? 0 : info.Size));
+                CountTransferItem(Math.Max(0, info.Size), VerifyWork(info.IsLink ? 0 : info.Size), discovered: true);
                 continue;
             }
             var stack = new Stack<string>();
@@ -395,16 +398,41 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                         else if (Options.Filter is null || Options.Filter.IsMatch(fi.Name))
                         {
                             long size = fi is FileInfo f && !link ? f.Length : 0;
-                            Job.AddTotals(1, size);
-                            Job.AddVerifyTotal(VerifyWork(size));
+                            CountTransferItem(size, VerifyWork(size), discovered: true);
                         }
                     }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _discoveryReliable = false; }
             }
         }
-        Job.TotalsFinal = !ct.IsCancellationRequested;
+        lock (_totalsLock)
+        {
+            _discoveryComplete = !ct.IsCancellationRequested;
+            SetTotalsFinal();
+        }
     }
+
+    private void CountTransferItem(long bytes, long verify, bool discovered)
+    {
+        // Discovery is an estimate on a separate worker. It may miss a moved file or stop before the transfer
+        // ends. Actual admission independently supplies a lower bound; late discovery must not count it twice.
+        // Keep aggregate counters rather than retaining another path entry for every file in a large tree.
+        lock (_totalsLock)
+        {
+            long itemsBefore = Math.Max(_discoveredItems, _admittedItems);
+            long bytesBefore = Math.Max(_discoveredBytes, _admittedBytes);
+            long verifyBefore = Math.Max(_discoveredVerify, _admittedVerify);
+            if (discovered) { _discoveredItems++; _discoveredBytes += bytes; _discoveredVerify += verify; }
+            else { _admittedItems++; _admittedBytes += bytes; _admittedVerify += verify; }
+            Job.AddTotals(Math.Max(_discoveredItems, _admittedItems) - itemsBefore,
+                Math.Max(_discoveredBytes, _admittedBytes) - bytesBefore);
+            Job.AddVerifyTotal(Math.Max(_discoveredVerify, _admittedVerify) - verifyBefore);
+            SetTotalsFinal();
+        }
+    }
+
+    private void SetTotalsFinal() => Job.TotalsFinal = _discoveryComplete && _discoveryReliable &&
+        _discoveredItems >= _admittedItems && _discoveredBytes >= _admittedBytes && _discoveredVerify >= _admittedVerify;
 
     private string TargetDirectoryFor(ItemRef root, string destDir)
     {
@@ -822,7 +850,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         Job.Checkpoint();
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
-        long planned = info.IsLink ? 0 : Math.Max(0, info.Size); // as discovery counted it
+        long planned = info.IsLink ? 0 : Math.Max(0, info.Size);
+        if (firstAttempt) CountTransferItem(planned, VerifyWork(planned), discovered: false);
         Job.BeginItem(planned, VerifyWork(planned));
         if (firstAttempt && TryFastDirectCopy(src, dst, info) is { } fast) return fast;
         var target = dst;

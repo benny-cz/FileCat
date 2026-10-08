@@ -27,6 +27,8 @@ public sealed class QuickViewFolderDemandTests(ITestOutputHelper output)
     [InlineData(1000, "pending-sibling")]
     [InlineData(0, "pending-same-focus")]
     [InlineData(1000, "pending-same-focus")]
+    [InlineData(0, "delayed-pending-sibling")]
+    [InlineData(1000, "delayed-pending-sibling")]
     [InlineData(0, "focused-change")]
     [InlineData(1000, "focused-change")]
     public async Task Folder_captions_follow_only_the_current_folder_demand(int bytes, string activity)
@@ -50,9 +52,11 @@ public sealed class QuickViewFolderDemandTests(ITestOutputHelper output)
         var samples = new List<string>();
         var keys = new List<string>();
         var events = new List<object>();
-        bool pending = activity.StartsWith("pending-", StringComparison.Ordinal);
+        bool delayed = activity.StartsWith("delayed-", StringComparison.Ordinal);
+        string demand = delayed ? activity[8..] : activity;
+        bool pending = demand.StartsWith("pending-", StringComparison.Ordinal);
         bool activeChange = activity == "focused-change";
-        string mode = pending ? activity[8..] : activity;
+        string mode = pending ? demand[8..] : demand;
         string[] expectedHashes = before;
         object? record = null;
         try
@@ -85,11 +89,14 @@ public sealed class QuickViewFolderDemandTests(ITestOutputHelper output)
             string initialKey = Key();
             listing.Changed += (_, change) => events.Add(new { Change = change.ToString(), Key = Key(), Refreshing = listing.IsRefreshing, State = listing.State.ToString() });
             pane.Attach(tab);
+            var debounce = (Avalonia.Threading.DispatcherTimer)typeof(QuickViewPane).GetField("_debounce", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(pane)!;
+            if (delayed) debounce.Stop(); // Controlled first-delivery delay, with real unchanged row events.
             string Caption() => ((TextBlock)typeof(QuickViewPane).GetField("_info", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(pane)!).Text ?? "";
             string expected = $"Folder · {Formatters.SizeWithUnit(bytes)}";
             if (!pending) await Wait(() => Caption() == expected);
             bool unchanged = true;
             bool positiveControl = false;
+            int firstShown = -1;
             if (activeChange)
             {
                 listing.SetComputedSize("counted", bytes, true, Directory.GetLastWriteTimeUtc(counted).Ticks, lowerBound: true);
@@ -112,8 +119,11 @@ public sealed class QuickViewFolderDemandTests(ITestOutputHelper output)
             }
             else
             {
-                for (int i = 0; i < 20; i++)
+                var deliveryClock = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < 20 || pending && (firstShown < 0 || i - firstShown < 10); i++)
                 {
+                    Assert.True(deliveryClock.Elapsed < TimeSpan.FromSeconds(10), "Initial caption or stable samples did not arrive within ten seconds.");
+                    if (delayed && i == 12) debounce.Start();
                     if (mode == "sibling") listing.SetComputedSize("sibling", i, false);
                     if (mode == "same-focus") listing.SetComputedSize("counted", bytes, true, Directory.GetLastWriteTimeUtc(counted).Ticks);
                     await Task.Delay(25, TestContext.Current.CancellationToken);
@@ -122,11 +132,15 @@ public sealed class QuickViewFolderDemandTests(ITestOutputHelper output)
                     Assert.True(listing.TryGetFocused(out var focus) && focus.Name == "counted");
                     Assert.Equal(bytes, listing.Store[listing.FindStoreIndex("counted")].Size);
                     samples.Add(Caption());
+                    if (firstShown < 0 && Caption() == expected) firstShown = i;
                 }
                 await Wait(() => Caption() == expected);
             }
-            var relevant = pending ? samples.Skip(10).ToArray() : samples.ToArray();
-            record = new { bytes, activity, Expected = expected, InitialKey = initialKey, Keys = keys.ToArray(), UnchangedKey = unchanged, Events = events.ToArray(), Samples = samples.ToArray(), WrongSamples = activeChange ? 0 : relevant.Count(s => s != expected), CaptionAfterQuiescence = Caption(), BeforeSHA256 = before, ExpectedAfterSHA256 = expectedHashes, AfterSHA256 = new[] { Hash(payload), Hash(other) }, PositiveControl = positiveControl, OwnedRealFiles = true, ControlledRowUpdates = activity != "quiet", PendingDemand = pending, NativeDesktop = false, PhysicalDevice = false };
+            // Initial delivery is asynchronous; after it appears, unchanged demands must never clear it again.
+            // A loaded hosted runner does not promise delivery by the old arbitrary tenth 25 ms sample.
+            var relevant = pending ? samples.Skip(firstShown).ToArray() : samples.ToArray();
+            record = new { bytes, activity, Expected = expected, InitialKey = initialKey, Keys = keys.ToArray(), UnchangedKey = unchanged, Events = events.ToArray(), Samples = samples.ToArray(), FirstShownSample = firstShown, StableSamples = relevant.Length, ControlledInitialDeliveryDelay = delayed, WrongSamples = activeChange ? 0 : relevant.Count(s => s != expected), CaptionAfterQuiescence = Caption(), BeforeSHA256 = before, ExpectedAfterSHA256 = expectedHashes, AfterSHA256 = new[] { Hash(payload), Hash(other) }, PositiveControl = positiveControl, OwnedRealFiles = true, ControlledRowUpdates = activity != "quiet", PendingDemand = pending, NativeDesktop = false, PhysicalDevice = false };
+            if (pending) { Assert.True(firstShown >= 0); Assert.True(relevant.Length >= 10); }
             Assert.True(unchanged || activeChange, "A real focused preview key changed during this unchanged-demand case.");
             Assert.True(activeChange || relevant.All(s => s == expected), $"The unchanged focused caption was absent in {relevant.Count(s => s != expected)} of {relevant.Length} measured samples.");
         }
