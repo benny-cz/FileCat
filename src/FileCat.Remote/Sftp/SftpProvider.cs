@@ -205,7 +205,8 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
         catch (Exception ex)
         {
             if (ex is RemoteDisconnectedException) lease.Broken = true;
-            lease.Dispose();
+            try { lease.Dispose(); }
+            catch (Exception closeError) { AppLog.Warn("Could not close a remote connection after opening failed", closeError); }
             throw;
         }
     }

@@ -1,4 +1,6 @@
 using System.Buffers;
+using System.Runtime.ExceptionServices;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Content;
@@ -174,8 +176,9 @@ public sealed class ProgressiveContent : IContentSource
 
     private void CloseSource()
     {
-        _source?.Dispose();
-        _source = null;
+        var source = _source;
+        _source = null; // A failed close still retires this uncertain stream; never close or reuse it twice.
+        source?.Dispose();
     }
 
     private int ReadInPlace(long offset, Span<byte> buffer)
@@ -299,7 +302,6 @@ public sealed class ProgressiveContent : IContentSource
     {
         if (_sourceAt < _produced) Damaged("The member could not be read again: its data ended early.");
         _ended = true;
-        CloseSource();
         try
         {
             _limits.CheckEnd(_produced, _limits.Crc is null ? null : _crc);
@@ -308,6 +310,7 @@ public sealed class ProgressiveContent : IContentSource
         {
             Damaged(ex.Message);
         }
+        CloseSource();
     }
 
     [System.Diagnostics.CodeAnalysis.DoesNotReturn]
@@ -315,7 +318,8 @@ public sealed class ProgressiveContent : IContentSource
     {
         _damage = message;
         _ended = true;
-        CloseSource();
+        try { CloseSource(); }
+        catch (Exception ex) { AppLog.Warn("Archive member close failed after damage was detected", ex); }
         throw new InvalidDataException(message);
     }
 
@@ -326,10 +330,22 @@ public sealed class ProgressiveContent : IContentSource
         {
             if (_closedOnce) return;
             _closedOnce = true;
-            CloseSource();
-            _spool?.Dispose();
+            Exception? failure = null;
+            void Close(Action close)
+            {
+                try { close(); }
+                catch (Exception ex)
+                {
+                    if (failure is null) failure = ex;
+                    else AppLog.Warn("Archive member cleanup failed after an earlier close failure", ex);
+                }
+            }
+            Close(CloseSource);
+            var spool = _spool;
             _spool = null;
-            _closed?.Invoke();
+            if (spool is not null) Close(spool.Dispose);
+            if (_closed is not null) Close(_closed);
+            if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 }
