@@ -326,6 +326,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private static readonly EnumerationOptions ChildOptions = new() { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false };
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
     private readonly Dictionary<string, VolumeInfo> _volumes = new(PathUtil.SafetyComparer);
+    private ReviewedSourceTree? _sourceTree;
     private int _stagedCounter;
     private bool Move => Job.Kind == JobKind.Move;
     private TransferOptions Options => Job.Request.Options;
@@ -417,6 +418,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     {
         var src = root.FileSystemPath!;
         if (!SourceStillReviewed(root)) return Result.Failed;
+        _sourceTree = Job.Request.ExpectedSourceTrees is { } trees && trees.TryGetValue(root, out var reviewed) ? reviewed : null;
         var info = Fs.TryGetInfo(src);
         if (info is null)
         {
@@ -480,6 +482,48 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         return false;
     }
 
+    private bool SourceItemStillReviewed(string path)
+    {
+        if (_sourceTree is null) return true;
+        try
+        {
+            if (_sourceTree.Tree.MatchesItem(path, Fs, _sourceTree.Provider, Job.Checkpoint)) return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
+        RefuseChangedSource(path);
+        return false;
+    }
+
+    private void RefuseChangedSource(string path)
+    {
+        Job.ItemFailed();
+        Issue(IssueSeverity.Error, path, "Not continued: a source changed or could not be checked after review. Select the sources again to decide what to copy or move.", StepOutcome.CanceledBeforeChange);
+    }
+
+    private bool SourceRenameStillReviewed(string path, FileSystemItemInfo info)
+    {
+        if (_sourceTree is null) return true;
+        if (!info.IsDirectory || info.IsLink) return SourceItemStillReviewed(path);
+        try
+        {
+            if (_sourceTree.Tree.MatchesSubtree(path, Fs, _sourceTree.Provider, Job.Checkpoint)) return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
+        RefuseChangedSource(path);
+        return false;
+    }
+
+    private bool CopiedItemStillReviewed(string source, string written)
+    {
+        if (_sourceTree?.Tree.FindItem(source)?.Content is not { } approved) return true;
+        var copy = JournalRecovery.ReviewStagedFile(written, new LocalFileSystemProvider(), Job.Checkpoint, approved.Length);
+        if (copy is not null && copy.Length == approved.Length && copy.Sha256 == approved.Sha256) return true;
+        TryDeleteStaged(written);
+        Job.ItemFailed();
+        Issue(IssueSeverity.Error, source, "Not continued: the copied bytes do not match the reviewed source.", StepOutcome.Failed);
+        return false;
+    }
+
     private VolumeInfo Volume(string path)
     {
         var root = VolumeRootOf(path);
@@ -535,6 +579,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private Result MoveByRename(string src, string dst, FileSystemItemInfo info)
     {
         Job.Checkpoint();
+        if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         Job.SetCurrent(src);
         var existing = Fs.TryGetInfo(dst);
         bool replace = false;
@@ -568,6 +613,8 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 }
             }
         }
+        // A conflict answer can arrive long after the root was admitted.
+        if (!SourceRenameStillReviewed(src, info)) return Result.Failed;
         // A rename to a new name loses nothing if interrupted (the item is at one of the two names): group-committed.
         int step = Journal.Intent(replace ? "move-replace" : "move", src, target, null, durable: replace);
         bool ok;
@@ -584,7 +631,17 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ok = TryIo(src, "move the item", () => Fs.Move(src, target, replace));
+            bool refused = false;
+            ok = TryIo(src, "move the item", () =>
+            {
+                if (!SourceRenameStillReviewed(src, info)) { refused = true; return; }
+                Fs.Move(src, target, replace);
+            }) && !refused;
+            if (refused)
+            {
+                Journal.Done(step, StepOutcome.CanceledBeforeChange);
+                return Result.Failed;
+            }
         }
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Skipped);
         if (!ok)
@@ -622,6 +679,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private Result CopyDirectory(string src, string dst, FileSystemItemInfo info, Func<bool>? ensureParent = null)
     {
         Job.Checkpoint();
+        if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
         var existing = Fs.TryGetInfo(dst);
         var target = dst;
@@ -660,7 +718,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (Options.Filter is null && !EnsureCreated()) return Result.Failed;
         bool allOk = true;
         bool anyTransferred = false;
-        foreach (var ci in SafeChildren(src))
+        var children = SafeChildren(src);
+        if (_sourceTree is not null && !_sourceTree.Tree.MatchesChildren(src, children))
+        {
+            RefuseChangedSource(src);
+            return Result.Failed;
+        }
+        foreach (var ci in children)
         {
             Job.Checkpoint();
             var child = ci.Path;
@@ -756,6 +820,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true)
     {
         Job.Checkpoint();
+        if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
         long planned = info.IsLink ? 0 : Math.Max(0, info.Size); // as discovery counted it
         Job.BeginItem(planned, VerifyWork(planned));
@@ -921,6 +986,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Error, src, "The copy has a different size than the source; it was discarded.", StepOutcome.Failed);
             return Result.Failed;
         }
+        if (!CopiedItemStillReviewed(src, writeTo)) return Result.Failed;
         if (Options.Verify == VerifyMode.ReadBack && !ContentEqual(src, writeTo))
         {
             TryDeleteStaged(writeTo);
@@ -1005,6 +1071,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Error, src, "The copy has a different size than the source; it was discarded.", StepOutcome.Failed);
             return Result.Failed;
         }
+        if (!CopiedItemStillReviewed(src, dst)) return Result.Failed;
         Job.ItemDone();
         return Result.Committed;
     }
@@ -1062,6 +1129,38 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (Fs.TryGetInfo(target) is not { IsDirectory: false } copy || copy.Size != now.Size)
         {
             Issue(IssueSeverity.Warning, src, "Not deleted: the copy is no longer at the destination as it was written (another program may have moved or removed it), so the source stays.", StepOutcome.PartiallyApplied);
+            Job.ItemDone();
+            return Result.Failed;
+        }
+        // Size and time can be preserved by a writer. Before the irreversible step, read both complete files again,
+        // including when read-back verification already passed before publication. This is still a path check, not an
+        // atomic native-handle guarantee: later changes and aliases require separate native qualification.
+        bool matching = false;
+        try
+        {
+            if (!now.IsDirectory && !now.IsLink && (now.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                !copy.IsLink && (copy.Attributes & FileAttributes.ReparsePoint) == 0)
+            {
+                Job.Checkpoint();
+                long planned = 2 * Math.Max(0, now.Size), started = Job.VerifyBytesDone;
+                Job.AddVerifyTotal(planned);
+                try { matching = ContentEqual(src, target); }
+                finally
+                {
+                    // Refused reads are no longer pending work; only bytes actually read belong to this added check.
+                    Job.AddVerifyTotal(Job.VerifyBytesDone - started - planned);
+                }
+                var after = Fs.TryGetInfo(src); var copyAfter = Fs.TryGetInfo(target);
+                matching &= after is { IsDirectory: false, IsLink: false } && after.Size == now.Size && after.ModifiedUtc == now.ModifiedUtc &&
+                    (after.Attributes & FileAttributes.ReparsePoint) == 0 && copyAfter is { IsDirectory: false, IsLink: false } &&
+                    copyAfter.Size == copy.Size && copyAfter.ModifiedUtc == copy.ModifiedUtc && (copyAfter.Attributes & FileAttributes.ReparsePoint) == 0;
+                if (after is not null) now = after;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
+        if (!matching)
+        {
+            Issue(IssueSeverity.Warning, src, "Not deleted: the source and published copy changed or their complete bytes could not be checked. The source stays.", StepOutcome.PartiallyApplied);
             Job.ItemDone();
             return Result.Failed;
         }
@@ -1271,6 +1370,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         long counted = 0;
         void Read(long done)
         {
+            Job.Checkpoint();
             Job.AddVerified(done - counted);
             counted = done;
         }

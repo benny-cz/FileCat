@@ -64,6 +64,32 @@ public sealed record FileTreeReview(string Root, IReadOnlyList<FileTreeReview.It
         var current = Capture(Root, files, provider, check, JournalRecovery.StagedReviewByteLimit, 1000, AllowLinks, expected);
         return current is not null && current.Items.SequenceEqual(Items);
     }
+
+    internal Item? FindItem(string path) => Items.FirstOrDefault(i => PathUtil.SafetyComparer.Equals(i.Path, path));
+
+    // A root can take time to transfer. Check each still-pending member against its own approved version without
+    // rechecking siblings that this move has already removed.
+    internal bool MatchesItem(string path, IFileSystemOperations files, ResourceProvider provider, Action? check)
+    {
+        var item = FindItem(path);
+        if (item is null || !item.Version.Matches(path, files, check)) return false;
+        if (item.Content is { } content && JournalRecovery.ReviewStagedFile(path, provider, check, content.Length) != content) return false;
+        return item.Version.Matches(path, files, check);
+    }
+
+    internal bool MatchesChildren(string directory, IReadOnlyList<FileSystemItemInfo> children)
+    {
+        var expected = Items.Where(i => PathUtil.SafetyComparer.Equals(Path.GetDirectoryName(i.Path), directory))
+            .Select(i => i.Path).ToHashSet(PathUtil.SafetyComparer);
+        return expected.Count == children.Count && children.All(i => expected.Contains(i.Path));
+    }
+
+    internal bool MatchesSubtree(string path, IFileSystemOperations files, ResourceProvider provider, Action? check)
+    {
+        var pending = Items.Where(i => PathUtil.IsSameOrUnder(i.Path, path)).ToArray();
+        return pending.Any(i => PathUtil.SafetyComparer.Equals(i.Path, path)) &&
+            new FileTreeReview(path, pending, AllowLinks).Matches(files, provider, check);
+    }
 }
 
 /// <summary>The provider that supplied the complete reviewed ordinary-file bytes is retained for later checks.</summary>
