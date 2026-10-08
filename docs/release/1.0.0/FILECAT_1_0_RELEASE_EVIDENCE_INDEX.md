@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**245 evidence entries; none is final candidate qualification.** No candidate exists.
+**248 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -258,6 +258,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-X02 | Fresh Linux native suites | `ecf5349` / `cc97a8d` plus hash-bound I99 App inputs | Preliminary native | [E-X02](evidence/E-X02-fresh-linux-native.md) | S10, V19, ENV-04, I99 |
 
 <a id="commits-made-by-the-campaign"></a>
+
+| E-I08-WINDOWS | Twelve native Windows worker pipe/process/picture controls | Actual 9f component payload; four worker source blobs unchanged at cae0f04 | Finite native token/job/pixel/refusal/lifetime controls; no new issue/candidate closure | [E-I08-WINDOWS](evidence/E-I08-WINDOWS-worker-boundaries.md) | I06, I08, V10, V23 |
+| E-I229 | FTP EOF/partial-read revision sequencing and two real server implementations | Exact cae0f04 canonical payload; CI 37833081521 attempt 1 | 34 controls; 42 actual server jobs/44 exact-byte native probes; 102 CI passes/34 explicit ARM fixture skips; owned guest restored/stopped | [E-I229](evidence/E-I229-ftp-read-completion.md) | I06, I229, V02, V08, V12 |
+| E-I230 | Unavailable Git fallback during parent status refresh | Exact cae0f04; original/working controlled native observations retain their identities | Six canonical controls/24 four-lane passes; optional-badge resilience; wider I16/native/candidate open | [E-I230](evidence/E-I230-git-optional-launch.md) | I16, I230, V24 |
 
 ## History and maintenance
 
