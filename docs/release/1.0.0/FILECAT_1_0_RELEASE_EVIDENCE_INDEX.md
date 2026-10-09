@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**322 evidence entries; none is final candidate qualification.** No candidate exists.
+**324 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -330,9 +330,11 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I06-resource-progress | Concrete resource progress and remaining scope | Twenty current source identities at c7416b6 plus validated chooser overlay; historical evidence kept at its own sources | Six resource groups, decided page target retained; no invented overall percentage, picture cap, native or candidate closure | [Progress matrix](evidence/E-I06-resource-progress.md) | I06, V07, V12, V16 |
 | E-I285 | Removed-panel preview and source-binding retirement | Original 71167b7 plus fixture/one production overlay | Twelve failures/two positives to fourteen passes; 68 held-control reader retirements; full App 1369/25 exact skips; 14 exact controls pass; original hosted pass; native/candidate open | [Full record](evidence/E-I285-removed-panel-preview-retirement.md) | I06, I285, V12 |
 | E-CI-resource | Original chooser ownership/root-link accounting CI | Exact 71167b7; 37976125499 attempt 1 | 29,708 records/328 new passes; all 29,380 predecessor outcomes/skips; 72 chooser/256 accounting/768 followed-link observations including BytesTotal; no candidate | [Full record](evidence/E-CI-resource-ownership.md) | I06, I283, I284, V02, V12, V20 |
-| E-I286 | Failed ZIP construction native-source retirement | Original 1fefd5e; fixture and one production overlay | Twelve failures/six positives to eighteen native Windows passes; full Core 3391/64 exact skips; 18 exact pass; hosted pending; aggregate/candidate open | [Full record](evidence/E-I286-zip-index-construction-ownership.md) | I06, I286, V07, V12 |
-| E-I287 | Concurrent archive index ownership | Original ffe6159e plus fixture/two production overlays | Eleven failures/one pass to twelve passes; full Core 3403/64 and App 1369/25 exact skips; GnuPG path refusal/controls retained; exact/hosted/aggregate/candidate open | [Full record](evidence/E-I287-concurrent-archive-index-ownership.md) | I06, I287, V07, V12 |
+| E-I286 | Failed ZIP construction native-source retirement | Original 1fefd5e; fixture and one production overlay | Twelve failures/six positives to eighteen native Windows passes; full Core 3391/64 exact skips; 18 exact pass; original hosted pass; aggregate/candidate open | [Full record](evidence/E-I286-zip-index-construction-ownership.md) | I06, I286, V07, V12 |
+| E-I287 | Concurrent archive index ownership | Original ffe6159e plus fixture/two production overlays | Eleven failures/one pass to twelve passes; full Core 3403/64 and App 1369/25 exact skips; GnuPG path refusal/controls retained; 12 exact pass; hosted pending; aggregate/candidate open | [Full record](evidence/E-I287-concurrent-archive-index-ownership.md) | I06, I287, V07, V12 |
 | E-CI-panel | Original removed-panel preview retirement CI | Exact 1fefd5e; 37979617822 attempt 1 | 29,764 records/56 new passes; all 29,708 predecessor outcomes/skips; 272 removal observations; no candidate | [Full record](evidence/E-CI-panel-retirement.md) | I06, I285, V12, V20 |
+| E-I288 | About logo source and owner retirement | Original 63f5abad plus fixture/one product overlay; separate actual Skia builder overlay | 24 failures/five positives to 29 passes in each drawing mode; 72 logo retirements; full App 1398/25 exact skips; exact/hosted/native/candidate open | [Full record](evidence/E-I288-about-logo-ownership.md) | I06, I288, V12 |
+| E-CI-zip | Original ZIP construction source ownership CI | Exact ffe6159e; 37981716256 attempt 1 | 29,836 records; 36 new Windows passes/36 explicit Unix oracle skips; all 29,764 predecessor outcomes/skips; 252 closure observations; no candidate | [Full record](evidence/E-CI-zip-index-ownership.md) | I06, I286, V07, V12, V20 |
 
 
 <a id="commits-made-by-the-campaign"></a>

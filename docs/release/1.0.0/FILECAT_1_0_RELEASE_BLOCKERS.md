@@ -3,7 +3,7 @@
 Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I287](evidence/E-I287-concurrent-archive-index-ownership.md) passes twelve concurrent archive ownership controls/full Core 3403/64 and App 1369/25 exact skips; exact/hosted checks remain. I285 exact/original hosted checks pass; I286 eighteen exact committed controls pass; original hosted checks remain. [I06 resource progress](evidence/E-I06-resource-progress.md) remains open. No owner/platform/people/physical-source/candidate gate is waived; prior wording remains in the activity log.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I288](evidence/E-I288-about-logo-ownership.md) passes 29 default/29 actual Skia controls/full App 1398/25 exact skips; exact/hosted checks remain. I286 exact/original hosted checks pass; I287 twelve exact committed controls pass; original hosted checks remain. [I06 resource progress](evidence/E-I06-resource-progress.md) remains open. No owner/platform/people/physical-source/candidate gate is waived; prior wording remains in the activity log.
 
 ## Safety and publication holds
 

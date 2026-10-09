@@ -14,7 +14,7 @@ The initial full Core command is preserved at **3401 passes/65 skips/one failure
 
 The earliest fixture export does not compile (nullable cleanup inference); the second export has six real ZIP failures and six observer NullReferenceExceptions from assuming unopened lazy TAR sources exist. Those six observer failures are not product failures. Both original scripts, exports and receipts remain, followed by the corrected observer's eleven failures/one pass and independently sealed final results. Twenty-five owned temporary files across five bounded roots are archived, rehashed and removed; no locks remain.
 
-Exact committed/original hosted follow-ups remain. Aggregate active/retained/leased/listing memory, explicit Release/member-use races, cancellation, adversarial schedules, other consumers, native process/frame/reference workloads and candidate acceptance remain in I06. This does not resume physical-source tests, operate host UI, freeze a contract or publish a candidate/stable release. I106/I110 HOLD and explicit owner/human GO remain.
+Exact committed follow-up is recorded below; original hosted checks remain. Aggregate active/retained/leased/listing memory, explicit Release/member-use races, cancellation, adversarial schedules, other consumers, native process/frame/reference workloads and candidate acceptance remain in I06. This does not resume physical-source tests, operate host UI, freeze a contract or publish a candidate/stable release. I106/I110 HOLD and explicit owner/human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -42,3 +42,20 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `i06-archive-concurrent-ownership-20261009-v4/seal-concurrent-batch-v1.py` | `077d9328a578d32700b7238af740cb777616759cb9776c20b9e536d030aadf4c` |
 | `i06-archive-concurrent-ownership-20261009-v4/independent-concurrent-batch-final-v1.json` | `4d3c4040f69d5f7127dc958c1daee64ad7fb6da00453df9b4e789ab36b943bcd` |
 | `E:/FileCat/artifacts/release-evidence/i06-archive-concurrent-ownership-20261009-v4/owned-temporary-files-v1.zip` | `d2642bc60fa67b75aec21d76e31ddc2cb4302aca2da8f49e37197ba417bd8b78` |
+
+
+## Exact committed follow-up
+
+No-overlay **63f5abad5abd6fef69e38cb8e03497e612fa5ae1** verifies all 1352 canonical Git blobs and passes all twelve controls. Every private/exact outcome/message and ownership observation agrees; all twelve actual source wrappers close and native Windows exclusive access succeeds. Per-run ZIP header hashes and roots remain qualified. Three owned files are archived/rechecked, one removed and two compiler locks retained. No full-suite replay, aggregate memory/arbitrary-schedule/native-frame or candidate qualification.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the complete sources, commands, payloads, failures and restoration.
+
+| File | SHA256 |
+|---|---|
+| `i287-committed-20261009-v1/seal-exact-v1.py` | `8ebed34afac722cd4603f32ac3a711c45bc84b2f81e392e0e409402da06a2db4` |
+| `i287-committed-20261009-v1/independent-exact-final-v1.json` | `2ce3d55a2708a50764baa7c79405cbfed37c706298428e63e4f7286b43e3a71d` |
+| `E:/FileCat/artifacts/release-evidence/i287-committed-20261009-v1/committed/core-controls/command.json` | `6ff1975502894d68e6112bb670490a37e703851e9332298d57e8c5de3fa12a25` |
+| `E:/FileCat/artifacts/release-evidence/i287-committed-20261009-v1/committed/inputs.json` | `e8dd5f5a632c9b7b94ab9909a97074f3d023ceb4830935cd7b193a9937c9462b` |

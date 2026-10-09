@@ -10,7 +10,7 @@ Original **twelve failures/six passes** become **eighteen passes**. Across **126
 
 The same compiled full Core suite passes **3391/64 exact skips**. All **3437** preceding local records (3373 passes/64 skips), their outcome/message multiplicities and exact skip reasons remain. One assembly-path display label is adapted only after checking the same PE test method. The private first correction failed compilation because the extracted helper omitted its path parameter; that unchanged command/export survives, no tests ran, and the corrected helper uses a fresh stage.
 
-Exact committed follow-up is recorded below; original hosted checks remain. This does not qualify every malformed archive, native library failure, concurrent cache race, aggregate active/leased/listing memory, other platforms, native GUI/reference workloads or a candidate. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and explicit human GO remain.
+Exact committed follow-up is recorded below; original hosted checks pass as linked below. This does not qualify every malformed archive, native library failure, concurrent cache race, aggregate active/leased/listing memory, other platforms, native GUI/reference workloads or a candidate. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and explicit human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -47,3 +47,8 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `i286-committed-20261009-v1/independent-exact-final-v1.json` | `b6bcd0918ced4bb7fad963405974a0a7fc79195ef955eb71f05e764697b5fcbe` |
 | `E:/FileCat/artifacts/release-evidence/i286-committed-20261009-v1/committed/core-controls/command.json` | `13c4591093158754c74077825c30e9b733e6b1435b5827ef6ef33a39c025eb2b` |
 | `E:/FileCat/artifacts/release-evidence/i286-committed-20261009-v1/committed/inputs.json` | `c6e2a17d094c3752ae1be9104b44148a9270269a67da5a096824e36123b5b855` |
+
+
+## Original hosted follow-up
+
+[37981716256 attempt 1](E-CI-zip-index-ownership.md) at exact ffe6159e passes all four required lanes. The reader checks 29,836 actual records: 36 new Windows passes/36 explicit Unix oracle skips, retaining all 29,764 predecessor outcomes/messages and exact skips. All 252 immediate native Windows closure observations match the private controls. Aggregate/native process/reference/candidate scope remains.

@@ -30,26 +30,37 @@ internal static class AboutDialog
     {
         string version = Version();
         var facts = Facts(vm);
-        var body = new StackPanel { Spacing = 14, Width = 600 };
-        body.Children.Add(Header(ThemeManager.Current, version));
-        var made = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        made.Children.Add(new TextBlock { Text = "Made by " + Author, VerticalAlignment = VerticalAlignment.Center });
-        var mail = new HyperlinkButton { Content = AuthorMail, NavigateUri = new Uri("mailto:" + AuthorMail), Padding = new Thickness(2, 0) };
-        Avalonia.Automation.AutomationProperties.SetName(mail, "Write to " + Author);
-        made.Children.Add(mail);
-        body.Children.Add(made);
-        body.Children.Add(FactsGrid(facts));
-        var answer = await vm.Dialogs.ShowCustomAsync("About FileCat", body,
-            [new DialogButton("Copy details", "copy"), new DialogButton("Show data folder", "data"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
-        switch (answer as string)
+        var palette = ThemeManager.Current;
+        using var logo = palette.Name == ThemePalette.DosCommander.Name ? null : Logo();
+        var logoImage = new Image { Source = logo, Width = 84, Height = 84 };
+        try
         {
-            case "copy":
-                vm.CopyTextToClipboard(DetailsText(version, facts));
-                vm.Notify("The details are on the clipboard.");
-                break;
-            case "data":
-                vm.ActiveTab?.Navigate(FileCat.Core.Resources.Location.FileSystem(vm.Services.Paths.SettingsDirectory));
-                break;
+            var body = new StackPanel { Spacing = 14, Width = 600 };
+            body.Children.Add(Header(palette, version, logoImage));
+            var made = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            made.Children.Add(new TextBlock { Text = "Made by " + Author, VerticalAlignment = VerticalAlignment.Center });
+            var mail = new HyperlinkButton { Content = AuthorMail, NavigateUri = new Uri("mailto:" + AuthorMail), Padding = new Thickness(2, 0) };
+            Avalonia.Automation.AutomationProperties.SetName(mail, "Write to " + Author);
+            made.Children.Add(mail);
+            body.Children.Add(made);
+            body.Children.Add(FactsGrid(facts));
+            var answer = await vm.Dialogs.ShowCustomAsync("About FileCat", body,
+                [new DialogButton("Copy details", "copy"), new DialogButton("Show data folder", "data"), new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+            switch (answer as string)
+            {
+                case "copy":
+                    vm.CopyTextToClipboard(DetailsText(version, facts));
+                    vm.Notify("The details are on the clipboard.");
+                    break;
+                case "data":
+                    vm.ActiveTab?.Navigate(FileCat.Core.Resources.Location.FileSystem(vm.Services.Paths.SettingsDirectory));
+                    break;
+            }
+        }
+        finally
+        {
+            // The dialog owns this bitmap. Retired controls must not keep a disposed source in a later frame.
+            logoImage.Source = null;
         }
     }
 
@@ -110,7 +121,7 @@ internal static class AboutDialog
 
     // ---- The header, in the theme's own dress --------------------------------------------------------------------
 
-    private static Control Header(ThemePalette palette, string version)
+    private static Control Header(ThemePalette palette, string version, Image logoImage)
     {
         var band = new Border { Height = 132, CornerRadius = new CornerRadius(6), ClipToBounds = true, BorderThickness = new Thickness(1), BorderBrush = Brush(palette.Border) };
         var layers = new Grid();
@@ -147,7 +158,7 @@ internal static class AboutDialog
                 break;
         }
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18, Margin = new Thickness(20, 0), VerticalAlignment = VerticalAlignment.Center };
-        row.Children.Add(new Image { Source = Logo(), Width = 84, Height = 84 });
+        row.Children.Add(logoImage);
         var words = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         var name = new TextBlock { Text = "FileCat", FontSize = 30, FontWeight = FontWeight.Bold };
         switch (palette.Effect)
@@ -221,7 +232,7 @@ internal static class AboutDialog
         return text;
     }
 
-    private static IImage? Logo()
+    private static Bitmap? Logo()
     {
         try
         {
