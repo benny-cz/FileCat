@@ -814,7 +814,14 @@ public static partial class Markdown
                 char c = path[k];
                 if (c == '%' && k + 2 < path.Length && Uri.IsHexDigit(path[k + 1]) && Uri.IsHexDigit(path[k + 2])) sb.Append(c);
                 else if (char.IsAsciiLetterOrDigit(c) || "-._~!$&'()*+,;=:@/".Contains(c)) sb.Append(c);
-                else foreach (byte b in Encoding.UTF8.GetBytes(c.ToString())) sb.Append('%').Append(b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+                else
+                {
+                    // Encode a complete Unicode scalar, not the two halves of a supplementary character.
+                    int count = char.IsHighSurrogate(c) && k + 1 < path.Length && char.IsLowSurrogate(path[k + 1]) ? 2 : 1;
+                    foreach (byte b in Encoding.UTF8.GetBytes(path.Substring(k, count)))
+                        sb.Append('%').Append(b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+                    k += count - 1;
+                }
             }
             return sb.ToString();
         }

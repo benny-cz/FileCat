@@ -95,24 +95,57 @@ public sealed class HtmlPage
         if (!Inside(full)) return null;
         try
         {
-            var file = new FileInfo(full);
+            // Resolve the folder anchor as well: a page can itself have been opened through a directory link.
+            // Every component is checked, including links in the target of another link.
+            string folder = ResolveLinks(_folder);
+            string resolved = ResolveLinks(full);
+            if (!Inside(resolved, folder)) return null;
+            var file = new FileInfo(resolved);
             if (!file.Exists) return null;
-            // A link inside the folder that leads out of it is not followed.
-            if (file.LinkTarget is not null && (file.ResolveLinkTarget(returnFinalTarget: true)?.FullName is not { } target || !Inside(target))) return null;
             if (file.Length > MaxBytes) return null;
             _ct.ThrowIfCancellationRequested();
-            var bytes = File.ReadAllBytes(full);
+            var bytes = File.ReadAllBytes(resolved);
             _ct.ThrowIfCancellationRequested();
             return (bytes, MimeType(full));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
 
-    private bool Inside(string full)
+    private bool Inside(string full) => Inside(full, _folder!);
+
+    private static bool Inside(string full, string folder)
     {
         var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-        string folder = _folder!.EndsWith(Path.DirectorySeparatorChar) ? _folder : _folder + Path.DirectorySeparatorChar;
+        folder = folder.EndsWith(Path.DirectorySeparatorChar) ? folder : folder + Path.DirectorySeparatorChar;
         return full.StartsWith(folder, comparison);
+    }
+
+    private static string ResolveLinks(string path)
+    {
+        // Restart from the root after substituting a target, so its intermediate components are resolved too.
+        // A finite bound refuses cycles and excessively long chains without recursion or unbounded work.
+        for (int links = 0; links <= 40; links++)
+        {
+            string root = Path.GetPathRoot(path)!;
+            string[] parts = path[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+            string current = root;
+            bool followed = false;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                current = Path.Combine(current, parts[i]);
+                FileSystemInfo entry = (File.GetAttributes(current) & FileAttributes.Directory) != 0
+                    ? new DirectoryInfo(current) : new FileInfo(current);
+                if (entry.LinkTarget is null) continue;
+                if (links == 40) throw new IOException("The page resource has too many symbolic links.");
+                string target = entry.ResolveLinkTarget(returnFinalTarget: false)?.FullName
+                    ?? throw new IOException("The page resource link cannot be resolved.");
+                path = Path.GetFullPath(Path.Combine(new[] { target }.Concat(parts[(i + 1)..]).ToArray()));
+                followed = true;
+                break;
+            }
+            if (!followed) return current;
+        }
+        throw new IOException("The page resource link cannot be resolved.");
     }
 
     /// <summary>The Markdown file as a page: its text decoded as the viewer decodes it, drawn, and served as HTML.</summary>
