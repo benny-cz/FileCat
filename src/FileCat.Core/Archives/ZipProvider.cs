@@ -25,6 +25,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public const long MaxExpansionRatio = 1000;
     public const long MaxSpooledMember = 8L * 1024 * 1024 * 1024;
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { "zip", "jar", "nupkg", "vsix", "whl", "xpi", "snupkg", "aar" };
+    // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
+    private readonly object _cacheLock = new();
     private readonly ConcurrentDictionary<string, ZipIndex> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _tempDirectory;
 
@@ -309,6 +311,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     private ZipIndex GetIndex(Location location)
     {
         var path = ZipPath(location);
+        lock (_cacheLock) return GetIndex(location, path);
+    }
+
+    private ZipIndex GetIndex(Location location, string path)
+    {
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}";
@@ -345,6 +352,11 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public int RetainedIndexes => _cache.Count;
 
     public void Release(string zipPath)
+    {
+        lock (_cacheLock) ReleaseIndexes(zipPath);
+    }
+
+    private void ReleaseIndexes(string zipPath)
     {
         foreach (var k in _cache.Keys.Where(k => k.StartsWith(zipPath + "|", StringComparison.OrdinalIgnoreCase)).ToList())
         {

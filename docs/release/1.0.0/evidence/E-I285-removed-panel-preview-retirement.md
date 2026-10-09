@@ -10,7 +10,7 @@ Two healthy controls maximize/restore with either source or preview active: the 
 
 An initial two-case probe retains both raw failures and source/reader/request observations. Its first case incorrectly assumes a removed view has no immediate visual parent; a detached layout grid can still parent that view. The versioned expanded fixture checks actual TopLevel absence, keeping the ownership oracles. Neither that parent assumption nor a mocked exception is presented as a product failure. Exact source/payload/semantic comparisons and owned restoration are in the independent final receipt below.
 
-These checks qualify closure while controls are still held, not garbage-collection timing, total native/process memory, decoded-picture/frame retirement, every removal/race/provider path or native desktop interaction. Exact committed checks are recorded below; original hosted checks remain; broader I06/reference/human/candidate work remains. Host UI and physical sources are untouched; I106/I110 HOLD and explicit human GO remain in force.
+These checks qualify closure while controls are still held, not garbage-collection timing, total native/process memory, decoded-picture/frame retirement, every removal/race/provider path or native desktop interaction. Exact committed checks are recorded below; original hosted checks pass below; broader I06/reference/human/candidate work remains. Host UI and physical sources are untouched; I106/I110 HOLD and explicit human GO remain in force.
 
 
 ## Selected new immutable receipts
@@ -45,3 +45,8 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `i285-committed-20261009-v1/independent-exact-final-v1.json` | `26791592611ebd1a3b390de11093b0de65ffe1c25a1de35f6ea1effa68f6e5f2` |
 | `E:/FileCat/artifacts/release-evidence/i285-committed-20261009-v1/committed/app-controls/command.json` | `4db985116d454129a44b7a26a5f0240fe8ac107f19a630b77f475897d432d16d` |
 | `E:/FileCat/artifacts/release-evidence/i285-committed-20261009-v1/committed/inputs.json` | `3053adf5afc273bc717a31d92e23effe74e8e9c07e1437f88234cec4fbf227c5` |
+
+
+## Original hosted follow-up
+
+[37979617822 attempt 1](E-CI-panel-retirement.md) at exact 1fefd5e passes all four required lanes: 29,764 records/56 new passes; all 29,708 preceding outcomes/messages/exact skips remain. All 272 held-control removal observations match the private controls. Native picture/frame/process/reference and candidate scope remains.

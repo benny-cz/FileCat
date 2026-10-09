@@ -37,6 +37,8 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     public const int MaxNestedSpools = 4;
     public const int MaxNestingDepth = 8;
 
+    // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
+    private readonly object _cacheLock = new();
     private readonly ConcurrentDictionary<string, ArchiveIndex> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, (string Path, FileStream Holder, DateTime Used)> _spools = new(StringComparer.Ordinal);
     private readonly object _spoolLock = new();
@@ -204,6 +206,11 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     {
         var root = location.WithPath(string.Empty);
         string path = ArchiveFile(root, 0);
+        lock (_cacheLock) return GetIndex(root, path, ct);
+    }
+
+    private ArchiveIndex GetIndex(Location root, string path, CancellationToken ct)
+    {
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}";
@@ -313,6 +320,11 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     }
 
     public void Release(string archivePath)
+    {
+        lock (_cacheLock) ReleaseIndexes(archivePath);
+    }
+
+    private void ReleaseIndexes(string archivePath)
     {
         Exception? failure = null;
         foreach (var k in _cache.Keys.Where(k => k.StartsWith(archivePath + "|", StringComparison.OrdinalIgnoreCase)).ToList())
