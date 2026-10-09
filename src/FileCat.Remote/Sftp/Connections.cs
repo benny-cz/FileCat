@@ -132,10 +132,18 @@ public sealed class SftpConnections : IDisposable
         {
             lock (pool)
             {
-                var keep = pool.Idle.Where(i => now - i.Since < IdleTimeout).Reverse().ToList();
-                foreach (var stale in pool.Idle.Where(i => now - i.Since >= IdleTimeout)) stale.Channel.Dispose();
-                pool.Idle.Clear();
-                foreach (var i in keep) pool.Idle.Push(i);
+                var keep = new List<(ISftpChannel Channel, DateTime Since)>();
+                while (pool.Idle.TryPop(out var idle))
+                {
+                    if (now - idle.Since < IdleTimeout) keep.Add(idle);
+                    else
+                    {
+                        // Remove before closing: a failed close must neither retain this stale entry nor escape the timer.
+                        try { idle.Channel.Dispose(); }
+                        catch (Exception ex) { AppLog.Warn("Could not close an idle remote connection", ex); }
+                    }
+                }
+                for (int i = keep.Count - 1; i >= 0; i--) pool.Idle.Push(keep[i]);
             }
         }
     }
@@ -169,7 +177,9 @@ public sealed class SftpConnections : IDisposable
                 while (pool.Idle.TryPop(out var idle))
                 {
                     if (idle.Channel.IsConnected) { channel = idle.Channel; break; }
-                    idle.Channel.Dispose();
+                    // A stale channel is already out of the pool; its cleanup cannot prevent a fresh connection.
+                    try { idle.Channel.Dispose(); }
+                    catch (Exception ex) { AppLog.Warn("Could not close a disconnected remote connection", ex); }
                 }
             }
             if (channel is null)
@@ -223,10 +233,20 @@ public sealed class SftpConnections : IDisposable
     {
         if (!_pools.TryGetValue(profileId, out var pool)) return;
         pool.Closed = true;
+        ExceptionDispatchInfo? failure = null;
         lock (pool)
         {
-            while (pool.Idle.TryPop(out var c)) c.Channel.Dispose();
+            while (pool.Idle.TryPop(out var c))
+            {
+                try { c.Channel.Dispose(); }
+                catch (Exception ex)
+                {
+                    if (failure is null) failure = ExceptionDispatchInfo.Capture(ex);
+                    else AppLog.Warn("Could not close another remote connection during disconnect", ex);
+                }
+            }
         }
+        failure?.Throw();
     }
 
     /// <summary>Forgets a secret typed or saved for the profile (after the user edits or deletes it).</summary>

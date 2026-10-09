@@ -76,10 +76,13 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
     protected void Reconnect()
     {
         if (_lease is null) return;
-        _lease.Broken = true;
-        _lease.Dispose();
+        var previous = _lease;
         _lease = null;
         ForgetListings();
+        previous.Broken = true;
+        // The user has chosen Retry after a failed operation; retire its broken channel and admit a new one.
+        try { previous.Dispose(); }
+        catch (Exception ex) { AppLog.Warn("Could not close a broken remote connection before retry", ex); }
     }
 
     private void ForgetListings()
