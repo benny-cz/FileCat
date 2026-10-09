@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**298 evidence entries; none is final candidate qualification.** No candidate exists.
+**299 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -317,3 +317,5 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 Add or update one inventory row in ID order; put full execution detail in the individual evidence record. Update the dashboard and activity log after sealing the result. Do not prepend narrative to this file or append a second current-state section.
 
 | E-CI-REMOTE-POST-CONNECT | Four hosted lanes after post-connect ownership correction | Exact 182ca99; original run 37935588981 attempt 1 | 26148 records/all 25764 predecessor multiplicities retained; 384 new ownership/448 pool/forty pipe observations; 21 ZIPs/14 TRXs/92 graphs; initial retrieval timeout retained | [Complete hosted audit](evidence/E-CI-remote-post-connect-ownership.md) | I06, I274, V08, V20, V23 |
+
+| E-I275 | Remote content stream ownership after display-profile failure | Exact 5aee22c original plus declared test/fix overlays | 40 original failures/eight healthy to 48 passes; unchanged-payload full Remote 2276/156 retains all 2384 prior multiplicities/exact skips; committed/hosted pending | [Full record](evidence/E-I275-remote-open-stream-ownership.md) | I06, I275, V08, V11, V12, V23 |

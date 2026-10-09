@@ -202,7 +202,9 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
             string path = PathOf(item, lease.Channel);
             var stat = lease.Channel.Stat(path) ?? throw new FileNotFoundException($"\"{item.Name}\" no longer exists on the server.");
             if (stat.IsDirectory) throw new IOException($"\"{item.Name}\" is a folder.");
-            return new SftpContentSource(lease, lease.Channel.OpenRead(path, stat.Size), GetDisplayPath(item.Parent.WithPath(path)), path, stat);
+            // Resolve metadata before opening the stream: a profile lookup can fail, and no content owner exists yet.
+            string displayName = GetDisplayPath(item.Parent.WithPath(path));
+            return new SftpContentSource(lease, lease.Channel.OpenRead(path, stat.Size), displayName, path, stat);
         }
         catch (Exception ex)
         {
