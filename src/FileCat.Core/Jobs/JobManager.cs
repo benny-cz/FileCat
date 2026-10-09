@@ -75,13 +75,21 @@ public sealed class JobManager
     public void Remove(Job job)
     {
         if (!job.State.IsFinished()) return;
-        lock (_lock) _jobs.Remove(job);
+        lock (_lock)
+        {
+            if (_jobs.Remove(job)) job.Changed -= OnJobChanged;
+        }
         JobChanged?.Invoke(job);
     }
 
     public void ClearFinished()
     {
-        lock (_lock) _jobs.RemoveAll(j => j.State.IsFinished());
+        lock (_lock) _jobs.RemoveAll(j =>
+        {
+            if (!j.State.IsFinished()) return false;
+            j.Changed -= OnJobChanged;
+            return true;
+        });
     }
 
     public void MoveInQueue(Job job, int delta)
@@ -101,7 +109,11 @@ public sealed class JobManager
     private void TrimFinishedLocked()
     {
         var finished = _jobs.Where(j => j.State.IsFinished()).OrderBy(j => j.FinishedUtc).ToList();
-        foreach (var j in finished.Take(Math.Max(0, finished.Count - KeepFinished))) _jobs.Remove(j);
+        foreach (var j in finished.Take(Math.Max(0, finished.Count - KeepFinished)))
+        {
+            _jobs.Remove(j);
+            j.Changed -= OnJobChanged;
+        }
     }
 
     private void OnJobChanged(Job job)

@@ -279,6 +279,8 @@ public sealed class Job
         }
         if (state.IsFinished())
         {
+            WaitingFor = null;
+            WaitReason = null;
             FinishedUtc = DateTime.UtcNow;
             _clock.Stop();
         }

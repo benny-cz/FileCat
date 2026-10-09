@@ -10,7 +10,7 @@ Eighteen actual ZIP/TAR cases cover 64/4096/16384 empty members plus one **33 Mi
 
 Original **16 failures/six live-lease positives** become **22 passes**. All eighteen original disposed wrappers retain their evicted index; all corrected ones release it. All four corrected callback owners collect after cleanup, including the fault paths. Live leases keep their index and read every known member byte after cache release. Native sources close, original error objects/callback counts remain, and complete input hashes remain unchanged in both runs. The controlled index estimates and weak references are not aggregate managed/native/mapping/frame measurements.
 
-The unchanged compiled payloads pass **full Core 3446/64 exact skips** and **full App 1398/25 exact skips**, actually overlapping in time. All **3488** preceding Core outcome/message records and all **1423** preceding App records/exact skips remain, with one verified PE assembly-path display adaptation. All **358** selected archive/edit/direct-viewer App results, including two exact skips, agree with that preceding full App. Exact committed/original hosted checks, aggregate/reference/native/frame/human/candidate scope remain. I06 stays open; I106/I110 HOLD and human GO remain.
+The unchanged compiled payloads pass **full Core 3446/64 exact skips** and **full App 1398/25 exact skips**, actually overlapping in time. All **3488** preceding Core outcome/message records and all **1423** preceding App records/exact skips remain, with one verified PE assembly-path display adaptation. All **358** selected archive/edit/direct-viewer App results, including two exact skips, agree with that preceding full App. Exact committed checks pass below; original hosted and aggregate/reference/native/frame/human/candidate scope remain. I06 stays open; I106/I110 HOLD and human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -29,3 +29,25 @@ Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain com
 | `i06-progressive-capture-retirement-20261009-v2/seal-progressive-batch-v1.py` | `3945374ac006ab4c2fe315610e199057868a38c16f6af6689d3527641adb3da2` |
 | `i06-progressive-capture-retirement-20261009-v2/independent-progressive-batch-final-v1.json` | `e797d74898363277c5e58dce58123cdd04eeffd4daf20f4a4ed85a6827b2f4f8` |
 | `E:/FileCat/artifacts/release-evidence/i06-progressive-capture-retirement-20261009-v2/owned-temporary-files-v1.zip` | `211c26268359ddea55e9c2c4286f7cf1f32ec49e69e85bbd0bb16af52fce5632` |
+
+
+## Exact committed follow-up
+
+No-overlay **f56f9de148ed65653f815a4f42194afcfcf94b8f** verifies all **1366 canonical Git blobs** and passes all **22 controls**. Every private/exact outcome, message and retirement/live-lease/cleanup-error observation agrees apart from owned roots and archive creation hashes. The reader rechecks every canonical source byte and archives three owned temporary files; one is removed and two compiler locks remain. This is not a full-suite or whole-process/native frame/candidate repeat.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain complete commands, raw outputs and source identities.
+
+| File | SHA256 |
+|---|---|
+| `i292-committed-20261009-v1/seal-exact-v1.py` | `e79283406973a1f3363acc2b740fb47375ba45cde7e664945029b0e3def19d84` |
+| `i292-committed-20261009-v1/independent-exact-final-v1.json` | `6e3e065ebd260883b2af3c0670816b46b7a7f4a9d87979a760a0b2978dda2e01` |
+| `E:/FileCat/artifacts/release-evidence/i292-committed-20261009-v1/committed/core-controls/command.json` | `54bea163e1ea0165c3997768ebd601879c35d73aa915d19a361593117c1ed650` |
+| `E:/FileCat/artifacts/release-evidence/i292-committed-20261009-v1/committed/inputs.json` | `33b10c02b8858bab55519d36d6caced288071fd692dfdd2937c560dc1806af33` |
+
+
+## Original hosted follow-up
+
+[37994261915 attempt 1](E-CI-progressive-capture-retirement.md) at exact f56f9de passes four lanes/30,172 results, including 88 new controls; all preceding outcomes/messages/exact skips remain. Windows sharing and unavailable Unix oracles stay separately qualified. Aggregate/native/frame/reference/human/candidate scope remains.

@@ -39,3 +39,8 @@ Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain com
 | `i291-committed-20261009-v1/independent-exact-final-v1.json` | `58d81bd3cd13980924975397ed3edda405d5eefb74780e451f1bbab9b9fdc573` |
 | `E:/FileCat/artifacts/release-evidence/i291-committed-20261009-v1/committed/app-controls/command.json` | `b352ab98d20f187053aa930e98da1c81afe4988573a1fa459ad361e97a3fc26e` |
 | `E:/FileCat/artifacts/release-evidence/i291-committed-20261009-v1/committed/inputs.json` | `11b7a12bb437c51e8af343dc7159e64ffed60941600084ab62e9a6a9e52943cd` |
+
+
+## Original hosted follow-up
+
+[37992307737 attempt 1](E-CI-directory-overlap-fixture.md) at exact adc5405 passes four lanes/30,084 records; four overlap observations and all predecessor outcomes/messages/exact skips remain. The earlier failed About run and unproven historical cause stay separately qualified. Broader native watcher/current-demand/candidate scope remains.

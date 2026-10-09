@@ -1,9 +1,9 @@
 # FileCat 1.0.0 — current gates and dependencies
 
-Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
+Updated 2026-10-10. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I292](evidence/E-I292-progressive-capture-retirement.md) passes 22 ownership controls and both full suites; exact/hosted follow-up remains. I291 three exact controls pass; repaired original CI remains. I290 original CI passes four lanes/sixty new controls. [I06 resource progress](evidence/E-I06-resource-progress.md) stays open. No owner/platform/people/physical-source/candidate gate is waived; prior wording remains in the activity log.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I293/I294](evidence/E-I293-job-manager-retirement.md) pass 24 job ownership controls and both full suites; exact/hosted follow-ups remain. I292 passes 22 exact/88 original hosted controls; repaired overlap CI passes four lanes. [I06 resource progress](evidence/E-I06-resource-progress.md) stays open. No owner/platform/people/physical-source/candidate gate is waived.
 
 ## Safety and publication holds
 
