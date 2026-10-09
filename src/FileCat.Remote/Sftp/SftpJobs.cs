@@ -779,6 +779,12 @@ internal sealed class SftpUploadExecutor(Job job, IFileSystemOperations fs, JobJ
         }
         Changed(folder);
         var current = Entry(folder, name);
+        // Uploading can take a long time: recheck the edit's approved revision before any target mutation.
+        // This fresh metadata check does not provide a server-side atomic compare-and-replace.
+        if (Job.Request.ExpectedTarget is { } expected &&
+            (current is null || current.IsLink || current.IsDirectory || current.Size != expected.Length || current.ModifiedUtc.Ticks != expected.ModifiedTicks))
+            throw new RefusedOperationException(current is null ? "Not written: the file is gone from the server; your edit is kept."
+                : "Not written: the file changed on the server while the edit was uploading; your edit is kept.");
         if (current is { IsLink: true })
         {
             // A link is replaced itself, never through to its target.

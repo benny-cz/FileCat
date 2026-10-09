@@ -12,7 +12,7 @@ All **96 corrected controls pass**. Closure observes no published record; only t
 
 The **same unchanged compiled App payload** passes **287 edit cases**, preserving all **191 preceding edit outcome/message multiplicities** including admission, preparation, demand, commit and save-copy controls. This is not a full App-suite replay. Complete Core and Remote regressions pass **2829/64 exact skips** and **2276/156 exact skips** respectively; every prior 2893 Core logical and 2432 Remote outcome/message multiplicity remains. One Core PE-inspector display label changes with its actual isolated assembly path; the identical defined method is verified and only that label is adapted. All actual labels and duplicate multiplicities remain, rather than claiming byte-identical display names.
 
-Both source exports contain **1321 canonical original Git blobs**, plus only the identical new fixture and, in the corrected producer, two production overlays. Complete commands, locked restore inputs, actual payload hashes, raw TRXs, original failures and semantic comparisons remain. Exact committed/four-lane qualification of I278 remains pending; [I277's separate completed audit](E-CI-edit-admission-preservation.md) applies only to its own earlier source.
+Both source exports contain **1321 canonical original Git blobs**, plus only the identical new fixture and, in the corrected producer, two production overlays. Complete commands, locked restore inputs, actual payload hashes, raw TRXs, original failures and semantic comparisons remain. Exact committed/four-lane qualification of I278 follows below; [I277's separate completed audit](E-CI-edit-admission-preservation.md) applies only to its own earlier source.
 
 All **288 recorded source paths and fixture directories are absent**. 22 owned temporary files are archived/rechecked, 13 removed and 9 exact compiler/analyzer locks retained. Root absence in original/fixed/edit/Core/Remote order is false, true, true, true, true. Earlier retained locks keep their separate qualifications; no global compiler termination or restoration claim occurs.
 
@@ -42,3 +42,22 @@ Paths are relative to the private FileCatReleaseEvidence root unless absolute. N
 | `E:/FileCat/artifacts/release-evidence/edit-publication278-v1/fixed/edit-regression-v1/command.json` | `316ee93435c07cfbbfd1ef4626e32d7861bea7560c4a4bdcf2954c47cf1f73a9` |
 | `E:/FileCat/artifacts/release-evidence/edit-publication278-v1/fixed/core-regression-v1/command.json` | `d297a9da8990d8c37d52b2a0feef4170617001fabc43f8fd12645158e752c51a` |
 | `E:/FileCat/artifacts/release-evidence/edit-publication278-v1/fixed/remote-regression-v1/command.json` | `77e542825a4ef16ff29531841e7ea36e45e6d3dd3f41785f54a28d1874a28716` |
+
+## Exact committed and hosted follow-up
+
+Canonical **0dc7380** repeats all **96 controls successfully**, with **1324 exact Git blobs and no overlays**. The committed production and fixture bytes exactly match the privately tested bytes. Independent reading compares all semantic observations except actual paths, ZIP timestamp-derived archive hashes and actual stacks; every individual archive remains unchanged. All source/fixture paths are absent. One owned temporary file is archived/rechecked and removed, with no locks and that root absent. No full committed App/Core/Remote-suite replay is inferred.
+
+[Original four-lane run 37950046170](E-CI-edit-session-publication.md) passes all **384 I278 executions and 27,236 actual records**, preserving every predecessor multiplicity and exact skip. A prior GitHub discovery call retains its actual TCP connection error; the combined shell's final exit status is not misrepresented as the unavailable individual gh exit status. The fresh bounded discovery succeeds with separately captured stdout/stderr. There is no product/CI failure or retry inference.
+
+These checks apply to I278's exact producer and do not qualify I279's later upload-target correction or close native/candidate scope.
+
+| File | SHA256 |
+|---|---|
+| `edit-publication278-v1/committed-source-comparison-v1.json` | `1ab9517d96a3b5a989654740a45ce29d7ea384db3b712dfdc18d7dc03ae9162d` |
+| `edit-publication278-v1/exact-repeat-preparation-v1.json` | `4e3500fe944fcb72eeb7899211f98f4a77ed0b15ef85ba4db48ae8e9555200c9` |
+| `edit-publication278-v1/run-exact-committed-edit-v1.py` | `0f47c7d33bb9885c1754d7ed447da7ba5e192a0dfc351a1d14dfe91d193285bf` |
+| `edit-publication278-v1/seal-exact-committed-edit-v1.py` | `2306be47f51759b2435c8a7da2d54ccb15ee78d3a6e5c3a1e44bebd792b2cdc6` |
+| `edit-publication278-v1/independent-exact-committed-edit-v1.json` | `5d9440a8f6eb3dcf0dadff0cae9cc4bc1a86b818f0f5ca1f0c8387b728c502e9` |
+| `edit-publication278-v1/edit-publication-main-push-v1.json` | `770f7090329fe49d35e274bc9faed0052dd0f578c0c55b7d9e22043acaf90e7f` |
+| `edit-publication278-v1/ci-discovery-connectivity-v1.json` | `6c266311ab5f154856054a953b308a0d0d77cba9f9f6b39bafcc69060385b6fe` |
+| `edit-publication278-v1/ci-discovery-v2-command.json` | `ca92b803039ccdfcad41dab2b3880b75474e50598108dfcfff46178f0e7df40a` |

@@ -1470,3 +1470,44 @@ Local test capacity: [I277](evidence/E-I277-edit-admission-error-preservation.md
 | E-I277 | Edit admission primary exception preservation | Original 3ef7b0a plus declared test/fix overlays | 12 original failures/12 passes to 24 passes; unchanged-payload 191 edit regressions preserve 167 prior hosted outcomes/messages; 72 holder paths absent; compiler locks qualified; committed/hosted pending | [Full record](evidence/E-I277-edit-admission-error-preservation.md) | I06, I277, V07, V08, V11, V23 |
 
 The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I275/I276 hosted audits](evidence/E-CI-content-open-comparison-retirement.md) retain their exact four-lane qualification. [I277](evidence/E-I277-edit-admission-error-preservation.md) passes 24 controls/191 edit regressions; committed/hosted correction checks remain. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-edit-admission-batch) preserves original failures, provenance limits and restoration qualifications. Twenty broader unresolved scopes and owner/platform/people/physical-source/candidate gates remain. No device/account/Mac/VM/persistent policy change occurs.
+
+## 2026-10-09 — edit-target publication and complete F4 hosted batch
+
+[I278](evidence/E-CI-edit-session-publication.md) passes 96 canonical committed controls and all 384 original four-lane executions at 0dc7380/37950046170 attempt 1. All 27,236 actual records preserve every 26,852 predecessor outcome/message multiplicity and exact skip. Twenty-one server-digest ZIPs, fourteen TRXs, 92 graphs and four toolchain/asset receipts verify. A prior discovery connection error and the fresh separately captured successful discovery retain exact scope. No CI retry/dispatch/candidate claim. Exact committed I278 archives/rechecks and removes one owned temporary file; no locks/root remain.
+
+[I279](evidence/E-I279-remote-edit-target-publication.md) corrects the late edit-target precondition omission in the actual upload executor. Original 40 failures/16 passes retain 36 changed destinations replaced/recreated and four directory refusals after a replacement attempt/question. All 56 corrected controls/full Remote 2332 passes/156 exact skips and 287 headless edit cases pass. Every 2432 Remote and 287 edit predecessor outcome/message multiplicity remains. All 168 owned source/fixture paths are absent. 13 owned temporary files are archived/rechecked, 4 removed and 9 compiler/analyzer locks retained. Root absence in original/fixed/App/Remote order is false, true, true, true.
+
+Counts: 279 issue IDs/257 preliminary remediations/two preliminary Closed/twenty broader unresolved; 306 evidence entries/5292 selected pins. I279 committed/hosted, atomic/full-byte/native scope and every broader gate remain. No workstation UI, physical source, global process or persistent policy change occurs. Superseded current wording follows intact.
+
+<a id="scope-before-edit-target-publication-batch"></a>
+### State before remote edit-target publication correction
+
+Exact committed/four-lane qualification of I278 remains pending;
+
+278 IDs: 256 Remediated preliminarily
+
+304 entries; 5261 selected private evidence hashes: prior closed audits retained, with 33 added pins checked in incremental audit v176.
+
+| 10 — high-risk validation/remediation | In progress; 256 preliminary remediations and retained adverse controls. |
+
+| Latest local validation | [I278](evidence/E-I278-edit-session-publication.md): 96 complete headless F4 controls/287 unchanged-payload edit cases pass; full Core 2829/64 exact skips and Remote 2276/156 exact skips pass. | All 191 prior edit, 2893 logical Core and 2432 Remote outcome/message multiplicities remain; one actual Core assembly-path label is explicitly adapted. Original 68 failures/28 passes remain. Canonical 1321-blob original plus declared overlays; I278 committed/hosted checks pending. |
+
+| Last fully audited CI | [37946604694 attempt 1 at a8cee66](evidence/E-CI-edit-admission-preservation.md): four required lanes pass; 26,852 actual records/96 new I277 passes. | Every 26,756 predecessor outcome/message multiplicity and exact skip remains; 21 selected ZIPs/14 TRXs/92 graphs/four toolchain and asset receipts checked. Preliminary hosted evidence; no candidate. I278 is a later change. |
+
+Latest batch: [I278](evidence/E-I278-edit-session-publication.md) closes owned archive/server edit content before session publication and preserves primary copy failures. All 96 F4 controls and 287 edit regressions pass, with full Core/Remote predecessor outcomes and exact skips retained. [I277](evidence/E-CI-edit-admission-preservation.md) also completes exact committed/four-lane checks. I278 committed/hosted checks remain. Twenty broader unresolved scopes and all 24 final-candidate campaigns remain.
+
+Local test capacity: [I278](evidence/E-I278-edit-session-publication.md) retains its exact owned temporary archive/removal/lock inventory; all 288 recorded source paths and fixture directories are absent. I277 exact committed testing separately archives/rechecks ten files, removes one and retains nine compiler locks/root. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-edit-publication-batch) preserves older restoration qualifications. No global compiler termination or restoration claim.
+
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | [Last complete hosted audit at a8cee66](evidence/E-CI-edit-admission-preservation.md) retains 26,852 records/all preceding multiplicities and exact skips. [I278](evidence/E-I278-edit-session-publication.md) passes 96 full F4 controls/287 edit cases and full Core/Remote regressions; committed/hosted checks pending. Continue wider provider/account/permission/drop/reconnect, applicable second SMB, identity/alias/deletion/resource/consumer/native/reference/human/candidate scope. [Complete prior state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-edit-publication-batch). |
+
+| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: [last complete hosted audit at a8cee66](evidence/E-CI-edit-admission-preservation.md) retains 26,852 records/all predecessor outcome/message multiplicities and exact skips. [I278](evidence/E-I278-edit-session-publication.md) preserves full F4 copy failures and closes before publication: 96 controls/287 edit cases plus full Core 2829/64 and Remote 2276/156 pass; committed/hosted checks pending. Wider provider/account/permission/drop/reconnect, second SMB, identity/alias/deletion/resource/consumer/native/reference/human/candidate scope remains. | [Complete prior state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-edit-publication-batch) |
+
+| I278 | <a id="i278"></a>Owned edit content closes after publication or masks the copy error | Medium (session/error integrity) | Fix (I06/V07/V08/V11/V23) | Remediated preliminarily — archive/server F4 closes owned content before publishing the session, preserving the primary copy error. Original 68 failures/28 passes become 96 passes; unchanged-payload 287 edit cases retain 191 prior outcomes. Full Core 2829/64 exact skips and Remote 2276/156 exact skips preserve predecessor multiplicities, with one declared assembly-path display adaptation. Actual headless F4/owned streams, controlled provider; committed/hosted/native/candidate scope remains. | [Full record](evidence/E-I278-edit-session-publication.md) |
+
+## Maintenance
+
+304 evidence entries
+
+| E-I278 | Owned edit-source closure before publication | Original a8cee66 plus declared test/two production overlays | 68 failures/28 passes to 96 passes; unchanged-payload 287 edit cases retain 191 prior outcomes; full Core 2829/64 and Remote 2276/156 retain logical outcomes/exact skips; 288 holders absent; committed/hosted pending | [Full record](evidence/E-I278-edit-session-publication.md) | I06, I278, V07, V08, V11, V23 |
+
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I277](evidence/E-CI-edit-admission-preservation.md) completes exact committed and original four-lane qualification. [I278](evidence/E-I278-edit-session-publication.md) passes 96 F4 controls/287 edit cases/full Core and Remote regressions; committed/hosted checks remain. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-edit-publication-batch) preserves original failures, provenance and restoration limits. Twenty broader unresolved scopes and owner/platform/people/physical-source/candidate gates remain. No device/account/Mac/VM/persistent policy change occurs.

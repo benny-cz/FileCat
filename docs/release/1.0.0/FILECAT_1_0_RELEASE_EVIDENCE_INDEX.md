@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**304 evidence entries; none is final candidate qualification.** No candidate exists.
+**306 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -327,4 +327,7 @@ Add or update one inventory row in ID order; put full execution detail in the in
 | E-I277 | Edit admission primary exception preservation | Original 3ef7b0a plus declared test/fix overlays | 12 original failures/12 passes to 24 passes; unchanged-payload 191 edit regressions preserve 167 prior hosted outcomes/messages; 72 holder paths absent; compiler locks qualified; 24 exact committed controls and 96 four-lane executions pass at a8cee66 | [Full record](evidence/E-I277-edit-admission-error-preservation.md) | I06, I277, V07, V08, V11, V23 |
 
 | E-CI-EDIT-ADMISSION | Complete original four-lane edit admission audit | 37946604694 attempt 1 at a8cee66 | 26852 actual records/96 added passes; all predecessor multiplicities/exact skips; 21 ZIPs/14 TRXs/92 graphs; original failures retained | [Full audit](evidence/E-CI-edit-admission-preservation.md) | I06, I277, V07, V08, V11, V20, V23 |
-| E-I278 | Owned edit-source closure before publication | Original a8cee66 plus declared test/two production overlays | 68 failures/28 passes to 96 passes; unchanged-payload 287 edit cases retain 191 prior outcomes; full Core 2829/64 and Remote 2276/156 retain logical outcomes/exact skips; 288 holders absent; committed/hosted pending | [Full record](evidence/E-I278-edit-session-publication.md) | I06, I278, V07, V08, V11, V23 |
+| E-I278 | Owned edit-source closure before publication | Original a8cee66 plus declared test/two production overlays | 68 failures/28 passes to 96 passes; unchanged-payload 287 edit cases retain 191 prior outcomes; full Core 2829/64 and Remote 2276/156 retain logical outcomes/exact skips; 288 holders absent; 96 exact committed controls and 384 four-lane executions pass at 0dc7380 | [Full record](evidence/E-I278-edit-session-publication.md) | I06, I278, V07, V08, V11, V23 |
+
+| E-CI-EDIT-PUBLICATION | Complete original four-lane edit-session publication audit | 37950046170 attempt 1 at 0dc7380 | 27236 actual records/384 added passes; every predecessor multiplicity/exact skip; 21 ZIPs/14 TRXs/92 graphs; raw discovery failure retained | [Full audit](evidence/E-CI-edit-session-publication.md) | I06, I278, V07, V08, V11, V20, V23 |
+| E-I279 | Remote edit target recheck after upload | Original 0dc7380 plus fixture/one production overlay | 40 failures/16 passes to 56 passes; full Remote 2332/156 exact skips and 287 edit cases preserve predecessor outcomes; 168 owned source/fixture paths absent; committed/hosted pending | [Full record](evidence/E-I279-remote-edit-target-publication.md) | I06, I279, V08, V11, V23 |
