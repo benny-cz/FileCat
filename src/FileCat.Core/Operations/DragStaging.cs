@@ -34,6 +34,7 @@ public static class DragStaging
         string folder = Path.Combine(tempRoot, Folder, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(folder);
         var staged = new List<string>();
+        long copied = 0;
         try
         {
             foreach (var item in items)
@@ -44,6 +45,7 @@ public static class DragStaging
                 using var content = Content.ProgressiveContent.Sequential(provider.OpenContent(item));
                 if (content is null) return Fail(folder, $"\"{item.Name}\" has no readable content (for example an encrypted archive entry).");
                 string target = Unique(folder, item.Name);
+                bool tooLarge = false;
                 using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan))
                 {
                     var buffer = new byte[1024 * 1024];
@@ -52,11 +54,13 @@ public static class DragStaging
                     while ((n = content.Read(offset, buffer)) > 0)
                     {
                         ct.ThrowIfCancellationRequested();
+                        if (n > MaxBytes - copied) { tooLarge = true; break; }
                         output.Write(buffer, 0, n);
                         offset += n;
-                        if (offset > MaxBytes) return Fail(folder, $"\"{item.Name}\" is larger than its listing said; copy it with F5.");
+                        copied += n;
                     }
                 }
+                if (tooLarge) return Fail(folder, $"\"{item.Name}\" is larger than its listing said; copy it with F5.");
                 // Lost bytes would travel unannounced: those items go through F5, whose report names them.
                 if (content is IPartialContent { MissingRanges.Count: > 0 })
                     return Fail(folder, $"Parts of \"{item.Name}\" are lost, so it is recovered with F5, which says which bytes are zeros.");

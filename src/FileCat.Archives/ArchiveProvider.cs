@@ -212,8 +212,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
             cached.Touch();
             return cached;
         }
-        foreach (var k in _cache.Keys.Where(k => k.StartsWith(path + "|", StringComparison.OrdinalIgnoreCase)).ToList())
-            if (_cache.TryRemove(k, out var old)) old.Dispose();
+        Release(path);
         string displayName = Path.GetFileName(DisplayArchive(root));
         var kind = root.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var k2) ? k2
             : ArchiveFormats.ByName(displayName) ?? throw new InvalidDataException("This file is not in an archive format FileCat reads.");
@@ -315,8 +314,18 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
 
     public void Release(string archivePath)
     {
+        Exception? failure = null;
         foreach (var k in _cache.Keys.Where(k => k.StartsWith(archivePath + "|", StringComparison.OrdinalIgnoreCase)).ToList())
-            if (_cache.TryRemove(k, out var old)) old.Dispose();
+        {
+            if (!_cache.TryRemove(k, out var old)) continue;
+            try { old.Dispose(); }
+            catch (Exception ex)
+            {
+                if (failure is null) failure = ex;
+                else FileCat.Core.Diagnostics.AppLog.Warn("Secondary archive index cleanup failure: " + ex.GetType().Name);
+            }
+        }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }
 
