@@ -13,7 +13,7 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
-public sealed class DirectoryDiffTests
+public sealed class DirectoryDiffTests(ITestOutputHelper output)
 {
     [AvaloniaFact]
     public async Task Ctrl_F10_with_subfolders_previews_differences_and_opens_them_as_results()
@@ -67,6 +67,11 @@ public sealed class DirectoryDiffTests
         try
         {
             var ct = TestContext.Current.CancellationToken;
+            // This test qualifies overlap/synchronization policy, not asynchronous native watcher delivery.
+            // Keep its owned listings stable; watcher/current-demand behavior has separate controls.
+            const bool isolateOwnedWatchers = true;
+            if (isolateOwnedWatchers)
+                foreach (var p in vm.Workspace.Panels) p.ActiveTab!.IsActiveTab = false;
             string parent = Directory.CreateDirectory(Path.Combine(root, "P")).FullName;
             string inner = Directory.CreateDirectory(Path.Combine(parent, "backup")).FullName;
             File.WriteAllText(Path.Combine(parent, "a.txt"), "a");
@@ -89,8 +94,32 @@ public sealed class DirectoryDiffTests
             for (int i = 0; i < 250 && !window.GetVisualDescendants().OfType<CheckBox>().Any(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true); i++)
                 await Task.Delay(20, ct);
             window.GetVisualDescendants().OfType<CheckBox>().Single(c => (c.Content as string)?.StartsWith("Include subfolders", StringComparison.Ordinal) == true).IsChecked = true;
+            var left = vm.Workspace.Panels[0].ActiveTab!; var right = vm.Workspace.Panels[1].ActiveTab!;
+            int leftGeneration = left.Listing.Generation, rightGeneration = right.Listing.Generation;
+            bool watched = left.IsWatching;
+            // Owned fixture churn while the options are open must not be mistaken for a failed overlap check.
+            string witness = Path.Combine(parent, "watcher-witness.txt");
+            File.WriteAllText(witness, "owned comparison watcher witness");
+            if (watched)
+            {
+                for (int i = 0; i < 500 && left.Listing.Generation == leftGeneration; i++) await Task.Delay(20, ct);
+                Assert.NotEqual(leftGeneration, left.Listing.Generation);
+            }
+            Assert.Equal(!isolateOwnedWatchers, watched);
+            if (isolateOwnedWatchers)
+            {
+                Assert.False(right.IsWatching);
+                Assert.Equal(leftGeneration, left.Listing.Generation);
+                Assert.Equal(rightGeneration, right.Listing.Generation);
+            }
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await comparison.WaitAsync(TimeSpan.FromSeconds(15), ct);
+            output.WriteLine("DIRECTORY_OVERLAP_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(new {
+                isolateOwnedWatchers, watched, leftGeneration, rightGeneration,
+                leftAfter = left.Listing.Generation, rightAfter = right.Listing.Generation,
+                actualCompletedCommand = comparison.IsCompletedSuccessfully,
+                windows = DirectoryDiffWindow.OpenWindows.Count, ownedWitnessBytes = File.ReadAllText(witness), root,
+                historicalCIWatcherCauseNotEstablished = true }));
             var diff = Assert.Single(DirectoryDiffWindow.OpenWindows);
             for (int i = 0; i < 250 && diff.IsComparing; i++) await Task.Delay(20, ct);
             Assert.False(diff.OffersSync);

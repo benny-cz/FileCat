@@ -10,7 +10,7 @@ Six public-API controls compare per-field Forget with complete Invalidate across
 
 All **87 affected App metadata/verification controls** pass and retain their outcome/messages from the preceding full App run. The unchanged compiled full Core suite passes **3409/64 exact skips**, preserving all **3467** preceding Core outcome/message records and exact skip reasons. One PE display path is adapted only after verifying the same method. This batch does not replay the full App suite. Its separate earlier I288 full App producer remains 1398/25. The test launcher declares a short owned temporary root to avoid the already demonstrated GnuPG harness path sensitivity; no global GnuPG configuration changes.
 
-The final receipt records every archived, rehashed, removed or locked file under both exact owned temporary roots. Exact committed checks are recorded below; original hosted checks, broader metadata/cache bytes, aggregate jobs/results/providers/pictures, arbitrary schedules/native/reference and candidate acceptance remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
+The final receipt records every archived, rehashed, removed or locked file under both exact owned temporary roots. Exact committed checks are recorded below; original hosted checks pass as linked below; broader metadata/cache bytes, aggregate jobs/results/providers/pictures, arbitrary schedules/native/reference and candidate acceptance remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -33,7 +33,7 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 
 ## Exact committed follow-up
 
-No-overlay **96977d456767389424c07a8fde10e278c95615de** verifies all 1358 canonical Git blobs and passes all six controls, with every private/exact outcome/message and semantic observation matching apart from owned roots. Ordering slots equal live values in every case. Four owned temporary files are archived/rechecked; two are removed and two compiler locks remain explicitly recorded. No full suite, native, aggregate, throughput or candidate replay is claimed. Original hosted checks remain.
+No-overlay **96977d456767389424c07a8fde10e278c95615de** verifies all 1358 canonical Git blobs and passes all six controls, with every private/exact outcome/message and semantic observation matching apart from owned roots. Ordering slots equal live values in every case. Four owned temporary files are archived/rechecked; two are removed and two compiler locks remain explicitly recorded. No full suite, native, aggregate, throughput or candidate replay is claimed. Original hosted checks pass as linked below.
 
 
 ## Selected immutable follow-up receipts
@@ -46,3 +46,8 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain com
 | `i289-committed-20261009-v1/independent-exact-final-v1.json` | `8ec8ba21b6546a96eb8bbc09fcc3ba2abd5418e12e60148e23623ad4d5f4462f` |
 | `E:/FileCat/artifacts/release-evidence/i289-committed-20261009-v1/committed/core-controls/command.json` | `b9001700c3bd9d38839312db7b01c9c1f1d175e7ea429424de52eca6c5048b20` |
 | `E:/FileCat/artifacts/release-evidence/i289-committed-20261009-v1/committed/inputs.json` | `45f6160e361ea788e943dbab803508aad0f6d0d3ff8ac175927499d31bf91c25` |
+
+
+## Original hosted follow-up
+
+[37988669063 attempt 1](E-CI-metadata-order-retirement.md), exact 96977d4, passes all four required lanes. Its 30,024 records include 24 new metadata passes and 116 About passes beyond the preceding fully qualified 63f5abad producer. Every one of those 29,884 earlier qualified outcome/message records and exact skips remains. The separately failed 88a107d run is retained; this later successful unchanged DirectoryDiff case does not establish its historical cause. I291 repair, aggregate/throughput/native/candidate scope remains separate.
