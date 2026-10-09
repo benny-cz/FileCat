@@ -16,6 +16,7 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
     public static TheoryData<string, string, int, int> Exchanges => new()
     {
         { "small-both", "stdout", 1024, 1024 },
+        { "slow-owned-startup", "stdout", 1024, 1024 },
         { "large-input-only", "stdout", 0, 1048576 },
         { "large-output-only", "stdout", 131072, 0 },
         { "large-stderr-only", "stderr", 131072, 0 },
@@ -51,9 +52,13 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
         JsonElement[] phases = [];
         try
         {
-            string[] arguments = [script, ledger, channel, prefixBytes.ToString(), mode is "deadline" or "cancel" ? "hang" : "normal"];
+            int startupDelaySeconds = name == "slow-owned-startup" ? 6 : 0;
+            string[] arguments = [script, ledger, channel, prefixBytes.ToString(), mode is "deadline" or "cancel" ? "hang" : "normal", startupDelaySeconds.ToString()];
             Stopwatch clock = Stopwatch.StartNew();
-            var pending = SmbTools.RunAsync(python!, arguments, TimeSpan.FromSeconds(mode == "deadline" ? 2 : 5), cancel.Token, input);
+            // A healthy pipe exchange includes interpreter startup on the hosted runner.
+            // Keep the adverse deadline/cancellation controls short and independent.
+            int toolTimeoutSeconds = mode is "normal" or "cap" ? 30 : mode == "deadline" ? 2 : 5;
+            var pending = SmbTools.RunAsync(python!, arguments, TimeSpan.FromSeconds(toolTimeoutSeconds), cancel.Token, input);
             if (mode == "cancel")
             {
                 while (!ReadPhases(ledger).Any(v => v.GetProperty("Phase").GetString() == "input-read"))
@@ -65,7 +70,7 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             }
             (int Code, string Output, string Errors)? observed = null;
             Exception? error = null;
-            try { observed = await pending.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); }
+            try { observed = await pending.WaitAsync(TimeSpan.FromSeconds(35), TestContext.Current.CancellationToken); }
             catch (Exception failure) { error = failure; }
             clock.Stop();
             phases = ReadPhases(ledger);
@@ -74,6 +79,7 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             output.WriteLine(JsonSerializer.Serialize(new
             {
                 Case = name, Channel = channel, PrefixBytes = prefixBytes, InputBytes = inputBytes, Mode = mode,
+                ControlledStartupDelaySeconds = startupDelaySeconds, ToolTimeoutSeconds = toolTimeoutSeconds,
                 ErrorType = error?.GetType().Name, ErrorMessage = error?.Message, ActualExitCode = observed?.Code,
                 ElapsedMilliseconds = clock.ElapsedMilliseconds, ActualOutputBytes = actualOutput.Length, ActualErrorBytes = actualErrors.Length,
                 ActualOutputSHA256 = Convert.ToHexString(SHA256.HashData(actualOutput)), ActualErrorsSHA256 = Convert.ToHexString(SHA256.HashData(actualErrors)),
@@ -135,7 +141,8 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
 
     private const string Child = """
         import hashlib,json,os,sys,threading,time
-        ledger,channel,prefix,mode=sys.argv[1:]
+        ledger,channel,prefix,mode,startup_delay=sys.argv[1:]
+        time.sleep(int(startup_delay))
         prefix=int(prefix)
         def note(**values):
             values['PID']=os.getpid()
