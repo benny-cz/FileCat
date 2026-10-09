@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**312 evidence entries; none is final candidate qualification.** No candidate exists.
+**313 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -22,6 +22,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-ENV-CI-ARM | Native ARM64 FTP/TLS fixture repair and exact original transition | Exact 67f648a; CI 37840738731 attempt 1 | Forty ARM skips become passes; 160 current FTP/Git passes; original install failure, selected wheels and all artifact/restore receipts retained | [E-ENV-CI-ARM](evidence/E-ENV-CI-ARM64-FTP-fixture.md) | ENV-06, I06, I18, V08 |
 | E-ENV-MAC-1 | Temporary awake/sudo/desktop-session support | Pinned native C/session/power controls; no production change | Verified preliminary environment controls | [E-ENV-MAC-1](evidence/E-ENV-MAC-1-temporary-native-session.md) | ENV-01, V09, native consent |
 | E-ENV-STORAGE | Evidence inventory and transparent NTFS compression; every original file retained | Main a4504f1; no product change | Verified storage maintenance; 9.10 GB reclaimed, no qualification claim | [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) | Evidence retention, I110 physical-source hold |
+| E-ENV-STORAGE-ARTIFACTS | Lossless artifact compaction with complete path/hash/metadata recheck | Main daccc62; 2026-10-09 storage maintenance | 20.75 GB allocation reduction; 296,743 paths retained/3,885 files compressed; no source or qualification change | [Full record](evidence/E-ENV-STORAGE-artifact-compaction.md) | Environment/storage, evidence retention |
 | E-I03-ADVISORIES | Fresh App package advisory query and range comparison | 8502983 actual App assets; 2026-10-06 official feed | Preliminary finite query; native/runtime/unknown advisories/legal/candidate open | [E-I03-ADVISORIES](evidence/E-I03-ADVISORIES-current-app-query.md) | I03, V20 |
 | E-I03-APPIMAGE | Actual wrapper input/transformation and original notice inclusion | 145f569 before; 0d61dbb/CI 37492084054/37492315642 correction | Preliminary correction sealed; static composition/legal obligations/candidate open | [E-I03-APPIMAGE](evidence/E-I03-APPIMAGE-runtime-inputs.md) | I03, I14, V20 |
 | E-I03-CHECKSUM | Native embedded-checksum observations | Actual 145f569/8502983 CI AppImages; immutable appimagetool 8c8c91f source | Finite Linux checksum matches; generic semantics/authenticity/source/candidate open | [E-I03-CHECKSUM](evidence/E-I03-CHECKSUM-native-observations.md) | I03, V20 |
