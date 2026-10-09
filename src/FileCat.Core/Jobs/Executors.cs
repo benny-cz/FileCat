@@ -381,7 +381,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (info is null) { _discoveryReliable = false; continue; }
             if (!info.IsDirectory || info.IsLink)
             {
-                CountTransferItem(Math.Max(0, info.Size), VerifyWork(info.IsLink ? 0 : info.Size), discovered: true);
+                CountTransferItem(info.IsLink ? 0 : Math.Max(0, info.Size), VerifyWork(info.IsLink ? 0 : info.Size), discovered: true);
                 continue;
             }
             var stack = new Stack<string>();

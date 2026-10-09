@@ -1,0 +1,29 @@
+# E-I06 — resource progress and remaining executable work
+
+2026-10-09. I06 remains open. This matrix tracks six resource groups, not six individual tests or a completion percentage. Original operational authority and acceptance criteria are unchanged. Existing page/cache decisions stay decided; no aggregate picture limit or acceptance result is invented.
+
+| Resource group | Retained preliminary evidence | Remaining executable scope |
+|---|---|---|
+| 1. Shared content pages | [Page-cache fix](E-I06-P1-page-cache-budget.md): default 64 MiB shared target; thirteen-reader 148 MiB case becomes 64 MiB. Each reader keeps four pages; sufficiently many readers can exceed the target through those documented floors. DEC-06 is closed in the execution/gate history. | Qualify chosen settings, saturation and consumer retirement at the exact candidate; distinguish the documented floor from a strict process-memory ceiling. Do not reopen the decided target merely because the exception exists. |
+| 2. Archive indexes and listings | [ZIP/TAR indexes](E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
+| 3. Decoded pictures | [F3](E-I06-B1-retained-picture-memory.md) retains eight 4096² buffers/512 MiB in the measured case; [QuickView](E-I06-B2-quickview-picture-memory.md) covers replacement/fallback/detach on host/VM/Mac/Ubuntu. [Pixel fidelity](E-I190-picture-pixel-fidelity.md) and [display controls](E-I06-B5-picture-display-controls.md) retain their distinct exact sources. | All simultaneous visible/hidden consumers, cancellation/error/close, aggregate worker/parent ownership and native allocation observations; document a justified limit or owner decision if a new cap is needed. Mac PrivateBytes zero remains unavailable. |
+| 4. Borrowed icons and controls | [Borrowed-icon controls](E-I06-B3-borrowed-icon-memory.md) qualify bounded cache eviction versus held borrowers. [I283](E-I283-choice-icon-lifetime.md) now retires filtered chooser Images/bitmaps in eighteen controls, including separate actual Skia runs. | Places/hidden panels, other dialogs and recycled consumers, native source queues/workers, pending notifications, submitted frames and aggregate retention. A weak cache or one corrected borrower does not qualify every consumer. |
+| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
+| 6. Whole-process/native/frame accounting | Native/component controls preserve exact producer, environment and available counters. Offscreen pixel extents are explicitly distinct from total native/process memory. | Correlate managed, native, file mappings, worker/parent and frame lifetimes across the required reference/platform workloads. Required human/native-input/frame and exact-candidate acceptance remains separate from headless tests. |
+
+Next autonomous batch: inspect the remaining actual consumer/materialized ownership paths in groups 2, 4 and 5, reproduce any reachable defect before changing production, and run corrected controls plus affected suites. Continue this work while hosted checks run. Groups can overlap; a new defect receives its own issue and exact evidence without closing I06 wholesale.
+
+The current identity inventory checks twenty canonical consumer-source files at **c7416b6**, plus the declared validated chooser overlay. It refreshes source identity, not the older 6215329 native observations or a complete new all-consumer review. The older fourteen-file consumer inventory remains independently identifiable. Both combined full suites and separate Skia controls have their own immutable payloads and source exports.
+
+Broader transfer/synchronization follow-ups remain in V02/V08/V13 and their own issues: directory links, same-size/reverted/post-check changes, wider provider/account/permission/drop/reconnect, second SMB, identity/aliases/deletions and atomic publication. Their previous placement in the I06 dashboard is preserved in the [activity log](../FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch); this scope clarification removes no required work. Reference hardware, people, owner contract decisions, physical-source HOLD and final-candidate qualification remain separately queued.
+
+
+## Selected immutable receipts
+
+Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts preserve the exact exports, commands, payloads, raw failures, skips and owned restoration.
+
+| File | SHA256 |
+|---|---|
+| `i06-resource-batch-20261009-v1/resource-consumer-source-inventory-v1.json` | `479f1a1cc737a2ac7765a97ddf007f608a563d708caecc290c67492af6794b31` |
+| `icon-borrowed-memory-20261006-v1/source-consumer-inventory-v1.json` | `55001beb0e3593ca30439188f76f623c751838a17f9e8a1de6f5b26a131063d5` |
+| `i06-resource-batch-20261009-v1/independent-batch-final-v1.json` | `904847d6d8b709ad6a740d8dbc7735910e704721affa7aac7de55a7f77189559` |

@@ -14,7 +14,7 @@ Both final fixture exports retain **1332 canonical original Git blobs** and only
 
 Independent reader v1 refuses because several existing PE-inspector cases share the method prefix; reader v2 isolates the exact one removed/added payload-path label and requires the same method. It then refuses a string input path passed to a Path-only loader. Reader v3 normalizes the loader argument; both returned tool errors remain as explicitly transcribed summaries, with no product replay or cleanup before either refusal. All semantic, source and hash assertions remain. The first raw run's additional 160 fixture/source/target/referent sets are also checked absent.
 
-This does not qualify directory links, native Windows copy engines, atomic compare-and-replace, same-size/reverted/post-check mutations, wider provider/account/resource/consumer/native/reference/human/candidate scope, a full App/Remote replay, or the physical source. Exact I282 committed/hosted follow-ups remain. Twenty broader unresolved entries, all 24 final-candidate campaigns, I106/I110 HOLD and owner/GO gates remain. No host UI, VM/Mac, device or policy change occurs.
+This does not qualify directory links, native Windows copy engines, atomic compare-and-replace, same-size/reverted/post-check mutations, wider provider/account/resource/consumer/native/reference/human/candidate scope, a full App/Remote replay, or the physical source. Exact committed and qualified original hosted follow-ups are recorded below. Twenty broader unresolved entries, all 24 final-candidate campaigns, I106/I110 HOLD and owner/GO gates remain. No host UI, VM/Mac, device or policy change occurs.
 
 
 ## Selected immutable receipts
@@ -48,3 +48,22 @@ Paths are relative to private FileCatReleaseEvidence unless absolute; nested rec
 | `follow-link282-file-v2/seal-controls-v3.py` | `6970f3a6876127eb62ebd50cbe966867ca8f3427aee9f01e667cccd3d7568338` |
 | `follow-link282-file-v2/reader-refusal-preparation-v2.json` | `1113f8d82489e0f8970f9f98a4f79481064c5726657a406d461bb7b69f9c31a1` |
 | `follow-link282-file-v2/reader-refusal-preparation-v3.json` | `307670f1b6a9ea418cab86ff3528a4a6fca66aeb4892651ffd593c06d39c7d38` |
+
+
+## Exact committed and hosted follow-ups
+
+The no-overlay exact **8ab4398064edfa7c7435e59f6e4ae4bd06ccbb92** export verifies all 1337 canonical Git blobs and passes all 192 controls. The independent reader checks source ZIP/export, payload/commands and all actual fixture cleanup. The initial exact-reader preparer fails on an embedded Git-blob NUL separator while compiling generated source; its versioned correction escapes that separator. The already generated runner and product controls are not replayed by that preparation repair. The exact temporary archive retains three files: one removed and two compiler locks recorded. The earlier nine private compiler locks subsequently release and their owned root is removed after archived-byte rechecks; exact locks stay explicitly recorded.
+
+[Original run 37964745726 attempt 1](E-CI-follow-link-publication.md) succeeds in all four required lanes: 29,380 actual records/768 new I282 passes, all 28,612 predecessor outcome/message multiplicities and exact skips retained. **Thirty-one Unix work totals are wrong despite those passing statuses**, because the old fixture omitted that assertion; the raw differences, refusal and qualified comparison remain. I284 separately reproduces and corrects root discovery accounting. This does not retroactively qualify the old work totals or erase native skip history. Directory links, atomic/post-check changes, broader provider/native/reference/human/candidate scope remains.
+
+
+## Selected immutable receipts
+
+Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts preserve the exact exports, commands, payloads, raw failures, skips and owned restoration.
+
+| File | SHA256 |
+|---|---|
+| `follow-link282-file-v2/independent-exact-final-v1.json` | `62d032d0bd2f3f056bd9b0324d2eecf2de605f5e791c0ff9936d9c2b417aa24e` |
+| `E:/FileCat/artifacts/release-evidence/follow-link282-file-v2/committed/command.json` | `ed03d331d4e51a5f5a607e887e8d40d5f9372e024e97cbb8e0b782b13ee149e9` |
+| `E:/FileCat/artifacts/release-evidence/follow-link282-file-v2/committed/inputs.json` | `894045aac46963b59b324219285911814911332bdff12c50bc6ba2eb1f2177db` |
+| `follow-link282-file-v2/owned-restoration-followup-v1.json` | `511503bb6e16769318f7db7c31a9b2df9e4117b1cf781d4bfcd9066f44ef7bd5` |

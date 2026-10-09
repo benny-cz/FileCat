@@ -497,8 +497,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var all = o.Items.Select((item, index) => new ChoiceRow(item, index)).ToList();
         var filter = new TextBox { PlaceholderText = "Type to filter…", MinWidth = 520 };
         Avalonia.Automation.AutomationProperties.SetName(filter, "Filter " + o.Title);
-        // Rows showing an icon, by item: platform icons load in the background and replace the stand-ins.
-        var icons = new Dictionary<ChoiceRow, Image>();
+        // Icon updates borrow realized controls; filtering must not keep retired rows and their bitmaps alive.
+        var icons = new System.Runtime.CompilerServices.ConditionalWeakTable<Image, ChoiceRow>();
         var list = new ListBox
         {
             Classes = { "choices" },
@@ -510,7 +510,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 if (row?.Item.Icon is { } icon)
                 {
                     var image = new Image { Width = 16, Height = 16, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Source = icon() };
-                    icons[row] = image;
+                    icons.Add(image, row);
                     g.Children.Add(image);
                 }
                 var left = new StackPanel { Orientation = Orientation.Vertical };
@@ -571,7 +571,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         {
             iconsLoaded = () =>
             {
-                foreach (var (row, image) in icons) image.Source = row.Item.Icon?.Invoke();
+                foreach (var (image, row) in icons) image.Source = row.Item.Icon?.Invoke();
             };
             native.IconsLoaded += iconsLoaded;
         }

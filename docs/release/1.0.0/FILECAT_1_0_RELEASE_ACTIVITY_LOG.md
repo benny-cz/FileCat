@@ -1658,3 +1658,91 @@ Owner requested cleanup of the 146.9 GB artifact tree. [Lossless compaction](evi
 Previous dashboard storage wording, preserved verbatim:
 
 Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md) retains its earlier 9.10 GB transparent-compression result, 21,721 original paths and processed content hashes. [I237](evidence/E-I237-format-reader-teardown.md) records another 4.14 GiB from five completed private trace logs without deleting or relocating evidence. Another 31.71 GB of installer media remains an optional retention decision. [Closed JSON compression](evidence/E-ENV-STORAGE-closed-json-compression.md) additionally preserves all hashes/paths/last-write times of 151 closed selected files; GetCompressedFileSizeW reports 1,149,358,053 fewer bytes (about 1.07 GiB), separately from concurrent free-space changes.
+
+
+## 2026-10-09 — I06 chooser borrowers and link work accounting
+
+I283 removes strong retention of filtered chooser Images/current bitmaps. Eight original failures/ten closed-dialog positives become eighteen passes in both mock and actual offscreen Skia runs; 32/96 distinct retired borrowers fall to zero. I284 excludes root-link metadata from content work: forty original failures/24 healthy controls become 64 passes with exact transfer/verification/work and source/referent/target checks. Full combined Core 3373/64 exact skips and App 1355/25 pass without rebuilding their tested payloads. Every preceding Core logical outcome/message and 1377 other local App outcomes/skips remain; three original disk-full failures now pass. All fourteen earlier command receipts and raw failures are retained. Independent restoration archives 48 owned files, removes 39, retains nine compiler locks/one root and observes seventeen roots absent.
+
+I282 exact no-overlay 192 controls and original four-lane run 37964745726 attempt 1 are sealed. The hosted 29,380 records/768 additions preserve all 28,612 predecessor outcomes/skips. Thirty-one Unix BytesTotal defects remain explicitly qualified; I284 supplies a separate reproduction, not a retroactive pass. Collector success and original reader refusal remain distinct. The resource matrix restores concrete I06 focus while preserving transfer/provider work in V02/V08/V13. No page-target decision is reopened, new picture cap invented, physical source tested or candidate/publication authorized.
+
+Current counts: 284 issue IDs/262 preliminary remediations/two preliminary closures/20 broader unresolved; 317 evidence records. The four code/fixture files are the exact validated overlays. New exact committed and hosted checks remain. No workstation UI, foreground VM, global compiler termination, temporary Mac/VM or persistent-policy change occurs.
+
+<a id="scope-before-i06-resource-batch"></a>
+### Earlier wording preserved before the resource progress update
+
+The following replaced current wording remains historical, not a competing status. All unchanged evidence/register rows retain their bytes.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+Updated 2026-10-09. **260 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 282 total.**
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: [I282](evidence/E-I282-follow-link-publication.md) passes 192 followed-link controls/full Core 3309/64 exact skips/300 App subset; committed/hosted pending. [I281 exact and hosted](evidence/E-I281-sync-link-publication.md#exact-committed-and-hosted-follow-ups) pass. [I280 native time-change skip](evidence/E-CI-sync-target-publication.md) remains qualified although I281 passes that case. Directory-link/same-size/reverted/post-check and wider provider/account/permission/drop/reconnect/second-SMB/identity/resource/native/reference/human/candidate scope remains. | [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-follow-link-publication-batch) |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+| I282 | <a id="i282"></a>Follow file-link fallback copies a link and drops the compared target | High (copy/synchronization data integrity) | Fix (I06/V02/V13/V23) | Remediated preliminarily — resolve referent metadata after Follow link, copy bytes through staged/fast/retry routes, retain the comparison guard, count one item and keep moved link/referent with an explicit outcome. Original 136 failed/24 passed synchronization controls and 32 failed ordinary controls; final 192 pass/full Core 3309/64 exact skips/300 selected App pass. Directory-link/native/atomic/post-check/committed/hosted/candidate scope remains. | [Full record](evidence/E-I282-follow-link-publication.md) |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+**313 evidence entries; none is final candidate qualification.** No candidate exists.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+| E-I282 | Follow file links as bytes while retaining compared targets and move sources | Original b3edd919 plus exact declared overlays | Original 136 failed/24 passed synchronization and 32 failed ordinary controls; final 192 passes/full Core 3309/64 exact skips/300 App subset; committed/hosted pending | [Full record](evidence/E-I282-follow-link-publication.md) | I06, I282, V02, V13, V23 |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| Issue register | 282 IDs: 260 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
+| Evidence catalogue | 313 entries; 5407 selected private evidence hashes: prior closed audits retained, with ten cleanup pins freshly checked in incremental audit v183. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| Latest local validation | [I282](evidence/E-I282-follow-link-publication.md): 160 synchronization and 32 ordinary followed-link controls pass; full Core 3309/64 exact skips and 300 headless App cases pass. | All 3181 preceding Core logical outcomes/messages and 300 selected App outcomes/messages remain. Original 136/24 synchronization and 32 failed ordinary controls retained; canonical 1332-blob exports plus declared overlays. I282 committed/hosted pending. |
+| Last fully audited CI | [37959876119 attempt 1 at b3edd919](evidence/E-CI-sync-link-publication.md): four required lanes pass; 28,612 actual records/640 new I281 passes. | All 27,971 other predecessor outcomes/messages/exact skips remain; one native NTFS time-change case passes after [I280 skipped it](evidence/E-CI-sync-target-publication.md). Both raw outcomes retained. 21 ZIPs/14 TRXs/92 graphs/four toolchain and asset receipts; preliminary hosted evidence, no candidate. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+Latest batch: [I282](evidence/E-I282-follow-link-publication.md) follows file-link contents as bytes, retains compared-target guards and keeps move sources; 192 controls/full Core 3309/64 exact skips/300 selected App cases pass. [I281 exact controls](evidence/E-I281-sync-link-publication.md#exact-committed-and-hosted-follow-ups) and [original four-lane CI](evidence/E-CI-sync-link-publication.md) pass. [I280 CI](evidence/E-CI-sync-target-publication.md) retains one qualified native time-change skip; the newer native pass does not erase it. Twenty broader unresolved scopes and all 24 final-candidate campaigns remain.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+Local test capacity: [I282](evidence/E-I282-follow-link-publication.md) retains its exact owned temporary archive/removal/lock inventory; all 576 recorded original/final/full-Core fixture sets are absent. [I281](evidence/E-I281-sync-link-publication.md#exact-committed-and-hosted-follow-ups) removes its two naturally released exact-control compiler locks/root after rechecking archived bytes. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-follow-link-publication-batch) preserves older restoration limits. No global compiler termination or blanket restoration claim.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+Storage maintenance: [Current artifact compaction](evidence/E-ENV-STORAGE-artifact-compaction.md) recovers 20.75 GB (19.33 GiB) of API-reported allocation, from 137.48 to 116.72 GB. All 296,743 paths remain; all 3,885 selected complete hashes and every original metadata record are independently rechecked. Logical folder size remains 146.9 GB. Earlier storage results and the optional 31.71 GB installer-media retention choice remain in the linked record. New I06 tests were paused during cleanup; disk-full attempts remain unchanged and need fresh validation.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | [I282](evidence/E-I282-follow-link-publication.md): 192 followed-link controls/full Core 3309/64 exact skips/300 App subset pass; committed/hosted pending. [I281 original four-lane CI](evidence/E-CI-sync-link-publication.md): 640 new passes/28,612 records, with explicit native NTFS skip-to-pass transition. Continue directory links, same-size/reverted/post-check changes, wider provider/account/drop/reconnect, second SMB, identity/alias/deletion/resource/consumer/native/reference/human/candidate scope. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-follow-link-publication-batch). |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| V02 — Local transfers, identity, fidelity and concurrency | Partial; final qualification pending | Remaining fidelity/concurrency/provider variants and chosen-artifact transfers. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| V08 — Remote and network semantics | Partial; final qualification pending | Remaining network/provider/latency semantics, applicable second SMB server and candidate. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| V13 — Search, results, comparison and synchronization | Partial; final qualification pending | Remaining archive/naming/search/compare/sync variants and native interaction/candidate. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+1. Continue I06 broader provider/account/permission/drop/reconnect/resource cases, applicable second SMB, atomic identity/aliases, same-size/reverted changes and reference/native/candidate qualification. I275/I276 committed and four-lane correction checks are complete; pursue the remaining scope. Earlier fixture/product failures and qualified causes remain available at their exact producers.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| 10 — high-risk validation/remediation | In progress; 260 preliminary remediations and retained adverse controls. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_BLOCKERS.md`
+
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I282](evidence/E-I282-follow-link-publication.md) passes 192 followed-link controls/full Core 3309/64 exact skips/300 App subset; committed/hosted pending. [I281 exact and hosted](evidence/E-I281-sync-link-publication.md#exact-committed-and-hosted-follow-ups) pass. [I280 CI](evidence/E-CI-sync-target-publication.md) retains its native time-change skip even though [I281 CI](evidence/E-CI-sync-link-publication.md) passes that case. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-follow-link-publication-batch) retains all prior failure/provenance/restoration limits. Twenty broader unresolved scopes and all owner/platform/people/physical-source/candidate gates remain. No device/account/Mac/VM/persistent policy change occurs.
+
+Source: `docs/release/1.0.0/evidence/E-I282-follow-link-publication.md`
+
+This does not qualify directory links, native Windows copy engines, atomic compare-and-replace, same-size/reverted/post-check mutations, wider provider/account/resource/consumer/native/reference/human/candidate scope, a full App/Remote replay, or the physical source. Exact I282 committed/hosted follow-ups remain. Twenty broader unresolved entries, all 24 final-candidate campaigns, I106/I110 HOLD and owner/GO gates remain. No host UI, VM/Mac, device or policy change occurs.
