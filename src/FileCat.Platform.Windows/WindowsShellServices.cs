@@ -34,8 +34,18 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
                 CoTaskMemFree(pidl);
             }
         }
-        var psi = new ProcessStartInfo("explorer.exe") { UseShellExecute = false, Arguments = $"/select,\"{trimmed}\"" };
+        var psi = RevealStartInfo(path);
         Process.Start(psi)?.Dispose();
+    }
+
+    internal static ProcessStartInfo RevealStartInfo(string path)
+    {
+        var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"))
+        {
+            UseShellExecute = false,
+        };
+        start.ArgumentList.Add("/select," + Path.TrimEndingDirectorySeparator(path));
+        return start;
     }
 
     public override bool ShowProperties(string path)

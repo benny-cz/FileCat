@@ -27,9 +27,13 @@ public static class DragStaging
         if (items.Any(i => i.IsContainer))
             return (null, "Folders from archives and disk images cannot be dragged to other programs. Copy them with F5 first.");
         if (items.Count > MaxItems) return (null, $"Dragging copies items out of their archive first, so at most {MaxItems} can be dragged at once. Copy these with F5.");
-        long total = items.Sum(i => Math.Max(0, i.Size));
-        if (total > MaxBytes || items.Any(i => i.Size < 0))
-            return (null, $"Dragging copies items out of their archive first, so at most {MaxBytes / (1024 * 1024)} MiB can be dragged at once. Copy these with F5.");
+        long total = 0;
+        foreach (var item in items)
+        {
+            if (item.Size < 0 || item.Size > MaxBytes - total)
+                return (null, $"Dragging copies items out of their archive first, so at most {MaxBytes / (1024 * 1024)} MiB can be dragged at once. Copy these with F5.");
+            total += item.Size;
+        }
 
         string folder = Path.Combine(tempRoot, Folder, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(folder);
