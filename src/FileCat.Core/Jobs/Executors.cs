@@ -412,7 +412,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
     }
 
-    private void CountTransferItem(long bytes, long verify, bool discovered)
+    private void CountTransferItem(long bytes, long verify, bool discovered, bool countItem = true)
     {
         // Discovery is an estimate on a separate worker. It may miss a moved file or stop before the transfer
         // ends. Actual admission independently supplies a lower bound; late discovery must not count it twice.
@@ -423,7 +423,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             long bytesBefore = Math.Max(_discoveredBytes, _admittedBytes);
             long verifyBefore = Math.Max(_discoveredVerify, _admittedVerify);
             if (discovered) { _discoveredItems++; _discoveredBytes += bytes; _discoveredVerify += verify; }
-            else { _admittedItems++; _admittedBytes += bytes; _admittedVerify += verify; }
+            else { if (countItem) _admittedItems++; _admittedBytes += bytes; _admittedVerify += verify; }
             Job.AddTotals(Math.Max(_discoveredItems, _admittedItems) - itemsBefore,
                 Math.Max(_discoveredBytes, _admittedBytes) - bytesBefore);
             Job.AddVerifyTotal(Math.Max(_discoveredVerify, _admittedVerify) - verifyBefore);
@@ -856,15 +856,21 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (_fillPairs.Add(sourceDirectory + "\0" + destinationDirectory)) Journal.Fill(sourceDirectory, destinationDirectory);
     }
 
-    private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true, (long Size, long ModifiedTicks)? expectedTarget = null)
+    private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true, (long Size, long ModifiedTicks)? expectedTarget = null, bool followLink = false)
     {
         Job.Checkpoint();
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
         long planned = info.IsLink ? 0 : Math.Max(0, info.Size);
-        if (firstAttempt) CountTransferItem(planned, VerifyWork(planned), discovered: false);
+        // Following an admitted link adds its contents, not a second item.
+        if (firstAttempt) CountTransferItem(planned, VerifyWork(planned), discovered: false, countItem: !followLink);
         Job.BeginItem(planned, VerifyWork(planned));
-        if (firstAttempt && expectedTarget is null && TryFastDirectCopy(src, dst, info) is { } fast) return fast;
+        if (followLink && expectedTarget is { } followedBaseline && !TargetStillCompared(dst, followedBaseline))
+        {
+            Job.ItemSkipped();
+            return Result.Skipped;
+        }
+        if (firstAttempt && expectedTarget is null && TryFastDirectCopy(src, dst, info, followLink) is { } fast) return fast;
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
@@ -946,7 +952,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             {
                 var options = new FileCopyOptions
                 {
-                    CopyLinkAsLink = true,
+                    CopyLinkAsLink = !followLink,
                     NoBuffering = info.Size > 256L * 1024 * 1024,
                     DisablePreallocation = direct,
                     AllowDecryptedDestination = allowDecrypted,
@@ -987,7 +993,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 {
                     // Another program created the name meanwhile: treat it as the conflict it is (once; a name that
                     // exists but cannot be inspected gets the ordinary question below).
-                    return CopyFileItem(src, dst, info, firstAttempt: false, expectedTarget: expectedTarget);
+                    return CopyFileItem(src, dst, info, firstAttempt: false, expectedTarget: expectedTarget, followLink: followLink);
                 }
                 if (cls == "encryption" && !allowDecrypted)
                 {
@@ -1077,6 +1083,14 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Info, src, "Copied; the original was kept because the destination cannot store all of its metadata.", StepOutcome.Skipped);
             return Result.Skipped;
         }
+        if (followLink)
+        {
+            // The approved operation copied contents through a link. Keep both the link and its referent: the
+            // ordinary-file move checks cannot prove either may be removed after following it.
+            Job.ItemSkipped();
+            Issue(IssueSeverity.Info, src, "Copied the link's contents; the source link and its target were kept.", StepOutcome.Skipped);
+            return Result.Skipped;
+        }
         return DeleteMovedSource(src, target, info);
     }
 
@@ -1085,7 +1099,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     /// fail-if-exists flag detects a conflict. Any failure returns null, and the careful path (conflict prompts,
     /// retries, explanations) runs from the start. Moves never take this path: they may need the metadata question.
     /// </summary>
-    private Result? TryFastDirectCopy(string src, string dst, FileSystemItemInfo info)
+    private Result? TryFastDirectCopy(string src, string dst, FileSystemItemInfo info, bool followLink)
     {
         if (Move || info.IsLink || info.Size is < 0 or >= DirectCopyLimit || Options.Verify != VerifyMode.Native) return null;
         if (!string.Equals(Path.GetFileName(dst), Path.GetFileName(src), StringComparison.Ordinal)) return null; // recovery pairs by name
@@ -1095,7 +1109,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var clock = Stopwatch.StartNew();
         try
         {
-            Fs.CopyFile(src, dst, new FileCopyOptions { CopyLinkAsLink = true, DisablePreallocation = true }, (done, total) =>
+            Fs.CopyFile(src, dst, new FileCopyOptions { CopyLinkAsLink = !followLink, DisablePreallocation = true }, (done, total) =>
             {
                 Job.AddBytes(done - reported);
                 reported = done;
@@ -1256,8 +1270,26 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         switch (d.Action)
         {
             case DecisionAction.FollowLink:
-                var targetInfo = new FileSystemItemInfo(src, info.IsDirectory, false, info.Size, info.ModifiedUtc, info.CreatedUtc, info.Attributes & ~FileAttributes.ReparsePoint);
-                return info.IsDirectory ? CopyDirectory(src, target, targetInfo) : CopyFileItem(src, target, targetInfo);
+                if (info.IsDirectory)
+                {
+                    var directoryInfo = info with { IsLink = false, Attributes = info.Attributes & ~FileAttributes.ReparsePoint };
+                    return CopyDirectory(src, target, directoryInfo);
+                }
+                // Link metadata describes the link itself. The selected fallback copies the referent's bytes,
+                // while keeping the original source path so a move never deletes the resolved referent.
+                try
+                {
+                    string? resolved = Fs.GetFinalPath(src) ?? new FileInfo(src).ResolveLinkTarget(returnFinalTarget: true)?.FullName;
+                    if (resolved is null || Fs.TryGetInfo(resolved) is not { IsDirectory: false, IsLink: false } targetInfo)
+                        throw new IOException("The link's target could not be read as an ordinary file.");
+                    return CopyFileItem(src, target, targetInfo with { Path = src }, expectedTarget: expectedTarget, followLink: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+                {
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, src, "The link's contents were not copied: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                    return Result.Failed;
+                }
             case DecisionAction.CreateJunction when info.LinkTarget is not null:
                 if (TryIo(linkAt, "create a junction", () => Junctions.Create(linkAt, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(src)!, info.LinkTarget)))))
                 {

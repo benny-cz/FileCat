@@ -12,7 +12,7 @@ The unchanged final compiled Core-control payload passes the complete Core suite
 
 All three expanded exports contain **1327 canonical original Git blobs**, plus the identical 128-case fixture and only the declared first/final production overlay. Full commands, source ZIPs, payloads, original failures, retry traces and raw comparisons remain. Across original/final/full-Core controls, all **384 recorded owned source/target/fixture roots are absent**; all 128 first-correction fixture roots are also absent. 13 owned temporary files are archived/rechecked, 13 removed and 0 exact locks retained. Root absence in original/first-correction/final/App/Core/Remote order is true, true, true, true, true, true.
 
-The earlier 96-case batch separately archives/rechecks/removes all twelve owned temporary files with no locks and all five roots absent. Existing older restoration limits remain separately qualified. This fresh metadata/type check **does not provide atomic filesystem compare-and-replace, full-byte/same-size-reverted identity, parent-alias or post-check race protection**. Literal source-link copying and other transfer branches remain unqualified. Those wider I06 scopes, native Windows/SMB/account/reference/human/candidate evidence and I280 exact committed follow-up follows below; its hosted follow-up remains pending. Twenty broader unresolved entries, 24 final-candidate campaigns, physical-source HOLD and owner/GO gates remain. No workstation UI, VM/Mac, account/policy, physical-source or stable publication occurs.
+The earlier 96-case batch separately archives/rechecks/removes all twelve owned temporary files with no locks and all five roots absent. Existing older restoration limits remain separately qualified. This fresh metadata/type check **does not provide atomic filesystem compare-and-replace, full-byte/same-size-reverted identity, parent-alias or post-check race protection**. Literal source-link copying and other transfer branches remain unqualified. Those wider I06 scopes, native Windows/SMB/account/reference/human/candidate evidence and I280 exact committed and qualified original hosted follow-ups follow below. Twenty broader unresolved entries, 24 final-candidate campaigns, physical-source HOLD and owner/GO gates remain. No workstation UI, VM/Mac, account/policy, physical-source or stable publication occurs.
 
 ## Selected immutable receipts
 
@@ -42,7 +42,7 @@ Paths are relative to private FileCatReleaseEvidence unless absolute. Nested rec
 
 Canonical **cb52c13** repeats all **128 controls successfully**, with **1330 exact Git blobs and no overlays**. Both approved production/fixture bytes equal the pushed Git blobs. The reader requires every private semantic guard, adapting only actual owned paths/staged names. Every recorded source/target/fixture root is absent; one temporary file is archived/rechecked/removed with no locks and its root absent. This is a defined exact-control repeat, not a full committed Core/Remote/App-suite replay.
 
-[Original run 37957430524](https://github.com/benny-cz/FileCat/actions/runs/37957430524), attempt 1 at cb52c13, awaits independent artifact audit in this update. The prepared reader expects 512 new I280 passes and 27,972 actual records only if the original run supplies that evidence; no result is inferred. [I281](E-I281-sync-link-publication.md) subsequently addresses the separately unqualified literal file-link branch. Follow-link, atomic/full-byte/native/candidate scopes remain.
+[Original run 37957430524](https://github.com/benny-cz/FileCat/actions/runs/37957430524), attempt 1 at cb52c13, has an independent qualified artifact audit: 512 new I280 passes/27,972 actual records, with one native time-change pass-to-skip explicitly retained below. [I281](E-I281-sync-link-publication.md) subsequently addresses the separately unqualified literal file-link branch. Follow-link, atomic/full-byte/native/candidate scopes remain.
 
 | File | SHA256 |
 |---|---|
@@ -53,3 +53,7 @@ Canonical **cb52c13** repeats all **128 controls successfully**, with **1330 exa
 | `sync-target280-v2/independent-exact-final-v1.json` | `e8a21a583d0c288d7b7b9c9eb076ffdff8de6016c5ff6422f0f90b9d699f5265` |
 | `sync-target280-v2/main-push-v1.json` | `64900ab00e41135437d3fb11ab8b5a1edd5c8c556fbf43a1eb73faccd503e068` |
 | `E:/FileCat/artifacts/release-evidence/sync-target280-v2/committed/command.json` | `577edf85414f676c29233f637de082e39a6e0f6bf1fbda54ff4182290da70a67` |
+
+## Qualified original hosted follow-up
+
+[Original attempt 1 at cb52c13](E-CI-sync-target-publication.md) succeeds in all four required lanes with 512 new I280 passes/27,972 actual records. Exactly one native Windows live-log time-change case is skipped after previously passing; its full evidence is retained and its cause is unestablished. All 27,459 other predecessor outcomes/messages and every older exact skip remain. [The next original run](E-CI-sync-link-publication.md) passes that native case; this does not convert the I280 skip into a pass.
