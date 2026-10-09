@@ -1396,3 +1396,36 @@ Local test capacity: I276 restoration is recorded in its [complete owned-root ev
 | E-I276 | Comparison cancellation and primary/first-close error preservation | Exact 5dfd28c original plus declared test/fix overlays | 60 original failures/44 passes to 104 passes; unchanged-payload full Core 2829/64 retains 2789 logical outcomes/exact skips; one actual payload-path label adaptation; committed/hosted pending | [Full record](evidence/E-I276-comparison-content-retirement.md) | I06, I276, V13, V23 |
 
 The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists current executable work and qualification status; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. The last complete [182ca99 hosted audit](evidence/E-CI-remote-post-connect-ownership.md), [I275 remote ownership](evidence/E-I275-remote-open-stream-ownership.md), [I276 comparison cleanup](evidence/E-I276-comparison-content-retirement.md) and [Windows Shell apphost provenance](evidence/E-I03-SHELLHOST-windows-apphost-provenance.md) retain their exact producers and limits. [Complete superseded detailed scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-comparison-tracking-clarification) preserves every earlier result/failure/restoration qualification. Owner/platform/people/physical-source/candidate gates remain; no device/account/Mac/VM/persistent policy change occurs.
+
+## 2026-10-09 — edit admission exception preservation
+
+[I277](evidence/E-I277-edit-admission-error-preservation.md) proves that a secondary close failure replaces the primary exception after a source is opened but before it is admitted for edit preparation. Twelve original failures/twelve passes become 24 passes. Exact primary objects/stacks, cancellation tokens, healthy ownership/standalone close errors, actual worker routing and bytes remain. This is a private admission boundary; no full F4/native fault incidence is inferred.
+
+The same corrected compiled payload passes 191 edit-related cases, preserving every outcome/message multiplicity of 167 preceding Windows hosted preparation/session-demand/commit/save-copy cases. All 72 recorded new-fixture holder paths/directories are absent. Twelve temporary files are archived/rechecked, three removed and nine original compiler locks retained; fixed/regression roots are absent, original remains. No global process or policy change occurs. Exact committed/hosted correction checks remain; all broader gates retain their dispositions.
+
+Counts: 277 issue IDs/255 preliminary remediations/two preliminary Closed/twenty broader unresolved; 302 evidence entries/5228 selected pins. Superseded current wording is retained below.
+
+<a id="scope-before-edit-admission-batch"></a>
+### State before edit admission remediation
+
+276 IDs: 254 Remediated preliminarily
+
+301 entries; 5215 selected private evidence hashes: prior closed audits retained, with 23 added pins checked in incremental audit v174.
+
+| 10 — high-risk validation/remediation | In progress; 254 preliminary remediations and retained adverse controls. |
+
+| Latest local validation | [I276](evidence/E-I276-comparison-content-retirement.md): all 104 exact committed controls at 3ef7b0a pass; earlier same-compiled full Core 2829 passed/64 exact skips retains 2789 logical predecessor multiplicities. | Canonical 1318-blob export has no overlays. Original 60 failures/44 passes and one private payload-path label adaptation remain. I275 full Remote 2276/156 and exact committed 48 controls retain their separate producers. |
+
+Latest batch: [two complete original hosted audits](evidence/E-CI-content-open-comparison-retirement.md) qualify I275 and I276 on four required lanes: 192 and 416 added controls pass, preserving all predecessor outcome/message multiplicities and exact skips. I276 also passes 104 canonical committed controls. Original product failures, earlier transport/reader refusals and restoration limits remain. Twenty broader unresolved scopes and all 24 final-candidate campaigns remain.
+
+Local test capacity: [I276 exact committed testing](evidence/E-I276-comparison-content-retirement.md) archives/rechecks three owned temporary files, removes one and retains two exact compiler analyzer locks; that temporary root remains. All recorded content-holder paths/fixture directories are absent. Earlier private original/fixed/full roots remain absent. [Complete preceding state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-content-hosted-batch) preserves every older restoration qualification. No global compiler termination or restoration claim.
+
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | [Last complete hosted audit at 3ef7b0a](evidence/E-CI-content-open-comparison-retirement.md) retains 26,756 records and every predecessor outcome/message multiplicity and exact skip. I275 and I276 exact committed/four-lane correction checks pass. Continue wider provider/account/permission/drop/reconnect, applicable second SMB, identity/alias/deletion/resource/consumer/native/reference/human/candidate scope. [Complete prior detailed state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-content-hosted-batch). |
+
+| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: [last complete hosted audit at 3ef7b0a](evidence/E-CI-content-open-comparison-retirement.md) retains 26,756 records and every predecessor outcome/message multiplicity/exact skip. I275 and I276 canonical committed/four-lane correction checks pass, with their original product failures preserved. Remaining: wider provider/account/permission/drop/reconnect, applicable second SMB, identity/alias/deletion/resource/consumer/format/blocking-I/O/reference/native/human/candidate scope. | [Complete prior detailed state](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-content-hosted-batch) |
+
+## Maintenance
+
+301 evidence entries
+
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [Complete hosted audits at 5dfd28c and 3ef7b0a](evidence/E-CI-content-open-comparison-retirement.md) qualify I275/I276 corrections on four required lanes, preserving every predecessor outcome/exact skip. [Complete preceding scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-content-hosted-batch) preserves original failures, source/provenance limits and restoration qualifications. Twenty broader unresolved scopes and owner/platform/people/physical-source/candidate gates remain. No device/account/Mac/VM/persistent policy change occurs.

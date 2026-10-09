@@ -172,7 +172,12 @@ public sealed partial class MainViewModel
             check(); var source = inner.OpenContent(item);
             if (source is null) { check(); return null; }
             try { check(); return new EditPreparationContent(FileCat.Core.Content.ProgressiveContent.Sequential(source)!, check); }
-            catch { source.Dispose(); throw; }
+            catch
+            {
+                try { source.Dispose(); }
+                catch (Exception ex) { FileCat.Core.Diagnostics.AppLog.Warn("Could not close edit content after preparation failed", ex); }
+                throw;
+            }
         }
     }
 
