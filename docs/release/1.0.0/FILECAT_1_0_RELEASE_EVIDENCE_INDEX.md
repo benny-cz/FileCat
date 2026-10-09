@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**278 evidence entries; none is final candidate qualification.** No candidate exists.
+**281 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -139,6 +139,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I255 | Apply Command preview fits the actual command processor | Exact 2b23fc4; CI 37888931095 attempt 1 | Twelve canonical/38 hosted passes/ten exact Unix skips; native boundary/full-byte positives and actual job refusal | [E-I255](evidence/E-I255-apply-command-preview-budgets.md) | I06, I16, V11, V23 |
 | E-I256 | Bound explicit Windows command processors before Tool launch | Exact 5cd9a6a; CI 37892490424 attempt 1 | Sixteen canonical/48 hosted passes/16 exact Unix skips; full native bytes/refusals and four exact committed Launch/direct controls | [E-I256](evidence/E-I256-explicit-tool-command-budgets.md) | I06, I16, V11, V23 |
 | E-I257 | Apply preserves implicit budgets for scripts named cmd.cmd/cmd.bat | Exact 5cd9a6a; CI 37892490424 attempt 1 | Six canonical/24 hosted passes; complete healthy direct/public-job bytes, invalid preview refusal and portable Unix controls | [E-I257](evidence/E-I257-apply-named-batch-command-budgets.md) | I06, I16, V11, V23 |
+| E-I258 | Retire all matching archive indexes after close failures | Exact e686431; CI 37897376332 attempt 1 | 22 canonical/88 hosted passes; ten exact committed native controls, first-error retention and complete target retirement | [E-I258](evidence/E-I258-archive-cache-release-retirement.md) | I06, V07, V23 |
+| E-I259 | Share actual drag byte cap and retire rejected partials | Exact e686431; CI 37897376332 attempt 1 | Six canonical/24 hosted passes; unchanged native pairs, exact complete bytes, refusal/read/cancel cleanup | [E-I259](evidence/E-I259-drag-staging-byte-budget-retirement.md) | I06, V07, V11, V23 |
+| E-I03-MANAGED | Exact selected package runtime method IL in four earlier Windows publications | Original 8502983 payloads; independent 2026-10-09 readers | 38 assemblies/27 packages and 89,555 complete IL bodies per publication; raw PE/header/hash checks and separate Base one-byte control; broader composition remains | [Managed IL](evidence/E-I03-MANAGED-windows-il-provenance.md) | I03, V20 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
