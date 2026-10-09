@@ -10,7 +10,7 @@ Both default headless drawing and separate actual Skia runs reproduce the origin
 
 The unchanged compiled full App suite passes **1398/25 exact skips**. All **1394** preceding App outcomes/messages and exact skip reasons remain. All 28 modal semantic observations match the corrected default controls. The first private fixture failed compilation on an unavailable GetVisualRoot extension; that untouched command/export survives, no tests ran, and a fresh observer uses the already owned window.
 
-The selected final receipt records every archived, rehashed, removed or locked file under the five exact owned temporary roots. Exact committed/original hosted checks and broader dialog/picture/icon/native/reference/candidate ownership remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
+The selected final receipt records every archived, rehashed, removed or locked file under the five exact owned temporary roots. Exact committed checks are recorded below; original hosted checks and broader dialog/picture/icon/native/reference/candidate ownership remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -33,3 +33,20 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `E:/FileCat/artifacts/release-evidence/i06-about-logo-ownership-20261009-v4/owned-temporary-files-v1.zip` | `a7d16ed79bcac9e2384227763285be29cc5c0127a317043cb2e0c260a4ede3b0` |
 | `i06-about-logo-ownership-20261009-v5/FileListSmokeTests.cs` | `9a4c09625b50c38f475c4a708e5fb68c31f775678aa98b13dba764cd61b70062` |
 | `E:/FileCat/artifacts/release-evidence/i06-about-logo-ownership-20261009-v4/fixed/source/src/FileCat.App/Assets/filecat.png` | `6025669ab8d5d4a33ab5853e5c6bf7882d954f8f683074cc79e40a2f5db8d5aa` |
+
+
+## Exact committed follow-up
+
+No-overlay **88a107d79dac1e9ac8ae0690e4d11455b3a14aa4** verifies all 1355 canonical Git blobs and passes all 29 controls. All private/exact outcome/message and default-drawing semantics agree: 84 modal completions/72 logo retirements and the independently calibrated disposal oracle. The one owned temporary file is archived/rechecked/removed; no locks remain. This does not replay the full suite or actual Skia/native desktop run. Original hosted and broader native/frame/reference/candidate scope remains.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the complete sources, commands, payloads, failures and restoration.
+
+| File | SHA256 |
+|---|---|
+| `i288-committed-20261009-v1/seal-exact-v1.py` | `e99855c1be4f34810cd4549a95cce0630cca0137f231ed0c73239640562c77b2` |
+| `i288-committed-20261009-v1/independent-exact-final-v1.json` | `5e75eaf4b3ca0e6fcb697b3c73ef60260cad8b879c14f455b23cb3af450aab7f` |
+| `E:/FileCat/artifacts/release-evidence/i288-committed-20261009-v1/committed/app-controls/command.json` | `8df33f1767e899973a1509b902593ec0a36ccb172843d922de84aae83e3332e4` |
+| `E:/FileCat/artifacts/release-evidence/i288-committed-20261009-v1/committed/inputs.json` | `ac80747ca84cef45c9683b606b7c1d190f159aaea818da06a103af57eb9698ea` |

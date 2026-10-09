@@ -2135,3 +2135,111 @@ Source: `docs/release/1.0.0/evidence/E-I287-concurrent-archive-index-ownership.m
 ```markdown
 Exact committed/original hosted follow-ups remain. Aggregate active/retained/leased/listing memory, explicit Release/member-use races, cancellation, adversarial schedules, other consumers, native process/frame/reference workloads and candidate acceptance remain in I06. This does not resume physical-source tests, operate host UI, freeze a contract or publish a candidate/stable release. I106/I110 HOLD and explicit owner/human GO remain.
 ```
+
+
+## 2026-10-09 — I289 metadata ordering and I288 exact follow-up
+
+Original source 63f5abad; correction base 88a107d79dac1e9ac8ae0690e4d11455b3a14aa4 retains the same Core/Archives/test/build inputs. Six controls/full Core 3409/64 exact skips and 87 affected App controls pass. I288 29 exact controls pass; I287 original hosted checks pass. Twenty broader release scopes remain.
+
+<a id="scope-before-metadata-order-resource-batch"></a>
+
+Previous current wording retained verbatim as historical source text; its relative references are inert here.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+```markdown
+Updated 2026-10-09. **266 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 288 total.**
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+```markdown
+| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: [resource progress matrix](evidence/E-I06-resource-progress.md) tracks shared pages, archive/listing retention, decoded pictures, icon/control borrowers, other materialized work and native/process/frame accounting. I283 retires filtered chooser borrowers; I284 corrects root-link work totals; I285 retires removed-panel preview bindings/readers. I286 closes failed ZIP index sources in eighteen native Windows controls. I287 serializes concurrent archive index ownership in twelve controls. I288 retires About logo sources/owners across all themes and four close routes, with separate Skia controls. Full Core 3403/64 exact skips and App 1398/25 pass; I283/I284 exact checks pass and original hosted checks pass; I285 fourteen exact committed controls pass; original hosted checks pass; I286 exact/original hosted checks pass; I287 twelve exact committed controls pass; original hosted checks remain; I288 exact/hosted checks remain. Shared-page DEC-06 stays decided; aggregate consumer/native/reference/human/candidate scope remains. | [Complete preceding scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch), [Resource matrix](evidence/E-I06-resource-progress.md) |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+```markdown
+| I287 | <a id="i287"></a>Concurrent archive cache misses abandon competing indexes | Medium (resource lifetime) | Fix (I06/V07/V12) | Remediated preliminarily — serialize per-provider index build/publication/retirement. Eleven original failures/one pass become twelve passes; all sources close. Original five ZIP cases retain 33 sources; duplicate lazy TAR indexes do not establish a TAR native leak. Full Core 3403/64 and App 1369/25 exact skips retain all preceding outcomes/messages. Raw observer/compile/GnuPG-path failures remain; unrelated-archive throughput, twelve exact committed controls pass; original hosted checks remain; aggregate/races/native/candidate scope remains. | [Full record](evidence/E-I287-concurrent-archive-index-ownership.md) |
+| I288 | <a id="i288"></a>About modal completion leaves its owned logo usable | Medium (resource lifetime) | Fix (I06/V12) | Remediated preliminarily — own the bitmap through modal completion, clear its Image source then dispose. Twenty-four original failures/five positives become 29 passes in default and actual Skia runs; 72 logo retirements per run across all themes/four routes. Full App 1398/25 exact skips retains all 1394 preceding outcomes/messages. Held controls establish deterministic ownership, not native UI incidence/aggregate allocation/frame retirement; exact/hosted/candidate scope remains. | [Full record](evidence/E-I288-about-logo-ownership.md) |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+```markdown
+**324 evidence entries; none is final candidate qualification.** No candidate exists.
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+```markdown
+| E-I287 | Concurrent archive index ownership | Original ffe6159e plus fixture/two production overlays | Eleven failures/one pass to twelve passes; full Core 3403/64 and App 1369/25 exact skips; GnuPG path refusal/controls retained; 12 exact pass; hosted pending; aggregate/candidate open | [Full record](evidence/E-I287-concurrent-archive-index-ownership.md) | I06, I287, V07, V12 |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+```markdown
+| E-I288 | About logo source and owner retirement | Original 63f5abad plus fixture/one product overlay; separate actual Skia builder overlay | 24 failures/five positives to 29 passes in each drawing mode; 72 logo retirements; full App 1398/25 exact skips; exact/hosted/native/candidate open | [Full record](evidence/E-I288-about-logo-ownership.md) | I06, I288, V12 |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+```markdown
+| Issue register | 288 IDs: 266 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | These are broader unresolved scopes, not 20 unimplemented fixes. |
+| Evidence catalogue | 324 entries; 5540 selected private hashes; 25 new pins freshly checked in incremental audit v188. | Exact source/artifact/environment scope applies to every record. |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+```markdown
+| Latest local validation | [I288](evidence/E-I288-about-logo-ownership.md): 29 default/29 actual Skia controls and full App 1398/25 exact skips pass. [I287 exact](evidence/E-I287-concurrent-archive-index-ownership.md#exact-committed-follow-up): twelve no-overlay controls pass at 63f5abad. | All 1394 preceding App outcomes/messages/exact skips remain; all 72 logo sources/owners retire per drawing run. I288 exact/hosted checks remain. |
+| Last fully audited CI | [37981716256 attempt 1 at ffe6159e](evidence/E-CI-zip-index-ownership.md): four required lanes pass; 29,836 records. | 36 new Windows passes/36 explicit Unix oracle skips; all 29,764 predecessor outcomes/messages/exact skips remain; 252 closure observations match. No candidate. |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+```markdown
+Latest batch: [I288](evidence/E-I288-about-logo-ownership.md) retires the About logo at modal completion in all themes and four close routes, with 29 default/29 actual Skia controls and full App 1398/25 exact skips. All preceding App outcomes/messages remain. I286 exact/original hosted checks pass; I287 twelve exact committed controls pass; original hosted checks remain. The [six-group I06 matrix](evidence/E-I06-resource-progress.md) retains aggregate, concurrent, native/reference/human and candidate scope. Twenty broader unresolved scopes and all 24 final-candidate campaigns remain.
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+```markdown
+Local test capacity: [I288](evidence/E-I288-about-logo-ownership.md) records exact archived/rechecked/removed/locked files under all five owned roots. [I287 exact](evidence/E-I287-concurrent-archive-index-ownership.md#exact-committed-follow-up) archives three files, removes one and retains two compiler locks. Earlier restoration remains at its own producer. No global compiler stop or blanket restoration claim.
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+```markdown
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | [Six resource groups](evidence/E-I06-resource-progress.md): page floors/settings, aggregate archive/listing retention, decoded pictures, icon/control borrowers, other materialized jobs/queues and native/process/frame accounting. I283/I284 exact controls pass and original hosted checks pass; I285 exact/original hosted checks pass; I286 exact/original hosted checks pass; I287 twelve exact committed controls pass; original hosted checks remain; I288 About ownership passes default/Skia controls/full App, with exact/hosted checks next. Continue remaining consumer/materialized ownership before broader reference/native/human/candidate qualification. Shared-page DEC-06 remains decided. [Prior scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch). |
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+```markdown
+1. Prioritize I06 remaining resource ownership from the [six-group matrix](evidence/E-I06-resource-progress.md): aggregate archive/listing materialization, concurrent demand, places/hidden/dialog borrowers, large result/job/queue payloads and native/process/frame accounting. I288 passes default/Skia controls/full App; run exact committed/original hosted checks while continuing independent remediation. I286 exact/original hosted checks pass; I287 twelve exact committed controls pass; original hosted checks remain. Transfer/provider follow-ups remain V02/V08/V13; no scope is discarded.
+```
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_BLOCKERS.md`
+
+```markdown
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I288](evidence/E-I288-about-logo-ownership.md) passes 29 default/29 actual Skia controls/full App 1398/25 exact skips; exact/hosted checks remain. I286 exact/original hosted checks pass; I287 twelve exact committed controls pass; original hosted checks remain. [I06 resource progress](evidence/E-I06-resource-progress.md) remains open. No owner/platform/people/physical-source/candidate gate is waived; prior wording remains in the activity log.
+```
+
+Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
+
+```markdown
+| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
+```
+
+Source: `docs/release/1.0.0/evidence/E-I287-concurrent-archive-index-ownership.md`
+
+```markdown
+Exact committed follow-up is recorded below; original hosted checks remain. Aggregate active/retained/leased/listing memory, explicit Release/member-use races, cancellation, adversarial schedules, other consumers, native process/frame/reference workloads and candidate acceptance remain in I06. This does not resume physical-source tests, operate host UI, freeze a contract or publish a candidate/stable release. I106/I110 HOLD and explicit owner/human GO remain.
+```
+
+Source: `docs/release/1.0.0/evidence/E-I288-about-logo-ownership.md`
+
+```markdown
+The selected final receipt records every archived, rehashed, removed or locked file under the five exact owned temporary roots. Exact committed/original hosted checks and broader dialog/picture/icon/native/reference/candidate ownership remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
+```

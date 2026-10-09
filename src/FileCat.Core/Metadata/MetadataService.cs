@@ -257,6 +257,11 @@ public sealed class MetadataService
                     _cache.TryRemove(key, out _);
                     _producedAt.TryRemove(key, out _);
                 }
+            // Retire the ordering slots too: repeatedly forgetting one field must not accumulate old path keys.
+            // Publication holds this same lock, so one pass preserves the order of every unrelated cached value.
+            int ordered = _order.Count;
+            while (ordered-- > 0 && _order.TryDequeue(out var old))
+                if (!Matches(old)) _order.Enqueue(old);
         }
         Notify();
     }

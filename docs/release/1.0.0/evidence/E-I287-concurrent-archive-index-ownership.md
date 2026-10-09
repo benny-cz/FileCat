@@ -14,7 +14,7 @@ The initial full Core command is preserved at **3401 passes/65 skips/one failure
 
 The earliest fixture export does not compile (nullable cleanup inference); the second export has six real ZIP failures and six observer NullReferenceExceptions from assuming unopened lazy TAR sources exist. Those six observer failures are not product failures. Both original scripts, exports and receipts remain, followed by the corrected observer's eleven failures/one pass and independently sealed final results. Twenty-five owned temporary files across five bounded roots are archived, rehashed and removed; no locks remain.
 
-Exact committed follow-up is recorded below; original hosted checks remain. Aggregate active/retained/leased/listing memory, explicit Release/member-use races, cancellation, adversarial schedules, other consumers, native process/frame/reference workloads and candidate acceptance remain in I06. This does not resume physical-source tests, operate host UI, freeze a contract or publish a candidate/stable release. I106/I110 HOLD and explicit owner/human GO remain.
+Exact committed follow-up is recorded below; original hosted checks pass as linked below. Aggregate active/retained/leased/listing memory, explicit Release/member-use races, cancellation, adversarial schedules, other consumers, native process/frame/reference workloads and candidate acceptance remain in I06. This does not resume physical-source tests, operate host UI, freeze a contract or publish a candidate/stable release. I106/I110 HOLD and explicit owner/human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -59,3 +59,8 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `i287-committed-20261009-v1/independent-exact-final-v1.json` | `2ce3d55a2708a50764baa7c79405cbfed37c706298428e63e4f7286b43e3a71d` |
 | `E:/FileCat/artifacts/release-evidence/i287-committed-20261009-v1/committed/core-controls/command.json` | `6ff1975502894d68e6112bb670490a37e703851e9332298d57e8c5de3fa12a25` |
 | `E:/FileCat/artifacts/release-evidence/i287-committed-20261009-v1/committed/inputs.json` | `e8dd5f5a632c9b7b94ab9909a97074f3d023ceb4830935cd7b193a9937c9462b` |
+
+
+## Original hosted follow-up
+
+[37984994009 attempt 1](E-CI-concurrent-index-ownership.md) at exact 63f5abad passes four required lanes: 29,884 actual records/48 new passes, preserving all 29,836 predecessor outcomes/messages and exact skips. All 48 sources close; 24 Windows cases also verify exclusive-sharing before/after. Unix sharing remains explicitly unavailable. Aggregate/arbitrary-schedule/throughput/native/reference/candidate scope remains.
