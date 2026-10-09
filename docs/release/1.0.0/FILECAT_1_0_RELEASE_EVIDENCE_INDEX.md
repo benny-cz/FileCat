@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**276 evidence entries; none is final candidate qualification.** No candidate exists.
+**278 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -137,6 +137,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I253 | Preserve the original archive listing failure during cleanup | Exact 2b23fc4; CI 37888931095 attempt 1 | Forty-four canonical/176 hosted passes; actual Tar/source, first error/inner/token, partial-index and complete byte controls | [E-I253](evidence/E-I253-archive-listing-primary-error.md) | I06, V07, V12, V23 |
 | E-I254 | Retire an evicted native nested-spool holder after index-close failure | Exact 2b23fc4; CI 37888931095 attempt 1 | Eight canonical/32 hosted passes; actual public nested spool, complete bytes/error/native holder observations | [E-I254](evidence/E-I254-nested-spool-eviction-retirement.md) | I06, V07, V12, V23 |
 | E-I255 | Apply Command preview fits the actual command processor | Exact 2b23fc4; CI 37888931095 attempt 1 | Twelve canonical/38 hosted passes/ten exact Unix skips; native boundary/full-byte positives and actual job refusal | [E-I255](evidence/E-I255-apply-command-preview-budgets.md) | I06, I16, V11, V23 |
+| E-I256 | Bound explicit Windows command processors before Tool launch | Exact 5cd9a6a; CI 37892490424 attempt 1 | Sixteen canonical/48 hosted passes/16 exact Unix skips; full native bytes/refusals and four exact committed Launch/direct controls | [E-I256](evidence/E-I256-explicit-tool-command-budgets.md) | I06, I16, V11, V23 |
+| E-I257 | Apply preserves implicit budgets for scripts named cmd.cmd/cmd.bat | Exact 5cd9a6a; CI 37892490424 attempt 1 | Six canonical/24 hosted passes; complete healthy direct/public-job bytes, invalid preview refusal and portable Unix controls | [E-I257](evidence/E-I257-apply-named-batch-command-budgets.md) | I06, I16, V11, V23 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
