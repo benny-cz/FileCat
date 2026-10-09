@@ -1,6 +1,6 @@
 # E-I268–I271 — remote pool retirement and reconnect faults
 
-2026-10-09. Preliminary I06/V08/V12/V23 evidence. Original production is exact **15dec4411439b58735982ef8e3917d94806bd74f**. Two production files are corrected together with one new 64-case regression fixture in the commit containing this record. Local validation uses independently exported original Git blobs plus the explicitly pinned test/fix overlays; it is not represented as an already committed build or an installed candidate. Current hosted CI is pending.
+2026-10-09. Preliminary I06/V08/V12/V23 evidence. Original production is exact **15dec4411439b58735982ef8e3917d94806bd74f**. Two production files are corrected together with one new 64-case regression fixture in the commit containing this record. Local validation uses independently exported original Git blobs plus the explicitly pinned test/fix overlays; it is not represented as an already committed build or an installed candidate. The exact committed cb37ed3 Remote build also passes 2084/156, independently retaining every private-equivalent identity/outcome/exact skip. Current hosted CI is pending.
 
 ## Four reproduced defects and corrections
 
@@ -20,6 +20,8 @@ The complete Remote suite runs against the same unchanged compiled fixed payload
 One restricted-runtime fixed attempt exits during restore after only “Determining projects to restore”; it emits no TRX or compiled payload. Its command/streams remain retained and are not a test failure/pass claim. A fresh successful command uses the exact same verified exported source and overlays. An intervening automatic approval routing 401 prevented one command from executing; this was an approval-service failure, not a determination that the authorized validation was unsafe.
 
 All original/fixed inputs, canonical source ZIP members, raw TRX/streams, actual payload pins and independently decoded control rows are retained. Seven remaining owned temporary files are archived and rehashed before cleanup: four workload logs are removed, the fixed/full roots are absent, and three exact compiler analyzer files remain locked in the original private root. They remain pinned in the restoration receipt; no compiler/user process is killed and no global restoration is claimed. No host UI, Mac/VM, physical source, persistent setting or ordinary user data is changed. The physical-source HOLD and explicit human stable GO remain; no candidate exists.
+
+The successful commit/push is separately sealed. A post-push raw-equality assertion exposes the repository’s unchanged `.cs` CRLF-to-LF clean filter in the two production files; the original controller/streams remain, both exact byte forms and 430/1284 converted line endings are recorded, and the other seven files are byte-identical. This is not a push failure or a claim of raw equality. The subsequent complete build uses only exact committed Git blobs without overlays; all 2240 cases pass/skip as above. Its owned full-run root is archived/rehashed and removed without locks.
 
 ## Selected immutable receipts
 
@@ -41,3 +43,7 @@ Paths are relative to the private FileCatReleaseEvidence root unless absolute. N
 | `E:/FileCat/artifacts/release-evidence/pool-retirement268-v1/fixed/command.json` | `c6d1ee7d5d51beb3d4fb7f231b16142d240da7a48a57ac0958b430903d75fe37` |
 | `E:/FileCat/artifacts/release-evidence/pool-retirement268-v1/fixed/completed-v2/command.json` | `ec8d6ca76e6f03070f82ef55429514065188b90932fa25131fd526ba8753d46e` |
 | `E:/FileCat/artifacts/release-evidence/pool-retirement268-v1/fixed/full-remote-v1/command.json` | `452d2723a581c97c31804dc48dbec62c64f9485ba891b6f908bee53ebede485b` |
+| `pool-retirement268-v1/seal-committed-pool-push-v2.py` | `9ca47b32f6b603422a3b53fb77eaf7f8a4e1be1eb66b37f06327531b0eb39a7d` |
+| `pool-retirement268-v1/reviewed-pool-main-push-v2.json` | `246dddd28769f12eee923f9edb1750b5ba28cef70e7837717f1ed45d03f974d4` |
+| `pool-retirement268-v1/independent-committed-pool-full-v1.json` | `d90bb9f055fd8e853596f372f1b71fc60b7763cd2dbd00e7ad017c45ca6c2c0a` |
+| `E:/FileCat/artifacts/release-evidence/pool-retirement268-v1/full/command.json` | `9265d95e58787d72ceb0488c2d17659371fc08ea3941d47ead1784fd2870d368` |

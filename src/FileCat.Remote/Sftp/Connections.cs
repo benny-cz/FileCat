@@ -172,8 +172,10 @@ public sealed class SftpConnections : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             ISftpChannel? channel = null;
+            long generation;
             lock (pool)
             {
+                generation = pool.Generation;
                 while (pool.Idle.TryPop(out var idle))
                 {
                     if (idle.Channel.IsConnected) { channel = idle.Channel; break; }
@@ -202,9 +204,14 @@ public sealed class SftpConnections : IDisposable
                     catch (Exception ex) { AppLog.Warn("Could not close a connection after shutdown", ex); }
                     throw new ObjectDisposedException(nameof(SftpConnections));
                 }
-                pool.Home ??= channel.HomeDirectory;
-                pool.Closed = false;
-                return new SftpLease(this, pool, channel);
+                // Disconnect may have happened while this connection was being established. Its lease may finish
+                // its current work, but must not reopen the pool or return into a later connection session.
+                if (generation == pool.Generation)
+                {
+                    pool.Home ??= channel.HomeDirectory;
+                    pool.Closed = false;
+                }
+                return new SftpLease(this, pool, channel, generation);
             }
         }
         catch
@@ -214,13 +221,13 @@ public sealed class SftpConnections : IDisposable
         }
     }
 
-    internal void Return(Pool pool, ISftpChannel channel, bool broken)
+    internal void Return(Pool pool, ISftpChannel channel, bool broken, long generation)
     {
         try
         {
             lock (pool)
             {
-                if (!broken && !_disposed && channel.IsConnected && !pool.Closed)
+                if (!broken && !_disposed && generation == pool.Generation && channel.IsConnected && !pool.Closed)
                     pool.Idle.Push((channel, DateTime.UtcNow));
                 else channel.Dispose();
             }
@@ -232,10 +239,11 @@ public sealed class SftpConnections : IDisposable
     public void Disconnect(string profileId)
     {
         if (!_pools.TryGetValue(profileId, out var pool)) return;
-        pool.Closed = true;
         ExceptionDispatchInfo? failure = null;
         lock (pool)
         {
+            pool.Closed = true;
+            pool.Generation++;
             while (pool.Idle.TryPop(out var c))
             {
                 try { c.Channel.Dispose(); }
@@ -401,6 +409,8 @@ public sealed class SftpConnections : IDisposable
         public readonly Stack<(ISftpChannel Channel, DateTime Since)> Idle = new();
         public volatile string? Home;
         public volatile bool Closed;
+        // Accessed only under the pool lock; old leases retire even after a newer session has reopened the pool.
+        public long Generation;
     }
 }
 
@@ -409,12 +419,14 @@ public sealed class SftpLease : IDisposable
 {
     private readonly SftpConnections _owner;
     private readonly SftpConnections.Pool _pool;
+    private readonly long _generation;
     private int _returned;
 
-    internal SftpLease(SftpConnections owner, SftpConnections.Pool pool, ISftpChannel channel)
+    internal SftpLease(SftpConnections owner, SftpConnections.Pool pool, ISftpChannel channel, long generation)
     {
         _owner = owner;
         _pool = pool;
+        _generation = generation;
         Channel = channel;
     }
 
@@ -425,6 +437,6 @@ public sealed class SftpLease : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _returned, 1) == 0) _owner.Return(_pool, Channel, Broken);
+        if (Interlocked.Exchange(ref _returned, 1) == 0) _owner.Return(_pool, Channel, Broken, _generation);
     }
 }

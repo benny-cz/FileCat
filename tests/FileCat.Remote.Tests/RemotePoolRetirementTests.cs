@@ -121,6 +121,76 @@ public sealed class RemotePoolRetirementTests(ITestOutputHelper output)
         if (operation == "job-retry") { Assert.Equal(1, decisions); Assert.Equal(2, attempts); }
     }
 
+    public static TheoryData<string, string, string> DisconnectCases
+    {
+        get
+        {
+            var rows = new TheoryData<string, string, string>();
+            foreach (string protocol in new[] { RemoteProtocols.Sftp, RemoteProtocols.Ftp, RemoteProtocols.FtpExplicitTls, RemoteProtocols.FtpImplicitTls })
+            foreach (string timing in new[] { "leased-then-reopen", "connecting-then-reopen", "without-reopen" })
+            foreach (string fault in new[] { "none", "io", "denied", "disposed" }) rows.Add(protocol, timing, fault);
+            return rows;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(DisconnectCases))]
+    public void Leases_from_before_disconnect_do_not_reenter_the_new_session(string protocol, string timing, string fault)
+    {
+        using var rig = new Rig(protocol);
+        using var unrelated = rig.Connections.Lease(rig.Other.Id, TestContext.Current.CancellationToken);
+        int disconnects = 0;
+        void Disconnect() { disconnects++; rig.Connections.Disconnect(rig.Profile.Id); }
+        if (timing == "connecting-then-reopen") rig.Connector.BeforeReturn = Disconnect;
+        var oldLease = rig.Connections.Lease(rig.Profile.Id, TestContext.Current.CancellationToken);
+        var oldChannel = (FaultChannel)oldLease.Channel;
+        Assert.Equal("owned remote bytes\n"u8.ToArray(), Read(oldChannel));
+        oldChannel.Failure = Failure(fault, oldChannel.HolderPath);
+        if (timing != "connecting-then-reopen") Disconnect();
+        FaultChannel? fresh = null;
+        void OpenNewSession()
+        {
+            using var newer = rig.Connections.Lease(rig.Profile.Id, TestContext.Current.CancellationToken);
+            fresh = (FaultChannel)newer.Channel;
+            Assert.Equal("owned remote bytes\n"u8.ToArray(), Read(fresh));
+        }
+        if (timing != "without-reopen") OpenNewSession();
+        var expected = oldChannel.Failure;
+        var observed = Record.Exception(oldLease.Dispose);
+        oldLease.Dispose();
+        int oldCloses = oldChannel.Closes;
+        bool oldHolderReleased = CanOpenExclusively(oldChannel.HolderPath);
+        oldChannel.Failure = null;
+        if (timing == "without-reopen") OpenNewSession();
+        bool newSessionReused;
+        byte[] recovered;
+        using (var next = rig.Connections.Lease(rig.Profile.Id, TestContext.Current.CancellationToken))
+        {
+            newSessionReused = ReferenceEquals(next.Channel, fresh);
+            recovered = Read(next.Channel);
+        }
+        var capacity = new List<SftpLease>();
+        using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        bound.CancelAfter(TimeSpan.FromSeconds(2));
+        try { for (int i = 0; i < rig.Capacity; i++) capacity.Add(rig.Connections.Lease(rig.Profile.Id, bound.Token)); }
+        finally { foreach (var lease in capacity) lease.Dispose(); }
+        output.WriteLine("REMOTE_DISCONNECT_GENERATION " + JsonSerializer.Serialize(new
+        {
+            protocol, timing, fault, disconnects, oldCloses, oldHolderReleased, newSessionReused,
+            OriginalCloseFailureRetained = ReferenceEquals(expected, observed), ObservedType = observed?.GetType().Name,
+            ExpectedType = expected?.GetType().Name, ObservedStack = observed?.StackTrace,
+            OldHolderPath = oldChannel.HolderPath, FreshHolderPath = fresh!.HolderPath, FreshCloses = fresh.Closes,
+            ActualBytesSHA256 = Hash(recovered), ExpectedBytesSHA256 = Hash("owned remote bytes\n"u8.ToArray()),
+            UnrelatedCloses = ((FaultChannel)unrelated.Channel).Closes, CapacityAcquired = capacity.Count, rig.Capacity,
+            ActualOwnedNativeHolders = true, ControlledDisconnectDuringConnectorReturn = timing == "connecting-then-reopen",
+            NativeServerFaultIncidenceOrCandidateQualified = false,
+        }));
+        Assert.Same(expected, observed); Assert.Equal(1, disconnects); Assert.Equal(1, oldCloses);
+        Assert.True(oldHolderReleased); Assert.True(newSessionReused); Assert.Equal(0, fresh.Closes);
+        Assert.Equal(0, ((FaultChannel)unrelated.Channel).Closes);
+        Assert.Equal(rig.Capacity, capacity.Count); Assert.Equal("owned remote bytes\n"u8.ToArray(), recovered);
+    }
+
     private static Exception? Failure(string kind, string path) => kind switch
     {
         "io" => new IOException("Owned close: " + path), "denied" => new UnauthorizedAccessException("Owned close: " + path),
@@ -188,10 +258,13 @@ public sealed class RemotePoolRetirementTests(ITestOutputHelper output)
     private sealed class Connector(FakeSftpServer server, string root) : ISftpConnector
     {
         public List<FaultChannel> Channels { get; } = [];
+        public Action? BeforeReturn;
         public ISftpChannel Connect(RemoteProfile profile, ConnectContext context, CancellationToken ct)
         {
             var channel = new FaultChannel(new FakeConnector(server).Connect(profile, context, ct), profile.Id, Path.Combine(root, "holder-" + Channels.Count + ".dat"));
-            Channels.Add(channel); return channel;
+            Channels.Add(channel);
+            var callback = BeforeReturn; BeforeReturn = null; callback?.Invoke();
+            return channel;
         }
     }
     private sealed class FaultChannel : ISftpChannel
