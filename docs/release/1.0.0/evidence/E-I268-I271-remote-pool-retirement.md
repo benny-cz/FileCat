@@ -1,6 +1,6 @@
 # E-I268–I271 — remote pool retirement and reconnect faults
 
-2026-10-09. Preliminary I06/V08/V12/V23 evidence. Original production is exact **15dec4411439b58735982ef8e3917d94806bd74f**. Two production files are corrected together with one new 64-case regression fixture in the commit containing this record. Local validation uses independently exported original Git blobs plus the explicitly pinned test/fix overlays; it is not represented as an already committed build or an installed candidate. The exact committed cb37ed3 Remote build also passes 2084/156, independently retaining every private-equivalent identity/outcome/exact skip. Current hosted CI is pending.
+2026-10-09. Preliminary I06/V08/V12/V23 evidence. Original production is exact **15dec4411439b58735982ef8e3917d94806bd74f**. Two production files are corrected together with one new 64-case regression fixture in the commit containing this record. Local validation uses independently exported original Git blobs plus the explicitly pinned test/fix overlays; it is not represented as an already committed build or an installed candidate. The exact committed cb37ed3 Remote build also passes 2084/156, independently retaining every private-equivalent identity/outcome/exact skip. The later [1b8b501 hosted attempt](E-CI-remote-lifetimes-smb-startup.md) independently passes all four required lanes, including all 256 retirement controls and 192 later generation controls. Wider native/account/candidate qualification remains.
 
 ## Four reproduced defects and corrections
 
