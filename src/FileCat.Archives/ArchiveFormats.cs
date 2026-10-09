@@ -622,7 +622,21 @@ internal sealed class SharpArchiveReader : IMemberReader
     public static SharpArchiveReader Open(string path, bool rar)
     {
         bool numberedVolumeGap = false;
-        var volumes = rar ? RarVolumes(path, out numberedVolumeGap).Select(ArchiveFormats.OpenShared).ToList() : [ArchiveFormats.OpenShared(path)];
+        var volumes = new List<FileStream>();
+        try
+        {
+            foreach (var volume in rar ? RarVolumes(path, out numberedVolumeGap) : [path])
+                volumes.Add(ArchiveFormats.OpenShared(volume));
+        }
+        catch
+        {
+            foreach (var volume in volumes)
+            {
+                try { volume.Dispose(); }
+                catch (Exception ex) { AppLog.Warn("Archive volume cleanup after open failure: " + ex.GetType().Name); }
+            }
+            throw;
+        }
         try
         {
             var options = new ReaderOptions { LeaveStreamOpen = true, LookForHeader = false };

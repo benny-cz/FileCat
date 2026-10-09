@@ -225,6 +225,7 @@ public static class OpenPgp
     public static SignatureResult Verify(string signature, string signed, CancellationToken ct, string? home = null)
     {
         if (Tool is not { } gpg) return new SignatureResult(VerificationState.SignatureUnchecked, "OpenPGP signatures are checked with GnuPG, which is not installed here");
+        ct.ThrowIfCancellationRequested();
         var start = new ProcessStartInfo(gpg)
         {
             RedirectStandardOutput = true,
@@ -241,7 +242,12 @@ public static class OpenPgp
             using var process = Process.Start(start) ?? throw new IOException("gpg did not start");
             var output = process.StandardOutput.ReadToEndAsync(ct);
             _ = process.StandardError.ReadToEndAsync(ct);
-            if (!process.WaitForExit(TimeSpan.FromSeconds(60)) || ct.IsCancellationRequested)
+            try
+            {
+                process.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
+                ct.ThrowIfCancellationRequested();
+            }
+            catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
             {
                 try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
                 ct.ThrowIfCancellationRequested();
