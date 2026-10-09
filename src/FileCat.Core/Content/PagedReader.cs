@@ -298,6 +298,7 @@ public sealed class PagedReader : IDisposable
         }
         byte[] buffer;
         int n;
+        Exception? primaryError = null;
         try
         {
             buffer = new byte[PageSize];
@@ -315,7 +316,8 @@ public sealed class PagedReader : IDisposable
             }
             return null;
         }
-        finally { EndSourceUse(); }
+        catch (Exception error) { primaryError = error; throw; }
+        finally { EndSourceUse(primaryError); }
         var page = new Page(index, buffer, n);
         lock (_lock)
         {

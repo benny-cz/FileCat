@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
@@ -55,8 +56,18 @@ internal abstract class SftpExecutorBase(Job job, IFileSystemOperations fs, JobJ
 
     public sealed override void Execute()
     {
+        Exception? primaryError = null;
         try { Run(); }
-        finally { _lease?.Dispose(); }
+        catch (Exception error) { primaryError = error; throw; }
+        finally
+        {
+            if (primaryError is null) _lease?.Dispose();
+            else
+            {
+                try { _lease?.Dispose(); }
+                catch (Exception closeError) { AppLog.Warn("Could not close a remote job connection after work failed", closeError); }
+            }
+        }
     }
 
     protected abstract void Run();
