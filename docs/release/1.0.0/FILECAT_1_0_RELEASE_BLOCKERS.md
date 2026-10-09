@@ -3,7 +3,7 @@
 Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. The combined I258/I259 and bounded I03 metadata batch changes no Mac/VM/USB/account/network/global-environment/host policy. Exact owned restoration receipts retain four new private compiler locks and any current locks, alongside earlier qualified inventories. Owner/platform/people/physical-source/candidate gates remain.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. The I260/I261 and closed-JSON storage batch changes no Mac/VM/USB/account/network/global-environment/host policy. Exact owned restoration receipts retain individually pinned current/earlier locks and unavailable inventories. Two unchanged expanded local Platform ACL/USN assumptions remain an autonomous follow-up; native observations do not erase their failed TRX. Owner/platform/people/physical-source/candidate gates remain.
 
 ## Safety and publication holds
 
