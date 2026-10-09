@@ -1,3 +1,4 @@
+using FileCat.Core.Diagnostics;
 using FileCat.Core.Resources;
 using FileCat.Core.Threading;
 
@@ -105,8 +106,10 @@ public sealed class PagedReader : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             _sourceUses++;
         }
+        Exception? primaryError = null;
         try { work(_source); }
-        finally { EndSourceUse(); }
+        catch (Exception error) { primaryError = error; throw; }
+        finally { EndSourceUse(primaryError); }
     }
 
     /// <summary>Why content could not be read (for example an archive member found damaged part way), or null.</summary>
@@ -369,6 +372,7 @@ public sealed class PagedReader : IDisposable
         }
         ContentRevision? rev;
         long len;
+        Exception? primaryError = null;
         try
         {
             rev = _source.GetRevision();
@@ -376,7 +380,8 @@ public sealed class PagedReader : IDisposable
             len = Math.Max(0, _source.Length);
             ct.ThrowIfCancellationRequested();
         }
-        finally { EndSourceUse(); }
+        catch (Exception error) { primaryError = error; throw; }
+        finally { EndSourceUse(primaryError); }
         lock (_lock)
         {
             if (_disposed) return false;
@@ -422,7 +427,7 @@ public sealed class PagedReader : IDisposable
 
     // A provider may still be inside a synchronous read/revision call when its view closes. Retire the cache
     // immediately, but release its source only after the last such call returns, without blocking the UI.
-    private void EndSourceUse()
+    private void EndSourceUse(Exception? primaryError = null)
     {
         bool dispose;
         lock (_lock)
@@ -431,7 +436,10 @@ public sealed class PagedReader : IDisposable
             dispose = _disposed && _sourceUses == 0 && !_sourceDisposed;
             if (dispose) _sourceDisposed = true;
         }
-        if (dispose) _source.Dispose();
+        if (!dispose) return;
+        if (primaryError is null) { _source.Dispose(); return; }
+        try { _source.Dispose(); }
+        catch (Exception closeError) { AppLog.Warn("Could not close a retired content source after active work failed", closeError); }
     }
 
     /// <summary>Retires page demand and releases the cache budget; an active source call finishes before disposal.</summary>

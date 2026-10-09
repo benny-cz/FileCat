@@ -1,55 +1,131 @@
+using System.Diagnostics;
+using System.Text.Json;
 using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Tests;
 
 /// <summary>
-/// V12: a folder watcher's overflow observed as such. More changes at once than the system's notification buffer holds
-/// lose which items changed; the watcher counts it and asks for the folder to be read again in full, after the overflow.
-/// Unhindered, this machine's watcher kept up with 100,000 changes of long names (five rounds, no overflow), so the
-/// handler is held up a little, as on a busy machine, and the system's buffer fills meanwhile.
+/// V12: native notification-buffer overflow must cause reconciliation of the actual final folder state.
+/// A delayed writer-side timestamp is not evidence that an already completed reconciliation must repeat.
 /// </summary>
 public sealed class ChangeMonitorOverflowTests
 {
     [Fact]
     public async Task An_overflow_is_counted_and_the_folder_is_read_again_after_it()
+        => await ObserveOverflow(holdWriterAfterFinalState: false);
+
+    [Fact]
+    public async Task Completed_overflow_reconciliation_survives_a_delayed_writer_sample()
+        => await ObserveOverflow(holdWriterAfterFinalState: true);
+
+    private static async Task ObserveOverflow(bool holdWriterAfterFinalState)
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Forcing an overflow is measured on Windows (64 KiB buffer, long names).");
         var ct = TestContext.Current.CancellationToken;
         using var dir = new TempDir();
         string folder = Directory.CreateDirectory(Path.Combine(dir.Path, "churn")).FullName;
-        long reads = 0, lastRead = 0;
+        long reads = 0;
+        bool closed = false;
+        RoundState? active = null;
+        var gate = new object();
+        var observations = new List<Reading>();
         using var monitor = new ChangeMonitor(folder, () =>
         {
-            Interlocked.Increment(ref reads);
-            Interlocked.Exchange(ref lastRead, DateTime.UtcNow.Ticks);
+            lock (gate)
+            {
+                if (closed) return;
+                reads++;
+                var state = active;
+                if (state is null) return;
+                string[] names = Directory.GetFiles(folder).Select(p => Path.GetFileName(p)).Order(StringComparer.Ordinal).ToArray();
+                bool exact = names.SequenceEqual(state.ExpectedNames) &&
+                    names.All(name => File.ReadAllBytes(Path.Combine(folder, name)).AsSpan().SequenceEqual("done"u8));
+                var reading = new Reading(state.Round, DateTime.UtcNow.Ticks, Stopwatch.GetTimestamp(), names.Length, exact);
+                observations.Add(reading);
+                if (exact) state.FinalObserved.TrySetResult(reading);
+            }
         });
         Assert.True(monitor.IsActive);
         monitor.BeforeNotification = () => Thread.Sleep(2);
-
-        // Long names make each notification record large (about 400 bytes): the 64 KiB buffer holds some 160 of them.
-        string stem = new('n', 180);
         int rounds = 0;
-        long churnEnded = 0;
-        while (monitor.Overflows == 0 && rounds < 5)
+        long writerSample = 0, earliestWriterMonotonicSample = 0;
+        Reading? finalRead = null;
+        RoundState? finalState = null;
+        try
         {
-            int round = rounds++;
-            // When the last change was made, as each thread saw it: the test's own wake-up after them can come seconds
-            // later on a busy machine, after the reread they asked for (CI run 36946911728).
-            var lastChange = await Task.WhenAll(Enumerable.Range(0, 4).Select(t => Task.Run(() =>
+            do
             {
-                for (int i = 0; i < 2500; i++) File.WriteAllText(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"), "c");
-                for (int i = 0; i < 2500; i++) File.Delete(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"));
-                return DateTime.UtcNow.Ticks;
-            }, ct)));
-            churnEnded = lastChange.Max();
-        }
-        monitor.BeforeNotification = null;
-        TestContext.Current.TestOutputHelper?.WriteLine($"{rounds} round(s) of 20,000 changes: {monitor.Overflows} overflow(s), {Interlocked.Read(ref reads)} reread(s) asked");
-        Assert.True(monitor.Overflows > 0, "Five rounds of 20,000 changes with long names, handled slowly, did not overflow the notification buffer.");
+                int round = rounds++;
+                // Retire the previous round before removing its synthetic completion markers.
+                lock (gate) active = null;
+                foreach (string previous in Directory.GetFiles(folder)) File.Delete(previous);
+                var state = new RoundState(round);
+                lock (gate) active = state;
+                string stem = new('n', 180);
+                var samples = await Task.WhenAll(Enumerable.Range(0, 4).Select(t => Task.Run(async () =>
+                {
+                    for (int i = 0; i < 2500; i++) File.WriteAllText(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"), "c");
+                    for (int i = 0; i < 2500; i++) File.Delete(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"));
+                    // A positive final-state marker follows this writer's last mutation. All four markers and no
+                    // churn files prove that the callback saw the completed namespace, even if writers resume later.
+                    File.WriteAllText(Path.Combine(folder, $"done-{round}-{t}.txt"), "done");
+                    if (holdWriterAfterFinalState)
+                    {
+                        await state.FinalObserved.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+                        await Task.Delay(50, ct);
+                    }
+                    return new WriterSample(DateTime.UtcNow.Ticks, Stopwatch.GetTimestamp());
+                }, ct)));
+                writerSample = samples.Max(s => s.UTC);
+                earliestWriterMonotonicSample = samples.Min(s => s.MonotonicTimestamp);
+                monitor.BeforeNotification = null;
+                finalRead = await state.FinalObserved.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+                finalState = state;
+                if (monitor.Overflows == 0) monitor.BeforeNotification = () => Thread.Sleep(2);
+            } while (monitor.Overflows == 0 && rounds < 5);
 
-        // Whatever was lost, the folder is asked to be read again once the churn is over.
-        for (int i = 0; i < 100 && Interlocked.Read(ref lastRead) < churnEnded; i++) await Task.Delay(50, ct);
-        Assert.True(Interlocked.Read(ref lastRead) >= churnEnded, "No reread was asked for after the churn and its overflow.");
+            Reading[] captured;
+            long asked;
+            lock (gate) { captured = [.. observations]; asked = reads; }
+            string[] actualNames = Directory.GetFiles(folder).Select(p => Path.GetFileName(p)).Order(StringComparer.Ordinal).ToArray();
+            bool actualBytes = actualNames.All(name => File.ReadAllBytes(Path.Combine(folder, name)).AsSpan().SequenceEqual("done"u8));
+            TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new
+            {
+                HeldWriter = holdWriterAfterFinalState, ActualWindowsFileSystemWatcher = true,
+                NativeChangeOperations = rounds * 20000, CompletionMarkers = rounds * 4,
+                ActualNativeOverflows = monitor.Overflows, ActualRereads = asked,
+                WriterSampleUTC = writerSample, FinalObservationUTC = finalRead!.UTC,
+                FinalObservationBeforeHeldWriterSample = holdWriterAfterFinalState && finalRead.MonotonicTimestamp < earliestWriterMonotonicSample,
+                FinalObservationMonotonicTimestamp = finalRead.MonotonicTimestamp,
+                EarliestWriterMonotonicTimestamp = earliestWriterMonotonicSample,
+                MonotonicFrequency = Stopwatch.Frequency,
+                FinalNamesObservedByCallback = finalState!.ExpectedNames,
+                ActualFinalNames = actualNames, AllFinalBytesExact = actualBytes,
+                ActualReadings = captured, NoNotificationInjectionOrProductDeadlineChange = true,
+            }));
+            Assert.True(monitor.Overflows > 0, "Five rounds of 20,000 changes with long names, handled slowly, did not overflow the notification buffer.");
+            Assert.True(finalRead.ExactFinalMarkers);
+            Assert.Equal(finalState.ExpectedNames, actualNames);
+            Assert.True(actualBytes);
+            if (holdWriterAfterFinalState)
+                Assert.True(finalRead.MonotonicTimestamp < earliestWriterMonotonicSample, "The controlled writer hold did not follow the exact final-state observation.");
+        }
+        finally
+        {
+            monitor.Dispose();
+            // Finish an in-flight callback before TempDir removes the folder; later callbacks observe closed.
+            lock (gate) closed = true;
+        }
+        foreach (string marker in Directory.GetFiles(folder)) File.Delete(marker);
         Assert.Empty(Directory.EnumerateFileSystemEntries(folder));
+    }
+
+    private sealed record Reading(int Round, long UTC, long MonotonicTimestamp, int FileCount, bool ExactFinalMarkers);
+    private sealed record WriterSample(long UTC, long MonotonicTimestamp);
+    private sealed class RoundState(int round)
+    {
+        public int Round { get; } = round;
+        public string[] ExpectedNames { get; } = Enumerable.Range(0, 4).Select(t => $"done-{round}-{t}.txt").Order(StringComparer.Ordinal).ToArray();
+        public TaskCompletionSource<Reading> FinalObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }
