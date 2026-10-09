@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**330 evidence entries; none is final candidate qualification.** No candidate exists.
+**332 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -341,6 +341,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-about-fail | Complete original About CI failure retained | Exact 88a107d; 37987173029 attempt 1 | 30,000 results/116 new About passes; one preceding Windows DirectoryDiff failure; all other 29,883 predecessor outcomes/skips remain; failed original stays failed | [Full record](evidence/E-CI-about-windows-job-failure.md) | I108, I288, I291, V20 |
 | E-I291 | Owned directory overlap-policy fixture isolation | Exact 0adbad0; existing fixture overlay only | Controlled original one failure/two positives to three passes; full App 1398/25 exact skips; historical cause/exact/hosted/candidate open | [Full record](evidence/E-I291-directory-overlap-fixture-isolation.md) | I108, I291, V13, V20 |
 | E-CI-metadata | Original metadata retirement and About CI | Exact 96977d4; 37988669063 attempt 1 | 30,024 results/140 new passes; all 29,884 preceding qualified outcomes/skips; older failed source retained separately | [Full record](evidence/E-CI-metadata-order-retirement.md) | I06, I289, I288, V12, V20 |
+| E-I292 | I06/V07/V12 | adc5405 + declared overlays | 22 ownership controls/full Core 3446/64/full App 1398/25; original 16 failures/six live positives retained. | Preliminary; exact/hosted/aggregate/native/reference/candidate remain. | [Record](evidence/E-I292-progressive-capture-retirement.md) |
+| E-CI-scheduler | I06/V12/V20 | 0adbad0 /37990378104 attempt 1 | Four required lanes/30,084 records/sixty new passes; every 30,024 predecessor outcome/message/exact skip remains. | Original CI subset; no candidate. | [Record](evidence/E-CI-scheduler-cancellation-ownership.md) |
 
 
 <a id="commits-made-by-the-campaign"></a>

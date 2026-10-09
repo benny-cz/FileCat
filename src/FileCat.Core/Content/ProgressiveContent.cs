@@ -78,8 +78,8 @@ public sealed class ProgressiveContent : IContentSource
 {
     private const int ChunkSize = 256 * 1024;
     private readonly object _gate;
-    private readonly Func<Stream> _open;
-    private readonly Action? _closed;
+    private Func<Stream>? _open;
+    private Action? _closed;
     private readonly MemberLimits _limits;
     private readonly long _maxKept;
     private readonly string _tempDirectory;
@@ -169,7 +169,7 @@ public sealed class ProgressiveContent : IContentSource
     private Stream Source()
     {
         if (_source is not null) return _source;
-        _source = _open();
+        _source = _open is { } open ? open() : throw new ObjectDisposedException(DisplayName);
         _sourceAt = 0;
         return _source;
     }
@@ -330,6 +330,10 @@ public sealed class ProgressiveContent : IContentSource
         {
             if (_closedOnce) return;
             _closedOnce = true;
+            // A caller may retain disposed content; it no longer owns an archive index or callback captures.
+            _open = null;
+            var closed = _closed;
+            _closed = null;
             Exception? failure = null;
             void Close(Action close)
             {
@@ -344,7 +348,7 @@ public sealed class ProgressiveContent : IContentSource
             var spool = _spool;
             _spool = null;
             if (spool is not null) Close(spool.Dispose);
-            if (_closed is not null) Close(_closed);
+            if (closed is not null) Close(closed);
             if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }

@@ -8,7 +8,7 @@ Cancellation now atomically drops the queued callback and unregisters its notifi
 
 Fifteen public scheduler controls read one actual owned 32 KiB file into independently captured payloads. Queued cancellation, already-cancelled admission, shutdown and live demand each run with 1/16/64 requests; running cancellation repeats 1/4/16 times. The bounded explicit-collection observer keeps the scheduler, returned tasks and external cancellation sources alive. All source bytes/hash remain unchanged. The original yields **nine failures/six positive passes**. All cancelled queued payloads remain reachable while held; shutdown payloads remain after drain. Live callbacks and running cancellation correctly verify every expected byte. The correction passes **all fifteen**: cancelled queued payloads collect while the device remains held, shutdown leaves none after drain, live callbacks execute, and running callbacks retain their payloads until returning. Reachability/counts are not process memory peaks, throughput, native allocation or arbitrary-schedule qualification.
 
-The affected App selection passes **121**. The unchanged compiled full Core/App suites run concurrently and pass **3424/64 exact skips** and **1398/25 exact skips**. Every one of the preceding **3473 Core** and **1423 App** outcome/message records and exact skip reasons remains; one Core PE display path is adapted only after verifying the same method. Full-suite payload bytes remain unchanged. Exact committed checks are recorded below; original hosted checks, aggregate queue/job/result/provider memory, wider races, native/process/frame/reference/human and candidate scope remain. No new memory budget, host UI, physical source, freeze or publication occurs. I106/I110 HOLD and owner decisions/human GO remain.
+The affected App selection passes **121**. The unchanged compiled full Core/App suites run concurrently and pass **3424/64 exact skips** and **1398/25 exact skips**. Every one of the preceding **3473 Core** and **1423 App** outcome/message records and exact skip reasons remains; one Core PE display path is adapted only after verifying the same method. Full-suite payload bytes remain unchanged. Exact committed checks are recorded below; original hosted checks pass below; aggregate queue/job/result/provider memory, wider races, native/process/frame/reference/human and candidate scope remain. No new memory budget, host UI, physical source, freeze or publication occurs. I106/I110 HOLD and owner decisions/human GO remain.
 
 The final proof inventories every archived/rehashed/removed/locked file under both exact owned temporary roots, including the explicitly declared short root. Earlier restoration and locked compiler files remain at their own producer.
 
@@ -34,7 +34,7 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain com
 
 ## Exact committed follow-up
 
-No-overlay **0adbad02e766b55614d881b509e8fa7ef8ad44c5** verifies all 1361 canonical Git blobs and passes all fifteen controls. Every private/exact outcome/message and payload-retirement/live-running semantic observation matches apart from owned roots. Ten temporary files are archived/rechecked; one is removed and nine compiler locks remain explicitly retained. This is not a full-suite, native, aggregate, throughput or candidate replay. Original hosted checks remain.
+No-overlay **0adbad02e766b55614d881b509e8fa7ef8ad44c5** verifies all 1361 canonical Git blobs and passes all fifteen controls. Every private/exact outcome/message and payload-retirement/live-running semantic observation matches apart from owned roots. Ten temporary files are archived/rechecked; one is removed and nine compiler locks remain explicitly retained. This is not a full-suite, native, aggregate, throughput or candidate replay. Original hosted checks pass below.
 
 
 ## Selected immutable follow-up receipts
@@ -47,3 +47,8 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain com
 | `i290-committed-20261009-v1/independent-exact-final-v1.json` | `45602a7f5c38c299b1fe10866265c21dbd9ea941e302f836ddccaff5e2e21026` |
 | `E:/FileCat/artifacts/release-evidence/i290-committed-20261009-v1/committed/core-controls/command.json` | `b798e7169b98b2b9d8cc544872a5c07f874e156b52200357b3f1f651cc56c166` |
 | `E:/FileCat/artifacts/release-evidence/i290-committed-20261009-v1/committed/inputs.json` | `703b8250aaf538def7707d0459e36f8325fe92708a56d9676312d3829cde8bf6` |
+
+
+## Original hosted follow-up
+
+[37990378104 attempt 1](E-CI-scheduler-cancellation-ownership.md), exact 0adbad0, passes four required lanes/30,084 results, including sixty new scheduler passes. Every one of the 30,024 preceding outcome/message records and exact skips remains. This does not close aggregate/native/reference/throughput/queue-count/candidate work.

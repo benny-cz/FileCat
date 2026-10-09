@@ -6,7 +6,7 @@ The I94 overlap-policy test awaited the actual comparison command but still assu
 
 The corrected fixture makes its two owned tabs inactive for watching before navigating to the policy-test folders. Selected panels and comparison paths stay in place. It explicitly checks watcher absence and stable generations after the same owned witness write, then still awaits the actual command and asserts that the resulting comparison offers no synchronization and explains the folder overlap. Production Current/generation/cancellation and synchronization guards are unchanged. The fixture qualifies overlap policy; native watcher/current-demand behavior retains its own separate controls and acceptance limits. There is no retry, increased delay, suppressed assertion or promotion of the historical failure to a pass.
 
-All **three directory controls** and the same compiled **full App 1398/25 exact skips** pass. All **1423 preceding App outcome/message records and exact skip reasons** remain. Full Core 3424/64 remains separately at I290; this fixture-only batch does not rerun it. The controlled original failure/two positives, actual witness bytes, generations, command state, raw logs, source/payload pins and bounded owned restoration are retained. Exact committed/original hosted repair checks, historical CI cause, native watcher/platform/reference/human/candidate scope remain. I106/I110 HOLD and required owner decisions/human GO remain.
+All **three directory controls** and the same compiled **full App 1398/25 exact skips** pass. All **1423 preceding App outcome/message records and exact skip reasons** remain. Full Core 3424/64 remains separately at I290; this fixture-only batch does not rerun it. The controlled original failure/two positives, actual witness bytes, generations, command state, raw logs, source/payload pins and bounded owned restoration are retained. Exact committed repair checks pass below; original hosted repair checks, historical CI cause, native watcher/platform/reference/human/candidate scope remain. I106/I110 HOLD and required owner decisions/human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -22,3 +22,20 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain com
 | `i108-directory-overlap-fixture-20261009-v2/seal-overlap-fixture-v1.py` | `447e308ca6cb3aad6461c136dbd771828e0754119e248d1249b01833946c6a4f` |
 | `i108-directory-overlap-fixture-20261009-v2/independent-overlap-fixture-final-v1.json` | `3d562481eef111a1dcdb7dde641d9c555456da26a0fa6d346561990281f26092` |
 | `E:/FileCat/artifacts/release-evidence/i108-directory-overlap-fixture-20261009-v2/owned-temporary-files-v1.zip` | `4d1a0ead09cad37ea2f8b2df865b96c3d25fcb8ab36c2b0f61ea1616ecf9fd6d` |
+
+
+## Exact committed follow-up
+
+No-overlay **adc54053de097ef88dd86851bcbc8edb5cfdf7e2** verifies all 1363 canonical Git blobs and passes all three directory controls. Every private/exact outcome/message and the completed-command, stable-generation and overlap-refusal observations agree apart from owned roots. Ten temporary files are archived/rechecked; one is removed and nine compiler locks remain explicitly retained. This is not a full-suite, native watcher, historical-cause or candidate replay.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain complete source, commands, payloads, raw failures/skips and restoration.
+
+| File | SHA256 |
+|---|---|
+| `i291-committed-20261009-v1/seal-exact-v1.py` | `e362d84d535b47f60cf179c87c4424a0b22e052dc1b72bb8a102033ee43db77f` |
+| `i291-committed-20261009-v1/independent-exact-final-v1.json` | `58d81bd3cd13980924975397ed3edda405d5eefb74780e451f1bbab9b9fdc573` |
+| `E:/FileCat/artifacts/release-evidence/i291-committed-20261009-v1/committed/app-controls/command.json` | `b352ab98d20f187053aa930e98da1c81afe4988573a1fa459ad361e97a3fc26e` |
+| `E:/FileCat/artifacts/release-evidence/i291-committed-20261009-v1/committed/inputs.json` | `11b7a12bb437c51e8af343dc7159e64ffed60941600084ab62e9a6a9e52943cd` |
