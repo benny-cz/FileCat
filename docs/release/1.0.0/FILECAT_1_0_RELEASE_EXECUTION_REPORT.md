@@ -10,7 +10,7 @@ The [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md) records completed slices
 | Measure | Current state | Meaning |
 |---|---|---|
 | Issue register | 267 IDs: 245 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | Some unresolved entries are already implemented/covered and await re-audit or wider qualification; these are not 20 unimplemented fixes. |
-| Evidence catalogue | 289 entries; 5043 selected private evidence hashes independently reconciled in audit v164. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
+| Evidence catalogue | 290 entries; 5060 selected private evidence hashes independently reconciled in audit v165. | Every record applies only to its exact source/artifact/environment. This is not a count of all raw files or all executed cases. |
 | Campaigns V01–V24 | Preliminary evidence across the campaign; all 24 still require final-candidate qualification. | Remaining scenario gaps are listed below. An overall test completion percentage/total has not been established. |
 | Decisions and resources | Nine unresolved owner decisions, three external dependencies, eight environment rows and three participant categories tracked in the gate register. | These groups overlap issue/campaign work; they are not additional test counts. Available environments and remaining gaps are distinguished in each row. |
 | Latest local validation | Exact c0cfb7e Core: 2724 passed/64 exact skips, all 2788 logical cases retained (one payload-path display label differs); the former GnuPG failure passes under the longer temp-root conditions. | The two fixture files leave production unchanged from 0af6588. Earlier dc1a86e Remote 2020/156 and Platform 211/38 retain that producer; the complete App at a2f6cd9 passes 1217/25 with all 1242 previous names/outcomes and exact skips retained. All 23 resource and 22 archive controls pass. No claim of four full local suites at the new commit. |
@@ -38,7 +38,7 @@ Storage maintenance: [E-ENV-STORAGE](evidence/E-ENV-STORAGE-evidence-capacity.md
 | [I08](FILECAT_1_0_RELEASE_ISSUES.md#i08) | Autonomous + native | Twelve earlier Windows worker controls plus fourteen parent-exit/lifetime controls and the I231 picture-bounds correction are sealed at their own producers. Continue Unix/fallback/elevated/native permission and broader lifetime/claim matrix; candidate remains. |
 | [I10](FILECAT_1_0_RELEASE_ISSUES.md#i10) | Autonomous + contract | Audit end-user/support/security docs after scope is frozen. |
 | [I11](FILECAT_1_0_RELEASE_ISSUES.md#i11) | Hardware/people | Obtain the mandatory external platform, participant and assistive-technology evidence. |
-| [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Resume real interaction/feature workflows when native UI access and participants are available. |
+| [I13](FILECAT_1_0_RELEASE_ISSUES.md#i13) | Native UI + people | Supported native Windows capture/input is restored for limited main-window mechanics; [PQ01](evidence/E-PQ01-windows-theme-showcase.md) records the observed menus/themes. Continue live feature workflows in the VM; required participant evidence remains. |
 | [I14](FILECAT_1_0_RELEASE_ISSUES.md#i14) | External/legal | Resolve upstream provenance and license/signing eligibility without inventing a legal conclusion. |
 | [I16](FILECAT_1_0_RELEASE_ISSUES.md#i16) | Autonomous + native | [Prior scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#i16-scope-before-2026-10-09-preflight-reveal-batch) retains parent-Git/custom-host and other earlier launch controls. I261 adds exact system Explorer selection, typed path transport and finite current committed helper exchanges. Actual Explorer UI, other indirect paths, identities/races/native interaction and candidate remain. |
 | [I17](FILECAT_1_0_RELEASE_ISSUES.md#i17) | Autonomous + consent | Complete limited-account/consent/token/path/lifetime matrix on installed candidate. |
@@ -90,7 +90,7 @@ Execution priority is the runnable work within the 20 remaining unresolved issue
 4. Resume native UI, phone-lock, reference-hardware, people or credential tasks only when their actual prerequisite is available; retain the physical-source hold.
 5. Resolve the queued scope/owner/signing/protection/custody decisions before contract freeze, candidate formation and final qualification.
 
-Low-priority owner polish remains [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md): clearer GitHub README and real Windows screenshots with four panels, at least three tabs each, covering all actual themes. Native capture is required; it is not fabricated from component measurements.
+Owner polish [PQ01](FILECAT_1_0_RELEASE_POLISH_QUEUE.md) is complete for the reviewed presentation scope: clearer GitHub README and eight original Windows theme captures, four panels/three tabs each. [Exact capture and restoration](evidence/E-PQ01-windows-theme-showcase.md). Host UI testing is stopped at the owner’s request; future live testing uses the VM. Required human/accessibility/native-engine/candidate qualification remains.
 
 ## Operational-plan checklist
 

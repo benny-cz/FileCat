@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**289 evidence entries; none is final candidate qualification.** No candidate exists.
+**290 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -300,6 +300,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-V24-D2 | Current browse process/file/share-contact controls | Actual 313d40b; 885 raw source blobs/354 unchanged payloads | Verified finite preliminary component observations; broader I16/V23/V24/native/candidate open | [E-V24-D2](evidence/E-V24-D2-current-browse-traces.md) | I16, B03/B10, V23, V24 |
 | E-X01 | Suites on the lent Windows 11 VM (unelevated), Ubuntu 22.04 VM (also inside its GNOME session), the owner's M1 Mac; CI runs of the campaign's commits | `be6ca25` … `d40e510`, `ca91908` | Preliminary automated | [E-X01](evidence/E-X01-cross-platform-runs.md) | I21, I22, I23, I27, I28 |
 | E-X02 | Fresh Linux native suites | `ecf5349` / `cc97a8d` plus hash-bound I99 App inputs | Preliminary native | [E-X02](evidence/E-X02-fresh-linux-native.md) | S10, V19, ENV-04, I99 |
+| E-PQ01 | Real Windows four-panel/twelve-tab theme gallery and README presentation | Exact compiled a2f6cd9; 2026-10-09 native host capture | Eight original JPEGs, actual menu/theme input, 141 payload members and 105-file owned restoration; future live tests restricted to VM | [Full record](evidence/E-PQ01-windows-theme-showcase.md) | PQ01, V17, V18, V22 |
 
 <a id="commits-made-by-the-campaign"></a>
 

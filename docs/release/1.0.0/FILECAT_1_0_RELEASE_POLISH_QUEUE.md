@@ -7,7 +7,7 @@ change the release issue/campaign counts.
 
 - Requested: 2026-10-06 by the product owner during release execution.
 - Priority: low; continue higher-priority release validation first.
-- Status: queued, not implemented or validated.
+- Status: complete for reviewed presentation scope, 2026-10-09. [Exact evidence](evidence/E-PQ01-windows-theme-showcase.md).
 - Improve the README's text presentation of FileCat for GitHub readers.
 - Include polished screenshots of the real Windows app. Show its main window
   with four panels, each containing more than two tabs (at least three).
@@ -16,9 +16,12 @@ change the release issue/campaign counts.
 - Use owned demonstration files and tabs with clear, useful contents. Preserve
   actual product behavior and avoid exposing personal paths or credentials.
 - Let the owner decide any ambiguous presentation or screenshot choices.
-- Capture requires working native UI access or owner-supplied captures. Current
-  CLI/build evidence cannot substitute for real screenshots. No capture is
-  claimed in this queue entry.
+- Completed with supported native Windows capture/input: eight original JPEGs,
+  four panels and three tabs per panel. All seven palettes plus System are shown.
+  The README and image links are reviewed; exact build/interaction/restoration
+  receipts retain their scope. The owned profile and all 105 files were archived
+  and removed. No accessibility/native-engine/candidate qualification is implied.
+- Further live testing uses the VM; host UI is stopped while the owner works.
 
 Acceptance: a reviewed README with clearer product presentation, working image
 links, and real four-panel/multiple-tab Windows screenshots covering all themes.

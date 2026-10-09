@@ -1,12 +1,23 @@
 # FileCat
 
-A keyboard-first, dual-panel file manager and system-resource navigator for Windows (Linux and macOS
-builds run the portable core), written in C# on .NET 10 and Avalonia 12. MIT-licensed.
+**Your files. Your layout. Your keyboard.**
 
-FileCat follows the conventions that Open Salamander, Total Commander, and FAR Manager share —
-F3–F8, Insert/Space marking, masks on Num+/Num−/Num*, Tab to the other panel — and adds tabs,
-additional panels with explicit targets, and an operation engine that says exactly what completed,
-what failed, and what remains uncertain.
+FileCat is a keyboard-first file manager and system-resource navigator. Start with two panels,
+open tabs for the folders you return to, then arrange more panels around the work in front of you.
+It follows the familiar conventions of Open Salamander, Total Commander and FAR Manager, with
+explicit operation targets and clear reports of what completed, failed or remains uncertain.
+
+Built with **C# · .NET 10 · Avalonia 12**. **MIT-licensed.** Windows provides the full native
+integration; Linux and macOS builds run the portable core.
+
+[Explore the features](#highlights) · [Choose a theme](#make-it-yours) · [Keyboard essentials](#keyboard-essentials) · [Build and run](#build-and-run)
+
+![FileCat in Classic Dark on Windows: four panels, each with three tabs](docs/screenshots/windows/ClassicDark.jpg)
+
+*Four panels, twelve tabs, one workspace. Real Windows captures using owned demonstration files.*
+
+FileCat 1.0.0 is in release validation. See the [release dashboard](docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md)
+for current readiness and remaining qualification; the screenshots show a development build.
 
 ## Highlights
 
@@ -20,7 +31,7 @@ what failed, and what remains uncertain.
   delete), guarded undo, and a crash-safe journal with interrupted-operation review.
 - **Find and compare**: Alt+F7 search into result sets that act on the originals, flat view (Ctrl+B),
   compare-and-mark (Ctrl+F10).
-- **Viewer**: F3 text/hex viewer that opens multi-gigabyte files instantly, encoding detection with
+- **Viewer**: F3 text/hex viewer that reads multi-gigabyte files without loading them whole, encoding detection with
   evidence, search, go to offset, checksums, follow mode; Ctrl+Q quick view.
 - **Archives**: ZIP browsing and extraction (read-only) with Mark-of-the-Web propagation.
 - **Windows integration**: native CopyFile2 (keeps ReFS block cloning and SMB offload), SMB share
@@ -32,8 +43,58 @@ what failed, and what remains uncertain.
   FileCat's Git-derived badges omit partial-clone repositories to avoid fetching missing objects.
   Shared object stores retain these badges when their bounded local alternate paths pass admission;
   quoted alternate paths and HTTP alternate locations leave the Git-derived badges plain.
-- **Themes**: Classic (follows light/dark), Cyberpunk, Psychedelic, Steampunk, and High Contrast (automatic with
-  the OS setting).
+- **Themes**: Classic, Classic Dark, High Contrast, Cyberpunk, Psychedelic, Steampunk and DOS Commander.
+  System follows Windows light/dark and high-contrast preferences. Preview them on the main window before keeping a choice.
+
+## Make it yours
+
+Choose **View → Theme…** to preview a theme on FileCat itself. Press Enter to keep it or Esc to return.
+Animated effects can be turned off, and system high contrast takes priority.
+
+<details>
+<summary><strong>See every theme — four panels and three tabs per panel</strong></summary>
+
+<table>
+<tr>
+<td width="50%"><strong>Classic</strong><br><a href="docs/screenshots/windows/Classic.jpg"><img src="docs/screenshots/windows/Classic.jpg" alt="FileCat Classic on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Classic Dark</strong><br><a href="docs/screenshots/windows/ClassicDark.jpg"><img src="docs/screenshots/windows/ClassicDark.jpg" alt="FileCat Classic Dark on Windows with four panels and three tabs in every panel" width="700"></a></td>
+</tr>
+<tr>
+<td width="50%"><strong>Cyberpunk</strong><br><a href="docs/screenshots/windows/Cyberpunk.jpg"><img src="docs/screenshots/windows/Cyberpunk.jpg" alt="FileCat Cyberpunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>Psychedelic</strong><br><a href="docs/screenshots/windows/Psychedelic.jpg"><img src="docs/screenshots/windows/Psychedelic.jpg" alt="FileCat Psychedelic on Windows with four panels and three tabs in every panel" width="700"></a></td>
+</tr>
+<tr>
+<td width="50%"><strong>Steampunk</strong><br><a href="docs/screenshots/windows/Steampunk.jpg"><img src="docs/screenshots/windows/Steampunk.jpg" alt="FileCat Steampunk on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>DOS Commander</strong><br><a href="docs/screenshots/windows/DosCommander.jpg"><img src="docs/screenshots/windows/DosCommander.jpg" alt="FileCat DOS Commander on Windows with four panels and three tabs in every panel" width="700"></a></td>
+</tr>
+<tr>
+<td width="50%"><strong>High Contrast</strong><br><a href="docs/screenshots/windows/HighContrast.jpg"><img src="docs/screenshots/windows/HighContrast.jpg" alt="FileCat High Contrast on Windows with four panels and three tabs in every panel" width="700"></a></td>
+<td width="50%"><strong>System (this host uses dark mode)</strong><br><a href="docs/screenshots/windows/System.jpg"><img src="docs/screenshots/windows/System.jpg" alt="FileCat System (this host uses dark mode) on Windows with four panels and three tabs in every panel" width="700"></a></td>
+</tr>
+</table>
+
+System adapts to the operating system; in this capture it matches the dark palette.
+[Capture details and exact source](docs/screenshots/windows/CAPTURE.md).
+
+</details>
+
+## Keyboard essentials
+
+| Keys | Action |
+|---|---|
+| F3 / F4 / Shift+F4 | View / edit (external editor) / edit new file |
+| F5 / F6 / Shift+F5 | Copy / move or rename / duplicate here |
+| F7 / F8 / Shift+F8 | Create folder / delete to Recycle Bin / delete permanently |
+| F2 | Rename in place |
+| Insert / Space | Mark and move down / mark (sizes folders) |
+| Num+ / Num− / Num* / Num/ | Select by mask / unselect / invert / restore selection |
+| Tab / Ctrl+U | Switch to target panel / swap locations |
+| Ctrl+T / Ctrl+W / Ctrl+Tab | New / close / next tab |
+| Alt+F7 / Ctrl+B / Ctrl+F10 | Find files / flat view / compare directories |
+| Ctrl+Shift+P / F1 / Ctrl+J | Command palette / keyboard reference / operations |
+| Ctrl+E, then Tab | Command line; Tab completes names from the panel's folder (again for the next) |
+
+Every binding can be changed: in the keyboard reference (F1), select a command and press F2, then the new keys; or in Settings (Ctrl+,).
 
 ## Build and run
 
@@ -79,29 +140,11 @@ A portable copy keeps its settings in `Data/` next to the executable (marker fil
 folder. FileCat does not scan a disk for deleted files while it keeps files of its own there: to recover from that
 disk, close FileCat and start it with `--data` on another disk.
 
-## Keyboard essentials
-
-| Keys | Action |
-|---|---|
-| F3 / F4 / Shift+F4 | View / edit (external editor) / edit new file |
-| F5 / F6 / Shift+F5 | Copy / move or rename / duplicate here |
-| F7 / F8 / Shift+F8 | Create folder / delete to Recycle Bin / delete permanently |
-| F2 | Rename in place |
-| Insert / Space | Mark and move down / mark (sizes folders) |
-| Num+ / Num− / Num* / Num/ | Select by mask / unselect / invert / restore selection |
-| Tab / Ctrl+U | Switch to target panel / swap locations |
-| Ctrl+T / Ctrl+W / Ctrl+Tab | New / close / next tab |
-| Alt+F7 / Ctrl+B / Ctrl+F10 | Find files / flat view / compare directories |
-| Ctrl+Shift+P / F1 / Ctrl+J | Command palette / keyboard reference / operations |
-| Ctrl+E, then Tab | Command line; Tab completes names from the panel's folder (again for the next) |
-
-Every binding can be changed: in the keyboard reference (F1), select a command and press F2, then the new keys; or in Settings (Ctrl+,).
-
 ## Documentation
 
-- Design: `docs/design/FILECAT_PRODUCT_ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md`
-- Implementation status: `docs/IMPLEMENTATION_STATUS.md`
-- Third-party notices: `THIRD-PARTY-NOTICES.md`
-- Security policy and vulnerability reporting: `SECURITY.md`
-- Release servicing (no updater; security-release cadence): `docs/SERVICING.md`
-- Validation records: `docs/validation/` (TV-01 scale and latency)
+- [Product architecture and design](docs/design/FILECAT_PRODUCT_ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md)
+- [Implementation status](docs/IMPLEMENTATION_STATUS.md)
+- [Third-party notices](THIRD-PARTY-NOTICES.md)
+- [Security policy and vulnerability reporting](SECURITY.md)
+- [Release servicing](docs/SERVICING.md) — no updater; security-release cadence
+- [Validation records](docs/validation/) — scale and latency evidence

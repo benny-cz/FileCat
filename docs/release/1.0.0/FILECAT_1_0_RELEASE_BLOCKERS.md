@@ -10,7 +10,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 | Gate | Current state | Resume condition |
 |---|---|---|
 | Physical USB/source validation | HOLD. Historical full-source hashes changed and capture controls lost events; later off-source positive controls do not establish attribution. Disposable-media authorization remains valid but does not waive this hold. | Resolve source-change/capture attribution and re-establish exact device identity/interlocks before any further FileCat physical-source validation (E-V09-G6/G8/G11/G14; I106/I110). |
-| Native desktop UI | Current session exposes no native computer-use API. Component/headless/CLI observations are usable only within their own scope. | Restore a supported native UI surface or obtain the required owner/participant observations. Do not substitute arbitrary input scripts for unavailable native APIs. |
+| Native desktop UI | Supported Windows capture and mouse/keyboard input now work; [PQ01](evidence/E-PQ01-windows-theme-showcase.md) retains limited main-window/menu/theme observations. Accessibility-tree data is null. Earlier unavailable observations retain their dates. | Owner is using the workstation: no further host UI actions; use the VM for future live tests. Verify an actual guest-control route before resuming; required participants, native-engine and candidate workflows remain. |
 | Stable publication | No explicit human GO; contract/candidate/qualification/REP gates still open. | Publish only the exact qualified artifacts after the named human approver gives explicit GO. |
 | Raw evidence custody | Local raw outputs are retained and hashed; owner-controlled read-only custody is not chosen. | Resolve DEC-10 and seal the candidate REP. |
 
