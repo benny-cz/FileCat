@@ -2,6 +2,7 @@ using System.Collections;
 using System.Formats.Tar;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FileCat.Archives;
@@ -158,6 +159,8 @@ public sealed class ArchiveCacheReleaseFailureTests(ITestOutputHelper output)
         public bool SharesCursor => inner.SharesCursor;
         public IEnumerable<FileCat.Archives.MemberInfo> List(Action<string> warn, CancellationToken ct) => inner.List(warn, ct);
         public Stream Open(int index, CancellationToken ct) => inner.Open(index, ct);
+        // The assertion below requires the injected throw site even in optimized builds.
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void Dispose() { if (closed) return; closed = true; Closes++; inner.Dispose(); if (failure is not null) throw failure; }
     }
 }

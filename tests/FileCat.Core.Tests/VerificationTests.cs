@@ -261,9 +261,9 @@ public sealed class VerificationTests : IDisposable
             Assert.Skip("No gpg here.");
             return;
         }
-        // gpg-agent's socket lives in the home on macOS, whose socket paths hold 104 bytes: a home under $TMPDIR is too long.
+        // Keep the owned home short: gpg-agent socket paths are limited on Windows and macOS.
         string home = OperatingSystem.IsWindows()
-            ? Directory.CreateDirectory(Path.Combine(_dir, "gnupg")).FullName
+            ? Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "fcg-" + Guid.NewGuid().ToString("N")[..8])).FullName
             : Directory.CreateDirectory("/tmp/fcg-" + Guid.NewGuid().ToString("N")[..8], UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute).FullName;
         try
         {
@@ -289,7 +289,8 @@ public sealed class VerificationTests : IDisposable
                 }
                 catch (System.ComponentModel.Win32Exception) { }
             }
-            if (!OperatingSystem.IsWindows()) try { Directory.Delete(home, recursive: true); } catch (IOException) { }
+            try { Directory.Delete(home, recursive: true); } catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
     }
 
