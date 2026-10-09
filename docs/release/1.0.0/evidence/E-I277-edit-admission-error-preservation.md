@@ -10,7 +10,7 @@ The corrected **24 controls pass**, retaining exact primary objects/stacks, canc
 
 The **same unchanged corrected compiled payload**, without rebuilding, also passes **191 edit-related cases**: all 24 new controls plus **167 existing preparation, session-demand, commit and save-copy cases**. Every existing outcome/message multiplicity matches the original Windows x64 hosted inventory at 3ef7b0a. This is an edit regression subset, **not a complete App-suite replay**. Existing headless workflow fixtures retain their own scope; the new controls use the private admission wrapper without a window/editor process.
 
-Source ZIPs retain **1318 canonical original Git blobs**, plus only the identical new fixture and, for the corrected producer, the one production-file overlay. The publication parent c0b209e adds only the already sealed documentation batch; its existing product source is checked against the tested original bytes. Exact committed and four-lane correction qualification remains pending. No installed candidate is inferred.
+Source ZIPs retain **1318 canonical original Git blobs**, plus only the identical new fixture and, for the corrected producer, the one production-file overlay. The publication parent c0b209e adds only the already sealed documentation batch; its existing product source is checked against the tested original bytes. Exact committed and four-lane correction checks follow below. No installed candidate is inferred.
 
 All **72 recorded source-holder paths and fixture directories are absent**. Twelve owned temporary files are archived/rechecked; three are removed and nine exact original compiler log/analyzer locks remain. The original temporary root remains present; fixed and regression roots are absent. Older locks keep their separate qualifications. No global compiler/process termination or restoration claim occurs.
 
@@ -35,3 +35,18 @@ Paths are relative to the private FileCatReleaseEvidence root unless absolute. N
 | `E:/FileCat/artifacts/release-evidence/edit-admission277-v1/original/command.json` | `339b2fe588aa560c6d08795fbb695c835fb06c53d258f32c4449782cfb054c22` |
 | `E:/FileCat/artifacts/release-evidence/edit-admission277-v1/fixed/command.json` | `abc3377ccce213b7500b729341dcae3b8b96adbe7bfbd1c246c6fb0600478c59` |
 | `E:/FileCat/artifacts/release-evidence/edit-admission277-v1/fixed/edit-regression-v1/command.json` | `a265610bf8001c64a6688cd4ed9fabd0fe8e424f4dd459455863970b38b274eb` |
+
+## Exact committed and hosted follow-up
+
+Canonical **a8cee66** repeats all **24 controls successfully**, with **1321 exact Git blobs and no overlays**. The reader verifies every semantic field against the private corrected controls except actual temporary paths and original stacks. All holder paths/fixture directories are absent. Ten owned temporary files are archived/rechecked, one removed and nine exact compiler/analyzer locks retained; that root remains present. Only the already sealed push-time C# CRLF-to-LF clean filter is permitted; no new refusal or full App-suite replay is inferred.
+
+[Original four-lane hosted attempt 37946604694](E-CI-edit-admission-preservation.md) passes all **96 I277 executions and 26,852 actual records**, preserving all predecessor multiplicities and exact skips. These checks do not qualify I278's later complete-copy/publication change or close native/candidate scope.
+
+| File | SHA256 |
+|---|---|
+| `edit-admission277-v1/committed-source-clean-filter-v1.json` | `2391e9777726be99fe433ce8c70e1cc5a55e4f1fa362f045b966e391d198dee2` |
+| `edit-admission277-v1/run-exact-committed-edit-v1.py` | `1dedabf57f9511424a274f27c0e6983c3547b06f1464a0e72b839b2c13d6da72` |
+| `edit-admission277-v1/seal-exact-committed-edit-v1.py` | `d2236c88e8c1c6159e87ca9a9a536733582c06ab13ff0e4fe52ca2985cc98083` |
+| `edit-admission277-v1/independent-exact-committed-edit-v1.json` | `98340fad6d238fcc73e46ac2633bd80d2d068bcf9e1c05a784a539ddcd5f7898` |
+| `E:/FileCat/artifacts/release-evidence/edit-admission277-v1/committed/command.json` | `8200c8d962bc7423e13e66fb054e6fdbc4f8844ac013e73d4bda54f190af91d6` |
+| `edit-admission277-v1/edit-admission-main-push-v1.json` | `eb073edac0fd2b7bb15d227487bbe056066fdedebb69422598e1d18a661e21ce` |

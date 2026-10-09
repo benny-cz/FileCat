@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**302 evidence entries; none is final candidate qualification.** No candidate exists.
+**304 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -324,4 +324,7 @@ Add or update one inventory row in ID order; put full execution detail in the in
 
 | E-CI-CONTENT-RETIREMENT | Remote stream admission and comparison error/holder retirement on four hosted lanes | Original 37940372787 at 5dfd28c and 37942271282 at 3ef7b0a, each attempt 1 | 26340/26756 actual records; 192/416 added passes; all predecessor outcome/message and exact-skip multiplicities retained; each 21 ZIPs/14 TRXs/92 graphs; original failures preserved | [Combined complete audit](evidence/E-CI-content-open-comparison-retirement.md) | I06, I275, I276, V08, V13, V20, V23 |
 
-| E-I277 | Edit admission primary exception preservation | Original 3ef7b0a plus declared test/fix overlays | 12 original failures/12 passes to 24 passes; unchanged-payload 191 edit regressions preserve 167 prior hosted outcomes/messages; 72 holder paths absent; compiler locks qualified; committed/hosted pending | [Full record](evidence/E-I277-edit-admission-error-preservation.md) | I06, I277, V07, V08, V11, V23 |
+| E-I277 | Edit admission primary exception preservation | Original 3ef7b0a plus declared test/fix overlays | 12 original failures/12 passes to 24 passes; unchanged-payload 191 edit regressions preserve 167 prior hosted outcomes/messages; 72 holder paths absent; compiler locks qualified; 24 exact committed controls and 96 four-lane executions pass at a8cee66 | [Full record](evidence/E-I277-edit-admission-error-preservation.md) | I06, I277, V07, V08, V11, V23 |
+
+| E-CI-EDIT-ADMISSION | Complete original four-lane edit admission audit | 37946604694 attempt 1 at a8cee66 | 26852 actual records/96 added passes; all predecessor multiplicities/exact skips; 21 ZIPs/14 TRXs/92 graphs; original failures retained | [Full audit](evidence/E-CI-edit-admission-preservation.md) | I06, I277, V07, V08, V11, V20, V23 |
+| E-I278 | Owned edit-source closure before publication | Original a8cee66 plus declared test/two production overlays | 68 failures/28 passes to 96 passes; unchanged-payload 287 edit cases retain 191 prior outcomes; full Core 2829/64 and Remote 2276/156 retain logical outcomes/exact skips; 288 holders absent; committed/hosted pending | [Full record](evidence/E-I278-edit-session-publication.md) | I06, I278, V07, V08, V11, V23 |

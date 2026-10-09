@@ -113,9 +113,8 @@ public sealed partial class MainViewModel
             () => Services.EditSessions.FindRemote(profileId, remotePath),
             (provider, ct) =>
             {
-                using var content = provider.OpenContent(item) ?? throw new IOException("This item has no content to edit.");
-                var revision = content.GetRevision() ?? throw new IOException("The file's revision is unavailable; copy it with F5 instead.");
-                return Services.EditSessions.CreateRemote(profileId, profile.Display, remotePath, content, revision, Services.SftpProvider.GetOriginMark(item.Parent), ct);
+                return Services.EditSessions.CreateRemoteFrom(profileId, profile.Display, remotePath, provider, item,
+                    Services.SftpProvider.GetOriginMark(item.Parent), ct);
             }, $"Copying \"{item.Name}\" from {profile.Display} for editing…");
     }
 

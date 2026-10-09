@@ -159,6 +159,38 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         }, ct);
     }
 
+    /// <summary>Owns the server content through a complete copy and closes it before publishing the session.</summary>
+    public EditSessionRecord CreateRemoteFrom(string profileId, string serverDisplay, string remotePath, ResourceProvider provider, ItemRef item,
+        string? originMark, CancellationToken ct = default)
+    {
+        ContentRevision revision = default;
+        string name = remotePath[(remotePath.LastIndexOf('/') + 1)..];
+        return CreateSession(name, working =>
+        {
+            var source = provider.OpenContent(item) ?? throw new IOException("This item has no content to edit.");
+            return ReadOwned(source, () =>
+            {
+                revision = source.GetRevision() ?? throw new IOException("The file's revision is unavailable; copy it with F5 instead.");
+                ValidateLength(revision.Length);
+                if (source.GetRevision() != revision) throw new IOException("The file's revision is unavailable or changed before its edit could be copied.");
+                return WriteWorkingCopy(source, working, ct, revision);
+            });
+        }, (working, copy) =>
+        {
+            if (originMark is not null) fs.WriteOriginMark(working, originMark);
+            return new EditSessionRecord
+            {
+                Kind = EditSessionRecord.RemoteKind,
+                ProfileId = profileId,
+                ServerDisplay = serverDisplay,
+                RemotePath = remotePath,
+                RemoteBaseline = revision,
+                BaseSha256 = copy.Sha256,
+                WorkingPath = working,
+            };
+        }, ct);
+    }
+
     /// <summary>
     /// Whether a commit would replace exactly the server file the edit started from; <paramref name="now"/> is its
     /// revision now, or null when it is gone.
@@ -285,11 +317,14 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         return CreateSession(member.Name, working =>
         {
             ct.ThrowIfCancellationRequested();
-            using var source = Content.ProgressiveContent.Sequential(zip.OpenContent(member)) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
-            var copy = WriteWorkingCopy(source, working, ct);
-            if (copy.Length != expectedLength || copy.Crc != expectedCrc || !baseline.Matches(archive))
-                throw new IOException("The archive member changed or is damaged; no edit session was created.");
-            return copy;
+            var source = Content.ProgressiveContent.Sequential(zip.OpenContent(member)) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
+            return ReadOwned(source, () =>
+            {
+                var copy = WriteWorkingCopy(source, working, ct);
+                if (copy.Length != expectedLength || copy.Crc != expectedCrc || !baseline.Matches(archive))
+                    throw new IOException("The archive member changed or is damaged; no edit session was created.");
+                return copy;
+            });
         }, (working, copy) =>
         {
             if (fs.ReadOriginMark(archive) is { } mark) fs.WriteOriginMark(working, mark);
@@ -304,6 +339,21 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
                 WorkingPath = working,
             };
         }, ct);
+    }
+
+    // A close failure prevents publication. When the copy already failed, retain its primary error.
+    private static WorkingCopy ReadOwned(IContentSource source, Func<WorkingCopy> read)
+    {
+        WorkingCopy copy;
+        try { copy = read(); }
+        catch
+        {
+            try { source.Dispose(); }
+            catch (Exception ex) { Diagnostics.AppLog.Warn("Could not close edit content after copying failed", ex); }
+            throw;
+        }
+        source.Dispose();
+        return copy;
     }
 
     public void Save(EditSessionRecord record)
