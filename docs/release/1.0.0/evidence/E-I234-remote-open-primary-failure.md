@@ -52,8 +52,8 @@ The first 20 paths in this table are relative to the actual private root:
 | `independent-private-open-final-v1.json` | `99a2203c96249e1def1e50ebdfe86fda5280b9f6d3fe315c70c2ff1fd2a4f03a` | Final52 raw inputs, source/payload/restore and058 file identity |
 | `seal-private-open-evidence-v1.py` | `fc3fc84f89e2bb567e20d4f2fdcdfb1be42166c9c2b6736ba5bee71224a65176` | Independent final private observer source |
 | `progressive-close235-v1/independent-canonical-close-batch-v2.json` | `646f770b41ab79bcf9563b42129e6a0ee6a228f01dd2b21d09451f15bdfb56d0` | Exact058 canonicalCore/Remote source,payload,176 raw-control and originalGPG refusal reconciliation |
-| `open-archive234-ci-v1/assets-attempt 1-v1/independent-assets-ci.json` | `d26df1d3e7b4c67051465a5f659ca8cd813ab3d7535629a0d57a517f964f523d` | Original058 official artifacts,digests,rawTRX and four-lane controls |
-| `open-archive234-ci-v1/assets-attempt 1-v1/independent-restore-ci-v1.json` | `da55f87195dd66c62a0ab29f4346916b2dfcac82ddbc6eb91332af797dfd5dce` | Original four-builder92 locked restore graphs |
+| `open-archive234-ci-v1/assets-attempt1-v1/independent-assets-ci.json` | `d26df1d3e7b4c67051465a5f659ca8cd813ab3d7535629a0d57a517f964f523d` | Original058 official artifacts,digests,rawTRX and four-lane controls |
+| `open-archive234-ci-v1/assets-attempt1-v1/independent-restore-ci-v1.json` | `da55f87195dd66c62a0ab29f4346916b2dfcac82ddbc6eb91332af797dfd5dce` | Original four-builder92 locked restore graphs |
 | `open-archive234-ci-v1/independent-open-archive-ci-final-v2.json` | `f88f27540ea2d78153d077ebeb43265d56960f8f6f5ad235fd4b15a99f1ea940` | Independent416 I234/288 I235 hosted passes and21852 exact predecessor cases |
 
 The final four paths are relative to its parent `FileCatReleaseEvidence` root.
