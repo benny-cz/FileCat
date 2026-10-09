@@ -64,10 +64,10 @@ public static partial class SmbTools
         timeout.CancelAfter(limit);
         try
         {
-            if (input is not null) await process.StandardInput.WriteAsync(input.AsMemory(), timeout.Token).ConfigureAwait(false);
-            process.StandardInput.Close();
             var output = ReadBoundedAsync(process.StandardOutput, timeout.Token);
             var errors = ReadBoundedAsync(process.StandardError, timeout.Token);
+            if (input is not null) await process.StandardInput.WriteAsync(input.AsMemory(), timeout.Token).ConfigureAwait(false);
+            process.StandardInput.Close();
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
             return (process.ExitCode, await output.ConfigureAwait(false), await errors.ConfigureAwait(false));
         }

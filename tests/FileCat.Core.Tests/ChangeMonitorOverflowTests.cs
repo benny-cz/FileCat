@@ -18,7 +18,11 @@ public sealed class ChangeMonitorOverflowTests
     public async Task Completed_overflow_reconciliation_survives_a_delayed_writer_sample()
         => await ObserveOverflow(holdWriterAfterFinalState: true);
 
-    private static async Task ObserveOverflow(bool holdWriterAfterFinalState)
+    [Fact]
+    public async Task Final_state_wait_starts_after_a_delayed_writer_finishes_its_mutations()
+        => await ObserveOverflow(holdWriterAfterFinalState: true, delayFinalWriter: true);
+
+    private static async Task ObserveOverflow(bool holdWriterAfterFinalState, bool delayFinalWriter = false)
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Forcing an overflow is measured on Windows (64 KiB buffer, long names).");
         var ct = TestContext.Current.CancellationToken;
@@ -64,13 +68,25 @@ public sealed class ChangeMonitorOverflowTests
                 string stem = new('n', 180);
                 var samples = await Task.WhenAll(Enumerable.Range(0, 4).Select(t => Task.Run(async () =>
                 {
-                    for (int i = 0; i < 2500; i++) File.WriteAllText(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"), "c");
-                    for (int i = 0; i < 2500; i++) File.Delete(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"));
-                    // A positive final-state marker follows this writer's last mutation. All four markers and no
-                    // churn files prove that the callback saw the completed namespace, even if writers resume later.
-                    File.WriteAllText(Path.Combine(folder, $"done-{round}-{t}.txt"), "done");
+                    try
+                    {
+                        for (int i = 0; i < 2500; i++) File.WriteAllText(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"), "c");
+                        for (int i = 0; i < 2500; i++) File.Delete(Path.Combine(folder, $"{stem}-{round}-{t}-{i:0000}.txt"));
+                        if (delayFinalWriter && t == 3)
+                        {
+                            await state.FirstMutationCompletion.Task.WaitAsync(ct);
+                            await Task.Delay(6500, ct);
+                        }
+                        // Each completion marker follows this writer's final mutation and closed native file.
+                        File.WriteAllText(Path.Combine(folder, $"done-{round}-{t}.txt"), "done");
+                    }
+                    finally { state.MutationsFinished(t); }
                     if (holdWriterAfterFinalState)
                     {
+                        // A final-state deadline starts after every writer has finished its mutations.
+                        // The input-work phase already waits for all writers and remains cancellation-aware.
+                        await state.MutationsCompleted.Task.WaitAsync(ct);
+                        state.FinalWaitStarts[t] = Stopwatch.GetTimestamp();
                         await state.FinalObserved.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
                         await Task.Delay(50, ct);
                     }
@@ -92,6 +108,11 @@ public sealed class ChangeMonitorOverflowTests
             TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new
             {
                 HeldWriter = holdWriterAfterFinalState, ActualWindowsFileSystemWatcher = true,
+                ControlledLateWriter = delayFinalWriter,
+                ActualWriterMutationCompletionTimestamps = finalState!.MutationCompletionTimestamps,
+                ActualWriterFinalWaitStartTimestamps = finalState.FinalWaitStarts,
+                AllMutationsCompleteBeforeFirstFinalWait = holdWriterAfterFinalState && finalState.FinalWaitStarts.Min() >= finalState.MutationCompletionTimestamps.Max(),
+                ActualOwnedFixtureFolder = folder,
                 NativeChangeOperations = rounds * 20000, CompletionMarkers = rounds * 4,
                 ActualNativeOverflows = monitor.Overflows, ActualRereads = asked,
                 WriterSampleUTC = writerSample, FinalObservationUTC = finalRead!.UTC,
@@ -112,6 +133,19 @@ public sealed class ChangeMonitorOverflowTests
         }
         finally
         {
+            Reading[] failureReadings;
+            lock (gate) failureReadings = [.. observations];
+            if (finalState is null && active is { } failedState)
+                TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new
+                {
+                    IncompleteOracleObservation = true, ControlledLateWriter = delayFinalWriter,
+                    ActualWriterMutationCompletionTimestamps = failedState.MutationCompletionTimestamps,
+                    ActualWriterFinalWaitStartTimestamps = failedState.FinalWaitStarts,
+                    ActualOwnedFixtureFolder = folder,
+                    ActualNativeOverflowsAtFailure = monitor.Overflows,
+                    ActualReadingsAtFailure = failureReadings,
+                    Original720HostedStructuredRecordNotReconstructed = true,
+                }));
             monitor.Dispose();
             // Finish an in-flight callback before TempDir removes the folder; later callbacks observe closed.
             lock (gate) closed = true;
@@ -127,5 +161,17 @@ public sealed class ChangeMonitorOverflowTests
         public int Round { get; } = round;
         public string[] ExpectedNames { get; } = Enumerable.Range(0, 4).Select(t => $"done-{round}-{t}.txt").Order(StringComparer.Ordinal).ToArray();
         public TaskCompletionSource<Reading> FinalObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FirstMutationCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource MutationsCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public long[] MutationCompletionTimestamps { get; } = new long[4];
+        public long[] FinalWaitStarts { get; } = new long[4];
+        private int _finished;
+
+        public void MutationsFinished(int writer)
+        {
+            MutationCompletionTimestamps[writer] = Stopwatch.GetTimestamp();
+            FirstMutationCompletion.TrySetResult();
+            if (Interlocked.Increment(ref _finished) == 4) MutationsCompleted.TrySetResult();
+        }
     }
 }

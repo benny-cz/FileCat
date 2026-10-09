@@ -370,7 +370,16 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
     private (FileStream File, Stream Data) OpenStream()
     {
         var file = ArchiveFormats.OpenShared(path);
-        return (file, decompress is null ? file : new CountingStream(decompress(file)));
+        try
+        {
+            return (file, decompress is null ? file : new CountingStream(decompress(file)));
+        }
+        catch
+        {
+            try { file.Dispose(); }
+            catch (Exception ex) { AppLog.Warn("TAR source cleanup after open failure: " + ex.GetType().Name); }
+            throw;
+        }
     }
 
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
@@ -456,14 +465,30 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
 
     private void CloseCursor()
     {
-        _cursorReader?.Dispose();
-        _cursorStream?.Dispose();
-        _cursorFile?.Dispose();
+        var reader = _cursorReader;
+        var data = _cursorStream;
+        var file = _cursorFile;
         _cursorReader = null;
         _cursorGuard = null;
         _cursorStream = null;
         _cursorFile = null;
         _cursorEntry = null;
+        _cursorIndex = -1;
+        Exception? failure = null;
+        Close(reader);
+        Close(data);
+        Close(file);
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Close(IDisposable? resource)
+        {
+            try { resource?.Dispose(); }
+            catch (Exception ex)
+            {
+                if (failure is null) failure = ex;
+                else AppLog.Warn("Secondary TAR cursor cleanup failure: " + ex.GetType().Name);
+            }
+        }
     }
 
     public void Dispose()
