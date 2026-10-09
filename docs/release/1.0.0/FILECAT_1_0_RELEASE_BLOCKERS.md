@@ -3,7 +3,7 @@
 Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. I251/I252 change no Mac/VM/USB/account/network/global-environment/host policy. The command-processor override is scoped to a nonparallel test process and restored in its finally block. Exact temporary inventories and locked compiler files remain individually qualified. Owner/platform/people/physical-source/candidate gates remain.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. I253/I254/I255 change no Mac/VM/USB/account/network/global-environment/host policy. Command-processor overrides remain scoped to nonparallel test processes and restored in finally. Exact temporary inventories and earlier locked compiler files remain qualified. Owner/platform/people/physical-source/candidate gates remain.
 
 ## Safety and publication holds
 
