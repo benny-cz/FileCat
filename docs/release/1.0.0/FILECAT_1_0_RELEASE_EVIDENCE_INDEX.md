@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**319 evidence entries; none is final candidate qualification.** No candidate exists.
+**320 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -328,8 +328,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I284 | Root link discovery content/work totals | Original c7416b6 plus fixture/one production overlay | Forty failures/24 positives to 64 passes; exact source/target/referent totals; full suites pass; old 31 hosted differences retained; 64 exact controls pass; original hosted pass; native/candidate open | [Full record](evidence/E-I284-link-discovery-accounting.md) | I06, I284, V02, V12 |
 | E-CI-follow-link | Original I282 four-lane results with accounting qualification | Exact 8ab4398; run 37964745726 attempt 1 | 29,380 records/768 new passes/28,612 predecessor outcomes and exact skips; 31 raw work-total defects remain; 21 ZIPs/14 TRXs/92 graphs; no candidate | [Full record](evidence/E-CI-follow-link-publication.md) | I06, I282, I284, V02, V13, V20 |
 | E-I06-resource-progress | Concrete resource progress and remaining scope | Twenty current source identities at c7416b6 plus validated chooser overlay; historical evidence kept at its own sources | Six resource groups, decided page target retained; no invented overall percentage, picture cap, native or candidate closure | [Progress matrix](evidence/E-I06-resource-progress.md) | I06, V07, V12, V16 |
-| E-I285 | Removed-panel preview and source-binding retirement | Original 71167b7 plus fixture/one production overlay | Twelve failures/two positives to fourteen passes; 68 held-control reader retirements; full App 1369/25 exact skips; exact/hosted/native/candidate open | [Full record](evidence/E-I285-removed-panel-preview-retirement.md) | I06, I285, V12 |
+| E-I285 | Removed-panel preview and source-binding retirement | Original 71167b7 plus fixture/one production overlay | Twelve failures/two positives to fourteen passes; 68 held-control reader retirements; full App 1369/25 exact skips; 14 exact controls pass; hosted pending; native/candidate open | [Full record](evidence/E-I285-removed-panel-preview-retirement.md) | I06, I285, V12 |
 | E-CI-resource | Original chooser ownership/root-link accounting CI | Exact 71167b7; 37976125499 attempt 1 | 29,708 records/328 new passes; all 29,380 predecessor outcomes/skips; 72 chooser/256 accounting/768 followed-link observations including BytesTotal; no candidate | [Full record](evidence/E-CI-resource-ownership.md) | I06, I283, I284, V02, V12, V20 |
+| E-I286 | Failed ZIP construction native-source retirement | Original 1fefd5e; fixture and one production overlay | Twelve failures/six positives to eighteen native Windows passes; full Core 3391/64 exact skips; exact/hosted/aggregate/candidate open | [Full record](evidence/E-I286-zip-index-construction-ownership.md) | I06, I286, V07, V12 |
 
 
 <a id="commits-made-by-the-campaign"></a>

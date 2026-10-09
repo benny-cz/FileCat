@@ -411,16 +411,26 @@ internal sealed class ZipIndex : IDisposable
     public static ZipIndex Build(string path, Encoding? nameEncoding)
     {
         var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
-        ZipArchive archive;
+        ZipArchive? archive = null;
         try
         {
             archive = new ZipArchive(fs, ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: nameEncoding);
+            return Build(path, fs, archive);
         }
         catch
         {
-            fs.Dispose();
+            // Entries are read lazily: malformed central directories can fail after construction.
+            // The index takes ownership only after the entire build succeeds.
+            try { archive?.Dispose(); }
+            catch (Exception ex) { Diagnostics.AppLog.Warn("ZIP archive cleanup after index failure: " + ex.GetType().Name); }
+            try { fs.Dispose(); }
+            catch (Exception ex) { Diagnostics.AppLog.Warn("ZIP source cleanup after index failure: " + ex.GetType().Name); }
             throw;
         }
+    }
+
+    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive)
+    {
         var entries = new List<ZipArchiveEntry>();
         long nameChars = 0;
         var children = new Dictionary<string, List<Node>>(StringComparer.Ordinal) { [string.Empty] = [] };

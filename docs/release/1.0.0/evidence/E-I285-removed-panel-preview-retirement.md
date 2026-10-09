@@ -10,7 +10,7 @@ Two healthy controls maximize/restore with either source or preview active: the 
 
 An initial two-case probe retains both raw failures and source/reader/request observations. Its first case incorrectly assumes a removed view has no immediate visual parent; a detached layout grid can still parent that view. The versioned expanded fixture checks actual TopLevel absence, keeping the ownership oracles. Neither that parent assumption nor a mocked exception is presented as a product failure. Exact source/payload/semantic comparisons and owned restoration are in the independent final receipt below.
 
-These checks qualify closure while controls are still held, not garbage-collection timing, total native/process memory, decoded-picture/frame retirement, every removal/race/provider path or native desktop interaction. Exact committed/hosted checks and broader I06/reference/human/candidate work remain. Host UI and physical sources are untouched; I106/I110 HOLD and explicit human GO remain in force.
+These checks qualify closure while controls are still held, not garbage-collection timing, total native/process memory, decoded-picture/frame retirement, every removal/race/provider path or native desktop interaction. Exact committed checks are recorded below; original hosted checks remain; broader I06/reference/human/candidate work remains. Host UI and physical sources are untouched; I106/I110 HOLD and explicit human GO remain in force.
 
 
 ## Selected new immutable receipts
@@ -28,3 +28,20 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts preserve r
 | `E:/FileCat/artifacts/release-evidence/i06-panel-retirement-20261009-v2/fixed/full-app/command.json` | `afc99bc24947d6ffa477e91c5fafc4f85540bd09423459e3077a823231f3922c` |
 | `i06-panel-retirement-20261009-v2/seal-panel-retirement-v2.py` | `9ef645f37283fd0f9baf9fe7991aa93bd303bb5a9503fbe5c87ae80efeb75095` |
 | `i06-panel-retirement-20261009-v2/independent-panel-retirement-final-v2.json` | `cb217bfa2cc265db952f6043f80d951c0b5a8e36019e801fdd6636e0da9e7b8b` |
+
+
+## Exact committed follow-up
+
+No-overlay **1fefd5e269c52206c3be4d6475fdd0584dc1f4be** verifies all 1347 canonical Git blobs and passes all fourteen controls. All private/exact outcomes, messages and semantic observations agree; all 68 held-control retirements pass. Ten owned temporary files are archived/rechecked, one removed and nine compiler locks retained in the exact owned root. This does not repeat the full App suite or qualify native picture/frame/process memory.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the complete sources, commands, payloads, failures and restoration.
+
+| File | SHA256 |
+|---|---|
+| `i285-committed-20261009-v1/seal-exact-v1.py` | `9fb889d49b86ec897ad3ba630c1c10ed0b68868a1f5ddb3a49d4bfc0fa833c52` |
+| `i285-committed-20261009-v1/independent-exact-final-v1.json` | `26791592611ebd1a3b390de11093b0de65ffe1c25a1de35f6ea1effa68f6e5f2` |
+| `E:/FileCat/artifacts/release-evidence/i285-committed-20261009-v1/committed/app-controls/command.json` | `4db985116d454129a44b7a26a5f0240fe8ac107f19a630b77f475897d432d16d` |
+| `E:/FileCat/artifacts/release-evidence/i285-committed-20261009-v1/committed/inputs.json` | `3053adf5afc273bc717a31d92e23effe74e8e9c07e1437f88234cec4fbf227c5` |
