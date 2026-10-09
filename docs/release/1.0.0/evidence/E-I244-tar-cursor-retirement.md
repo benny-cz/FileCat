@@ -1,0 +1,44 @@
+# I244 — Retire TAR cursor resources after open or close failures
+
+TAR opening leaked its newly opened file if the decompressor factory threw. Cursor cleanup also stopped when a wrapper close threw, retaining the file and cursor references. The correction closes the file after a failed factory, retires cursor references before cleanup, attempts every owned close and retains the first error. Successful opening/reading and standalone close behavior remain unchanged.
+
+The same 26 controls on the original 720354 archive component yield **18 failed / eight passed**; the private two-source archive correction yields **26 passed**. Twenty-four owned lifecycle controls cover dispose, restart and factory failure, IO/access/disposed faults and two closure orders. They observe actual native file handles, cursor references, original exception object/type/message, close counts, repeated disposal, recovery reads and unchanged source hashes. Two positive controls read a real plain TAR and gzip TAR, checking member name, listed size and all 4096 actual payload bytes with pattern `(n * 29 + 7) & 255`. Faulting decompressor wrappers are controlled adapters; native decoder fault incidence and original stack content are not claimed from these fields.
+
+Both original and corrected inputs are preserved for two fixture encodings, 104 actual records. The first PAX fixtures retained exact source hashes within each run but had different encoded archive hashes across runs; attribution to default metadata was a source inference, without an original header capture. The final USTAR fixture uses an explicit Unix-epoch modification time and produces byte-identical encoded archives across original and fixed runs. The 18 failures disappear in each version, while eight healthy controls retain their actual semantics. Final full input hash comparisons are exact across runs.
+
+The private corrected component builds only the two original archive C# inputs with the declared TAR overlay and the original pinned Core/dependencies. Its exact component producer is retained, with no whole-commit relabelling. On that component, the unchanged committed Core test DLL also passes **222 archive tests / two exact prior skips**. All 224 prior case-name/outcome/exact-skip multiplicities and the 25 earlier single-stream cleanup records remain checked.
+
+The two approved LF production/test inputs are committed with the SMB and overflow-oracle corrections at `40351540fbe8fdef876e645980d89921bced83bf`. The exact committed source export and payloads pass all three suites: Core **2480 / 61**, Remote **2020 / 156**, App **1217 / 25**. All 26 current TAR observations, nine helper observations, three native overflow observations and 401 other earlier error/byte/resource records are independently inspected, 439 total. One passing PE cross-check display argument moves with the actual owned Core DLL from C to E; all other preceding names/outcomes/exact skips remain. The original exact-display reader refused before a result, and the fresh reader declares that one source-qualified fixture relocation without rerunning tests. Original required-lane CI is qualified separately below and preserves predecessor failures at their actual producers.
+
+All seven owned private temporary files are archived, rehashed and removed after all seven recorded command PIDs are absent; the exact root is gone. The full committed-suite root is also archived/rehashed and removed after its three recorded command PIDs are absent. No new lock, global setting, unrelated process termination, native desktop substitution or physical-source validation is introduced. Broader format/provider/reference/candidate work, twenty unresolved scopes, physical-source HOLD and explicit human stable GO remain.
+
+The original hosted v2 seal recorded one still-open stdout file as empty. The post-exit audit refused that transient pin; hosted v3 preserves the original zero-byte snapshot and actual closed 569-byte log, then rehashes all closed essential inputs without rerunning any product, test or CI task. Earlier private leaves remain archived at their actual producer.
+
+Selected paths below resolve from `C:/Users/marek/.codex/visualizations/2026/10/02/01a0fbbf-f37d-7042-9e13-028bfb0e5c33/FileCatReleaseEvidence/tar-cursor-retirement-followup-v1`; any absolute paths retain their actual drive.
+
+| File | SHA256 | Qualification |
+| --- | --- | --- |
+| `ArchiveFormats-original-720354.cs` | `a5347ff264214f83db874b656906280e68e8d5055164d5fd30cb469fa04e9bf2` | Actual private input or executed observation; producer retained |
+| `fixed-candidate-v1/src/FileCat.Archives/ArchiveFormats.cs` | `356e998342409c40704666481794b55c6b127c8387bb756cdb31f59338df4f04` | Actual private input or executed observation; producer retained |
+| `TarCursorRetirementFailureTests.cs` | `1f90003720be266db895cdce9a86fbc26eadf0549669e4e815a59f74901af0ae` | Actual private input or executed observation; producer retained |
+| `existing-component-v1/command.json` | `33723e2e6991a79369463261cf2d502e545c938d038008d463e752efad4c2746` | Actual private input or executed observation; producer retained |
+| `existing-component-v1/results/tar.trx` | `74e5f75391529a160b773a18254f1fbe80445e7d514a32f41c7d945c64106aec` | Actual private input or executed observation; producer retained |
+| `private-fixed-component-v1/command.json` | `e2f3dd4ac00c4e47debc56e85f4cb42d789caa4245f8c8ad9f6bf078095bab2b` | Actual private input or executed observation; producer retained |
+| `private-fixed-component-v1/results/tar.trx` | `2c93fdec5c2e3a24c1c6cd72ca4f807072427e428fccab34fc9a4d7f555efe0d` | Actual private input or executed observation; producer retained |
+| `existing-component-v2/command.json` | `a8f49bff6915e7b0cce9f86cae5aec2ffee5d8c3c213b5e5a3625b3c0621b126` | Actual private input or executed observation; producer retained |
+| `existing-component-v2/results/tar.trx` | `11689719326de8c56f88545eefabd3994c962bf28f14c2b9a2e36af6eb8b6471` | Actual private input or executed observation; producer retained |
+| `private-fixed-component-v2/command.json` | `32ed9fb2572c293db087206818176acbeb353b7aebafae9886b98f9c700ef48b` | Actual private input or executed observation; producer retained |
+| `private-fixed-component-v2/results/tar.trx` | `63eccf85cba4b85a9d96508c1fa1d1809389d5c5b5a7d9fe5068c6822fad63bb` | Actual private input or executed observation; producer retained |
+| `independent-private-tar-controls-v1.json` | `8acdafee539d2140e242b46b6c66947b59e97f60acfd51728749ad86b0377663` | Actual private input or executed observation; producer retained |
+| `prior-archive-controls-v1/command.json` | `15557b271cee3e39d58f2d9cc7a5a73fcddd9df2d54a99f4d83b1fd16e95cf31` | Actual private input or executed observation; producer retained |
+| `prior-archive-controls-v1/results/prior-archive.trx` | `6b9df9b73c84065c6d01450a474f98e14387eeca9a542dd309ad73f726ae48cf` | Actual private input or executed observation; producer retained |
+| `independent-prior-archive-controls-v1.json` | `00a5b30777400ca1d666f125a02145a694832e58367571b0f395ea86bb03f26c` | Actual private input or executed observation; producer retained |
+| `owned-tar-private-restoration-v1.json` | `e256f58bff1daa8c25712ec753a37eb8c8968bd6dfda99c10d03854665675451` | Actual private input or executed observation; producer retained |
+| `independent-owned-tar-final-v1.json` | `56d14776ba529e776dcee024c6743e0fe0a0ce3a03ff75fe356aba8bb52223b4` | Actual private input or executed observation; producer retained |
+| `../combined-boundaries244-v1/final-five-input-application-v2.json` | `ed9e0a37b2e80c385eb460a1ccc6a04559e739c727ad99cc6818339fb6399cbf` | Guarded exact five-input application |
+| `../combined-boundaries244-v1/combined-runtime-main-push-v1.json` | `5269bee399d6b32b9caa43296a313b5fbb932ba10458aae45e7ca539b84cd1a3` | Exact committed LF Git blobs and main push |
+| `../combined-boundaries244-v1/canonical-v1/command.json` | `2681ae4356ee2e9550ad0a8bc1800094e7722154150b3b0c6ca298d83e1cd2b9` | Exact 1249 committed source blobs and actual E payload paths |
+| `../combined-boundaries244-v1/independent-combined-canonical-v2.json` | `80252b6512c7a473a2a27bbbf84b59b7955fe6fd0daf8aeac3ade4c694f87b2c` | All three full suites and 439 actual affected records |
+| `../combined-boundaries244-v1/owned-combined-canonical-restoration-v1.json` | `6a9519bc76b8d7da34cd74ef5bea9c0684004a99ae6008d805e0abe68f0d9e7c` | Exact owned canonical temporary cleanup |
+| `../combined-boundaries244-v1/canonical-reader-display-refusal-v1.json` | `400d0d305445333f5e839fcaf74d6a622c2e42a786e1d9bae4f8f16b1ba8b024` | Original exact-display reader refusal preserved; no test rerun |
+| `../smb-tar243-ci-v1/independent-smb-tar-ci-final-v3.json` | `b1ae572934c3e4e073c7b3904ee0141b723f4b6d0901bedc01dff2e620ea06e5` | Original four-lane hosted qualification; actual producer retained |
