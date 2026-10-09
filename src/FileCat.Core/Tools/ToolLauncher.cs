@@ -95,14 +95,7 @@ public static class ToolLauncher
             warning = null;
             var exe = ResolveExecutable(tool.Executable);
             bool isBatch = exe.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
-            int commandLineLimit = WindowsCommandLineLimit;
-            if (OperatingSystem.IsWindows() && isBatch)
-            {
-                string? commandProcessor = Environment.GetEnvironmentVariable("ComSpec");
-                if (string.IsNullOrEmpty(commandProcessor)) commandProcessor = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-                // CreateProcess wraps batch targets in ComSpec /c "..."; reserve that path and wrapper.
-                commandLineLimit = WindowsBatchCommandLineLimit - commandProcessor.Length - 5;
-            }
+            int commandLineLimit = CommandLineLimit(exe);
             var files = ctx.Files.Select(Path.GetFullPath).ToList();
             foreach (var f in files)
             {
@@ -250,6 +243,15 @@ public static class ToolLauncher
             try { File.Delete(path); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
+    }
+
+    internal static int CommandLineLimit(string executable)
+    {
+        bool batch = executable.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || executable.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+        if (!OperatingSystem.IsWindows() || !batch) return WindowsCommandLineLimit;
+        string commandProcessor = Environment.GetEnvironmentVariable("ComSpec") is { Length: > 0 } configured
+            ? configured : Path.Combine(Environment.SystemDirectory, "cmd.exe");
+        return WindowsBatchCommandLineLimit - commandProcessor.Length - 5;
     }
 
     /// <summary>Length of the command line Windows builds from an argument vector (quotes and escapes included).</summary>

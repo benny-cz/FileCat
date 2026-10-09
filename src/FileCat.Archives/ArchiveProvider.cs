@@ -302,8 +302,12 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
             {
                 var oldest = _spools.OrderBy(kv => kv.Value.Used).First();
                 if (!_spools.TryRemove(oldest.Key, out var evicted)) break;
-                Release(evicted.Path);
-                evicted.Holder.Dispose();
+                Exception? failure = null;
+                try { Release(evicted.Path); }
+                catch (Exception ex) { failure = ex; }
+                try { evicted.Holder.Dispose(); }
+                catch (Exception ex) when (failure is not null) { FileCat.Core.Diagnostics.AppLog.Warn("Secondary nested archive spool cleanup failure: " + ex.GetType().Name); }
+                if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
             }
             return spoolPath;
         }
@@ -423,14 +427,20 @@ internal sealed class ArchiveIndex : IDisposable
         }
         catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
         {
-            reader.Dispose();
+            CloseAfterFailure();
             throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
         }
         catch
         {
-            reader.Dispose();
+            CloseAfterFailure();
             throw;
         }
+        void CloseAfterFailure()
+        {
+            try { reader.Dispose(); }
+            catch (Exception ex) { FileCat.Core.Diagnostics.AppLog.Warn("Archive cleanup after listing failure: " + ex.GetType().Name); }
+        }
+
         if (seen.Values.Any(v => v > 0)) warnings.Add("The archive contains duplicate names; each copy is listed separately.");
         return new ArchiveIndex(reader, archiveLength, children, warnings, count * 185L + nameChars * 4);
     }

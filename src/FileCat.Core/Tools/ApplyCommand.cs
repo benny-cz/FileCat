@@ -137,9 +137,17 @@ public static class ApplyCommandPlanner
 
     private static bool IsPlain(string value) => value.All(c => char.IsLetterOrDigit(c) || c is '.' or '_' or '-' or '\\' or '/' or ':');
 
-    private static string? LengthProblem(string exe, IReadOnlyList<string> args) =>
-        OperatingSystem.IsWindows() && ToolLauncher.CommandLineLength(exe, args) > ToolLauncher.WindowsCommandLineLimit
-            ? "The command line would exceed Windows' limit of 32,767 characters." : null;
+    private static string? LengthProblem(string exe, IReadOnlyList<string> args)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        // CommandLineLength includes the terminator; the explicit cmd.exe boundary is 8191 without it.
+        int limit = Path.GetFileNameWithoutExtension(exe).Equals("cmd", StringComparison.OrdinalIgnoreCase)
+            ? 8192 : ToolLauncher.CommandLineLimit(exe);
+        if (ToolLauncher.CommandLineLength(exe, args) <= limit) return null;
+        return limit == ToolLauncher.WindowsCommandLineLimit
+            ? "The command line would exceed Windows' limit of 32,767 characters."
+            : "The command line would exceed the Windows command processor's available argument budget.";
+    }
 
     /// <summary>
     /// The shell by full path (a bare name would be looked for in the current directory first, release plan I16): PowerShell
