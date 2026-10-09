@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**300 evidence entries; none is final candidate qualification.** No candidate exists.
+**301 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -318,6 +318,8 @@ Add or update one inventory row in ID order; put full execution detail in the in
 
 | E-CI-REMOTE-POST-CONNECT | Four hosted lanes after post-connect ownership correction | Exact 182ca99; original run 37935588981 attempt 1 | 26148 records/all 25764 predecessor multiplicities retained; 384 new ownership/448 pool/forty pipe observations; 21 ZIPs/14 TRXs/92 graphs; initial retrieval timeout retained | [Complete hosted audit](evidence/E-CI-remote-post-connect-ownership.md) | I06, I274, V08, V20, V23 |
 
-| E-I275 | Remote content stream ownership after display-profile failure | Exact 5aee22c original plus declared test/fix overlays | 40 original failures/eight healthy to 48 passes; unchanged-payload full Remote 2276/156 retains all 2384 prior multiplicities/exact skips; exact committed 48 controls pass at 5dfd28c/hosted pending | [Full record](evidence/E-I275-remote-open-stream-ownership.md) | I06, I275, V08, V11, V12, V23 |
+| E-I275 | Remote content stream ownership after display-profile failure | Exact 5aee22c original plus declared test/fix overlays | 40 original failures/eight healthy to 48 passes; unchanged-payload full Remote 2276/156 retains all 2384 prior multiplicities/exact skips; exact committed 48 controls and four-lane hosted 192 executions pass at 5dfd28c | [Full record](evidence/E-I275-remote-open-stream-ownership.md) | I06, I275, V08, V11, V12, V23 |
 
-| E-I276 | Comparison cancellation and primary/first-close error preservation | Exact 5dfd28c original plus declared test/fix overlays | 60 original failures/44 passes to 104 passes; unchanged-payload full Core 2829/64 retains 2789 logical outcomes/exact skips; one actual payload-path label adaptation; committed/hosted pending | [Full record](evidence/E-I276-comparison-content-retirement.md) | I06, I276, V13, V23 |
+| E-I276 | Comparison cancellation and primary/first-close error preservation | Exact 5dfd28c original plus declared test/fix overlays | 60 original failures/44 passes to 104 passes; unchanged-payload full Core 2829/64 retains 2789 logical outcomes/exact skips; one actual payload-path label adaptation; 104 canonical committed controls and four-lane hosted 416 executions pass at 3ef7b0a | [Full record](evidence/E-I276-comparison-content-retirement.md) | I06, I276, V13, V23 |
+
+| E-CI-CONTENT-RETIREMENT | Remote stream admission and comparison error/holder retirement on four hosted lanes | Original 37940372787 at 5dfd28c and 37942271282 at 3ef7b0a, each attempt 1 | 26340/26756 actual records; 192/416 added passes; all predecessor outcome/message and exact-skip multiplicities retained; each 21 ZIPs/14 TRXs/92 graphs; original failures preserved | [Combined complete audit](evidence/E-CI-content-open-comparison-retirement.md) | I06, I275, I276, V08, V13, V20, V23 |

@@ -10,11 +10,19 @@ The correction passes **104 controls**. Actual owned read-only FileStreams close
 
 The **same unchanged corrected compiled payload**, without rebuilding, passes the complete Core suite: **2829 passed/64 exact skips**, 2893 actual records. All **2789 preceding logical outcome/message multiplicities and 64 exact skips** from the SMB fixture correction's full Core producer remain; only 104 passing cases are added. One PE-inspector test includes the actual compiled assembly location in its raw display label. The reader retains both actual labels, verifies the identical method and explicitly normalizes only that path-dependent label. Duplicate display-label multiplicities remain; **not all raw labels are identical**.
 
-Source ZIPs contain 1316 canonical original Git blobs plus only the declared fixture and one production-file overlay. Exact committed and hosted correction qualification remains pending; this is not an installed candidate. The independent reader rehashes every source/blob/ZIP/overlay, command/raw stream, actual payload, TRX and original/fixed/full observation. Every recorded holder path and fixture directory is absent at seal.
+Source ZIPs contain 1316 canonical original Git blobs plus only the declared fixture and one production-file overlay. Exact committed and hosted correction checks follow below; this is not an installed candidate. The independent reader rehashes every source/blob/ZIP/overlay, command/raw stream, actual payload, TRX and original/fixed/full observation. Every recorded holder path and fixture directory is absent at seal.
 
 All 10 owned temporary files are archived/rechecked and removed. Original/fixed/full temporary roots are absent, with zero retained locks. Older compiler locks retain separate qualifications; no global process termination or restoration claim.
 
 No workstation UI, VM/Mac, persistent account/settings, physical source or stable publication changes. Wider provider/identity/resource/native/human/reference/candidate scope remains. I06, all twenty broader unresolved scopes, all 24 final-candidate campaigns, physical-source HOLD and explicit human stable GO remain.
+
+## Exact committed and hosted follow-up
+
+Canonical **3ef7b0a8e4c459a923eaa9a5515032e0faaff0cd** repeats all **104 controls successfully**, with 1318 exact Git blobs and no overlays. The independent reader verifies source ZIP/blob identities, commands, actual compiled payloads, raw TRX and complete semantic equality against the private corrected controls, except actual source paths and original stacks. All recorded holder paths/fixture directories are absent. The approved push receipt permits only the previously recorded C# CRLF-to-LF clean filter; no new refusal or product failure is claimed. This control repeat does not claim a complete Core-suite replay at the committed export.
+
+Three owned temporary files are archived/rechecked; one is removed and two xUnit analyzer DLL locks remain in this exact committed test's compiler namespace. Its temporary root therefore remains present. The actual content holders are all absent. The earlier private original/fixed/full roots remain separately recorded as absent. No global compiler termination or restoration claim occurs.
+
+[Original hosted attempt 37942271282](E-CI-content-open-comparison-retirement.md) passes all four required lanes, all 416 I276 executions and 26,756 actual records. Every 26,340 predecessor outcome/message multiplicity and exact skip remains. Native/provider/human/reference/candidate qualification remains.
 
 ## Selected immutable receipts
 
@@ -33,3 +41,9 @@ Paths are relative to the private FileCatReleaseEvidence root unless absolute. N
 | `E:/FileCat/artifacts/release-evidence/comparison276-v1/original/command.json` | `e3a0d210907559fe7eb6a231aed2f6b086397d8e37a26c90feb5ec0e5542a16b` |
 | `E:/FileCat/artifacts/release-evidence/comparison276-v1/fixed/command.json` | `556f4f9c5983dc62558b118d72d54d0b1f3d2842238dd399b0b3989b45caa757` |
 | `E:/FileCat/artifacts/release-evidence/comparison276-v1/fixed/full-remote-v1/command.json` | `66770d54d3655fe0102cf5226b14e808d9967295cf88277671a762de813b15ef` |
+| `comparison276-v1/committed-source-clean-filter-v1.json` | `edfa17d6c48e27c4b34b29fc96ece89a81adddeadced02e760df83291ef4d98c` |
+| `comparison276-v1/run-exact-committed-comparison-v1.py` | `941d69c26b422772bf64288d83e41c5c216eca9393334e082a67c488e1bf3184` |
+| `comparison276-v1/seal-exact-committed-comparison-v1.py` | `8f51b4b5165fe3d41f312092b5e4c87a8c99c7ee38b71cae77da87ea5f04975f` |
+| `comparison276-v1/independent-exact-committed-comparison-v1.json` | `0beefe65471fef64a38f1cf26602c06f5f0ce21d62825fae3f3505a3a8cdabf6` |
+| `E:/FileCat/artifacts/release-evidence/comparison276-v1/committed/command.json` | `da2db4acae952dcfa3aaec6dcb29cdd4a38a25f78d34d4b27d13776b1739f576` |
+| `comparison276-v1/comparison-retirement-main-push-v1.json` | `63c8f173d18f77a0dfa5eb3cd80f77ed6c15d5cb5f5906d80c8963eb942a1f5b` |
