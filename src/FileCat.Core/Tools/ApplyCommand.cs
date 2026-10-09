@@ -140,9 +140,7 @@ public static class ApplyCommandPlanner
     private static string? LengthProblem(string exe, IReadOnlyList<string> args)
     {
         if (!OperatingSystem.IsWindows()) return null;
-        // CommandLineLength includes the terminator; the explicit cmd.exe boundary is 8191 without it.
-        int limit = Path.GetFileNameWithoutExtension(exe).Equals("cmd", StringComparison.OrdinalIgnoreCase)
-            ? 8192 : ToolLauncher.CommandLineLimit(exe);
+        int limit = ToolLauncher.CommandLineLimit(exe);
         if (ToolLauncher.CommandLineLength(exe, args) <= limit) return null;
         return limit == ToolLauncher.WindowsCommandLineLimit
             ? "The command line would exceed Windows' limit of 32,767 characters."

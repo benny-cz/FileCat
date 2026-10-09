@@ -248,7 +248,10 @@ public static class ToolLauncher
     internal static int CommandLineLimit(string executable)
     {
         bool batch = executable.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || executable.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
-        if (!OperatingSystem.IsWindows() || !batch) return WindowsCommandLineLimit;
+        if (!OperatingSystem.IsWindows()) return WindowsCommandLineLimit;
+        // The explicit cmd.exe model includes the terminating null character.
+        if (!batch && Path.GetFileNameWithoutExtension(executable).Equals("cmd", StringComparison.OrdinalIgnoreCase)) return 8_192;
+        if (!batch) return WindowsCommandLineLimit;
         string commandProcessor = Environment.GetEnvironmentVariable("ComSpec") is { Length: > 0 } configured
             ? configured : Path.Combine(Environment.SystemDirectory, "cmd.exe");
         return WindowsBatchCommandLineLimit - commandProcessor.Length - 5;
