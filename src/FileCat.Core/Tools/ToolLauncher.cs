@@ -18,11 +18,12 @@ public sealed record ToolLaunchResult(IReadOnlyList<string> Invocations, string?
 /// <summary>
 /// Launches external programs with structured arguments under Windows' invocation rules (plan §14.2,
 /// TV-17): real executables only, batch targets refused when arguments carry cmd.exe metacharacters,
-/// absolute paths with <c>--</c> where supported, and list files when a command line would exceed 32,767 characters.
+/// absolute paths with <c>--</c> where supported, and bounded batching or list files under the process/interpreter command-line limit.
 /// </summary>
 public static class ToolLauncher
 {
     public const int WindowsCommandLineLimit = 32_767;
+    private const int WindowsBatchCommandLineLimit = 8_191;
     private const string CmdMetacharacters = "&|<>^%!\"\r\n()";
 
     /// <summary>Tokens: {file} focused/first file, {files} all files as separate arguments, {listfile} a UTF-8 list,
@@ -94,6 +95,14 @@ public static class ToolLauncher
             warning = null;
             var exe = ResolveExecutable(tool.Executable);
             bool isBatch = exe.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+            int commandLineLimit = WindowsCommandLineLimit;
+            if (OperatingSystem.IsWindows() && isBatch)
+            {
+                string? commandProcessor = Environment.GetEnvironmentVariable("ComSpec");
+                if (string.IsNullOrEmpty(commandProcessor)) commandProcessor = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+                // CreateProcess wraps batch targets in ComSpec /c "..."; reserve that path and wrapper.
+                commandLineLimit = WindowsBatchCommandLineLimit - commandProcessor.Length - 5;
+            }
             var files = ctx.Files.Select(Path.GetFullPath).ToList();
             foreach (var f in files)
             {
@@ -117,7 +126,7 @@ public static class ToolLauncher
             if (isBatch && !tool.ShellMode && args.Any(a => a.IndexOfAny(CmdMetacharacters.ToCharArray()) >= 0))
                 throw new ToolLaunchException($"\"{Path.GetFileName(exe)}\" is a batch file, and cmd.exe would interpret special characters in the arguments (BatBadBut). Point the tool to the real program (for VS Code: Code.exe), or enable shell mode for this tool if you accept that risk.");
             var result = new List<(string, IReadOnlyList<string>)>();
-            if (CommandLineLength(exe, args) <= WindowsCommandLineLimit)
+            if (CommandLineLength(exe, args) <= commandLineLimit)
             {
                 result.Add((exe, args));
                 return result;
@@ -127,13 +136,13 @@ public static class ToolLauncher
                 throw new ToolLaunchException("The selection is too long for one command line. Use the {listfile} token for this tool.");
             List<string> BatchArguments(IReadOnlyList<string> selected) => resolved
                 .SelectMany(part => part.Files ? selected : part.Arguments).ToList();
-            if (CommandLineLength(exe, BatchArguments([])) > WindowsCommandLineLimit)
+            if (CommandLineLength(exe, BatchArguments([])) > commandLineLimit)
                 throw new ToolLaunchException("The fixed tool arguments are too long for one command line.");
             var batch = new List<string>();
             foreach (var f in files)
             {
                 var candidate = BatchArguments(batch.Append(ProtectOptionLike(f)).ToList());
-                if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
+                if (CommandLineLength(exe, candidate) > commandLineLimit)
                 {
                     if (batch.Count > 0)
                     {
@@ -141,7 +150,7 @@ public static class ToolLauncher
                         batch.Clear();
                     }
                     candidate = BatchArguments([ProtectOptionLike(f)]);
-                    if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
+                    if (CommandLineLength(exe, candidate) > commandLineLimit)
                         throw new ToolLaunchException("A selected file cannot fit one command line. Use the {listfile} token for this tool.");
                 }
                 batch.Add(ProtectOptionLike(f));

@@ -732,7 +732,9 @@ internal sealed class SharpArchiveReader : IMemberReader
             // Already passed (or current, its stream consumed): start over; otherwise continue forward.
             if (_reader is null || _seen.GetValueOrDefault(key) > ordinal)
             {
-                _reader?.Dispose();
+                var previous = _reader;
+                _reader = null;
+                previous?.Dispose();
                 _reader = _archive.ExtractAllEntries();
                 _seen.Clear();
             }
