@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**339 evidence entries; none is final candidate qualification.** No candidate exists.
+**342 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -348,8 +348,11 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-overlap | Original directory overlap-fixture CI | adc5405 /37992307737 attempt 1 | Four lanes/30,084 records; four observations/all preceding outcomes/messages/skips remain. Historical cause/native watcher/candidate remain. | [Record](evidence/E-CI-directory-overlap-fixture.md) | I108, I291, V13, V20 |
 | E-CI-progressive | Original progressive callback retirement CI | f56f9de /37994261915 attempt 1 | Four lanes/30,172 records/88 new controls; all 30,084 preceding outcomes/messages/skips remain. Aggregate/native/reference/candidate remain. | [Record](evidence/E-CI-progressive-capture-retirement.md) | I06, I292, V07, V12, V20 |
 | E-ENV-STORAGE-VIS | Visualization lossless compaction | Literal C: root; 1,050,597-path snapshot | 56.56 GB of journaled allocation recovered; 17244 full hashes qualified across the base and alias readers; every original path checked in the base snapshot. No removed files; logical size remains 601.8 GB. | [Record](evidence/E-ENV-STORAGE-visualizations-compaction.md) | Storage maintenance |
-| E-I295 | Retire removed operation rows | 20f1bdc + declared overlays | Preliminary: nine ownership controls/41 affected App results/full App 1407/25 exact skips; all preceding records remain. Owned visual-context isolation and original refusals retained. Exact/hosted/aggregate/candidate remain. | [Record](evidence/E-I295-operation-row-retirement.md) | I06, I295, V03, V12 |
+| E-I295 | Retire removed operation rows | 20f1bdc + declared overlays | Preliminary: nine ownership controls/41 affected App results/full App 1407/25 exact skips; all preceding records remain. Owned visual-context isolation and original refusals retained. All nine exact pass; 36 original hosted pass; aggregate/candidate remain. | [Record](evidence/E-I295-operation-row-retirement.md) | I06, I295, V03, V12 |
 | E-CI-job | Original job retirement CI | 20f1bdc /38000303954 attempt 1 | Four lanes/30,268 records/96 new controls; every 30,172 predecessor outcome/message/exact skip remains. Predates I295; no candidate. | [Record](evidence/E-CI-job-retirement.md) | I06, I293, I294, V03, V12, V20 |
+| E-I297 | Native Network return fixture readiness | 55a01ec + declared test overlays | Old delayed control passes while Loading; corrected four native cases and full App pass. Earlier one-failure run and raw wrapper mismatch remain. Exact/hosted/historical-cause/candidate scope remains. | [Record](evidence/E-I297-network-return-fixture.md) | I06, I297, V12, V20 |
+| E-I296 | Operations history follows manager retirement | 55a01ec + declared overlays | Preliminary: eighteen controls/63 affected App results; full Core 3470/64/App 1427/25 exact skips; all preceding outcomes/messages/exact skips remain. Exact/hosted/aggregate/candidate remain. | [Record](evidence/E-I296-operation-history-retirement.md) | I06, I296, V03, V12 |
+| E-CI-operation-row | Original operation-row retirement CI | 55a01ec /38002629656 attempt 1 | Four lanes/30,304 records/36 new controls; every 30,268 predecessor outcome/message/exact skip remains. Predates I296; no candidate. | [Record](evidence/E-CI-operation-row-retirement.md) | I06, I295, V03, V12, V20 |
 
 
 <a id="commits-made-by-the-campaign"></a>

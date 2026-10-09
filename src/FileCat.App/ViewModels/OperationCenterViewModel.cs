@@ -275,6 +275,11 @@ public sealed partial class OperationCenterViewModel : ObservableObject
         _display = display;
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => Tick());
         manager.JobAdded += job => Dispatcher.UIThread.Post(() => Add(job));
+        manager.JobRemoved += job => Dispatcher.UIThread.Post(() =>
+        {
+            RetireRow(job);
+            UpdateSummary();
+        });
         manager.JobChanged += job => Dispatcher.UIThread.Post(() =>
         {
             if (_map.TryGetValue(job, out var vm)) vm.Refresh();
@@ -318,7 +323,8 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     private void Add(Job job)
     {
-        if (_map.ContainsKey(job)) return;
+        // Removal can reach the dispatcher before an earlier JobAdded observer has posted this add.
+        if (_map.ContainsKey(job) || job.State.IsFinished() && !Manager.Jobs.Contains(job)) return;
         var vm = new JobViewModel(job, _display);
         _map[job] = vm;
         Add(vm);
@@ -394,9 +400,14 @@ public sealed partial class OperationCenterViewModel : ObservableObject
 
     private void RetireFinishedRow(JobViewModel vm)
     {
-        Jobs.Remove(vm);
-        _map.Remove(vm.Job);
-        if (ReferenceEquals(Selected, vm)) Selected = null;
+        RetireRow(vm.Job);
         Manager.Remove(vm.Job);
+    }
+
+    private void RetireRow(Job job)
+    {
+        if (!_map.Remove(job, out var vm)) return;
+        Jobs.Remove(vm);
+        if (ReferenceEquals(Selected, vm)) Selected = null;
     }
 }

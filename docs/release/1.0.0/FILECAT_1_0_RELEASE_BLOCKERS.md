@@ -3,7 +3,7 @@
 Updated 2026-10-10. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I295](evidence/E-I295-operation-row-retirement.md) passes nine operation-row controls and full App; exact/hosted follow-ups remain. I293/I294 pass 24 exact controls/96 original hosted controls. [I06 resource progress](evidence/E-I06-resource-progress.md) stays open. No owner/platform/people/physical-source/candidate gate is waived.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I296](evidence/E-I296-operation-history-retirement.md) passes eighteen history controls and both full suites; exact/hosted follow-ups remain. I295 passes nine exact controls/36 original hosted controls. [I06 resource progress](evidence/E-I06-resource-progress.md) stays open. No owner/platform/people/physical-source/candidate gate is waived.
 
 ## Safety and publication holds
 

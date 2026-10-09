@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text.Json;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
@@ -8,7 +10,7 @@ using FileCat.Core.State;
 namespace FileCat.App.Tests;
 
 /// <summary>D-54: the Network place, its computers and file servers, their shares, and back.</summary>
-public sealed class NetworkPlaceTests
+public sealed class NetworkPlaceTests(ITestOutputHelper output)
 {
     /// <summary>The test services run on the portable platform: the Windows network provider is added as the app adds it.</summary>
     private static void Register(FileCat.App.Services.AppServices services)
@@ -18,7 +20,9 @@ public sealed class NetworkPlaceTests
     }
 
     [AvaloniaFact]
-    public async Task The_Network_lists_known_servers_then_their_shares_and_leads_back()
+    public Task The_Network_lists_known_servers_then_their_shares_and_leads_back() => ExerciseReturnAsync(output, 0);
+
+    internal static async Task ExerciseReturnAsync(ITestOutputHelper output, int returnDelayMs)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -30,6 +34,15 @@ public sealed class NetworkPlaceTests
         {
             var ct = TestContext.Current.CancellationToken;
             Register(services);
+            var provider = (FileCat.Platform.Windows.NetworkShareProvider)services.Providers.For(FileCat.Platform.Windows.NetworkShareProvider.Root);
+            var knownServers = provider.KnownServers;
+            int rootRequests = 0;
+            provider.KnownServers = () =>
+            {
+                // Delay only this fixture's second root read; never a system/network setting or shared provider.
+                if (Interlocked.Increment(ref rootRequests) == 2 && returnDelayMs > 0) Thread.Sleep(returnDelayMs);
+                return knownServers?.Invoke() ?? [];
+            };
             // A server reached before: it is listed at once, before any device answers.
             services.History.Folders.Add(new HistoryEntry { Location = new Location(Schemes.Network, @"\\localhost") });
 
@@ -62,9 +75,24 @@ public sealed class NetworkPlaceTests
             Assert.DoesNotContain("IPC$", shares, StringComparer.OrdinalIgnoreCase);
 
             // Up again: the Network, with the server under the cursor.
+            var returning = Stopwatch.StartNew();
             tab.GoUp();
-            for (int i = 0; i < 400 && (tab.Location?.Path != "" || tab.Listing.State != ListingState.Complete); i++) await Task.Delay(20, ct);
+            // Enumeration includes admission, mapped-drive history and late discovery name lookups. Observe the
+            // ready view rather than assuming those operations settle within 400 twenty-millisecond turns.
+            while (returning.Elapsed < TimeSpan.FromSeconds(30) &&
+                   (tab.Location?.Path != "" || tab.Listing.State != ListingState.Complete ||
+                    !tab.Listing.TryGetFocused(out var ready) || ready.Name != "localhost"))
+                await Task.Delay(20, ct);
+            output.WriteLine("NETWORK_PLACE_RETURN " + JsonSerializer.Serialize(new
+            {
+                returnDelayMs, elapsedMs = returning.Elapsed.TotalMilliseconds, rootRequests,
+                state = tab.Listing.State.ToString(), visibleRows = tab.Listing.VisibleCount,
+                knownServerVisible = Rows().Any(e => e.Name == "localhost"),
+                focusReady = tab.Listing.TryGetFocused(out var observed) && observed.Name == "localhost",
+                ownedKnownServerCallbackOnly = true, realWindowsShares = true, noHostDesktopInput = true,
+            }));
             Assert.Equal(Schemes.Network, tab.Location!.Scheme);
+            Assert.Equal(ListingState.Complete, tab.Listing.State);
             Assert.True(tab.Listing.TryGetFocused(out var focused));
             Assert.Equal("localhost", focused.Name);
 

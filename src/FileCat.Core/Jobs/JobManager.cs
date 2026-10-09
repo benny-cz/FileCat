@@ -35,6 +35,8 @@ public sealed class JobManager
     public IFileSystemOperations FileOperations => _fs;
 
     public event Action<Job>? JobAdded;
+    /// <summary>A finished job leaves retained history; observers run outside the manager lock.</summary>
+    public event Action<Job>? JobRemoved;
     public event Action<Job>? JobChanged;
     public event Action<Job>? JobFinished;
     public event Action<PendingDecision>? DecisionRequested;
@@ -60,12 +62,14 @@ public sealed class JobManager
         var (title, device, reads, writes) = Describe(request);
         var job = new Job(request, title, device, reads, writes);
         job.Changed += OnJobChanged;
+        IReadOnlyList<Job> retired;
         lock (_lock)
         {
             job.QueueOrder = ++_order;
             _jobs.Add(job);
-            TrimFinishedLocked();
+            retired = TrimFinishedLocked();
         }
+        foreach (var finished in retired) JobRemoved?.Invoke(finished);
         job.SetState(JobState.Queued);
         JobAdded?.Invoke(job);
         Schedule();
@@ -75,21 +79,29 @@ public sealed class JobManager
     public void Remove(Job job)
     {
         if (!job.State.IsFinished()) return;
+        bool removed;
         lock (_lock)
         {
-            if (_jobs.Remove(job)) job.Changed -= OnJobChanged;
+            removed = _jobs.Remove(job);
+            if (removed) job.Changed -= OnJobChanged;
         }
+        if (removed) JobRemoved?.Invoke(job);
         JobChanged?.Invoke(job);
     }
 
     public void ClearFinished()
     {
-        lock (_lock) _jobs.RemoveAll(j =>
+        List<Job> retired;
+        lock (_lock)
         {
-            if (!j.State.IsFinished()) return false;
-            j.Changed -= OnJobChanged;
-            return true;
-        });
+            retired = _jobs.Where(j => j.State.IsFinished()).ToList();
+            foreach (var job in retired)
+            {
+                _jobs.Remove(job);
+                job.Changed -= OnJobChanged;
+            }
+        }
+        foreach (var job in retired) JobRemoved?.Invoke(job);
     }
 
     public void MoveInQueue(Job job, int delta)
@@ -106,14 +118,16 @@ public sealed class JobManager
         Schedule();
     }
 
-    private void TrimFinishedLocked()
+    private IReadOnlyList<Job> TrimFinishedLocked()
     {
         var finished = _jobs.Where(j => j.State.IsFinished()).OrderBy(j => j.FinishedUtc).ToList();
-        foreach (var j in finished.Take(Math.Max(0, finished.Count - KeepFinished)))
+        var retired = finished.Take(Math.Max(0, finished.Count - KeepFinished)).ToList();
+        foreach (var j in retired)
         {
             _jobs.Remove(j);
             j.Changed -= OnJobChanged;
         }
+        return retired;
     }
 
     private void OnJobChanged(Job job)
