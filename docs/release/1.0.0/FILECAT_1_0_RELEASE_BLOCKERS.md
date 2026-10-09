@@ -3,7 +3,7 @@
 Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environment rows before reuse. I245–I248 change no Mac/VM/USB/account/network/host policy. Private roots are gone; actual canonical compiler/analyzer locks remain individually qualified. Exact f862/09bccc local and original CI results are indexed; none resolves owner/platform/people/physical-source/candidate gates.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. I249/I250 change no Mac/VM/USB/account/network/host policy. Actual temporary inventories and locked compiler files remain individually qualified. The initial fixture failure is preserved; corrected 225 local/original CI results are indexed. Owner/platform/people/physical-source/candidate gates remain.
 
 ## Safety and publication holds
 
