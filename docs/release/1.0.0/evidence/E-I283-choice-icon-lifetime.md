@@ -10,7 +10,7 @@ The combined correction passes eighteen App controls and full App **1355 passed/
 
 Fourteen historical raw commands are retained and independently checked. Initial fixture builds fail before tests on imports/interfaces or a helper name; an early fixed observer still sees five objects. The revised observer drains rendered/finalized references without weakening the zero-retention oracle. No specific frame/weak-table mechanism is claimed for those five. The final distinct-control fixed attempt originally fails before tests because native PDB copying runs out of disk; storage compaction precedes the fresh successful combined and Skia runs. These harness/build failures are not product failures or silently relabelled passes.
 
-Independent restoration archives and checks 48 owned temporary files, removes 39, and retains nine exact compiler locks in the combined root. Seventeen other recorded roots are absent; no obstacle remains outside the recorded locks. No global compiler termination, desktop interaction, physical source or persistent machine-policy change occurs. Exact committed/hosted follow-ups remain; wider chooser/place/hidden-panel consumers, worker/frame/native process accounting, reference hardware and candidate qualification remain I06.
+Independent restoration archives and checks 48 owned temporary files, removes 39, and retains nine exact compiler locks in the combined root. Seventeen other recorded roots are absent; no obstacle remains outside the recorded locks. No global compiler termination, desktop interaction, physical source or persistent machine-policy change occurs. Exact committed follow-up is recorded below; original hosted follow-up is sealed in the linked CI record; wider chooser/place/hidden-panel consumers, worker/frame/native process accounting, reference hardware and candidate qualification remain I06.
 
 
 ## Selected immutable receipts
@@ -35,3 +35,21 @@ Paths are relative to private FileCatReleaseEvidence unless absolute. Nested rec
 | `E:/FileCat/artifacts/release-evidence/i06-resource-batch-20261009-v1/skia-fixed/inputs.json` | `a0664dc5a5e77bc68a1e53ce6e6e926a42ebadb1022717b26bb03bbec55f21c6` |
 | `E:/FileCat/artifacts/release-evidence/i06-resource-batch-20261009-v1/skia-fixed/app-controls/command.json` | `441840caa0e023919c9f0369418681d0d202f89e61a1c06062897fc30b295e0f` |
 | `E:/FileCat/artifacts/release-evidence/i06-resource-batch-20261009-v1/owned-temporary-files-v1.zip` | `4ecfd605ca3d21d4cb28674ddddce4e1051191a26de2347b34746ec0fa5d19af` |
+
+
+## Exact committed follow-up
+
+No-overlay **71167b76d8637a4de39cdff4980e02230b016b90** verifies all 1344 canonical Git blobs and passes 18 app controls. All 82 combined committed outcomes/messages/semantic observations match the validated private controls; all 64 accounting fixture sets are absent. Eleven owned temporary files are archived/rechecked, two removed and nine compiler locks retained in the exact root. No full-suite replay, desktop or candidate claim.
+[Original CI 37976125499 attempt 1](E-CI-resource-ownership.md) passes 72 chooser/256 accounting controls across four lanes and checks all 768 I282 semantic observations including corrected BytesTotal. All 29,380 predecessor outcomes/messages/exact skips remain; the older 31 wrong totals remain at their original source.
+
+
+## Selected new immutable receipts
+
+Private FileCatReleaseEvidence paths unless absolute; nested receipts preserve raw commands, payloads, failures, skips and owned cleanup.
+
+| File | SHA256 |
+|---|---|
+| `i06-resource-committed-20261009-v1/independent-exact-final-v1.json` | `d07b63d88b70196557fa7da99122c770d148418bf59de567bac0c84b197e6cb5` |
+| `E:/FileCat/artifacts/release-evidence/i06-resource-committed-20261009-v1/committed/app-controls/command.json` | `1785b71e3791d275c481f0ee279e338b436fc2b351316c35a730897cd0aabb99` |
+| `E:/FileCat/artifacts/release-evidence/i06-resource-committed-20261009-v1/committed/inputs.json` | `52d8aac72ceea347900bc4bb04d82cb2eee0bbefaeac3def03fe8b995acc4877` |
+| `i06-resource-committed-20261009-v1/seal-exact-v1.py` | `c976fd706084662502951cdeb9001a074d52a4b063392d41fb531622dce5b0fe` |

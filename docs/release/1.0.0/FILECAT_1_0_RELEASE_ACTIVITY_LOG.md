@@ -1746,3 +1746,87 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I282-follow-link-publication.md`
 
 This does not qualify directory links, native Windows copy engines, atomic compare-and-replace, same-size/reverted/post-check mutations, wider provider/account/resource/consumer/native/reference/human/candidate scope, a full App/Remote replay, or the physical source. Exact I282 committed/hosted follow-ups remain. Twenty broader unresolved entries, all 24 final-candidate campaigns, I106/I110 HOLD and owner/GO gates remain. No host UI, VM/Mac, device or policy change occurs.
+
+
+## 2026-10-09 — removed-panel preview resource retirement
+
+I285 clears only retired panel-view DataContexts, closing actual reader/source bindings even for already-hidden views. Twelve original failures/two reuse positives become fourteen passes; full App 1369/25 exact skips retains all 1380 preceding local outcome/message multiplicities. All 68 removed-reader observations check full owned bytes and closure while controls are deliberately held. Initial parent-assumption failure and all exact source/raw commands remain. I283/I284 no-overlay 82 controls pass at 71167b7, with eleven temporary files archived/two removed/nine locks retained. Original CI 37976125499 attempt 1 passes all four lanes/29,708 records/328 new controls; 768 follow-link observations include corrected BytesTotal. Every 29,380 predecessor outcome/message/exact skip remains. The original 31 wrong totals are retained. I285 exact/hosted checks remain. Twenty broader unresolved scopes and all publication/physical-source/owner gates stay open.
+
+<a id="scope-before-removed-panel-resource-batch"></a>
+### Prior wording retained before removed-panel retirement
+
+The following replaced wording is historical; unchanged register/evidence rows retain their exact bytes.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+Updated 2026-10-09. **262 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 284 total.**
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+| I06 | <a id="i06"></a>Aggregate content-cache accounting | Potential High | Validation gate | Open: [resource progress matrix](evidence/E-I06-resource-progress.md) tracks shared pages, archive/listing retention, decoded pictures, icon/control borrowers, other materialized work and native/process/frame accounting. I283 retires filtered chooser borrowers; I284 corrects root-link work totals. Full Core 3373/64 exact skips and App 1355/25 pass; new exact/hosted checks remain. Shared-page DEC-06 stays decided; aggregate consumer/native/reference/human/candidate scope remains. | [Complete preceding scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch), [Resource matrix](evidence/E-I06-resource-progress.md) |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md`
+
+| I283 | <a id="i283"></a>Open chooser retains filtered Image controls and current bitmaps | Medium (resource retention) | Fix (I06/V12/V16) | Remediated preliminarily — weak-key Image borrowers replace the strong row registry. Eight original open-dialog failures/ten healthy closed controls become eighteen passes in mock and actual offscreen Skia runs. Distinct 32/96 retired controls and current bitmaps fall to zero; choices/callback closure remain correct. Full App 1355/25 and Core 3373/64 exact skips pass. Exact/hosted, wider native/process/frame/candidate scope remains. | [Full record](evidence/E-I283-choice-icon-lifetime.md) |
+| I284 | <a id="i284"></a>Root link metadata inflates transfer content and work totals | Medium (progress accounting) | Fix (I06/V02/V12) | Remediated preliminarily — discover zero content bytes for link roots, preserving explicitly followed admitted work. Forty original failures/24 healthy controls become 64 passes with exact work/verification/items and source/target/referent checks. Full Core 3373/64 exact skips and App 1355/25 pass. Original 31 hosted I282 differences retained; controlled timing is not historical native schedule proof. Exact/hosted/native/candidate scope remains. | [Full record](evidence/E-I284-link-discovery-accounting.md) |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+**317 evidence entries; none is final candidate qualification.** No candidate exists.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EVIDENCE_INDEX.md`
+
+| E-I283 | Filtered chooser icon/control borrower retirement | Original c7416b6 plus declared fixture/production overlays | Eight failures/ten positives to eighteen passes; actual Skia repeat; full App 1355/25 and Core 3373/64 exact skips; exact/hosted/native/candidate open | [Full record](evidence/E-I283-choice-icon-lifetime.md) | I06, I283, V12, V16 |
+| E-I284 | Root link discovery content/work totals | Original c7416b6 plus fixture/one production overlay | Forty failures/24 positives to 64 passes; exact source/target/referent totals; full suites pass; old 31 hosted differences retained; exact/hosted/native/candidate open | [Full record](evidence/E-I284-link-discovery-accounting.md) | I06, I284, V02, V12 |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| Issue register | 284 IDs: 262 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses. | These are broader unresolved scopes, not 20 unimplemented fixes. |
+| Evidence catalogue | 317 entries; 5446 selected private evidence hashes: prior closed audits retained, with 39 new pins freshly checked in incremental audit v184. | Every record applies only to its exact source/artifact/environment; this is not a count of all files or cases. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| Latest local validation | [I283/I284 resource batch](evidence/E-I06-resource-progress.md): eighteen chooser and 64 root-link controls; full Core 3373/64 exact skips and App 1355/25 pass. | Actual Skia chooser original eight failures/ten passes become eighteen passes. All preceding logical Core outcomes/skips and 1377 other local App outcomes remain; three retained disk-full failures now pass. New exact/hosted checks remain. |
+| Last fully audited CI | [37964745726 attempt 1 at 8ab4398](evidence/E-CI-follow-link-publication.md): four required lanes pass; 29,380 records/768 new I282 passes. | All 28,612 predecessor outcomes/messages/exact skips retained. Thirty-one actual Unix work totals are wrong and remain explicitly qualified; I284 correction is separately validated. 21 ZIPs/14 TRXs/92 restore graphs; no candidate. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+Latest batch: [I283](evidence/E-I283-choice-icon-lifetime.md) releases filtered chooser icon borrowers; [I284](evidence/E-I284-link-discovery-accounting.md) corrects root-link work totals. Both full affected suites pass. [I282 exact and qualified hosted follow-ups](evidence/E-I282-follow-link-publication.md#exact-committed-and-hosted-follow-ups) are sealed, retaining 31 old hosted accounting defects. The [I06 resource matrix](evidence/E-I06-resource-progress.md) separates six concrete resource groups from the transfer/provider follow-ups retained below. Twenty broader unresolved scopes and all 24 final-candidate campaigns remain.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+Local test capacity: [I06 batch](evidence/E-I283-choice-icon-lifetime.md) archives/checks 48 owned temporary files, removes 39 and records nine compiler locks in one remaining root; seventeen other recorded roots and all 192 accounting fixture sets are absent. [I282 exact/restoration](evidence/E-I282-follow-link-publication.md#exact-committed-and-hosted-follow-ups) retains its distinct two exact locks and released private-root cleanup. Older limits remain in the [activity log](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch). No global compiler termination or blanket restoration claim.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| [I06](FILECAT_1_0_RELEASE_ISSUES.md#i06) | Autonomous + qualification | [Six resource groups](evidence/E-I06-resource-progress.md): page floors/settings, aggregate archive/listing retention, decoded pictures, icon/control borrowers, other materialized jobs/queues and native/process/frame accounting. I283/I284 local corrections/full suites pass; exact/hosted remain. Continue remaining consumer/materialized ownership before broader reference/native/human/candidate qualification. Shared-page DEC-06 remains decided. [Prior scope](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch). |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+1. Prioritize I06 remaining resource ownership from the [six-group matrix](evidence/E-I06-resource-progress.md): archive/listing materialization, places/hidden/dialog icon consumers, large result/job/queue payloads and native/process/frame accounting. I283/I284 full suites pass; run exact committed and original hosted checks while continuing independent remediation. Transfer/provider follow-ups remain V02/V08/V13; no scope is discarded.
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_EXECUTION_REPORT.md`
+
+| 10 — high-risk validation/remediation | In progress; 262 preliminary remediations and retained adverse controls. |
+
+Source: `docs/release/1.0.0/FILECAT_1_0_RELEASE_BLOCKERS.md`
+
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I06 resource progress](evidence/E-I06-resource-progress.md) now tracks six concrete groups; I283/I284 local/full-suite corrections pass, with new exact/hosted checks pending. [I282 original CI](evidence/E-CI-follow-link-publication.md) retains 31 work-total defects and every older exact skip/native qualification. [Complete preceding wording](FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch) preserves the previous transfer/provider and restoration scope. Twenty broader unresolved scopes and all owner/platform/people/physical-source/candidate gates remain. No device/account/Mac/VM/persistent policy change occurs.
+
+Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
+
+```markdown
+| 4. Borrowed icons and controls | [Borrowed-icon controls](E-I06-B3-borrowed-icon-memory.md) qualify bounded cache eviction versus held borrowers. [I283](E-I283-choice-icon-lifetime.md) now retires filtered chooser Images/bitmaps in eighteen controls, including separate actual Skia runs. | Places/hidden panels, other dialogs and recycled consumers, native source queues/workers, pending notifications, submitted frames and aggregate retention. A weak cache or one corrected borrower does not qualify every consumer. |
+```
+
+Source: `docs/release/1.0.0/evidence/E-I283-choice-icon-lifetime.md`
+
+```markdown
+Independent restoration archives and checks 48 owned temporary files, removes 39, and retains nine exact compiler locks in the combined root. Seventeen other recorded roots are absent; no obstacle remains outside the recorded locks. No global compiler termination, desktop interaction, physical source or persistent machine-policy change occurs. Exact committed/hosted follow-ups remain; wider chooser/place/hidden-panel consumers, worker/frame/native process accounting, reference hardware and candidate qualification remain I06.
+```
+
+Source: `docs/release/1.0.0/evidence/E-I284-link-discovery-accounting.md`
+
+```markdown
+[Original I282 CI](E-CI-follow-link-publication.md) independently retains 31 Unix ordinary-follow observations with correct content/safety fields but inflated BytesTotal. Each old total equals the maximum of 17 and UTF-8 source-link path bytes. The old test did not assert that total, so its passing status cannot qualify accounting. This new controlled reproduction is consistent with those values; no historical stack/scheduling trace is invented. Exact committed/hosted corrected accounting checks remain. This is a progress/work-accounting defect; no new content-loss finding is asserted. Physical-source HOLD and all broader/candidate gates remain.
+```

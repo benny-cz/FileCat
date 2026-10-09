@@ -37,7 +37,13 @@ public partial class MainWindow
     {
         if (_panelsDeferred) return;
         var ws = _vm.Workspace;
-        foreach (var dead in _panelViews.Keys.Where(k => !ws.Panels.Contains(k)).ToList()) _panelViews.Remove(dead);
+        foreach (var dead in _panelViews.Keys.Where(k => !ws.Panels.Contains(k)).ToList())
+        {
+            // Retired views must release tab/source bindings and QuickView readers even when already hidden.
+            // Layout-only detaches keep their view and context for reuse below.
+            _panelViews[dead].DataContext = null;
+            _panelViews.Remove(dead);
+        }
         // Views are reused: each leaves the grid that held it before the new ones are built. The keyboard stays in the
         // active panel (leaving the tree would drop it, and a panel that took it would become the active one).
         var focused = FocusManager?.GetFocusedElement() as Visual;
