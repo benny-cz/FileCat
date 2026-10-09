@@ -10,7 +10,7 @@ Nine original failures/three live positives become twelve passes. Every retired 
 
 The combined batch changes **18 original failures/six live positives to 24 passes**. All 156 affected App results pass with three exact existing skips. Unchanged compiled payloads pass overlapping full **Core 3470/64 exact skips** and **App 1398/25 exact skips**. Every 3510 preceding Core and 1423 preceding App outcome/message/exact skip remains, with one independently verified PE assembly display-path adaptation. The first restricted restore attempt exited without TRX/test results and remains separately preserved; the authorized retry provides the actual original failures.
 
-This qualifies finite managed reachability, not aggregate/process/native/frame/throughput, ordinary UI incidence or a candidate. Exact committed/hosted follow-ups remain. I06 stays open; physical-source HOLD and human GO remain. Owned temporary files are archived/rechecked before attempted removal; retained compiler locks remain explicitly recorded.
+This qualifies finite managed reachability, not aggregate/process/native/frame/throughput, ordinary UI incidence or a candidate. Exact committed controls pass below; original hosted follow-up remains. I06 stays open; physical-source HOLD and human GO remain. Owned temporary files are archived/rechecked before attempted removal; retained compiler locks remain explicitly recorded.
 
 
 ## Selected immutable follow-up receipts
@@ -30,3 +30,24 @@ Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain com
 | `i06-job-retirement-20261010-v1/independent-job-retirement-final-v1.json` | `5bcaa87f2585657fe35c031ff29d2aee52ce395132aed2e08a049ac23cb417f0` |
 | `E:/FileCat/artifacts/release-evidence/i06-job-retirement-20261010-v1/owned-temporary-files-v1.zip` | `0690d0396a9ac0cb57b5a7ea95271e1d419c09e058f2979e99f2cd3d786474e0` |
 | `E:/FileCat/artifacts/release-evidence/i06-job-retirement-20261010-v1/original/core-controls/command.json` | `168bd0f1e5e93f28ae0821053f04b2fbf65f92b16efb4b53128457127db7fa3b` |
+
+
+## Exact committed follow-up
+
+No-overlay **20f1bdc5ce168c414fb1c9457c0f76b61c9e2059** verifies all **1371 canonical Git blobs** and passes all **24 controls**. Every private/exact outcome/message/manager/waiter/live relationship agrees apart from owned roots. All three validated overlays match the canonical committed bytes with only Git line-ending normalization permitted. One owned temporary file is archived/rechecked and removed; no compiler lock remains in this exact scope. This is not a full-suite, process-memory/native/frame/human/candidate repeat.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain complete commands, raw outputs and source identities.
+
+| File | SHA256 |
+|---|---|
+| `i293-i294-committed-20261010-v1/seal-exact-v1.py` | `92589b9602501fec77983c9f243c1a95869537f5b50cda645f9f6f64fdd629fb` |
+| `i293-i294-committed-20261010-v1/independent-exact-final-v1.json` | `8ac971f68cc07d0a6dc85b30b4ebb495d64d9c666158766d017d328871b91df1` |
+| `E:/FileCat/artifacts/release-evidence/i293-i294-committed-20261010-v1/committed/core-controls/command.json` | `411905e616ca6fb4193540be194fab78e6f855f328cd0293008ea377fade7207` |
+| `E:/FileCat/artifacts/release-evidence/i293-i294-committed-20261010-v1/committed/inputs.json` | `bca7f4bd5dc2b71e73eb70bee80137cbcc25f85fa00fae077e3c062d8605d67c` |
+| `E:/FileCat/artifacts/release-evidence/i293-i294-committed-20261010-v1/committed/owned-temporary-files-v1.zip` | `85bca5a2d8947e002bef1f1fc3303822d092b34badde232bc90da2ff1e6f067d` |
+
+
+Original hosted follow-up: [38000303954 attempt 1](E-CI-job-retirement.md) passes all four lanes/30,268 results, including 96 new job controls. Every predecessor outcome/message/exact skip remains. Broader aggregate/native/frame/reference/human/candidate scope remains.

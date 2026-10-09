@@ -2561,3 +2561,14 @@ No-overlay **0adbad02e766b55614d881b509e8fa7ef8ad44c5** verifies all 1361 canoni
 [I293/I294](evidence/E-I293-job-manager-retirement.md) preserve 18 actual original failures/six live positives and pass all 24 corrected controls, 156 affected App results and overlapping full Core 3470/64/full App 1398/25 exact skips. Every preceding outcome/message/exact skip remains. The first restricted restore attempt has no test results and is separately retained. New exact committed/hosted checks remain.
 
 [I292 exact](evidence/E-I292-progressive-capture-retirement.md#exact-committed-follow-up) passes 22 no-overlay controls; its original CI passes 88 new controls/four lanes/30,172 results. Original overlap CI passes four lanes/30,084 results. The earlier failed About run stays failed; historical cause remains unproven. C: storage compaction continues independently. Twenty broader unresolved scopes and all owner/physical-source/native/reference/human/candidate gates remain. Prior dashboard wording stays in the exact parent commit and private backups.
+
+
+## 2026-10-10 — visualization capacity and exact job follow-up
+
+[C: lossless compaction](evidence/E-ENV-STORAGE-visualizations-compaction.md) recovers 56.56 GB of journaled allocation across 17244 files; the base reader checks every original path and 16,875 complete hashes, then the alias reader qualifies 369 additional complete hashes without repeating the base walk. Interrupted/resume refusals and native skips remain unchanged. C: and E: both hold referenced evidence; unique source/log/provenance records are retained, and the fresh duplicate map supports later consolidation.
+
+[I293/I294 exact](evidence/E-I293-job-manager-retirement.md#exact-committed-follow-up) passes all 24 controls with no overlays at 20f1bdc. The separate operations-row follow-up is recorded below; its exact committed and original hosted checks remain. Twenty broader unresolved scopes and all owner/physical-source/native/reference/human/candidate gates remain.
+
+[I295](evidence/E-I295-operation-row-retirement.md) separately preserves three original failures/six clear/live positives and passes nine corrected controls, 41 affected App results and full App 1407/25 exact skips. Owned visual contexts are explicitly retired before collection; the earlier compile refusal and six-failure visual attempt remain. No native-input or historical-cause inference. I295 exact/hosted follow-ups remain.
+
+Original job retirement CI [38000303954 attempt 1](evidence/E-CI-job-retirement.md) passes four lanes/30,268 records/96 new controls; all 30,172 preceding outcomes/messages/exact skips remain.

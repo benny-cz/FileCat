@@ -49,9 +49,7 @@ public partial class OperationsView : UserControl
     {
         if (JobOf(sender) is { } j && Center is { } c)
         {
-            c.Manager.Remove(j.Job);
-            c.Jobs.Remove(j);
-            c.UpdateSummary();
+            c.RemoveFinished(j);
         }
     }
 

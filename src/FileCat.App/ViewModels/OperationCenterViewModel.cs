@@ -381,11 +381,22 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     {
         // By the job's own state, as HasFinished counts them: a row whose refresh is still queued is finished too.
         foreach (var vm in Jobs.Where(j => j.Job.State.IsFinished()).ToList())
-        {
-            Jobs.Remove(vm);
-            _map.Remove(vm.Job);
-            Manager.Remove(vm.Job);
-        }
+            RetireFinishedRow(vm);
         UpdateSummary();
+    }
+
+    public void RemoveFinished(JobViewModel vm)
+    {
+        if (!vm.Job.State.IsFinished()) return;
+        RetireFinishedRow(vm);
+        UpdateSummary();
+    }
+
+    private void RetireFinishedRow(JobViewModel vm)
+    {
+        Jobs.Remove(vm);
+        _map.Remove(vm.Job);
+        if (ReferenceEquals(Selected, vm)) Selected = null;
+        Manager.Remove(vm.Job);
     }
 }

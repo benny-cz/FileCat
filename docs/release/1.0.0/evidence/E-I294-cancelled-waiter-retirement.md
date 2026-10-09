@@ -15,3 +15,9 @@ Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain com
 |---|---|
 | `i06-job-retirement-20261010-v1/Job.cs` | `d23a26894a81253211aac3738fb2538a8bae3b248656c966090f05f4236f7966` |
 | `i06-job-retirement-20261010-v1/independent-job-retirement-final-v1.json` | `5bcaa87f2585657fe35c031ff29d2aee52ce395132aed2e08a049ac23cb417f0` |
+
+
+Exact committed follow-up: [all 24 controls](E-I293-job-manager-retirement.md#exact-committed-follow-up) pass without overlays at 20f1bdc5ce168c414fb1c9457c0f76b61c9e2059. Broader qualification remains.
+
+
+Original hosted follow-up: [38000303954 attempt 1](E-CI-job-retirement.md) passes all four lanes/30,268 results, including 96 new job controls. Every predecessor outcome/message/exact skip remains. Broader aggregate/native/frame/reference/human/candidate scope remains.
