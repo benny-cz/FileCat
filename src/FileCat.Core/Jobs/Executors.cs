@@ -894,7 +894,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
         }
 
-        if (info.IsLink) return CopyLink(src, target, info, replace);
+        if (info.IsLink) return CopyLink(src, target, info, replace, target == dst ? expectedTarget : null);
 
         // PI-05: a move that would drop metadata the destination cannot store asks before anything irreversible.
         bool keepSource = false;
@@ -1228,11 +1228,12 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         return ok ? Result.Committed : Result.Failed;
     }
 
-    private Result CopyLink(string src, string target, FileSystemItemInfo info, bool replace)
+    private Result CopyLink(string src, string target, FileSystemItemInfo info, bool replace, (long Size, long ModifiedTicks)? expectedTarget)
     {
         // A replaced item goes only once its replacement exists: the new link is made under a staged name first.
         string linkAt = target;
-        if (replace)
+        bool staged = replace || expectedTarget is not null;
+        if (staged)
         {
             var dir = Path.GetDirectoryName(target)!;
             if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
@@ -1240,7 +1241,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         if (Fs.TryCopyLink(src, linkAt, info.IsDirectory, out var error))
         {
-            if (replace && !PublishLink(src, linkAt, target, info.IsDirectory)) return Result.Failed;
+            if (staged && PublishLink(src, linkAt, target, info.IsDirectory, expectedTarget) is { } result && result != Result.Committed) return result;
             if (Move) DeleteLinkSource(src, info);
             Job.ItemDone();
             return Result.Committed;
@@ -1260,7 +1261,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             case DecisionAction.CreateJunction when info.LinkTarget is not null:
                 if (TryIo(linkAt, "create a junction", () => Junctions.Create(linkAt, Path.GetFullPath(Path.Combine(Path.GetDirectoryName(src)!, info.LinkTarget)))))
                 {
-                    if (replace && !PublishLink(src, linkAt, target, isDirectory: true)) return Result.Failed;
+                    if (staged && PublishLink(src, linkAt, target, isDirectory: true, expectedTarget) is { } result && result != Result.Committed) return result;
                     if (Move) DeleteLinkSource(src, info);
                     Job.ItemDone();
                     return Result.Committed;
@@ -1276,17 +1277,25 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
     }
 
     /// <summary>Puts a staged link in the place of the item it replaces; if that fails, the staged link goes and the item stays.</summary>
-    private bool PublishLink(string src, string staged, string target, bool isDirectory)
+    private Result PublishLink(string src, string staged, string target, bool isDirectory, (long Size, long ModifiedTicks)? expectedTarget)
     {
         int step = Journal.Intent("replace", src, target, staged);
+        bool refused = false;
         bool ok = TryIo(target, "replace the existing item", () =>
         {
+            // Link creation and a publication retry may outlive the comparison's initial target check.
+            if (expectedTarget is { } baseline && !TargetStillCompared(target, baseline))
+            {
+                refused = true;
+                return;
+            }
             // A folder link cannot be renamed over another folder link: the old one (only a link) is removed just before.
             if (isDirectory && Fs.TryGetInfo(target) is { IsDirectory: true, IsLink: true }) Fs.DeleteDirectory(target);
             Fs.Move(staged, target, replaceExisting: !isDirectory);
         });
+        ok &= !refused;
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.CanceledBeforeChange);
-        if (ok) return true;
+        if (ok) return Result.Committed;
         try
         {
             if (isDirectory) Fs.DeleteDirectory(staged);
@@ -1296,8 +1305,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             Issue(IssueSeverity.Warning, staged, "A temporary link could not be removed; it can be deleted safely.", StepOutcome.PartiallyApplied);
         }
+        if (refused) { Job.ItemSkipped(); return Result.Skipped; }
         Job.ItemFailed();
-        return false;
+        return Result.Failed;
     }
 
     private void DeleteLinkSource(string src, FileSystemItemInfo info)

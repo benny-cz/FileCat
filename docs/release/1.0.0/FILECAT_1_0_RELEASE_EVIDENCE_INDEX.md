@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**308 evidence entries; none is final candidate qualification.** No candidate exists.
+**309 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -333,4 +333,6 @@ Add or update one inventory row in ID order; put full execution detail in the in
 | E-I279 | Remote edit target recheck after upload | Original 0dc7380 plus fixture/one production overlay | 40 failures/16 passes to 56 passes; full Remote 2332/156 exact skips and 287 edit cases preserve predecessor outcomes; 168 owned source/fixture paths absent; 56 exact committed controls and 224 four-lane executions pass at 08399b2 | [Full record](evidence/E-I279-remote-edit-target-publication.md) | I06, I279, V08, V11, V23 |
 
 | E-CI-EDIT-TARGET | Complete original four-lane remote edit-target audit | 37953574730 attempt 1 at 08399b2 | 27460 actual records/224 added passes; every predecessor multiplicity/exact skip; 21 ZIPs/14 TRXs/92 graphs; earlier refusals retained | [Full audit](evidence/E-CI-remote-edit-target-publication.md) | I06, I279, V08, V11, V20, V23 |
-| E-I280 | Compared synchronization target guarded through publication/retry | Original 08399b2 plus fixture/declared first/final production overlays | Original 80 failures/48 passes; first correction 120 passes/eight expanded-boundary failures; final 128 passes; full Core 2957/64 and Remote 2332/156 exact skips/287 edit outcomes retained; committed/hosted pending | [Full record](evidence/E-I280-sync-target-publication.md) | I06, I280, V02, V13, V23 |
+| E-I280 | Compared synchronization target guarded through publication/retry | Original 08399b2 plus fixture/declared first/final production overlays | Original 80 failures/48 passes; first correction 120 passes/eight expanded-boundary failures; final 128 passes; full Core 2957/64 and Remote 2332/156 exact skips/287 edit outcomes retained; 128 exact committed controls pass; original hosted pending | [Full record](evidence/E-I280-sync-target-publication.md) | I06, I280, V02, V13, V23 |
+
+| E-I281 | Compared target retained during literal file-link publication/retry | Original cb52c13 plus fixture/declared production overlay | Original 104 failures/56 passes: 88 changed targets replaced/recreated, sixteen directory targets retained without the comparison refusal; final 160 passes; full Core 3117/64 exact skips/300 App subset retain preceding outcomes; committed/hosted pending | [Full record](evidence/E-I281-sync-link-publication.md) | I06, I281, V02, V13, V23 |
