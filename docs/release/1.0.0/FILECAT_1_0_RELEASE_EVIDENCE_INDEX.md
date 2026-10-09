@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**260 evidence entries; none is final candidate qualification.** No candidate exists.
+**262 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -121,6 +121,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I237 | Format-reader source/decompressor teardown, recovery and primary errors | Exact c412bd0; CI 37861720364 attempt 1 | 25 canonical/100 hosted passes; eighteen original failures, actual gzip, three full local suites and original observation/CI limits retained | [E-I237](evidence/E-I237-format-reader-teardown.md) | I06, V07, V12, V23 |
 | E-I238 | Active-use failures retained through deferred source retirement | Exact e4cf592; CI 37864532583 attempt 1 | 80 canonical/320 hosted passes; 24 original masks, actual handle/budget/error/byte controls and all three full committed suites retained | [E-I238](evidence/E-I238-paged-reader-primary-retirement.md) | I06, V10, V12, V23 |
 | E-I239 | Native overflow final-state byte oracle and held-writer monotonic order | Exact e4cf592; CI 37864532583 attempt 1 | Original c412 CI failure and existing-DLL timestamp disproof retained; final byte predicates pass locally and both Windows lanes with exact Unix skips | [E-I239](evidence/E-I239-overflow-final-state-oracle.md) | I06, V12, V23 |
+| E-I240 | Unhandled page cancellation preserved through deferred source retirement | Exact 720354b; CI 37867481621 attempt 1 | 48 canonical/192 hosted passes; three original masks, actual owned bytes/handles/budget, unchanged handled-read policy and prior outcomes retained | [E-I240](evidence/E-I240-paged-load-cancellation-retirement.md) | I06, V10, V12, V23 |
+| E-I241 | Original remote job error preserved through channel retirement | Exact 720354b; CI 37867481621 attempt 1 | 192 canonical/768 hosted passes; 72 original masks, exact controlled bytes, actual capacity/owner behavior and full private/committed Remote suites retained | [E-I241](evidence/E-I241-remote-job-primary-retirement.md) | I06, V08, V12, V23 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
