@@ -482,14 +482,25 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (Move && SameVolume(src, dst)) return MoveByRename(src, dst, info);
         // A replacement planned by a comparison happens only while the target is as compared: one edited while the plan
         // was reviewed is not overwritten (release plan DPI P10).
-        if (Job.Request.ExpectedTargets is { } expected && expected.TryGetValue(root, out var seen) && Fs.TryGetInfo(dst) is { IsDirectory: false } there &&
-            (there.Size != seen.Size || there.ModifiedUtc.Ticks != seen.ModifiedTicks))
+        (long Size, long ModifiedTicks)? compared = Job.Request.ExpectedTargets is { } expected && expected.TryGetValue(root, out var seen) ? seen : null;
+        if (compared is { } baseline && !TargetStillCompared(dst, baseline))
         {
             Job.ItemSkipped();
-            Issue(IssueSeverity.Warning, dst, "Not replaced: the file here changed after the comparison that planned this, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
             return Result.Skipped;
         }
-        return info.IsDirectory && !info.IsLink ? CopyDirectory(src, dst, info) : CopyFileItem(src, dst, info);
+        return info.IsDirectory && !info.IsLink ? CopyDirectory(src, dst, info) : CopyFileItem(src, dst, info, expectedTarget: compared);
+    }
+
+    private bool TargetStillCompared(string path, (long Size, long ModifiedTicks) expected)
+    {
+        try
+        {
+            if (Fs.TryGetInfo(path) is { IsDirectory: false, IsLink: false } current &&
+                current.Size == expected.Size && current.ModifiedUtc.Ticks == expected.ModifiedTicks) return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        Issue(IssueSeverity.Warning, path, "Not replaced: the file here changed after the comparison that planned this, so it stays. Compare again to decide about it.", StepOutcome.CanceledBeforeChange);
+        return false;
     }
 
     private bool SourceStillReviewed(ItemRef source)
@@ -845,7 +856,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (_fillPairs.Add(sourceDirectory + "\0" + destinationDirectory)) Journal.Fill(sourceDirectory, destinationDirectory);
     }
 
-    private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true)
+    private Result CopyFileItem(string src, string dst, FileSystemItemInfo info, bool firstAttempt = true, (long Size, long ModifiedTicks)? expectedTarget = null)
     {
         Job.Checkpoint();
         if (!SourceItemStillReviewed(src)) return Result.Failed;
@@ -853,7 +864,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         long planned = info.IsLink ? 0 : Math.Max(0, info.Size);
         if (firstAttempt) CountTransferItem(planned, VerifyWork(planned), discovered: false);
         Job.BeginItem(planned, VerifyWork(planned));
-        if (firstAttempt && TryFastDirectCopy(src, dst, info) is { } fast) return fast;
+        if (firstAttempt && expectedTarget is null && TryFastDirectCopy(src, dst, info) is { } fast) return fast;
         var target = dst;
         bool replace = false;
         var existing = Fs.TryGetInfo(dst);
@@ -911,7 +922,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         // Where the bytes go: straight to the new name (small, new, and named like its source, so recovery can match
         // it) or to a staged name that is published afterwards.
         var dir = Path.GetDirectoryName(target)!;
-        bool direct = !replace && info.Size is >= 0 and < DirectCopyLimit &&
+        bool direct = expectedTarget is null && !replace && info.Size is >= 0 and < DirectCopyLimit &&
                       string.Equals(Path.GetFileName(target), Path.GetFileName(src), StringComparison.Ordinal);
         string writeTo;
         if (direct)
@@ -976,7 +987,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 {
                     // Another program created the name meanwhile: treat it as the conflict it is (once; a name that
                     // exists but cannot be inspected gets the ordinary question below).
-                    return CopyFileItem(src, dst, info, firstAttempt: false);
+                    return CopyFileItem(src, dst, info, firstAttempt: false, expectedTarget: expectedTarget);
                 }
                 if (cls == "encryption" && !allowDecrypted)
                 {
@@ -1032,11 +1043,23 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             // writes the rename through, so the source is never deleted while its copy only exists under a staged
             // name (which recovery would offer to delete).
             int step = Journal.Intent(replace ? "replace" : "publish", src, target, writeTo, durable: replace);
-            bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () => Fs.Move(writeTo, target, replace, writeThrough: Move));
-            if (!published)
+            bool refused = false;
+            bool published = TryIo(target, replace ? "replace the existing item" : "publish the copied item", () =>
+            {
+                // The target may change while copying or while a failed publication waits for Retry.
+                // This is a fresh metadata/type check, not an atomic filesystem compare-and-replace.
+                if (expectedTarget is { } baseline && target == dst && !TargetStillCompared(target, baseline))
+                {
+                    refused = true;
+                    return;
+                }
+                Fs.Move(writeTo, target, replace, writeThrough: Move);
+            });
+            if (!published || refused)
             {
                 TryDeleteStaged(writeTo);
                 Journal.Done(step, StepOutcome.CanceledBeforeChange);
+                if (refused) { Job.ItemSkipped(); return Result.Skipped; }
                 Job.ItemFailed();
                 return Result.Failed;
             }

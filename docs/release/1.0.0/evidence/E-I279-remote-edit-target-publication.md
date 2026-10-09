@@ -14,7 +14,7 @@ The **same unchanged compiled Remote test payload** passes the full suite: **233
 
 Both exports contain **1324 canonical original Git blobs**, plus only the identical fixture and the declared fixed SftpJobs overlay. Actual commands, source ZIPs, payloads, raw original failures, exact skips and independent 56-case comparisons remain. Across original/fixed/full-Remote executions, all **168 recorded owned working-file and fixture paths are absent**. 13 owned temporary files are archived/rechecked, 4 removed and 9 compiler/analyzer locks retained. Root absence in original/fixed/App/Remote order is false, true, true, true.
 
-This is a fresh metadata/type check, **not a server-side atomic compare-and-replace or full-byte identity guarantee**. Same-size/reverted changes, mutations after this check, server alias/parent races, wider native provider/account/disconnection/reference/human scope and exact candidate qualification remain under I06. I279 exact committed/hosted follow-ups remain pending. Twenty broader unresolved entries, all 24 final-candidate campaigns, I106/I110 physical-source HOLD and owner/GO gates remain. No workstation UI, VM/Mac, account/policy, physical-source or stable-publication change occurs.
+This is a fresh metadata/type check, **not a server-side atomic compare-and-replace or full-byte identity guarantee**. Same-size/reverted changes, mutations after this check, server alias/parent races, wider native provider/account/disconnection/reference/human scope and exact candidate qualification remain under I06. I279 exact committed/hosted follow-ups follow below. Twenty broader unresolved entries, all 24 final-candidate campaigns, I106/I110 physical-source HOLD and owner/GO gates remain. No workstation UI, VM/Mac, account/policy, physical-source or stable-publication change occurs.
 
 ## Selected immutable receipts
 
@@ -34,3 +34,19 @@ Paths are relative to private FileCatReleaseEvidence unless absolute. Nested rec
 | `E:/FileCat/artifacts/release-evidence/edit-target279-v1/fixed/command.json` | `cba0536afafa3444ca990fbd9ee4c3a130d3aafdd50b53905015fe623bb2efb8` |
 | `E:/FileCat/artifacts/release-evidence/edit-target279-v1/fixed/app-regression-v1/command.json` | `360a6007fe18b07cb214a5986ab2e5aed219c0d17aee93380dd350dc9c286b35` |
 | `E:/FileCat/artifacts/release-evidence/edit-target279-v1/fixed/remote-regression-v1/command.json` | `82a0779aa672613201723d02f4211d2840850b521af413e26d8f9a1a99f49843` |
+
+## Exact committed and hosted follow-up
+
+Canonical **08399b2** repeats all **56 controls successfully**, with **1327 exact Git blobs and no overlays**. Both approved production/fixture bytes equal the pushed Git blobs. The reader compares all private semantic guards except actual owned paths/names and healthy uploaded timestamps. Every source/fixture root is absent; one owned temporary file is archived/rechecked/removed with no locks and that root absent. No full committed Core/Remote/App-suite replay is inferred.
+
+[Original four-lane run 37953574730](E-CI-remote-edit-target-publication.md) passes all **224 I279 executions/27,460 actual records**, preserving every preceding outcome/message multiplicity and exact skip. These checks do not qualify I280's later local-sync correction or close atomic/full-byte/native/candidate scope.
+
+| File | SHA256 |
+|---|---|
+| `edit-target279-v1/committed-source-comparison-v1.json` | `7fc8dfa450bfcd21a5e66b9b0b2cba430c2aa749a1f512b752790b49335615e6` |
+| `edit-target279-v1/exact-preparation-v1.json` | `1fb10f2db54ccba577ab9262bf23a6ae3e203d076829428cc0b219febc18a541` |
+| `edit-target279-v1/run-exact-v1.py` | `a565a547d9933b203844e6d2b18041c223a3115b108e92c0799f83ebc5170f3d` |
+| `edit-target279-v1/seal-exact-v1.py` | `ab91908970c0e5d1ac7966480b26460d99ef4abda221b0075cbd39ae4952e5c0` |
+| `edit-target279-v1/independent-exact-final-v1.json` | `2c9ea1ab3cc4ab36744e16f62ddbacd8b4ee3759d051e92ea37b52ba30780e8b` |
+| `edit-target279-v1/main-push-v1.json` | `19ac85c32d84176ae691fbce232d143d95456584332e3e20057b22896f70c4c7` |
+| `E:/FileCat/artifacts/release-evidence/edit-target279-v1/committed/command.json` | `bb42daa21bc022fdfe756885fd6e070c3d14799167eff435a26a3a8e7d7fd52d` |
