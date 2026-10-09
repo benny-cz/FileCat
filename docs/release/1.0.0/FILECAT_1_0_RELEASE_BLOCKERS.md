@@ -3,7 +3,7 @@
 Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. I249/I250 change no Mac/VM/USB/account/network/host policy. Actual temporary inventories and locked compiler files remain individually qualified. The initial fixture failure is preserved; corrected 225 local/original CI results are indexed. Owner/platform/people/physical-source/candidate gates remain.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists remaining executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. Recheck environments before reuse. I251/I252 change no Mac/VM/USB/account/network/global-environment/host policy. The command-processor override is scoped to a nonparallel test process and restored in its finally block. Exact temporary inventories and locked compiler files remain individually qualified. Owner/platform/people/physical-source/candidate gates remain.
 
 ## Safety and publication holds
 
@@ -69,6 +69,6 @@ DEC-06 (shared page-cache target) and DEC-11 (required Markdown rendering with a
 - The overnight continuation remains active while autonomous work remains. The former 08:40 CEST no-interaction cutoff has elapsed; ask only when resuming a task that actually needs the owner.
 - Current slices use owned files, pinned product payloads and component/CLI probes. No physical-source hold is relaxed.
 - Preserve exact guest/Mac setup baselines and restore owned temporary changes when their use ends. Do not reinstall removed Linux compiler packages without a new need.
-- GitHub SSH on port 443 is used for authorized main pushes. Runtime/test source 8a5833f9b8f0fd0721db6fc3375350625dccbc47 and original CI 37842873148 attempt 1 are sealed: 56 picture controls/160 current FTP-Git passes, all 21,532 predecessor names/outcomes/skip texts, original archives and locked graphs verified. Earlier cae0f04 CI and its 34 explicit fixture skips stay historical; 67f648a seals their native repair. Fourteen parent-lifetime and slow-data controls retain actual cae payload identities. Earlier finite byte-oracle, Core/expanded and worker qualifications retain their actual producer identities. All earlier/current failures and observer corrections remain; no persistent Git/SSH configuration changed.
+- Authorized main pushes use GitHub SSH on port 443 without persistent Git/SSH configuration changes. The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md#progress) identifies the latest full runtime/CI producer; older producer-specific results, adverse observations and restoration limits remain in their indexed evidence and the activity log. No preview or stable artifact is published.
 
 Update a gate row when its state changes; keep old chronology in the activity log/history rather than appending competing state summaries here.

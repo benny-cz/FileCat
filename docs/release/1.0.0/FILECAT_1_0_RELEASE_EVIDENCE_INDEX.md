@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**271 evidence entries; none is final candidate qualification.** No candidate exists.
+**273 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -132,6 +132,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I248 | Bounded tool batches preserve resolved argument positions | Exact 09bccc7; CI 37877401877 attempt 1 | Eight canonical/32 hosted plan passes and paired native observations plus the exact committed four-body repeat; ordered regions, actual file/list hashes, exits and length limits checked | [E-I248](evidence/E-I248-tool-batch-argument-order.md) | I06, I16, V12, V23 |
 | E-I249 | Disc library failure still retires its native source | Exact 225029c; CI 37882828321 attempt 1 | Four canonical/16 hosted passes; original leak, full positive ISO/member, actual native closure and fixture finalizer correction checked | [E-I249](evidence/E-I249-disc-image-library-resource-retirement.md) | I06, V10, V12, V23 |
 | E-I250 | Unused tool lists retire with typed write errors | Exact 225029c; CI 37882828321 attempt 1 | Ten canonical/40 hosted passes and paired native controls; fresh/prior ownership, delayed child list reads, full bytes, errors and exits checked | [E-I250](evidence/E-I250-tool-list-failure-ownership.md) | I06, I16, V12, V23 |
+| E-I251 | Retired solid-archive cursors do not poison retry | Exact d0d33af; CI 37886618093 attempt 1 | Sixteen canonical/64 hosted passes; actual decoder and full member/source bytes, controlled close/factory errors and retry/lifetime checked | [E-I251](evidence/E-I251-sharp-cursor-reset-retry.md) | I06, V07, V12, V23 |
+| E-I252 | Windows scripts fit the actual command-processor budget | Exact d0d33af; CI 37886618093 attempt 1 | Twenty-one canonical/76 hosted passes/eight exact Unix skips; actual default/custom wrapper calibration and native launch/byte positives | [E-I252](evidence/E-I252-tool-batch-command-budgets.md) | I06, I16, V11, V23 |
 | E-I18-A1 | Package prerequisites and exact asset selection | 7b56b16 baseline/b9526b9 correction; CI 37454794034/37455247699 | Preliminary partial I18 improvement; full publisher/candidate open | [E-I18-A1](evidence/E-I18-A1-package-asset-allowlist.md) | I18, I03, I146, V20 |
 | E-I18-P2 | Refuse stable references at producer boundary | 4b2b9d7 baseline; 317a9a5; CI 37462073457 attempt 1 | Preliminary partial I18; full promotion/candidate policy open | [E-I18-P2](evidence/E-I18-P2-stable-producer-refusal.md) | I18, V20, DEC-09 |
 | E-I18-P3 | Draft duplicate/hash refusal and upload identity | 6a6af3b; CI 37464968767 attempt 1; original b9526b9 package bytes | Preliminary partial I18; actual tagged publication/full promotion open | [E-I18-P3](evidence/E-I18-P3-draft-asset-preservation.md) | I18, V20, DEC-09 |
