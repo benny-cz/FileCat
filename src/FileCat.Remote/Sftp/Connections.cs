@@ -312,21 +312,34 @@ public sealed class SftpConnections : IDisposable
                     return Interaction.AnswerPrompts(profile, instruction, prompts) ?? throw new ConnectCanceledException();
                 },
             };
+            ISftpChannel channel;
             try
             {
-                var channel = _connector.Connect(profile, context, ct);
-                if (toSave is not null) SaveSecret(profile, toSave);
-                return channel;
+                channel = _connector.Connect(profile, context, ct);
             }
             catch (RemoteAuthenticationException) when (attempt < MaxAuthenticationAttempts)
             {
                 // Ask again, a bounded number of times: authentication failures never become a retry storm.
                 _sessionSecrets.TryRemove(profile.Id, out _);
                 known = null;
+                continue;
             }
             catch (IOException) when (rejectedHostKey)
             {
                 throw new HostKeyRejectedException($"The host key of {profile.Display} was not accepted, so FileCat did not connect.");
+            }
+            // Authentication has succeeded. A save/notification failure must neither abandon its channel nor retry
+            // authentication: this caller owns the channel until the remaining setup has returned it to the pool.
+            try
+            {
+                if (toSave is not null) SaveSecret(profile, toSave);
+                return channel;
+            }
+            catch
+            {
+                try { channel.Dispose(); }
+                catch (Exception ex) { AppLog.Warn("Could not close a connection after post-connect setup failed", ex); }
+                throw;
             }
         }
     }
