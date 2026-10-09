@@ -89,15 +89,19 @@ public static class ToolLauncher
             if (!Path.IsPathFullyQualified(f)) throw new ToolLaunchException("Tool arguments must be absolute paths.");
         }
         var args = new List<string>();
+        var resolved = new List<(bool Files, IReadOnlyList<string> Arguments)>();
         foreach (var token in tool.Arguments)
         {
+            var values = new List<string>();
             switch (token)
             {
-                case "{files}": args.AddRange(files.Select(ProtectOptionLike)); break;
-                case "{file}": if (files.Count > 0) args.Add(ProtectOptionLike(files[0])); break;
-                case "{listfile}": args.Add(WriteListFile(files, tempDirectory)); break;
-                default: args.Add(Substitute(token, ctx, files)); break;
+                case "{files}": values.AddRange(files.Select(ProtectOptionLike)); break;
+                case "{file}": if (files.Count > 0) values.Add(ProtectOptionLike(files[0])); break;
+                case "{listfile}": values.Add(WriteListFile(files, tempDirectory)); break;
+                default: values.Add(Substitute(token, ctx, files)); break;
             }
+            resolved.Add((token == "{files}", values));
+            args.AddRange(values);
         }
         if (isBatch && !tool.ShellMode && args.Any(a => a.IndexOfAny(CmdMetacharacters.ToCharArray()) >= 0))
             throw new ToolLaunchException($"\"{Path.GetFileName(exe)}\" is a batch file, and cmd.exe would interpret special characters in the arguments (BatBadBut). Point the tool to the real program (for VS Code: Code.exe), or enable shell mode for this tool if you accept that risk.");
@@ -110,19 +114,28 @@ public static class ToolLauncher
         // Too long for one command line: split per file when the tool takes {files}, else require a list file.
         if (!tool.Arguments.Contains("{files}"))
             throw new ToolLaunchException("The selection is too long for one command line. Use the {listfile} token for this tool.");
-        var fixedArgs = tool.Arguments.Where(t => t != "{files}").Select(t => Substitute(t, ctx, files)).ToList();
+        List<string> BatchArguments(IReadOnlyList<string> selected) => resolved
+            .SelectMany(part => part.Files ? selected : part.Arguments).ToList();
+        if (CommandLineLength(exe, BatchArguments([])) > WindowsCommandLineLimit)
+            throw new ToolLaunchException("The fixed tool arguments are too long for one command line.");
         var batch = new List<string>();
         foreach (var f in files)
         {
-            var candidate = fixedArgs.Concat(batch).Append(ProtectOptionLike(f)).ToList();
-            if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit && batch.Count > 0)
+            var candidate = BatchArguments(batch.Append(ProtectOptionLike(f)).ToList());
+            if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
             {
-                result.Add((exe, fixedArgs.Concat(batch).ToList()));
-                batch.Clear();
+                if (batch.Count > 0)
+                {
+                    result.Add((exe, BatchArguments(batch)));
+                    batch.Clear();
+                }
+                candidate = BatchArguments([ProtectOptionLike(f)]);
+                if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
+                    throw new ToolLaunchException("A selected file cannot fit one command line. Use the {listfile} token for this tool.");
             }
             batch.Add(ProtectOptionLike(f));
         }
-        if (batch.Count > 0) result.Add((exe, fixedArgs.Concat(batch).ToList()));
+        if (batch.Count > 0) result.Add((exe, BatchArguments(batch)));
         warning = $"The selection exceeds the Windows command-line limit, so {result.Count} separate invocations were used.";
         return result;
     }

@@ -596,6 +596,7 @@ internal sealed class SharpArchiveReader : IMemberReader
     private readonly int[] _ordinals;
     private readonly Dictionary<string, int> _seen = new(StringComparer.Ordinal);
     private IReader? _reader;
+    private bool _disposed;
 
     private SharpArchiveReader(IArchive archive, List<FileStream> volumes, string format, bool sequential, bool numberedVolumeGap)
     {
@@ -752,9 +753,21 @@ internal sealed class SharpArchiveReader : IMemberReader
 
     public void Dispose()
     {
-        _reader?.Dispose();
-        _archive.Dispose();
-        foreach (var v in _volumes) v.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        var reader = _reader;
+        _reader = null;
+        Exception? failure = null;
+        void Close(IDisposable? resource)
+        {
+            try { resource?.Dispose(); }
+            catch (Exception ex) { failure ??= ex; }
+        }
+        Close(reader);
+        Close(_archive);
+        foreach (var volume in _volumes) Close(volume);
+        _volumes.Clear();
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }
 
