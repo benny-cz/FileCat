@@ -8,11 +8,15 @@ All **48 identical controls** cover four logical protocols (SFTP, FTP, explicit 
 
 Fixed results are **48 passed**. Every adverse label failure records zero stream opens. Original exception objects/stacks remain, including the disconnected-primary cases with a secondary channel-close IOException; those channels close once. Non-disconnect errors keep the healthy channel reusable. Each healthy content owns one stream, blocks exclusive access while open, closes it once, releases its holder and retains the expected display label. Full capacity, unrelated leases and exact recovered bytes pass. Secondary close injection is exercised when retirement actually occurs; other cases do not claim a close call.
 
-The **same unchanged corrected compiled payload**, without rebuilding, passes the complete Remote suite: **2276 passed/156 exact skips**, 2432 actual records. Every one of the **2384 preceding result/message multiplicities and 156 exact skip messages** from the private I274 full-suite producer remains; only the 48 passing new cases are added. Source ZIPs contain 1314 canonical original Git blobs plus only the declared fixture and one production-file overlay. Exact committed and hosted correction qualification remains pending; this is not an installed candidate.
+The **same unchanged corrected compiled payload**, without rebuilding, passes the complete Remote suite: **2276 passed/156 exact skips**, 2432 actual records. Every one of the **2384 preceding result/message multiplicities and 156 exact skip messages** from the private I274 full-suite producer remains; only the 48 passing new cases are added. Source ZIPs contain 1314 canonical original Git blobs plus only the declared fixture and one production-file overlay. Exact committed correction checks follow below; hosted correction qualification remains pending. This is not an installed candidate.
 
 The independent reader rehashes source blobs/ZIPs, declared overlays, command/raw streams, actual compiled payloads, raw TRXs and every original/fixed/full observation. All **64 recorded initial stream-holder paths and their fixture directories are absent** at seal. Six owned temporary files are archived/rechecked; three are removed and three exact compiler log/analyzer locks remain in the original namespace. Fixed/full temporary roots are absent. Older compiler locks keep their separate qualifications; no global process termination or restoration claim.
 
 No workstation UI, VM/Mac, persistent account/settings, physical source or stable publication changes. Native/account/permission/provider/drop/second-SMB/resource/identity/consumer/human/candidate scope remains. I06, all twenty broader unresolved scopes, all 24 final-candidate campaigns, physical-source HOLD and explicit human stable GO remain.
+
+## Exact committed follow-up
+
+Canonical **5dfd28ca48a25bb59fc270373eef286de011e047** repeats all 48 controls successfully, with 1316 exact Git blobs and no overlays. The independent reader verifies source ZIP/blob identities, commands, actual compiled payloads, raw TRX and every semantic field against the private correction; actual paths/stacks remain. All recorded holder paths/fixture directories are absent. One owned temporary file is archived/rechecked/removed; the root is absent with zero retained locks. The approved push receipt allows only the already recorded C# CRLF-to-LF clean filter. No refusal, full-suite replay at this committed export, hosted success or candidate is inferred. Original CI 37940372787 remains awaiting complete audit.
 
 ## Selected immutable receipts
 
@@ -31,3 +35,9 @@ Paths are relative to the private FileCatReleaseEvidence root unless absolute. N
 | `E:/FileCat/artifacts/release-evidence/remote-open275-v1/original/command.json` | `87b6cf63810064588731ff2a8bafeac79c61bccb40fdc0b5b9d7e0648278f46a` |
 | `E:/FileCat/artifacts/release-evidence/remote-open275-v1/fixed/command.json` | `5430a578ec42c7f11b84e1dd43bbdee025a91f42b6553630a6f83f41eff1633e` |
 | `E:/FileCat/artifacts/release-evidence/remote-open275-v1/fixed/full-remote-v1/command.json` | `9d0c915c5add3d74cbe61c66f3d719d3c882b88ca64798a4a6ed9a45e5c7c681` |
+| `remote-open275-v1/committed-source-clean-filter-v1.json` | `1d69da3d3fe4b64ab3cf050df121318d4cb276ac1bd59f9e9ba1f235cf5a74de` |
+| `remote-open275-v1/run-exact-committed-open-v1.py` | `dcfb77a714991b1957c11022f456c3f8951d25bf3c9046b35e85bc52cd238524` |
+| `remote-open275-v1/seal-exact-committed-open-v1.py` | `94aacfcf416fc4196f71d1185efcc5574e2b0148327cb5db677b39fac65a9dd2` |
+| `remote-open275-v1/independent-exact-committed-open-v1.json` | `358b755a66632a55caa9a21be93bba0b9490d71ef9e2489fbaa767d755d02aee` |
+| `E:/FileCat/artifacts/release-evidence/remote-open275-v1/committed/command.json` | `7567e1ab3b6bb219b1396542f4a340688ee0edee9db8e1bf389a405c2f0b01ca` |
+| `remote-open275-v1/open-ownership-main-push-v1.json` | `dec1cfcc811b2e41797df7ccbba6f94d70efe40bf60846b75198c10cc4c49f9d` |

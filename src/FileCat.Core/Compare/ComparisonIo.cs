@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.Threading;
@@ -32,21 +34,49 @@ public sealed class ComparisonIo(DeviceIoScheduler io, ProviderRegistry provider
             return provider.OpenContent(item);
         }).ConfigureAwait(false);
         try { Check(ct); return source; }
-        catch { source?.Dispose(); throw; }
+        catch
+        {
+            try { source?.Dispose(); }
+            catch (Exception ex) { AppLog.Warn("Could not close comparison content after admission stopped", ex); }
+            throw;
+        }
     }
 
     public async Task<bool?> ContentEqualAsync(ItemRef left, ItemRef right, CancellationToken ct)
     {
         var lp = providers.For(left.Parent);
         var rp = providers.For(right.Parent);
-        using var a = await Open(lp, left, ct).ConfigureAwait(false);
-        if (a is null) return null;
-        using var b = await Open(rp, right, ct).ConfigureAwait(false);
-        if (b is null) return null;
-        return await DirectoryCompare.ContentEqualAsync(() => Run(lp, left.Parent, ct, () => DirectoryCompare.ReadState(a, ct)),
-            () => Run(rp, right.Parent, ct, () => DirectoryCompare.ReadState(b, ct)),
-            (offset, buffer, start) => Run(lp, left.Parent, ct, () => a.Read(offset, buffer.AsSpan(start))),
-            (offset, buffer, start) => Run(rp, right.Parent, ct, () => b.Read(offset, buffer.AsSpan(start))), ct).ConfigureAwait(false);
+        IContentSource? a = null, b = null;
+        Exception? originalFailure = null;
+        try
+        {
+            a = await Open(lp, left, ct).ConfigureAwait(false);
+            if (a is null) return null;
+            b = await Open(rp, right, ct).ConfigureAwait(false);
+            if (b is null) return null;
+            return await DirectoryCompare.ContentEqualAsync(() => Run(lp, left.Parent, ct, () => DirectoryCompare.ReadState(a, ct)),
+                () => Run(rp, right.Parent, ct, () => DirectoryCompare.ReadState(b, ct)),
+                (offset, buffer, start) => Run(lp, left.Parent, ct, () => a.Read(offset, buffer.AsSpan(start))),
+                (offset, buffer, start) => Run(rp, right.Parent, ct, () => b.Read(offset, buffer.AsSpan(start))), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) { originalFailure = ex; throw; }
+        finally
+        {
+            Exception? closeFailure = null;
+            void Close(IContentSource? source)
+            {
+                try { source?.Dispose(); }
+                catch (Exception ex)
+                {
+                    // Retire both owners, but keep the operation error (or the first standalone close error).
+                    if (originalFailure is null && closeFailure is null) closeFailure = ex;
+                    else AppLog.Warn("Could not close comparison content after an earlier failure", ex);
+                }
+            }
+            Close(b);
+            Close(a);
+            if (closeFailure is not null) ExceptionDispatchInfo.Capture(closeFailure).Throw();
+        }
     }
 
     public Task<bool> EnumerateAsync(ResourceProvider provider, Location location, IEnumerationSink sink, CancellationToken ct)
