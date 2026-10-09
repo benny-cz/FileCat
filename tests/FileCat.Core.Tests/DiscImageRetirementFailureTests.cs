@@ -126,6 +126,8 @@ public sealed class DiscImageRetirementFailureTests(ITestOutputHelper output)
             }
             Directory.Delete(root, recursive: true);
             rootGone = !Directory.Exists(root);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
         Assert.True(rootGone);
     }
@@ -161,6 +163,7 @@ public sealed class DiscImageRetirementFailureTests(ITestOutputHelper output)
         public int CloseCalls { get; private set; }
         protected override void Dispose(bool disposing)
         {
+            if (!disposing) { base.Dispose(false); return; }
             CloseCalls++;
             if (Error is not null) throw Error;
             base.Dispose(disposing);
@@ -169,6 +172,7 @@ public sealed class DiscImageRetirementFailureTests(ITestOutputHelper output)
         {
             base.Dispose(true);
             input.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }
