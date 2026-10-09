@@ -778,6 +778,7 @@ internal sealed class DiscImageReader : IMemberReader
     private readonly FileStream _file;
     private readonly DiscFileSystem _fs;
     private readonly List<string> _paths = [];
+    private bool _disposed;
 
     public DiscImageReader(string path)
     {
@@ -860,7 +861,13 @@ internal sealed class DiscImageReader : IMemberReader
 
     public void Dispose()
     {
-        _fs.Dispose();
-        _file.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        Exception? failure = null;
+        try { _fs.Dispose(); }
+        catch (Exception ex) { failure = ex; }
+        try { _file.Dispose(); }
+        catch (Exception ex) { failure ??= ex; }
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }

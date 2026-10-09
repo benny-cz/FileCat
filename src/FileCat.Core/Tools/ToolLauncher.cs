@@ -4,7 +4,11 @@ using FileCat.Core.State;
 
 namespace FileCat.Core.Tools;
 
-public sealed class ToolLaunchException(string message) : Exception(message);
+public sealed class ToolLaunchException : Exception
+{
+    public ToolLaunchException(string message) : base(message) { }
+    public ToolLaunchException(string message, Exception innerException) : base(message, innerException) { }
+}
 
 /// <summary>Values for tool placeholders; paths are absolute.</summary>
 public sealed record ToolContext(IReadOnlyList<string> Files, string Directory, string? TargetDirectory = null, string? Prompt = null);
@@ -79,90 +83,114 @@ public static class ToolLauncher
 
     /// <summary>Builds (and validates) the invocations without starting anything; used for previews and tests.</summary>
     public static IReadOnlyList<(string Executable, IReadOnlyList<string> Arguments)> Plan(ToolDefinition tool, ToolContext ctx, string tempDirectory, out string? warning)
+        => PlanOwned(tool, ctx, tempDirectory, out warning, out _);
+
+    private static IReadOnlyList<(string Executable, IReadOnlyList<string> Arguments)> PlanOwned(
+        ToolDefinition tool, ToolContext ctx, string tempDirectory, out string? warning, out List<string> listFiles)
     {
-        warning = null;
-        var exe = ResolveExecutable(tool.Executable);
-        bool isBatch = exe.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
-        var files = ctx.Files.Select(Path.GetFullPath).ToList();
-        foreach (var f in files)
+        listFiles = [];
+        try
         {
-            if (!Path.IsPathFullyQualified(f)) throw new ToolLaunchException("Tool arguments must be absolute paths.");
-        }
-        var args = new List<string>();
-        var resolved = new List<(bool Files, IReadOnlyList<string> Arguments)>();
-        foreach (var token in tool.Arguments)
-        {
-            var values = new List<string>();
-            switch (token)
+            warning = null;
+            var exe = ResolveExecutable(tool.Executable);
+            bool isBatch = exe.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+            var files = ctx.Files.Select(Path.GetFullPath).ToList();
+            foreach (var f in files)
             {
-                case "{files}": values.AddRange(files.Select(ProtectOptionLike)); break;
-                case "{file}": if (files.Count > 0) values.Add(ProtectOptionLike(files[0])); break;
-                case "{listfile}": values.Add(WriteListFile(files, tempDirectory)); break;
-                default: values.Add(Substitute(token, ctx, files)); break;
+                if (!Path.IsPathFullyQualified(f)) throw new ToolLaunchException("Tool arguments must be absolute paths.");
             }
-            resolved.Add((token == "{files}", values));
-            args.AddRange(values);
-        }
-        if (isBatch && !tool.ShellMode && args.Any(a => a.IndexOfAny(CmdMetacharacters.ToCharArray()) >= 0))
-            throw new ToolLaunchException($"\"{Path.GetFileName(exe)}\" is a batch file, and cmd.exe would interpret special characters in the arguments (BatBadBut). Point the tool to the real program (for VS Code: Code.exe), or enable shell mode for this tool if you accept that risk.");
-        var result = new List<(string, IReadOnlyList<string>)>();
-        if (CommandLineLength(exe, args) <= WindowsCommandLineLimit)
-        {
-            result.Add((exe, args));
+            var args = new List<string>();
+            var resolved = new List<(bool Files, IReadOnlyList<string> Arguments)>();
+            foreach (var token in tool.Arguments)
+            {
+                var values = new List<string>();
+                switch (token)
+                {
+                    case "{files}": values.AddRange(files.Select(ProtectOptionLike)); break;
+                    case "{file}": if (files.Count > 0) values.Add(ProtectOptionLike(files[0])); break;
+                    case "{listfile}": values.Add(WriteListFile(files, tempDirectory, listFiles)); break;
+                    default: values.Add(Substitute(token, ctx, files)); break;
+                }
+                resolved.Add((token == "{files}", values));
+                args.AddRange(values);
+            }
+            if (isBatch && !tool.ShellMode && args.Any(a => a.IndexOfAny(CmdMetacharacters.ToCharArray()) >= 0))
+                throw new ToolLaunchException($"\"{Path.GetFileName(exe)}\" is a batch file, and cmd.exe would interpret special characters in the arguments (BatBadBut). Point the tool to the real program (for VS Code: Code.exe), or enable shell mode for this tool if you accept that risk.");
+            var result = new List<(string, IReadOnlyList<string>)>();
+            if (CommandLineLength(exe, args) <= WindowsCommandLineLimit)
+            {
+                result.Add((exe, args));
+                return result;
+            }
+            // Too long for one command line: split per file when the tool takes {files}, else require a list file.
+            if (!tool.Arguments.Contains("{files}"))
+                throw new ToolLaunchException("The selection is too long for one command line. Use the {listfile} token for this tool.");
+            List<string> BatchArguments(IReadOnlyList<string> selected) => resolved
+                .SelectMany(part => part.Files ? selected : part.Arguments).ToList();
+            if (CommandLineLength(exe, BatchArguments([])) > WindowsCommandLineLimit)
+                throw new ToolLaunchException("The fixed tool arguments are too long for one command line.");
+            var batch = new List<string>();
+            foreach (var f in files)
+            {
+                var candidate = BatchArguments(batch.Append(ProtectOptionLike(f)).ToList());
+                if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
+                {
+                    if (batch.Count > 0)
+                    {
+                        result.Add((exe, BatchArguments(batch)));
+                        batch.Clear();
+                    }
+                    candidate = BatchArguments([ProtectOptionLike(f)]);
+                    if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
+                        throw new ToolLaunchException("A selected file cannot fit one command line. Use the {listfile} token for this tool.");
+                }
+                batch.Add(ProtectOptionLike(f));
+            }
+            if (batch.Count > 0) result.Add((exe, BatchArguments(batch)));
+            warning = $"The selection exceeds the Windows command-line limit, so {result.Count} separate invocations were used.";
             return result;
         }
-        // Too long for one command line: split per file when the tool takes {files}, else require a list file.
-        if (!tool.Arguments.Contains("{files}"))
-            throw new ToolLaunchException("The selection is too long for one command line. Use the {listfile} token for this tool.");
-        List<string> BatchArguments(IReadOnlyList<string> selected) => resolved
-            .SelectMany(part => part.Files ? selected : part.Arguments).ToList();
-        if (CommandLineLength(exe, BatchArguments([])) > WindowsCommandLineLimit)
-            throw new ToolLaunchException("The fixed tool arguments are too long for one command line.");
-        var batch = new List<string>();
-        foreach (var f in files)
+        catch
         {
-            var candidate = BatchArguments(batch.Append(ProtectOptionLike(f)).ToList());
-            if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
-            {
-                if (batch.Count > 0)
-                {
-                    result.Add((exe, BatchArguments(batch)));
-                    batch.Clear();
-                }
-                candidate = BatchArguments([ProtectOptionLike(f)]);
-                if (CommandLineLength(exe, candidate) > WindowsCommandLineLimit)
-                    throw new ToolLaunchException("A selected file cannot fit one command line. Use the {listfile} token for this tool.");
-            }
-            batch.Add(ProtectOptionLike(f));
+            RetireLists(listFiles);
+            throw;
         }
-        if (batch.Count > 0) result.Add((exe, BatchArguments(batch)));
-        warning = $"The selection exceeds the Windows command-line limit, so {result.Count} separate invocations were used.";
-        return result;
     }
 
     public static ToolLaunchResult Launch(ToolDefinition tool, ToolContext ctx, string tempDirectory)
     {
-        var plan = Plan(tool, ctx, tempDirectory, out var warning);
+        var plan = PlanOwned(tool, ctx, tempDirectory, out var warning, out var listFiles);
         var summaries = new List<string>();
-        foreach (var (exe, args) in plan)
+        bool started = false;
+        try
         {
-            var psi = new ProcessStartInfo(exe)
+            foreach (var (exe, args) in plan)
             {
-                UseShellExecute = false,
-                WorkingDirectory = Substitute(tool.WorkingDirectory, ctx, ctx.Files.ToList()) is { Length: > 0 } wd && Directory.Exists(wd) ? wd : ctx.Directory,
-            };
-            foreach (var a in args) psi.ArgumentList.Add(a);
-            try
-            {
-                Process.Start(psi)?.Dispose();
+                var psi = new ProcessStartInfo(exe)
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = Substitute(tool.WorkingDirectory, ctx, ctx.Files.ToList()) is { Length: > 0 } wd && Directory.Exists(wd) ? wd : ctx.Directory,
+                };
+                foreach (var a in args) psi.ArgumentList.Add(a);
+                try
+                {
+                    using var process = Process.Start(psi);
+                    started |= process is not null;
+                }
+                catch (System.ComponentModel.Win32Exception ex)
+                {
+                    throw new ToolLaunchException($"Could not start \"{tool.Name}\": {ex.Message}");
+                }
+                summaries.Add(exe + " " + string.Join(" ", args));
             }
-            catch (System.ComponentModel.Win32Exception ex)
-            {
-                throw new ToolLaunchException($"Could not start \"{tool.Name}\": {ex.Message}");
-            }
-            summaries.Add(exe + " " + string.Join(" ", args));
+            return new ToolLaunchResult(summaries, warning);
         }
-        return new ToolLaunchResult(summaries, warning);
+        catch
+        {
+            // An earlier child may still need its list; only an entirely unstarted launch owns cleanup.
+            if (!started) RetireLists(listFiles);
+            throw;
+        }
     }
 
     /// <summary>A real program file: a full path that exists, or a bare name found on PATH (never the browsed folder).</summary>
@@ -188,12 +216,31 @@ public static class ToolLauncher
         .Replace("{name}", files.Count > 0 ? Path.GetFileName(files[0]) : string.Empty, StringComparison.Ordinal)
         .Replace("{prompt}", ctx.Prompt ?? string.Empty, StringComparison.Ordinal);
 
-    private static string WriteListFile(IReadOnlyList<string> files, string tempDirectory)
+    private static string WriteListFile(IReadOnlyList<string> files, string tempDirectory, List<string> listFiles)
     {
-        Directory.CreateDirectory(tempDirectory);
-        var path = Path.Combine(tempDirectory, $"filelist-{Guid.NewGuid():N}.txt");
-        File.WriteAllText(path, string.Join("\r\n", files) + "\r\n", new UTF8Encoding(false));
-        return path;
+        try
+        {
+            Directory.CreateDirectory(tempDirectory);
+            var path = Path.Combine(tempDirectory, $"filelist-{Guid.NewGuid():N}.txt");
+            using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+            listFiles.Add(path);
+            using var writer = new StreamWriter(stream, new UTF8Encoding(false));
+            writer.Write(string.Join("\r\n", files) + "\r\n");
+            return path;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new ToolLaunchException("Could not create the tool's list file: " + ex.Message, ex);
+        }
+    }
+
+    private static void RetireLists(IEnumerable<string> listFiles)
+    {
+        foreach (string path in listFiles)
+        {
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     /// <summary>Length of the command line Windows builds from an argument vector (quotes and escapes included).</summary>
