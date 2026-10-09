@@ -167,7 +167,8 @@ public sealed class MarkdownResourceIntegrationTests(ITestOutputHelper output)
         {
             // Remove link objects first; never traverse their targets during fixture retirement.
             foreach (var link in _links.AsEnumerable().Reverse())
-                if (link.Directory) Directory.Delete(link.Path); else File.Delete(link.Path);
+                // Unix directory links, including dangling cycles, are unlinked as files.
+                if (link.Directory && OperatingSystem.IsWindows()) Directory.Delete(link.Path); else File.Delete(link.Path);
             if (Directory.Exists(Root)) Directory.Delete(Root, true);
         }
     }
