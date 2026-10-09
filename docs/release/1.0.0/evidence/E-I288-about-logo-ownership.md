@@ -50,3 +50,8 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `i288-committed-20261009-v1/independent-exact-final-v1.json` | `5e75eaf4b3ca0e6fcb697b3c73ef60260cad8b879c14f455b23cb3af450aab7f` |
 | `E:/FileCat/artifacts/release-evidence/i288-committed-20261009-v1/committed/app-controls/command.json` | `8df33f1767e899973a1509b902593ec0a36ccb172843d922de84aae83e3332e4` |
 | `E:/FileCat/artifacts/release-evidence/i288-committed-20261009-v1/committed/inputs.json` | `ac80747ca84cef45c9683b606b7c1d190f159aaea818da06a103af57eb9698ea` |
+
+
+## Original Windows CI failure retained
+
+The completed Windows x64 job in original [37987173029 attempt 1](E-CI-about-windows-job-failure.md) contains 7627 actual results: all 29 new About controls pass, but one preceding DirectoryDiff test changes from pass to failure (empty window collection at line 94). All other 7597 predecessor outcomes/messages/exact skips remain. This is a partial completed-job seal; the whole run and historical cause are unqualified. The original failure remains queued for diagnosis under I108.

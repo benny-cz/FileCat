@@ -3,7 +3,7 @@
 Updated 2026-10-09. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I289](evidence/E-I289-metadata-order-retirement.md) passes six controls/full Core 3409/64 exact skips/87 affected App controls; exact/hosted checks remain. I288 29 exact controls pass; I287 exact/original hosted checks pass. [I06 resource progress](evidence/E-I06-resource-progress.md) remains open. No owner/platform/people/physical-source/candidate gate is waived; prior wording remains in the activity log.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; the [issue register](FILECAT_1_0_RELEASE_ISSUES.md) carries dispositions. [I290](evidence/E-I290-scheduler-cancellation-ownership.md) passes fifteen controls/full Core 3424/64 and App 1398/25 exact skips; exact/hosted checks remain. I289 six exact controls pass. The [original About Windows CI failure](evidence/E-CI-about-windows-job-failure.md) remains for diagnosis. [I06 resource progress](evidence/E-I06-resource-progress.md) stays open. No owner/platform/people/physical-source/candidate gate is waived; prior wording remains in the activity log.
 
 ## Safety and publication holds
 

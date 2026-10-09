@@ -10,7 +10,7 @@ Six public-API controls compare per-field Forget with complete Invalidate across
 
 All **87 affected App metadata/verification controls** pass and retain their outcome/messages from the preceding full App run. The unchanged compiled full Core suite passes **3409/64 exact skips**, preserving all **3467** preceding Core outcome/message records and exact skip reasons. One PE display path is adapted only after verifying the same method. This batch does not replay the full App suite. Its separate earlier I288 full App producer remains 1398/25. The test launcher declares a short owned temporary root to avoid the already demonstrated GnuPG harness path sensitivity; no global GnuPG configuration changes.
 
-The final receipt records every archived, rehashed, removed or locked file under both exact owned temporary roots. Exact committed/original hosted checks, broader metadata/cache bytes, aggregate jobs/results/providers/pictures, arbitrary schedules/native/reference and candidate acceptance remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
+The final receipt records every archived, rehashed, removed or locked file under both exact owned temporary roots. Exact committed checks are recorded below; original hosted checks, broader metadata/cache bytes, aggregate jobs/results/providers/pictures, arbitrary schedules/native/reference and candidate acceptance remain. No host UI, physical source, contract freeze or publication occurs; I106/I110 HOLD and required owner decisions/human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -29,3 +29,20 @@ Private FileCatReleaseEvidence paths unless absolute; nested receipts retain the
 | `i06-metadata-order-retirement-20261009-v2/seal-metadata-batch-v1.py` | `765b182d496ba8868b3adeaadebc0af2cf810b5ebbfb20e50bd60a6cee2c8cbd` |
 | `i06-metadata-order-retirement-20261009-v2/independent-metadata-batch-final-v1.json` | `3b86fb78a6c0066eccec54f0311f94562ccd8cb4df3faa55c6366b3bda0276ed` |
 | `E:/FileCat/artifacts/release-evidence/i06-metadata-order-retirement-20261009-v2/owned-temporary-files-v1.zip` | `7f8ebf003b88958dd01dab6257bc1740ab709bf8f442731aad3c2a054c4c6b4f` |
+
+
+## Exact committed follow-up
+
+No-overlay **96977d456767389424c07a8fde10e278c95615de** verifies all 1358 canonical Git blobs and passes all six controls, with every private/exact outcome/message and semantic observation matching apart from owned roots. Ordering slots equal live values in every case. Four owned temporary files are archived/rechecked; two are removed and two compiler locks remain explicitly recorded. No full suite, native, aggregate, throughput or candidate replay is claimed. Original hosted checks remain.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute; nested receipts retain complete source, commands, payloads, raw failures/skips and restoration.
+
+| File | SHA256 |
+|---|---|
+| `i289-committed-20261009-v1/seal-exact-v1.py` | `a65d1a5b8fb483aa69d291ee961537792e320207bf2386159fd22497a228e617` |
+| `i289-committed-20261009-v1/independent-exact-final-v1.json` | `8ec8ba21b6546a96eb8bbc09fcc3ba2abd5418e12e60148e23623ad4d5f4462f` |
+| `E:/FileCat/artifacts/release-evidence/i289-committed-20261009-v1/committed/core-controls/command.json` | `b9001700c3bd9d38839312db7b01c9c1f1d175e7ea429424de52eca6c5048b20` |
+| `E:/FileCat/artifacts/release-evidence/i289-committed-20261009-v1/committed/inputs.json` | `45f6160e361ea788e943dbab803508aad0f6d0d3ff8ac175927499d31bf91c25` |

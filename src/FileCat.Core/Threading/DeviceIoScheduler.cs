@@ -106,7 +106,7 @@ public sealed class DeviceIoScheduler : IDisposable
 
     private sealed class WorkItem<T> : WorkItem
     {
-        private readonly Func<CancellationToken, T> _work;
+        private Func<CancellationToken, T>? _work;
         private readonly CancellationToken _ct;
         private readonly TaskCompletionSource<T> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenRegistration _reg;
@@ -115,7 +115,12 @@ public sealed class DeviceIoScheduler : IDisposable
         {
             _work = work;
             _ct = ct;
-            if (ct.CanBeCanceled) _reg = ct.Register(static s => ((WorkItem<T>)s!).Cancel(), this);
+            if (ct.CanBeCanceled)
+            {
+                _reg = ct.Register(static s => ((WorkItem<T>)s!).Cancel(), this);
+                // Registration can invoke Cancel synchronously before _reg has been assigned.
+                if (IsCompleted) _reg.Unregister();
+            }
         }
 
         public Task<T> Task => _tcs.Task;
@@ -124,10 +129,13 @@ public sealed class DeviceIoScheduler : IDisposable
 
         public override void Execute()
         {
+            // A running call owns its delegate locally until its safe boundary. A queued cancellation can
+            // drop the captured payload without waiting for a blocked device to drain the queue.
+            var work = Interlocked.Exchange(ref _work, null);
             try
             {
                 _ct.ThrowIfCancellationRequested();
-                _tcs.TrySetResult(_work(_ct));
+                if (work is not null) _tcs.TrySetResult(work(_ct));
             }
             catch (OperationCanceledException oce) when (_ct.IsCancellationRequested)
             {
@@ -144,7 +152,14 @@ public sealed class DeviceIoScheduler : IDisposable
         }
 
         // Canceling a running item only completes its task; the thread finishes at its own safe boundary.
-        public override void Cancel() => _tcs.TrySetCanceled(_ct);
+        public override void Cancel()
+        {
+            Interlocked.Exchange(ref _work, null);
+            _tcs.TrySetCanceled(_ct);
+            // Nonblocking: cancellation can be executing this very registration. Do not keep a retired
+            // work item rooted in an otherwise live CancellationTokenSource after shutdown/queue drain.
+            _reg.Unregister();
+        }
     }
 
     private sealed class Worker
