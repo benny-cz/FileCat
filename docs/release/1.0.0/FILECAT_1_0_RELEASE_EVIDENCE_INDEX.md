@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**418 evidence entries; none is final candidate qualification.** No candidate exists.
+**421 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -429,6 +429,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I322 | Recovery image construction ownership | 1b2229c /declared overlays | Three original handle leaks/two positives become five passes per platform; 125 affected passes/34 exact skips; compiled Mac diagnostics preserve safety assertions. | [Record](evidence/E-I322-recovery-image-open-ownership.md) | I06, I322, V09 |
 | E-I321-EXACT | Committed source reselection qualification | 1b2229c /no overlays | Seven targeted/118 affected passes/34 skips; seven Ubuntu/thirty-two Mac controls and independent restoration pass. | [Record](evidence/E-I321-native-qualification.md) | I106, I321, V09 |
 | E-CI-I320 | Original incomplete-Mac CI failure | 399a829 /38069839231 attempt1 | Three required lanes pass, Mac mount classification fails; 24 archives/12 inventories, 26,555 passes/874 skips/one failure. All 72 new controls pass; two downstream inventories unavailable. | [Record](evidence/E-CI-incomplete-mac-topology.md) | I106, I320, V09 |
+| E-I323 | Cancellation fixture startup/readiness | 156b723 /test-only overlays | One controlled fence failure/ten positives become eleven passes each on Windows/Ubuntu/Mac; 93 affected passes/no skips; compiled diagnostics retain unsuccessful queries. | [Record](evidence/E-I323-smb-cancellation-startup.md) | CI, I323, V23 |
+| E-I322-EXACT | Committed image-source ownership | 156b723 /no overlays | Five targeted/125 affected passes/34 skips; five Ubuntu/thirty-seven Mac controls and independent owned restoration pass. | [Record](evidence/E-I322-native-qualification.md) | I06, I322, V09 |
+| E-CI-I321 | Original reselection CI failures | 1b2229c /38070958521 attempt1 | Two required lanes pass, Mac/ARM64 retain two failures; 20 archives/nine TRX, 22,347 passes/663 skips. All 100 current added topology/reselection records pass; downstream unavailable. | [Record](evidence/E-CI-recovery-reselection.md) | I106, I321, I323, V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 

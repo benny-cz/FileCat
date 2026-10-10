@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using FileCat.Core.FileSystem;
 using FileCat.Recovery.Unix;
 
 namespace FileCat.Core.Tests;
@@ -23,7 +24,8 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
         var commands = new List<object>();
         var attached = new List<string>();
         var cleanup = new List<string>();
-        string Run(string program, params string[] arguments)
+        string Run(string program, params string[] arguments) => RunCore(true, program, arguments);
+        string RunCore(bool required, string program, params string[] arguments)
         {
             var info = new ProcessStartInfo(program)
             {
@@ -37,7 +39,7 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
             if (timedOut) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
             string text = stdout.GetAwaiter().GetResult(), error = stderr.GetAwaiter().GetResult();
             commands.Add(new { program, arguments, process.ExitCode, timedOut, stdout = text, stderr = error });
-            if (timedOut || process.ExitCode != 0) throw new IOException("Owned fixture command failed: " + error);
+            if (required && (timedOut || process.ExitCode != 0)) throw new IOException("Owned fixture command failed: " + error);
             return text;
         }
         static Dictionary<string, object?> Dictionary(string plist) =>
@@ -74,19 +76,20 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
             {
                 // Retain the actual unavailable classification inputs before assertions or fixture cleanup.
                 var inspected = new HashSet<string>(StringComparer.Ordinal);
-                var pending = new Queue<string>([source, old, mount, root, a, b]);
+                var pending = new Queue<string>([source, old, mount, UnixFiles.MountOf(root)?.Name ?? "/", "/", "/System/Volumes/Data"]);
                 while (pending.TryDequeue(out string? path))
                 {
                     if (!inspected.Add(path)) continue;
-                    string reply = Run("/usr/sbin/diskutil", "info", "-plist", path);
+                    string reply = RunCore(false, "/usr/sbin/diskutil", "info", "-plist", path);
                     output.WriteLine("MAC_TOPOLOGY_QUERY " + JsonSerializer.Serialize(new { path, reply }));
-                    var info = Dictionary(reply);
+                    if (string.IsNullOrWhiteSpace(reply) || !reply.TrimStart().StartsWith("<?xml", StringComparison.Ordinal) ||
+                        UnixDisks.Plist(reply) is not Dictionary<string, object?> info) continue;
                     if (info.GetValueOrDefault("ParentWholeDisk") is string parent) pending.Enqueue(parent);
                     if (info.GetValueOrDefault("APFSPhysicalStores") is List<object?> stores)
                         foreach (var member in stores.OfType<Dictionary<string, object?>>())
                             if (member.GetValueOrDefault("APFSPhysicalStore") is string store) pending.Enqueue(store);
                 }
-                output.WriteLine("MAC_TOPOLOGY_IMAGE_QUERY " + Run("/usr/bin/hdiutil", "info", "-plist"));
+                output.WriteLine("MAC_TOPOLOGY_IMAGE_QUERY " + RunCore(false, "/usr/bin/hdiutil", "info", "-plist"));
             }
             Assert.Contains(sourceName, sourceBefore!);
             Assert.Contains(oldName, targetBefore!);

@@ -8,7 +8,7 @@ The constructor now disposes the acquired handle on any subsequent exception and
 
 Separately, failure-only raw query diagnostics were added to the existing Mac mount regression without changing its safety refusal or assertions. The compiled three-overlay producer passes all **six Mac controls**, including the unchanged real mount replacement, 64 KiB exact known bytes and current source/target overlap. Its independent 43-product/267-runtime/image/process/temp restoration verifies. This does not reproduce or resolve the separately retained hosted failure.
 
-No actual device, physical source, UI, account, privilege or persistent system setting is changed. Exact committed/original hosted I322, broader provider/resource/whole-process bounds and candidate qualification remain. I06/I106 remain open; physical-source HOLD, owner decisions and explicit human GO remain.
+No actual device, physical source, UI, account, privilege or persistent system setting is changed. [Exact committed/native I322](E-I322-native-qualification.md) passes at 156b723. Original hosted, broader provider/resource/whole-process bounds and candidate qualification remain. I06/I106 remain open; physical-source HOLD, owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 

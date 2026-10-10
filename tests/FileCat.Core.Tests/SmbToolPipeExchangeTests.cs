@@ -38,6 +38,10 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
     [Fact]
     public Task User_cancellation_still_ends_an_owned_child() => Observe("cancel", "stdout", 1024, 1024, "cancel");
 
+    [Fact]
+    public Task Delayed_owned_startup_does_not_spend_the_cancellation_window() =>
+        Observe("slow-cancellation-startup", "stdout", 1024, 1024, "cancel");
+
     private async Task Observe(string name, string channel, int prefixBytes, int inputBytes, string mode)
     {
         string? configured = Environment.GetEnvironmentVariable("FILECAT_PYTHON");
@@ -50,22 +54,27 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
         string? input = inputBytes == 0 ? null : new string('I', inputBytes);
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         JsonElement[] phases = [];
+        Task<(int Code, string Output, string Errors)>? pending = null;
+        var clock = Stopwatch.StartNew();
+        bool inputReady = false;
+        long? cancellationRequestedMilliseconds = null;
         try
         {
-            int startupDelaySeconds = name == "slow-owned-startup" ? 6 : 0;
+            int startupDelaySeconds = name is "slow-owned-startup" or "slow-cancellation-startup" ? 6 : 0;
             string[] arguments = [script, ledger, channel, prefixBytes.ToString(), mode is "deadline" or "cancel" ? "hang" : "normal", startupDelaySeconds.ToString()];
-            Stopwatch clock = Stopwatch.StartNew();
             // A healthy pipe exchange includes interpreter startup on the hosted runner.
             // Keep the adverse deadline/cancellation controls short and independent.
-            int toolTimeoutSeconds = mode is "normal" or "cap" ? 30 : mode == "deadline" ? 2 : 5;
-            var pending = SmbTools.RunAsync(python!, arguments, TimeSpan.FromSeconds(toolTimeoutSeconds), cancel.Token, input);
+            int toolTimeoutSeconds = mode is "normal" or "cap" ? 30 : mode == "deadline" ? 2 : 30;
+            pending = SmbTools.RunAsync(python!, arguments, TimeSpan.FromSeconds(toolTimeoutSeconds), cancel.Token, input);
             if (mode == "cancel")
             {
                 while (!ReadPhases(ledger).Any(v => v.GetProperty("Phase").GetString() == "input-read"))
                 {
-                    Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4), "The owned child did not finish its input fence.");
+                    Assert.True(clock.Elapsed < TimeSpan.FromSeconds(25), "The owned child did not finish its input fence.");
                     await Task.Delay(10, TestContext.Current.CancellationToken);
                 }
+                inputReady = true;
+                cancellationRequestedMilliseconds = clock.ElapsedMilliseconds;
                 cancel.Cancel();
             }
             (int Code, string Output, string Errors)? observed = null;
@@ -80,6 +89,8 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             {
                 Case = name, Channel = channel, PrefixBytes = prefixBytes, InputBytes = inputBytes, Mode = mode,
                 ControlledStartupDelaySeconds = startupDelaySeconds, ToolTimeoutSeconds = toolTimeoutSeconds,
+                CancellationRequestedMilliseconds = cancellationRequestedMilliseconds,
+                CancellationCompletionMilliseconds = cancellationRequestedMilliseconds is { } requested ? clock.ElapsedMilliseconds - requested : (long?)null,
                 ErrorType = error?.GetType().Name, ErrorMessage = error?.Message, ActualExitCode = observed?.Code,
                 ElapsedMilliseconds = clock.ElapsedMilliseconds, ActualOutputBytes = actualOutput.Length, ActualErrorBytes = actualErrors.Length,
                 ActualOutputSHA256 = Convert.ToHexString(SHA256.HashData(actualOutput)), ActualErrorsSHA256 = Convert.ToHexString(SHA256.HashData(actualErrors)),
@@ -90,7 +101,12 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             Assert.True(childExited, "The exact owned child must exit before fixture cleanup.");
             Assert.DoesNotContain(phases, v => v.GetProperty("Phase").GetString() == "watchdog-exit");
             if (mode == "deadline") Assert.IsType<TimeoutException>(error);
-            else if (mode == "cancel") Assert.IsAssignableFrom<OperationCanceledException>(error);
+            else if (mode == "cancel")
+            {
+                Assert.IsAssignableFrom<OperationCanceledException>(error);
+                Assert.True(cancellationRequestedMilliseconds is { } requestedAt && clock.ElapsedMilliseconds - requestedAt < 5000,
+                    "Cancellation must end the owned child promptly after the input fence, independently of startup.");
+            }
             else
             {
                 Assert.Null(error);
@@ -109,12 +125,23 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
         finally
         {
             cancel.Cancel();
+            if (pending is not null)
+                try { await pending.WaitAsync(TimeSpan.FromSeconds(35)); }
+                catch (Exception ex) when (ex is OperationCanceledException or TimeoutException or IOException) { }
+            Assert.True(pending is null || pending.IsCompleted, "Owned work must finish before its fixture is removed.");
             var current = ReadPhases(ledger);
+            output.WriteLine("SMB_CANCELLATION_RESTORATION " + JsonSerializer.Serialize(new
+            {
+                name, mode, inputReady, elapsedMilliseconds = clock.ElapsedMilliseconds,
+                pendingCompleted = pending?.IsCompleted, phases = current, root,
+                ownedProcessOnly = true, noHistoricalHostedCauseClaim = true,
+            }));
             if (current.Length > 0) Assert.True(await ChildExited(current[0].GetProperty("PID").GetInt32()));
             string parent = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
             Assert.StartsWith(parent, Path.GetFullPath(root));
             Directory.Delete(root, recursive: true);
             Assert.False(Directory.Exists(root));
+            output.WriteLine("SMB_PIPE_FIXTURE_REMOVED " + JsonSerializer.Serialize(new { root, absent = !Directory.Exists(root), pendingCompleted = pending?.IsCompleted }));
         }
     }
 

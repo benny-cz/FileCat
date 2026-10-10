@@ -4,7 +4,7 @@
 
 Ubuntu UID1000 passes all seven source-reselection controls. Mac UID501 passes **32 controls**: seven reselection, eighteen incomplete-topology replies, the actual owned mount replacement and six Unix source-case admission controls. The mount regression preserves all 64 KiB known bytes and current overlap. Independent postchecks verify **86 staged/460 reused runtime-file checks**, no owned payload processes, fixture/temp roots or attached images. Full input bytes and reader closure remain verified; no actual replaced device or physical write/data loss is claimed.
 
-Original push **38070958521 attempt1** is collected separately. [The preceding original I320 CI](E-CI-incomplete-mac-topology.md) remains failed at its own identity despite passing exact local/Mac controls. Broader source identity/active-reader/topology races, physical attribution, installed candidate and explicit human GO remain.
+[Original push **38070958521 attempt1**](E-CI-recovery-reselection.md) is now sealed as failed: Mac classification and ARM64 cancellation setup fail while all 28 reselection controls pass. Exact local/native results remain separate. [The preceding original I320 CI](E-CI-incomplete-mac-topology.md) remains failed at its own identity despite passing exact local/Mac controls. Broader source identity/active-reader/topology races, physical attribution, installed candidate and explicit human GO remain.
 
 ## Selected immutable receipts
 
