@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**425 evidence entries; none is final candidate qualification.** No candidate exists.
+**428 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -436,6 +436,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I325 | Mac unknown-backing fixture | c0677d9 /actual CI and declared query controls | Actual empty-bus/Unknown backing retained; one controlled native failure becomes twenty known/twenty unknown passes, preserving refusal and full known assertions. | [Record](evidence/E-I325-mac-backing-fixture.md) | CI, I106, V09 |
 | E-I323-EXACT | Committed cancellation fixture | c0677d9 /no overlays | Eleven targeted/93 affected passes; eleven Ubuntu/twelve Mac controls and independent restoration pass. | [Record](evidence/E-I323-native-qualification.md) | I323, V23 |
 | E-CI-I322 | Original image-ownership CI failure | 156b723 /38072748133 attempt1 | Three lanes pass; Mac diagnostic fails; 24 archives/twelve TRX, 26,603 passes/874 skips/one failure. All 120 current added controls pass; downstream unavailable. | [Record](evidence/E-CI-recovery-image-open.md) | I106, I322, V09 |
+| E-I326 | Recovery reader retirement | 55deaa3 + declared test/fix overlays | Ten failures/four positives become fourteen passes per native platform; 95 affected passes/19 exact skips. Original first-correction/fixture failures retained. | [Record](evidence/E-I326-recovery-consumer-retirement.md) | I06, V09, V12, V23 |
+| E-I324-I325-EXACT | Committed broker and Mac topology controls | 55deaa3 /1489 raw blobs/no overlays | 18/32 broker, 19/1 query and 67/9 recovery host records; fifty Windows/twenty Mac native passes; independent restoration. | [Record](evidence/E-I324-I325-native-qualification.md) | I17, I106, I324, I325 |
+| E-CI-I323 | Original cancellation CI failure | c0677d9 /38074627662 attempt1 | Three lanes pass; Mac fixture fails; 24 archives/twelve TRX, 26,607 passes/874 skips/one failure; all 124 additions pass. | [Record](evidence/E-CI-smb-cancellation-startup.md) | I106, I323, V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 

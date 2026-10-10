@@ -10,6 +10,8 @@ All **eighteen corrected controls and 32 affected tests pass** on the host; the 
 
 Broader I17 still requires actual installed UAC/consent/token/path/loader/pipe/requester lifetime and human/candidate qualification. A recheck does not eliminate subsequent races or establish PID reuse resistance. No physical-source HOLD, owner decision, contract or publication gate changes.
 
+[Exact committed/native qualification](E-I324-I325-native-qualification.md) passes at 55deaa3, without source/test overlays. Original baseline and controlled unknown-query producers retain their distinct identities.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain exact inputs, compiled artifacts, commands, original failures/skips and restoration.

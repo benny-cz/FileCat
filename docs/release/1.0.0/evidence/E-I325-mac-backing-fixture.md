@@ -8,6 +8,8 @@ The fixed producer without query substitution passes **twenty Mac controls** wit
 
 Broader active-source identity/topology/races, I106/I110 physical-source attribution HOLD, installed-candidate and human acceptance remain. No physical source, workstation UI, persistent system setting, contract freeze or publication changes.
 
+[Exact committed/native qualification](E-I324-I325-native-qualification.md) passes at 55deaa3, without source/test overlays. Original baseline and controlled unknown-query producers retain their distinct identities.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain exact inputs, compiled artifacts, commands, original failures/skips and restoration.

@@ -9,8 +9,9 @@ namespace FileCat.Recovery;
 /// </summary>
 public sealed class RecoveryContent : IContentSource, IPartialContent
 {
-    private readonly IBlockSource _volume;
-    private readonly RecoveryItem _item;
+    private IBlockSource? _volume;
+    private RecoveryItem? _item;
+    private readonly ContentRevision _revision;
     private readonly List<(long Offset, long Length)> _missing = [];
     private readonly object _lock = new();
 
@@ -18,6 +19,10 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
     {
         _volume = volume;
         _item = item;
+        DisplayName = item.Name;
+        Length = item.Size;
+        Caveat = item.State == RecoveryState.Uncertain ? RecoveryItem.UncertainStart : null;
+        _revision = new(item.Size, item.ModifiedUtc?.Ticks ?? 0, item.RecordNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (item.Resident is null)
         {
             long position = 0;
@@ -30,12 +35,12 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         }
     }
 
-    public string DisplayName => _item.Name;
-    public long Length => _item.Size;
+    public string DisplayName { get; }
+    public long Length { get; }
     public bool CanSeek => true;
     public string? LocalPath => null;
 
-    public string? Caveat => _item.State == RecoveryState.Uncertain ? RecoveryItem.UncertainStart : null;
+    public string? Caveat { get; }
 
     public IReadOnlyList<(long Offset, long Length)> MissingRanges
     {
@@ -45,19 +50,28 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         }
     }
 
-    public ContentRevision? GetRevision() => new(_item.Size, _item.ModifiedUtc?.Ticks ?? 0, _item.RecordNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    public ContentRevision? GetRevision() => _revision;
 
     public int Read(long offset, Span<byte> buffer)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_item is null, this);
+            return ReadCore(_item, _volume!, offset, buffer);
+        }
+    }
+
+    private int ReadCore(RecoveryItem item, IBlockSource volume, long offset, Span<byte> buffer)
     {
         if (offset < 0 || offset >= Length) return 0;
         int count = (int)Math.Min(buffer.Length, Length - offset);
         var target = buffer[..count];
-        if (_item.Compression is { } layout)
+        if (item.Compression is { } layout)
         {
-            ReadCompressed(layout, offset, target);
+            ReadCompressed(layout, volume, offset, target);
             return count;
         }
-        if (_item.Resident is { } resident)
+        if (item.Resident is { } resident)
         {
             int available = (int)Math.Max(0, Math.Min(count, resident.Length - offset));
             if (available > 0) resident.AsSpan((int)offset, available).CopyTo(target);
@@ -66,7 +80,7 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         }
         target.Clear();
         long position = 0;
-        foreach (var extent in _item.Extents)
+        foreach (var extent in item.Extents)
         {
             long start = position, end = position + extent.Length;
             position = end;
@@ -80,7 +94,7 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
                 int done = 0;
                 while (done < slice.Length)
                 {
-                    int n = _volume.Read(extent.Offset + (from - start) + done, slice[done..]);
+                    int n = volume.Read(extent.Offset + (from - start) + done, slice[done..]);
                     if (n <= 0) break;
                     done += n;
                 }
@@ -99,7 +113,7 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
     private byte[]? _unit;
 
     /// <summary>Compressed content: each unit is read whole, decompressed when it was compressed, and kept for the next read.</summary>
-    private void ReadCompressed(CompressedLayout layout, long offset, Span<byte> target)
+    private void ReadCompressed(CompressedLayout layout, IBlockSource volume, long offset, Span<byte> target)
     {
         int done = 0;
         while (done < target.Length)
@@ -108,14 +122,14 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
             int index = (int)(position / layout.UnitBytes);
             int within = (int)(position % layout.UnitBytes);
             int n = Math.Min(target.Length - done, layout.UnitBytes - within);
-            var unit = Unit(layout, index);
+            var unit = Unit(layout, index, volume);
             if (unit is null) target.Slice(done, n).Clear();
             else unit.AsSpan(within, n).CopyTo(target[done..]);
             done += n;
         }
     }
 
-    private byte[]? Unit(CompressedLayout layout, int index)
+    private byte[]? Unit(CompressedLayout layout, int index, IBlockSource volume)
     {
         lock (_lock)
         {
@@ -137,7 +151,7 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
                     int done = 0;
                     while (done < pieceLength)
                     {
-                        int n = _volume.Read(pieceOffset + done, stored.AsSpan(at + done, (int)pieceLength - done));
+                        int n = volume.Read(pieceOffset + done, stored.AsSpan(at + done, (int)pieceLength - done));
                         if (n <= 0) throw new IOException("The volume ended inside a compression unit.");
                         done += n;
                     }
@@ -159,8 +173,11 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         }
         lock (_lock)
         {
-            _cachedUnit = index;
-            _unit = bytes;
+            if (_item is not null)
+            {
+                _cachedUnit = index;
+                _unit = bytes;
+            }
         }
         return bytes;
     }
@@ -169,12 +186,25 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
     {
         lock (_lock)
         {
+            if (_item is null) return; // A source callback may close this reader reentrantly.
             if (_missing.Any(m => m.Offset <= offset && m.Offset + m.Length >= offset + length)) return;
             _missing.Add((offset, length));
             _missing.Sort();
         }
     }
 
-    /// <summary>The window onto the volume is owned by the session, not by one reader.</summary>
-    public void Dispose() { }
+    /// <summary>Retire this reader's scan and decoded bytes; the session still owns the shared volume.</summary>
+    public void Dispose()
+    {
+        lock (_lock)
+        {
+            // Read holds the same lock through decoding: a closing reader cannot publish another cached unit.
+            _item = null;
+            _volume = null;
+            _unit = null;
+            _cachedUnit = -1;
+            _missing.Clear();
+            _missing.TrimExcess();
+        }
+    }
 }
