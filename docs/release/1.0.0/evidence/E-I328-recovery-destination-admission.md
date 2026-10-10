@@ -12,6 +12,8 @@ Independent qualification verifies all raw blobs/declared overlays, full observe
 
 Original fixture/controller failures remain: the first fixture does not compile; three later positives encounter legitimate warnings in the shared FAT fixture; an initial small-image fixture has a directory-case mismatch. The accepted self-contained fixture declares the FAT lowercase bit and owns its 32 KiB image. Earlier commands, inventories, observations and errors remain at their original paths. The first Windows launcher refuses its mismatched root guard before tests; a fresh launcher runs the controls. Its successful baseline postcheck is retained even though the outer controller subsequently attempts an absent Linux manifest. Mac controls return the expected test exits, while both wrappers retain exit2 for one empty test directory; an independent reader verifies that only empty owned directories exist, removes them and rechecks all payload/runtime pins. No failed wrapper becomes successful evidence.
 
+[Exact committed follow-up](E-I328-native-qualification.md) separately qualifies 5f9128f with 63 native passes and retains three original local timeouts alongside its unchanged passing repeat.
+
 This closes the demonstrated descendant/pre-staging check gap preliminarily. **I106 remains open:** a held device reader must be bound to source identity, and directory replacement/topology changes between a check and kernel write need separate atomic/native evidence. No destination-handle binding, mid-write race protection, physical-device acceptance, candidate qualification, freeze or publication is claimed. I106/I110 physical-source HOLD and explicit human GO remain.
 
 ## Selected immutable receipts

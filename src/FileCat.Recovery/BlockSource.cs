@@ -21,6 +21,13 @@ public interface IBlockSource : IDisposable
     int Read(long offset, Span<byte> buffer);
 }
 
+/// <summary>A native device reader that can check whether a path still names its held source entry.</summary>
+public interface IDevicePathGuard
+{
+    /// <summary>False when the path changed, disappeared, or its descriptor identity cannot be verified.</summary>
+    bool IsCurrentDevicePath(string path);
+}
+
 public static class BlockSourceExtensions
 {
     /// <summary>Reads exactly <paramref name="length"/> bytes, or throws <see cref="InvalidDataException"/> past the end.</summary>

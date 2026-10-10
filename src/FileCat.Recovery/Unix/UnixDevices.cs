@@ -13,16 +13,18 @@ namespace FileCat.Recovery.Unix;
 /// authorization hands one over: UDisks2 asks polkit on Linux, authopen asks for an administrator on macOS. Nothing runs
 /// with more rights than that descriptor, and there is no write member.
 /// </summary>
-public sealed class UnixDeviceSource : IBlockSource
+public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard
 {
     private const int MaxChunk = 4 * 1024 * 1024;
     private readonly SafeFileHandle _handle;
+    private readonly UnixStat? _identity;
     private readonly int _sector;
     private readonly bool _wholeSectors;
 
     private UnixDeviceSource(SafeFileHandle handle, string description, long length, int sector, bool wholeSectors)
     {
         _handle = handle;
+        _identity = UnixFiles.Stat(handle);
         Description = description;
         Length = length;
         _sector = sector;
@@ -75,6 +77,20 @@ public sealed class UnixDeviceSource : IBlockSource
 
     private static bool SameEntry(UnixStat? actual, UnixStat selected) =>
         actual is { } entry && entry.Device == selected.Device && entry.Inode == selected.Inode;
+
+    /// <summary>Recheck the held descriptor and current path before recovery destination admission.</summary>
+    public bool IsCurrentDevicePath(string path)
+    {
+        if (_identity is not { Inode: > 0 } selected || _handle.IsClosed) return false;
+        try
+        {
+            return SameEntry(UnixFiles.Stat(_handle), selected) && SameEntry(UnixFiles.Stat(path, followLinks: true), selected);
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
+    }
 
     private static SafeFileHandle OpenHandle(string device, CancellationToken ct)
     {

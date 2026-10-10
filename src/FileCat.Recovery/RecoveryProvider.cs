@@ -237,6 +237,9 @@ public sealed class RecoveryProvider : ResourceProvider
     public override string? CheckTransferDestination(Location source, string destinationDirectory)
     {
         if (source.Scheme != Schemes.Recovery || !IsDevice(source)) return null;
+        if (_sessions.TryGetValue(Key(source), out var session) &&
+            session.Source is IDevicePathGuard identity && !identity.IsCurrentDevicePath(SourcePath(source)))
+            return $"Nothing was copied: {SourceName(source)} changed or was removed since it was opened. Select the device again before recovering files.";
         return SharesDisk?.Invoke(SourcePath(source), destinationDirectory) switch
         {
             false => null,
