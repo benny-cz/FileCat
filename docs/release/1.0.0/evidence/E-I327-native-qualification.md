@@ -4,7 +4,7 @@
 
 Windows, Ubuntu and Mac each pass all eleven committed controls (**33 native passes**). Every actual lifetime, complete old/new 4096-byte payload hash and first/last/double-close observation matches the host. Native Windows sharing/Unix descriptors, **131 staged/653 runtime checks**, Windows parent/child RID8192/session1, Ubuntu UID1000, Mac UID501 and independent owned process/temp restoration verify.
 
-Live image consumers survive cached-scan retirement until their last close; device lifetime is not extended. No physical device or host UI is used. The [baseline/fix record](E-I327-image-session-lifetime.md) preserves the eight original failures/three device positives, refused transformed export and declared-overlay qualification at their own identities. Current original CI remains separate; broader aggregate/active-device identity/physical-source/reference/human/candidate gates remain open.
+Live image consumers survive cached-scan retirement until their last close; device lifetime is not extended. No physical device or host UI is used. The [baseline/fix record](E-I327-image-session-lifetime.md) preserves the eight original failures/three device positives, refused transformed export and declared-overlay qualification at their own identities. [Original CI 38081028021 attempt1](E-CI-recovery-image-lifetime.md) now qualifies all four lanes at this exact source; broader aggregate/active-device identity/physical-source/reference/human/candidate gates remain open.
 
 ## Selected immutable receipts
 

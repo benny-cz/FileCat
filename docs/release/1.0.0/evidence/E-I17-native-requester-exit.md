@@ -8,6 +8,8 @@ The final fixture passes **thirteen targeted and fifty affected broker controls*
 
 The first guest controller and postcheck stop at a missing private receipt parent before any guest command. That failure and correction remain. The private campaign directory includes an unused I328 prefix from the attempted reproduction; **no I328 issue is assigned**. These are component controls using a renamed system program and controlled consent/nonce callbacks, not installed FileCat, UAC, native consent-window layout/input, requester-token transitions, PID reuse, process-birth pinning, full broker/session lifetime or candidate qualification. Those I17 gaps and the I106/I110 physical-source HOLD remain.
 
+Committed follow-up: [270ffd7 exact-source and native account matrix](E-I17-native-requester-qualification.md) seals 189 medium/high/Users-only passes, preserving all original overlay/failure limitations. No whole-I17 or candidate acceptance is claimed.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested receipts retain canonical sources, overlays, actual commands/results, the first controller refusals, both native runs and whole-root restoration.
