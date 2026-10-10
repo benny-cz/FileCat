@@ -27,10 +27,30 @@ public static class ElevationConsent
             var page = new StringBuilder();
             if (plan.Steps.Count > PageSize) page.Append($"Steps {start + 1:N0}–{end:N0} of {plan.Steps.Count:N0}:\n");
             for (int i = start; i < end; i++)
-                page.Append($"{i + 1}. {ElevationPlanCodec.Describe(plan.Steps[i], plan.UserSid)}\n");
+                page.Append($"{i + 1}. {DisplayText(ElevationPlanCodec.Describe(plan.Steps[i], plan.UserSid))}\n");
             pages.Add(page.ToString().TrimEnd('\n'));
         }
         return pages;
+    }
+
+    /// <summary>
+    /// Plan fields are untrusted text. Keep them on one visible line: a NUL would terminate a native dialog string,
+    /// and line or bidirectional controls could hide or rearrange the operations whose approval is being requested.
+    /// Generated page separators are added after this conversion; the plan and the operations retain their exact bytes.
+    /// </summary>
+    public static string DisplayText(string text)
+    {
+        static bool Escape(char c) => char.IsControl(c) ||
+            c is >= '\u202A' and <= '\u202E' or >= '\u2066' and <= '\u2069' or
+                '\u061C' or '\u200E' or '\u200F' or '\u2028' or '\u2029';
+        if (!text.Any(Escape)) return text;
+        var shown = new StringBuilder(text.Length);
+        foreach (char c in text)
+        {
+            if (Escape(c)) shown.Append($"\\u{(int)c:X4}");
+            else shown.Append(c);
+        }
+        return shown.ToString();
     }
 
     /// <summary>How many steps of each kind the plan holds, all kinds named: "940 steps: 900 permanent deletions, 40 Registry changes".</summary>

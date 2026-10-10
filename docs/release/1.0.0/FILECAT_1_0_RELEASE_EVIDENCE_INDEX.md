@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**385 evidence entries; none is final candidate qualification.** No candidate exists.
+**387 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -396,7 +396,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I106-ALIASES | Native runtime/apphost aliases and actual process admission | Exact 1da71e7 /Windows medium/high, Ubuntu, Mac | Twenty controls: twelve live workers detected, eight renamed muxers refused; 14 aliases/20 PIDs independently absent. Unknown census visibility remains. | [Record](evidence/E-I106-native-runtime-aliases.md) | I106, I110, V09, V23 |
 | E-I08-UNIX-CURRENT | Current Unix worker permission and lifetime refresh | Exact 1da71e7 /ordinary Ubuntu/Mac accounts | Ten actual wrapper controls;complete known bytes, UIDs, environment/diagnostics, kill/dispose and independent cleanup. Broader sandbox policy remains open. | [Record](evidence/E-I08-current-unix-worker-boundaries.md) | I08, V10, V23, V24 |
 | E-CI-HEX | Original committed hex-overlay CI | 1da71e7 /38045873357 attempt 1 | Four lanes,27 digest archives, 14 TRX; 30,208 passes/992 exact skips, all 128 added controls and every 31,072 predecessor retained. | [Record](evidence/E-CI-hex-overlay-retirement.md) | I06, I309, I108, V20, V23 |
-
+| E-I310 | Broker consent text termination and step integrity | 7e6b2d1 /declared source/test overlays | Original 19 failures/three positives; fixed 22 targeted/99 affected with one exact skip and 44 medium/high native-OS controls, complete predecessor outcomes and independent cleanup. | [Record](evidence/E-I310-broker-consent-text.md) | I17, I310, V06, V23 |
+| E-I311 | Native bootstrap rooted intermediate path | 7e6b2d1 /declared consent/project overlays | Original absolute-path failure; four fresh build/publish modes pass, six actual x64/ARM64 native PE headers and bootstrap receipts rechecked. | [Record](evidence/E-I311-bootstrap-intermediate-path.md) | I03, I311, V19, V20 |
 
 <a id="commits-made-by-the-campaign"></a>
 

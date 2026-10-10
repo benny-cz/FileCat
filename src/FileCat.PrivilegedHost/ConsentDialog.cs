@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FileCat.Platform.Windows.Elevation;
 
 namespace FileCat.PrivilegedHost;
 
@@ -50,6 +51,9 @@ internal static unsafe partial class ConsentDialog
     /// </summary>
     public static bool Ask(string instruction, string content, IReadOnlyList<string> pages, string footer)
     {
+        instruction = ElevationConsent.DisplayText(instruction);
+        content = ElevationConsent.DisplayText(content);
+        footer = ElevationConsent.DisplayText(footer);
         var strings = new List<nint>();
         nint S(string s)
         {
@@ -132,6 +136,7 @@ internal static unsafe partial class ConsentDialog
     /// <summary>Reports why nothing was run (the user just approved UAC and deserves an answer).</summary>
     public static void Refuse(string reason)
     {
+        reason = ElevationConsent.DisplayText(reason);
         var strings = new List<nint>();
         nint S(string s)
         {
