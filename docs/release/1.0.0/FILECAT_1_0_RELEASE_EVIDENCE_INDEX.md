@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**355 evidence entries; none is final candidate qualification.** No candidate exists.
+**356 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -365,7 +365,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I300 | Closed-listing materialized-state ownership | ff4704b /1391 canonical blobs + two declared source/test overlays | Six original retirement failures/six live/lease positives become twelve passes. Full Core/App and exact predecessor/skip inventories retained; original long-root GnuPG failures plus separate short-root passes. | [Record](evidence/E-I300-closed-listing-state-ownership.md) | I06, I300, V12, V16 |
 | E-I301 | Streaming-listing retirement fixture readiness | 5363a8b /1393 raw canonical blobs + one declared test overlay | Original no-overlay 13 passes/one readiness timeout retained; corrected 14 Core/50 App passes, actual 1024/65536-row streaming publication recorded. | [Record](evidence/E-I301-streaming-fixture-readiness.md) | I06, I300, I301, V12, V16 |
 | E-I06-CURRENT-NATIVE | Committed Windows/Ubuntu combined native retirement | 7bdaa89 /1394 canonical blobs; no overlays; private .NET 10.0.12 | Four native cases/280 compositor completions; 64 held listing owners collect, tracked content retires. Original Ubuntu pump timeouts/stack and reader refusals retained. | [Record](evidence/E-I06-current-native-retirement.md) | I06, I300, I301, V12, V16 |
-| E-CI-LISTING | Original listing streaming CI failure | 38016421829 attempt 1 /5363a8b | 22 available digest archives/12 TRX/26,618 rows: 47 new ownership passes/one readiness timeout. Missing downstream Linux evidence stays unavailable; corrected hosted qualification pending. | [Record](evidence/E-CI-listing-streaming-readiness.md) | I06, I300, I301, V12, V20 |
+| E-CI-LISTING | Listing retirement and streaming CI qualification | Corrected 38017230777 attempt 1 /7bdaa89; original 38016421829 /5363a8b retained | Corrected four lanes/27 digest archives/14 TRX/30,600 rows; all 48 added controls pass, every predecessor outcome/message/exact skip retained. Original readiness failure remains. | [Record](evidence/E-CI-listing-streaming-readiness.md) | I06, I300, I301, V12, V20 |
+| E-I06-MAC-CURRENT-NATIVE | Committed Mac combined native retirement | 7bdaa89 /1394 canonical blobs, no overlays; macOS27 M1/Retina2/private .NET10.0.12 | Two cases/140 NSWindow compositor completions/32 held listing owners retire; finite samples and temporary-job restoration retained. | [Record](evidence/E-I06-current-mac-native-retirement.md) | I06, I300, I301, V12, V16 |
 
 
 <a id="commits-made-by-the-campaign"></a>
