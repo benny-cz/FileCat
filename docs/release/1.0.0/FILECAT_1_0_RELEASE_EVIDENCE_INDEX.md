@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**351 evidence entries; none is final candidate qualification.** No candidate exists.
+**352 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -362,6 +362,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I06-native-picture-accounting | Native Windows picture ownership and process accounts | d24a457 /1386 canonical blobs, unchanged build | One/eight native F3 viewers complete hide/restore/close; 512 MiB retained while hidden, final pixel/page/reader charges zero. 204 product compositor completions and separate finite parent/worker samples; no reference/candidate acceptance. | [Record](evidence/E-I06-native-picture-accounting.md) | I06, V10, V12, V16 |
 | E-CI-icon-find-ownership | Original I298/I299 four-lane ownership follow-ups | f506ad7 and d24a457, original attempt 1 | 30,480/30,552 actual records; 96/72 added passes, zero new skips, every predecessor outcome/message/exact skip retained. Each 21 digest archives/14 inventories/92 restore graphs/four SDK receipts. | [Record](evidence/E-CI-icon-find-ownership.md) | I06, I298, I299, CI |
 | E-I06-native-combined-accounting | Combined native listings, panel QuickViews and F3 ownership | d24a457 /1386 canonical blobs, unchanged build; private .NET 10.0.12 | Two four-panel 100k/1M-row cases, 32 QuickView/nine F3 decodes and 140 compositor completions pass. Separate finite parent/worker accounts and zero final tracked content/index charges; original failures retained. | [Record](evidence/E-I06-native-combined-accounting.md) | I06, V10, V12, V16 |
+| E-I300 | Closed-listing materialized-state ownership | ff4704b /1391 canonical blobs + two declared source/test overlays | Six original retirement failures/six live/lease positives become twelve passes. Full Core/App and exact predecessor/skip inventories retained; original long-root GnuPG failures plus separate short-root passes. | [Record](evidence/E-I300-closed-listing-state-ownership.md) | I06, I300, V12, V16 |
 
 
 <a id="commits-made-by-the-campaign"></a>

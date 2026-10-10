@@ -1055,8 +1055,30 @@ public sealed class ListingModel : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
         _disposed = true;
         CancelPipelines();
+        // A closed tab can remain referenced by queued work or controls. Retire its materialized rows and
+        // selection state as well as the pipeline's reservation; separately leased snapshots keep their store.
+        _visible = [];
+        _positions = [];
+        _marks = new MarkSet();
+        _computedSizes = new(StringComparer.Ordinal);
+        _pendingMarks = null;
+        _pendingSizes = null;
+        _pendingFocusName = null;
+        _pendingFocusKind = null;
+        _lastOperation = null; // Borrowed selection: drop our reference without releasing another owner's lease.
+        _statsCache = null;
+        _nameIndex.Clear();
+        _nameIndexStore = null;
+        _issues.Clear();
+        LastRefreshError = null;
+        Error = null;
+        _awaitingEntries = false;
+        _appliedCount = 0;
+        _focusStore = -1;
+        _focusVisibleHint = 0;
     }
 
     // ---- Background pipeline -------------------------------------------------------------------------------
