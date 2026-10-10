@@ -6,7 +6,7 @@ The fixture now waits for a positive initial publication and captures the actual
 
 The corrected **single test-file overlay** on those same 1393 canonical blobs passes **14 Core controls** (12 listing ownership plus two unchanged GnuPG short-root controls) and **50 affected App controls** (panel/tab/QuickView/folder-count/workspace lifetimes). All actual TRX rows, output, commands, payloads and source inputs are freshly checked. Streaming observations publish 16/16, 4096/4096 and **1024/65536** rows respectively; every captured owner then collects, with zero final rows/reservations. The smaller count is a recorded streaming observation, not full-scale completion evidence.
 
-The original exact-source timeout remains adverse evidence. Earlier full Core's long-TEMP GnuPG failure remains a distinct fixture limit. This correction does not rerun or relabel those results. Exact committed no-overlay, hosted and affected native follow-up remain; I06, the physical-source HOLD, all owner/freeze/candidate/publication gates and NO-GO remain.
+The original exact-source timeout remains adverse evidence. Earlier full Core's long-TEMP GnuPG failure remains a distinct fixture limit. This correction does not rerun or relabel those results. Committed 7bdaa89 no-overlay 14 Core/50 App and [four affected Windows/Ubuntu native cases](E-I06-current-native-retirement.md) now pass. [Original 5363a8b hosted CI](E-CI-listing-streaming-readiness.md) retains 47 new ownership passes/one Ubuntu readiness timeout. Corrected hosted qualification remains; I06, the physical-source HOLD, all owner/freeze/candidate/publication gates and NO-GO remain.
 
 ## Selected immutable receipts
 
