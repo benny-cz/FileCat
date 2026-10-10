@@ -8,7 +8,7 @@ Fresh explicit ForDevice choices now retire and close the previous cached reader
 
 All **seven corrected controls pass on each platform**, with new B labels/readers, closure of A and refusal/closure for the intentionally wrong chosen size. All **118 affected tests pass** with the same **34 explicit skips**; every **152 predecessor outcome/message/skip** remains. All **1473 canonical raw blobs**, declared source/test overlays and unchanged other source files verify. Independent postchecks verify **172 staged and 920 reused runtime-file checks** across both Ubuntu/Mac producers, no owned payload process, fixture or temporary root. Seven fixture restorations per platform/producer verify complete unchanged bytes and all reader closures.
 
-No actual device or source is opened; no package, account, privilege, system setting, workstation UI or VM-console changes. Exact committed/original hosted, broader active-reader/selection races, source identity/topology/lifetime and physical/candidate scopes remain. I106 remains open; I106/I110 physical-source HOLD, all owner decisions and explicit human GO remain.
+No actual device or source is opened; no package, account, privilege, system setting, workstation UI or VM-console changes. [Exact committed/native qualification](E-I321-native-qualification.md) now passes at 1b2229c. Original hosted collection, broader active-reader/selection races, source identity/topology/lifetime and physical/candidate scopes remain. I106 remains open; I106/I110 physical-source HOLD, all owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 

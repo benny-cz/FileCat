@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**415 evidence entries; none is final candidate qualification.** No candidate exists.
+**418 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -426,6 +426,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I319 | Original committed recovery source-case CI | 7b73e2b /38068462762 attempt1 | Four lanes/27 digest archives/14 TRX; 30,519 passes/1007 explicit skips; all sixteen applicable controls pass. | [Record](evidence/E-CI-recovery-source-case.md) | I106, I319, V09 |
 | E-I320-EXACT | Committed incomplete Mac topology qualification | 399a829 /no overlays | Eighteen targeted/100 affected passes/34 exact skips; twenty-five Mac controls and independent restoration pass. | [Record](evidence/E-I320-native-qualification.md) | I106, I320, V09 |
 | E-I321 | Explicit recovery device reselection | 399a829 /declared source/test overlays | Five original failures/two positives become seven passes each on Windows/Ubuntu/Mac; 118 affected passes/34 exact skips. | [Record](evidence/E-I321-recovery-device-reselection.md) | I106, I321, V09, V23 |
+| E-I322 | Recovery image construction ownership | 1b2229c /declared overlays | Three original handle leaks/two positives become five passes per platform; 125 affected passes/34 exact skips; compiled Mac diagnostics preserve safety assertions. | [Record](evidence/E-I322-recovery-image-open-ownership.md) | I06, I322, V09 |
+| E-I321-EXACT | Committed source reselection qualification | 1b2229c /no overlays | Seven targeted/118 affected passes/34 skips; seven Ubuntu/thirty-two Mac controls and independent restoration pass. | [Record](evidence/E-I321-native-qualification.md) | I106, I321, V09 |
+| E-CI-I320 | Original incomplete-Mac CI failure | 399a829 /38069839231 attempt1 | Three required lanes pass, Mac mount classification fails; 24 archives/12 inventories, 26,555 passes/874 skips/one failure. All 72 new controls pass; two downstream inventories unavailable. | [Record](evidence/E-CI-incomplete-mac-topology.md) | I106, I320, V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 

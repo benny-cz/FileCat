@@ -50,21 +50,29 @@ public sealed class ImageFileSource : IBlockSource
     {
         Description = path;
         _handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
-        long length = RandomAccess.GetLength(_handle);
-        Length = length;
-        if (length >= 512)
+        try
         {
-            Span<byte> footer = stackalloc byte[512];
-            if (RandomAccess.Read(_handle, footer, length - 512) == 512 && footer[..8].SequenceEqual("conectix"u8))
+            long length = RandomAccess.GetLength(_handle);
+            Length = length;
+            if (length >= 512)
             {
-                uint type = BinaryPrimitives.ReadUInt32BigEndian(footer[60..]);
-                if (type != 2) throw new InvalidDataException("Dynamic and differencing VHD images are not supported: convert the image to a fixed VHD or a raw image first.");
-                Length = length - 512;
+                Span<byte> footer = stackalloc byte[512];
+                if (RandomAccess.Read(_handle, footer, length - 512) == 512 && footer[..8].SequenceEqual("conectix"u8))
+                {
+                    uint type = BinaryPrimitives.ReadUInt32BigEndian(footer[60..]);
+                    if (type != 2) throw new InvalidDataException("Dynamic and differencing VHD images are not supported: convert the image to a fixed VHD or a raw image first.");
+                    Length = length - 512;
+                }
             }
+            Span<byte> head = stackalloc byte[8];
+            if (length >= 8 && RandomAccess.Read(_handle, head, 0) == 8 && head.SequenceEqual("vhdxfile"u8))
+                throw new InvalidDataException("VHDX images are not supported: convert the image to a raw image first.");
         }
-        Span<byte> head = stackalloc byte[8];
-        if (length >= 8 && RandomAccess.Read(_handle, head, 0) == 8 && head.SequenceEqual("vhdxfile"u8))
-            throw new InvalidDataException("VHDX images are not supported: convert the image to a raw image first.");
+        catch
+        {
+            _handle.Dispose();
+            throw;
+        }
     }
 
     public string Description { get; }

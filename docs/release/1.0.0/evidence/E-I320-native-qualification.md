@@ -4,7 +4,7 @@
 
 All **25 actual Mac UID501 controls pass**: eighteen controlled query-reply regressions, the real owned-image mount-replacement regression and all six Unix source-admission controls. The real Mac case preserves all **64 KiB known file bytes**, verifies current disk overlap and excludes the previous disk. No actual adverse diskutil response, physical source opening/write or data loss is claimed. The query seam is now part of the committed production method; no test overlay is used.
 
-All **43 staged and 267 reused private runtime files** verify before/after. A separate later postcheck rehashes them and independently finds no owned attached image, payload process, fixture or temporary root. No sudo, UI, account, power or persistent system changes. Original push **38069839231 attempt1** is collected separately; no complete hosted outcome is claimed here. Wider topology/query races, physical-source attribution and installed-candidate scope remain. I106/I110 HOLD, owner decisions and explicit human GO remain.
+All **43 staged and 267 reused private runtime files** verify before/after. A separate later postcheck rehashes them and independently finds no owned attached image, payload process, fixture or temporary root. No sudo, UI, account, power or persistent system changes. [Original push **38069839231 attempt1**](E-CI-incomplete-mac-topology.md) is sealed as failed: three required lanes pass, Mac retains one unknown-target classification failure, and all 72 new controls pass. The historical cause is unproven; this exact local/native result remains separate. Wider topology/query races, physical-source attribution and installed-candidate scope remain. I106/I110 HOLD, owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 

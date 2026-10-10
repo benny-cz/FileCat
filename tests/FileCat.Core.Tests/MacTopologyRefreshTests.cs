@@ -70,6 +70,24 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
             string write = Path.Combine(mount, "owned-state");
             var sourceBefore = UnixDisks.DeviceDisks(source);
             var targetBefore = UnixDisks.FolderDisks(write);
+            if (sourceBefore is null || targetBefore is null)
+            {
+                // Retain the actual unavailable classification inputs before assertions or fixture cleanup.
+                var inspected = new HashSet<string>(StringComparer.Ordinal);
+                var pending = new Queue<string>([source, old, mount, root, a, b]);
+                while (pending.TryDequeue(out string? path))
+                {
+                    if (!inspected.Add(path)) continue;
+                    string reply = Run("/usr/sbin/diskutil", "info", "-plist", path);
+                    output.WriteLine("MAC_TOPOLOGY_QUERY " + JsonSerializer.Serialize(new { path, reply }));
+                    var info = Dictionary(reply);
+                    if (info.GetValueOrDefault("ParentWholeDisk") is string parent) pending.Enqueue(parent);
+                    if (info.GetValueOrDefault("APFSPhysicalStores") is List<object?> stores)
+                        foreach (var member in stores.OfType<Dictionary<string, object?>>())
+                            if (member.GetValueOrDefault("APFSPhysicalStore") is string store) pending.Enqueue(store);
+                }
+                output.WriteLine("MAC_TOPOLOGY_IMAGE_QUERY " + Run("/usr/bin/hdiutil", "info", "-plist"));
+            }
             Assert.Contains(sourceName, sourceBefore!);
             Assert.Contains(oldName, targetBefore!);
             Assert.DoesNotContain(sourceName, targetBefore!);
