@@ -10,6 +10,8 @@ Declared corrected source/test overlays pass **22 targeted tests and 99 affected
 
 The independent reader retains its first transport-schema refusal and uses a fresh reader with the actual PayloadArchive field; guest/test results are unchanged. The actual corrected helper compiles through the separately recorded [I311 build/publish controls](E-I311-bootstrap-intermediate-path.md). These controls verify native string termination and ordinary Registry effects, not actual dialog layout, mouse/keyboard/assistive technology, full installed-account consent, candidate or whole-I17 acceptance. Committed/hosted follow-up remains required. Physical-source HOLD and explicit human GO remain.
 
+Committed follow-up: [e0bee14 exact/native and original hosted qualification](E-CI-broker-consent-bootstrap.md) is sealed. Original overlay/build identities and all limitations above remain; the follow-up does not establish whole-I03/I17 or candidate acceptance.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain canonical source, declared overlays, commands, payload hashes, original failures and owned restoration.

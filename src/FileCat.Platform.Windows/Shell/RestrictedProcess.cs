@@ -60,6 +60,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             var pi = low ? TryCreate(executable, arguments, childIn, childOut, lowToken: true) : null;
             if (pi is null)
             {
+                // CreateProcessW inherits this process's token; an elevated FileCat must never turn a
+                // failed low-integrity start into an administrator parser/handler. Unknown also refuses.
+                if (lowIntegrity && !OrdinaryFallbackAllowed())
+                    throw new Win32Exception("The Shell helper could not start at low integrity, so it was not started with administrator rights.");
                 low = false;
                 pi = TryCreate(executable, arguments, childIn, childOut, lowToken: false)
                      ?? throw new Win32Exception(Marshal.GetLastPInvokeError(), "The Shell helper could not be started.");
@@ -89,6 +93,29 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             CloseHandle(job);
             throw;
         }
+    }
+
+    private static bool OrdinaryFallbackAllowed()
+    {
+        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, out var token)) return false;
+        try { return CanUseFallbackToken(token); }
+        finally { CloseHandle(token); }
+    }
+
+    /// <summary>The ordinary fallback requires a positively queried process token at most medium integrity.</summary>
+    internal static bool CanUseFallbackToken(nint token)
+    {
+        GetTokenInformation(token, TokenIntegrityLevel, 0, 0, out uint size);
+        if (size == 0) return false;
+        nint data = Marshal.AllocHGlobal(checked((int)size));
+        try
+        {
+            if (!GetTokenInformation(token, TokenIntegrityLevel, data, size, out _)) return false;
+            nint sid = Marshal.ReadIntPtr(data);
+            byte count = Marshal.ReadByte(GetSidSubAuthorityCount(sid));
+            return count != 0 && unchecked((uint)Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1)))) <= 8192;
+        }
+        finally { Marshal.FreeHGlobal(data); }
     }
 
     private static nint CreateJob(long memoryLimitBytes)
@@ -403,4 +430,14 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     [LibraryImport("advapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetTokenInformation(nint tokenHandle, int tokenInformationClass, void* tokenInformation, uint tokenInformationLength);
+
+    [LibraryImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetTokenInformation(nint tokenHandle, int tokenInformationClass, nint tokenInformation, uint tokenInformationLength, out uint returnLength);
+
+    [LibraryImport("advapi32.dll")]
+    private static partial nint GetSidSubAuthority(nint sid, uint index);
+
+    [LibraryImport("advapi32.dll")]
+    private static partial nint GetSidSubAuthorityCount(nint sid);
 }

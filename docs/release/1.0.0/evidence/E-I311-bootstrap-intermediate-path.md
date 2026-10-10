@@ -6,6 +6,8 @@ Both Build and Publish targets now join the project/intermediate/leaf components
 
 Four fresh canonical source exports with declared consent/project overlays pass actual **absolute x64 build, default relative x64 build, private framework-dependent x64 publish and private framework-dependent ARM64 publish**. Six independently read native PE headers verify x64/ARM64 machine types; six compiler/bootstrap receipts, managed outputs, original source inputs and commands are pinned and rechecked. ARM64 compilation is not physical ARM64 execution. These are preliminary private payloads, not a release candidate or publication. Full source/license/load provenance remains I03; committed/hosted follow-up remains separate.
 
+Committed follow-up: [e0bee14 exact/native and original hosted qualification](E-CI-broker-consent-bootstrap.md) is sealed. Original overlay/build identities and all limitations above remain; the follow-up does not establish whole-I03/I17 or candidate acceptance.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain canonical source, declared overlays, commands, payload hashes, original failures and owned restoration.

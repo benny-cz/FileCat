@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**387 evidence entries; none is final candidate qualification.** No candidate exists.
+**389 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -398,6 +398,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-HEX | Original committed hex-overlay CI | 1da71e7 /38045873357 attempt 1 | Four lanes,27 digest archives, 14 TRX; 30,208 passes/992 exact skips, all 128 added controls and every 31,072 predecessor retained. | [Record](evidence/E-CI-hex-overlay-retirement.md) | I06, I309, I108, V20, V23 |
 | E-I310 | Broker consent text termination and step integrity | 7e6b2d1 /declared source/test overlays | Original 19 failures/three positives; fixed 22 targeted/99 affected with one exact skip and 44 medium/high native-OS controls, complete predecessor outcomes and independent cleanup. | [Record](evidence/E-I310-broker-consent-text.md) | I17, I310, V06, V23 |
 | E-I311 | Native bootstrap rooted intermediate path | 7e6b2d1 /declared consent/project overlays | Original absolute-path failure; four fresh build/publish modes pass, six actual x64/ARM64 native PE headers and bootstrap receipts rechecked. | [Record](evidence/E-I311-bootstrap-intermediate-path.md) | I03, I311, V19, V20 |
+| E-I312 | Elevated worker fallback admission | e0bee14 /declared worker/test overlays | Six original elevated failures; seven token/115 affected passes with one exact skip; 39 native medium/high/standard controls and independently verified restoration. | [Record](evidence/E-I312-elevated-worker-fallback.md) | I08, I312, V10, V23 |
+| E-CI-I310-I311 | Exact consent/bootstrap and original hosted qualification | e0bee14 /38049312094 attempt 1 | Four lanes/27 digest archives/14 TRX/31,244 rows, 30,252 passes/992 exact skips; every predecessor observation, 92 restore graphs and four clean SDK receipts verify. | [Record](evidence/E-CI-broker-consent-bootstrap.md) | I03, I17, I310, I311, V20 |
 
 <a id="commits-made-by-the-campaign"></a>
 

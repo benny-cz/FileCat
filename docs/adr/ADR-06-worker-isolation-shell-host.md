@@ -15,7 +15,10 @@ icons still come from file types only (`SHGFI_USEFILEATTRIBUTES`).
 **The helper is restricted where Windows allows it.**
 
 - It runs at low integrity. FileCat duplicates its own token, lowers it to S-1-16-4096, and starts the helper with
-  `CreateProcessAsUser`. If Windows refuses, the helper runs at medium integrity and the log says so.
+  `CreateProcessAsUser`. If Windows refuses, fallback requires a positively queried process token at most medium
+  integrity, and the log reports the ordinary fallback. An elevated or unqueryable parent refuses to start the
+  helper rather than passing administrator rights to a parser or handler. I312 records the controlled original
+  high-integrity fallback and its correction; job limits alone did not prevent an administrator-protected write.
 - A job object ends the helper with FileCat and allows it no child processes. It caps the helper's memory at 1 GiB
   and denies it the clipboard, global atoms, and desktop, display, system-parameter, and shutdown changes.
 - It starts suspended and joins the job before any of its code runs. It inherits exactly two handles, its pipe ends
