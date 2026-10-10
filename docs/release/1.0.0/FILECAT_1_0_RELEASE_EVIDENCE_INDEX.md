@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**381 evidence entries; none is final candidate qualification.** No candidate exists.
+**385 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -392,6 +392,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-PLACE | Original committed Places ownership qualification | 3712e12 /38041933924 attempt 1 | Four lanes, 27 digest archives/14 TRX; 30,080 passes/992 exact skips, all 72 added records and every predecessor retained. | [Record](evidence/E-CI-place-retirement.md) | I06, I308, I108, V20, V23 |
 | E-I309 | Retired hex overlay storage and late-publication guard | 99ec926 /declared Core/test overlays | 26 failures/six positives become 32 passes; 497 affected/full App/Core and 54 native controls pass; 72 native roots independently absent. | [Record](evidence/E-I309-hex-overlay-retirement.md) | I06, I309, V12, V16, V23 |
 | E-I106-CURRENT-WIN | Measured medium/high Windows recovery admission | 99ec926 /I309 declared producer; unchanged recovery tests | Actual parent/child integrity 8192/12288; 52 passes/twelve exact skips across 64 records, recording readers and 28 archived/restored profiles. | [Record](evidence/E-I106-current-windows-admission.md) | I106, I110, V09, V23 |
+| E-I309-NATIVE | Committed native hex-overlay retirement | 1da71e7 /unchanged compiled observer | 497 affected/two exact skips; 54 native passes,144 compositor completions,17,694,720 whole overlay bytes and 54 independent fixture absence checks. | [Record](evidence/E-I309-native-hex-overlay-retirement.md) | I06, I309, V12, V16, V23 |
+| E-I106-ALIASES | Native runtime/apphost aliases and actual process admission | Exact 1da71e7 /Windows medium/high, Ubuntu, Mac | Twenty controls: twelve live workers detected, eight renamed muxers refused; 14 aliases/20 PIDs independently absent. Unknown census visibility remains. | [Record](evidence/E-I106-native-runtime-aliases.md) | I106, I110, V09, V23 |
+| E-I08-UNIX-CURRENT | Current Unix worker permission and lifetime refresh | Exact 1da71e7 /ordinary Ubuntu/Mac accounts | Ten actual wrapper controls;complete known bytes, UIDs, environment/diagnostics, kill/dispose and independent cleanup. Broader sandbox policy remains open. | [Record](evidence/E-I08-current-unix-worker-boundaries.md) | I08, V10, V23, V24 |
+| E-CI-HEX | Original committed hex-overlay CI | 1da71e7 /38045873357 attempt 1 | Four lanes,27 digest archives, 14 TRX; 30,208 passes/992 exact skips, all 128 added controls and every 31,072 predecessor retained. | [Record](evidence/E-CI-hex-overlay-retirement.md) | I06, I309, I108, V20, V23 |
 
 
 <a id="commits-made-by-the-campaign"></a>
