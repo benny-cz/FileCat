@@ -430,26 +430,24 @@ public sealed class SftpConnections : IDisposable
 /// <summary>Exclusive use of one connection; dispose to return it (a broken one is closed instead).</summary>
 public sealed class SftpLease : IDisposable
 {
-    private readonly SftpConnections _owner;
-    private readonly SftpConnections.Pool _pool;
-    private readonly long _generation;
-    private int _returned;
+    private sealed record State(SftpConnections Owner, SftpConnections.Pool Pool, ISftpChannel Channel, long Generation);
+    private State? _state;
 
     internal SftpLease(SftpConnections owner, SftpConnections.Pool pool, ISftpChannel channel, long generation)
     {
-        _owner = owner;
-        _pool = pool;
-        _generation = generation;
-        Channel = channel;
+        _state = new State(owner, pool, channel, generation);
     }
 
-    public ISftpChannel Channel { get; }
+    public ISftpChannel Channel => Volatile.Read(ref _state)?.Channel ?? throw new ObjectDisposedException(nameof(SftpLease));
 
     /// <summary>Marks the connection as unusable (a protocol or connection error), so it is closed rather than reused.</summary>
     public bool Broken { get; set; }
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _returned, 1) == 0) _owner.Return(_pool, Channel, Broken, _generation);
+        // A held returned lease must not keep the connection owner, its pools or the retired channel alive.
+        // Remove the state before returning it, including when channel cleanup fails.
+        if (Interlocked.Exchange(ref _state, null) is { } state)
+            state.Owner.Return(state.Pool, state.Channel, Broken, state.Generation);
     }
 }

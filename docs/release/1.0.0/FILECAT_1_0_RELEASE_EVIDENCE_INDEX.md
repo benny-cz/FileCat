@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**397 evidence entries; none is final candidate qualification.** No candidate exists.
+**401 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -408,6 +408,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I313-EXACT | Committed Unix attached-child lifetime | 42e5185 /no overlays | Eleven Ubuntu/Mac native passes; 86 affected Windows passes/two exact skips; staged/runtime/process/fixture restoration verifies. | [Record](evidence/E-I313-native-child-lifetime.md) | I08, I313, V10, V23 |
 | E-CI-I313 | Original committed Unix lifetime CI | 42e5185 /38058281506 attempt 1 | Four lanes/27 digest archives/14 TRX/31,266 rows; 30,270 passes/996 exact skips, every predecessor and restore/build receipt verify. | [Record](evidence/E-CI-unix-child-lifetime.md) | I08, I313, V20, V23 |
 | E-I314 | Incomplete Linux block dependencies | 42e5185 /declared product/test overlays | Six native/seven permanent failures become eight targeted/18 native passes; 74 affected passes/29 exact skips and owned cleanup verify. | [Record](evidence/E-I314-incomplete-linux-topology.md) | I106, I314, V09, V23 |
+| E-I314-EXACT | Committed incomplete Linux topology qualification | e0bdade /no overlays | Eight targeted/74 affected passes/29 exact skips, 18 Ubuntu native passes and staged/runtime/fixture restoration verify. | [Record](evidence/E-I314-native-topology-qualification.md) | I106, I314, V09, V23 |
+| E-CI-I314 | Original topology CI with ARM64 App failure | e0bdade /38060584377 attempt 1 | Three lanes pass; all 32 new topology records pass. 25 digest archives/14 TRX: 30,301 passes/996 exact skips/one retained failure. | [Record](evidence/E-CI-incomplete-linux-topology.md) | I06, I106, I108, I314, I316, V20, V23 |
+| E-I315 | Remote reader and lease ownership retirement | e0bdade /declared product/test overlays | 28 original failures/four positives become 32 targeted/64 guest passes; 2488 affected passes/156 exact skips, bytes and cleanup verify. | [Record](evidence/E-I315-remote-consumer-retirement.md) | I06, I315, V08, V10, V12 |
+| E-I316 | Panel preview positive readiness fixture | e0bdade /declared test-only overlays | Two gated failures become two passes; all 35 affected tests pass, bound/assertions retained. Historical ARM64 cause unproven. | [Record](evidence/E-I316-panel-preview-readiness.md) | I06, I108, I316, V10, V12 |
 
 <a id="commits-made-by-the-campaign"></a>
 

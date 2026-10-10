@@ -122,10 +122,13 @@ public sealed class PanelRetirementLifetimeTests(ITestOutputHelper output)
         finally { AccessibilityTests.Close(services, window, root); }
     }
     private static object? Field(object target, string name) => target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target);
-    private static Task Load(QuickViewPane pane)
+    private static async Task Load(QuickViewPane pane)
     {
         ((DispatcherTimer)Field(pane, "_debounce")!).Stop();
-        return (Task)typeof(QuickViewPane).GetMethod("LoadAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(pane, null)!;
+        await (Task)typeof(QuickViewPane).GetMethod("LoadAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(pane, null)!;
+        // The debounce may already have started the same-key request. A second LoadAsync then returns before
+        // that request publishes its reader; observe the positive checkpoint before testing retirement.
+        await Until(() => Field(pane, "_reader") is PagedReader);
     }
     private static void Layout(Window window) { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); }
     private static async Task Until(Func<bool> ready)

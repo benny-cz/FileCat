@@ -8,7 +8,7 @@ Validation uses explicitly declared **42e5185 product/test overlays**, not a com
 
 Independent postchecks rehash **573 actually available staged files** and all **193 private runtime files**, check no owned payload process, and verify all ten owned fixture/temp paths absent. One nested fixture omitted from the first refused package is explicitly unavailable, never counted as verified. Earlier package/dependency/observer-root and postcheck reader refusals, the first native attempt's eight permanent passes, and the original product failures remain. Only verified empty owned temporary trees are removed. No system setting, runtime installation, host UI or physical source changes occur.
 
-I106 remains open for broader process visibility, aliases and topology/identity/lifetime races. I106/I110 physical-source HOLD remains. Exact committed/original hosted and installed-candidate qualification must use their own identities. No risk acceptance, contract freeze, candidate or human GO is supplied.
+I106 remains open for broader process visibility, aliases and topology/identity/lifetime races. I106/I110 physical-source HOLD remains. [Exact committed/native qualification](E-I314-native-topology-qualification.md) now passes at e0bdade. [Original hosted CI](E-CI-incomplete-linux-topology.md) passes all 32 topology records and retains a separate ARM64 App failure; installed-candidate qualification remains. No risk acceptance, contract freeze, candidate or human GO is supplied.
 
 ## Selected immutable receipts
 

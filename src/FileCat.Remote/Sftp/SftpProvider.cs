@@ -224,6 +224,8 @@ public sealed class SftpProvider : ResourceProvider, IOriginMarkSource
 internal sealed class SftpContentSource(SftpLease lease, Stream stream, string displayName, string path, RemoteStat stat) : IContentSource
 {
     private readonly object _lock = new();
+    private SftpLease? _lease = lease;
+    private Stream? _stream = stream;
     private bool _disposed;
 
     public string DisplayName => displayName;
@@ -241,12 +243,12 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
             ObjectDisposedException.ThrowIf(_disposed, this);
             try
             {
-                stream.Position = offset;
-                return stream.Read(buffer);
+                _stream!.Position = offset;
+                return _stream.Read(buffer);
             }
             catch (RemoteDisconnectedException)
             {
-                lease.Broken = true;
+                _lease!.Broken = true;
                 throw;
             }
         }
@@ -261,33 +263,39 @@ internal sealed class SftpContentSource(SftpLease lease, Stream stream, string d
             {
                 // FTP uses the same control connection for metadata and a data transfer's final reply. A viewer or
                 // resumed copy may ask for the revision part way through the file; release that transfer first.
-                if (stream is Ftp.FtpReadStream ftp) ftp.FinishTransfer();
-                return lease.Channel.Stat(path) is { IsDirectory: false } current
+                if (_stream is Ftp.FtpReadStream ftp) ftp.FinishTransfer();
+                return _lease!.Channel.Stat(path) is { IsDirectory: false } current
                     ? new ContentRevision(current.Size, current.ModifiedUtc.Ticks) : null;
             }
-            catch (RemoteDisconnectedException) { lease.Broken = true; throw; }
+            catch (RemoteDisconnectedException) { _lease!.Broken = true; throw; }
         }
     }
 
     public void Dispose()
     {
+        SftpLease retiredLease;
+        Stream retiredStream;
+        lock (_lock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            retiredLease = _lease!;
+            retiredStream = _stream!;
+            _lease = null;
+            _stream = null;
+        }
         try
         {
-            lock (_lock)
-            {
-                if (_disposed) return;
-                _disposed = true;
-                stream.Dispose();
-            }
+            retiredStream.Dispose();
         }
         catch
         {
             // A failed transfer close leaves the connection unsafe to reuse, but still returns its slot.
-            lease.Broken = true;
-            try { lease.Dispose(); }
+            retiredLease.Broken = true;
+            try { retiredLease.Dispose(); }
             catch (Exception ex) { AppLog.Warn("Could not close a failed remote content connection", ex); }
             throw;
         }
-        lease.Dispose();
+        retiredLease.Dispose();
     }
 }
