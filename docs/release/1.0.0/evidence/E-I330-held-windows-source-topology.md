@@ -1,5 +1,7 @@
 # E-I330 — Windows recovery held-source topology
 
+[Exact committed/native follow-up](E-I330-I331-native-qualification.md) qualifies 2de33a0 /1518 raw blobs/no overlays, 56 native passes and all 992 predecessor outcomes/messages/25 exact skips.
+
 2026-10-11 CEST. **Potential Critical, deleted-data safety (I106/V09), remediated preliminarily.** Canonical baseline **12a80396e0bde055f35f7a4ec60aa9b0ca386d15 /1512 raw Git blobs**, with declared test/product overlays.
 
 An opened Windows direct/helper reader holds one device, but recovery destination admission classified the selected path again. A changed path could therefore describe a different source. Five unsafe controlled cases reproduce: overlap, unknown source, identity becoming overlapping/unknown after an earlier healthy check, and a closed reader. The first four actually write all 10,000 recovered bytes under the wrong admission; the closed reader writes 10,000 warning-qualified zero bytes. The healthy separated case preserves all original recovered bytes. These are controlled helper answers and real recovery jobs over an owned regular-file FAT image, **not a reproduced kernel device replacement**.

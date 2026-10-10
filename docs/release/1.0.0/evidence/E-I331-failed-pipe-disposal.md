@@ -1,5 +1,7 @@
 # E-I331 — failed recovery pipe disposal
 
+[Exact committed/native follow-up](E-I330-I331-native-qualification.md) qualifies 2de33a0 /1518 raw blobs/no overlays, 56 native passes and all 992 predecessor outcomes/messages/25 exact skips.
+
 2026-10-11 CEST. **High, resource/session ownership (I06/V09), remediated preliminarily.** Baseline **12a80396e0bde055f35f7a4ec60aa9b0ca386d15**, declared overlays and complete batch provenance are in [I330](E-I330-held-windows-source-topology.md).
 
 PipeDeviceSource marked a failed header read/request write as closed, then Dispose returned early and never disposed its owned stream. Two controlled transport failures reproduce both locally and in the elevated Windows guest. The corrected reader separates unusable-session state from completed disposal: it attempts Close only for a live session, but always disposes the owned stream once, including the new identity-query failure paths. Repeated disposal remains safe; further reads refuse.
