@@ -19,7 +19,8 @@ namespace FileCat.Platform.Windows.Recovery;
 /// </summary>
 public static class RawReadProtocol
 {
-    public const byte Info = 1, Read = 2, Close = 3;
+    public const byte Info = 1, Read = 2, Close = 3, SourceDisks = 4;
+    public const int MaxSourceDisks = 32;
     public const int MaxRead = 4 * 1024 * 1024;
     public const int RequestSize = 13; // op, offset (8), length (4)
     private const int ErrorInvalidParameter = 87;
@@ -28,7 +29,7 @@ public static class RawReadProtocol
     /// The helper's side: bounded, sector-aligned reads of an open device for one client, until it closes or goes away.
     /// Returns why the session ended.
     /// </summary>
-    public static string Serve(Stream pipe, SafeFileHandle device, long length, int sectorSize)
+    public static string Serve(Stream pipe, SafeFileHandle device, long length, int sectorSize, bool wholeDisk = false)
     {
         var reader = new AlignedDeviceReader(device, length, sectorSize);
         var request = new byte[RequestSize];
@@ -60,6 +61,22 @@ public static class RawReadProtocol
                     catch (IOException ex)
                     {
                         Reply(pipe, header, ex.HResult & 0xFFFF, []);
+                    }
+                    break;
+                case SourceDisks:
+                    if (offset != 0 || count != 0)
+                        Reply(pipe, header, ErrorInvalidParameter, []);
+                    else
+                    {
+                        var disks = DeviceTopology.DisksOf(device, wholeDisk);
+                        var data = disks is null ? [] : new byte[disks.Count * 4];
+                        for (int i = 0; disks is not null && i < disks.Count; i++)
+                            BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(i * 4), disks[i]);
+                        // Same framing as a read, but count is the number of disk numbers, not bytes.
+                        BinaryPrimitives.WriteInt32LittleEndian(header, disks is null ? 50 /* ERROR_NOT_SUPPORTED */ : 0);
+                        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4), disks?.Count ?? 0);
+                        pipe.Write(header, 0, 8);
+                        pipe.Write(data);
                     }
                     break;
                 case Close:
@@ -135,15 +152,18 @@ internal sealed class AlignedDeviceReader
 /// A drive FileCat reads itself because it already runs as administrator: the helper would ask for rights FileCat
 /// has. It opens the device for reading only (other programs keep reading and writing it), and nothing is ever written.
 /// </summary>
-public sealed class DirectDeviceSource : IBlockSource
+public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard
 {
     private readonly SafeFileHandle _handle;
     private readonly AlignedDeviceReader _reader;
     private readonly object _lock = new();
 
-    private DirectDeviceSource(SafeFileHandle handle, string description)
+    private readonly bool _wholeDisk;
+
+    private DirectDeviceSource(SafeFileHandle handle, string description, bool wholeDisk)
     {
         _handle = handle;
+        _wholeDisk = wholeDisk;
         Description = description;
         long length = DeviceTopology.Length(handle);
         if (length <= 0) throw new IOException($"The size of {description} could not be read.");
@@ -163,7 +183,7 @@ public sealed class DirectDeviceSource : IBlockSource
         }
         try
         {
-            return new DirectDeviceSource(handle, description);
+            return new DirectDeviceSource(handle, description, device.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase));
         }
         catch
         {
@@ -201,6 +221,12 @@ public sealed class DirectDeviceSource : IBlockSource
         return done;
     }
 
+    public bool? SharesDestinationDisk(string destinationDirectory)
+    {
+        lock (_lock)
+            return DeviceTopology.SharesDisk(DeviceTopology.DisksOf(_handle, _wholeDisk), destinationDirectory);
+    }
+
     public void Dispose()
     {
         lock (_lock) _handle.Dispose();
@@ -208,12 +234,13 @@ public sealed class DirectDeviceSource : IBlockSource
 }
 
 /// <summary>A device read through a session: FileCat parses, the elevated helper only reads (ADR-08).</summary>
-public class PipeDeviceSource : IBlockSource
+public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard
 {
     private readonly Stream _pipe;
     private readonly object _lock = new();
     private readonly byte[] _request = new byte[RawReadProtocol.RequestSize];
     private bool _closed;
+    private bool _disposed;
 
     public PipeDeviceSource(Stream pipe, string description)
     {
@@ -270,20 +297,65 @@ public class PipeDeviceSource : IBlockSource
         return done;
     }
 
+    public bool? SharesDestinationDisk(string destinationDirectory) =>
+        DeviceTopology.SharesDisk(QuerySourceDisks(), destinationDirectory);
+
+    internal IReadOnlyList<int>? QuerySourceDisks()
+    {
+        lock (_lock)
+        {
+            if (_closed) return null;
+            try
+            {
+                _request.AsSpan().Clear();
+                _request[0] = RawReadProtocol.SourceDisks;
+                _pipe.Write(_request);
+                _pipe.Flush();
+                Span<byte> header = stackalloc byte[8];
+                if (!RawReadProtocol.ReadExactly(_pipe, header)) throw new EndOfStreamException();
+                int status = BinaryPrimitives.ReadInt32LittleEndian(header);
+                int count = BinaryPrimitives.ReadInt32LittleEndian(header[4..]);
+                if (status != 0 && count == 0) return null;
+                if (status != 0 || count is < 1 or > RawReadProtocol.MaxSourceDisks)
+                    throw new InvalidDataException("The administrator helper did not give a complete disk identity.");
+                Span<byte> data = stackalloc byte[count * 4];
+                if (!RawReadProtocol.ReadExactly(_pipe, data)) throw new EndOfStreamException();
+                var disks = new List<int>();
+                for (int i = 0; i < count; i++)
+                {
+                    int disk = BinaryPrimitives.ReadInt32LittleEndian(data[(i * 4)..]);
+                    if (disk < 0) throw new InvalidDataException("The administrator helper gave an invalid disk number.");
+                    if (!disks.Contains(disk)) disks.Add(disk);
+                }
+                return disks;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException)
+            {
+                _closed = true;
+                return null;
+            }
+        }
+    }
+
     public virtual void Dispose()
     {
         lock (_lock)
         {
-            if (_closed) return;
+            if (_disposed) return;
+            _disposed = true;
+            bool stopped = _closed;
             _closed = true;
             try
             {
-                _request[0] = RawReadProtocol.Close;
-                _pipe.Write(_request);
-                _pipe.Flush();
+                if (!stopped)
+                {
+                    _request[0] = RawReadProtocol.Close;
+                    _pipe.Write(_request);
+                    _pipe.Flush();
+                }
             }
             catch (Exception ex) when (ex is IOException or ObjectDisposedException) { }
-            _pipe.Dispose();
+            finally { _pipe.Dispose(); }
         }
     }
 }
@@ -401,7 +473,7 @@ public static partial class DeviceReadHost
         }
         if (!GetNamedPipeClientProcessId(pipe.SafePipeHandle, out uint client) || client != requesterProcessId)
             return "A program other than the FileCat that asked connected; nothing was read.";
-        return RawReadProtocol.Serve(pipe, handle, length, sector);
+        return RawReadProtocol.Serve(pipe, handle, length, sector, device.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -516,15 +588,45 @@ public static unsafe partial class DeviceTopology
         if (volume is null) return null;
         using var handle = CreateFile(volume, 0, 3, 0, 3, 0, 0);
         if (handle.IsInvalid) return null;
-        var output = new byte[8 + 24 * 32];
-        uint returned;
-        fixed (byte* o = output)
-            if (!DeviceIoControl(handle, 0x00560000 /* IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS */, null, 0, o, (uint)output.Length, &returned, 0)) return null;
-        int count = BinaryPrimitives.ReadInt32LittleEndian(output);
-        var disks = new List<int>();
-        for (int i = 0; i < count && 8 + i * 24 + 4 <= output.Length; i++)
+        return DisksOf(handle, wholeDisk: false);
+    }
+
+    /// <summary>Queries the already held source. No path is reopened and no source data is read.</summary>
+    internal static IReadOnlyList<int>? DisksOf(SafeFileHandle handle, bool wholeDisk)
+    {
+        if (handle.IsClosed || handle.IsInvalid) return null;
+        try
         {
-            int disk = BinaryPrimitives.ReadInt32LittleEndian(output.AsSpan(8 + i * 24));
+            uint returned;
+            if (wholeDisk)
+            {
+                var number = stackalloc byte[12];
+                if (!DeviceIoControl(handle, 0x002D1080 /* IOCTL_STORAGE_GET_DEVICE_NUMBER */, null, 0, number, 12, &returned, 0) || returned != 12)
+                    return null;
+                var data = new ReadOnlySpan<byte>(number, 12);
+                int disk = BinaryPrimitives.ReadInt32LittleEndian(data[4..]);
+                return BinaryPrimitives.ReadInt32LittleEndian(data) == 7 /* FILE_DEVICE_DISK */ && disk >= 0 ? [disk] : null;
+            }
+            var output = new byte[8 + 24 * RawReadProtocol.MaxSourceDisks];
+            fixed (byte* o = output)
+                if (!DeviceIoControl(handle, 0x00560000 /* IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS */, null, 0, o, (uint)output.Length, &returned, 0)) return null;
+            return ParseDiskExtents(output, returned);
+        }
+        catch (ObjectDisposedException) { return null; }
+    }
+
+    internal static IReadOnlyList<int>? ParseDiskExtents(ReadOnlySpan<byte> output, uint returned)
+    {
+        if (returned < 8 || returned > output.Length) return null;
+        int count = BinaryPrimitives.ReadInt32LittleEndian(output);
+        if (count is < 1 or > RawReadProtocol.MaxSourceDisks || 8 + count * 24 > returned) return null;
+        var disks = new List<int>();
+        for (int i = 0; i < count; i++)
+        {
+            var extent = output.Slice(8 + i * 24, 24);
+            int disk = BinaryPrimitives.ReadInt32LittleEndian(extent);
+            if (disk < 0 || BinaryPrimitives.ReadInt64LittleEndian(extent[8..]) < 0 || BinaryPrimitives.ReadInt64LittleEndian(extent[16..]) <= 0)
+                return null;
             if (!disks.Contains(disk)) disks.Add(disk);
         }
         return disks;
@@ -537,10 +639,15 @@ public static unsafe partial class DeviceTopology
     /// </summary>
     public static bool? SharesDisk(string device, string folder)
     {
+        return SharesDisk(DisksOf(device), folder);
+    }
+
+    internal static bool? SharesDisk(IReadOnlyList<int>? source, string folder)
+    {
+        if (source is not { Count: > 0 } || source.Any(d => d < 0)) return null;
         if (Locate(folder) is not { } place) return null;
         if (place.Server is { } server) return ThisComputer.Is(server, TimeSpan.FromSeconds(2)) ? null : false;
-        var source = DisksOf(device);
-        if (source is null || DisksOf(place.Volume!) is not { } volume || WrittenDisks(volume, 0) is not { } target) return null;
+        if (DisksOf(place.Volume!) is not { } volume || WrittenDisks(volume, 0) is not { } target) return null;
         return source.Intersect(target).Any();
     }
 

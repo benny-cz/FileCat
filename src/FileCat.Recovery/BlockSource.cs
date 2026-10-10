@@ -28,6 +28,13 @@ public interface IDevicePathGuard
     bool IsCurrentDevicePath(string path);
 }
 
+/// <summary>A held device reader that classifies destinations against that reader's current native disk identity.</summary>
+public interface IDeviceDestinationGuard
+{
+    /// <summary>True for overlap, false for verified separation, null when the held source or destination is unknown.</summary>
+    bool? SharesDestinationDisk(string destinationDirectory);
+}
+
 public static class BlockSourceExtensions
 {
     /// <summary>Reads exactly <paramref name="length"/> bytes, or throws <see cref="InvalidDataException"/> past the end.</summary>

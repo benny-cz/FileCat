@@ -240,7 +240,12 @@ public sealed class RecoveryProvider : ResourceProvider
         if (_sessions.TryGetValue(Key(source), out var session) &&
             session.Source is IDevicePathGuard identity && !identity.IsCurrentDevicePath(SourcePath(source)))
             return $"Nothing was copied: {SourceName(source)} changed or was removed since it was opened. Select the device again before recovering files.";
-        return SharesDisk?.Invoke(SourcePath(source), destinationDirectory) switch
+        // A helper/direct reader may still hold the original device after its path is reused.
+        // Once opened, its held identity takes precedence over classifying that path again.
+        bool? shares = session?.Source is IDeviceDestinationGuard held
+            ? held.SharesDestinationDisk(destinationDirectory)
+            : SharesDisk?.Invoke(SourcePath(source), destinationDirectory);
+        return shares switch
         {
             false => null,
             true => $"Nothing was copied: {destinationDirectory} is on the same physical disk as {SourceName(source)}, and writing there can overwrite the very files being recovered. Choose a folder on another disk.",
