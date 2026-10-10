@@ -9,8 +9,9 @@ namespace FileCat.App.Services;
 /// The decoding side of the picture viewer (plan §16.1: "decoder worker; pixel/dimension/memory limits; bounded transfer
 /// of decoded output"). FileCat started with <see cref="Argument"/> reads one picture's bytes from standard input and
 /// writes it back decoded, turned the way its EXIF orientation says and scaled to fit a given size, or a reason. It never
-/// opens a file or a window, so a damaged or hostile picture can crash or exhaust only this process, which on Windows
-/// runs in the Shell helper's sandbox (<see cref="PictureDecoder"/>).
+/// intentionally opens a content file or a window. Native codec loading and process authority follow the platform's
+/// worker launch rules in <see cref="PictureDecoder"/>; these stream-only entry-point operations are not a filesystem
+/// or network sandbox.
 /// </summary>
 internal static class PictureWorker
 {

@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**389 evidence entries; none is final candidate qualification.** No candidate exists.
+**393 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -400,6 +400,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I311 | Native bootstrap rooted intermediate path | 7e6b2d1 /declared consent/project overlays | Original absolute-path failure; four fresh build/publish modes pass, six actual x64/ARM64 native PE headers and bootstrap receipts rechecked. | [Record](evidence/E-I311-bootstrap-intermediate-path.md) | I03, I311, V19, V20 |
 | E-I312 | Elevated worker fallback admission | e0bee14 /declared worker/test overlays | Six original elevated failures; seven token/115 affected passes with one exact skip; 39 native medium/high/standard controls and independently verified restoration. | [Record](evidence/E-I312-elevated-worker-fallback.md) | I08, I312, V10, V23 |
 | E-CI-I310-I311 | Exact consent/bootstrap and original hosted qualification | e0bee14 /38049312094 attempt 1 | Four lanes/27 digest archives/14 TRX/31,244 rows, 30,252 passes/992 exact skips; every predecessor observation, 92 restore graphs and four clean SDK receipts verify. | [Record](evidence/E-CI-broker-consent-bootstrap.md) | I03, I17, I310, I311, V20 |
+| E-I312-EXACT | Committed worker fallback/native qualification | 4f9d500 /no overlays | Seven targeted/115 affected passes, one exact skip; 39 medium/high/standard native controls and independent owned restoration. | [Record](evidence/E-I312-native-fallback-qualification.md) | I08, I312, V10, V23 |
+| E-CI-I312 | Original committed worker CI | 4f9d500 /38051519281 attempt 1 | Four lanes/27 digest archives/14 TRX/31,258 rows; 30,266 passes/992 exact skips, all predecessor outcomes and restore/build receipts verify. | [Record](evidence/E-CI-worker-fallback.md) | I08, I312, V20, V23 |
+| E-I08-CLAIMS | Current worker documentation reconciliation | 4f9d500 /XML and ADR clarification | Native-Skia/Unix authority/Windows fallback claims corrected; executable source lines unchanged; containment policy/candidate remain open. | [Record](evidence/E-I08-worker-boundary-claims.md) | I08, I10, V10, V22, V23 |
+| E-ENV-ARTIFACTS-V | Verified physical artifact relocation | V: storage /E: compatibility junction | 675,279 files and every stream hash verified before checked original retirement; complete metadata, identity/security differences and failure log retained. | [Record](evidence/E-ENV-STORAGE-artifacts-relocation.md) | ENV, REP, V20 |
 
 <a id="commits-made-by-the-campaign"></a>
 

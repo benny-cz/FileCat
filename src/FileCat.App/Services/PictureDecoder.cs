@@ -20,8 +20,10 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// <summary>
 /// Pictures for the viewer, decoded by <see cref="PictureWorker"/> in a process of its own: one per picture, fed the bytes
 /// through standard input and read back within bounds, and stopped after <see cref="Timeout"/>. On Windows the worker
-/// runs in the Shell helper's sandbox (low integrity, a job that caps its memory). A picture that crashes or exhausts the
-/// worker takes nothing else with it, and the viewer says why it shows nothing.
+/// normally starts with low integrity and a job that caps its memory and child count. A failed low-integrity start
+/// can fall back only under a positively queried process token at most medium integrity; other parents refuse.
+/// On Unix it inherits the parent's permissions without dropping its UID, an OS filesystem/network sandbox or job
+/// memory limit. A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
 /// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
 /// </summary>
 public static class PictureDecoder
@@ -214,7 +216,7 @@ public static class PictureDecoder
         return (dotnet, $"\"{dll}\" {arguments}");
     }
 
-    /// <summary>The worker process, sandboxed where the platform allows.</summary>
+    /// <summary>The decoder process: Windows token/job restrictions, inherited process authority on Unix.</summary>
     private sealed class Worker : IAsyncDisposable
     {
         private readonly Platform.Windows.Shell.SandboxedWorker? _sandboxed;

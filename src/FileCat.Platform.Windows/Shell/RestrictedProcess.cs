@@ -35,7 +35,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     public int ProcessId { get; }
 
-    /// <summary>True when the helper runs at low integrity (it cannot write where the user's programs can).</summary>
+    /// <summary>True when the helper was started with a low-integrity token.</summary>
     public bool LowIntegrity { get; }
 
     public bool HasExited => WaitForSingleObject(_process, 0) == 0;

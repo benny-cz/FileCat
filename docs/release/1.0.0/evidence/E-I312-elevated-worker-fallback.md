@@ -12,6 +12,8 @@ The first private observer compilation fails on local-name shadowing; a preparer
 
 The product correction is a declared overlay on e0bee14 until committed follow-up is sealed. Existing [I310/I311 committed and hosted qualification](E-CI-broker-consent-bootstrap.md) remains at e0bee14. Broader I08 Unix policy, native permissions/network/lifetime, actual parser integrations and installed-candidate qualification remain open. Ordinary fallback retains ordinary-user capabilities and is not claimed as a filesystem sandbox. Physical-source HOLD, no freeze/candidate/publication and explicit human GO remain.
 
+Committed follow-up: [4f9d500 exact/native qualification](E-I312-native-fallback-qualification.md) and [original hosted CI](E-CI-worker-fallback.md) are now sealed. The preceding overlay/original-failure identities remain unchanged; whole-I08/candidate scope remains open.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain actual source, overlays, commands, original failures/skips and owned restoration.

@@ -1,8 +1,11 @@
-# ADR-06: Worker isolation — the Shell integration host
+# ADR-06: Worker isolation — Shell handlers and picture decoding
 
-**Status:** Decided (P7, TV-16, 2026-09-28). P8 and P10 adopted no native parsers: archives (SharpCompress, DiscUtils),
-inspectors, and recovery are managed, bounded, and fuzzed (ADR-07, ADR-08), so this helper is the only worker. A native
-engine, if one is ever adopted, runs out of process under the same kind of restrictions.
+**Status:** Shell-host decision retained (P7, TV-16, 2026-09-28); current implementation clarified 2026-10-10.
+The earlier scope described the Shell host as the only worker and reserved separate processes for future native
+engines. FileCat now also decodes pictures with native Skia codecs in a separate FileCat process on every platform.
+The implemented boundaries below supersede that obsolete description. Other archive, inspector and recovery
+boundaries remain in ADR-07/ADR-08 and their release evidence; this document does not qualify them collectively.
+I08 remains open for Unix policy, broader native permissions/lifetimes and installed-candidate qualification.
 
 ## Decision
 
@@ -40,6 +43,32 @@ and removable drives, including `\\server\share` and `\\?\UNC\` paths, are refus
 **Where pictures appear.** Quick view (Ctrl+Q) shows the Shell's thumbnail for binary files, with the bytes a key away
 (F3). Programs, icon files, and similar types show their own icons in lists. Both can be turned off in Settings →
 Privacy. Shell property handlers and context menus are not part of this decision.
+
+## Picture decoder boundaries
+
+`PictureDecoder` starts FileCat with `--picture-worker` for each picture. The entry point reads encoded bytes from
+standard input and returns bounded dimensions, format information and BGRA pixels on standard output. It uses
+native Skia codecs. Admission permits four active decoders and 32 waiting requests; the parent applies a 30-second
+deadline and checks returned fields and pixel extents. These are application controls, not a whole-process memory
+ceiling across all viewers or a guarantee against native parser side effects.
+
+- **Windows:** the decoder uses `SandboxedWorker`/`RestrictedProcess` with the same token, inherited-handle and
+  job-start rules as the Shell host, a 1536 MiB per-process memory limit and one active process per job. Normal
+  low-integrity launch and ordinary fallback are distinct states. I312 prevents elevated or unknown fallback;
+  medium fallback retains ordinary-user access. Low integrity and job limits do not establish file-read or
+  network isolation.
+- **Linux and macOS:** the decoder uses `Process.Start` with redirected standard streams and diagnostics disabled.
+  It inherits its parent's Unix UID, permissions and environment; the launch route does not lower privileges.
+  There is no filesystem/network sandbox or Windows-style
+  job memory/child limit in this route. Cancellation and disposal kill and await the process. Process separation
+  limits the immediate effect of a decoder crash, while compromised code retains its process's authority.
+
+[Current Windows controls](../release/1.0.0/evidence/E-I08-current-windows-worker-boundaries.md),
+[ordinary-user Unix controls](../release/1.0.0/evidence/E-I08-current-unix-worker-boundaries.md) and
+[I312 fallback controls](../release/1.0.0/evidence/E-I312-elevated-worker-fallback.md) retain their exact producers
+and finite observations. Synthetic permission helpers are not parser exploits or sandbox certification. Unix
+containment remediation or an approved threat-model/scope decision remains a release gate; these clarifications
+do not accept that risk or freeze the contract.
 
 ## TV-16 evidence
 
