@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**366 evidence entries; none is final candidate qualification.** No candidate exists.
+**372 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -377,6 +377,12 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I304-NATIVE | Committed report-window retirement across three native platforms | af399bd exact; 555d6da baseline | 51 exact passes; native baseline six failures/three positives becomes 27 Windows/Ubuntu/Mac passes/27 compositor completions; temporary Mac agent/awake assertion removed. | [Record](evidence/E-I304-native-report-retirement.md) | I06, I304, I305, V12, V13 |
 | E-CI-REPORT | Original committed report ownership/readiness CI | af399bd /38030165520 attempt 1 | Four lanes/27 digest archives/14 TRX/30,852 rows; 29,860 passes/992 explicit skips; all predecessor records and all 48 added passes verify. | [Record](evidence/E-CI-report-retirement.md) | I06, I304, I305, V01, V13 |
 | E-I306 | Closed Find-window private ownership | af399bd canonical; one product/one fixture | Fifteen original closure failures/fifteen live positives become thirty passes; 99 Find/full App 1562 passes/25 exact skips; native unchanged baseline confirms all original failures. | [Record](evidence/E-I306-find-window-retirement.md) | I06, I306, V12, V13 |
+| E-I306-NATIVE | Committed Find ownership across three native platforms | 0aec7a7 exact; af399bd baseline | 99 exact passes; 90 fixed native passes/180 compositor completions; all 120 baseline/fixed fixture folders removed and temporary Mac job/awake assertion restored. | [Record](evidence/E-I306-native-find-retirement.md) | I06, I306, V12, V13 |
+| E-CI-FIND | Original committed Find ownership CI | 0aec7a7 /38032069975 attempt 1 | Three lanes pass; Windows x64 Git fixture fails. 26 archives/14 TRX/30,972 rows; 29,979 passes/992 skips/one failure. All 120 new Find records pass. | [Record](evidence/E-CI-find-retirement.md) | I06, I306, V01, V13 |
+| E-I06-CURRENT-COMPOSE | Current page/archive/listing composition | 0aec7a7 /one unchanged private fixture | Both 13/48-reader and four/twelve-listing profiles pass; full large-member bytes/16 archive hashes verify, zero final tracked charges/scratch and two owned fixture roots removed. | [Record](evidence/E-I06-current-composition.md) | I06, V12, V13, V16 |
+| E-I06-NATIVE-RECHECK | Current native four-panel/QuickView/F3 composition | 0aec7a7 /unchanged 7bdaa89 observers | Six Windows/Ubuntu/Mac profiles pass, 420 compositor completions/96 listing-owner retirements; all encoded-pixel oracles, process/runtime bytes and temporary job/awake restoration verify. | [Record](evidence/E-I06-current-native-composition.md) | I06, V12, V13, V16 |
+| E-I307 | Git fixture setup deadline, cancellation and diagnostics | 0aec7a7 /test-only overlay | Old eleven-second success is rejected; twenty fixed GitLazy controls/all affected Git/full App 1569 passes/25 exact skips retain every predecessor. Original CI and initial compiler failures preserved. | [Record](evidence/E-I307-git-fixture-command-lifetime.md) | I307, V01, V13 |
+| E-I08-UNIX | Actual Unix decoder identities and finite wrapper authority | 0aec7a7 /Ubuntu UID 1000/Mac UID 501 | Ten observations: eight real decoder PIDs/EOF/kill/dispose and two same-wrapper owned file/child/loopback controls; runtime bytes, cleanup and Mac restoration verify. No whole sandbox or I08 closure. | [Record](evidence/E-I08-UNIX-worker-boundaries.md) | I08, V23, V24 |
 
 
 <a id="commits-made-by-the-campaign"></a>

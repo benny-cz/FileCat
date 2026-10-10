@@ -49,3 +49,19 @@ Paths are relative to private FileCatReleaseEvidence unless absolute. Nested rec
 | `E:/FileCat/artifacts/release-evidence/i304-report-retirement-20261010-v1/fixed-v4/controls/command.json` | `4f31a40facdf89313ef2e0907d43136abd6a5f8bc34e638eeb2a968ead97e4a8` |
 | `E:/FileCat/artifacts/release-evidence/i304-report-retirement-20261010-v1/fixed-v2/full-app/command.json` | `21c40ba4d4bb2c36ecb112f46f0289aca93b6bc8cb611eed013377ade120e34e` |
 | `E:/FileCat/artifacts/release-evidence/i304-report-retirement-20261010-v1/fixed-v4/full-app/command.json` | `2fc19a2d073fc0ca6e55d94f499b6ad7fe9912a68f3d05951550ab62c3a7797e` |
+
+## I305 — subsequent asynchronous retirement checkpoint
+
+The I307 test-only working batch retains a full-App failure in the asynchronous clear/no-borrower/64-pixel icon control: its first collection reports the image alive, while the second reports it gone, with an empty cache/queue and a live idle worker. The notification can race publishing-stack unwind; that specific root is not measured. It is a transient collection-check failure, not evidence of an enduring product owner. The original source, full TRX and exact observation are preserved.
+
+The fixture now gives cleared/unborrowed images a bounded ten-second asynchronous collection opportunity instead of treating the empty-read signal as complete GC quiescence. Three new actual-cache borrower controls hold usable images through the bounded probe, then explicitly release them and require collection. All thirty icon controls and the full App suite pass in the final combined batch. Default-headless pixels remain unqualified; published bitmap disposal and icon product code are unchanged. Exact committed/hosted successor qualification remains pending; earlier I305 exact/native/hosted producer records keep their original scope. See [the combined immutable controls](E-I307-git-fixture-command-lifetime.md).
+
+## Selected immutable receipts
+
+Paths are relative to private FileCatReleaseEvidence unless absolute. Nested records retain exact source, commands, payloads, original failures/skips, independent observations and restoration.
+
+| File | SHA256 |
+|---|---|
+| `i307-git-fixture-20261010-v1/independent-final-v1.json` | `3b20f63ed7bd602150287b12ba35fbeb29e9ac04e7ff082ebf69d7a6e6df0bfe` |
+| `E:/FileCat/artifacts/release-evidence/i307-git-fixture-20261010-v1/fixed-v2/full-app/command.json` | `6e6b1b48f37cff1472dc052bdbf49bbff9fe84ea9ae3ec32afa508971d572383` |
+| `E:/FileCat/artifacts/release-evidence/i307-git-fixture-20261010-v1/fixed-v3/affected/command.json` | `2cc51776ff8ec0097e0d760c2db7d5dff1d687b37e88c943880db7a3249049cf` |

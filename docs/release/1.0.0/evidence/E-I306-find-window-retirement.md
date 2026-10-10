@@ -14,7 +14,7 @@ The same built payload passes all **99 affected Find controls** and **full App: 
 
 The exact unchanged baseline also runs in the signed-in Windows 11 VMware guest: **15 failures /15 live passes /60 compositor completions**, using the actual main/Find windows and the same five workflows. All **thirty owned fixture folders are removed**, the 193-file private runtime verifies before/after and no owned process remains. The first independent native reader incorrectly looked for Cleanup inside Cases and refused; the fresh reader uses the actual top-level Cleanup field, preserving the original refusal and unchanged output.
 
-Exact corrected committed/hosted and native follow-up remains pending. These ownership controls do not establish whole-process peaks, native allocation ceilings, physical input, OS-present timing, reference/human or candidate acceptance. Broader I06 stays open; physical-source I106/I110 HOLD, owner/freeze/candidate decisions and explicit human GO are unchanged.
+[Exact committed/three-platform native follow-up](E-I306-native-find-retirement.md) and [original hosted CI](E-CI-find-retirement.md) are sealed: all 99 exact Find controls, 90 fixed native controls and 120 added hosted records pass. These ownership controls do not establish whole-process peaks, native allocation ceilings, physical input, OS-present timing, reference/human or candidate acceptance. Broader I06 stays open; physical-source I106/I110 HOLD, owner/freeze/candidate decisions and explicit human GO are unchanged.
 
 ## Selected immutable receipts
 

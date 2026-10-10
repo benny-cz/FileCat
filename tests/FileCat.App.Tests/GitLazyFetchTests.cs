@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.Json;
 using FileCat.App.Services;
 
 namespace FileCat.App.Tests;
@@ -49,24 +50,24 @@ public sealed class GitLazyFetchTests
         }
         using var fixture = new Fixture();
         string source = Directory.CreateDirectory(Path.Join(fixture.Root, "source")).FullName;
-        fixture.Git(git, source, "init", "-q");
-        fixture.Git(git, source, "config", "uploadpack.allowFilter", "true");
+        await fixture.Git(git, source, "init", "-q");
+        await fixture.Git(git, source, "config", "uploadpack.allowFilter", "true");
         File.WriteAllText(Path.Join(source, "a.txt"), "one");
-        fixture.Git(git, source, "add", "a.txt");
-        fixture.Git(git, source, "commit", "-q", "-m", "owned fixture");
-        string tree = fixture.Git(git, source, "rev-parse", "HEAD^{tree}").Trim();
+        await fixture.Git(git, source, "add", "a.txt");
+        await fixture.Git(git, source, "commit", "-q", "-m", "owned fixture");
+        string tree = (await fixture.Git(git, source, "rev-parse", "HEAD^{tree}")).Trim();
         File.WriteAllText(Path.Join(source, "a.txt"), "two");
         var ordinary = await GitStatusReader.ReadAsync(source, TestContext.Current.CancellationToken, git);
         Assert.Equal(GitStatusKind.Modified, ordinary?.ForName("a.txt"));
 
         string partial = Path.Join(fixture.Root, "partial");
-        fixture.Git(git, source, "clone", "--no-local", "--filter=tree:0", "--no-checkout", source, partial);
+        await fixture.Git(git, source, "clone", "--no-local", "--filter=tree:0", "--no-checkout", source, partial);
         File.Copy(Path.Join(source, ".git", "index"), Path.Join(partial, ".git", "index"));
         File.WriteAllText(Path.Join(partial, "a.txt"), "two");
         string pack = Path.Join(partial, ".git", "objects", "pack");
         foreach (string index in Directory.EnumerateFiles(pack, "*.idx"))
         {
-            string contents = fixture.Git(git, partial, "verify-pack", "-v", index);
+            string contents = await fixture.Git(git, partial, "verify-pack", "-v", index);
             Assert.DoesNotContain(contents.Split('\n'), line => line.StartsWith(tree + " ", StringComparison.Ordinal));
         }
         var before = PackHashes(pack);
@@ -76,6 +77,97 @@ public sealed class GitLazyFetchTests
         // Refusing badges must leave the promised objects absent, not silently fetch them and then hide the badge.
         Assert.Equal(before, PackHashes(pack));
         Assert.Null(automatic);
+    }
+
+    [Fact]
+    public async Task Fixture_setup_accepts_success_after_the_old_ten_second_cutoff()
+    {
+        string output = await RunFixtureCommand(OwnedShell(
+            "Start-Sleep -Seconds 11; [Console]::Out.Write('owned success')",
+            "sleep 11; printf 'owned success'"), TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+        Assert.Equal("owned success", output);
+    }
+
+    [Fact]
+    public async Task Fixture_setup_preserves_a_real_failure_and_both_output_streams()
+    {
+        var error = await Record.ExceptionAsync(() => RunFixtureCommand(OwnedShell(
+            "[Console]::Out.Write('owned stdout'); [Console]::Error.Write('owned stderr'); exit 7",
+            "printf 'owned stdout'; printf 'owned stderr' >&2; exit 7"), TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken));
+        var failure = Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(error);
+        Assert.Contains("\"ExitCode\":7", failure.Message);
+        Assert.Contains("\"DeadlineExpired\":false", failure.Message);
+        Assert.Contains("owned stdout", failure.Message);
+        Assert.Contains("owned stderr", failure.Message);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Fixture_setup_stops_an_owned_process_on_deadline_or_cancellation(bool cancelled)
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var start = OwnedShell("[Console]::Out.Write($PID); Start-Sleep -Seconds 60", "printf '%s' $$; sleep 60");
+        if (cancelled) cancellation.CancelAfter(TimeSpan.FromSeconds(3));
+        var error = await Record.ExceptionAsync(() => RunFixtureCommand(start,
+            TimeSpan.FromSeconds(cancelled ? 60 : 3), cancellation.Token));
+        var failure = Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(error);
+        using var diagnostic = JsonDocument.Parse(failure.Message);
+        var result = diagnostic.RootElement;
+        Assert.Equal(!cancelled, result.GetProperty("DeadlineExpired").GetBoolean());
+        Assert.Equal(cancelled, result.GetProperty("Cancelled").GetBoolean());
+        Assert.False(result.GetProperty("ExitedNormally").GetBoolean());
+        int pid = result.GetProperty("PID").GetInt32();
+        // Query the OS after the helper returns: cleanup must finish before the fixture can be deleted.
+        Assert.Throws<ArgumentException>(() => Process.GetProcessById(pid));
+    }
+
+    private static ProcessStartInfo OwnedShell(string windows, string unix)
+    {
+        var start = new ProcessStartInfo(OperatingSystem.IsWindows()
+            ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe")
+            : "/bin/sh");
+        foreach (string argument in OperatingSystem.IsWindows()
+                     ? new[] { "-NoProfile", "-NonInteractive", "-Command", windows }
+                     : new[] { "-c", unix }) start.ArgumentList.Add(argument);
+        return start;
+    }
+
+    private static async Task<string> RunFixtureCommand(ProcessStartInfo start, TimeSpan budget, CancellationToken cancellation)
+    {
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        start.RedirectStandardOutput = true;
+        start.RedirectStandardError = true;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        deadline.CancelAfter(budget);
+        var clock = Stopwatch.StartNew();
+        using var process = Process.Start(start)!;
+        int pid = process.Id;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        bool exited = false;
+        try
+        {
+            await process.WaitForExitAsync(deadline.Token);
+            exited = true;
+        }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+        }
+        string output = await stdout, errors = await stderr;
+        string diagnostic = JsonSerializer.Serialize(new
+        {
+            start.FileName, Arguments = start.ArgumentList.ToArray(), PID = pid, BudgetSeconds = budget.TotalSeconds,
+            ElapsedSeconds = clock.Elapsed.TotalSeconds, ExitedNormally = exited, process.ExitCode,
+            DeadlineExpired = !exited && !cancellation.IsCancellationRequested, Cancelled = !exited && cancellation.IsCancellationRequested,
+            Stdout = output, Stderr = errors,
+        });
+        TestContext.Current.TestOutputHelper!.WriteLine(diagnostic);
+        Assert.True(exited && process.ExitCode == 0, diagnostic);
+        return output;
     }
 
     private static KeyValuePair<string, string>[] PackHashes(string path) =>
@@ -95,7 +187,7 @@ public sealed class GitLazyFetchTests
             return repository;
         }
 
-        internal string Git(string executable, string directory, params string[] arguments)
+        internal Task<string> Git(string executable, string directory, params string[] arguments)
         {
             var start = new ProcessStartInfo(executable)
             {
@@ -110,13 +202,8 @@ public sealed class GitLazyFetchTests
             start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
             foreach (string argument in new[] { "-c", "user.name=FileCat", "-c", "user.email=filecat@example.com", "-c", "core.autocrlf=false" }.Concat(arguments))
                 start.ArgumentList.Add(argument);
-            using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync();
-            var errors = process.StandardError.ReadToEndAsync();
-            if (!process.WaitForExit(10000)) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
-            string text = output.GetAwaiter().GetResult(), stderr = errors.GetAwaiter().GetResult();
-            Assert.True(process.ExitCode == 0, stderr);
-            return text;
+            // Creating the owned repository is setup, separate from FileCat's eight-second badge budget.
+            return RunFixtureCommand(start, TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
         }
 
         public void Dispose()

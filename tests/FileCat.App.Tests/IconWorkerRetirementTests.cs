@@ -37,12 +37,13 @@ public sealed class IconWorkerRetirementTests
         if (borrower) CaptureBorrower(worker, held);
         worker.Retire(route);
         Collect();
-        bool beforeRelease = Alive(worker.Image!);
+        bool beforeRelease = route == "clear" && !borrower
+            ? await CollectUntilRetired(worker.Image!) : Alive(worker.Image!);
         bool pixelsExact = !borrower || CheckBorrower(held, size);
         bool borrowerUsable = !borrower || CheckUsable(held, size);
         DropBorrower(held);
         Collect();
-        bool afterRelease = Alive(worker.Image!);
+        bool afterRelease = route == "clear" ? await CollectUntilRetired(worker.Image!) : Alive(worker.Image!);
         TestContext.Current.TestOutputHelper?.WriteLine("ICON_WORKER_RETIREMENT " + JsonSerializer.Serialize(new
         {
             asynchronous, route, borrower, size, pixelBytes = size * size * 4,
@@ -60,6 +61,36 @@ public sealed class IconWorkerRetirementTests
         Assert.Equal(0, worker.Queued());
         Assert.Equal(1, worker.Completed);
         Assert.False(worker.Done.IsCompleted);
+        GC.KeepAlive(worker);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    public async Task Retirement_wait_preserves_a_real_borrower_until_it_is_released(int size)
+    {
+        using var worker = new Worker(asynchronous: true, size);
+        await worker.WaitForIdle();
+        var held = new Borrower();
+        CaptureBorrower(worker, held);
+        worker.Retire("clear");
+        bool whileBorrowed = await CollectUntilRetired(worker.Image!, TimeSpan.FromMilliseconds(100));
+        bool usable = CheckUsable(held, size);
+        DropBorrower(held);
+        bool afterRelease = await CollectUntilRetired(worker.Image!);
+        TestContext.Current.TestOutputHelper?.WriteLine("ICON_RETIREMENT_WAIT " + JsonSerializer.Serialize(new
+        {
+            size, whileBorrowed, usable, afterRelease, cacheCount = worker.Count(), completed = worker.Completed,
+            workerStillLive = !worker.Done.IsCompleted, actualPublishedCacheBorrower = true,
+        }));
+        Assert.True(whileBorrowed);
+        Assert.True(usable);
+        Assert.False(afterRelease);
+        Assert.Equal(0, worker.Count());
+        Assert.Equal(1, worker.Completed);
+        Assert.False(worker.Done.IsCompleted);
+        GC.KeepAlive(held);
         GC.KeepAlive(worker);
     }
 
@@ -130,6 +161,20 @@ public sealed class IconWorkerRetirementTests
     private static void Collect()
     {
         for (int i = 0; i < 4; i++) { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); }
+    }
+
+    private static async Task<bool> CollectUntilRetired(WeakReference<IImage> image, TimeSpan? budget = null)
+    {
+        // An empty next-read signal can reach the test before the publishing thread's stack has unwound.
+        // Give that asynchronous retirement a bounded opportunity to finish; a held borrower must remain alive.
+        long start = System.Diagnostics.Stopwatch.GetTimestamp();
+        do
+        {
+            Collect();
+            if (!Alive(image)) return false;
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(start) >= (budget ?? TimeSpan.FromSeconds(10))) return true;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        } while (true);
     }
 
     private sealed class Worker : IDisposable
