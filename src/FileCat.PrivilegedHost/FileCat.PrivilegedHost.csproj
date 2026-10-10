@@ -16,6 +16,7 @@
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
     <ProjectReference Include="..\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
   </ItemGroup>

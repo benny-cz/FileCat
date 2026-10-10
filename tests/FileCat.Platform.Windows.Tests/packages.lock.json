@@ -177,6 +177,13 @@
           "Microsoft.Web.WebView2": "[1.0.3179.45, )"
         }
       },
+      "filecat.privilegedhost": {
+        "type": "Project",
+        "dependencies": {
+          "FileCat.Core": "[0.1.0-preview, )",
+          "FileCat.Platform.Windows": "[0.1.0-preview, )"
+        }
+      },
       "filecat.recovery": {
         "type": "Project",
         "dependencies": {

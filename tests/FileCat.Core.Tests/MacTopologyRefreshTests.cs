@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FileCat.Core.FileSystem;
+using FileCat.Recovery;
 using FileCat.Recovery.Unix;
 
 namespace FileCat.Core.Tests;
@@ -72,6 +73,7 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
             string write = Path.Combine(mount, "owned-state");
             var sourceBefore = UnixDisks.DeviceDisks(source);
             var targetBefore = UnixDisks.FolderDisks(write);
+            bool backingKnown = UnixDisks.FolderDisks(root) is not null;
             if (sourceBefore is null || targetBefore is null)
             {
                 // Retain the actual unavailable classification inputs before assertions or fixture cleanup.
@@ -92,8 +94,12 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
                 output.WriteLine("MAC_TOPOLOGY_IMAGE_QUERY " + RunCore(false, "/usr/bin/hdiutil", "info", "-plist"));
             }
             Assert.Contains(sourceName, sourceBefore!);
-            Assert.Contains(oldName, targetBefore!);
-            Assert.DoesNotContain(sourceName, targetBefore!);
+            if (backingKnown)
+            {
+                Assert.Contains(oldName, targetBefore!);
+                Assert.DoesNotContain(sourceName, targetBefore!);
+            }
+            else Assert.Null(targetBefore);
             var switched = Stopwatch.StartNew();
             Run("/usr/bin/hdiutil", "detach", old); attached.Remove(old);
             Run("/usr/sbin/diskutil", "mount", "-mountPoint", mount, source);
@@ -103,6 +109,11 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
             var sourceAfter = UnixDisks.DeviceDisks(source);
             var targetAfter = UnixDisks.FolderDisks(write);
             bool? shares = UnixDisks.SharesDisk(source, write);
+            var provider = new RecoveryProvider { SharesDisk = UnixDisks.SharesDisk };
+            var recovery = provider.ForDevice(source, "Owned image control");
+            string? admission = provider.CheckTransferDestination(recovery, write);
+            Assert.NotNull(admission);
+            if (!backingKnown) Assert.Contains("cannot tell", admission, StringComparison.Ordinal);
             byte[] known = Enumerable.Range(0, 65536).Select(i => (byte)(i * 37 + 11)).ToArray();
             using (var file = new FileStream(write, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
@@ -115,14 +126,24 @@ public sealed class MacTopologyRefreshTests(ITestOutputHelper output)
             {
                 source, old, mount, switchMilliseconds = switched.ElapsedMilliseconds,
                 sourceBefore, targetBefore, sourceAfter, targetAfter, shares,
+                backingKnown, admission, noRecoveryWriteAdmitted = admission is not null,
                 currentParentWholeDisk = current.GetValueOrDefault("ParentWholeDisk"), exact,
                 knownBytes = known.Length, beforeHash, afterHash,
                 ownedImageOnly = true, FileCatOpensNoDevice = true,
                 noClaimOfPhysicalSourceAttributionOrLostData = true,
             }));
             Assert.True(exact); Assert.NotEqual(beforeHash, afterHash);
-            Assert.Contains(sourceName, targetAfter!);
-            Assert.True(shares, "A mount now on the source disk cannot reuse the preceding volume's cached answer.");
+            Assert.Contains(sourceName, sourceAfter!);
+            if (backingKnown)
+            {
+                Assert.Contains(sourceName, targetAfter!);
+                Assert.True(shares, "A mount now on the source disk cannot reuse the preceding volume's cached answer.");
+            }
+            else
+            {
+                Assert.Null(targetAfter);
+                Assert.Null(shares);
+            }
         }
         finally
         {

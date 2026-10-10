@@ -48,6 +48,7 @@ public sealed class MacIncompleteTopologyTests(ITestOutputHelper output)
     [Theory]
     [InlineData("empty")]
     [InlineData("missing-bus")]
+    [InlineData("empty-bus")]
     [InlineData("wrong-bus-type")]
     [InlineData("not-a-dictionary")]
     public void An_unavailable_whole_disk_reply_is_unknown_when_classifying_writes(string kind)
@@ -56,6 +57,7 @@ public sealed class MacIncompleteTopologyTests(ITestOutputHelper output)
         {
             "empty" => "",
             "missing-bus" => "<plist><dict/></plist>",
+            "empty-bus" => "<plist><dict><key>BusProtocol</key><string/><key>VirtualOrPhysical</key><string>Unknown</string></dict></plist>",
             "wrong-bus-type" => "<plist><dict><key>BusProtocol</key><integer>1</integer></dict></plist>",
             _ => "<plist><array/></plist>",
         };

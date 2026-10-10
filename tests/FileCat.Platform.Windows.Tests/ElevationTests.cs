@@ -342,13 +342,16 @@ public sealed class ElevationTests
             job.MarkRetriedAsAdministrator();
             Assert.False(ElevationPlanBuilder.OffersRetry(job));
 
-            // Without the installed helper beside the binaries, an elevated job fails with the reason and changes nothing.
+            // Test output may contain the broker assembly's apphost, but it is never an installed trusted helper.
+            Assert.Null(ElevationBroker.Locate(portable: false, out string? unavailable));
+            Assert.NotNull(unavailable);
             var elevatedDone = new TaskCompletionSource<Job>(TaskCreationOptions.RunContinuationsAsynchronously);
             jobs.JobFinished += j => { if (j.Request.Kind == JobKind.Elevated) elevatedDone.TrySetResult(j); };
             jobs.Submit(new JobRequest { Kind = JobKind.Elevated, Elevation = retry.Plan, Destination = location });
             var elevated = await elevatedDone.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
             Assert.Equal(JobState.Failed, elevated.State);
-            Assert.Contains(elevated.Issues, i => i.Message.Contains("installed FileCat", StringComparison.Ordinal));
+            Assert.Contains(elevated.Issues, i => i.Message == unavailable);
+            using (var unchanged = Registry.CurrentUser.OpenSubKey(path)) Assert.Null(unchanged!.GetValue("blocked"));
         }
         finally
         {

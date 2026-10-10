@@ -10,7 +10,7 @@ All **eleven corrected controls pass per platform**, including ordinary/delayed 
 
 The combined two-test-overlay producer also passes **twelve Mac controls**, including the unchanged 64 KiB real mount replacement. Its independent staged/runtime/image/process/temp cleanup verifies. Failure diagnostics now query actual containing mount points and retain unsuccessful replies without throwing before the safety assertion. The preceding diagnostic job's rejected non-mount query is retained separately; neither it nor these healthy Mac controls establishes the original hosted classification cause.
 
-No production boundary, assertion or skip is weakened; no UI, account, privilege, persistent system setting or source device changes. Original hosted follow-up, broader CI/platform/candidate qualification and all Critical source-identity/topology gates remain.
+No production boundary, assertion or skip is weakened; no UI, account, privilege, persistent system setting or source device changes. [Exact committed/native follow-up](E-I323-native-qualification.md) passes at c0677d9; its actual Mac fixture failure is retained in [I325](E-I325-mac-backing-fixture.md). Original hosted follow-up, broader CI/platform/candidate qualification and all Critical source-identity/topology gates remain.
 
 ## Selected immutable receipts
 

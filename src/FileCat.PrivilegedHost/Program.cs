@@ -43,7 +43,19 @@ internal static partial class Program
         using (exchange) return Run(exchange, hash, Path.GetDirectoryName(self)!);
     }
 
-    private static int Run(BrokerExchange exchange, string hash, string brokerDirectory)
+    private static int Run(BrokerExchange exchange, string hash, string brokerDirectory) =>
+        Run(exchange, hash, brokerDirectory, new RunServices(() => DateTime.UtcNow,
+            ElevationBroker.CheckRequester, ElevationBroker.TryClaimNonce, ConsentDialog.Ask,
+            ConsentDialog.Refuse, FileCat.Platform.Windows.Recovery.DeviceReadHost.Run));
+
+    // Keep the one-plan orchestration testable without displaying consent or opening a source device.
+    // The installed entry point always supplies the real native implementations above.
+    internal sealed record RunServices(Func<DateTime> UtcNow,
+        Func<ElevationPlan, string, string?> CheckRequester, Func<string, DateTime, bool> ClaimNonce,
+        Func<string, string, IReadOnlyList<string>, string, bool> Ask, Action<string> Refuse,
+        Func<string, string, string, int, string> ReadDevice);
+
+    internal static int Run(BrokerExchange exchange, string hash, string brokerDirectory, RunServices services)
     {
         ElevationPlan? plan = null;
         string? refusal = null;
@@ -57,17 +69,17 @@ internal static partial class Program
         catch (Exception ex) when (IsExpected(ex)) { refusal = "The plan could not be read: " + ex.Message; }
         if (refusal is null && plan is not null)
         {
-            var problems = ElevationPlanCodec.Validate(plan, DateTime.UtcNow);
+            var problems = ElevationPlanCodec.Validate(plan, services.UtcNow());
             if (problems.Count > 0) refusal = string.Join(" ", problems);
         }
-        if (refusal is null && plan is not null) refusal = ElevationBroker.CheckRequester(plan, brokerDirectory);
-        if (refusal is null && plan is not null && !ElevationBroker.TryClaimNonce(plan.Nonce, DateTime.UtcNow))
+        if (refusal is null && plan is not null) refusal = services.CheckRequester(plan, brokerDirectory);
+        if (refusal is null && plan is not null && !services.ClaimNonce(plan.Nonce, services.UtcNow()))
             refusal = "This plan was already used once. Ask FileCat again.";
         if (refusal is not null || plan is null)
         {
             refusal ??= "The plan is empty.";
             Report(exchange, new ElevationResult { Nonce = plan?.Nonce ?? "", Refused = refusal });
-            ConsentDialog.Refuse(refusal);
+            services.Refuse(refusal);
             return 2;
         }
 
@@ -79,10 +91,26 @@ internal static partial class Program
         string footer = reading ? "FileCat reads what it finds itself; this helper only hands it the drive's bytes, and has no way to write."
             : "Completed steps are kept if a later step fails. Links are never followed." +
               (plan.Steps.Any(s => s.Verb == ElevatedVerb.DeleteTree) ? " Deleted items do not go to the Recycle Bin." : "");
-        if (!ConsentDialog.Ask(plan.Title, content, pages, footer))
+        if (!services.Ask(plan.Title, content, pages, footer))
         {
             Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = ElevationMessages.Declined });
             return 1;
+        }
+        // The dialog can remain open past the plan's lifetime, or after FileCat exits/cancels.
+        // Recheck before reporting consent or entering either the write runner or the device-read session.
+        if (exchange.StopRequested())
+        {
+            Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = ElevationMessages.Declined });
+            return 1;
+        }
+        var currentProblems = ElevationPlanCodec.Validate(plan, services.UtcNow());
+        refusal = currentProblems.Count > 0 ? string.Join(" ", currentProblems)
+            : services.CheckRequester(plan, brokerDirectory);
+        if (refusal is not null)
+        {
+            Report(exchange, new ElevationResult { Nonce = plan.Nonce, Refused = refusal });
+            services.Refuse(refusal);
+            return 2;
         }
         Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true });
         if (reading)
@@ -90,7 +118,7 @@ internal static partial class Program
             // A read session (P10, ADR-08): bytes of one device to the requesting FileCat, until it closes the session.
             var read = plan.Steps[0];
             string ended;
-            try { ended = FileCat.Platform.Windows.Recovery.DeviceReadHost.Run(read.Path!, read.Name!, plan.UserSid, plan.RequesterProcessId); }
+            try { ended = services.ReadDevice(read.Path!, read.Name!, plan.UserSid, plan.RequesterProcessId); }
             catch (Exception ex) when (IsExpected(ex)) { ended = "The read session failed: " + ex.Message; }
             Report(exchange, new ElevationResult { Nonce = plan.Nonce, Consented = true, Finished = true, Steps = [new ElevatedStepResult(0, ElevatedOutcome.Committed, ended)] });
             return 0;

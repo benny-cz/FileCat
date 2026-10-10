@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**421 evidence entries; none is final candidate qualification.** No candidate exists.
+**425 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -432,6 +432,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I323 | Cancellation fixture startup/readiness | 156b723 /test-only overlays | One controlled fence failure/ten positives become eleven passes each on Windows/Ubuntu/Mac; 93 affected passes/no skips; compiled diagnostics retain unsuccessful queries. | [Record](evidence/E-I323-smb-cancellation-startup.md) | CI, I323, V23 |
 | E-I322-EXACT | Committed image-source ownership | 156b723 /no overlays | Five targeted/125 affected passes/34 skips; five Ubuntu/thirty-seven Mac controls and independent owned restoration pass. | [Record](evidence/E-I322-native-qualification.md) | I06, I322, V09 |
 | E-CI-I321 | Original reselection CI failures | 1b2229c /38070958521 attempt1 | Two required lanes pass, Mac/ARM64 retain two failures; 20 archives/nine TRX, 22,347 passes/663 skips. All 100 current added topology/reselection records pass; downstream unavailable. | [Record](evidence/E-CI-recovery-reselection.md) | I106, I321, I323, V09 |
+| E-I324 | Broker post-consent admission | c0677d9 /declared boundary adapters and fix | Six controlled failures become eighteen passes; 32 affected/fifty medium guest controls pass; expiry/requester/cancellation effects refused. | [Record](evidence/E-I324-broker-consent-admission.md) | I17, V06, V23 |
+| E-I325 | Mac unknown-backing fixture | c0677d9 /actual CI and declared query controls | Actual empty-bus/Unknown backing retained; one controlled native failure becomes twenty known/twenty unknown passes, preserving refusal and full known assertions. | [Record](evidence/E-I325-mac-backing-fixture.md) | CI, I106, V09 |
+| E-I323-EXACT | Committed cancellation fixture | c0677d9 /no overlays | Eleven targeted/93 affected passes; eleven Ubuntu/twelve Mac controls and independent restoration pass. | [Record](evidence/E-I323-native-qualification.md) | I323, V23 |
+| E-CI-I322 | Original image-ownership CI failure | 156b723 /38072748133 attempt1 | Three lanes pass; Mac diagnostic fails; 24 archives/twelve TRX, 26,603 passes/874 skips/one failure. All 120 current added controls pass; downstream unavailable. | [Record](evidence/E-CI-recovery-image-open.md) | I106, I322, V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 
