@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media;
@@ -333,20 +334,24 @@ public sealed class NativeIconSource : INativeIconSource
         {
             _knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
-        foreach (var request in _shared.Requests())
+        foreach (var request in _shared.Requests()) LoadShared(request);
+    }
+
+    // The worker waits indefinitely for another request. End the previous image's local lifetime first.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void LoadShared(IconRequestCache.Request request)
+    {
+        var sized = request.Key;
+        IImage? image = null;
+        try
         {
-            var sized = request.Key;
-            IImage? image = null;
-            try
-            {
-                image = Load(sized.Key, sized.Size);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or COMException)
-            {
-                image = null;
-            }
-            if (_shared.Complete(request, image) && image is not null) NotifyLoaded();
+            image = Load(sized.Key, sized.Size);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or COMException)
+        {
+            image = null;
+        }
+        if (_shared.Complete(request, image) && image is not null) NotifyLoaded();
     }
 
     private IImage? Load(string key, int size)

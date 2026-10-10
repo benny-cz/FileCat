@@ -8,7 +8,7 @@ The fixture counted 400 twenty-millisecond turns and then asserted focus without
 
 The corrected fixture waits up to **30 seconds** for the Network root, Complete state and the expected localhost focus, then asserts both completion and focus explicitly. The same delayed and ordinary controls plus both existing native Network cases pass (**four**), with actual localhost share enumeration and the earlier administrative-share assertions preserved. The two delayed/ordinary additions are retained as regression tests; non-Windows runs retain an explicit platform skip. No system/network settings or real callback outside the owned service change.
 
-The combined [I296](E-I296-operation-history-retirement.md) payload passes all **63 affected App controls**, full Core **3470/64** and full App **1427/25 exact skips**. Every **3534/1432** preceding Core/App outcome/message/exact skip remains; two Network controls and eighteen history controls are added. Original/fixed/full native observations and all declared canonical source exports are independently rechecked. This is preliminary protocol/listing readiness, not desktop input, process-memory, human/reference/candidate or historical-cause qualification. Exact committed/original hosted follow-ups remain.
+The combined [I296](E-I296-operation-history-retirement.md) payload passes all **63 affected App controls**, full Core **3470/64** and full App **1427/25 exact skips**. Every **3534/1432** preceding Core/App outcome/message/exact skip remains; two Network controls and eighteen history controls are added. Original/fixed/full native observations and all declared canonical source exports are independently rechecked. This is preliminary protocol/listing readiness, not desktop input, process-memory, human/reference/candidate or historical-cause qualification. All four exact native controls pass in the [combined exact record](E-I296-operation-history-retirement.md#exact-committed-follow-up); original hosted follow-up remains.
 
 
 ## Selected immutable follow-up receipts
@@ -25,3 +25,6 @@ Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain com
 | `E:/FileCat/artifacts/release-evidence/i06-history-row-retirement-20261010-v2/fixed/full-app/command.json` | `f6d91fb862bde423b6b99a9062636a38023d8cbfe6ba6df49145c537f2f2bce6` |
 | `i06-history-network-retirement-20261010-v1/seal-history-network-v1.py` | `ee6768a42a798ae76999c22aff122e1421e2b223117a41d43a75144ccebff46d` |
 | `i06-history-network-retirement-20261010-v1/independent-history-network-final-v1.json` | `ad6518ec26460fe433cbeef6536394370373f6930cf3a0bfa8c29bbe7d1b1dc6` |
+
+
+[Original hosted follow-up](E-CI-operation-history-network.md): all four lanes/30,384 records pass, retaining every 30,304 predecessor outcome/message/exact skip. New counts are 76 passes/four explicit platform skips, not 80 passes. Broader scope remains.

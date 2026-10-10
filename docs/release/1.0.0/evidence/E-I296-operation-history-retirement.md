@@ -10,7 +10,7 @@ Eighteen public-API controls use 1/128/4096 frozen entries and an owned 32 KiB p
 
 All **63 affected App controls**, including four native Network-place checks, **full Core 3470/64 exact skips** and **full App 1427/25 exact skips** pass. The full suites overlap. The earlier I296-only full App run remains failed (one Network-place assertion; [I297](E-I297-network-return-fixture.md)); its historical cause is not inferred. All **3534** preceding Core and **1432** preceding App outcome/message records and every exact skip remain; the only Core display-label adaptation is the independently matched PE test method with its export-local assembly path. App no-build payload bytes remain unchanged. Owned temporary files are archived, rechecked and removed where unlocked; any locks retain their actual receipts.
 
-These are explicit managed reachability controls, not whole-process/native/frame memory, native input/incidence, throughput, human/reference or candidate qualification. Exact committed/original hosted follow-ups remain. I06 stays open; physical-source HOLD and human GO remain.
+These are explicit managed reachability controls, not whole-process/native/frame memory, native input/incidence, throughput, human/reference or candidate qualification. All eighteen exact committed history controls pass below; original hosted follow-up remains. I06 stays open; physical-source HOLD and human GO remain.
 
 
 ## Selected immutable follow-up receipts
@@ -31,3 +31,24 @@ Private FileCatReleaseEvidence paths unless absolute. Nested receipts retain com
 | `i06-history-network-retirement-20261010-v1/seal-history-network-v1.py` | `ee6768a42a798ae76999c22aff122e1421e2b223117a41d43a75144ccebff46d` |
 | `i06-history-network-retirement-20261010-v1/independent-history-network-final-v1.json` | `ad6518ec26460fe433cbeef6536394370373f6930cf3a0bfa8c29bbe7d1b1dc6` |
 | `E:/FileCat/artifacts/release-evidence/i06-history-network-retirement-20261010-v1/owned-temporary-files-v1.zip` | `c42777bc66d1418ec8c182fa510f4c93969a38e0fb3131af3aab76f515b91381` |
+
+
+## Exact committed follow-up
+
+No-overlay **3a735fd58982a0177d0b58940138301974e43dae** verifies all **1380 canonical blobs**, passes all **22 controls** (eighteen history/four native Network) and preserves all private/exact outcome/messages. All eighteen history relationships match apart from owned roots; all three ready-view observations pass with fresh timings inside the deadline. The five validated overlays match committed bytes with only Git line-ending normalization. Ten owned files are archived/rechecked, one removed and nine actual compiler locks retained. This does not repeat full suites or qualify aggregate/native-frame/reference/human/candidate acceptance.
+
+
+## Selected immutable follow-up receipts
+
+Private FileCatReleaseEvidence paths unless absolute. Nested records retain complete commands, raw failures/skips, declared sources and owned restoration.
+
+| File | SHA256 |
+|---|---|
+| `i296-i297-committed-20261010-v1/seal-exact-v1.py` | `5b319b4c7808173b5a677f1003b9518a1e3103bc461c95e69101a313951bcb27` |
+| `i296-i297-committed-20261010-v1/independent-exact-final-v1.json` | `a65bb19574b65a1748ec0e3ee2198411b0a2fe86aa1ab90cea3871d014b29db0` |
+| `E:/FileCat/artifacts/release-evidence/i296-i297-committed-20261010-v1/committed/app-controls/command.json` | `66008634c9ccda6c471b73bc6565ea7c0152347b8376053b24d9ca8dcd7862b8` |
+| `E:/FileCat/artifacts/release-evidence/i296-i297-committed-20261010-v1/committed/inputs.json` | `d5f4303ce4b9182726b0b3ad92c1017fc8bd9229c4c5860be9b21053b020d18a` |
+| `E:/FileCat/artifacts/release-evidence/i296-i297-committed-20261010-v1/committed/owned-temporary-files-v1.zip` | `d0607cbff6f81aabc2f91caa6fdda80ce4d8cb00ace183f2782222669b00c7ed` |
+
+
+[Original hosted follow-up](E-CI-operation-history-network.md): all four lanes/30,384 records pass, retaining every 30,304 predecessor outcome/message/exact skip. New counts are 76 passes/four explicit platform skips, not 80 passes. Broader scope remains.

@@ -43,6 +43,7 @@ internal sealed class IconRequestCache(int capacity = 4096, int queueCapacity = 
                 _entries.Remove(oldest.Key);
                 _lru.RemoveFirst();
                 oldest.Node = null;
+                oldest.Image = null;
                 // Rows borrow images: an evicted image can still be displayed and must not be disposed here.
             }
             request.Node = _lru.AddLast(request);
@@ -81,7 +82,13 @@ internal sealed class IconRequestCache(int capacity = 4096, int queueCapacity = 
     {
         lock (_gate)
         {
-            foreach (var request in _entries.Values) request.Node = null;
+            foreach (var request in _entries.Values)
+            {
+                request.Node = null;
+                // An idle consuming enumerator can still hold the retired request. Actual row borrowers keep
+                // their own image reference, so release ours without disposing a published image.
+                request.Image = null;
+            }
             _entries.Clear();
             _lru.Clear();
             while (_queue.TryTake(out _)) { }
