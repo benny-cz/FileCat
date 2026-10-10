@@ -17,14 +17,15 @@ public sealed class HexPatchOverlay : IContentSource
     public const int MaxUndoBytes = 32 * 1024 * 1024;
     private const int MaxActions = 10_000;
     private readonly IContentSource _baseline;
-    private readonly Dictionary<long, byte> _original = new();
-    private readonly Dictionary<long, byte> _patch = new();
+    private Dictionary<long, byte> _original = new();
+    private Dictionary<long, byte> _patch = new();
     private readonly LinkedList<PatchAction> _undo = new();
     private readonly Stack<PatchAction> _redo = new();
     private readonly object _gate = new();
     private long _revision;
     private int _undoBytes;
     private bool _saving;
+    private bool _disposed;
 
     private sealed record PatchAction(long Offset, byte[] Before, byte[] After)
     {
@@ -88,6 +89,7 @@ public sealed class HexPatchOverlay : IContentSource
         var after = bytes.ToArray();
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
             var before = new byte[bytes.Length];
             for (int i = 0; i < bytes.Length; i++)
@@ -128,6 +130,7 @@ public sealed class HexPatchOverlay : IContentSource
     {
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
             if (_undo.Last is null) { change = default; return false; }
             var action = _undo.Last.Value;
@@ -148,6 +151,7 @@ public sealed class HexPatchOverlay : IContentSource
     {
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
             if (_redo.Count == 0) { change = default; return false; }
             var action = _redo.Pop();
@@ -199,6 +203,7 @@ public sealed class HexPatchOverlay : IContentSource
     {
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is already in progress.");
             _saving = true;
             return SnapshotRanges();
@@ -225,6 +230,7 @@ public sealed class HexPatchOverlay : IContentSource
     {
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_saving) throw new InvalidOperationException("A hex save is in progress.");
             _patch.Clear(); _original.Clear(); _undo.Clear(); _redo.Clear(); _undoBytes = 0;
             Interlocked.Increment(ref _revision);
@@ -232,5 +238,19 @@ public sealed class HexPatchOverlay : IContentSource
         Changed?.Invoke(new HexOverlayChange(0, null));
     }
 
-    public void Dispose() => _baseline.Dispose();
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            // A retired reader/editor may remain alive in a submitted frame or a completed operation.
+            // Replace the dictionaries so retirement retains no backing arrays, including minimum capacity.
+            _patch = new(); _original = new();
+            _undo.Clear(); _redo.Clear(); _redo.TrimExcess(); _undoBytes = 0;
+            Changed = null;
+        }
+        // Retire owned memory even when closing the source fails; never close the source twice.
+        _baseline.Dispose();
+    }
 }

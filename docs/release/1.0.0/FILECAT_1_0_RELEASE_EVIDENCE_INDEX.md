@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**379 evidence entries; none is final candidate qualification.** No candidate exists.
+**381 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -390,6 +390,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I308-NATIVE | Committed native Places payload retirement | 3712e12 /unchanged compiled observer | 193 affected/two exact skips; 48 three-platform native controls, complete byte hashes and fixture cleanup pass. | [Record](evidence/E-I308-native-place-retirement.md) | I06, I308, V12, V16, V23 |
 | E-I06-PLACE-MENUS | Ephemeral overflow menu controls and icon lifetime | 3712e12 /bounded original observers | Four Headless/twelve native controls; actual icon hashes and twelve independent fixture absence checks pass; fixture/reader failures retained. | [Record](evidence/E-I06-place-menu-retirement.md) | I06, V12, V16, V23 |
 | E-CI-PLACE | Original committed Places ownership qualification | 3712e12 /38041933924 attempt 1 | Four lanes, 27 digest archives/14 TRX; 30,080 passes/992 exact skips, all 72 added records and every predecessor retained. | [Record](evidence/E-CI-place-retirement.md) | I06, I308, I108, V20, V23 |
+| E-I309 | Retired hex overlay storage and late-publication guard | 99ec926 /declared Core/test overlays | 26 failures/six positives become 32 passes; 497 affected/full App/Core and 54 native controls pass; 72 native roots independently absent. | [Record](evidence/E-I309-hex-overlay-retirement.md) | I06, I309, V12, V16, V23 |
+| E-I106-CURRENT-WIN | Measured medium/high Windows recovery admission | 99ec926 /I309 declared producer; unchanged recovery tests | Actual parent/child integrity 8192/12288; 52 passes/twelve exact skips across 64 records, recording readers and 28 archived/restored profiles. | [Record](evidence/E-I106-current-windows-admission.md) | I106, I110, V09, V23 |
 
 
 <a id="commits-made-by-the-campaign"></a>
