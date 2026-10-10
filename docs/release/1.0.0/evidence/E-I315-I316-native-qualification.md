@@ -6,7 +6,7 @@ The exact remote artifacts also pass **64 native controls**, 32 each in Windows 
 
 The first local Remote build collides with the parallel App build on a shared compiler output (`CS2012`). Its command and raw failure remain; no test ran from that failed build. A fresh Remote build uses an isolated output directory. Successful App cases are retained without redundant reruns. No assertion/timeout/skip weakening, product workaround or historical ARM64 causal attribution occurs.
 
-Original push CI **38063456193 attempt1** is being collected independently; this record claims no hosted result. The earlier e0bdade ARM64 failure stays failed at its own identity. Wider I06/native-server/native-input/reference/human/installed-candidate scope, physical-source HOLD and explicit human GO remain.
+[Original push CI **38063456193 attempt1**](E-CI-remote-consumer-retirement.md) is independently sealed: all four lanes, 30,438 passes/996 exact skips and all 136 added controls pass at 17035d5. The earlier e0bdade ARM64 failure stays failed at its own identity. Wider I06/native-server/native-input/reference/human/installed-candidate scope, physical-source HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 

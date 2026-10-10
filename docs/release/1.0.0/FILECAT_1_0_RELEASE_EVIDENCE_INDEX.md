@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**403 evidence entries; none is final candidate qualification.** No candidate exists.
+**406 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -414,6 +414,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I315-I316-EXACT | Committed remote ownership and panel readiness | 17035d5 /no overlays | 34 targeted/2523 affected passes/156 exact skips; 64 Windows–Ubuntu guest passes and independent staged/runtime/process/fixture checks. | [Record](evidence/E-I315-I316-native-qualification.md) | I06, I108, I315, I316, V08, V10, V12 |
 | E-I316 | Panel preview positive readiness fixture | e0bdade /declared test-only overlays | Two gated failures become two passes; all 35 affected tests pass, bound/assertions retained. Historical ARM64 cause unproven. | [Record](evidence/E-I316-panel-preview-readiness.md) | I06, I108, I316, V10, V12 |
 | E-I317 | Unknown network/userspace recovery source backing | 17035d5 /declared product/test overlays | Eight unsafe read classifications/eight write positives become 16 targeted/16 fixed Ubuntu passes; 82 affected passes/29 exact skips retained. | [Record](evidence/E-I317-network-source-topology.md) | I106, I317, V09, V23 |
+| E-CI-I315-I316 | Original committed remote ownership/readiness CI | 17035d5 /38063456193 attempt1 | Four lanes/27 digest archives/14 TRX; 30,438 passes/996 exact skips, 136 added controls pass. Earlier failure retained. | [Record](evidence/E-CI-remote-consumer-retirement.md) | I06, I108, I315, I316 |
+| E-I317-EXACT | Committed unknown network-source topology | 59d37cd /no overlays | 16 targeted/82 affected passes/29 exact skips, 16 Ubuntu native passes and independent restoration. | [Record](evidence/E-I317-native-qualification.md) | I106, I317, V09 |
+| E-I318 | Stale Mac recovery mount classification | 59d37cd /declared product/test overlays | Actual owned-image overlap failure corrected; known bytes, 98 affected passes/29 exact skips and independent restoration. | [Record](evidence/E-I318-mac-topology-refresh.md) | I106, I318, V09, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 
