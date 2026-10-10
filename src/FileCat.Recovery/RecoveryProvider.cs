@@ -99,10 +99,16 @@ public sealed class RecoveryProvider : ResourceProvider
     /// </summary>
     public Location ForDevice(string device, string name, int? volume = null, long length = 0)
     {
-        _deviceNames[device] = name;
-        if (volume is not null) _volumeDevices[device] = true;
-        if (length > 0) _deviceLengths[device] = length;
-        else _deviceLengths.TryRemove(device, out _);
+        lock (_scanLock)
+        {
+            // This is a fresh explicit choice after the caller's safety checks, not an ordinary repeat or rescan.
+            // A replaced device can reuse the same path (and size): do not inherit the previous reader or scan.
+            if (_sessions.TryRemove("device|" + device, out var previous)) previous.Dispose();
+            _deviceNames[device] = name;
+            if (volume is not null) _volumeDevices[device] = true;
+            if (length > 0) _deviceLengths[device] = length;
+            else _deviceLengths.TryRemove(device, out _);
+        }
         return new(Schemes.Recovery, string.Empty, new Location(Schemes.Device, device), volume?.ToString(CultureInfo.InvariantCulture));
     }
 

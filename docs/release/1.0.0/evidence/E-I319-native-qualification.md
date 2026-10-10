@@ -4,7 +4,7 @@
 
 The committed artifact passes all **six Ubuntu UID1000 controls**: case-distinct unchosen references cannot inherit admission or cached scans, separately chosen references open their own readers with the correct labels, and repeat/rescan preserves the same-source reader. The recording reader opens only one owned regular 32 KiB FAT12 fixture; complete bytes remain unchanged. No actual mapper/device or distinct-image content mixup is demonstrated.
 
-All **43 staged and 193 reused private runtime files** verify before/after, and a separate later postcheck rehashes them and independently finds no owned payload process, fixture or temporary root. No account, privilege, package, system-setting, workstation UI or VM-console changes. Original push **38068462762 attempt1** is collected separately; complete hosted qualification is not claimed here. Wider case-volume/source identity/races/lifetime, physical-source attribution and installed-candidate scopes remain; I106/I110 HOLD and explicit human GO remain.
+All **43 staged and 193 reused private runtime files** verify before/after, and a separate later postcheck rehashes them and independently finds no owned payload process, fixture or temporary root. No account, privilege, package, system-setting, workstation UI or VM-console changes. [Original push **38068462762 attempt1**](E-CI-recovery-source-case.md) is now independently sealed: four required lanes, 30,519 passes/1007 explicit skips and all sixteen applicable new controls passing at 7b73e2b. Wider case-volume/source identity/races/lifetime, physical-source attribution and installed-candidate scopes remain; I106/I110 HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 

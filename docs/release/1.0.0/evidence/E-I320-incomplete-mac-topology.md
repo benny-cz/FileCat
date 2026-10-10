@@ -10,7 +10,7 @@ All **18 final Windows controls pass** and all **25 final Mac controls pass**: e
 
 Independent postchecks verify all **86 qualified staged and 534 reused runtime pins**, no owned image attached, payload process, fixture or temporary root. The intermediate fixed artifact's additional 43 staged/267 runtime files and cleanup are also checked. The first fixed compile predates the final query-deduplication edit and supplies no final qualification. The next intermediate Windows/Mac runs still fail two empty-identifier controls; those original failures remain. Fresh v3 artifacts contain the complete correction. An initial reader compares tracked source against the intermediate root and fails; its source and observed failure remain, and the corrected reader verifies the final root. No assertion, skip or safety deadline is weakened.
 
-No sudo, UI, account, power or persistent system changes. Exact committed/original hosted follow-up, broader native adverse-query/topology races, I106/I110 physical-source HOLD and installed-candidate scope remain. Twenty broader unresolved statuses, all owner decisions and explicit human GO remain.
+No sudo, UI, account, power or persistent system changes. [Exact committed/native follow-up](E-I320-native-qualification.md) now passes at 399a829. Original hosted collection, broader native adverse-query/topology races, I106/I110 physical-source HOLD and installed-candidate scope remain. Twenty broader unresolved statuses, all owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 

@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**412 evidence entries; none is final candidate qualification.** No candidate exists.
+**415 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -423,6 +423,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I318 | Original committed Mac topology refresh CI | 55737cb /38066949468 attempt1 | Four lanes/27 digest archives/14 TRX; 30,503 passes/999 explicit skips; native Mac regression passes. | [Record](evidence/E-CI-mac-topology-refresh.md) | I106, I318, V09 |
 | E-I319-EXACT | Committed Unix source-case admission and cached scans | 7b73e2b /no overlays | 98 affected passes/29 exact skips; six Ubuntu passes; Windows two positives/four explicit Unix-only skips. | [Record](evidence/E-I319-native-qualification.md) | I106, I319, V09 |
 | E-I320 | Incomplete Mac topology query interpretation | 7b73e2b /declared query seam and product/test overlays | Twelve unsafe partial answers/two exceptions per platform become eighteen Windows/twenty-five Mac passes; 100 affected passes/34 exact skips. | [Record](evidence/E-I320-incomplete-mac-topology.md) | I106, I320, V09, V23 |
+| E-CI-I319 | Original committed recovery source-case CI | 7b73e2b /38068462762 attempt1 | Four lanes/27 digest archives/14 TRX; 30,519 passes/1007 explicit skips; all sixteen applicable controls pass. | [Record](evidence/E-CI-recovery-source-case.md) | I106, I319, V09 |
+| E-I320-EXACT | Committed incomplete Mac topology qualification | 399a829 /no overlays | Eighteen targeted/100 affected passes/34 exact skips; twenty-five Mac controls and independent restoration pass. | [Record](evidence/E-I320-native-qualification.md) | I106, I320, V09 |
+| E-I321 | Explicit recovery device reselection | 399a829 /declared source/test overlays | Five original failures/two positives become seven passes each on Windows/Ubuntu/Mac; 118 affected passes/34 exact skips. | [Record](evidence/E-I321-recovery-device-reselection.md) | I106, I321, V09, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 
