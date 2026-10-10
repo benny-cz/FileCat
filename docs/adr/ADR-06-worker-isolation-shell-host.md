@@ -60,7 +60,9 @@ ceiling across all viewers or a guarantee against native parser side effects.
 - **Linux and macOS:** the decoder uses `Process.Start` with redirected standard streams and diagnostics disabled.
   It inherits its parent's Unix UID, permissions and environment; the launch route does not lower privileges.
   There is no filesystem/network sandbox or Windows-style
-  job memory/child limit in this route. Cancellation and disposal kill and await the process. Process separation
+  job memory/child limit in this route. Cancellation and disposal request termination of its live process tree and await the worker process. I313
+  qualifies attached live-child cleanup; a root that already exited, detached/reparented descendants and full Unix
+  containment remain separate scopes. Process separation
   limits the immediate effect of a decoder crash, while compromised code retains its process's authority.
 
 [Current Windows controls](../release/1.0.0/evidence/E-I08-current-windows-worker-boundaries.md),

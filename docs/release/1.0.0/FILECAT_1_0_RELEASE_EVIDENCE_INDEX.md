@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**393 evidence entries; none is final candidate qualification.** No candidate exists.
+**394 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -404,6 +404,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I312 | Original committed worker CI | 4f9d500 /38051519281 attempt 1 | Four lanes/27 digest archives/14 TRX/31,258 rows; 30,266 passes/992 exact skips, all predecessor outcomes and restore/build receipts verify. | [Record](evidence/E-CI-worker-fallback.md) | I08, I312, V20, V23 |
 | E-I08-CLAIMS | Current worker documentation reconciliation | 4f9d500 /XML and ADR clarification | Native-Skia/Unix authority/Windows fallback claims corrected; executable source lines unchanged; containment policy/candidate remain open. | [Record](evidence/E-I08-worker-boundary-claims.md) | I08, I10, V10, V22, V23 |
 | E-ENV-ARTIFACTS-V | Verified physical artifact relocation | V: storage /E: compatibility junction | 675,279 files and every stream hash verified before checked original retirement; complete metadata, identity/security differences and failure log retained. | [Record](evidence/E-ENV-STORAGE-artifacts-relocation.md) | ENV, REP, V20 |
+| E-I313 | Unix decoder attached-child lifetime | 4f9d500 declared worker/test overlay | Two native orphan failures become eleven Ubuntu/Mac passes; 86 affected Windows passes/two explicit skips; staged/runtime/process/fixture restoration verifies. | [Record](evidence/E-I313-unix-worker-child-lifetime.md) | I08, I313, V10, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 
