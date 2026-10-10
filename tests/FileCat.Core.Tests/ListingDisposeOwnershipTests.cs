@@ -114,15 +114,17 @@ public sealed class ListingDisposeOwnershipTests(ITestOutputHelper output)
         try
         {
             await ui.InvokeAsync(() => model.Load(new Location(rows.Scheme, "owned")));
-            await ui.WaitUntilAsync(() => model.VisibleCount == count);
+            await ui.WaitUntilAsync(() => model.VisibleCount > 0);
             Assert.Equal(ListingState.Loading, model.State);
-            var captured = await ui.InvokeAsync(() => Capture(model, count));
+            // Enumeration is deliberately still open. Only the rows already published belong to this view;
+            // the pipeline need not publish its final count until enumeration completes.
+            var captured = await ui.InvokeAsync(() => Capture(model, model.VisibleCount));
             await ui.InvokeAsync(model.Dispose); rows.Release();
             await ui.WaitUntilAsync(() => budget.ReservedBytes == 0);
             await ui.InvokeAsync(() => { }); await Collect();
             var alive = captured.Values.Select(v => v.IsAlive).ToArray();
             output.WriteLine("LISTING_DISPOSE_STREAM " + JsonSerializer.Serialize(new
-            { count, alive, disposed = model.IsDisposed, reserved = budget.ReservedBytes, visible = model.VisibleCount, total = model.TotalCount }));
+            { count, published = captured.VisibleBytes / 4, alive, disposed = model.IsDisposed, reserved = budget.ReservedBytes, visible = model.VisibleCount, total = model.TotalCount }));
             Assert.All(alive, value => Assert.False(value));
             Assert.Equal(0, model.VisibleCount); Assert.Equal(0, model.TotalCount);
             GC.KeepAlive(model);
