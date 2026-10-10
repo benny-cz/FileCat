@@ -95,7 +95,8 @@ public static class RegistrySearchDialog
             if (query.Text.Length == 0 && pattern is null) { error.Text = "Enter text or raw bytes to find."; return; }
             if (!query.KeyNames && !query.ValueNames && !query.TypedData && pattern is null) { error.Text = "Choose at least one field."; return; }
             shown.Clear();
-            set = vm.Services.ResultSets.Create("Registry: " + (query.Text.Length > 0 ? query.Text : Convert.ToHexString(pattern!)),
+            // A search stays private until the user asks for a panel; retries and dismissed dialogs are not history.
+            set = new ResultSet(Guid.NewGuid().ToString("N")[..12], "Registry: " + (query.Text.Length > 0 ? query.Text : Convert.ToHexString(pattern!)),
                 $"Registry search below {vm.Services.Providers.Display(root)}");
             running = new CancellationTokenSource();
             start.IsEnabled = false;
@@ -153,7 +154,10 @@ public static class RegistrySearchDialog
             return new SearchDialogResult(SearchDialogOutcome.GoTo, set, selected.Item, running);
         }
         if (result as string == "show" && set is not null)
+        {
+            vm.Services.ResultSets.Adopt(set);
             return new SearchDialogResult(SearchDialogOutcome.ShowInPanel, set, null, running);
+        }
         running?.Cancel();
         return new SearchDialogResult(SearchDialogOutcome.Closed, null, null, null);
     }

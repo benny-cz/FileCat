@@ -185,7 +185,8 @@ public sealed class ResultSetProvider(ProviderRegistry providers, IFileSystemOpe
         return set;
     }
 
-    internal void Adopt(ResultSet set) => _sets[set.Id] = set;
+    /// <summary>Registers a private result set when it becomes a browsable location, preserving any streaming producer.</summary>
+    public void Adopt(ResultSet set) => _sets[set.Id] = set;
 
     internal void Forget(ResultSet set) => _sets.TryRemove(set.Id, out _);
 
