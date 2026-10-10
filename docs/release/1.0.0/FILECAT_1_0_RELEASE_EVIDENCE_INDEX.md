@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**406 evidence entries; none is final candidate qualification.** No candidate exists.
+**408 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -417,6 +417,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I315-I316 | Original committed remote ownership/readiness CI | 17035d5 /38063456193 attempt1 | Four lanes/27 digest archives/14 TRX; 30,438 passes/996 exact skips, 136 added controls pass. Earlier failure retained. | [Record](evidence/E-CI-remote-consumer-retirement.md) | I06, I108, I315, I316 |
 | E-I317-EXACT | Committed unknown network-source topology | 59d37cd /no overlays | 16 targeted/82 affected passes/29 exact skips, 16 Ubuntu native passes and independent restoration. | [Record](evidence/E-I317-native-qualification.md) | I106, I317, V09 |
 | E-I318 | Stale Mac recovery mount classification | 59d37cd /declared product/test overlays | Actual owned-image overlap failure corrected; known bytes, 98 affected passes/29 exact skips and independent restoration. | [Record](evidence/E-I318-mac-topology-refresh.md) | I106, I318, V09, V23 |
+| E-CI-I317 | Original committed unknown network-source CI | 59d37cd /38064990890 attempt1 | Four lanes/27 digest archives/14 TRX; 30,502 passes/996 exact skips; all 64 added controls pass. | [Record](evidence/E-CI-network-source-topology.md) | I106, I317, V09 |
+| E-I318-EXACT | Committed native Mac topology refresh | 55737cb /no overlays | 98 affected passes/29 exact skips; one native Mac pass with known bytes and independent restoration; Windows native-only skip recorded separately. | [Record](evidence/E-I318-native-qualification.md) | I106, I318, V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 

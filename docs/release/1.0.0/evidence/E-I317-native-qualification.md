@@ -4,7 +4,7 @@
 
 Ubuntu UID1000 passes all **16 exact native controls**. All **43 staged files and 193 reused runtime files** verify; independent postchecks find no owned payload process or fixture/temp root. The controls use synthetic owned sysfs/mount fixtures; no device/server is opened and no package, account, privilege or persistent setting changes.
 
-Original push CI **38064990890 attempt1** is collected separately. No complete hosted result is claimed here. Actual network export/backing relationships, broader I106 visibility/topology/adverse lifetime, physical attribution and installed-candidate scope remain; I106/I110 HOLD and explicit human GO remain.
+[Original push CI **38064990890 attempt1**](E-CI-network-source-topology.md) is now independently sealed: four required lanes, 30,502 passes/996 exact skips and all 64 added controls pass at 59d37cd. Actual network export/backing relationships, broader I106 visibility/topology/adverse lifetime, physical attribution and installed-candidate scope remain; I106/I110 HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 

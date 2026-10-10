@@ -10,7 +10,7 @@ All **98 affected Core/App recovery tests pass**, preserving every **127 predece
 
 Original fixture attempts remain failed: v1 uses an invalid blank-image type; v2 uses a source-only format option; v3/v4 try to hash an image while macOS holds it exclusively. All leave no owned image or fixture. V5 is the first valid product discovery; v6 uses the final permanent test without an unrelated mount-speed assertion. Its actual 379 ms switch establishes the original cache reproduction without imposing a release timing requirement. A separate independent postcheck first exceeds the Windows command-line limit locally, before SSH; v2 supplies the script through stdin and verifies restoration. No adverse record is relabelled.
 
-Qualification uses declared product/test overlays at 59d37cd. Exact committed/original hosted follow-up, wider topology/physical-source attribution and candidate scope remain. I106 is open and the physical-source HOLD and explicit human GO remain.
+Qualification uses declared product/test overlays at 59d37cd. [Exact committed/native follow-up](E-I318-native-qualification.md) now passes at 55737cb. Original hosted collection, wider topology/physical-source attribution and candidate scope remain. I106 is open and the physical-source HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 

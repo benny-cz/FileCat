@@ -8,7 +8,7 @@ The correction returns unknown for both source reads and writes with unresolved 
 
 Ubuntu UID1000 repeats the original **eight failures/eight positives** and then passes all **16 fixed controls**. All **86 staged pins and 386 reused private runtime pins** verify; both owned fixture/temp roots and payload processes are independently absent. The controls use actual production methods over owned synthetic topology; no source device or network server is opened, no package installed and no persistent setting changed. All owned source/controller files at archival time are additionally retained on V:.
 
-Qualification uses declared product/test overlays at 17035d5. [Exact committed/native qualification](E-I317-native-qualification.md) now passes at 59d37cd. Original hosted, actual export/backing relationships, broader visibility/alias/topology races and installed-candidate scope remain separate. I106 remains open. The I106/I110 physical-source HOLD, owner decisions and explicit human GO remain.
+Qualification uses declared product/test overlays at 17035d5. [Exact committed/native qualification](E-I317-native-qualification.md) now passes at 59d37cd. [Original hosted qualification](E-CI-network-source-topology.md) also passes at 59d37cd. Actual export/backing relationships, broader visibility/alias/topology races and installed-candidate scope remain separate. I106 remains open. The I106/I110 physical-source HOLD, owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 
