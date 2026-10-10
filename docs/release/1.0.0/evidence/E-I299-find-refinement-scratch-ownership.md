@@ -29,7 +29,7 @@ Private FileCatReleaseEvidence paths unless absolute. Nested records retain comp
 
 ## Exact committed follow-up
 
-No-overlay **d24a45784d9ccac17d5e9fbf3b7534da2cbda34e** verifies all **1386 canonical blobs** and passes all **eighteen controls**. Every private/exact outcome/message and ownership observation agrees, apart from owned root names; all nine retired scratch sets collect while all nine active-session controls retain their actual scratch. Source bytes/current displayed results/open-window usability remain healthy. Both validated overlays match canonical committed bytes with only Git line-ending normalization. One owned temporary file is archived/rechecked/removed; no locks remain. Original hosted and broader I06/candidate scope remain.
+No-overlay **d24a45784d9ccac17d5e9fbf3b7534da2cbda34e** verifies all **1386 canonical blobs** and passes all **eighteen controls**. Every private/exact outcome/message and ownership observation agrees, apart from owned root names; all nine retired scratch sets collect while all nine active-session controls retain their actual scratch. Source bytes/current displayed results/open-window usability remain healthy. Both validated overlays match canonical committed bytes with only Git line-ending normalization. One owned temporary file is archived/rechecked/removed; no locks remain. Original hosted qualification is now sealed below; broader I06/candidate scope remains.
 
 
 ## Selected immutable receipts
@@ -43,3 +43,8 @@ Private FileCatReleaseEvidence paths unless absolute. Nested records preserve ex
 | `E:/FileCat/artifacts/release-evidence/i299-committed-20261010-v1/committed/app-controls/command.json` | `1bf827368cbdb9d53a66d8cc66c8c779236b2c10d27f0b826e2ed6ea74301e53` |
 | `E:/FileCat/artifacts/release-evidence/i299-committed-20261010-v1/committed/inputs.json` | `7c3af9988dbb76d8711a3aba330c4f63a3d669420a04926347824279a2f1da5d` |
 | `E:/FileCat/artifacts/release-evidence/i299-committed-20261010-v1/committed/owned-temporary-files-v1.zip` | `82ba145b765ac1214d11dbc52df902da170af0e52b637a150ef0bcad577d358b` |
+
+
+## Original hosted qualification
+
+[Original 38009007512 attempt 1](E-CI-icon-find-ownership.md) passes all 72 added focused observations across four lanes, preserving every predecessor outcome/message and exact skip. Source, server-digest archives, restore and raw ownership observations are independently sealed; aggregate/native/reference/candidate scope remains.

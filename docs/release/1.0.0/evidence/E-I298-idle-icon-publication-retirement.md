@@ -47,7 +47,7 @@ Private FileCatReleaseEvidence paths unless absolute. Nested records retain comp
 
 ## Exact committed follow-up
 
-No-overlay **f506ad7a83a9dededb0e3809c0b2a419db515e3e** verifies all **1383 canonical blobs** and passes all **24 controls**. All focused private/exact ownership and borrower-usability observations agree; default headless pixel flags remain outside fidelity qualification. The separate actual Skia byte oracle/native Windows evidence above keeps its exact producer and scope. All three validated overlays match committed canonical bytes, allowing only Git line-ending normalization. Owned temporary files are archived/rechecked and unlocked files removed. Original hosted follow-up remains.
+No-overlay **f506ad7a83a9dededb0e3809c0b2a419db515e3e** verifies all **1383 canonical blobs** and passes all **24 controls**. All focused private/exact ownership and borrower-usability observations agree; default headless pixel flags remain outside fidelity qualification. The separate actual Skia byte oracle/native Windows evidence above keeps its exact producer and scope. All three validated overlays match committed canonical bytes, allowing only Git line-ending normalization. Owned temporary files are archived/rechecked and unlocked files removed. Original hosted follow-up is now sealed below.
 
 
 ## Selected immutable receipts
@@ -61,3 +61,8 @@ Private FileCatReleaseEvidence paths unless absolute. Nested records retain comp
 | `E:/FileCat/artifacts/release-evidence/i298-committed-20261010-v1/committed/app-controls/command.json` | `79d292ef2fedb90e43b38f38e03f181b832e22b5966a79693574340a5f84f758` |
 | `E:/FileCat/artifacts/release-evidence/i298-committed-20261010-v1/committed/inputs.json` | `5973391ceb0b35dc7b08dd7a29d456033bf5e6e7b2f3d705bcf47e1fc3fecc46` |
 | `E:/FileCat/artifacts/release-evidence/i298-committed-20261010-v1/committed/owned-temporary-files-v1.zip` | `4c5976a5b773b922c561debc4f2758ea51ff9b96b9c3ba1968f43dfb38916b1a` |
+
+
+## Original hosted qualification
+
+[Original 38007934919 attempt 1](E-CI-icon-find-ownership.md) passes all 96 added focused observations across four lanes, preserving every predecessor outcome/message and exact skip. Source, server-digest archives, restore and raw ownership observations are independently sealed; aggregate/native/reference/candidate scope remains.
