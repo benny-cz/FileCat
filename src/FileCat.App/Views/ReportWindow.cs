@@ -21,7 +21,7 @@ namespace FileCat.App.Views;
 /// </summary>
 public sealed class ReportWindow : Window
 {
-    private readonly Func<CancellationToken, Task<string>> _produce;
+    private Func<CancellationToken, Task<string>>? _produce;
     private readonly string _subject;
     private readonly string _kind;
     private readonly TextViewer _view = new() { Wrap = false, ReportStyle = true };
@@ -106,7 +106,13 @@ public sealed class ReportWindow : Window
             _closing.Cancel();
             _reading?.Cancel();
             _searching?.Cancel();
-            _reader?.Dispose();
+            var reader = _reader;
+            _reader = null;
+            _view.SetReader(null, new UTF8Encoding(false), 0);
+            _text = "";
+            Reading = null;
+            _produce = null;
+            reader?.Dispose();
         };
     }
 
@@ -128,6 +134,9 @@ public sealed class ReportWindow : Window
     private async Task ReadCoreAsync()
     {
         if (_closing.IsCancellationRequested) return;
+        // An active producer owns this snapshot until it returns, even if its window closes meanwhile.
+        var produce = _produce;
+        if (produce is null) return;
         _reading?.Cancel();
         _searching?.Cancel();
         using var cts = _reading = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
@@ -140,7 +149,7 @@ public sealed class ReportWindow : Window
             string text;
             try
             {
-                text = await Task.Run(() => _produce(ct), ct);
+                text = await Task.Run(() => produce(ct), ct);
             }
             catch (Exception) when (ct.IsCancellationRequested)
             {

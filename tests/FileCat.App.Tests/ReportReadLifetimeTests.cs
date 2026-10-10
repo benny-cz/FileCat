@@ -46,6 +46,7 @@ public sealed class ReportReadLifetimeTests
         });
         Task? oldWork = null;
         CancellationTokenSource? oldSource = null;
+        PagedReader? readerAtClose = null;
         try
         {
             window.Show();
@@ -57,7 +58,13 @@ public sealed class ReportReadLifetimeTests
                 await Read(window).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
                 Assert.Equal(second, window.Text);
             }
-            else if (action == "close") window.Close();
+            else if (action == "close")
+            {
+                readerAtClose = Field<PagedReader>(window, "_reader");
+                window.Close();
+                Assert.Null(Field<PagedReader?>(window, "_reader"));
+                Assert.Empty(window.Text);
+            }
             string textBeforeRelease = window.Text, statusBeforeRelease = window.StatusText;
             var readerBeforeRelease = Field<PagedReader>(window, "_reader");
             release.TrySetResult();
@@ -66,7 +73,7 @@ public sealed class ReportReadLifetimeTests
             bool disposed;
             try { _ = oldSource.Token; disposed = false; } catch (ObjectDisposedException) { disposed = true; }
             bool currentCleared = typeof(ReportWindow).GetField("_reading", Fields)!.GetValue(window) is null;
-            bool readerDisposed = (bool)typeof(PagedReader).GetField("_disposed", Fields)!.GetValue(readerAfterRelease)!;
+            bool readerDisposed = readerAfterRelease is not null && IsDisposed(readerAfterRelease);
             bool unchanged = firstHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(firstPath))) && secondHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(secondPath)));
             TestContext.Current.TestOutputHelper!.WriteLine(JsonSerializer.Serialize(new { action, productions, TextBeforeReleaseSHA256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(textBeforeRelease))), TextAfterReleaseSHA256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(window.Text))), statusBeforeRelease, StatusAfterRelease = window.StatusText, SameReaderAfterRelease = ReferenceEquals(readerBeforeRelease, readerAfterRelease), ReaderAfterReleaseDisposed = readerDisposed, OldSourceDisposed = disposed, CurrentReadCleared = currentCleared, OwnedContentUnchanged = unchanged, HeadlessCompleteReportWindow = true }));
             Assert.True(unchanged);
@@ -77,7 +84,12 @@ public sealed class ReportReadLifetimeTests
                 Assert.Same(readerBeforeRelease, readerAfterRelease);
             }
             else Assert.Equal(first, window.Text);
-            if (action == "close") Assert.True(readerDisposed);
+            if (action == "close")
+            {
+                Assert.Null(readerAfterRelease);
+                Assert.NotNull(readerAtClose);
+                Assert.True(IsDisposed(readerAtClose));
+            }
             Assert.True(disposed);
             Assert.True(currentCleared);
         }
@@ -87,7 +99,7 @@ public sealed class ReportReadLifetimeTests
             if (oldWork is not null) await oldWork.WaitAsync(TimeSpan.FromSeconds(10));
             window.Close();
             // Dispose a late reader recreated by the faulty original after closure, so the fixture leaves no budget charge.
-            Field<PagedReader>(window, "_reader").Dispose();
+            Field<PagedReader?>(window, "_reader")?.Dispose();
             oldSource?.Dispose();
             (typeof(ReportWindow).GetField("_reading", Fields)!.GetValue(window) as CancellationTokenSource)?.Dispose();
             Assert.Equal(temp.TrimEnd(Path.DirectorySeparatorChar), Path.GetDirectoryName(Path.GetFullPath(root)));
@@ -124,6 +136,7 @@ public sealed class ReportReadLifetimeTests
     }
 
     private static Task Read(ReportWindow window) => (Task)typeof(ReportWindow).GetMethod("ReadAsync", Fields)!.Invoke(window, [])!;
+    private static bool IsDisposed(PagedReader reader) => (bool)typeof(PagedReader).GetField("_disposed", Fields)!.GetValue(reader)!;
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, Fields)!.GetValue(owner)!;
 }
 

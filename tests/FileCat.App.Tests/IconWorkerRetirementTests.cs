@@ -63,6 +63,27 @@ public sealed class IconWorkerRetirementTests
         GC.KeepAlive(worker);
     }
 
+    [AvaloniaTheory]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    public async Task An_initial_empty_request_wait_is_not_idle_after_publication(int size)
+    {
+        using var worker = new Worker(asynchronous: true, size, queueImmediately: false);
+        await worker.InitialEmptyWait.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        bool prematureIdle = worker.IdleAfterPublication;
+        TestContext.Current.TestOutputHelper?.WriteLine("ICON_IDLE_READINESS " + JsonSerializer.Serialize(new { size, completed = worker.Completed, prematureIdle, deliberatelyEmptyInitialRead = true }));
+        Assert.Equal(0, worker.Completed);
+        Assert.False(prematureIdle);
+        worker.Enqueue();
+        await worker.WaitForIdle();
+        Assert.Equal(1, worker.Completed);
+        Assert.True(worker.IdleAfterPublication);
+        worker.Retire("clear");
+        Collect();
+        Assert.False(Alive(worker.Image!));
+    }
+
     private sealed class Borrower { internal IImage? Image; }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -116,24 +137,27 @@ public sealed class IconWorkerRetirementTests
         private readonly CancellationTokenSource _stop = new();
         private readonly TaskCompletionSource _published = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _initialEmptyWait = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly Thread? _thread;
         private readonly IconRequestCache? _sync;
         private readonly AsyncIconRequestCache<IImage>? _async;
         private readonly int _size;
         private readonly TaskCompletionSource _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal Task Done => _done.Task;
+        internal Task InitialEmptyWait => _initialEmptyWait.Task;
+        internal bool IdleAfterPublication => _idle.Task.IsCompletedSuccessfully;
         internal WeakReference<IImage>? Image;
         internal int Completed;
         internal Func<int> Count;
         internal Func<int> Queued;
 
-        internal Worker(bool asynchronous, int size)
+        internal Worker(bool asynchronous, int size, bool queueImmediately = true)
         {
             _size = size;
             if (asynchronous)
             {
                 _async = new AsyncIconRequestCache<IImage>(image => (image as IDisposable)?.Dispose(), capacity: 1, queueCapacity: 2);
-                _async.Get((size, "owned"), () => Task.FromResult(NewImage(size)));
+                if (queueImmediately) Enqueue();
                 Count = () => _async.Count;
                 Queued = () => _async.QueuedCount;
                 _ = Task.Run(RunAsync);
@@ -148,6 +172,8 @@ public sealed class IconWorkerRetirementTests
                 _thread.Start();
             }
         }
+
+        internal void Enqueue() => _async!.Get((_size, "owned"), () => Task.FromResult(NewImage(_size)));
 
         internal async Task WaitForIdle()
         {
@@ -206,7 +232,11 @@ public sealed class IconWorkerRetirementTests
                 while (true)
                 {
                     var next = reader.MoveNextAsync();
-                    if (!next.IsCompleted) _idle.TrySetResult();
+                    if (!next.IsCompleted)
+                    {
+                        if (Volatile.Read(ref Completed) > 0) _idle.TrySetResult();
+                        else _initialEmptyWait.TrySetResult();
+                    }
                     if (!await next) break;
                     await LoadAndPublish(reader.Current);
                     Interlocked.Increment(ref Completed);

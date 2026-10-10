@@ -18,7 +18,7 @@ Earlier fixture attempts remain immutable: the first stops on a test-only ambigu
 
 ## Limits and next work
 
-This is headless interaction with real native Registry data, without workstation UI or a foreground VM console. Searches complete before the fifteen controls publish or dismiss; publication during an active worker and native-window input remain follow-up scope. Exact committed/hosted/native follow-up is pending at this record. Wider I06 aggregate/provider/native/reference/human/candidate work remains open. Physical-source I106/I110 HOLD, owner/freeze/candidate gates and explicit human GO are unchanged.
+This is headless interaction with real native Registry data, without workstation UI or a foreground VM console. Searches complete before the original fifteen controls publish or dismiss. [Committed/native follow-up](E-I303-native-registry-search.md) adds all fifteen exact committed passes and 21 native guest passes, including queued publication/cancellation; [original hosted CI](E-CI-registry-search-ownership.md) checks all four required lanes. Physical native-input acceptance remains separate. Wider I06 aggregate/provider/native/reference/human/candidate work remains open. Physical-source I106/I110 HOLD, owner/freeze/candidate gates and explicit human GO are unchanged.
 
 ## Selected immutable receipts
 
