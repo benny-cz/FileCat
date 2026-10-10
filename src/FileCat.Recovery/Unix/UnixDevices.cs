@@ -621,25 +621,49 @@ public static class UnixDisks
 
     /// <summary>macOS: the whole disks under a device or a mounted volume (<paramref name="target"/>), from diskutil.</summary>
     private static IReadOnlyList<string>? MacWholeDisks(string target, bool written, int depth)
+        => MacWholeDisks(target, written,
+            name => Run("/usr/sbin/diskutil", "info", "-plist", name),
+            whole => ImageFileOf("/dev/" + whole) is { } image ? MacDisksOf(image, device: false, depth + 1) : null);
+
+    /// <summary>Resolve every backing member; incomplete replies cannot establish an independent disk.</summary>
+    internal static IReadOnlyList<string>? MacWholeDisks(string target, bool written,
+        Func<string, string> diskInfo, Func<string, IReadOnlyList<string>?> imageDisks)
     {
-        if (Plist(Run("/usr/sbin/diskutil", "info", "-plist", target)) is not Dictionary<string, object?> info) return null;
+        if (Plist(diskInfo(target)) is not Dictionary<string, object?> info) return null;
         List<string> wholes;
-        if (info.GetValueOrDefault("APFSPhysicalStores") is List<object?> stores)
-            wholes = stores.OfType<Dictionary<string, object?>>().Select(s => WholeDisk(s.GetValueOrDefault("APFSPhysicalStore") as string)).OfType<string>().Distinct().ToList();
-        else if (info.GetValueOrDefault("ParentWholeDisk") is string whole) wholes = [whole];
+        if (info.TryGetValue("APFSPhysicalStores", out var value))
+        {
+            if (value is not List<object?> stores) return null;
+            wholes = [];
+            foreach (var store in stores)
+            {
+                // Dropping an unavailable member would turn a partial answer into proof of another disk.
+                if (store is not Dictionary<string, object?> member ||
+                    WholeDisk(member.GetValueOrDefault("APFSPhysicalStore") as string) is not { Length: > 0 } disk) return null;
+                wholes.Add(disk);
+            }
+        }
+        else if (info.GetValueOrDefault("ParentWholeDisk") is string { Length: > 0 } whole) wholes = [whole];
         else return null;
         if (wholes.Count == 0) return null;
         var disks = new List<string>();
-        foreach (var whole in wholes)
+        foreach (var whole in wholes.Distinct())
         {
-            var wholeInfo = written ? Plist(Run("/usr/sbin/diskutil", "info", "-plist", whole)) as Dictionary<string, object?> : null;
-            if (!written || wholeInfo?.GetValueOrDefault("BusProtocol") as string != "Disk Image")
+            if (!written)
+            {
+                disks.Add(whole);
+                continue;
+            }
+            // A missing reply can be a disappearing image disk. It does not prove physical backing.
+            if (Plist(diskInfo(whole)) is not Dictionary<string, object?> wholeInfo ||
+                wholeInfo.GetValueOrDefault("BusProtocol") is not string bus || string.IsNullOrWhiteSpace(bus)) return null;
+            if (bus != "Disk Image")
             {
                 disks.Add(whole);
                 continue;
             }
             // An attached disk image is itself, stored in its image file, wherever that is.
-            if (ImageFileOf("/dev/" + whole) is not { } image || MacDisksOf(image, device: false, depth + 1) is not { } under) return null;
+            if (imageDisks(whole) is not { } under) return null;
             disks.Add(whole);
             disks.AddRange(under);
         }
@@ -674,7 +698,7 @@ public static class UnixDisks
     /// <summary>"disk0" of "disk0s2".</summary>
     private static string? WholeDisk(string? identifier)
     {
-        if (identifier is null) return null;
+        if (identifier is null || identifier.Length < 5) return null;
         int s = identifier.IndexOf('s', 4);
         return s > 0 ? identifier[..s] : identifier;
     }

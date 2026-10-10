@@ -6,7 +6,7 @@ The committed Core artifact passes the permanent mount-replacement regression on
 
 All **43 staged and 267 reused private runtime files** verify before/after. A separate later postcheck rehashes them and independently finds no owned image attached, payload process, fixture or temporary root. No sudo, UI, account, power or persistent system changes. Owned retained test payload/results remain available for the campaign's final restoration.
 
-Original push **38066949468 attempt1** at 55737cb is being collected in the background; complete hosted qualification is not claimed here. Wider concurrent topology races, physical-source attribution and installed-candidate scope remain. Twenty broader unresolved issues, I106/I110 physical-source HOLD and explicit human GO remain.
+[Original push **38066949468 attempt1**](E-CI-mac-topology-refresh.md) is now independently sealed: four required lanes, 30,503 passes/999 explicit skips, with the actual native Mac regression passing at 55737cb. Wider concurrent topology races, physical-source attribution and installed-candidate scope remain. Twenty broader unresolved issues, I106/I110 physical-source HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 

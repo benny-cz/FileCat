@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**409 evidence entries; none is final candidate qualification.** No candidate exists.
+**412 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -420,6 +420,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I317 | Original committed unknown network-source CI | 59d37cd /38064990890 attempt1 | Four lanes/27 digest archives/14 TRX; 30,502 passes/996 exact skips; all 64 added controls pass. | [Record](evidence/E-CI-network-source-topology.md) | I106, I317, V09 |
 | E-I318-EXACT | Committed native Mac topology refresh | 55737cb /no overlays | 98 affected passes/29 exact skips; one native Mac pass with known bytes and independent restoration; Windows native-only skip recorded separately. | [Record](evidence/E-I318-native-qualification.md) | I106, I318, V09 |
 | E-I319 | Case-distinct Unix recovery admission and cached sources | 55737cb /declared product/test overlays | Four original failures/two positives become six Ubuntu passes; 98 affected passes/29 exact skips; two Windows positives/four explicit Unix-only skips. | [Record](evidence/E-I319-recovery-source-case.md) | I106, I319, V09, V23 |
+| E-CI-I318 | Original committed Mac topology refresh CI | 55737cb /38066949468 attempt1 | Four lanes/27 digest archives/14 TRX; 30,503 passes/999 explicit skips; native Mac regression passes. | [Record](evidence/E-CI-mac-topology-refresh.md) | I106, I318, V09 |
+| E-I319-EXACT | Committed Unix source-case admission and cached scans | 7b73e2b /no overlays | 98 affected passes/29 exact skips; six Ubuntu passes; Windows two positives/four explicit Unix-only skips. | [Record](evidence/E-I319-native-qualification.md) | I106, I319, V09 |
+| E-I320 | Incomplete Mac topology query interpretation | 7b73e2b /declared query seam and product/test overlays | Twelve unsafe partial answers/two exceptions per platform become eighteen Windows/twenty-five Mac passes; 100 affected passes/34 exact skips. | [Record](evidence/E-I320-incomplete-mac-topology.md) | I106, I320, V09, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 

@@ -10,7 +10,7 @@ All **six native Ubuntu controls pass** on the corrected artifact: unchosen name
 
 All **98 affected Core/App recovery tests pass**, preserving the same **29 exact affected skips**. Windows runs **two healthy same-source controls** and records **four explicit Unix-only skips** separately; those skips supply no Unix acceptance. Every **133 predecessor outcome/message/skip** across these controlled Windows/affected comparisons remains. The first private baseline compilation fails on a missing test namespace (`CS0246`) before any test; the raw failure remains and the corrected fixture is built in fresh v2 roots. Source qualification verifies all **1465 canonical raw Git blobs** and declared overlays; the subsequent parent 68d78a3 changes documentation only, with identical pre-fix product bytes.
 
-Six permanent regression controls accompany the correction. Exact committed/original hosted, broader source identity/case-volume/race/lifetime and installed-candidate follow-up remain. I106 is open; I106/I110 physical-source HOLD, all owner decisions and explicit human GO remain.
+Six permanent regression controls accompany the correction. [Exact committed/local/Ubuntu follow-up](E-I319-native-qualification.md) passes at 7b73e2b. Original hosted, broader source identity/case-volume/race/lifetime and installed-candidate follow-up remain. I106 is open; I106/I110 physical-source HOLD, all owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 
