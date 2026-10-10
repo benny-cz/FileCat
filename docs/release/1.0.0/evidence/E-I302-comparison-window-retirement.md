@@ -1,6 +1,6 @@
 # E-I302 — comparison window and recycled-row retirement
 
-2026-10-10 CEST. I06/V12/V13 preliminary scope, producer **534187f3f2139f1ec7b736805bcb9932aa884c6f**. Nine independently checked exports each contain all **1397 canonical Git blobs**. Final validation declares **four App product overlays and three regression fixtures**; lockfiles and dependencies are unchanged. Exact committed, affected native and original hosted follow-up remain.
+2026-10-10 CEST. I06/V12/V13 preliminary scope, producer **534187f3f2139f1ec7b736805bcb9932aa884c6f**. Nine independently checked exports each contain all **1397 canonical Git blobs**. Final validation declares **four App product overlays and three regression fixtures**; lockfiles and dependencies are unchanged. Committed **91eb3443ee8b5aa6c0222a5a5ac01bfe8d49843f** follow-up independently verifies all **1402 raw canonical blobs**, 128 affected passes, three-platform native controls and original four-lane hosted results below.
 
 ## Finding and correction
 
@@ -16,9 +16,17 @@ Final **36 focused controls pass**, and the same unchanged payload passes **full
 
 The bounded diagnostic walks private fields read-only to identify paths. Production cleanup uses public APIs only. The first standalone diagnostic cannot load its native HarfBuzz dependency; its retry uses the exact tested native DLL. Later diagnostic v5 still has a live entry even though its bounded search finds no path; it is not a pass. A deeper v6 walk identifies the retired checkbox closure. The separate filter probe identifies the actual virtualizing-panel recycle pool. These are qualified reference-path observations rather than a complete heap census.
 
+## Committed follow-up
+
+The exact committed export has no source overlays. All **128 affected comparison regressions pass**, preserving every corresponding full-suite outcome/message; the 36 new controls retain the same 69 weak-reference retirement observations. The owned SDK temporary log is archived, checked unlocked and removed.
+
+[Native follow-up](E-I302-native-comparison-retirement.md) passes **90 final checks /126 compositor completions** across Windows, Ubuntu and Apple Silicon Mac. Three early fixed-product checks fail until the observer's strong `Items` read and close are isolated in a separate non-inlined method; product binaries, assertions and collection rounds stay unchanged. Three baseline repeats retain their same 18 failures. Every early failure, bounded search and qualified heap-reader limitation remains.
+
+[Original hosted CI](E-CI-comparison-retirement.md) passes all four lanes: **29,782 passes /962 explicit skips**, including all 144 added ownership controls. Every 30,600 predecessor outcome/message/exact skip remains independently matched.
+
 ## Remaining scope
 
-This is synthetic, headless managed ownership and interaction evidence. It does not qualify native allocation peaks, OS presentation/input, all consumers, reference hardware, people or an exact candidate. Seven current source/test files match the final validated overlays. No workstation UI, physical source, support/freeze/publication gate or system setting changes. The prior six native main-window/QuickView/F3 cases and corrected four-lane CI retain their separate **7bdaa89** product identity. I06 remains open for wider aggregate/provider and required platform/reference/human/candidate work; I106/I110 HOLD and explicit human GO remain.
+Initial controls are synthetic, headless managed ownership and interaction evidence; the separately sealed follow-up also uses real native guest/Mac windows. It does not qualify native allocation peaks, OS presentation/input, all consumers, reference hardware, people or an exact candidate. Seven current source/test files match the final validated overlays. No workstation UI, physical source, support/freeze/publication gate or system setting changes. The prior six native main-window/QuickView/F3 cases and corrected four-lane CI retain their separate **7bdaa89** product identity. I06 remains open for wider aggregate/provider and required platform/reference/human/candidate work; I106/I110 HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 
@@ -63,3 +71,8 @@ Paths are relative to private FileCatReleaseEvidence unless absolute. Nested rec
 | `E:/FileCat/artifacts/release-evidence/i06-compare-retirement-20261010-v1/run-batch-v4.py` | `be4a6c3e1b550475861128d4d6bf7186f6d45781852193678620fee7f6cfabfa` |
 | `E:/FileCat/artifacts/release-evidence/i06-compare-retirement-20261010-v1/run-batch-v5.py` | `803ee6b4da2015633a83cbbe7426fe567a280c4be63db464b225943c6ea2790e` |
 | `E:/FileCat/artifacts/release-evidence/i06-compare-retirement-20261010-v1/run-batch-v6.py` | `3bf33ca45fc9fb443bd363a4c044223e67f936a903e8708c0f2d87689958f881` |
+| `i302-committed-20261010-v1/independent-exact-final-v1.json` | `f89ee41f2f373babbce138791aa1fea7bab404036321929a3d39e53fae67bc3c` |
+| `E:/FileCat/artifacts/release-evidence/i302-committed-20261010-v1/committed/inputs.json` | `71c77bb8f296f6d89b7c64ef78ba50b4b8bbde69a7010a95a5c4784a78ff64a0` |
+| `E:/FileCat/artifacts/release-evidence/i302-committed-20261010-v1/committed/app-controls/command.json` | `663b4b04ae969d00ee14dbff29a806dd0ee161a6a24be172506d5b2fccf24a29` |
+| `E:/FileCat/artifacts/release-evidence/i302-committed-20261010-v1/seal.py` | `267140a4db12415c8d509f3f07c118e436d74b262cb1fa4028b56565e09e310c` |
+| `i302-committed-20261010-v1/owned-restoration-v1.json` | `c143663f5270525ddb5d6c29b5405169f3228258a3df553cb2a6e24f1f9a187a` |
