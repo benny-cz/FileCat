@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**363 evidence entries; none is final candidate qualification.** No candidate exists.
+**366 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -374,6 +374,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I303-NATIVE | Committed Registry search and active publication | 555d6da exact; 0b20087 baseline | Fifteen exact passes; native baseline 15 failures/six positives becomes 21 passes/84 compositor completions; all 42 owned keys removed. | [Record](evidence/E-I303-native-registry-search.md) | I06, I303, V12, V13 |
 | E-CI-REGISTRY | Original committed Registry search CI | 555d6da /38027636988 attempt 1 | Four lanes/27 digest archives/14 TRX/30,804 rows; 29,812 passes/992 explicit skips; all predecessor records retained. | [Record](evidence/E-CI-registry-search-ownership.md) | I06, I303, V01, V13 |
 | E-I304 | Closed report-window ownership and icon fixture readiness | 555d6da canonical; one product/four fixtures | Six original ownership and three readiness failures corrected; 51 affected passes, full App 1532 passes/25 exact skips; original four full-suite failures retained. | [Record](evidence/E-I304-report-window-retirement.md) | I06, I304, I305, V12, V13 |
+| E-I304-NATIVE | Committed report-window retirement across three native platforms | af399bd exact; 555d6da baseline | 51 exact passes; native baseline six failures/three positives becomes 27 Windows/Ubuntu/Mac passes/27 compositor completions; temporary Mac agent/awake assertion removed. | [Record](evidence/E-I304-native-report-retirement.md) | I06, I304, I305, V12, V13 |
+| E-CI-REPORT | Original committed report ownership/readiness CI | af399bd /38030165520 attempt 1 | Four lanes/27 digest archives/14 TRX/30,852 rows; 29,860 passes/992 explicit skips; all predecessor records and all 48 added passes verify. | [Record](evidence/E-CI-report-retirement.md) | I06, I304, I305, V01, V13 |
+| E-I306 | Closed Find-window private ownership | af399bd canonical; one product/one fixture | Fifteen original closure failures/fifteen live positives become thirty passes; 99 Find/full App 1562 passes/25 exact skips; native unchanged baseline confirms all original failures. | [Record](evidence/E-I306-find-window-retirement.md) | I06, I306, V12, V13 |
 
 
 <a id="commits-made-by-the-campaign"></a>

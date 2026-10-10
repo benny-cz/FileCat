@@ -96,8 +96,7 @@ public sealed class FindWindow : Window, IViewActions
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
     // Searching within a result set (Find in a panel that shows one): its items are the scope.
-    private readonly ResultSet? _withinSet;
-    private readonly IReadOnlyList<(ItemRef Item, string Relative)>? _within;
+    private IReadOnlyList<(ItemRef Item, string Relative)>? _within;
 
     private ResultSet? _set;           // the found items
     private ResultSet? _refineScratch; // a refining search's own matches
@@ -132,7 +131,6 @@ public sealed class FindWindow : Window, IViewActions
         _vm = vm;
         _services = vm.Services;
         _panel = new PanelViewModel(vm.Workspace, vm.Services);
-        _withinSet = within;
         _within = within?.Snapshot();
         Title = within is null ? "Find files" : "Find within results";
         Width = 1040; Height = 720; MinWidth = 640; MinHeight = 420;
@@ -213,6 +211,11 @@ public sealed class FindWindow : Window, IViewActions
             _timer.Stop();
             Stop();
             _tab?.Dispose();
+            // Published results belong to the session provider; these private indexes belong to this window.
+            _within = null;
+            _groups = [];
+            _refineScratch = null;
+            _session = null;
         };
     }
 
@@ -598,6 +601,7 @@ public sealed class FindWindow : Window, IViewActions
     /// </summary>
     internal void StartSearch(RefineMode mode, DuplicateCriteria? duplicates = null)
     {
+        if (_closed) return;
         ShowError(null);
         if (mode != RefineMode.Replace && _set is null) mode = RefineMode.Replace;
         var criteria = Criteria;

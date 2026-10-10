@@ -20,7 +20,7 @@ The combined **51 affected controls pass**. Its runner initially expected 75 rat
 
 ## Limits and next work
 
-These controls use actual headless report windows and managed ownership, with synthetic data. They do not establish native-input, process peaks or total memory ceilings. Exact committed/hosted and affected native follow-up remains pending for I304/I305 at this record. Broader I06 qualification remains open. Physical-source I106/I110 HOLD, owner/freeze/candidate decisions and explicit human GO are unchanged.
+These controls use actual headless report windows and managed ownership, with synthetic data. They do not establish native-input, process peaks or total memory ceilings. [Exact committed/native follow-up](E-I304-native-report-retirement.md) and [original hosted CI](E-CI-report-retirement.md) are sealed: 51 exact passes, 27 three-platform native passes and all 48 added hosted records pass. The default-headless pixel flags remain explicitly unqualified. Broader I06 qualification remains open. Physical-source I106/I110 HOLD, owner/freeze/candidate decisions and explicit human GO are unchanged.
 
 ## Selected immutable receipts
 
