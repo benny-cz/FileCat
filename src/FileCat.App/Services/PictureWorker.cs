@@ -38,6 +38,7 @@ internal static class PictureWorker
         using var output = Console.OpenStandardOutput();
         try
         {
+            LinuxPictureProcessPolicy.Apply();
             int maxSide = args.Length > 1 && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int wanted) ? Math.Clamp(wanted, MinSide, MaxSide) : 2048;
             using var input = Console.OpenStandardInput();
             var bytes = ReadAll(input);

@@ -23,7 +23,8 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// normally starts with low integrity and a job that caps its memory and child count. A failed low-integrity start
 /// can fall back only under a positively queried process token at most medium integrity; other parents refuse.
 /// On Unix it inherits the parent's permissions without dropping its UID, an OS filesystem/network sandbox or job
-/// memory limit. A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
+/// memory limit. Linux x64 also restricts direct process creation on every worker thread before consuming input.
+/// A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
 /// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
 /// </summary>
 public static class PictureDecoder

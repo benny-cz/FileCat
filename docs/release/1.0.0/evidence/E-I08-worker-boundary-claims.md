@@ -4,6 +4,8 @@
 
 [ADR-06](../../../adr/ADR-06-worker-isolation-shell-host.md) now describes the actual Windows token/job/fallback states, picture admission/deadline/field bounds, and inherited Unix process permissions without a filesystem/network sandbox or Windows-style job memory/child limits. Stream protocol, process separation and crash handling are distinguished from worker authority. Four C# files receive XML-comment corrections only; an independent raw Git comparison verifies every executable source line unchanged. Original and corrected bytes remain pinned. No new runtime observation, sandbox certification or collective archive/inspector/recovery acceptance is invented.
 
+[Subsequent I332](E-I332-linux-picture-process-policy.md) restricts direct Linux x64 worker process creation before input at its separate overlay producer; healthy decoding, all-thread state and installation-failure refusal are independently observed. Mac/ARM64 and broader authority remain. The following conclusion retains the earlier wording-only scope.
+
 This closes the specific obsolete wording within I08/I10; **I08 stays open** for Unix remediation or an approved threat-model/scope decision, broader permissions/lifetime/parser integration and installed-candidate qualification. Existing Windows/Unix/I312 observations retain their own exact producers. No owner risk acceptance, contract freeze or publication decision changes.
 
 ## Selected immutable receipts

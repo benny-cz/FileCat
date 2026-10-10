@@ -6,7 +6,7 @@ All **28 exact local controls** and **28 each under native Windows guest medium/
 
 All **992 predecessor outcomes/messages and 25 exact skips** remain unchanged: **928 Core passes/24 skips**, **39 Windows helper passes/one skip**. All 28 overlay-built control outcomes are preserved in this fresh committed-source run. Independent postchecks rehash **104 staged/386 runtime files**, confirm native identities, and find no owned payload process or temporary tree. No test command fails in this exact run; original v1/v2 findings, implementation failures and document-audit failures stay at their original producers.
 
-Original hosted [run 38091306562 attempt1](https://github.com/benny-cz/FileCat/actions/runs/38091306562) is collecting separately at 2de33a0. [The previous fully qualified green I329 run](E-CI-held-unix-source-path.md) remains tied to c14fb21; it does not qualify this source. No pending CI result is accepted.
+[Original hosted qualification](E-CI-held-windows-source-topology.md) is now independently sealed at 2de33a0:four required lanes, 27 digest archives/fourteen TRX/31976 records; 30959 passes/1017 exact skips/zero failures. All 56 additions pass and every 31920 predecessor outcome/message remains. The earlier collecting state is retained in the activity history; pending results were not accepted.
 
 Windows disk-number reuse/removal, atomic path/topology races, broader visibility and actual native broken-pipe/kernel lifetime cases remain. I106/I110 physical-source HOLD, all owner/contract/candidate decisions and explicit human GO remain. No freeze, candidate, stable publication or whole I06/I106 closure is claimed.
 

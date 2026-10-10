@@ -59,11 +59,16 @@ ceiling across all viewers or a guarantee against native parser side effects.
   network isolation.
 - **Linux and macOS:** the decoder uses `Process.Start` with redirected standard streams and diagnostics disabled.
   It inherits its parent's Unix UID, permissions and environment; the launch route does not lower privileges.
-  There is no filesystem/network sandbox or Windows-style
-  job memory/child limit in this route. Cancellation and disposal request termination of its live process tree and await the worker process. I313
-  qualifies attached live-child cleanup; a root that already exited, detached/reparented descendants and full Unix
-  containment remain separate scopes. Process separation
-  limits the immediate effect of a decoder crash, while compromised code retains its process's authority.
+  **Linux x64** applies an all-thread seccomp process-creation filter before reading encoded input or entering native
+  decoding. It refuses direct fork/vfork/exec calls and non-thread clone; clone3 returns ENOSYS so libc can create
+  ordinary runtime threads through the checked clone path. Failure to install the whole filter refuses decoding.
+  I332 observes the real worker's kernel state, complete healthy pixels, production-policy process/exec refusal,
+  healthy threads and input left unread on forced installation failure. This is not a filesystem/network sandbox,
+  a memory ceiling, a UID drop or containment of indirect influence through other processes. **Linux ARM64 and macOS**
+  retain their existing policy; an observed deprecated/unsupported Mac C API is not shipped from a feasibility probe.
+  Cancellation and disposal request termination of the live process tree and await the worker. I313 qualifies
+  attached live-child cleanup; exited roots, parent death, detached/reparented descendants and broader Unix
+  containment remain separate scopes. Process separation limits the immediate effect of a decoder crash.
 
 [Current Windows controls](../release/1.0.0/evidence/E-I08-current-windows-worker-boundaries.md),
 [ordinary-user Unix controls](../release/1.0.0/evidence/E-I08-current-unix-worker-boundaries.md) and
