@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**372 evidence entries; none is final candidate qualification.** No candidate exists.
+**374 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -381,8 +381,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-FIND | Original committed Find ownership CI | 0aec7a7 /38032069975 attempt 1 | Three lanes pass; Windows x64 Git fixture fails. 26 archives/14 TRX/30,972 rows; 29,979 passes/992 skips/one failure. All 120 new Find records pass. | [Record](evidence/E-CI-find-retirement.md) | I06, I306, V01, V13 |
 | E-I06-CURRENT-COMPOSE | Current page/archive/listing composition | 0aec7a7 /one unchanged private fixture | Both 13/48-reader and four/twelve-listing profiles pass; full large-member bytes/16 archive hashes verify, zero final tracked charges/scratch and two owned fixture roots removed. | [Record](evidence/E-I06-current-composition.md) | I06, V12, V13, V16 |
 | E-I06-NATIVE-RECHECK | Current native four-panel/QuickView/F3 composition | 0aec7a7 /unchanged 7bdaa89 observers | Six Windows/Ubuntu/Mac profiles pass, 420 compositor completions/96 listing-owner retirements; all encoded-pixel oracles, process/runtime bytes and temporary job/awake restoration verify. | [Record](evidence/E-I06-current-native-composition.md) | I06, V12, V13, V16 |
-| E-I307 | Git fixture setup deadline, cancellation and diagnostics | 0aec7a7 /test-only overlay | Old eleven-second success is rejected; twenty fixed GitLazy controls/all affected Git/full App 1569 passes/25 exact skips retain every predecessor. Original CI and initial compiler failures preserved. | [Record](evidence/E-I307-git-fixture-command-lifetime.md) | I307, V01, V13 |
+| E-I307 | Git fixture setup deadline, cancellation and diagnostics | 0aec7a7 overlay; exact 069f772 | Old eleven-second success is rejected; twenty fixed GitLazy controls/all affected Git/full App 1569 passes/25 exact skips retain every predecessor. 150 exact affected passes/one exact skip and four-lane hosted follow-up sealed. Original CI and initial compiler failures preserved. | [Record](evidence/E-I307-git-fixture-command-lifetime.md) | I307, V01, V13 |
 | E-I08-UNIX | Actual Unix decoder identities and finite wrapper authority | 0aec7a7 /Ubuntu UID 1000/Mac UID 501 | Ten observations: eight real decoder PIDs/EOF/kill/dispose and two same-wrapper owned file/child/loopback controls; runtime bytes, cleanup and Mac restoration verify. No whole sandbox or I08 closure. | [Record](evidence/E-I08-UNIX-worker-boundaries.md) | I08, V23, V24 |
+| E-CI-GIT-FIXTURE | Original committed Git/icon fixture CI | 069f772 /38035996799 attempt 1 | Four lanes, 27 digest archives, 14 TRX, 31,000 rows: 30,008 passes/992 exact skips. All 28 new controls pass; one old failure now passes, every other predecessor retained. | [Record](evidence/E-CI-git-fixture-lifetime.md) | I305, I307, I06 |
+| E-I08-WIN-CURRENT | Current medium/high Windows worker boundaries | Exact 0aec7a7 product /Insider guest | 24 finite controls; actual medium/high parents, twelve helper tokens and six elevated decoder tokens/jobs, exact bytes and owned cleanup. Broader I08 remains. | [Record](evidence/E-I08-current-windows-worker-boundaries.md) | I08, V06, V10, V23 |
 
 
 <a id="commits-made-by-the-campaign"></a>
