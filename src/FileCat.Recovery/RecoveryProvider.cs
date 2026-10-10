@@ -42,12 +42,13 @@ public sealed record RecoveryVolumeTag(string FileSystem, string Details) : IDis
 public sealed class RecoveryProvider : ResourceProvider
 {
     private const int MaxSessions = 4;
-    private readonly ConcurrentDictionary<string, Session> _sessions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, string> _deviceNames = new(StringComparer.OrdinalIgnoreCase);
+    // Unix source paths can differ only by case. Admission and cached scans must not cross that boundary.
+    private readonly ConcurrentDictionary<string, Session> _sessions = new(PathUtil.SafetyComparer);
+    private readonly ConcurrentDictionary<string, string> _deviceNames = new(PathUtil.SafetyComparer);
     /// <summary>Devices that are one volume (a drive, a partition) rather than a whole disk.</summary>
-    private readonly ConcurrentDictionary<string, bool> _volumeDevices = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, bool> _volumeDevices = new(PathUtil.SafetyComparer);
     /// <summary>The size each device had when the user chose it.</summary>
-    private readonly ConcurrentDictionary<string, long> _deviceLengths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, long> _deviceLengths = new(PathUtil.SafetyComparer);
     private readonly object _scanLock = new();
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes) : IDisposable
@@ -443,7 +444,7 @@ public sealed class RecoveryProvider : ResourceProvider
             }
             // An image that changed since its scan is scanned again; the old session goes.
             if (!device)
-                foreach (var old in _sessions.Where(s => s.Key.StartsWith(Path.GetFullPath(path) + "|", StringComparison.OrdinalIgnoreCase)).ToList())
+                foreach (var old in _sessions.Where(s => s.Key.StartsWith(Path.GetFullPath(path) + "|", PathUtil.SafetyComparison)).ToList())
                     if (_sessions.TryRemove(old.Key, out var stale)) stale.Dispose();
             if (device && !_deviceNames.ContainsKey(path))
                 throw new UnauthorizedAccessException("A drive's deleted files are scanned only when you ask for it: right-click the drive or disk and choose Find deleted files, so that FileCat can first check that it may.");
@@ -509,7 +510,7 @@ public sealed class RecoveryProvider : ResourceProvider
             return;
         }
         string image = Path.GetFullPath(SourcePath(location));
-        foreach (var s in _sessions.Where(s => s.Key.StartsWith(image + "|", StringComparison.OrdinalIgnoreCase)).ToList())
+        foreach (var s in _sessions.Where(s => s.Key.StartsWith(image + "|", PathUtil.SafetyComparison)).ToList())
             if (_sessions.TryRemove(s.Key, out var old)) old.Dispose();
     }
 
