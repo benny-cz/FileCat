@@ -79,6 +79,9 @@ public partial class PanelView : UserControl
             HookQuickView();
             ShowActiveTab();
             HookTab();
+            // The Places tree is built directly, not through bindings. A retired panel must release its
+            // buttons and borrowed icons even when hidden; a layout-only detach keeps its live context.
+            BuildPlaceButtons();
         };
         // Resizing the panel or adding tabs can make the tabs fit, or not.
         TabScroller.ScrollChanged += (_, _) => UpdateTabOverflow();
@@ -167,9 +170,9 @@ public partial class PanelView : UserControl
     /// </summary>
     private void BuildPlaceButtons(bool force = false)
     {
-        if (_main is not { } vm)
+        if (_main is not { } vm || Panel is null)
         {
-            DriveButtonsPanel.Children.Clear();
+            ClearPlaceButtons();
             _placesShown = null;
             return;
         }
@@ -181,7 +184,7 @@ public partial class PanelView : UserControl
             return;
         }
         _placesShown = shown;
-        DriveButtonsPanel.Children.Clear();
+        ClearPlaceButtons();
         PlaceGroup? group = null;
         foreach (var place in places)
         {
@@ -196,6 +199,24 @@ public partial class PanelView : UserControl
         more.Click += (_, _) => ShowMorePlaces(more);
         DriveButtonsPanel.Children.Add(more);
         MarkCurrentPlace();
+    }
+
+    private void ClearPlaceButtons()
+    {
+        // A detached panel's last composition can still retain its controls. Drop the borrowed images and
+        // Place payloads explicitly; the shared icon provider owns the bitmaps, so never dispose them here.
+        foreach (var button in DriveButtonsPanel.Children.OfType<Button>())
+        {
+            if (button.Content is StackPanel content)
+                foreach (var image in content.Children.OfType<Image>()) image.Source = null;
+            button.Content = null;
+            button.Tag = null;
+            ToolTip.SetTip(button, null);
+            button.Click -= OnPlaceClick;
+            button.PointerReleased -= OnPlacePointerReleased;
+            button.ContextRequested -= OnPlaceContextRequested;
+        }
+        DriveButtonsPanel.Children.Clear();
     }
 
     /// <summary>The » button's menu: the places the row has no room for, in their groups, each with its icon.</summary>
@@ -238,20 +259,29 @@ public partial class PanelView : UserControl
         ToolTip.SetTip(button, tip);
         Avalonia.Automation.AutomationProperties.SetName(button, place.Title);
         Avalonia.Automation.AutomationProperties.SetHelpText(button, tip.Text);
-        button.Click += (_, _) => OpenPlace(place, newTab: false);
-        button.PointerReleased += (_, e) =>
-        {
-            if (e.InitialPressMouseButton != MouseButton.Middle || !place.OpensInPanel) return;
-            OpenPlace(place, newTab: true);
-            e.Handled = true;
-        };
-        if (place.OpensInPanel)
-            button.ContextRequested += (_, e) =>
-            {
-                e.Handled = true;
-                PlaceMenu(place).Open(button);
-            };
+        button.Click += OnPlaceClick;
+        button.PointerReleased += OnPlacePointerReleased;
+        if (place.OpensInPanel) button.ContextRequested += OnPlaceContextRequested;
         return button;
+    }
+
+    private void OnPlaceClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: Place place }) OpenPlace(place, newTab: false);
+    }
+
+    private void OnPlacePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Middle || sender is not Button { Tag: Place { OpensInPanel: true } place }) return;
+        OpenPlace(place, newTab: true);
+        e.Handled = true;
+    }
+
+    private void OnPlaceContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is not Button { Tag: Place place } button) return;
+        e.Handled = true;
+        PlaceMenu(place).Open(button);
     }
 
     /// <summary>A place button's menu: here or in a new tab, and the place's other views.</summary>
