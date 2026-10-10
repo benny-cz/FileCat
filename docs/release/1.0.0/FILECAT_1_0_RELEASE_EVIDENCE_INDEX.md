@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**439 evidence entries; none is final candidate qualification.** No candidate exists.
+**452 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -460,7 +460,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I330-I331-NATIVE | [Exact Windows held-source/pipe qualification](evidence/E-I330-I331-native-qualification.md) | 2de33a0 /1518 raw blobs/no overlays | 28 local/56 medium/high native passes;928 Core/39 Windows predecessor passes with 25 exact skips | Every 992 predecessor outcome/message, all 28 overlay outcomes, full source/marker/healthy bytes and 104 staged/386 runtime cleanup checks | Controlled identities/transport failures; number reuse/atomic races/physical hold/current hosted/candidate remain |
 | E-I332 | [Linux x64 picture process policy](evidence/E-I332-linux-picture-process-policy.md) | 8241462 /1519 raw blobs; declared overlays | Four baseline failures become four permanent native passes/two private production-policy/refusal controls | Every 120 predecessor outcome/message/two exact skips, full pixels/unread refusal bytes and 395 independent file/process/temp checks | Direct Linux x64 calls only; Mac/ARM64, broader authority/parent-death/parser/candidate remain |
 | E-CI-HELD-WINDOWS | [Original held Windows source/pipe CI](evidence/E-CI-held-windows-source-topology.md) | Original 38091306562 attempt 1 at 2de33a0 | All four required lanes/27 digest archives/14 TRX; 30959 passes/1017 skips/zero failures | Every 31920 predecessor outcome/message/1017 exact skips; 56 additions pass; 1518 blobs/92 restore graphs/four SDK receipts | No rerun/current Linux overlay/physical-source/candidate/publication claim |
+| E-CI-LINUX-PICTURE-POLICY | Original I332 run 38094053882 attempt 1: all required lanes succeed | dcd4f8e /1523 raw blobs/92 locked graphs/four SDK receipts | 27 digest archives/14 TRX/31992 records: 30963 passes/1029 explicit skips/zero failures; all 31976 predecessor outcomes/messages/1017 earlier skips retained | [Original hosted qualification](evidence/E-CI-linux-picture-process-policy.md) | I08, I332, V10, V23; broader Unix authority/candidate remain |
 | E-I332-NATIVE | [Exact Linux x64 picture policy](evidence/E-I332-native-qualification.md) | dcd4f8e /1523 raw blobs/no overlays | Four permanent/two private native controls pass; 58 host/60 Ubuntu predecessor passes/two exact Windows skips | Every 120 predecessor outcome/message, all six overlay outcomes/full bytes and 294 independent staged/runtime checks | Direct x64 process calls only; broader Unix authority/parent-death/parser/current hosted/candidate remain |
+| E-I333 | Source image/archive preserved during stream publication | dcd4f8e /1523 raw blobs/declared overlays | 21 local/63 fixed native controls; 3416 predecessor outcomes/messages/107 exact skips retained | [E-I333](evidence/E-I333-source-container-publication.md) | I106, V07, V09, V23; physical HOLD and atomic/native-alias/candidate scopes remain |
 
 <a id="commits-made-by-the-campaign"></a>
 

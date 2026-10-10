@@ -39,6 +39,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
     private int _staged;
     private string? _originMark;
+    private sealed record BackingFile(string Path, string? FinalPath, string? Identity);
+    private readonly List<BackingFile> _backingFiles = [];
 
     /// <summary>
     /// Told of every file that arrived, with the version its source stated when it was read: a move from a server deletes
@@ -63,6 +65,16 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 Job.RootFailed(i);
             }
             Issue(IssueSeverity.Error, destDir, refusal, StepOutcome.Failed);
+            return;
+        }
+        try
+        {
+            ReviewBackingSources();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            for (int i = 0; i < Job.Request.Sources.Count; i++) { Job.ItemFailed(); Job.RootFailed(i); }
+            Issue(IssueSeverity.Error, destDir, "Not copied: the source container paths could not be checked: " + ex.Message, StepOutcome.Failed);
             return;
         }
         if (!Directory.Exists(destDir) && !TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
@@ -127,6 +139,45 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         Job.ItemFailed();
         Issue(IssueSeverity.Error, folder, refusal, StepOutcome.Failed);
         return false;
+    }
+
+    private void ReviewBackingSources()
+    {
+        // Protect every selected backing file, including the outer file of a nested container. Another selected
+        // source must not be replaced by the first item in the same job. Keep identities observed before copying
+        // as well as checking current paths later; a rename must not discard the earlier identity.
+        var seen = new HashSet<string>(PathUtil.SafetyComparer);
+        foreach (var item in Job.Request.Sources)
+        for (var location = item.Parent.Container; location is not null; location = location.Container)
+        {
+            Job.Checkpoint();
+            if (!location.IsFileSystem) continue;
+            var path = Path.GetFullPath(location.Path);
+            if (!seen.Add(path)) continue;
+            var final = Fs.GetFinalPath(path);
+            _backingFiles.Add(new(path, final, Fs.GetFileIdentity(final ?? path)));
+        }
+    }
+
+    private void CheckBackingTarget(string target)
+    {
+        if (_backingFiles.Count == 0) return;
+        const string refusal = "The output would replace a source image or container file. Choose another name or destination.";
+        var path = Path.GetFullPath(target);
+        foreach (var backing in _backingFiles)
+            if (PathUtil.SafetyComparer.Equals(path, backing.Path)) throw new IOException(refusal);
+        var final = Fs.GetFinalPath(path);
+        var identity = Fs.GetFileIdentity(final ?? path);
+        foreach (var backing in _backingFiles)
+        {
+            Job.Checkpoint();
+            var currentFinal = Fs.GetFinalPath(backing.Path);
+            var currentIdentity = Fs.GetFileIdentity(currentFinal ?? backing.Path);
+            if (final is not null && (PathUtil.SafetyComparer.Equals(final, backing.FinalPath) ||
+                    PathUtil.SafetyComparer.Equals(final, currentFinal)) ||
+                identity is not null && (StringComparer.Ordinal.Equals(identity, backing.Identity) ||
+                    StringComparer.Ordinal.Equals(identity, currentIdentity))) throw new IOException(refusal);
+        }
     }
 
     private string? FindOriginMark(Location location)
@@ -266,6 +317,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     return false;
             }
         }
+        try { CheckBackingTarget(target); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, target, "Not copied: " + ex.Message, StepOutcome.Failed);
+            return false;
+        }
         IContentSource? content;
         try
         {
@@ -332,6 +390,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 // Conflict decisions and opening/querying content can take time or change topology.
                 // Revalidate the actual staging folder before creating a file there.
                 if (!DestinationAllowed(item.Parent, dir)) return false;
+                CheckBackingTarget(target);
                 // Durable once per folder, so recovery finds staged leftovers there.
                 if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
                 using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
@@ -413,6 +472,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 DisposeContent();
             }
+            // Reading, verification or closing a provider can change the path. Refuse before publication and use
+            // the same owned-staging/progress cleanup as other failed copies. Separate checks are not atomic rename.
+            CheckBackingTarget(target);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {

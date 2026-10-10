@@ -1,9 +1,9 @@
 # FileCat 1.0.0 — current gates and dependencies
 
-Updated 2026-10-10. **NO-GO. No candidate and no stable publication approval.**
+Updated 2026-10-11. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) follows runnable Critical gaps first, then High, Medium and lower release-impact priority (latest owner direction, 2026-10-10). [Combined native main-window/QuickView/F3 cases](evidence/E-I06-native-combined-accounting.md) pass, with wider ownership/native allocation/input/platform/reference/human/candidate scope remaining. No owner/people/physical-source/publication gate is waived.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) follows runnable Critical gaps first, then High, Medium and lower release-impact priority (latest owner direction, 2026-10-10). [Combined native main-window/QuickView/F3 cases](evidence/E-I06-native-combined-accounting.md) pass, with wider ownership/native allocation/input/platform/reference/human/candidate scope remaining. [I333 source-container publication](evidence/E-I333-source-container-publication.md) now passes 63 native fixed controls with complete bytes and independent cleanup; broader aliases/atomic/physical/candidate scope remains. No owner/people/physical-source/publication gate is waived.
 
 ## Safety and publication holds
 
