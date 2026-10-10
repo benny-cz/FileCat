@@ -615,7 +615,12 @@ public sealed class FindWindow : Window, IViewActions
         _grouping?.Cancel();
         _groups = [];
         _duplicates = mode == RefineMode.Replace ? duplicates : null;
-        var found = _services.ResultSets.Create(TitleOf(criteria), query!.Describe());
+        var title = TitleOf(criteria);
+        var provenance = query!.Describe();
+        // Refinement matches are private scratch data; only the displayed set needs a provider location.
+        var found = mode == RefineMode.Replace
+            ? _services.ResultSets.Create(title, provenance)
+            : new ResultSet(Guid.NewGuid().ToString("N")[..12], title, provenance);
         found.FullFolders = true;
         _mode = mode;
         _appended = 0;

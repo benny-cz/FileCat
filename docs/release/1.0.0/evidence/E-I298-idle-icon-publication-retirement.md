@@ -43,3 +43,21 @@ Private FileCatReleaseEvidence paths unless absolute. Nested records retain comp
 | `i06-icon-worker-retirement-20261010-v4/seal-icon-worker-v2.py` | `189ca3e1f894fb0827f1817472f3428702aca3d561a587dceeb4b82ff46b22ab` |
 | `i06-icon-worker-retirement-20261010-v4/independent-icon-worker-final-v2.json` | `87bb550a1d30d0da4ab66e1c3c65de751e5eddddbc1698c7f504bf3cb9bb4391` |
 | `E:/FileCat/artifacts/release-evidence/i06-icon-worker-retirement-20261010-v4/owned-temporary-files-v1.zip` | `8b134065ee30fbc5a936d8ed3949d6de872d3e79e5b1dbf9e5baac5e113d4c39` |
+
+
+## Exact committed follow-up
+
+No-overlay **f506ad7a83a9dededb0e3809c0b2a419db515e3e** verifies all **1383 canonical blobs** and passes all **24 controls**. All focused private/exact ownership and borrower-usability observations agree; default headless pixel flags remain outside fidelity qualification. The separate actual Skia byte oracle/native Windows evidence above keeps its exact producer and scope. All three validated overlays match committed canonical bytes, allowing only Git line-ending normalization. Owned temporary files are archived/rechecked and unlocked files removed. Original hosted follow-up remains.
+
+
+## Selected immutable receipts
+
+Private FileCatReleaseEvidence paths unless absolute. Nested records retain complete source exports, commands, raw failures/skips and owned restoration.
+
+| File | SHA256 |
+|---|---|
+| `i298-committed-20261010-v1/seal-exact-v1.py` | `ab43ebb2cbd9c564462d4db0282868f313edc4b15a49a4fe6b3212c16e7c90a5` |
+| `i298-committed-20261010-v1/independent-exact-final-v1.json` | `d49c52c914c729790935e787e481bd1a34b2a9546f314e6b5c9b3d2b27d76392` |
+| `E:/FileCat/artifacts/release-evidence/i298-committed-20261010-v1/committed/app-controls/command.json` | `79d292ef2fedb90e43b38f38e03f181b832e22b5966a79693574340a5f84f758` |
+| `E:/FileCat/artifacts/release-evidence/i298-committed-20261010-v1/committed/inputs.json` | `5973391ceb0b35dc7b08dd7a29d456033bf5e6e7b2f3d705bcf47e1fc3fecc46` |
+| `E:/FileCat/artifacts/release-evidence/i298-committed-20261010-v1/committed/owned-temporary-files-v1.zip` | `4c5976a5b773b922c561debc4f2758ea51ff9b96b9c3ba1968f43dfb38916b1a` |
