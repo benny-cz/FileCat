@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**434 evidence entries; none is final candidate qualification.** No candidate exists.
+**435 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -445,6 +445,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I327 | Recovery image reader lifetime | 3fc9dca /1496 raw blobs/declared overlays | Eight failures/three device positives become eleven passes on Windows/Ubuntu/Mac; 109 Core/25 App passes and 29 exact skips remain. Image handles retire after the last reader; device lifetimes unchanged. | [Record](evidence/E-I327-image-session-lifetime.md) | I06, I327, V09, V12, V23 |
 | E-I327-EXACT | Committed recovery image lifetime | 767adc4 /1498 raw blobs/no overlays | Eleven controls/109 Core/25 App passes, 29 exact skips and 33 native passes; every 174 predecessor outcome/message and independent restoration verify. | [Record](evidence/E-I327-native-qualification.md) | I06, I327, V09, V12, V23 |
 | E-CI-I326 | Original recovery-reader ownership CI | 24658e4 /38078628506 attempt1 | Four required lanes/27 digest archives/fourteen TRX/30,739 passes/1007 exact skips/zero failures. All 56 additions and every previous green outcome/message remain. | [Record](evidence/E-CI-recovery-consumer-retirement.md) | I06, I326, V09, V12, V23 |
+| E-I17-REQUESTER | Actual Windows requester exit | 1670227 production /one declared regression-test overlay | Thirteen native requester controls/fifty affected passes; final 63 medium guest passes and preceding 63 pass. Every predecessor outcome/message, staged/runtime bytes and independent whole-root restoration verify; no new defect. | [Record](evidence/E-I17-native-requester-exit.md) | I17, V06, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 
