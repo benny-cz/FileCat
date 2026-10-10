@@ -10,6 +10,8 @@ The Linux x64 worker now installs a process-creation filter **before reading enc
 
 ## Native result and regressions
 
+[Exact committed/native follow-up](E-I332-native-qualification.md) qualifies dcd4f8e /1523 raw blobs/no overlays: all six native controls, every 120 predecessor outcome/message/two exact skips, complete bytes and 294 staged/runtime checks remain. Original hosted run 38094053882 collects independently.
+
 All **four new permanent controls pass in Ubuntu 26.04.1 /Linux 7.0.0-38 /glibc 2.43 /UID 1000 /.NET 10.0.12**. The actual worker has a new filter on every observed thread before input is supplied. BMP and PNG return every independently checked 3×2 BGRA pixel; invalid bytes and EOF return bounded refusals. The private observer loads the actual compiled production policy: normal/detached-session starts on the main/pre-existing thread and direct exec calls are refused; new managed threads and a task remain healthy. These are controlled native calls, not an image exploit.
 
 A second observer forces PR_SET_NO_NEW_PRIVS to fail inside its own process, then invokes the actual FileCat entry point. The baseline decodes all 78 input bytes; the fixed entry returns its bounded policy error with **all 78 bytes still unread**, observed through FIONREAD. Both observers identify the same actual FileCat module as the permanent-worker campaign.
