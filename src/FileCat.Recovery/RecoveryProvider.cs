@@ -51,9 +51,10 @@ public sealed class RecoveryProvider : ResourceProvider
     private readonly ConcurrentDictionary<string, long> _deviceLengths = new(PathUtil.SafetyComparer);
     private readonly object _scanLock = new();
 
-    private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes) : IDisposable
+    private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device) : IDisposable
     {
         public IBlockSource Source { get; } = source;
+        private readonly ImageLifetime? _image = device ? null : new ImageLifetime(source);
         public IReadOnlyList<RecoveryVolume> Volumes { get; set; } = volumes;
         public DateTime Used { get; set; } = DateTime.UtcNow;
 
@@ -69,9 +70,72 @@ public sealed class RecoveryProvider : ResourceProvider
         /// <summary>The volumes shown come from a scan that searched the whole disk for deleted partitions.</summary>
         public bool DiskSearched { get; set; }
 
-        public IBlockSource Window(RecoveryVolume v) => new WindowSource(Source, v.Offset, v.Length, $"{Source.Description}, {v.Title}");
+        public IBlockSource Window(RecoveryVolume v) => _image is null
+            ? new WindowSource(Source, v.Offset, v.Length, $"{Source.Description}, {v.Title}")
+            : _image.Acquire(v.Offset, v.Length, $"{Source.Description}, {v.Title}");
 
-        public void Dispose() => Source.Dispose();
+        public void Dispose()
+        {
+            if (_image is null) Source.Dispose();
+            else _image.Retire();
+        }
+    }
+
+    // Only image files can outlive their cached scan. Device admission is still tied to a current path:
+    // extending a retired device reader here would need a separate held-source identity contract.
+    private sealed class ImageLifetime(IBlockSource source)
+    {
+        private readonly object _gate = new();
+        private int _readers;
+        private bool _retired;
+        private bool _closed;
+
+        public IBlockSource Acquire(long start, long length, string description)
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_retired, this);
+                var window = new ImageWindow(this, new WindowSource(source, start, length, description));
+                _readers++;
+                return window;
+            }
+        }
+
+        public int Read(WindowSource window, long offset, Span<byte> bytes)
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_closed, this);
+                return window.Read(offset, bytes);
+            }
+        }
+
+        public void Retire()
+        {
+            lock (_gate) { _retired = true; CloseIfUnused(); }
+        }
+
+        public void Release()
+        {
+            lock (_gate) { _readers--; CloseIfUnused(); }
+        }
+
+        private void CloseIfUnused()
+        {
+            if (!_retired || _readers != 0 || _closed) return;
+            _closed = true;
+            source.Dispose();
+        }
+
+        private sealed class ImageWindow(ImageLifetime owner, WindowSource window) : IBlockSource
+        {
+            private ImageLifetime? _owner = owner;
+            public string Description => window.Description;
+            public long Length => window.Length;
+            public int Read(long offset, Span<byte> bytes) =>
+                (Volatile.Read(ref _owner) ?? throw new ObjectDisposedException(nameof(ImageWindow))).Read(window, offset, bytes);
+            public void Dispose() => Interlocked.Exchange(ref _owner, null)?.Release();
+        }
     }
 
     public override string Scheme => Schemes.Recovery;
@@ -293,15 +357,20 @@ public sealed class RecoveryProvider : ResourceProvider
 
     public override IContentSource? OpenContent(ItemRef item)
     {
-        var session = GetSession(item.Parent, CancellationToken.None);
-        var (volume, folder) = Resolve(session, item.Parent);
-        var found = folder.Child(item.Name, item.Ordinal) is { IsDirectory: false } file ? file
-                    : throw new FileNotFoundException($"\"{item.Name}\" is not among the deleted items any more.");
-        if (found.State == RecoveryState.Overwritten)
-            throw new InvalidDataException($"\"{found.Name}\" is overwritten: the space it used holds other data now, so nothing of it can be recovered.");
-        if (found.State == RecoveryState.NameOnly)
-            throw new InvalidDataException($"Only the name of \"{found.Name}\" survives: {string.Join(" ", found.Evidence)}");
-        return new RecoveryContent(session.Window(volume), found);
+        lock (_scanLock)
+        {
+            var session = GetSession(item.Parent, CancellationToken.None);
+            var (volume, folder) = Resolve(session, item.Parent);
+            var found = folder.Child(item.Name, item.Ordinal) is { IsDirectory: false } file ? file
+                        : throw new FileNotFoundException($"\"{item.Name}\" is not among the deleted items any more.");
+            if (found.State == RecoveryState.Overwritten)
+                throw new InvalidDataException($"\"{found.Name}\" is overwritten: the space it used holds other data now, so nothing of it can be recovered.");
+            if (found.State == RecoveryState.NameOnly)
+                throw new InvalidDataException($"Only the name of \"{found.Name}\" survives: {string.Join(" ", found.Evidence)}");
+            var window = session.Window(volume);
+            try { return new RecoveryContent(window, found, ownsVolume: !IsDevice(item.Parent)); }
+            catch { window.Dispose(); throw; }
+        }
     }
 
     // ---- Sessions ---------------------------------------------------------------------------------------------
@@ -463,7 +532,7 @@ public sealed class RecoveryProvider : ResourceProvider
                 if (device && _deviceLengths.TryGetValue(path, out long chosen) && source.Length != chosen)
                     throw new IOException($"{SourceName(location)} is not the disk that was chosen: it now holds {source.Length:N0} bytes, not {chosen:N0}. " +
                                           "A disk plugged in meanwhile can take another one's place: choose it again from the list of drives.");
-                var session = new Session(source, Scan(source, device, ct));
+                var session = new Session(source, Scan(source, device, ct), device);
                 _sessions[key] = session;
                 while (_sessions.Count > MaxSessions)
                 {
@@ -509,21 +578,25 @@ public sealed class RecoveryProvider : ResourceProvider
     /// <summary>Reread: scans the source again (a drive keeps its approved helper session; an image is simply read again).</summary>
     public void Forget(Location location)
     {
-        if (location.Scheme != Schemes.Recovery) return;
-        if (IsDevice(location))
+        lock (_scanLock)
         {
-            if (_sessions.TryGetValue(Key(location), out var session)) session.Stale = true;
-            return;
+            if (location.Scheme != Schemes.Recovery) return;
+            if (IsDevice(location))
+            {
+                if (_sessions.TryGetValue(Key(location), out var session)) session.Stale = true;
+                return;
+            }
+            string image = Path.GetFullPath(SourcePath(location));
+            foreach (var s in _sessions.Where(s => s.Key.StartsWith(image + "|", PathUtil.SafetyComparison)).ToList())
+                if (_sessions.TryRemove(s.Key, out var old)) old.Dispose();
         }
-        string image = Path.GetFullPath(SourcePath(location));
-        foreach (var s in _sessions.Where(s => s.Key.StartsWith(image + "|", PathUtil.SafetyComparison)).ToList())
-            if (_sessions.TryRemove(s.Key, out var old)) old.Dispose();
     }
 
-    /// <summary>Ends every session: drives' helper sessions close, image files are released.</summary>
+    /// <summary>Retires cached sessions. Drives close immediately; active image readers release their source when closed.</summary>
     public void CloseAll()
     {
-        foreach (var key in _sessions.Keys.ToList())
-            if (_sessions.TryRemove(key, out var session)) session.Dispose();
+        lock (_scanLock)
+            foreach (var key in _sessions.Keys.ToList())
+                if (_sessions.TryRemove(key, out var session)) session.Dispose();
     }
 }

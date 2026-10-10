@@ -10,13 +10,17 @@ namespace FileCat.Recovery;
 public sealed class RecoveryContent : IContentSource, IPartialContent
 {
     private IBlockSource? _volume;
+    private readonly bool _ownsVolume;
     private RecoveryItem? _item;
     private readonly ContentRevision _revision;
     private readonly List<(long Offset, long Length)> _missing = [];
     private readonly object _lock = new();
 
-    public RecoveryContent(IBlockSource volume, RecoveryItem item)
+    public RecoveryContent(IBlockSource volume, RecoveryItem item) : this(volume, item, ownsVolume: false) { }
+
+    internal RecoveryContent(IBlockSource volume, RecoveryItem item, bool ownsVolume)
     {
+        _ownsVolume = ownsVolume;
         _volume = volume;
         _item = item;
         DisplayName = item.Name;
@@ -193,12 +197,14 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         }
     }
 
-    /// <summary>Retire this reader's scan and decoded bytes; the session still owns the shared volume.</summary>
+    /// <summary>Retire this reader's scan and decoded bytes, and release its image lease if it owns one.</summary>
     public void Dispose()
     {
+        IBlockSource? owned;
         lock (_lock)
         {
             // Read holds the same lock through decoding: a closing reader cannot publish another cached unit.
+            owned = _ownsVolume ? _volume : null;
             _item = null;
             _volume = null;
             _unit = null;
@@ -206,5 +212,6 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
             _missing.Clear();
             _missing.TrimExcess();
         }
+        owned?.Dispose();
     }
 }

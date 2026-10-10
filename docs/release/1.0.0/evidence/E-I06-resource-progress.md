@@ -2,6 +2,8 @@
 
 2026-10-10. I06 remains open. This matrix tracks six resource groups, not six individual tests or a completion percentage. Original operational authority and acceptance criteria are unchanged. Existing page/cache decisions stay decided; no aggregate picture limit or acceptance result is invented.
 
+[I327 image source lifetime](E-I327-image-session-lifetime.md) adds eleven controls each on Windows/Ubuntu/Mac: active image sources survive cache retirement/replacement until the last reader closes. All 163 affected Core/App outcome/messages and 29 exact skips remain. Device source lifetimes and the physical-source HOLD are unchanged; aggregate/reference/human/candidate scope remains.
+
 Latest current-source refresh: [I306 exact/native](E-I306-native-find-retirement.md) passes 99 exact Find and 90 Windows/Ubuntu/Mac native controls; [original hosted CI](E-CI-find-retirement.md) adds 120 Find passes, while preserving the separate Windows x64 Git setup failure and every other predecessor outcome/message/exact skip. [Current composed profiles](E-I06-current-composition.md) pass 13/48 readers and four/twelve ×12,000-row listings, preserving the 64 MiB target and documented pressure floor, independent full member-byte checks and zero final tracked charges. These scopes do not establish whole-process peaks, physical input, reference/human or exact-candidate acceptance.
 
 [Current native combined refresh](E-I06-current-native-composition.md) passes six Windows/Ubuntu/Mac profiles at the same 0aec7a7 product: four actual listings/QuickViews plus one/eight F3 viewers, 420 compositor completions and 96 listing-owner retirements. Whole encoded-pixel oracles and final tracked retirement pass; finite process/native/frame accounts retain their limits.
