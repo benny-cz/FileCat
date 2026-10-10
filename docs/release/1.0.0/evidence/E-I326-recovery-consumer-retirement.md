@@ -10,6 +10,8 @@ All **fourteen final controls** and **95 affected passes/19 exact predecessor sk
 
 This closes one reader-retirement defect under I06. It does not establish whole-process/native peaks, aggregate active recovery scan limits, device identity or session-eviction leases. Active-source topology/races, I106/I110 physical-source HOLD, required reference/human and exact-candidate qualification remain. No workstation UI, persistent guest setting, freeze, candidate or publication change.
 
+[Exact committed/native follow-up passes at 24658e4 with no source/test overlays.](E-I326-native-qualification.md)
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain exact source, overlays, payload/runtime bytes, commands, original failures/skips and owned restoration.

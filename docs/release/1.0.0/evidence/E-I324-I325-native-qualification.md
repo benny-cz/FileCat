@@ -6,6 +6,8 @@ The signed-in Windows guest passes **fifty broker controls** at measured parent/
 
 Original CI at this commit is collected separately. Broader broker/native consent, source identity/races, physical-source HOLD, human/reference and installed-candidate qualification remain.
 
+[Original 55deaa3 CI qualifies all four required lanes, preserving every previous green outcome/message and exact skip.](E-CI-broker-admission-mac-oracle.md)
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts retain exact source, overlays, payload/runtime bytes, commands, original failures/skips and owned restoration.

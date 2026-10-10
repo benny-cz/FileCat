@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**428 evidence entries; none is final candidate qualification.** No candidate exists.
+**430 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -439,6 +439,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I326 | Recovery reader retirement | 55deaa3 + declared test/fix overlays | Ten failures/four positives become fourteen passes per native platform; 95 affected passes/19 exact skips. Original first-correction/fixture failures retained. | [Record](evidence/E-I326-recovery-consumer-retirement.md) | I06, V09, V12, V23 |
 | E-I324-I325-EXACT | Committed broker and Mac topology controls | 55deaa3 /1489 raw blobs/no overlays | 18/32 broker, 19/1 query and 67/9 recovery host records; fifty Windows/twenty Mac native passes; independent restoration. | [Record](evidence/E-I324-I325-native-qualification.md) | I17, I106, I324, I325 |
 | E-CI-I323 | Original cancellation CI failure | c0677d9 /38074627662 attempt1 | Three lanes pass; Mac fixture fails; 24 archives/twelve TRX, 26,607 passes/874 skips/one failure; all 124 additions pass. | [Record](evidence/E-CI-smb-cancellation-startup.md) | I106, I323, V09 |
+| E-I326-EXACT | Committed recovery reader ownership | 24658e4 /1493 raw blobs/no overlays | Fourteen controls, 95/19 Core and 25/10 App outcomes; 42 native passes and independent restoration. | [Record](evidence/E-I326-native-qualification.md) | I06, I326, V09, V12, V23 |
+| E-CI-I324-I325 | Original broker/Mac CI qualification | 55deaa3 /38076560415 attempt1 | Four required lanes, 27 digest archives/fourteen TRX, 30,683 passes/1007 exact skips/zero failures. All 164 additions pass and every previous green outcome/message remains. | [Record](evidence/E-CI-broker-admission-mac-oracle.md) | I17, I106, I324, I325 |
 
 <a id="commits-made-by-the-campaign"></a>
 
