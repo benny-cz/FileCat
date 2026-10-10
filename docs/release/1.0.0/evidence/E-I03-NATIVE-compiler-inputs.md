@@ -1,5 +1,7 @@
 # E-I03-NATIVE — native helper compiler inputs and linked-symbol provenance
 
+[2026-10-10 original native composition follow-up](E-I03-NATIVE-original-static-composition.md) adds bounded original-output/member/import verification; this historical record and its original status counts remain unchanged.
+
 2026-10-06. Preliminary I03/I18 improvement at **573ed2cfe31e5698ee668e5aa28b2c82ccc8b942**, not issue closure. No candidate or stable GO.
 
 The original native receipt recorded seven source/resource/compiler/output pins. Diagnostic builds now retain MSVC source-dependency JSON, original compiler/linker stdout and stderr, and the actual linked-symbol map. The receipt pins distinct C++ reported headers, linker-searched library files and reported compiler components, including the linker, after successful compilation. CI uploads these reports and maps alongside its original receipts and executable. Source, manifest, icon, generated resource, compiler and output pins remain present.

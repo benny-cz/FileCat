@@ -1,0 +1,23 @@
+# E-I03-NATIVE-COMPOSITION — original Windows native helper composition
+
+2026-10-10 CEST. Bounded progress on **High-priority I03**, which remains open. This independently inspects the retained original **850298359fc16cf28503cea42f3ba9c0b1599240** x64/ARM64 self-contained and framework-dependent Windows publications. Their original **0.0.0-i03resourcecheck** resource version and empty embedded revision remain explicit; they are not a candidate or latest-commit artifact.
+
+All **four original native receipts**, their dependency reports/maps/resource inputs/compiler diagnostics and **four original published executables** freshly verify against the prior production proof. The **268 distinct original post-build input files**, including **23 library archives**, still match the original receipt bytes and SHA-256 values. The original C++ source, build script, manifest and icon match raw Git bytes. Only the C++ source and compiler script are additionally compared with **110f281**, where both are unchanged; this does not reassign the original outputs to the current commit.
+
+Each original x64 map has **2328 symbol rows**, including **1941 mapped static-runtime rows** resolving to **176 distinct archive members**. Each ARM64 map has **1992 rows**, including **1617 static rows** resolving to **174 distinct members**. Across architectures there are **350 distinct mapped members**, with member offsets, complete bytes/SHA-256 and actual machine values retained. Every static row resolves to exactly one member; no ambiguous or missing member remains. The original map's reported library/object and public-symbol indexes bind these finite observations to **LIBCMT, libcpmt, libvcruntime and libucrt**. Both independent archive directories agree. This is neither all possible object incorporation nor equality between object bytes and relocated/optimized final machine code.
+
+For all four outputs, the bounded PE reader and separately executed MSVC `/dump /imports` agree on the **complete normal import inventory**: **95 named imports on x64**, **86 on ARM64**, from **SHELL32.dll, ole32.dll, USER32.dll, ADVAPI32.dll and KERNEL32.dll**. Delay-import and certificate directories are empty. Original map timestamp and preferred image base match the published PE. The normal import table does not inventory later explicit `LoadLibraryExW`/hostfxr/CoreCLR loads; native loader/runtime execution and its races remain a separate gap. No target executable is run or loaded by this audit.
+
+The archive/member reader follows Microsoft's [PE/COFF format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#archive-library-file-format) and interprets actual original [linker maps](https://learn.microsoft.com/en-us/cpp/build/reference/map-generate-mapfile?view=msvc-170). Actual archives contain **8956 LF and 77 NUL alignment bytes**; NUL padding is retained as an observed input variant, not described as a normative rule. A first private observer's LF-only assumption failed and is preserved; the corrected reader validates the complete member boundaries and both indexes. A separate reader initially compared annotated observation rows directly to raw-map rows; that failed assertion also survives. Both were private audit failures, not compiler/product failures. The final independent check rehashes every original input at completion and verifies every mapped member and complete import inventory.
+
+Pins were originally captured **after compilation**. This work cannot supply original pre-build custody or a trace of individual bytes read. Complete native/runtime source provenance, license/system-library and signing-provider eligibility, full SBOM, other assets/platforms, loader behavior and exact-candidate provenance remain open. The [earlier native compiler-input record](E-I03-NATIVE-compiler-inputs.md), [Shell apphost record](E-I03-SHELLHOST-windows-apphost-provenance.md), raw failures and original outputs retain their own identities. No physical source, host UI, settings, contract freeze or publication is used.
+
+## Selected immutable receipts
+
+Paths are relative to private FileCatReleaseEvidence. Nested records retain every original report, member, command, input/output byte pin, failure and reader source.
+
+| File | SHA256 |
+|---|---|
+| `i03-original-native-composition-20261010-v1/independent-native-composition-v1.json` | `7385b12dc7b395a861f38576a956180941adfd90a5da26cfe84cf4148dde08f2` |
+| `i03-original-native-composition-20261010-v1/actual-native-composition-v2.json` | `80c9a2322407eb58839a8ea8693f08d5145e53a8ed55746a24b72993f7637c95` |
+| `i03-native-composition-public-20261010-v1/retained-tool-sources-v1.json` | `ec0caec5cd8736727fcfb531a58fc4bbfd706728db3d099856201789b37dcc70` |
