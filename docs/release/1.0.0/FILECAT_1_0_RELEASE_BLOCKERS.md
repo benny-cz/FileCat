@@ -3,7 +3,7 @@
 Updated 2026-10-10. **NO-GO. No candidate and no stable publication approval.**
 This file lists current dependency gates, not the execution chronology.
 All prior observations, detailed resource history, temporary-setup receipts and resolved decisions are preserved in the [frozen blocker history](FILECAT_1_0_RELEASE_BLOCKER_HISTORY_20261006.md).
-The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) follows the owner’s I06-first, then severity/release-impact direction. I299 passes scratch ownership/affected/full App controls; exact/hosted remain. I298 passes all 24 exact controls. Original hosted I298 qualification remains. [Two composed profiles](evidence/E-I06-composed-resource-accounting.md) qualify separate page/archive/listing charges and preliminary process snapshots. I06 remains open; no owner/platform/people/physical-source/candidate gate is waived.
+The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) follows the owner’s I06-first, then severity/release-impact direction. Fresh unchanged-binary picture accounting and exact I299 controls pass; original hosted follow-ups remain. I06 stays open for simultaneous/native-process/frame/platform/reference/human/candidate scope. No owner/platform/people/physical-source/candidate gate is waived.
 
 ## Safety and publication holds
 

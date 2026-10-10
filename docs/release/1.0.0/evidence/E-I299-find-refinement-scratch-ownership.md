@@ -25,3 +25,21 @@ Private FileCatReleaseEvidence paths unless absolute. Nested records retain comp
 | `i06-refine-scratch-retirement-20261010-v2/seal-refine-scratch-v1.py` | `2dafc64625cefa6b9cf51c5de01024e2575318ec689b6e034d7ca1f0647af671` |
 | `i06-refine-scratch-retirement-20261010-v2/independent-refine-scratch-final-v1.json` | `38b5664b85ab00e759db1e02fc23022e268f9e9cf9d5cefa71bc7036a86aafbb` |
 | `E:/FileCat/artifacts/release-evidence/i06-refine-scratch-retirement-20261010-v2/owned-temporary-files-v1.zip` | `eef7c5d60b0009a490704af163270a52932ff2fe73a4ef19fb69d7f360201728` |
+
+
+## Exact committed follow-up
+
+No-overlay **d24a45784d9ccac17d5e9fbf3b7534da2cbda34e** verifies all **1386 canonical blobs** and passes all **eighteen controls**. Every private/exact outcome/message and ownership observation agrees, apart from owned root names; all nine retired scratch sets collect while all nine active-session controls retain their actual scratch. Source bytes/current displayed results/open-window usability remain healthy. Both validated overlays match canonical committed bytes with only Git line-ending normalization. One owned temporary file is archived/rechecked/removed; no locks remain. Original hosted and broader I06/candidate scope remain.
+
+
+## Selected immutable receipts
+
+Private FileCatReleaseEvidence paths unless absolute. Nested records preserve exact sources, original commands, payloads, raw adverse attempts and owned restoration.
+
+| File | SHA256 |
+|---|---|
+| `i299-committed-20261010-v1/seal-exact-v1.py` | `8b7542e980c60a1d132b5b5d05d842e8cdacd6c0613c9c93ec8c20b88f8e1d05` |
+| `i299-committed-20261010-v1/independent-exact-final-v1.json` | `0b738bb6ac428060c82374b2c95f8de0cc5c53cfc8dd5e4bbb64ecaae84ee43d` |
+| `E:/FileCat/artifacts/release-evidence/i299-committed-20261010-v1/committed/app-controls/command.json` | `1bf827368cbdb9d53a66d8cc66c8c779236b2c10d27f0b826e2ed6ea74301e53` |
+| `E:/FileCat/artifacts/release-evidence/i299-committed-20261010-v1/committed/inputs.json` | `7c3af9988dbb76d8711a3aba330c4f63a3d669420a04926347824279a2f1da5d` |
+| `E:/FileCat/artifacts/release-evidence/i299-committed-20261010-v1/committed/owned-temporary-files-v1.zip` | `82ba145b765ac1214d11dbc52df902da170af0e52b637a150ef0bcad577d358b` |

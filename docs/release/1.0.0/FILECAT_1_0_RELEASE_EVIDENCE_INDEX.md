@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**346 evidence entries; none is final candidate qualification.** No candidate exists.
+**347 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -355,8 +355,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-operation-row | Original operation-row retirement CI | 55a01ec /38002629656 attempt 1 | Four lanes/30,304 records/36 new controls; every 30,268 predecessor outcome/message/exact skip remains. Predates I296; no candidate. | [Record](evidence/E-CI-operation-row-retirement.md) | I06, I295, V03, V12, V20 |
 | E-I298 | Idle synchronous icon publication retirement | 3a735fd + declared overlays | 24 default/24 actual Skia/12 actual Windows component controls pass; cache-only native failure and healthy original async controls retained. Full App 1451/25 exact skips; all preceding records remain. All 24 exact controls pass; hosted/aggregate/candidate remain. | [Record](evidence/E-I298-idle-icon-publication-retirement.md) | I06, I298, V12 |
 | E-CI-operation-history-network | Original history/Network CI | 3a735fd /38005530378 attempt 1 | Four lanes/30,384 records; 76 new passes/four explicit new platform skips. Every 30,304 predecessor record and exact skip remains. Predates I298; no candidate. | [Record](evidence/E-CI-operation-history-network.md) | I06, I296, I297, V12, V20 |
-| E-I299 | Find refinement scratch ownership | f506ad7 + declared overlays | Nine original retirement failures/nine live positives become eighteen passes; 69 Find/full App 1469/25 exact skips retain every 1476 preceding outcome/message record. Exact/hosted/aggregate/candidate remain. | [Record](evidence/E-I299-find-refinement-scratch-ownership.md) | I06, I299, V12, V13 |
+| E-I299 | Find refinement scratch ownership | f506ad7 + declared overlays | Nine original retirement failures/nine live positives become eighteen passes; 69 Find/full App 1469/25 exact skips retain every 1476 preceding outcome/message record. All eighteen exact controls pass; hosted/aggregate/candidate remain. | [Record](evidence/E-I299-find-refinement-scratch-ownership.md) | I06, I299, V12, V13 |
 | E-I06-composed-resource-accounting | Composed page/archive/listing accounts | f506ad7 + private fixture | Two profiles: 13/48 readers, four/twelve 12k-row listings, real ZIP/TAR indexes and a live evicted ZIP lease. Separate bounded charges/spill/process samples and exact source bytes retained; no native/reference/candidate acceptance. | [Record](evidence/E-I06-composed-resource-accounting.md) | I06, V12, V16 |
+| E-I06-current-picture-accounting | Current F3/QuickView memory and retirement | d24a457 /1386 canonical blobs, unchanged product binaries | Nine F3/24 QuickView decodes, actual Skia frames, source bytes/retirement/zero final charges; no owned processes. Original fixture failures retained. Offscreen/preliminary, no native frame/reference/candidate acceptance. | [Record](evidence/E-I06-current-picture-accounting.md) | I06, V12, V16 |
 
 
 <a id="commits-made-by-the-campaign"></a>
