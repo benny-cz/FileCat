@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**394 evidence entries; none is final candidate qualification.** No candidate exists.
+**397 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -405,6 +405,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I08-CLAIMS | Current worker documentation reconciliation | 4f9d500 /XML and ADR clarification | Native-Skia/Unix authority/Windows fallback claims corrected; executable source lines unchanged; containment policy/candidate remain open. | [Record](evidence/E-I08-worker-boundary-claims.md) | I08, I10, V10, V22, V23 |
 | E-ENV-ARTIFACTS-V | Verified physical artifact relocation | V: storage /E: compatibility junction | 675,279 files and every stream hash verified before checked original retirement; complete metadata, identity/security differences and failure log retained. | [Record](evidence/E-ENV-STORAGE-artifacts-relocation.md) | ENV, REP, V20 |
 | E-I313 | Unix decoder attached-child lifetime | 4f9d500 declared worker/test overlay | Two native orphan failures become eleven Ubuntu/Mac passes; 86 affected Windows passes/two explicit skips; staged/runtime/process/fixture restoration verifies. | [Record](evidence/E-I313-unix-worker-child-lifetime.md) | I08, I313, V10, V23 |
+| E-I313-EXACT | Committed Unix attached-child lifetime | 42e5185 /no overlays | Eleven Ubuntu/Mac native passes; 86 affected Windows passes/two exact skips; staged/runtime/process/fixture restoration verifies. | [Record](evidence/E-I313-native-child-lifetime.md) | I08, I313, V10, V23 |
+| E-CI-I313 | Original committed Unix lifetime CI | 42e5185 /38058281506 attempt 1 | Four lanes/27 digest archives/14 TRX/31,266 rows; 30,270 passes/996 exact skips, every predecessor and restore/build receipt verify. | [Record](evidence/E-CI-unix-child-lifetime.md) | I08, I313, V20, V23 |
+| E-I314 | Incomplete Linux block dependencies | 42e5185 /declared product/test overlays | Six native/seven permanent failures become eight targeted/18 native passes; 74 affected passes/29 exact skips and owned cleanup verify. | [Record](evidence/E-I314-incomplete-linux-topology.md) | I106, I314, V09, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 

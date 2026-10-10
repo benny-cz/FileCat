@@ -117,6 +117,7 @@ public sealed class UnixDeviceTests : IDisposable
         {
             string target = Path.Combine(sys, folder.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(target);
+            Directory.CreateDirectory(Path.Combine(target, "slaves"));
             string link = Path.Combine(sys, "class", "block", name);
             Directory.CreateDirectory(Path.GetDirectoryName(link)!);
             try { Directory.CreateSymbolicLink(link, target); }

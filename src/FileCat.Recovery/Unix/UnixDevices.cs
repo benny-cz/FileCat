@@ -452,7 +452,10 @@ public static class UnixDisks
             // Devices served by another program over the network (qemu-nbd, Ceph) may be backed by a file on any disk here.
             if (name.StartsWith("nbd", StringComparison.Ordinal) || name.StartsWith("rbd", StringComparison.Ordinal)) return written ? null : [name];
             string slaves = Path.Combine(dir, "slaves");
-            var members = Directory.Exists(slaves) ? Directory.EnumerateFileSystemEntries(slaves).Select(Path.GetFileName).OfType<string>().ToList() : [];
+            // An unavailable dependency directory is incomplete topology, not proof of an independent leaf.
+            // It can disappear while a mapped device is being removed; unknown must never establish another disk.
+            if (!Directory.Exists(slaves)) return null;
+            var members = Directory.EnumerateFileSystemEntries(slaves).Select(Path.GetFileName).OfType<string>().ToList();
             if (members.Count == 0) return [name];
             var disks = new List<string>();
             foreach (var member in members)
