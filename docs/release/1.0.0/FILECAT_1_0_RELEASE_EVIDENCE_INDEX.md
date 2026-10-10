@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**376 evidence entries; none is final candidate qualification.** No candidate exists.
+**379 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -387,6 +387,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I08-WIN-CURRENT | Current medium/high Windows worker boundaries | Exact 0aec7a7 product /Insider guest | 24 finite controls; actual medium/high parents, twelve helper tokens and six elevated decoder tokens/jobs, exact bytes and owned cleanup. Broader I08 remains. | [Record](evidence/E-I08-current-windows-worker-boundaries.md) | I08, V06, V10, V23 |
 | E-I17-STANDARD | Actual standard-account pre-elevation trust/refusal matrix | Exact 0aec7a7 Windows/Core assemblies /Insider guest | Twenty controls/seven native ACLs; six actual pre-launch refusals, native denied/granted writes, volume/alias distinctions and complete temporary-account/profile/fixture cleanup. Original setup failure preserved. | [Record](evidence/E-I17-native-standard-account-boundaries.md) | I17, I16, V06, V23 |
 | E-I308 | Retired Places icon and Place payload ownership | 42cde9a baseline /declared validated PanelView and test overlays | Eighteen controls, affected/full App and sixteen final native Windows controls; complete pixel hashes, live positives and original failures retained. Compositor controls remain qualified. | [Record](evidence/E-I308-place-bar-retirement.md) | I06, I308, V12, V16, V23 |
+| E-I308-NATIVE | Committed native Places payload retirement | 3712e12 /unchanged compiled observer | 193 affected/two exact skips; 48 three-platform native controls, complete byte hashes and fixture cleanup pass. | [Record](evidence/E-I308-native-place-retirement.md) | I06, I308, V12, V16, V23 |
+| E-I06-PLACE-MENUS | Ephemeral overflow menu controls and icon lifetime | 3712e12 /bounded original observers | Four Headless/twelve native controls; actual icon hashes and twelve independent fixture absence checks pass; fixture/reader failures retained. | [Record](evidence/E-I06-place-menu-retirement.md) | I06, V12, V16, V23 |
+| E-CI-PLACE | Original committed Places ownership qualification | 3712e12 /38041933924 attempt 1 | Four lanes, 27 digest archives/14 TRX; 30,080 passes/992 exact skips, all 72 added records and every predecessor retained. | [Record](evidence/E-CI-place-retirement.md) | I06, I308, I108, V20, V23 |
 
 
 <a id="commits-made-by-the-campaign"></a>
