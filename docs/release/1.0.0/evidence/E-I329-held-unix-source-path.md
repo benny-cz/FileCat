@@ -2,6 +2,8 @@
 
 2026-10-10 CEST. **Potential Critical, deleted-data safety (I106/V09), remediated preliminarily.** Source **5f9128f9f8c1e3a13c48767fb5ca9e37720d5590 /1507 canonical raw blobs**, with declared test/product overlays.
 
+[Exact committed/native follow-up](E-I329-native-qualification.md) separately qualifies c14fb21 /1510 raw blobs/no overlays with ten native passes and all 947 affected predecessor outcomes/messages retained.
+
 The real UnixDeviceSource holds one descriptor while destination admission classifies its current path. On both Ubuntu and Mac, an owned regular-file image is scanned, then its selected path is replaced, removed or its symlink retargeted. Native stat identities show a different entry or absence, but the old descriptor still reads the original complete bytes. All three cases incorrectly pass admission and copy those bytes. Two positive controls keep the selected entry unchanged or recreate a symlink to that same entry. These controls use recording destination topology and an owned 32 KiB FAT12 image; they do not open a physical device or establish an exploit.
 
 The correction gives native readers an optional device-path guard. UnixDeviceSource captures the held descriptor's device/inode entry and rechecks both that descriptor and the current followed path before the provider consults destination topology. Changed, missing, unverifiable or disposed source entries refuse recovery with a request to select the device again. Readers without this Unix guard keep their existing route; no Windows/helper identity claim is made.
