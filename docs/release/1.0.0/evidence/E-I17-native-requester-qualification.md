@@ -19,3 +19,5 @@ Paths are relative to private FileCatReleaseEvidence. Nested records retain cano
 | `i17-requester-qualification-20261010-v1/independent-exact-matrix-final-v2.json` | `5771fbfa9e2808c1cbb31e3d1d77e9feaced2b8f3b6d9957ec694f3ba1c6dad7` |
 | `i17-requester-qualification-20261010-v1/account-restoration-postcheck-v1/independent-final-v1.json` | `a5efa85827753a0e86c2f2213480454ae335a8a15255ba3f9b156847540d443d` |
 | `i17-requester-matrix-public-20261010-v1/retained-tool-sources-v1.json` | `eeffe84ee26bcbcd5fe8bb1fd7d940ed7eb8c2bee1548e53d27963c3a437b289` |
+
+[Original 270ffd7 CI](E-CI-broker-requester-lifetime.md) now independently qualifies 30,809 passes/1007 exact skips across four required lanes, including all 26 new Windows requester records. It retains its own producer and does not qualify the later I328 correction.

@@ -92,7 +92,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 // Result and sync items keep their folders below the destination.
                 targetDir = Job.Request.Options.Flatten || root.RelativeFolder is not { Length: > 0 } rel ? destDir : RelativeFolders.Resolve(destDir, rel);
-                if (targetDir != destDir) Directory.CreateDirectory(targetDir);
+                if (targetDir != destDir)
+                {
+                    if (!DestinationAllowed(root.Parent, targetDir)) { Job.RootFailed(index); continue; }
+                    Directory.CreateDirectory(targetDir);
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
@@ -115,6 +119,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         Job.TotalsFinal = true;
         Job.SetCurrent(null);
+    }
+
+    private bool DestinationAllowed(Location source, string folder)
+    {
+        if (providers.Get(source.Scheme).CheckTransferDestination(source, folder) is not { } refusal) return true;
+        Job.ItemFailed();
+        Issue(IssueSeverity.Error, folder, refusal, StepOutcome.Failed);
+        return false;
     }
 
     private string? FindOriginMark(Location location)
@@ -148,6 +160,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Issue(IssueSeverity.Error, dir.Name, "This folder cannot be opened for copying.", StepOutcome.Failed);
             return false;
         }
+        // A descendant can be a different mount or a link into the recovery source's disk.
+        // The admitted root does not establish where this particular folder writes.
+        if (!DestinationAllowed(dir.Parent, dst)) return false;
         if (!Directory.Exists(dst) && !TryIo(dst, "create a folder", () => Fs.CreateDirectory(dst))) return false;
         var children = new List<EntryData>();
         var sink = new ListSink(children);
@@ -270,8 +285,6 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             return false;
         }
         var dir = Path.GetDirectoryName(target)!;
-        // Durable once per folder, so recovery finds staged leftovers there (a flush per item dominated extracting small files).
-        if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
         long written = 0;
         IReadOnlyList<(long Offset, long Length)>? lost = null;
@@ -316,6 +329,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             {
                 // Keep metadata admission inside the lifetime/cleanup scope too: a refused query still closes its content.
                 RetainVersion();
+                // Conflict decisions and opening/querying content can take time or change topology.
+                // Revalidate the actual staging folder before creating a file there.
+                if (!DestinationAllowed(item.Parent, dir)) return false;
+                // Durable once per folder, so recovery finds staged leftovers there.
+                if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
                 using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
                 {
                     var buffer = new byte[BufferSize];

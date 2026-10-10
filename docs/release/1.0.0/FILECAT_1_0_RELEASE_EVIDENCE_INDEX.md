@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**437 evidence entries; none is final candidate qualification.** No candidate exists.
+**439 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -448,6 +448,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I17-REQUESTER | Actual Windows requester exit | 1670227 production /one declared regression-test overlay | Thirteen native requester controls/fifty affected passes; final 63 medium guest passes and preceding 63 pass. Every predecessor outcome/message, staged/runtime bytes and independent whole-root restoration verify; no new defect. | [Record](evidence/E-I17-native-requester-exit.md) | I17, V06, V23 |
 | E-I17-REQUESTER-EXACT | Committed Windows requester account matrix | 270ffd7 /1502 raw blobs/no overlays | Thirteen targeted/fifty affected passes; 189 native medium/high/Users-only passes. Preserve first 60-pass/three-failure Registry run; exact-source bytes and independent account/profile/group/hive/owned-root restoration verify. | [Record](evidence/E-I17-native-requester-qualification.md) | I17, V06, V23 |
 | E-CI-I327 | Original image-reader lifetime CI | 767adc4 /38081028021 attempt1 | Four required lanes/27 digest archives/fourteen TRX/30,783 passes/1007 exact skips/zero failures. All 44 additions and every previous green outcome/message remain. | [Record](evidence/E-CI-recovery-image-lifetime.md) | I06, I327, V09, V12, V23 |
+| E-I328 | Recovery descendant/staging destination admission | 8c4ea03 /1504 raw blobs/declared overlays | Fourteen unsafe cases/seven positives become 21 passes on each native platform; all 926 affected outcomes/19 skips retained | [I328](evidence/E-I328-recovery-destination-admission.md) | I106/V09 |
+| E-CI-I17-REQUESTER | Original requester lifetime CI | 270ffd7 /38082938868 attempt1 | Four required lanes; 30,809 passes/1007 exact skips/zero failures; all 26 additions and every predecessor outcome/message retained | [Original CI](evidence/E-CI-broker-requester-lifetime.md) | I17/I18/I108 |
 
 <a id="commits-made-by-the-campaign"></a>
 
