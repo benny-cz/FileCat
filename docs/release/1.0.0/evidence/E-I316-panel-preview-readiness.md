@@ -6,7 +6,7 @@ A gated owned provider proves the readiness defect with unchanged **e0bdade prod
 
 The correction waits for the actual `PagedReader` positive checkpoint. The original **five-second bound** and every retirement/reuse assertion remain; no retries, skip broadening or production viewer change occurs. Both controlled tests pass, and **35 affected tests pass**, including all fourteen existing panel-retirement/reuse controls and QuickView lifetime/folder-demand controls. Every predecessor name/outcome/message/skip remains. The first private harness compilation refusal caused by an ambiguous provider type is retained separately; the fresh probe adds the explicit type alias before any product/fixture observation.
 
-Source qualification uses declared test-only overlays, preserving exact artifact identity. Committed/ARM64 hosted follow-up remains; no live desktop/input, installed-candidate or whole-I06/I108 acceptance is inferred. Physical-source HOLD and human GO remain.
+Source qualification uses declared test-only overlays, preserving exact artifact identity. [Exact committed follow-up](E-I315-I316-native-qualification.md) now passes at 17035d5; original ARM64 hosted collection remains separate; no live desktop/input, installed-candidate or whole-I06/I108 acceptance is inferred. Physical-source HOLD and human GO remain.
 
 ## Selected immutable receipts
 

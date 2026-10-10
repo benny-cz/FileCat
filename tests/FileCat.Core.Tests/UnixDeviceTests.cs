@@ -181,7 +181,7 @@ public sealed class UnixDeviceTests : IDisposable
         Assert.Equal(["loop0"], topology.DeviceDisks("/dev/loop0"));
         Assert.Null(topology.FolderDisks("/mnt/old/out")); // its file was deleted
         Assert.Null(topology.FolderDisks("/mnt/nbd/out")); // served by another program, from anywhere
-        Assert.Equal(["nbd0"], topology.DeviceDisks("/dev/nbd0"));
+        Assert.Null(topology.DeviceDisks("/dev/nbd0")); // its server can export a local device as well
         // Another computer's share is on no disk here; one this computer serves is on one of its own.
         Assert.Empty(topology.FolderDisks("/mnt/nas/out")!);
         Assert.Null(topology.FolderDisks("/mnt/self/out"));

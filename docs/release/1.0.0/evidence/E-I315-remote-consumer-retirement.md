@@ -8,7 +8,7 @@ Declared source/test overlays pass **32 targeted controls**, the full preceding 
 
 The first postcheck reader wrongly expected VMware Tools to forward guest stdout; its empty output and refusal remain. Fresh checks write and retrieve their own guest results. A separate byte-equality reader refuses working CRLF differences; after proving only newline normalization to the already qualified source, its fresh successor passes. All owned probe/controller sources are additionally preserved on V:.
 
-These are controlled in-memory protocol/owned-file ownership checks, not native-server incidence, credential disclosure, whole-process peaks or a new aggregate budget. I06 remains open for wider consumers/native accounting/reference/input/human/candidate scope. Exact committed/original hosted follow-up remains separate. Physical-source HOLD and human GO remain.
+These are controlled in-memory protocol/owned-file ownership checks, not native-server incidence, credential disclosure, whole-process peaks or a new aggregate budget. I06 remains open for wider consumers/native accounting/reference/input/human/candidate scope. [Exact committed/native follow-up](E-I315-I316-native-qualification.md) now passes at 17035d5; original hosted collection remains separate. Physical-source HOLD and human GO remain.
 
 ## Selected immutable receipts
 

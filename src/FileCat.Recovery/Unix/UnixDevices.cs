@@ -449,8 +449,9 @@ public static class UnixDisks
                 return backing is null || !backing.StartsWith('/') || backing.EndsWith(" (deleted)", StringComparison.Ordinal) ||
                        FolderDisks(backing, depth + 1) is not { } file ? null : [name, .. file];
             }
-            // Devices served by another program over the network (qemu-nbd, Ceph) may be backed by a file on any disk here.
-            if (name.StartsWith("nbd", StringComparison.Ordinal) || name.StartsWith("rbd", StringComparison.Ordinal)) return written ? null : [name];
+            // Userspace/network exports (qemu-nbd, Ceph) do not expose their backing disks here. A local server may
+            // export a device that also holds FileCat's write folders, so a source is unknown just like a write.
+            if (name.StartsWith("nbd", StringComparison.Ordinal) || name.StartsWith("rbd", StringComparison.Ordinal)) return null;
             string slaves = Path.Combine(dir, "slaves");
             // An unavailable dependency directory is incomplete topology, not proof of an independent leaf.
             // It can disappear while a mapped device is being removed; unknown must never establish another disk.

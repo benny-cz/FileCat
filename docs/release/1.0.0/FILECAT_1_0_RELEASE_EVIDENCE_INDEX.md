@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**401 evidence entries; none is final candidate qualification.** No candidate exists.
+**403 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -411,7 +411,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I314-EXACT | Committed incomplete Linux topology qualification | e0bdade /no overlays | Eight targeted/74 affected passes/29 exact skips, 18 Ubuntu native passes and staged/runtime/fixture restoration verify. | [Record](evidence/E-I314-native-topology-qualification.md) | I106, I314, V09, V23 |
 | E-CI-I314 | Original topology CI with ARM64 App failure | e0bdade /38060584377 attempt 1 | Three lanes pass; all 32 new topology records pass. 25 digest archives/14 TRX: 30,301 passes/996 exact skips/one retained failure. | [Record](evidence/E-CI-incomplete-linux-topology.md) | I06, I106, I108, I314, I316, V20, V23 |
 | E-I315 | Remote reader and lease ownership retirement | e0bdade /declared product/test overlays | 28 original failures/four positives become 32 targeted/64 guest passes; 2488 affected passes/156 exact skips, bytes and cleanup verify. | [Record](evidence/E-I315-remote-consumer-retirement.md) | I06, I315, V08, V10, V12 |
+| E-I315-I316-EXACT | Committed remote ownership and panel readiness | 17035d5 /no overlays | 34 targeted/2523 affected passes/156 exact skips; 64 Windows–Ubuntu guest passes and independent staged/runtime/process/fixture checks. | [Record](evidence/E-I315-I316-native-qualification.md) | I06, I108, I315, I316, V08, V10, V12 |
 | E-I316 | Panel preview positive readiness fixture | e0bdade /declared test-only overlays | Two gated failures become two passes; all 35 affected tests pass, bound/assertions retained. Historical ARM64 cause unproven. | [Record](evidence/E-I316-panel-preview-readiness.md) | I06, I108, I316, V10, V12 |
+| E-I317 | Unknown network/userspace recovery source backing | 17035d5 /declared product/test overlays | Eight unsafe read classifications/eight write positives become 16 targeted/16 fixed Ubuntu passes; 82 affected passes/29 exact skips retained. | [Record](evidence/E-I317-network-source-topology.md) | I106, I317, V09, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 
