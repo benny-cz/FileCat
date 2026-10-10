@@ -30,8 +30,9 @@ public sealed record SyncContext(
 /// </summary>
 public sealed class SyncWindow : Window
 {
-    private readonly TreeCompareResult _comparison;
-    private readonly SyncContext _context;
+    private TreeCompareResult _comparison;
+    private SyncContext _context;
+    private bool _closed;
     private readonly ComboBox _direction = new() { MinWidth = 320 };
     private readonly ComboBox _mode = new() { MinWidth = 300 };
     private readonly CheckBox _showAll = new() { Content = "Also show items left alone" };
@@ -105,6 +106,16 @@ public sealed class SyncWindow : Window
         };
         // Once shown and laid out, the steps have the keyboard (arrows move, Space includes or excludes).
         Opened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() => Controls.ListKeys.Focus(_list), Avalonia.Threading.DispatcherPriority.Input);
+        Closed += (_, _) =>
+        {
+            if (_closed) return;
+            _closed = true;
+            ControlRetirement.ClearItems(_list);
+            _items = [];
+            // The input is borrowed: another open preview or its caller can still own the original comparison.
+            _comparison = new TreeCompareResult([], false, 0);
+            _context = _context with { Submit = static (_, _, _) => false };
+        };
         Propose();
     }
 
@@ -121,20 +132,23 @@ public sealed class SyncWindow : Window
 
     public void Choose(bool sourceIsLeft, SyncMode mode)
     {
+        if (_closed) return;
         _direction.SelectedIndex = sourceIsLeft ? 0 : 1;
         _mode.SelectedIndex = mode == SyncMode.Mirror ? 1 : 0;
     }
 
     private void Propose()
     {
+        if (_closed) return;
         _items = SyncPlanner.Propose(_comparison, SourceIsLeft, Mode, _context.IgnoresCase);
         Refresh();
     }
 
     private void Refresh(bool keepSelection = false)
     {
+        if (_closed) return;
         var selected = keepSelection ? _list.SelectedItems?.OfType<SyncItem>().ToList() : null;
-        _list.ItemsSource = null;
+        ControlRetirement.ClearItems(_list);
         _list.ItemsSource = _items.Where(i => _showAll.IsChecked == true || i.CanInclude).ToList();
         if (selected is not null) foreach (var s in selected) _list.SelectedItems?.Add(s);
         UpdateSummary();
@@ -171,7 +185,7 @@ public sealed class SyncWindow : Window
 
     public void Run()
     {
-        if (!_run.IsEnabled) return;
+        if (_closed || !_run.IsEnabled) return;
         if (_context.Submit(RunnableItems(), SourceIsLeft, !TargetRecycles && _permanent.IsChecked == true)) Close();
     }
 
@@ -193,7 +207,8 @@ public sealed class SyncWindow : Window
         Avalonia.Automation.AutomationProperties.SetName(box, $"{Verb(item.Action)} {item.Entry.RelativePath}");
         box.IsCheckedChanged += (_, _) =>
         {
-            item.Include = box.IsChecked == true;
+            if (_closed || box.DataContext is not SyncItem current) return;
+            current.Include = box.IsChecked == true;
             UpdateSummary();
         };
         grid.Children.Add(box);

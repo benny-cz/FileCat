@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current issue register
 
-Updated 2026-10-10. **279 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 301 total.**
+Updated 2026-10-10. **280 Remediated preliminarily, two Closed for preliminary scope, 20 unresolved statuses; 302 total.**
 These are issue statuses, not remaining test counts. Subsequent scope closures require their own linked evidence; consolidation itself did not promote a status.
 Remediated does not mean complete candidate qualification. All original findings, comparison results, commits, failure details and closure limits remain in the [frozen full register](FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md).
 
@@ -323,6 +323,7 @@ Use the [execution dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for the r
 | I299 | <a id="i299"></a>Unpublished Find refinement scratch sets accumulate in provider storage | Medium (unbounded retired result ownership) | Fix (I06/V12/V13) | Remediated preliminarily — construct private refinement scratch without registering panel locations. Nine original retirement failures/nine live positives become eighteen passes; 69 Find/full App 1469/25 exact skips preserve every 1476 predecessor record. Displayed result/navigation policy unchanged. All eighteen exact controls pass; 72 original hosted controls pass; aggregate/candidate remain. | [Full record](evidence/E-I299-find-refinement-scratch-ownership.md) |
 | I300 | Closed-listing materialized-state ownership | Medium | Remediated preliminarily | Disposal retires owned state without releasing separate selection leases. Twelve controls, committed 14 Core/50 App, six Windows/Ubuntu/Mac native cases and 48 new four-lane hosted controls pass. Original fixture failures retained; candidate qualification remains. | [Record](evidence/E-I300-closed-listing-state-ownership.md) |
 | I301 | Streaming-listing retirement fixture readiness | Medium | Remediated preliminarily | Positive-publication fixture records actual/requested counts. Committed 14 Core/50 App, six affected native cases and corrected four-lane CI pass with every predecessor outcome/message/exact skip retained. Original local/hosted timeouts remain; candidate qualification remains. | [Record](evidence/E-I301-streaming-fixture-readiness.md) |
+| I302 | Comparison windows and recycled rows retain materialized owners | Medium | Remediated preliminarily | Closed/replaced rows drop owned contexts, results, tasks and callbacks without mutating borrowed inputs or bypassing active-read disposal. Original 21 failures/15 passes become 36 passes; full App 1505 passes/25 exact skips retains all predecessor results. Exact/native/hosted/candidate follow-up remains. | [Record](evidence/E-I302-comparison-window-retirement.md) |
 
 ## Maintenance
 

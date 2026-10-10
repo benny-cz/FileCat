@@ -41,8 +41,8 @@ public sealed class CompareWindow : Window
     private IContentSource _left, _right;
     private ViewSource _leftView, _rightView;
     private readonly string _leftName, _rightName;
-    private readonly Func<(IContentSource Left, IContentSource Right)>? _reopen;
-    private readonly Func<Task<(IContentSource Left, IContentSource Right)>>? _reopenAsync;
+    private Func<(IContentSource Left, IContentSource Right)>? _reopen;
+    private Func<Task<(IContentSource Left, IContentSource Right)>>? _reopenAsync;
     private bool CanReopen => _reopen is not null || _reopenAsync is not null;
     private readonly ListBox _rows = new();
     private readonly HexCompareView _hex = new() { IsVisible = false };
@@ -195,11 +195,39 @@ public sealed class CompareWindow : Window
         ThemeManager.ThemeChanged += RefreshIcons;
         Closed += (_, _) =>
         {
+            if (_closed) return;
             _closed = true;
             ThemeManager.ThemeChanged -= RefreshIcons;
             _work?.Cancel();
             ReleaseWhenIdle(_left, _right, _leftView, _rightView);
             DisposePages(_pages);
+            // ReleaseWhenIdle captured the active readers and their sources. A retained closed window no longer
+            // owns their graphs, completed tasks, decoded lines, or the controls' materialized result lists.
+            _view++;
+            _shown = Shown.Nothing;
+            _hex.SetContent(null, null, null, []);
+            ControlRetirement.ClearItems(_rows);
+            ControlRetirement.ClearItems(_differenceBox);
+            _pages = null;
+            _bytes = null;
+            _leftText = _rightText = null;
+            _textProblem = null;
+            _differenceRows = [];
+            _differences = [];
+            _descriptions = [];
+            _aligning = null;
+            _loading = _runs = Task.CompletedTask;
+            _work = _aligningStop = null;
+            _reopen = null;
+            _reopenAsync = null;
+            _revisions = default;
+            _current = -1;
+            _pastListed = null;
+            _moreDifferences = false;
+            IsComparing = false;
+            var empty = new MemoryContentSource(string.Empty, []);
+            _left = _right = empty;
+            _leftView = _rightView = new ViewSource(empty);
         };
         _summary.Text = "Comparing…";
         Opened += (_, _) => _loading = LoadAsync();
@@ -510,6 +538,7 @@ public sealed class CompareWindow : Window
         _settingDifference = true;
         try
         {
+            ControlRetirement.ClearItems(_differenceBox);
             _differenceBox.ItemsSource = _descriptions.Count > MaxListed ? _descriptions.GetRange(0, MaxListed) : _descriptions.ToList();
             _differenceBox.IsEnabled = _descriptions.Count > 0 || _moreDifferences;
             _differenceBox.PlaceholderText = _descriptions.Count == 0 ? "No differences" : null;
@@ -761,6 +790,7 @@ public sealed class CompareWindow : Window
         // Options changed meanwhile, or the files were compared again: a newer view is on its way.
         if (view != _view || _closed) return;
         Show(Shown.Text);
+        ControlRetirement.ClearItems(_rows);
         _rows.ItemsSource = shown.Rows;
         _differenceRows = shown.Differences;
         _descriptions = shown.Descriptions;
@@ -780,7 +810,7 @@ public sealed class CompareWindow : Window
         _hex.IsVisible = !text;
         _statusBar.IsVisible = !text;
         if (text) _hex.SetContent(null, null, null, []);
-        else _rows.ItemsSource = null;
+        else ControlRetirement.ClearItems(_rows);
     }
 
     private void ShowBinary(BinaryDiffResult bytes)

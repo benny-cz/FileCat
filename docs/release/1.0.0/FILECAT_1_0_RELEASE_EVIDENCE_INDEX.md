@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**356 evidence entries; none is final candidate qualification.** No candidate exists.
+**357 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -367,6 +367,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I06-CURRENT-NATIVE | Committed Windows/Ubuntu combined native retirement | 7bdaa89 /1394 canonical blobs; no overlays; private .NET 10.0.12 | Four native cases/280 compositor completions; 64 held listing owners collect, tracked content retires. Original Ubuntu pump timeouts/stack and reader refusals retained. | [Record](evidence/E-I06-current-native-retirement.md) | I06, I300, I301, V12, V16 |
 | E-CI-LISTING | Listing retirement and streaming CI qualification | Corrected 38017230777 attempt 1 /7bdaa89; original 38016421829 /5363a8b retained | Corrected four lanes/27 digest archives/14 TRX/30,600 rows; all 48 added controls pass, every predecessor outcome/message/exact skip retained. Original readiness failure remains. | [Record](evidence/E-CI-listing-streaming-readiness.md) | I06, I300, I301, V12, V20 |
 | E-I06-MAC-CURRENT-NATIVE | Committed Mac combined native retirement | 7bdaa89 /1394 canonical blobs, no overlays; macOS27 M1/Retina2/private .NET10.0.12 | Two cases/140 NSWindow compositor completions/32 held listing owners retire; finite samples and temporary-job restoration retained. | [Record](evidence/E-I06-current-mac-native-retirement.md) | I06, I300, I301, V12, V16 |
+| E-I302 | Comparison window and recycled-row retirement | 534187f /1397 canonical blobs; four product overlays/three fixtures | Original 21 failures/15 healthy controls become 36 passes; full App 1505 passes/25 exact skips retains every predecessor outcome/message. All adverse attempts retained. | [Record](evidence/E-I302-comparison-window-retirement.md) | I06, I302, V12, V13 |
 
 
 <a id="commits-made-by-the-campaign"></a>

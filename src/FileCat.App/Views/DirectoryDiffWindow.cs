@@ -33,7 +33,7 @@ public sealed class DirectoryDiffWindow : Window
 
     private TreeCompareResult? _result;
     private bool _closed, _finished;
-    private readonly Action<IReadOnlyList<TreeDiffEntry>, bool> _openSide;
+    private Action<IReadOnlyList<TreeDiffEntry>, bool> _openSide;
     private readonly CancellationTokenSource _stop = new();
     private readonly Button _stopButton = new() { Content = "Stop", Classes = { "danger" } };
     private readonly Button _openLeft = new() { Content = "Open left items as results", IsEnabled = false };
@@ -74,17 +74,23 @@ public sealed class DirectoryDiffWindow : Window
         s_open.Add(window);
         window.Closed += (_, _) =>
         {
+            if (window._closed) return;
             window._closed = true;
             window._stop.Cancel();
             if (window._finished) window._stop.Dispose();
             s_open.Remove(window);
+            ControlRetirement.ClearItems(window._list);
+            window._result = null;
+            window._syncContext = null;
+            window._compareFiles = null;
+            window._openSide = static (_, _) => { };
         };
         window.Show();
         _ = window.RunAsync(compare);
         return window;
     }
 
-    public bool IsComparing => _result is null;
+    public bool IsComparing => !_closed && _result is null;
 
     private async Task RunAsync(Func<Action<string>, CancellationToken, Task<TreeCompareResult>> compare)
     {
@@ -235,6 +241,7 @@ public sealed class DirectoryDiffWindow : Window
             return;
         }
         var shown = Shown();
+        ControlRetirement.ClearItems(_list);
         _list.ItemsSource = shown;
         int differences = _result.Entries.Count(e => e.IsDifference);
         var parts = new List<string>();
