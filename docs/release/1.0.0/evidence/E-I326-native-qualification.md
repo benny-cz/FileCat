@@ -6,6 +6,8 @@ Windows, Ubuntu and Mac each pass the fourteen committed controls (**42 native p
 
 The [original baseline/fix record](E-I326-recovery-consumer-retirement.md) preserves all earlier fixture, first-correction, reentrant and storage-capacity failures with their own declared-overlay producers. These exact committed observations are separate from current original CI and from a final release candidate. Broader I06 aggregate/process/native/reference/human, active source/session identity and I106/I110 physical-source HOLD remain.
 
+[Original 24658e4 CI qualifies all four required lanes, preserving every previous green outcome/message and exact skip.](E-CI-recovery-consumer-retirement.md)
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested receipts preserve exact sources, commands, payload/runtime bytes, raw failures/skips and owned restoration.

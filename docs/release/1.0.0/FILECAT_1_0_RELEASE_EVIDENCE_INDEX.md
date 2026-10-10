@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**432 evidence entries; none is final candidate qualification.** No candidate exists.
+**434 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -443,6 +443,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I324-I325 | Original broker/Mac CI qualification | 55deaa3 /38076560415 attempt1 | Four required lanes, 27 digest archives/fourteen TRX, 30,683 passes/1007 exact skips/zero failures. All 164 additions pass and every previous green outcome/message remains. | [Record](evidence/E-CI-broker-admission-mac-oracle.md) | I17, I106, I324, I325 |
 | E-I03-NATIVE-COMPOSITION | Original native helper static members and imports | 8502983 /four original Windows outputs and receipts | 268 original inputs/23 archives/350 mapped members; complete 95 x64/86 ARM64 imports independently agree. No pre-build/read-trace/license/full-source/candidate claim. | [Record](evidence/E-I03-NATIVE-original-static-composition.md) | I03, I14, I18 |
 | E-I327 | Recovery image reader lifetime | 3fc9dca /1496 raw blobs/declared overlays | Eight failures/three device positives become eleven passes on Windows/Ubuntu/Mac; 109 Core/25 App passes and 29 exact skips remain. Image handles retire after the last reader; device lifetimes unchanged. | [Record](evidence/E-I327-image-session-lifetime.md) | I06, I327, V09, V12, V23 |
+| E-I327-EXACT | Committed recovery image lifetime | 767adc4 /1498 raw blobs/no overlays | Eleven controls/109 Core/25 App passes, 29 exact skips and 33 native passes; every 174 predecessor outcome/message and independent restoration verify. | [Record](evidence/E-I327-native-qualification.md) | I06, I327, V09, V12, V23 |
+| E-CI-I326 | Original recovery-reader ownership CI | 24658e4 /38078628506 attempt1 | Four required lanes/27 digest archives/fourteen TRX/30,739 passes/1007 exact skips/zero failures. All 56 additions and every previous green outcome/message remain. | [Record](evidence/E-CI-recovery-consumer-retirement.md) | I06, I326, V09, V12, V23 |
 
 <a id="commits-made-by-the-campaign"></a>
 

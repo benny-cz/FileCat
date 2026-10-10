@@ -16,6 +16,8 @@ An initial private `git archive` export is refused before compilation because **
 
 Broader I06 aggregate/native/reference/human, physical-source, contract/candidate and publication gates remain open. I327 is **Remediated preliminarily** for this finite source-lifetime defect; no wider issue closes.
 
+[Exact committed/native follow-up passes at 767adc4 with no source/test overlays.](E-I327-native-qualification.md)
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested receipts retain raw source/output/command/native input hashes, complete failures/skips and independent restoration.
