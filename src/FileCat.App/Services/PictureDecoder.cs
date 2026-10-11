@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using Avalonia;
@@ -24,6 +25,7 @@ public sealed record DecodedPicture(WriteableBitmap Bitmap, int Width, int Heigh
 /// can fall back only under a positively queried process token at most medium integrity; other parents refuse.
 /// On Unix it inherits the parent's permissions without dropping its UID, an OS filesystem/network sandbox or job
 /// memory limit. Linux x64 also restricts direct process creation on every worker thread before consuming input.
+/// The Unix decoder itself ends when its launching parent dies; this does not contain detached descendants.
 /// A decoder crash is reported to the viewer; process separation alone does not restrict that authority.
 /// At most four workers run together; up to 32 other pictures can wait without starting a process or reading content.
 /// </summary>
@@ -222,11 +224,13 @@ public static class PictureDecoder
     {
         private readonly Platform.Windows.Shell.SandboxedWorker? _sandboxed;
         private readonly Process? _process;
+        private AnonymousPipeServerStream? _lifetime;
 
-        private Worker(Platform.Windows.Shell.SandboxedWorker? sandboxed, Process? process)
+        private Worker(Platform.Windows.Shell.SandboxedWorker? sandboxed, Process? process, AnonymousPipeServerStream? lifetime = null)
         {
             _sandboxed = sandboxed;
             _process = process;
+            _lifetime = lifetime;
         }
 
         public Stream Input => _sandboxed?.Input ?? _process!.StandardInput.BaseStream;
@@ -246,10 +250,31 @@ public static class PictureDecoder
             // A canceled worker is killed and cannot remove the runtime's debugger FIFOs on Unix. This content-only
             // child needs no diagnostic port; match the existing Windows helper policy before the runtime starts.
             psi.Environment["DOTNET_EnableDiagnostics"] = "0";
-            var process = Process.Start(psi) ?? throw new InvalidOperationException("The picture decoder could not be started.");
-            process.ErrorDataReceived += (_, _) => { };
-            process.BeginErrorReadLine();
-            return new Worker(null, process);
+            var lifetime = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+            Process? process = null;
+            try
+            {
+                // A separate channel covers parent death even if another owner still holds encoded stdin open.
+                // Overwrite any inherited value so this worker belongs to this exact launch.
+                psi.Environment[PictureWorkerLifetime.EnvironmentName] = lifetime.GetClientHandleAsString();
+                process = Process.Start(psi) ?? throw new InvalidOperationException("The picture decoder could not be started.");
+                lifetime.DisposeLocalCopyOfClientHandle();
+                process.ErrorDataReceived += (_, _) => { };
+                process.BeginErrorReadLine();
+                return new Worker(null, process, lifetime);
+            }
+            catch
+            {
+                try { if (process is { HasExited: false }) process.Kill(entireProcessTree: true); }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                finally { lifetime.Dispose(); }
+                if (process is not null)
+                {
+                    try { process.WaitForExit(5000); }
+                    finally { process.Dispose(); }
+                }
+                throw;
+            }
         }
 
         public void Kill()
@@ -260,6 +285,7 @@ public static class PictureDecoder
                 if (_process is { HasExited: false }) _process.Kill(entireProcessTree: true);
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            finally { Interlocked.Exchange(ref _lifetime, null)?.Dispose(); }
         }
 
         public async ValueTask DisposeAsync()

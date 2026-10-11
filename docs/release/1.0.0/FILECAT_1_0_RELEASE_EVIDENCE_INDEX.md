@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**497 evidence entries; none is final candidate qualification.** No candidate exists.
+**500 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -508,6 +508,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I347-NATIVE | [Exact source-location refusal](evidence/E-I347-native-qualification.md) | 0beaa10/1583 raw blobs/no overlays | 24 local/48 native passes; complete bytes/native identities | 6194 predecessors/131 skips/966 native files/restoration | I106 wider source/physical/candidate scope remains |
 | E-CI-BACKING-VISIBILITY | [Original source-location refusal CI](evidence/E-CI-backing-visibility-loss.md) | 38136477388 attempt1/0beaa10 | Four lanes/32936 records/31907P1029S/all72 additions pass | 27 digest archives/14TRX/1583 blobs/92 graphs/four clean builds;32808 last-green outcomes retained | I18; historical Mac cause unproven; no candidate/GO |
 | E-I06-HEX-DIAGNOSTIC | [Unchanged Mac hex-retirement diagnostics](evidence/E-I06-hex-retirement-investigation.md) | 0beaa10/1583 raw blobs/no overlays | 32 host/992 native hex passes; full Mac App adverse/1534P117S1F | 408 native files/restoration; missing-apphost failure retained | I06/I04; no historical-cause or full-native-App qualification claim |
+| E-I349 | [Unix decoder parent lifetime](evidence/E-I349-unix-picture-parent-lifetime.md) | 9710970/1589 raw blobs/declared four-file overlay | 12 actual native controls/30 lifetime unit results; two original surviving roots retained | 148 native picture results/4 skips; 2050 native files/owned restoration; all adverse attempts retained | I08 broader authority/descendants and exact/candidate follow-up remain |
+| E-I348-NATIVE | [Exact known-identity replacement](evidence/E-I348-native-qualification.md) | 9710970/1589 raw blobs/no overlays | 24 host/48 native passes; original and replacement bytes retained | 6242 predecessor outcomes/131 skips/966 native files/restoration | I106/I110 HOLD; initially unknown/atomic/candidate remain |
+| E-CI-BACKING-IDENTITY-REPLACEMENT | [Original known-identity replacement CI](evidence/E-CI-backing-identity-replacement.md) | 38139134555 attempt 1/9710970 | Four lanes/33008 records/31979 passes/1029 skips/all 72 additions pass | 27 digest archives/14 TRX/1589 blobs/92 graphs/four clean builds; all 32936 predecessors retained | I18; original failures remain; no candidate/GO |
 
 <a id="commits-made-by-the-campaign"></a>
 

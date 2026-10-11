@@ -1,6 +1,6 @@
 # ADR-06: Worker isolation — Shell handlers and picture decoding
 
-**Status:** Shell-host decision retained (P7, TV-16, 2026-09-28); current implementation clarified 2026-10-10.
+**Status:** Shell-host decision retained (P7, TV-16, 2026-09-28); current implementation clarified 2026-10-11.
 The earlier scope described the Shell host as the only worker and reserved separate processes for future native
 engines. FileCat now also decodes pictures with native Skia codecs in a separate FileCat process on every platform.
 The implemented boundaries below supersede that obsolete description. Other archive, inspector and recovery
@@ -67,12 +67,18 @@ ceiling across all viewers or a guarantee against native parser side effects.
   a memory ceiling, a UID drop or containment of indirect influence through other processes. **Linux ARM64 and macOS**
   retain their existing policy; an observed deprecated/unsupported Mac C API is not shipped from a feasibility probe.
   Cancellation and disposal request termination of the live process tree and await the worker. I313 qualifies
-  attached live-child cleanup; exited roots, parent death, detached/reparented descendants and broader Unix
-  containment remain separate scopes. Process separation limits the immediate effect of a decoder crash.
+  attached live-child cleanup. A dedicated parent-owned lifetime pipe also terminates the launched decoder root
+  when FileCat dies, even if encoded stdin remains open elsewhere. Its reader starts before Linux’s all-thread
+  policy and encoded input; normal completion marks the reader as stopping without blocking on its pipe read.
+  I349 qualifies actual parent kill, Kill/Dispose, complete healthy pixels, failed starts and input-unread refusal.
+  This is a cooperative root-lifetime control, not containment of detached/reparented descendants or malicious
+  native code inside that process. Exited roots and broader Unix containment remain separate scopes.
+  Process separation limits the immediate effect of a decoder crash.
 
 [Current Windows controls](../release/1.0.0/evidence/E-I08-current-windows-worker-boundaries.md),
 [ordinary-user Unix controls](../release/1.0.0/evidence/E-I08-current-unix-worker-boundaries.md) and
-[I312 fallback controls](../release/1.0.0/evidence/E-I312-elevated-worker-fallback.md) retain their exact producers
+[I312 fallback controls](../release/1.0.0/evidence/E-I312-elevated-worker-fallback.md) and
+[I349 parent lifetime controls](../release/1.0.0/evidence/E-I349-unix-picture-parent-lifetime.md) retain their exact producers
 and finite observations. Synthetic permission helpers are not parser exploits or sandbox certification. Unix
 containment remediation or an approved threat-model/scope decision remains a release gate; these clarifications
 do not accept that risk or freeze the contract.
