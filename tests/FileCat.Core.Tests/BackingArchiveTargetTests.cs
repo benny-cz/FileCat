@@ -29,7 +29,7 @@ public sealed class BackingArchiveTargetTests(ITestOutputHelper output)
         var location = ZipProvider.ForFile(archive); var sink = new Sink();
         await zip.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
         var item = zip.GetItemRef(location, Assert.Single(sink.Entries));
-        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(root.Path, "journal"));
+        var jobs = new JobManager(new IdentityAwareTestFiles(), providers, Path.Combine(root.Path, "journal"));
         var decisions = new List<DecisionRequest>();
         jobs.DecisionRequested += pending => { decisions.Add(pending.Request); pending.Resolve(new Decision(DecisionAction.Skip)); };
         try

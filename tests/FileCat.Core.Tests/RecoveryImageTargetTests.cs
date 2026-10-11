@@ -41,7 +41,7 @@ public sealed class RecoveryImageTargetTests(ITestOutputHelper output)
         var report = Assert.Single(sink.Entries, e => e.Name == "_EPORT.TXT");
         var item = route == "container" ? new ItemRef(source, "docs", EntryKind.Directory) : recovery.GetItemRef(docs, report);
         if (route == "relative-folder") item = new ItemRef(item.Parent, item.Name, item.Kind, item.Size, item.Modified) { Flags = item.Flags, Ordinal = item.Ordinal, RelativeFolder = "nested" };
-        var jobs = new JobManager(new PortableFileOperations(), providers, Path.Combine(root.Path, "journal"));
+        var jobs = new JobManager(new IdentityAwareTestFiles(), providers, Path.Combine(root.Path, "journal"));
         var decisions = new List<DecisionRequest>();
         jobs.DecisionRequested += pending =>
         {

@@ -39,7 +39,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private readonly HashSet<string> _stagingDirs = new(PathUtil.SafetyComparer);
     private int _staged;
     private string? _originMark;
-    private sealed record BackingFile(string Path, string? FinalPath, string? Identity);
+    private sealed record BackingFile(string Path, string? FinalPath, string Identity);
     private readonly List<BackingFile> _backingFiles = [];
     private Location[] _sourceParents = [];
 
@@ -179,7 +179,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             var path = Path.GetFullPath(location.Path);
             if (!seen.Add(path)) continue;
             var final = Fs.GetFinalPath(path);
-            _backingFiles.Add(new(path, final, Fs.GetFileIdentity(final ?? path)));
+            var identity = Fs.GetFileIdentity(final ?? path);
+            // A path alone cannot follow a container renamed during a copy. Without its initial
+            // stable identity, later cleanup or publication could mistake those bytes for output.
+            // Refuse before opening content or creating any destination entry.
+            if (string.IsNullOrEmpty(identity))
+                throw new IOException("The source image or container file identity is unavailable. The copy was stopped to preserve its bytes.");
+            _backingFiles.Add(new(path, final, identity));
         }
     }
 

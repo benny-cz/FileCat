@@ -18,7 +18,7 @@ public sealed class RecoveryJobTests : IDisposable
     {
         _providers.Register(new LocalFileSystemProvider());
         _providers.Register(_recovery);
-        _jobs = new JobManager(new PortableFileOperations(), _providers, Path.Combine(_dir.Path, "journal"));
+        _jobs = new JobManager(new IdentityAwareTestFiles(), _providers, Path.Combine(_dir.Path, "journal"));
     }
 
     public void Dispose() => _dir.Dispose();
@@ -143,7 +143,7 @@ public sealed class RecoveryJobTests : IDisposable
         Assert.StartsWith(RecoveryItem.UncertainStart, Assert.Single(job.Issues).Message, StringComparison.Ordinal);
 
         // Dragging would hand the file over without that warning: it goes through F5.
-        var (staged, refusal) = FileCat.Core.Operations.DragStaging.Stage([_recovery.GetItemRef(root, row)], _providers, new PortableFileOperations(), _dir.Dir("drag"), TestContext.Current.CancellationToken);
+        var (staged, refusal) = FileCat.Core.Operations.DragStaging.Stage([_recovery.GetItemRef(root, row)], _providers, new IdentityAwareTestFiles(), _dir.Dir("drag"), TestContext.Current.CancellationToken);
         Assert.Null(staged);
         Assert.Contains("is a guess", refusal, StringComparison.Ordinal);
     }

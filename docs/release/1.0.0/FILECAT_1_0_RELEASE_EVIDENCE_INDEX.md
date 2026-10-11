@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**500 evidence entries; none is final candidate qualification.** No candidate exists.
+**503 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -511,6 +511,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I349 | [Unix decoder parent lifetime](evidence/E-I349-unix-picture-parent-lifetime.md) | 9710970/1589 raw blobs/declared four-file overlay | 12 actual native controls/30 lifetime unit results; two original surviving roots retained | 148 native picture results/4 skips; 2050 native files/owned restoration; all adverse attempts retained | I08 broader authority/descendants and exact/candidate follow-up remain |
 | E-I348-NATIVE | [Exact known-identity replacement](evidence/E-I348-native-qualification.md) | 9710970/1589 raw blobs/no overlays | 24 host/48 native passes; original and replacement bytes retained | 6242 predecessor outcomes/131 skips/966 native files/restoration | I106/I110 HOLD; initially unknown/atomic/candidate remain |
 | E-CI-BACKING-IDENTITY-REPLACEMENT | [Original known-identity replacement CI](evidence/E-CI-backing-identity-replacement.md) | 38139134555 attempt 1/9710970 | Four lanes/33008 records/31979 passes/1029 skips/all 72 additions pass | 27 digest archives/14 TRX/1589 blobs/92 graphs/four clean builds; all 32936 predecessors retained | I18; original failures remain; no candidate/GO |
+| E-I350 | [Unavailable initial backing identity](evidence/E-I350-initial-backing-identity.md) | e0bbc53/1594 raw blobs/declared overlays | 60 host/90 native safety passes; twelve baseline failures/eighteen positives | 4957 affected/97 skips;3890 local legacy cases/75 skips;347 App/1275 native files/restoration | I106/I110 HOLD; provider-handle/atomic/candidate remain |
+| E-I349-NATIVE | [Exact decoder parent lifetime](evidence/E-I349-native-qualification.md) | e0bbc53/1594 raw blobs/no overlays | 30 unit/twelve actual process controls; complete pixels;148 native picture results/four skips | 786 native files/six sockets absent/host restoration | I08 wider authority/detached descendants/candidate remain |
+| E-CI-PICTURE-PARENT-LIFETIME | [Original decoder parent-lifetime CI](evidence/E-CI-picture-parent-lifetime.md) | 38143197589 attempt1/e0bbc53 | Four lanes/33048 records/32019P1029S/all forty additions pass | 27 digest archives/14TRX/1594 blobs/92 graphs/four clean builds;33008 predecessor outcomes retained | I18; earlier failures remain; no candidate/GO |
 
 <a id="commits-made-by-the-campaign"></a>
 

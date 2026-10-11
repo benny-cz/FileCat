@@ -167,7 +167,7 @@ public sealed class ArchiveFormatTests : IDisposable
         var (providers, archives, _) = Providers();
         var root = archives.GetContainerLocation(path)!;
         var dest = _dir.Dir("out");
-        var manager = new JobManager(new PortableFileOperations(), providers, Path.Combine(_dir.Path, "journal"));
+        var manager = new JobManager(new IdentityAwareTestFiles(), providers, Path.Combine(_dir.Path, "journal"));
         var job = manager.Submit(new JobRequest
         {
             Kind = JobKind.Extract,

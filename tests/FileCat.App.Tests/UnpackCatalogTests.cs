@@ -95,7 +95,18 @@ public sealed class UnpackCatalogTests(ITestOutputHelper output)
         public string Archive { get; } public string Target { get; } public string Before { get; } public TabViewModel Source { get; } public TabViewModel TargetTab { get; }
         public Fixture(string name)
         {
-            (Services, Vm, Window, _root) = AccessibilityTests.OpenMainWindow(); _folder = Directory.CreateDirectory(Path.Join(_root, "archives")).FullName;
+            (Services, Vm, Window, _root) = AccessibilityTests.OpenMainWindow();
+            if (OperatingSystem.IsWindows())
+            {
+                // The headless composition uses PortablePlatform. These owned container jobs
+                // need the same stable file identities as the production Windows application.
+                Assert.Empty(Services.Jobs.Jobs);
+                Assert.False(Services.Jobs.HasActiveWork);
+                typeof(JobManager).GetField("_fs", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(Services.Jobs, new FileCat.Platform.Windows.WindowsFileOperations());
+                Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(Services.Jobs.FileOperations);
+            }
+            _folder = Directory.CreateDirectory(Path.Join(_root, "archives")).FullName;
             Archive = Path.Join(_folder, name); Target = Path.Join(_root, "approved-output");
             if (name.EndsWith(".zip", StringComparison.Ordinal))
             {

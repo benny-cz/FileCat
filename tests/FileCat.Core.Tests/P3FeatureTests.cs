@@ -160,7 +160,7 @@ public sealed class P3FeatureTests : IDisposable
         zip.Release(zipPath);
     }
 
-    private sealed class MarkingOps : PortableFileOperations
+    private sealed class MarkingOps : IdentityAwareTestFiles
     {
         public readonly Dictionary<string, string> Marks = new(StringComparer.OrdinalIgnoreCase);
 

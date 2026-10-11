@@ -160,7 +160,7 @@ public sealed class ProgressiveContentTests : IDisposable
         var bytes = File.ReadAllBytes(zip);
         bytes[bytes.AsSpan().IndexOf(data.AsSpan(30_000_000, 64))] ^= 0x01;
         File.WriteAllBytes(zip, bytes);
-        var jobs = new JobManager(new PortableFileOperations(), _providers, Path.Combine(_dir.Path, "journal"));
+        var jobs = new JobManager(new IdentityAwareTestFiles(), _providers, Path.Combine(_dir.Path, "journal"));
         string target = _dir.Dir("out");
         var job = jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [Member(_zip, ZipProvider.ForFile(zip), "big.bin")], Destination = Location.FileSystem(target) });
         var deadline = DateTime.UtcNow.AddSeconds(30);

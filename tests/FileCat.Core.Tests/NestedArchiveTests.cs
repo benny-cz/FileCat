@@ -23,7 +23,7 @@ public sealed class NestedArchiveTests : IDisposable
         public void ReportIssue(string message) { }
     }
 
-    private sealed class MarkingOps : PortableFileOperations
+    private sealed class MarkingOps : IdentityAwareTestFiles
     {
         public readonly Dictionary<string, string> Marks = new(StringComparer.OrdinalIgnoreCase);
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);

@@ -84,7 +84,7 @@ public sealed class RecoveryFolderAttemptAdmissionTests(ITestOutputHelper output
         finally { foreach (var job in jobs.Jobs) job.Cancel(); Assert.True(SpinWait.SpinUntil(() => !jobs.HasActiveWork, TimeSpan.FromSeconds(5))); }
     }
 
-    private sealed class FolderFiles(Provider provider, string moment) : PortableFileOperations
+    private sealed class FolderFiles(Provider provider, string moment) : IdentityAwareTestFiles
     {
         public int Attempts, Created;
         public override string? GetFinalPath(string path)

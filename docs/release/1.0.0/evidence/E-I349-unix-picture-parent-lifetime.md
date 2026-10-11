@@ -12,7 +12,7 @@ Every failed attempt remains: the first Mac observer changes descriptor flags in
 
 Independent postchecks rehash **2050 native files**, verify absent owned live processes and all six final owned sockets, and retire empty scratch roots. Three host scratch roots/seven files are archived, hash/exclusive-open checked and restored. Ubuntu UID 1000 and Mac UID 501 use pinned .NET 10.0.12. No host UI, physical source, package or persistent setting changes occur.
 
-This preliminarily remediates the decoder root's launching-parent lifetime. **I08 stays open** for detached/reparented descendants, exited-root cleanup, filesystem/network/memory/UID authority, indirect/native parser integration and candidate qualification. This overlay needs its separate exact committed/original CI follow-up. I106/I110 physical-source HOLD, owner decisions and explicit human GO remain.
+This preliminarily remediates the decoder root's launching-parent lifetime. **I08 stays open** for detached/reparented descendants, exited-root cleanup, filesystem/network/memory/UID authority, indirect/native parser integration and candidate qualification. [Exact committed/native qualification](E-I349-native-qualification.md) and [original four-lane CI](E-CI-picture-parent-lifetime.md) now pass at e0bbc53; all original adverse attempts remain. I106/I110 physical-source HOLD, owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 

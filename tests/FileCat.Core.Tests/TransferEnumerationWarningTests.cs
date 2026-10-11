@@ -88,7 +88,7 @@ public sealed class TransferEnumerationWarningTests(ITestOutputHelper output) : 
     private async Task<Job> Run(ResourceProvider provider, ItemRef item, JobKind kind, ProviderRegistry? registry = null)
     {
         registry ??= new ProviderRegistry(); registry.Register(provider);
-        var manager = new JobManager(new PortableFileOperations(), registry, Path.Join(_root, "journal"));
+        var manager = new JobManager(new IdentityAwareTestFiles(), registry, Path.Join(_root, "journal"));
         var job = manager.Submit(new JobRequest { Kind = kind, Sources = [item], Destination = Location.FileSystem(Path.Join(_root, "out")) });
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken); limit.CancelAfter(TimeSpan.FromSeconds(15));
         while (!job.State.IsFinished()) await Task.Delay(10, limit.Token);

@@ -4,9 +4,9 @@
 
 [I347](E-I347-backing-visibility-loss.md) stops cleanup/publication after a formerly observed source-container location becomes unavailable: 24 local/48 native controls, all 6194 affected results/131 exact skips, full App and 1279 native file checks. These are controlled unavailable-query cases with actual owned-file identities and whole bytes.
 
-The remaining scope includes physical device entry/number reuse; initially unavailable or replaced backing identities; broader visibility and aliases; topology transitions and atomic directory/file mutations; full physical direct/helper tracing; and final installed-candidate qualification. I110's strict physical repeat shares the source-safety HOLD. Required owner decisions and explicit human GO remain.
+The remaining scope includes physical device entry/number reuse; provider handles versus captured backing identities; broader visibility and aliases; topology transitions and atomic directory/file mutations; full physical direct/helper tracing; and final installed-candidate qualification. I110's strict physical repeat shares the source-safety HOLD. Required owner decisions and explicit human GO remain.
 
-[I348](E-I348-backing-identity-replacement.md) additionally refuses changed known source identities at still-observable paths:24 local/48 native final passes,6242 affected results/131 skips,347 affected App results and1449 native files/restoration. [Exact I347](E-I347-native-qualification.md) and [original hosted CI](E-CI-backing-visibility-loss.md) are sealed at0beaa10. Initial unknown/other alias/topology/atomic/physical/candidate scopes remain.
+[I348](E-I348-backing-identity-replacement.md) additionally refuses changed known source identities at still-observable paths:24 local/48 native final passes,6242 affected results/131 skips,347 affected App results and1449 native files/restoration. [Exact I347](E-I347-native-qualification.md) and [original hosted CI](E-CI-backing-visibility-loss.md) are sealed at0beaa10. [I350](E-I350-initial-backing-identity.md) now refuses unavailable initial identities with 60 host/90 native safety passes, 4957 affected results/97 skips, 347 headless App results and 1275 native files/restoration. Provider/handle identity, broader aliases/topology/atomic/physical/candidate scopes remain.
 
 ## Full preliminary scope retained from ec5868e
 

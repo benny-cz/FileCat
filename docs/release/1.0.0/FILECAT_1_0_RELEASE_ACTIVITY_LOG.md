@@ -3062,3 +3062,13 @@ Counts: 348 issues/326 preliminary remediations/two preliminary closures/20 broa
 [Exact I348](evidence/E-I348-native-qualification.md) passes 24 host/48 native controls, all 6242 predecessors/131 skips and 966 native files/no overlays at 9710970. [Original CI](evidence/E-CI-backing-identity-replacement.md) passes four lanes/33008 records/31979 passes/1029 skips/all 72 additions; all 32936 predecessors, 27 digest archives/14 TRX/1589 blobs/92 locked graphs/four clean builds verify.
 
 Counts: 349 issues/327 preliminary remediations/two preliminary closures/20 broader unresolved statuses; 500 catalogue entries/6905 selected hashes. All campaigns/owner decisions/physical-source HOLD/host-UI restriction/explicit human GO remain.
+
+## 2026-10-11 — initial container identity admission and exact parent lifetime
+
+[I350](evidence/E-I350-initial-backing-identity.md) retains twelve failures/eighteen positives per baseline: eight source deletions/four wrong publications with initial identity unavailable, actual source rename and old-path replacement. Initial nonempty-identity admission gives 60 host/90 native safety passes, 4957 selected affected records/97 skips, observed coverage of 3890 local legacy Core cases/75 exact skips, 347 paired headless App results and 1275 independent native file checks. Eight owned host roots/27 files are retained/restored.
+
+The first full Core run remains adverse/3824P75S21F: twenty capability-deficient Windows fixture cases plus one overlong owned GPG agent path. Nine fixtures now use actual stable Windows IDs; five added controls verify that entry identity differs from equal bytes and follows hard links/renames. The original headless App correction remains adverse/325P12S10F; its unpack fixture now installs production Windows file operations before jobs. Existing assertions are unchanged. Corrected targeted controls/short owned GPG/347-case App batch pass; no full run is reclassified. Host-only native preparation and reader environment-path mismatch remain recorded.
+
+[Exact I349](evidence/E-I349-native-qualification.md) passes thirty lifetime unit/twelve actual process controls, 148 native picture results/four skips and 786 native files with no overlays at e0bbc53. [Original CI](evidence/E-CI-picture-parent-lifetime.md) passes all four lanes/33048 records/32019P1029S/all forty additions; all 33008 predecessor outcomes/messages/skips, 27 digest archives, fourteen TRX, 1594 raw blobs, 92 locked restore graphs and four clean builds verify.
+
+Counts: 350 issues/328 preliminary remediations/two preliminary closures/20 broader unresolved statuses; 503 catalogue entries/6910 selected hashes. All campaigns, nine owner decisions, physical-source HOLD, host-UI restriction and explicit human GO remain.
