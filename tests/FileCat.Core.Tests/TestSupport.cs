@@ -89,7 +89,13 @@ public sealed class TempDir : IDisposable
         try
         {
             foreach (var f in Directory.EnumerateFiles(Path, "*", SearchOption.AllDirectories))
-                System.IO.File.SetAttributes(f, FileAttributes.Normal);
+            {
+                // Listing scratch streams may retire after enumeration. An already removed file
+                // must not prevent cleanup of the rest of this test's owned directory.
+                try { System.IO.File.SetAttributes(f, FileAttributes.Normal); }
+                catch (FileNotFoundException) { }
+                catch (DirectoryNotFoundException) { }
+            }
             Directory.Delete(Path, recursive: true);
         }
         catch (IOException) { }

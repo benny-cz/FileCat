@@ -24,6 +24,7 @@ public sealed class BackingStagingReplacementTests(ITestOutputHelper output)
         string destination = root.Dir("destination"), source = root.File("source-image.bin", "complete owned source image bytes"), target = Path.Combine(destination, "copy.bin");
         byte[] original = File.ReadAllBytes(source), incoming = "complete extracted member bytes"u8.ToArray();
         var files = new Files(source, original, route, changed);
+        files.CaptureOriginalIdentity();
         var provider = new Provider(files, incoming, ready);
         var providers = new ProviderRegistry(); providers.Register(provider); providers.Register(new LocalFileSystemProvider());
         var jobs = new JobManager(files, providers, Path.Combine(root.Path, "journal"));
@@ -84,10 +85,12 @@ public sealed class BackingStagingReplacementTests(ITestOutputHelper output)
             if (!changed || Replaced) return;
             File.Delete(Staged); File.Move(source, Staged); Replaced = true;
         }
+        // Capture while the exact owned source path exists. Product canonicalization may query
+        // /private/var for a /var source on macOS; path spelling must not gate this observation.
+        public void CaptureOriginalIdentity() => OriginalIdentity = GetFileIdentity(source);
         public override string? GetFileIdentity(string path)
         {
             string? identity = NativeIdentityUsed ? base.GetFileIdentity(path) : File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(original) ? "controlled-owned-source-image" : null;
-            if (path == source && !Replaced) OriginalIdentity = identity;
             Queries.Add(new { Path = path, Identity = identity, Replaced }); return identity;
         }
         public override void Move(string from, string to, bool replaceExisting, bool writeThrough = false)

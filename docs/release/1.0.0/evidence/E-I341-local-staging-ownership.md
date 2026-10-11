@@ -16,3 +16,5 @@ Paths are relative to private FileCatReleaseEvidence. Nested records retain exac
 |---|---|
 | `i341-local-staging-ownership-20261011-v1/independent-remediation-v4.json` | `131a7f3931409f8cd743418959e3dfdae0eb834a772151d14c95dfed273bc5c6` |
 | `i341-local-staging-ownership-20261011-v1/retained-tool-sources-v1.json` | `71e9e9eb5cba61b5789f3f391424983fa620cfa53fd2d81a043e52df06551fc7` |
+
+[I344](E-I344-temp-directory-retirement.md) separately reproduces a missing-scratch attribute-normalization cleanup abort and corrects the helper. The two original cleanup refusals above remain retained with unproven individual causes; no historical result is reclassified.

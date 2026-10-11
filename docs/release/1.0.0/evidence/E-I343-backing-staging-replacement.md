@@ -20,3 +20,5 @@ Paths are relative to private FileCatReleaseEvidence. Nested records retain exac
 |---|---|
 | `backing-staging-safety-20261011-v1/independent-remediation-v2.json` | `0a9815047c37efd5645d0bcde8aa426ea31cb5c22d010fe96e3a47b93a286f25` |
 | `backing-staging-safety-20261011-v1/retained-tool-sources-v1.json` | `a9e9e2abd36066d2d9b171834474b8ec399ae436dd8f49634ab65adfa2b7de45` |
+
+[Exact committed/native qualification](E-I343-native-qualification.md) now passes at fd851d1/no overlays. The original hosted Mac alias-observation failure and its separately reproduced fixture correction remain in [I345](E-I345-native-identity-observation.md).

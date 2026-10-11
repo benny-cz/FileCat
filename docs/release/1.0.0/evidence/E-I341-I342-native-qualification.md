@@ -14,3 +14,5 @@ Paths are relative to private FileCatReleaseEvidence. Nested records retain exac
 |---|---|
 | `i341-i342-exact-validation-20261011-v1/independent-final-v1.json` | `ada753cbcd14f312bde63a2f072b73eb553f761834fd8699f01aeb8656c228ad` |
 | `i341-i342-exact-validation-20261011-v1/retained-tool-sources-v1.json` | `91c57ffd6b152e20cd7fe5292f9347820508be739e090ff1d9cf5e27e0788634` |
+
+[Original hosted qualification](E-CI-staging-ownership-fixture.md) now passes four lanes/all 128 additions at 1b13697. Its original I340 predecessor failure remains adverse.
