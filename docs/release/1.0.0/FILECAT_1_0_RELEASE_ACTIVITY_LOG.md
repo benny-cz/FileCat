@@ -2994,3 +2994,12 @@ Counts337 issues/315 preliminary remediations/two preliminary closures/20 broade
 [Exact I337](evidence/E-I337-native-qualification.md) passes 24 local/72 native controls at 85ba1eb/no overlays, preserving 3864 predecessor outcomes/messages/107 exact skips and 907 native checks. [Original I336 CI](evidence/E-CI-all-selected-source-admission.md) retains one Windows x64 helper-pipe timing failure; three other lanes/all 192 additions pass.26 digest archives/ 14TRX/32440 records/1029 exact skips/1541 raw blobs/92 restore graphs/four build receipts verify. I337 collection continues separately.
 
 Counts 338 issues/316 preliminary remediations/two preliminary closures/20 broader unresolved statuses;468 catalogue entries/6854 selected hashes. All 24 campaigns/nine owner rows, host-UI restriction, physical-source HOLD and publication gates remain.
+
+
+## 2026-10-11 — Recovery metadata admission, exact pipe fixture and original green CI
+
+[I339](evidence/E-I339-recovery-metadata-admission.md) guards origin metadata writes after content changes recovery admission. The identical assertions retain six unsafe failures/twelve healthy baseline controls per producer, then eighteen local/54 native fixed passes. Every 3960 affected predecessor outcome/message/107 exact skips and 1161 native file checks remains. Recorded metadata calls retain complete staging/source bytes. The original Windows baseline cleanup failure stays recorded; three whole archive files and seven verified reconstructable images are independently checked/unlocked/restored before a fresh absence postcheck. The corrected producer restores normally. Native attribute/kernel/cleanup/atomic/physical/candidate scope remains open.
+
+[Exact I338](evidence/E-I338-native-qualification.md) passes six safe file-backed methods/two owned scheduling probes at 9086901/no overlays, retaining complete bytes/unchanged threshold/exact closure and 364 native checks. [Original I337 CI](evidence/E-CI-recovery-folder-attempt-admission.md) passes four required lanes/96 additions/32,536 records: 31,507 passes and 1029 explicit skips. All 27 digest archives/14 TRX/1546 raw blobs/92 restore graphs/four clean builds verify; prior original timing failure stays failed. I338 collection continues separately.
+
+Counts: 339 issues/317 preliminary remediations/two preliminary closures/20 broader unresolved statuses; 471 catalogue entries/6859 selected hashes. All 24 campaigns/nine owner rows, host-UI restriction, physical-source HOLD and publication gates remain.

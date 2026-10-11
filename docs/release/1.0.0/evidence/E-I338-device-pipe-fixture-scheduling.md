@@ -10,7 +10,7 @@ All **twelve healthy method runs** pass across paired host/Windows-guest produce
 
 The original private-project restore refusal is preserved; the fresh private project is outside the canonical tree and retains normal FileCat lock enforcement. An earlier diagnostic joined its blocked caller before restoring pool capacity and aborted; its unchanged 4096-byte leftover is retained, independently verified and removed after the producer exits. Fresh paired producers restore the private pool before joining; they pass without discarding those earlier outcomes.
 
-The [original I336 CI failure](E-CI-all-selected-source-admission.md) stays failed. This finite fixture correction does not qualify a complete hosted CI result, reference-hardware performance, native devices, physical-source safety or an installed candidate. Exact committed/hosted follow-up remains; owner gates, physical-source HOLD and explicit human GO remain.
+The [original I336 CI failure](E-CI-all-selected-source-admission.md) stays failed. This finite fixture correction does not qualify a complete hosted CI result, reference-hardware performance, native devices, physical-source safety or an installed candidate. [Exact committed follow-up](E-I338-native-qualification.md) now passes six safe methods/two owned probes at 9086901/no overlays, with 364 independent native file checks. Hosted/candidate follow-up, owner gates, physical-source HOLD and explicit human GO remain.
 
 ## Selected immutable receipts
 

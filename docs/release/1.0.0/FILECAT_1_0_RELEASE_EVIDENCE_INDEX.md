@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**468 evidence entries; none is final candidate qualification.** No candidate exists.
+**471 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -479,6 +479,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I338 | [File-backed pipe fixture scheduling](evidence/E-I338-device-pipe-fixture-scheduling.md) | 85ba1eb/1546 raw blobs/test-only overlays/private probe | Four controlled probes and 12 healthy method runs pass; unchanged timing threshold | 535 native file checks, whole bytes, server/caller/pool and owned temp restoration | Original hosted timing cause, exact committed/hosted/candidate remain |
 | E-I337-NATIVE | [Exact folder-attempt admission](evidence/E-I337-native-qualification.md) | 85ba1eb/1546 raw blobs/no overlays | 24 local/72 native controls pass | 3864 predecessor outcomes/messages/107 exact skips;907 native checks | Original hosted collects separately; wider kernel/atomic/physical/candidate remain |
 | E-CI-I336 | [Original all-selected-source CI](evidence/E-CI-all-selected-source-admission.md) | 38100449046 attempt 1/7a59616 | 32440 records: 31410P1029S1F; all 192 additions pass | 26 digest archives/ 14TRX/1541 raw blobs/92 graphs/four builds;1029 exact skips | Windows x64 pipe timing fails; three other lanes pass; original cause unproven |
+| E-I339 | [Recovery metadata admission](evidence/E-I339-recovery-metadata-admission.md) | 9086901/1549 raw blobs/declared overlays | 18 local/54 native passes; six baseline failures per producer | 3960 prior outcomes/messages/107 exact skips; 1161 file checks; original cleanup failure restored separately | Native attributes, cleanup/kernel/atomic/physical/candidate remain |
+| E-I338-NATIVE | [Exact owned pipe fixture qualification](evidence/E-I338-native-qualification.md) | 9086901/1549 raw blobs/no overlays | Six safe methods/two owned scheduling probes pass | Whole photo bytes/unchanged threshold/server closure/pool restoration; 364 file checks | Original timing cause, hosted/reference/candidate remain |
+| E-CI-I337 | [Original folder-attempt admission CI](evidence/E-CI-recovery-folder-attempt-admission.md) | 38101819991 attempt 1/85ba1eb | Four required lanes: 32536 records/31507 passes/1029 exact skips; 96 additions pass | 27 digest archives/14 TRX/1546 raw blobs/92 graphs/four clean SDK builds | Original earlier timing failure stays failed; no candidate |
 
 <a id="commits-made-by-the-campaign"></a>
 

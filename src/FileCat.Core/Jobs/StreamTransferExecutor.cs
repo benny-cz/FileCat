@@ -473,8 +473,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     long modified = revision is { ModifiedTicks: > MinimumFileTimeTicks } stated ? stated.ModifiedTicks : item.Modified;
                     if (modified > 0) File.SetLastWriteTimeUtc(outStream.SafeFileHandle, new DateTime(modified, DateTimeKind.Utc));
                 }
-                if (_originMark is not null && !Fs.WriteOriginMark(staged, _originMark))
-                    Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);
+                if (_originMark is not null)
+                {
+                    // Origin attributes are writes too: reading or querying content may have changed admission.
+                    if (DestinationRefusal(item.Parent, dir) is { } refusal) throw new IOException(refusal);
+                    CheckBackingTarget(staged);
+                    if (!Fs.WriteOriginMark(staged, _originMark))
+                        Issue(IssueSeverity.Warning, item.Name, "Security metadata lost: the download origin (Mark of the Web) could not be written to the extracted file.", StepOutcome.Committed);
+                }
                 // "Read back and compare content", before the copy takes its name. Recovered content with lost parts reads the
                 // same guesses again, so it is not read back; its caveat says what it is.
                 if (Job.Request.Options.Verify == VerifyMode.ReadBack && !partial)

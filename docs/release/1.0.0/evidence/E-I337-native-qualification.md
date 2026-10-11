@@ -6,7 +6,7 @@ All **24 local and 72 native controls** pass. Every **3864 affected predecessor 
 
 Windows measures high RID 12288/session 0, Ubuntu UID 1000 and Mac UID 501 with pinned private .NET 10.0.12. Fresh postchecks verify **907 files** (279 Windows, 277 Ubuntu, 351 Mac), absent owned processes/temporary roots and stopped Windows listeners. No command fails in this exact targeted run; no workstation UI, device, package or persistent setting changes.
 
-Original [run 38101819991 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/38101819991) collects separately at 85ba1eb; no pending result is accepted. The prior [I336 CI failure](E-CI-all-selected-source-admission.md) and [I338 fixture correction](E-I338-device-pipe-fixture-scheduling.md) keep separate identities. Wider kernel/atomic/physical/installed-candidate scopes and human GO remain.
+[Original hosted qualification](E-CI-recovery-folder-attempt-admission.md) now passes all four required lanes and 96 additions at 85ba1eb. The prior [I336 CI failure](E-CI-all-selected-source-admission.md) and [I338 fixture correction](E-I338-device-pipe-fixture-scheduling.md) keep separate identities. Wider kernel/atomic/physical/installed-candidate scopes and human GO remain.
 
 ## Selected immutable receipts
 
