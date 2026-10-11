@@ -6,9 +6,9 @@ All **21 local and 63 native controls** pass at this committed source. Actual im
 
 Fresh independent native postchecks verify **907 files**: 279 Windows, 277 Ubuntu and 351 Mac. Owned processes and temporary fixture roots are gone. Each native controller verifies and retires only seven duplicate input images against independently decompressed retained gzip inputs. Payload transport listeners stop, and no package, persistent setting, workstation UI or physical source changes. No test/controller command fails in this exact run; earlier adverse producers remain adverse.
 
-Original [run 38096783781 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/38096783781) collects independently at 9c8e6cf. The previous fully qualified hosted record is [I332 at dcd4f8e](E-CI-linux-picture-process-policy.md). No pending hosted result is accepted. The subsequent [I334 retry finding](E-I334-publication-retry-admission.md) is a separately declared overlay and does not revise these original outcomes.
+[Original hosted run 38096783781 attempt 1](E-CI-backing-source-publication.md) is independently sealed at 9c8e6cf: all four required lanes succeed; 32,076 records and all 84 new controls verify. The preceding [I332 hosted record](E-CI-linux-picture-process-policy.md) remains tied to dcd4f8e. No pending result for a later source is accepted. The subsequent [I334 retry finding](E-I334-publication-retry-admission.md) is a separately declared overlay and does not revise these original outcomes.
 
-These observations do not qualify native Windows-adapter aliases, atomic directory/mount races, installed candidate or physical source safety. I106/I110 HOLD, all owner decisions, contract freeze and explicit human GO remain; no candidate or stable publication is claimed.
+[Separate Windows-adapter qualification](E-I106-native-image-aliases-windows.md) adds fourteen ordinary/elevated real hard-link/junction controls at subsequent 5ec6968 with its own private observer. Atomic directory/mount/kernel-transition races, installed candidate and physical source safety remain. I106/I110 HOLD, all owner decisions, contract freeze and explicit human GO remain; no candidate or stable publication is claimed.
 
 ## Selected immutable receipts
 
