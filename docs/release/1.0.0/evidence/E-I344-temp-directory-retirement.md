@@ -18,3 +18,5 @@ Paths are relative to private FileCatReleaseEvidence. Nested records retain exac
 |---|---|
 | `i344-i345-validation-20261011-v4/independent-final-v1.json` | `e1594708a9564a5f4835a3478267f220180e86a756079903afd7e33bf68b1610` |
 | `i344-i345-validation-20261011-v4/retained-tool-sources-v1.json` | `35eb8ab22578207a91f2a7d033a4378716353bbd841f700cd0f96b2b270f4157` |
+
+[Exact committed/native follow-up](E-I344-I345-native-qualification.md) and [original four-lane CI](E-CI-cleanup-identity-observation.md) pass at d909333. The [original I343 CI](E-CI-backing-staging-original-failure.md) remains adverse with twelve failures/two unavailable inventories.

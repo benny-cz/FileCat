@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**485 evidence entries; none is final candidate qualification.** No candidate exists.
+**489 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -496,6 +496,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I345 | [Mac alias identity observation](evidence/E-I345-native-identity-observation.md) | fd851d1/exact baseline/two final fixture overlays | Twelve actual alias failures become twelve native passes; product bytes protected | 24 local/36 native final controls; actual original CI job preserved | Full original CI/exact corrected source/candidate separate |
 | E-I343-NATIVE | [Exact backing-image staging qualification](evidence/E-I343-native-qualification.md) | fd851d1/1568 raw blobs/no overlays | 24 local/48 native passes | 4060 predecessors/109 exact skips/966 native files | Hosted Mac alias failure and physical/candidate scopes separate |
 | E-CI-STAGING-OWNERSHIP | [Original staging and fixture CI](evidence/E-CI-staging-ownership-fixture.md) | 38129169252 attempt1/1b13697 | Four lanes/32736 records/31707P1029S; all128 additions pass | 27 digest archives/14TRX/1564 raw blobs/92 restore graphs/four clean builds | Preliminary; original failures/physical/candidate/GO remain |
+| E-I346 | [Retired in-memory content payload ownership](evidence/E-I346-memory-content-retirement.md) | d909333/1572 raw blobs/declared overlays | 14 local/42 native fixed controls; eight adverse baseline failures/six positives | 6341 prior results/27 skips/full App/1161 native file checks | Wider I06/aggregate/native/reference/candidate remain |
+| E-I344-I345-NATIVE | [Exact cleanup and identity fixtures](evidence/E-I344-I345-native-qualification.md) | d909333/1572 raw blobs/no overlays | 24 local/36 native passes including Mac alias | 4134 predecessor results/110 exact skips/907 native files/restoration | Candidate/wider product/physical scopes remain |
+| E-CI-BACKING-STAGING-FAILURE | [Original Mac backing-staging observation failures](evidence/E-CI-backing-staging-original-failure.md) | 38130627026 attempt1/fd851d1 | Three lanes pass/Mac twelve failures; 28636 records/27732P892S12F | 24 digest archives/12TRX/1568 raw blobs/92 restore graphs/four builds; two unavailable inventories | Adverse remains; separately reproduced correction has its own identity |
+| E-CI-CLEANUP-IDENTITY | [Original cleanup and identity correction CI](evidence/E-CI-cleanup-identity-observation.md) | 38132427050 attempt1/d909333 | Four lanes/32808 records/31779P1029S; all200 additions pass | 27 digest archives/14TRX/1572 raw blobs/92 restore graphs/four clean builds | Preliminary; later memory-source/candidate/physical/GO separate |
 
 <a id="commits-made-by-the-campaign"></a>
 

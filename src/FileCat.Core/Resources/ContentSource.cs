@@ -105,20 +105,26 @@ public sealed class FileContentSource : IContentSource
 /// <summary>In-memory content (small archive members, tests).</summary>
 public sealed class MemoryContentSource(string displayName, byte[] data) : IContentSource
 {
+    private byte[]? _data = data;
+    private readonly int _length = data.Length;
     public string DisplayName { get; } = displayName;
-    public long Length => data.Length;
+    public long Length => _length;
     public bool CanSeek => true;
     public string? LocalPath => null;
 
     public int Read(long offset, Span<byte> buffer)
     {
-        if (offset >= data.Length) return 0;
-        int n = (int)Math.Min(buffer.Length, data.Length - offset);
-        data.AsSpan((int)offset, n).CopyTo(buffer);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        var bytes = Volatile.Read(ref _data) ?? throw new ObjectDisposedException(nameof(MemoryContentSource));
+        if (offset >= bytes.Length) return 0;
+        int n = (int)Math.Min(buffer.Length, bytes.Length - offset);
+        bytes.AsSpan((int)offset, n).CopyTo(buffer);
         return n;
     }
 
-    public ContentRevision? GetRevision() => new ContentRevision(data.Length, 0);
+    public ContentRevision? GetRevision() => new ContentRevision(_length, 0);
 
-    public void Dispose() { }
+    // The array can be borrowed by the caller or another source. Release this owner's reference
+    // without changing its bytes; an already active read keeps its local array until it returns.
+    public void Dispose() => Interlocked.Exchange(ref _data, null);
 }
