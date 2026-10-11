@@ -431,12 +431,16 @@ internal sealed class ArchiveIndex : IDisposable
         var children = new Dictionary<string, List<Node>>(StringComparer.Ordinal) { [string.Empty] = [] };
         var dirs = new HashSet<string>(StringComparer.Ordinal) { string.Empty };
         var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+        long directoryChars = 0;
+        long directoryCount = 0;
         void EnsureDir(string dir, long modified = 0)
         {
             // A single archive name can contain thousands of segments. Its depth must not consume the call stack.
             var missing = new Stack<string>();
             for (string current = dir; dirs.Add(current);)
             {
+                directoryChars += current.Length;
+                directoryCount++;
                 missing.Push(current);
                 int slash = current.LastIndexOf('/');
                 current = slash < 0 ? string.Empty : current[..slash];
@@ -508,7 +512,10 @@ internal sealed class ArchiveIndex : IDisposable
         }
 
         if (seen.Values.Any(v => v > 0)) warnings.Add("The archive contains duplicate names; each copy is listed separately.");
-        return new ArchiveIndex(reader, archiveLength, children, warnings, count * 185L + nameChars * 4);
+        // Include the retained ancestor strings and directory-node overhead, even when the archive
+        // has only one member with many path segments.
+        return new ArchiveIndex(reader, archiveLength, children, warnings,
+            count * 185L + nameChars * 4 + directoryChars * 2 + directoryCount * 160);
     }
 
     /// <summary>

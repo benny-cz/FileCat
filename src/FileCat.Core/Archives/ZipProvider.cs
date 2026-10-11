@@ -474,6 +474,8 @@ internal sealed class ZipIndex : IDisposable
     {
         var entries = new List<ZipArchiveEntry>();
         long nameChars = 0;
+        long directoryChars = 0;
+        long directoryCount = 0;
         var children = new Dictionary<string, List<Node>>(StringComparer.Ordinal) { [string.Empty] = [] };
         var dirs = new HashSet<string>(StringComparer.Ordinal) { string.Empty };
         var seen = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -485,6 +487,8 @@ internal sealed class ZipIndex : IDisposable
             var missing = new Stack<string>();
             for (string current = dir; dirs.Add(current);)
             {
+                directoryChars += current.Length;
+                directoryCount++;
                 missing.Push(current);
                 int slash = current.LastIndexOf('/');
                 current = slash < 0 ? string.Empty : current[..slash];
@@ -547,7 +551,9 @@ internal sealed class ZipIndex : IDisposable
         try { readOnly = (File.GetAttributes(path) & FileAttributes.ReadOnly) != 0; }
         catch (IOException) { readOnly = false; }
         // .NET keeps every entry of the central directory, also past the ones listed.
-        long estimate = archive.Entries.Count * 460L + nameChars * 4;
+        // Generated ancestor paths are retained as separate strings and directory nodes. A single
+        // deeply nested member can own much more index memory than its one central-directory name.
+        long estimate = archive.Entries.Count * 460L + nameChars * 4 + directoryChars * 2 + directoryCount * 160;
         return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate);
     }
 
