@@ -553,7 +553,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I367 | Exited requester executable cleanup race, exact native and original CI qualification | 13b1bc5 exact failure; corrected 1b86024 no overlay/CI 38178386685 attempt1 | Exact 208 broker/381 Platform VM passes; four hosted lanes/32,891P1,085S, all 16 exited-requester cases pass | [Record](evidence/E-I367-broker-requester-cleanup.md) | I367/V09/V20 |
 | E-I368 | Unix list selection bound to the opened descriptor before recovery reads | c6c7f30 exact/no overlays | Eight Ubuntu/eight Mac native passes; same-size replacement and retarget refused with zero reads, unchanged source scans; adverse controller runs retained | [Record](evidence/E-I368-unix-preopen-device-selection.md) | I106/I110/I368/V09 |
 | E-I369 | Exact old recovery scans of cloned B and selected PnP interface correction | cd19d7c adverse, cc93071 correction; both exact/no overlays | Critical VM wrong-source scan; preliminary direct/helper fix; physical HOLD | [Record](evidence/E-I369-cloned-windows-disk-interface.md) | I106/I110/I369/V09 |
-| E-CI-PREOPEN-SELECTION | Original I106/I368 CI at separate source commits | cd19d7c/38180903387 and c6c7f30/38181890980, attempt 1 | Four lanes each; 27 archives/14 TRX each; no candidate | [Record](evidence/E-CI-preopen-disk-selection.md) | I106/I368/I369/V09 |
+| E-CI-PREOPEN-SELECTION | Original I106/I368/I369 CI at separate source commits | cd19d7c/38180903387, c6c7f30/38181890980 and cc93071/38183808053, attempt 1 each | Four lanes each; 27 archives/2,762 members/14 TRX each; I369 preserves every I368 case outcome/message; no candidate | [Record](evidence/E-CI-preopen-disk-selection.md) | I106/I368/I369/V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 

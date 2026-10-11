@@ -1816,7 +1816,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 4. Borrowed icons and controls | [Borrowed-icon controls](E-I06-B3-borrowed-icon-memory.md) qualify bounded cache eviction versus held borrowers. [I283](E-I283-choice-icon-lifetime.md) now retires filtered chooser Images/bitmaps in eighteen controls, including separate actual Skia runs. | Places/hidden panels, other dialogs and recycled consumers, native source queues/workers, pending notifications, submitted frames and aggregate retention. A weak cache or one corrected borrower does not qualify every consumer. |
+| 4. Borrowed icons and controls | [Borrowed-icon controls](evidence/E-I06-B3-borrowed-icon-memory.md) qualify bounded cache eviction versus held borrowers. [I283](evidence/E-I283-choice-icon-lifetime.md) now retires filtered chooser Images/bitmaps in eighteen controls, including separate actual Skia runs. | Places/hidden panels, other dialogs and recycled consumers, native source queues/workers, pending notifications, submitted frames and aggregate retention. A weak cache or one corrected borrower does not qualify every consumer. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I283-choice-icon-lifetime.md`
@@ -1828,7 +1828,7 @@ Independent restoration archives and checks 48 owned temporary files, removes 39
 Source: `docs/release/1.0.0/evidence/E-I284-link-discovery-accounting.md`
 
 ```markdown
-[Original I282 CI](E-CI-follow-link-publication.md) independently retains 31 Unix ordinary-follow observations with correct content/safety fields but inflated BytesTotal. Each old total equals the maximum of 17 and UTF-8 source-link path bytes. The old test did not assert that total, so its passing status cannot qualify accounting. This new controlled reproduction is consistent with those values; no historical stack/scheduling trace is invented. Exact committed/hosted corrected accounting checks remain. This is a progress/work-accounting defect; no new content-loss finding is asserted. Physical-source HOLD and all broader/candidate gates remain.
+[Original I282 CI](evidence/E-CI-follow-link-publication.md) independently retains 31 Unix ordinary-follow observations with correct content/safety fields but inflated BytesTotal. Each old total equals the maximum of 17 and UTF-8 source-link path bytes. The old test did not assert that total, so its passing status cannot qualify accounting. This new controlled reproduction is consistent with those values; no historical stack/scheduling trace is invented. Exact committed/hosted corrected accounting checks remain. This is a progress/work-accounting defect; no new content-loss finding is asserted. Physical-source HOLD and all broader/candidate gates remain.
 ```
 
 
@@ -1916,7 +1916,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 2. Archive indexes and listings | [ZIP/TAR indexes](E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
+| 2. Archive indexes and listings | [ZIP/TAR indexes](evidence/E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I285-removed-panel-preview-retirement.md`
@@ -2018,7 +2018,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 2. Archive indexes and listings | [ZIP/TAR indexes](E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. [I286](E-I286-zip-index-construction-ownership.md) closes failed lazy ZIP index sources across 126 immediate native Windows sharing observations. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
+| 2. Archive indexes and listings | [ZIP/TAR indexes](evidence/E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. [I286](evidence/E-I286-zip-index-construction-ownership.md) closes failed lazy ZIP index sources across 126 immediate native Windows sharing observations. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I285-removed-panel-preview-retirement.md`
@@ -2121,7 +2121,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 4. Borrowed icons and controls | [Borrowed-icon controls](E-I06-B3-borrowed-icon-memory.md) qualify bounded cache eviction versus held borrowers. [I283](E-I283-choice-icon-lifetime.md) now retires filtered chooser Images/bitmaps in eighteen controls, including separate actual Skia runs. [I285](E-I285-removed-panel-preview-retirement.md) retires removed-panel bindings/preview readers across 68 held-control observations while layout reuse remains healthy. | Places/hidden panels, other dialogs and recycled consumers, native source queues/workers, pending notifications, submitted frames and aggregate retention. A weak cache or one corrected borrower does not qualify every consumer. |
+| 4. Borrowed icons and controls | [Borrowed-icon controls](evidence/E-I06-B3-borrowed-icon-memory.md) qualify bounded cache eviction versus held borrowers. [I283](evidence/E-I283-choice-icon-lifetime.md) now retires filtered chooser Images/bitmaps in eighteen controls, including separate actual Skia runs. [I285](evidence/E-I285-removed-panel-preview-retirement.md) retires removed-panel bindings/preview readers across 68 held-control observations while layout reuse remains healthy. | Places/hidden panels, other dialogs and recycled consumers, native source queues/workers, pending notifications, submitted frames and aggregate retention. A weak cache or one corrected borrower does not qualify every consumer. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I286-zip-index-construction-ownership.md`
@@ -2229,7 +2229,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
+| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](evidence/E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I287-concurrent-archive-index-ownership.md`
@@ -2342,7 +2342,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. [I289](E-I289-metadata-order-retirement.md) retires forgotten metadata ordering slots while retaining unrelated cached values; six controls/full Core/87 affected App controls pass. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
+| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](evidence/E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. [I289](evidence/E-I289-metadata-order-retirement.md) retires forgotten metadata ordering slots while retaining unrelated cached values; six controls/full Core/87 affected App controls pass. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I289-metadata-order-retirement.md`
@@ -2465,7 +2465,7 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 Source: `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```markdown
-| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. [I289](E-I289-metadata-order-retirement.md) retires forgotten metadata ordering slots while retaining unrelated cached values; six controls/full Core/87 affected App controls pass. [I290](E-I290-scheduler-cancellation-ownership.md) retires cancelled queued callback payloads and shutdown registrations, retaining running/live data; fifteen controls/full Core/App pass. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
+| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](evidence/E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. [I289](evidence/E-I289-metadata-order-retirement.md) retires forgotten metadata ordering slots while retaining unrelated cached values; six controls/full Core/87 affected App controls pass. [I290](evidence/E-I290-scheduler-cancellation-ownership.md) retires cancelled queued callback payloads and shutdown registrations, retaining running/live data; fifteen controls/full Core/App pass. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I290-scheduler-cancellation-ownership.md`
@@ -2477,7 +2477,7 @@ The affected App selection passes **121**. The unchanged compiled full Core/App 
 Source: `docs/release/1.0.0/evidence/E-I288-about-logo-ownership.md`
 
 ```markdown
-The completed Windows x64 job in original [37987173029 attempt 1](E-CI-about-windows-job-failure.md) contains 7627 actual results: all 29 new About controls pass, but one preceding DirectoryDiff test changes from pass to failure (empty window collection at line 94). All other 7597 predecessor outcomes/messages/exact skips remain. This is a partial completed-job seal; the whole run and historical cause are unqualified. The original failure remains queued for diagnosis under I108.
+The completed Windows x64 job in original [37987173029 attempt 1](evidence/E-CI-about-windows-job-failure.md) contains 7627 actual results: all 29 new About controls pass, but one preceding DirectoryDiff test changes from pass to failure (empty window collection at line 94). All other 7597 predecessor outcomes/messages/exact skips remain. This is a partial completed-job seal; the whole run and historical cause are unqualified. The original failure remains queued for diagnosis under I108.
 ```
 
 Source: `docs/release/1.0.0/evidence/E-I289-metadata-order-retirement.md`
@@ -2538,8 +2538,8 @@ The [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) lists executable work; 
 `docs/release/1.0.0/evidence/E-I06-resource-progress.md`
 
 ```text
-| 2. Archive indexes and listings | [ZIP/TAR indexes](E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. [I286](E-I286-zip-index-construction-ownership.md) closes failed lazy ZIP index sources across 126 immediate native Windows sharing observations. [I287](E-I287-concurrent-archive-index-ownership.md) serializes per-provider index ownership; all twelve concurrent controls close actual sources. Unrelated-archive throughput remains unqualified. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
-| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. [I289](E-I289-metadata-order-retirement.md) retires forgotten metadata ordering slots while retaining unrelated cached values; six controls/full Core/87 affected App controls pass. [I290](E-I290-scheduler-cancellation-ownership.md) retires cancelled queued callback payloads and shutdown registrations, retaining running/live data; fifteen exact controls/full Core/App pass; original hosted remains. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
+| 2. Archive indexes and listings | [ZIP/TAR indexes](evidence/E-I06-A1-archive-indexes.md): byte estimates plus count bounds, recent-two exemptions and leased-content lifetime controls. Historical million-member observations and actual estimates remain. [I286](evidence/E-I286-zip-index-construction-ownership.md) closes failed lazy ZIP index sources across 126 immediate native Windows sharing observations. [I287](evidence/E-I287-concurrent-archive-index-ownership.md) serializes per-provider index ownership; all twelve concurrent controls close actual sources. Unrelated-archive throughput remains unqualified. | Aggregate active/retained/leased indexes, concurrent providers and materialized listings; adversarial large listings and disposal/error/hidden consumers. Recent or leased indexes are not a whole-process budget. |
+| 5. Other materialized data and work | Earlier current-demand/search/metadata/edit/remote-pool corrections remain individually indexed. [I284](evidence/E-I284-link-discovery-accounting.md) corrects root-link work totals in 64 controls. [I289](evidence/E-I289-metadata-order-retirement.md) retires forgotten metadata ordering slots while retaining unrelated cached values; six controls/full Core/87 affected App controls pass. [I290](evidence/E-I290-scheduler-cancellation-ownership.md) retires cancelled queued callback payloads and shutdown registrations, retaining running/live data; fifteen exact controls/full Core/App pass; original hosted remains. | Large child/search/result/job/queue payloads, cancelled/failed/retired consumers, provider resources and concurrent demand. Check actual retained sets and bytes rather than inferring a global bound from one queue capacity. |
 ```
 
 `docs/release/1.0.0/evidence/E-I291-directory-overlap-fixture-isolation.md`
@@ -3190,3 +3190,5 @@ Exact clean `cd19d7c` was rebuilt without source overlays after the earlier comp
 [I369](evidence/E-I369-cloned-windows-disk-interface.md) demonstrates that a byte-cloned 64 MiB VHD shares disk number, size, UniqueId and the GUID used by the earlier I106 correction. Exact old `cd19d7c` scanned cloned B through direct and pipe routes after selecting A: each made fifteen reads and listed one volume. Its independent audit checks all old payload members/source blobs and guest cleanup; SHA-256 `7ba4c84950645a92a9d6f4d2283747a01667216aa4407858f5fb50c4d4ce7ca4`. Exact corrected `cc93071` enumerates/opens the selected PnP interface. Both direct and actual helper-protocol paths read 512 bytes from A; after cloned B replaces A under the same number/GUID, both old-link opens refuse. A corrected `RecoveryProvider` scan separately refuses the clone with zero reads/entries after an unchanged-A 15-read/one-volume positive. The corrected independent audits check source blobs, compiled payload members, VM output and boot-disk-only cleanup; SHA-256 `5713c0871ea8df7ab64afe93b9ae31f98a7a596b89a8691bba05c314e568ed2d` and `5d976c3821226210410bd1c38fde24a2dcde98cd7fa408619a99e0c22f047c9e`. Earlier failed clone controllers remain retained. Actual UAC, physical and candidate scope remain open.
 
 [Original-push I106/I368 CI](evidence/E-CI-preopen-disk-selection.md) each passes four required lanes: `cd19d7c` run 38180903387 has 32,903 passes/1,085 explicit skips; `c6c7f30` run 38181890980 has 32,909 passes/1,091 explicit skips. Each has 27 digest-checked archives, 2,762 members and 14 raw TRX independently rehashed. Audit SHA-256 values are `e70120a81be3da195cbe2ed7d2502a1585f90a9c4c599236399617267bdf40c3` and `890459203aae8178f73fe20d5ed81fd7e017bd181aabb2b8b4ab18fcb55d3504`. The later cloned-media finding does not retroactively qualify the older I106 run for clones. Physical-source HOLD, candidate and explicit human GO remain.
+
+[Original-push I369 CI](evidence/E-CI-preopen-disk-selection.md) at exact `cc93071`, run 38183808053 attempt 1, passes all four required lanes and producer policy: 32,909 passes/1,091 explicit skips/zero failures in fourteen TRX inventories. Its 27 server-digest archives, 2,762 members, raw log and every predecessor case name/outcome/message are independently rehashed against the prior green I368 source. Audit SHA-256 is `f0981cae569b97c1a9bd36981eb383b7a8ae02e32aa7d8a8b6e959319d3e1f94`. The hosted result does not replace the separate native cloned-VHD control, actual UAC, physical-source attribution or candidate qualification. Physical-source HOLD and human GO remain.
