@@ -20,3 +20,5 @@ Paths are relative to private FileCatReleaseEvidence. Nested records retain exac
 |---|---|
 | `memory-content-retirement-validation-20261011-v1/independent-final-v1.json` | `fce22dca158a32fafdd4a458ae4a59054aa2170445cf8db92b333082fb9fc5d6` |
 | `memory-content-retirement-validation-20261011-v1/retained-tool-sources-v1.json` | `80ca2068bf31c35eb54280bdfc6b37ea15c847ccbdc780187c5f7516c4d03871` |
+
+[Exact committed/native follow-up](E-I346-native-qualification.md) passes at ec5868e. [Original CI](E-CI-memory-content-retirement.md) retains one existing Mac HexOverlay failure; all 56 new memory controls pass. Their exact identities, predecessor inventories and limitations remain separate from this original paired producer.
