@@ -6,7 +6,7 @@ All **six safe file-backed method runs and two owned scheduling probes** pass ac
 
 Windows measures high RID 12288/session 0 with pinned .NET 10.0.12. Fresh postchecks verify **364 files**, absent owned processes/temporary roots and stopped transport listeners. One owned SDK log is retained and verified before removal. There are no workstation UI, device or persistent setting changes.
 
-Original [run 38103316696 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/38103316696) collects separately at 9086901; no pending result is accepted. The [original I336 timing failure](E-CI-all-selected-source-admission.md) stays failed with its cause unproven. This finite exact qualification does not establish full hosted or reference-hardware performance acceptance, physical-source safety or an installed candidate. Human GO remains.
+[Original hosted qualification](E-CI-owned-pipe-fixture.md) now passes four required lanes/all six safe fixture method runs at 9086901. The [original I336 timing failure](E-CI-all-selected-source-admission.md) stays failed with its cause unproven. Finite exact and hosted qualification does not establish reference-hardware performance acceptance, physical-source safety or an installed candidate. Human GO remains.
 
 ## Selected immutable receipts
 

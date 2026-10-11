@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**471 evidence entries; none is final candidate qualification.** No candidate exists.
+**475 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -482,6 +482,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I339 | [Recovery metadata admission](evidence/E-I339-recovery-metadata-admission.md) | 9086901/1549 raw blobs/declared overlays | 18 local/54 native passes; six baseline failures per producer | 3960 prior outcomes/messages/107 exact skips; 1161 file checks; original cleanup failure restored separately | Native attributes, cleanup/kernel/atomic/physical/candidate remain |
 | E-I338-NATIVE | [Exact owned pipe fixture qualification](evidence/E-I338-native-qualification.md) | 9086901/1549 raw blobs/no overlays | Six safe methods/two owned scheduling probes pass | Whole photo bytes/unchanged threshold/server closure/pool restoration; 364 file checks | Original timing cause, hosted/reference/candidate remain |
 | E-CI-I337 | [Original folder-attempt admission CI](evidence/E-CI-recovery-folder-attempt-admission.md) | 38101819991 attempt 1/85ba1eb | Four required lanes: 32536 records/31507 passes/1029 exact skips; 96 additions pass | 27 digest archives/14 TRX/1546 raw blobs/92 graphs/four clean SDK builds | Original earlier timing failure stays failed; no candidate |
+| E-I340 | [Stream staging creation ownership](evidence/E-I340-stream-staging-ownership.md) | c7d17da/1553 raw blobs/declared overlays | 14 local/42 native passes; five baseline unsafe failures per producer | 4032 prior outcomes/messages/107 exact skips; whole collision bytes; 1161 native file checks | Separate local copy, later identity/atomic/physical/candidate remain |
+| E-I339-NATIVE | [Exact recovery metadata admission](evidence/E-I339-native-qualification.md) | c7d17da/1553 raw blobs/no overlays | 18 local/54 native passes | 3960 prior outcomes/messages/107 skips; 907 native file checks | Native attributes/kernel/atomic/physical/candidate remain |
+| E-CI-I338 | [Original owned pipe fixture CI](evidence/E-CI-owned-pipe-fixture.md) | 38103316696 attempt 1/9086901 | Four lanes/32536 records/31507 passes/1029 skips; six safe methods pass | 27 digest archives/14 TRX/1549 raw blobs/92 graphs/four clean builds; all prior outcomes retained | Original earlier timing cause, reference/candidate remain |
+| E-CI-I339 | [Original metadata admission CI](evidence/E-CI-recovery-metadata-admission.md) | 38104302687 attempt 1/c7d17da | Four lanes/32608 records/31579 passes/1029 skips; 72 additions pass | 27 digest archives/14 TRX/1553 raw blobs/92 graphs/four clean builds; all 32536 prior records retained | No candidate or physical-source resumption |
 
 <a id="commits-made-by-the-campaign"></a>
 

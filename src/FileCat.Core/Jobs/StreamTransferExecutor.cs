@@ -368,6 +368,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         var dir = Path.GetDirectoryName(target)!;
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
+        bool stagedOwned = false;
         long written = 0;
         IReadOnlyList<(long Offset, long Length)>? lost = null;
         string? caveat = null;
@@ -419,6 +420,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 if (_stagingDirs.Add(dir)) Journal.StagingDirectory(dir);
                 using (var outStream = new FileStream(staged, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.SequentialScan))
                 {
+                    // A refused CreateNew never transfers ownership of an existing path to this copy.
+                    stagedOwned = true;
                     var buffer = new byte[BufferSize];
                     var clock = System.Diagnostics.Stopwatch.StartNew();
                     while (true)
@@ -489,7 +492,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     if (VerifyCopy(provider, item, staged, written, revision) is not true and var verified)
                     {
                         Job.AddBytes(-written);
-                        try { File.Delete(staged); } catch (IOException) { }
+                        try { if (stagedOwned) File.Delete(staged); } catch (IOException) { }
                         Job.ItemFailed();
                         Issue(IssueSeverity.Error, item.Name, verified is false
                             ? "Read-back verification found different content; the copy was discarded."
@@ -509,7 +512,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
             Job.AddBytes(-written);
-            try { if (File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
+            try { if (stagedOwned && File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
             if (ex is OperationCanceledException) throw;
             Job.ItemFailed();
             if (ex is SkippedTransferException skipped)
@@ -521,7 +524,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         {
             // Keep the original unexpected failure, but release the owned partial copy and its progress first.
             Job.AddBytes(-written);
-            try { if (File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
+            try { if (stagedOwned && File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
             throw;
         }
         // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
@@ -539,7 +542,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         if (!ok)
         {
             Job.AddBytes(-written);
-            try { File.Delete(staged); } catch (IOException) { }
+            try { if (stagedOwned) File.Delete(staged); } catch (IOException) { }
             Job.ItemFailed();
             return false;
         }
