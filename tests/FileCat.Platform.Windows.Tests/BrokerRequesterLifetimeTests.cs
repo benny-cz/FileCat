@@ -168,7 +168,17 @@ public sealed class BrokerRequesterLifetimeTests(ITestOutputHelper output)
             finally { Process?.Dispose(); }
             string allowed = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
             Assert.StartsWith(allowed, Path.GetFullPath(Root), StringComparison.OrdinalIgnoreCase);
-            Directory.Delete(Root, recursive: true);
+            // WaitForExit can finish just before Windows releases the executable image section.
+            // Keep cleanup mandatory, but allow that short kernel teardown window.
+            var cleanup = Stopwatch.StartNew();
+            while (true)
+            {
+                try { Directory.Delete(Root, recursive: true); break; }
+                catch (Exception ex) when (ex is (IOException or UnauthorizedAccessException) && cleanup.Elapsed < TimeSpan.FromSeconds(5))
+                {
+                    Thread.Sleep(25);
+                }
+            }
             Assert.False(Directory.Exists(Root));
         }
     }
