@@ -18,6 +18,8 @@ The initial fixture omits GetRevision and fails compilation before tests. Its co
 
 The backing-path/identity transitions are recorded adapter answers, with real owned-file publication; they are **not native kernel alias-transition or atomic rename evidence**. Windows copies exercise PortableFileOperations and the shared executor. Hosted/native kernel-transition/installed-candidate repeats, broader mount/path races and physical-source HOLD remain. No package, persistent setting, workstation UI, physical-source resumption, contract freeze, candidate or stable publication is implied.
 
+[Original hosted CI](E-CI-publication-retry-admission.md) now qualifies 5ec6968 with all four required lanes/32104 records/28 new passes, preserving every predecessor outcome/message/1029 exact skips. [I335](E-I335-recovery-publication-admission.md) subsequently identifies destination-disk admission changing after staging; its controlled topology and correction retain separate producers.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records preserve exact inputs, commands, original outcomes/skips, whole bytes and independent cleanup.

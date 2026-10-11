@@ -499,6 +499,9 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         bool ok = TryIo(target, "publish the extracted item", () =>
         {
             // Every retry is a new publication attempt; the preceding failure or decision can change aliases.
+            // A successful staging check does not admit a later publication after content/decision work.
+            // Check again inside the retry action; a changed or unknown source disk must still refuse.
+            if (provider.CheckTransferDestination(item.Parent, dir) is { } refusal) throw new IOException(refusal);
             CheckBackingTarget(target);
             Fs.Move(staged, target, replace);
         });
