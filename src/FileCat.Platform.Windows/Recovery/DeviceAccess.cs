@@ -19,7 +19,7 @@ namespace FileCat.Platform.Windows.Recovery;
 /// </summary>
 public static class RawReadProtocol
 {
-    public const byte Info = 1, Read = 2, Close = 3, SourceDisks = 4;
+    public const byte Info = 1, Read = 2, Close = 3, SourceDisks = 4, DeviceIdentity = 5;
     public const int MaxSourceDisks = 32;
     public const int MaxRead = 4 * 1024 * 1024;
     public const int RequestSize = 13; // op, offset (8), length (4)
@@ -78,6 +78,12 @@ public static class RawReadProtocol
                         pipe.Write(header, 0, 8);
                         pipe.Write(data);
                     }
+                    break;
+                case DeviceIdentity:
+                    if (offset != 0 || count != 0 || !wholeDisk || DeviceTopology.DeviceIdentity(device) is not { } identity)
+                        Reply(pipe, header, ErrorInvalidParameter, []);
+                    else
+                        Reply(pipe, header, 0, identity.ToByteArray());
                     break;
                 case Close:
                     return "FileCat closed the session.";
@@ -152,7 +158,7 @@ internal sealed class AlignedDeviceReader
 /// A drive FileCat reads itself because it already runs as administrator: the helper would ask for rights FileCat
 /// has. It opens the device for reading only (other programs keep reading and writing it), and nothing is ever written.
 /// </summary>
-public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard
+public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSelectionIdentity
 {
     private readonly SafeFileHandle _handle;
     private readonly AlignedDeviceReader _reader;
@@ -164,6 +170,7 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard
     {
         _handle = handle;
         _wholeDisk = wholeDisk;
+        SelectionIdentity = wholeDisk ? DeviceTopology.DeviceIdentity(handle)?.ToString("D") : null;
         Description = description;
         long length = DeviceTopology.Length(handle);
         if (length <= 0) throw new IOException($"The size of {description} could not be read.");
@@ -193,6 +200,7 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard
     }
 
     public string Description { get; }
+    public string? SelectionIdentity { get; }
     public long Length => _reader.Length;
     public int SectorSize => _reader.SectorSize;
 
@@ -234,7 +242,7 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard
 }
 
 /// <summary>A device read through a session: FileCat parses, the elevated helper only reads (ADR-08).</summary>
-public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard
+public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSelectionIdentity
 {
     private readonly Stream _pipe;
     private readonly object _lock = new();
@@ -259,6 +267,39 @@ public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard
     public string Description { get; }
     public long Length { get; }
     public int SectorSize { get; }
+
+    public string? SelectionIdentity
+    {
+        get
+        {
+            lock (_lock)
+            {
+                if (_closed) return null;
+                try
+                {
+                    _request.AsSpan().Clear();
+                    _request[0] = RawReadProtocol.DeviceIdentity;
+                    _pipe.Write(_request);
+                    _pipe.Flush();
+                    Span<byte> header = stackalloc byte[8];
+                    if (!RawReadProtocol.ReadExactly(_pipe, header)) throw new EndOfStreamException();
+                    int status = BinaryPrimitives.ReadInt32LittleEndian(header);
+                    int count = BinaryPrimitives.ReadInt32LittleEndian(header[4..]);
+                    if (status != 0 && count == 0) return null;
+                    if (status != 0 || count != 16) throw new InvalidDataException("The administrator helper did not give a complete device identity.");
+                    Span<byte> bytes = stackalloc byte[16];
+                    if (!RawReadProtocol.ReadExactly(_pipe, bytes)) throw new EndOfStreamException();
+                    var identity = new Guid(bytes);
+                    return identity == Guid.Empty ? null : identity.ToString("D");
+                }
+                catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException)
+                {
+                    _closed = true;
+                    return null;
+                }
+            }
+        }
+    }
 
     public int Read(long offset, Span<byte> buffer)
     {
@@ -495,7 +536,7 @@ public static partial class DeviceReadHost
 /// A physical disk as recovery offers it (D-46): its number, size, the name its maker gave it, how it is attached, and
 /// the drives (letters) on it.
 /// </summary>
-public sealed record PhysicalDisk(int Number, long Length, string? Model, string Bus, bool Removable, IReadOnlyList<string> Drives)
+public sealed record PhysicalDisk(int Number, long Length, string? Model, string Bus, bool Removable, IReadOnlyList<string> Drives, string? Identity = null)
 {
     public string Device => @"\\.\PhysicalDrive" + Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
@@ -527,7 +568,7 @@ public static unsafe partial class DeviceTopology
             long length = GeometryLength(handle);
             if (length <= 0) continue; // no medium (an empty card reader)
             var (model, bus, removable) = Describe(handle);
-            result.Add(new PhysicalDisk(n, length, model, bus, removable, letters.GetValueOrDefault(n) ?? []));
+            result.Add(new PhysicalDisk(n, length, model, bus, removable, letters.GetValueOrDefault(n) ?? [], DeviceIdentity(handle)?.ToString("D")));
         }
         return result;
     }
@@ -539,6 +580,21 @@ public static unsafe partial class DeviceTopology
         uint returned;
         if (!DeviceIoControl(disk, 0x000700A0 /* IOCTL_DISK_GET_DRIVE_GEOMETRY_EX */, null, 0, geometry, 256, &returned, 0) || returned < 32) return -1;
         return BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(geometry + 24, 8)); // DISK_GEOMETRY_EX.DiskSize
+    }
+
+    /// <summary>Windows' handle-bound storage device GUID. It is queried on both the discovery and read handles.</summary>
+    internal static Guid? DeviceIdentity(SafeFileHandle disk)
+    {
+        if (disk.IsInvalid || disk.IsClosed) return null;
+        var output = stackalloc byte[64];
+        uint returned;
+        if (!DeviceIoControl(disk, 0x002D1084 /* IOCTL_STORAGE_GET_DEVICE_NUMBER_EX */, null, 0, output, 64, &returned, 0) || returned < 40)
+            return null;
+        var bytes = new ReadOnlySpan<byte>(output, (int)Math.Min(returned, 64));
+        if (BinaryPrimitives.ReadUInt32LittleEndian(bytes) < 40 || BinaryPrimitives.ReadUInt32LittleEndian(bytes[4..]) < 40)
+            return null;
+        var identity = new Guid(bytes.Slice(20, 16));
+        return identity == Guid.Empty ? null : identity;
     }
 
     /// <summary>What a disk says it is (STORAGE_DEVICE_DESCRIPTOR): its maker's names for it, its bus, and whether its medium is removable.</summary>

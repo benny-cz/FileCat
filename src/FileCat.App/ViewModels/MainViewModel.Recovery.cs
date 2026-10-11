@@ -371,6 +371,11 @@ public sealed partial class MainViewModel
             Notify(problem, true);
             return;
         }
+        if (disk.Identity is null)
+        {
+            Notify($"Disk {disk.Number} cannot be scanned: Windows did not provide a device identity FileCat can verify when it opens the disk.", true);
+            return;
+        }
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
         bool system = HoldsWindows(disk);
         var safety = await Task.Run(() => CheckDiskSafety(disk.Device, name, otherProcesses: otherProcesses));
@@ -395,8 +400,8 @@ public sealed partial class MainViewModel
         }
         if (!await RecheckDeviceSafetyAsync(disk.Device, name, otherProcesses)) return;
         _deviceScanned = true;
-        // The disk's size when it was chosen: a disk plugged in meanwhile under the same number is refused.
-        panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name, length: disk.Length));
+        // Bind the selected disk to the actual opened read handle; another same-sized disk can reuse its number.
+        panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name, length: disk.Length, identity: disk.Identity));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
     }
 

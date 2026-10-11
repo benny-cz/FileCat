@@ -28,6 +28,13 @@ public interface IDevicePathGuard
     bool IsCurrentDevicePath(string path);
 }
 
+/// <summary>The identity of the actual native device handle opened after a whole disk was selected.</summary>
+public interface IDeviceSelectionIdentity
+{
+    /// <summary>Null when the native identity query is unavailable; callers with a selected identity must refuse it.</summary>
+    string? SelectionIdentity { get; }
+}
+
 /// <summary>A held device reader that classifies destinations against that reader's current native disk identity.</summary>
 public interface IDeviceDestinationGuard
 {

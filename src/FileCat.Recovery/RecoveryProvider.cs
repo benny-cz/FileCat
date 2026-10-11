@@ -49,6 +49,8 @@ public sealed class RecoveryProvider : ResourceProvider
     private readonly ConcurrentDictionary<string, bool> _volumeDevices = new(PathUtil.SafetyComparer);
     /// <summary>The size each device had when the user chose it.</summary>
     private readonly ConcurrentDictionary<string, long> _deviceLengths = new(PathUtil.SafetyComparer);
+    /// <summary>Kernel identity of a selected whole disk, checked against the handle opened for scanning.</summary>
+    private readonly ConcurrentDictionary<string, string> _deviceIdentities = new(PathUtil.SafetyComparer);
     private readonly object _scanLock = new();
 
     /// <summary>Stable image-file identity, following links; the platform supplies Windows IDs.</summary>
@@ -171,7 +173,7 @@ public sealed class RecoveryProvider : ResourceProvider
     /// bookmark, the folder history) is refused. With <paramref name="length"/> (its size when it was chosen), a device that
     /// opens with another size is refused: a disk replaced meanwhile can take the chosen one's name.
     /// </summary>
-    public Location ForDevice(string device, string name, int? volume = null, long length = 0)
+    public Location ForDevice(string device, string name, int? volume = null, long length = 0, string? identity = null)
     {
         lock (_scanLock)
         {
@@ -182,6 +184,8 @@ public sealed class RecoveryProvider : ResourceProvider
             if (volume is not null) _volumeDevices[device] = true;
             if (length > 0) _deviceLengths[device] = length;
             else _deviceLengths.TryRemove(device, out _);
+            if (!string.IsNullOrEmpty(identity)) _deviceIdentities[device] = identity;
+            else _deviceIdentities.TryRemove(device, out _);
         }
         return new(Schemes.Recovery, string.Empty, new Location(Schemes.Device, device), volume?.ToString(CultureInfo.InvariantCulture));
     }
@@ -563,6 +567,9 @@ public sealed class RecoveryProvider : ResourceProvider
                 if (device && _deviceLengths.TryGetValue(path, out long chosen) && source.Length != chosen)
                     throw new IOException($"{SourceName(location)} is not the disk that was chosen: it now holds {source.Length:N0} bytes, not {chosen:N0}. " +
                                           "A disk plugged in meanwhile can take another one's place: choose it again from the list of drives.");
+                if (device && _deviceIdentities.TryGetValue(path, out string? selectedIdentity) &&
+                    (source is not IDeviceSelectionIdentity opened || !string.Equals(opened.SelectionIdentity, selectedIdentity, StringComparison.OrdinalIgnoreCase)))
+                    throw new IOException($"{SourceName(location)} is not the disk that was chosen: its device identity changed or could not be verified. Choose it again from the list of drives.");
                 var session = new Session(source, Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk), device)
                 { DiskSearched = searchImageDisk };
                 _sessions[key] = session;

@@ -17,12 +17,13 @@ public sealed class RecoveryReselectionTests(ITestOutputHelper output)
         public void ReportIssue(string message) { }
     }
 
-    private sealed class Reader(string image, string name) : IBlockSource
+    private sealed class Reader(string image, string name, string? identity = null) : IBlockSource, IDeviceSelectionIdentity
     {
         private readonly ImageFileSource _source = new(image);
         public bool Disposed { get; private set; }
         public int Reads { get; private set; }
         public string Description => name;
+        public string? SelectionIdentity => identity;
         public long Length => _source.Length;
         public int Read(long offset, Span<byte> buffer)
         {
@@ -141,4 +142,51 @@ public sealed class RecoveryReselectionTests(ITestOutputHelper output)
     [InlineData(false)]
     [InlineData(true)]
     public Task Repeat_and_rescan_keep_the_existing_approved_reader(bool rescan) => Observe("repeat", rescan, true);
+
+    [Theory]
+    [InlineData("B", true)]
+    [InlineData(null, true)]
+    [InlineData("A", false)]
+    public async Task Same_size_replacement_is_refused_before_any_scan_read(string? openedIdentity, bool refused)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-identity-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string a = Path.Combine(root, "a.img"), b = Path.Combine(root, "b.img");
+        byte[] bytesA = Image(64, "FC_SOURCE_A"), bytesB = Image(64, "FC_SOURCE_B");
+        File.WriteAllBytes(a, bytesA); File.WriteAllBytes(b, bytesB);
+        var provider = new RecoveryProvider();
+        Reader? opened = null;
+        try
+        {
+            const string device = "owned-physical-drive-1";
+            var selected = provider.ForDevice(device, "selected A", length: bytesA.Length, identity: "A");
+            // The same path and length now open B (or return an unavailable identity).
+            provider.OpenDevice = (_, name, _) => opened = new Reader(openedIdentity == "A" ? a : b, name, openedIdentity);
+            var sink = new Sink();
+            if (refused)
+            {
+                var error = await Assert.ThrowsAsync<IOException>(() => provider.EnumerateAsync(selected, sink, TestContext.Current.CancellationToken));
+                Assert.Contains("identity changed or could not be verified", error.Message, StringComparison.Ordinal);
+                Assert.Empty(sink.Rows);
+                Assert.NotNull(opened);
+                Assert.Equal(0, opened.Reads);
+                Assert.True(opened.Disposed);
+            }
+            else
+            {
+                await provider.EnumerateAsync(selected, sink, TestContext.Current.CancellationToken);
+                Assert.Contains("FC_SOURCE_A", Assert.IsType<RecoveryVolumeTag>(Assert.Single(sink.Rows).Tag).Details, StringComparison.Ordinal);
+                Assert.True(opened!.Reads > 0);
+            }
+            Assert.Equal(bytesA, File.ReadAllBytes(a));
+            Assert.Equal(bytesB, File.ReadAllBytes(b));
+        }
+        finally
+        {
+            provider.CloseAll();
+            Assert.True(opened is null || opened.Disposed);
+            File.Delete(a); File.Delete(b); Directory.Delete(root, recursive: false);
+            Assert.False(Directory.Exists(root));
+        }
+    }
 }
