@@ -14,6 +14,8 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I355](E-I355-recovery-image-replacement.md) now refreshes regular recovery-image sessions after deterministic same-metadata replacement. Actual source IDs identify known images; unavailable IDs prevent source reuse. Existing readers and unchanged-image search modes remain valid. Atomic path/open-handle binding, arbitrary in-place changes and unavailable-identity advisory metadata remain unqualified; device keys are unchanged and physical HOLD remains.
 
+[I357](E-I357-nested-reader-admission.md) additionally keeps the outer ZIP index alive through nested-member copying, preserving source bytes and actual handle retirement in all64 final host/native controls. [Exact I355/I356](E-I355-I356-native-qualification.md) now seals04f6f18 without overlays. Atomic identity, in-place mutation, other spool-eviction interleavings and physical/candidate scope remain; physical-source HOLD is unchanged.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.

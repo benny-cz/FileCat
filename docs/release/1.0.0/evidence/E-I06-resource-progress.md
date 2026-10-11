@@ -14,6 +14,8 @@ Latest current-source refresh: [I306 exact/native](E-I306-native-find-retirement
 
 [I355 recovery-image replacement](E-I355-recovery-image-replacement.md) additionally qualifies fresh regular-image sessions with eighty passing controls,7034 affected records/177 exact skips,348 App results and1161 native file checks. Unknown identity prevents source reuse while preserving requested search modes; aggregate/native/candidate scope remains.
 
+[I357 nested reader admission](E-I357-nested-reader-admission.md) extends outer ZIP index ownership through the complete private member copy.64 final host/native controls/2560 full reads,7178 affected outcomes/177 exact skips,377 App results and1161 native file checks pass;four roots restore. [Exact I355/I356](E-I355-I356-native-qualification.md) separately seals04f6f18. Whole-process/native/candidate scope remains.
+
 | Resource group | Retained preliminary evidence | Remaining executable scope |
 |---|---|---|
 | 1. Shared content pages | [Page-cache fix](E-I06-P1-page-cache-budget.md): default 64 MiB shared target; thirteen-reader 148 MiB case becomes 64 MiB. Each reader keeps four pages; sufficiently many readers can exceed the target through those documented floors. DEC-06 is closed in the execution/gate history.  [Composed profiles](E-I06-composed-resource-accounting.md) retain separate charges, native scratch and qualified process snapshots. | Qualify chosen settings, saturation and consumer retirement at the exact candidate; distinguish the documented floor from a strict process-memory ceiling. Do not reopen the decided target merely because the exception exists. |

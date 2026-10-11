@@ -12,6 +12,10 @@ The final source includes I355's four qualified overlays plus this control and t
 
 Wider native/leased/resource scope, atomic source binding, physical-source HOLD and candidate qualification remain. No workstation UI, physical source or persistent setting changes occurred.
 
+## Committed follow-up and nested boundary — 2026-10-11
+
+[Exact committed qualification](E-I355-I356-native-qualification.md) now verifies04f6f18/1616 raw blobs/no overlays. [I357](E-I357-nested-reader-admission.md) separately reproduces and corrects the remaining outer-index lifetime gap during nested-member copying. The original paired evidence and wider limits remain.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.

@@ -149,18 +149,25 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             int slash = container.Path.LastIndexOf('/');
             var folder = container.WithPath(slash < 0 ? string.Empty : container.Path[..slash]);
             string name = container.Path[(slash + 1)..];
-            var index = GetIndex(folder);
-            var node = index.Children.GetValueOrDefault(folder.Path)?.Where(n => !n.IsDirectory && n.Name == name).ToList() ?? [];
-            if (node.Count == 0) throw new FileNotFoundException($"\"{container.Path}\" is not in the archive.");
-            if (node.Count > 1) throw new NotSupportedException("Several members share this name; extract the one you want with F5, then open it.");
-            var tag = node[0].Tag!;
-            if (tag.Encrypted) throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
-            if (tag.UnsafeReason is not null) throw new InvalidDataException("The inner archive has an unsafe name: " + tag.UnsafeReason);
-            Directory.CreateDirectory(_tempDirectory);
-            string spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}.zip");
-            var holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
-            try { index.CopyMember(tag, holder); }
-            catch { holder.Dispose(); throw; }
+            string spoolPath;
+            FileStream holder;
+            // Nested copy admission must keep its outer index alive until every byte is spooled.
+            // The resolved outer path avoids taking the nested lock again under the cache lock.
+            lock (_cacheLock)
+            {
+                var index = GetIndex(folder, outer);
+                var node = index.Children.GetValueOrDefault(folder.Path)?.Where(n => !n.IsDirectory && n.Name == name).ToList() ?? [];
+                if (node.Count == 0) throw new FileNotFoundException($"\"{container.Path}\" is not in the archive.");
+                if (node.Count > 1) throw new NotSupportedException("Several members share this name; extract the one you want with F5, then open it.");
+                var tag = node[0].Tag!;
+                if (tag.Encrypted) throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
+                if (tag.UnsafeReason is not null) throw new InvalidDataException("The inner archive has an unsafe name: " + tag.UnsafeReason);
+                Directory.CreateDirectory(_tempDirectory);
+                spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}.zip");
+                holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
+                try { index.CopyMember(tag, holder); }
+                catch { holder.Dispose(); throw; }
+            }
             _nested[key] = new NestedSpool(spoolPath, holder);
             while (_nested.Count > MaxNestedSpools)
             {

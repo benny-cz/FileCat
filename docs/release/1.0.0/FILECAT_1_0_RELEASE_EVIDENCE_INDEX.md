@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**515 evidence entries; none is final candidate qualification.** No candidate exists.
+**517 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -526,6 +526,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I354-NATIVE | [Exact archive-replacement qualification](evidence/E-I354-native-qualification.md) | 2dda4a8/1610 raw blobs/no overlays | 128 replacementP;6934 affected/179 skips;348 App | 966 native files/two roots restored | Original failures retained |
 | E-CI-ARCHIVE-REPLACEMENT | [Original archive-replacement CI adverse](evidence/E-CI-archive-source-replacement.md) | 38152465526 attempt1/2dda4a8 | 33504 records/32426P1077S1F;128 additions pass | 26 archives/14TRX/92 graphs/four clean builds | 33375 unchanged predecessors/1077 skips;one prior pass now fails |
 | E-I356 | [Archive reader admission ownership](evidence/E-I356-archive-reader-admission.md) | 2dda4a8/1610 raw blobs/seven combined overlays | 64 controls/2560 reads;7114 affected/177 skips;377 App | 1161 native files/six roots restored | Original CI cause unproven;broader scope remains |
+| E-I357 | [Nested ZIP reader admission ownership](evidence/E-I357-nested-reader-admission.md) | 04f6f18/1616 raw blobs/two overlays | 64 controls/2560 reads;7178 affected/177 skips;377 App | 1161 native files/four roots restored | Original failures retained;wider native/atomic/physical/candidate remain |
+| E-I355-I356-NATIVE | [Exact recovery and reader-admission qualification](evidence/E-I355-I356-native-qualification.md) | 04f6f18/1616 raw blobs/no overlays | 272 controls;7078 affected/179 skips;377 App | 966 native files/two roots restored | Original CI separate;I357 subsequent proposal |
 
 <a id="commits-made-by-the-campaign"></a>
 
