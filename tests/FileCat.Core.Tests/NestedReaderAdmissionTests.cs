@@ -45,7 +45,10 @@ public sealed class NestedReaderAdmissionTests(ITestOutputHelper output)
             }
         }
         foreach (var owner in new ResourceProvider[] { zp, ap })
+        {
             owner.GetType().GetProperty("GetSourceIdentity")!.SetValue(owner, (Func<string, string?>)(p => { Capture(); return identityAvailable ? files.GetFileIdentity(p) : null; }));
+            owner.GetType().GetProperty("GetOpenedSourceIdentity")!.SetValue(owner, (Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?>)(handle => identityAvailable ? files.GetHandleIdentity(handle) : null));
+        }
         var outerLocation = zip ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
         string member = innerZip ? "inside.zip" : "inside.tar";
         var location = new Location(innerZip ? Schemes.Zip : Schemes.Archive, "", outerLocation.WithPath(member));

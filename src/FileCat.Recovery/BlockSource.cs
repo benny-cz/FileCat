@@ -60,12 +60,15 @@ public sealed class ImageFileSource : IBlockSource
 {
     private readonly SafeFileHandle _handle;
 
-    public ImageFileSource(string path)
+    public ImageFileSource(string path) : this(path, null) { }
+
+    public ImageFileSource(string path, Action<SafeFileHandle>? verifyOpened = null)
     {
         Description = path;
         _handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
         try
         {
+            verifyOpened?.Invoke(_handle);
             long length = RandomAccess.GetLength(_handle);
             Length = length;
             if (length >= 512)

@@ -29,8 +29,8 @@ public sealed class ArchiveIndexConcurrencyOwnershipTests(ITestOutputHelper outp
         byte[] expected = Enumerable.Range(0, 4096).Select(i => (byte)(i * 31 + 7)).ToArray();
         var registry = new ProviderRegistry(); registry.Register(new LocalFileSystemProvider());
         var identityFiles = new IdentityAwareTestFiles();
-        ResourceProvider Create() => zip ? new ZipProvider(root) { GetSourceIdentity = identityFiles.GetFileIdentity }
-            : new ArchiveProvider(root, registry) { GetSourceIdentity = identityFiles.GetFileIdentity };
+        ResourceProvider Create() => zip ? new ZipProvider(root) { GetSourceIdentity = identityFiles.GetFileIdentity, GetOpenedSourceIdentity = identityFiles.GetHandleIdentity }
+            : new ArchiveProvider(root, registry) { GetSourceIdentity = identityFiles.GetFileIdentity, GetOpenedSourceIdentity = identityFiles.GetHandleIdentity };
         void Release(ResourceProvider p) { if (p is ZipProvider z) z.Release(path); else ((ArchiveProvider)p).Release(path); }
         var provider = Create();
         var flags = BindingFlags.NonPublic | BindingFlags.Instance;

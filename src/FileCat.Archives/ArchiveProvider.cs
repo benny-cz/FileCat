@@ -55,6 +55,10 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     public Func<string, string?> GetSourceIdentity { get; set; } =
         path => UnixFiles.Stat(path, followLinks: true)?.Identity.ToString();
 
+    /// <summary>Identity of the actual opened source; required when a path identity is known.</summary>
+    public Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> GetOpenedSourceIdentity { get; set; } =
+        handle => UnixFiles.Stat(handle)?.Identity.ToString();
+
     // Length and modification time alone cannot distinguish an independently replaced file.
     // Without an identity, retain bounded ownership but do not reuse a previous index or spool.
     private string SourceIdentityKey(string path) => GetSourceIdentity(path) is { Length: > 0 } id ? id : Guid.NewGuid().ToString("N");
@@ -228,7 +232,9 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     {
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
-        string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}|{SourceIdentityKey(path)}";
+        string? sourceIdentity = GetSourceIdentity(path);
+        string identityKey = string.IsNullOrEmpty(sourceIdentity) ? Guid.NewGuid().ToString("N") : sourceIdentity;
+        string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}|{identityKey}";
         if (_cache.TryGetValue(key, out var cached))
         {
             cached.Touch();
@@ -239,7 +245,8 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         var kind = root.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var k2) ? k2
             : ArchiveFormats.ByName(displayName) ?? throw new InvalidDataException("This file is not in an archive format FileCat reads.");
         IMemberReader reader;
-        try { reader = ArchiveFormats.Open(path, kind, displayName); }
+        try { reader = ArchiveFormats.Open(path, kind, displayName, (openedPath, handle) =>
+                OpenedSourceIdentity.RequireMatch(handle, PathUtil.SafetyComparer.Equals(path, openedPath) ? sourceIdentity : GetSourceIdentity(openedPath), GetOpenedSourceIdentity)); }
         catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
         {
             throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);

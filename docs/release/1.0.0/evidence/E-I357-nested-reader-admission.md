@@ -12,6 +12,10 @@ The first control compile failed because of a local variable name collision; cor
 
 This preliminary remediation addresses nested copy admission. It does not establish atomic path/open-handle identity, arbitrary in-place mutation, every spool-eviction interleaving, whole-process native allocation or candidate qualification. I06/I106 remain open; I106/I110 physical-source validation stays on HOLD. Original earlier CI failure causes remain unproven. No workstation UI, physical source or persistent settings changed.
 
+## Exact committed and hosted follow-up — 2026-10-11
+
+[Exact dfe32b3 qualification](E-I357-native-qualification.md) now verifies1619 raw blobs/no overlays. [Original hosted CI](E-CI-nested-reader-admission.md) separately retains one Linux queued-rename shutdown failure;all336 archive/recovery controls pass. [I358](E-I358-opened-source-binding.md) adds fresh opened-handle identity binding. Broader scope and original failures remain.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.

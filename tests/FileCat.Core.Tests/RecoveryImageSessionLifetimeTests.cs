@@ -64,7 +64,7 @@ public sealed class RecoveryImageSessionLifetimeTests(ITestOutputHelper output)
         var paths = Enumerable.Range(0, 6).Select(i => Path.Combine(root, i + ".img")).ToArray();
         for (int i = 0; i < paths.Length; i++) File.WriteAllBytes(paths[i], expectedImages[i]);
         string retiredPath = Path.Combine(root, "retired.img");
-        var provider = new RecoveryProvider { GetSourceIdentity = new IdentityAwareTestFiles().GetFileIdentity };
+        var provider = new RecoveryProvider { GetSourceIdentity = new IdentityAwareTestFiles().GetFileIdentity, GetOpenedSourceIdentity = new IdentityAwareTestFiles().GetHandleIdentity };
         var readers = new List<IContentSource>();
         int opens = 0;
         provider.OpenDevice = (_, _, _) => new ImageFileSource(paths[Math.Min(opens++, paths.Length - 1)]);

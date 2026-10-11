@@ -107,24 +107,32 @@ public static class ArchiveFormats
     };
 
     /// <summary>Opens a reader; the archive file is read-shared so others may keep using it.</summary>
-    public static IMemberReader Open(string path, ArchiveKind kind, string displayName) => kind switch
+    public static IMemberReader Open(string path, ArchiveKind kind, string displayName) => Open(path, kind, displayName, null);
+
+    public static IMemberReader Open(string path, ArchiveKind kind, string displayName, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null) => kind switch
     {
-        ArchiveKind.Tar => new TarMemberReader(path, null, "TAR"),
-        ArchiveKind.TarGzip => new TarMemberReader(path, s => new GZipStream(s, System.IO.Compression.CompressionMode.Decompress), "TAR (gzip)"),
-        ArchiveKind.TarBzip2 => new TarMemberReader(path, s => BZip2Stream.Create(s, SharpCompress.Compressors.CompressionMode.Decompress, false, false, true), "TAR (bzip2)"),
-        ArchiveKind.TarXz => new TarMemberReader(path, s => new XZStream(s), "TAR (xz)"),
-        ArchiveKind.TarZstd => new TarMemberReader(path, s => new SharpCompress.Compressors.ZStandard.DecompressionStream(s, 0, false, false), "TAR (zstd)"),
-        ArchiveKind.Gzip => new SingleStreamReader(path, s => new GZipStream(s, System.IO.Compression.CompressionMode.Decompress), "gzip", displayName, ".gz"),
-        ArchiveKind.Bzip2 => new SingleStreamReader(path, s => BZip2Stream.Create(s, SharpCompress.Compressors.CompressionMode.Decompress, false, false, true), "bzip2", displayName, ".bz2"),
-        ArchiveKind.Xz => new SingleStreamReader(path, s => new XZStream(s), "xz", displayName, ".xz"),
-        ArchiveKind.Zstd => new SingleStreamReader(path, s => new SharpCompress.Compressors.ZStandard.DecompressionStream(s, 0, false, false), "zstd", displayName, ".zst"),
-        ArchiveKind.SevenZip => SharpArchiveReader.Open(path, rar: false),
-        ArchiveKind.Rar => SharpArchiveReader.Open(path, rar: true),
-        _ => new DiscImageReader(path),
+        ArchiveKind.Tar => new TarMemberReader(path, null, "TAR", verifyOpened),
+        ArchiveKind.TarGzip => new TarMemberReader(path, s => new GZipStream(s, System.IO.Compression.CompressionMode.Decompress), "TAR (gzip)", verifyOpened),
+        ArchiveKind.TarBzip2 => new TarMemberReader(path, s => BZip2Stream.Create(s, SharpCompress.Compressors.CompressionMode.Decompress, false, false, true), "TAR (bzip2)", verifyOpened),
+        ArchiveKind.TarXz => new TarMemberReader(path, s => new XZStream(s), "TAR (xz)", verifyOpened),
+        ArchiveKind.TarZstd => new TarMemberReader(path, s => new SharpCompress.Compressors.ZStandard.DecompressionStream(s, 0, false, false), "TAR (zstd)", verifyOpened),
+        ArchiveKind.Gzip => new SingleStreamReader(path, s => new GZipStream(s, System.IO.Compression.CompressionMode.Decompress), "gzip", displayName, ".gz", verifyOpened),
+        ArchiveKind.Bzip2 => new SingleStreamReader(path, s => BZip2Stream.Create(s, SharpCompress.Compressors.CompressionMode.Decompress, false, false, true), "bzip2", displayName, ".bz2", verifyOpened),
+        ArchiveKind.Xz => new SingleStreamReader(path, s => new XZStream(s), "xz", displayName, ".xz", verifyOpened),
+        ArchiveKind.Zstd => new SingleStreamReader(path, s => new SharpCompress.Compressors.ZStandard.DecompressionStream(s, 0, false, false), "zstd", displayName, ".zst", verifyOpened),
+        ArchiveKind.SevenZip => SharpArchiveReader.Open(path, rar: false, verifyOpened),
+        ArchiveKind.Rar => SharpArchiveReader.Open(path, rar: true, verifyOpened),
+        _ => new DiscImageReader(path, verifyOpened),
     };
 
-    internal static FileStream OpenShared(string path) =>
-        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
+    internal static FileStream OpenShared(string path) => OpenShared(path, null);
+
+    internal static FileStream OpenShared(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
+    {
+        var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
+        try { verifyOpened?.Invoke(path, file.SafeFileHandle); return file; }
+        catch { file.Dispose(); throw; }
+    }
 
     internal static DateTime? Utc(DateTime? time) => time switch
     {
@@ -350,8 +358,11 @@ internal sealed class TarHeaderGuard(Stream inner) : Stream
 /// TAR through .NET's <see cref="TarReader"/>: a plain file reads members in place; a compressed one keeps one forward
 /// cursor, so extracting members in archive order decompresses the stream once.
 /// </summary>
-internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompress, string format) : IMemberReader
+internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompress, string format, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null) : IMemberReader
 {
+    private bool _disposed;
+    public TarMemberReader(string path, Func<Stream, Stream>? decompress, string format) : this(path, decompress, format, null) { }
+
     /// <summary>Beyond this expansion (after 1 GiB), listing stops: a likely decompression bomb.</summary>
     public const long MaxListingRatio = 1000;
     private readonly List<(long Offset, long Length)> _plainData = [];
@@ -369,7 +380,7 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
 
     private (FileStream File, Stream Data) OpenStream()
     {
-        var file = ArchiveFormats.OpenShared(path);
+        var file = ArchiveFormats.OpenShared(path, verifyOpened);
         try
         {
             return (file, decompress is null ? file : new CountingStream(decompress(file)));
@@ -384,6 +395,7 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
 
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var (file, data) = OpenStream();
         var guard = new TarHeaderGuard(data);
         using (file)
@@ -436,9 +448,10 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
 
     public Stream Open(int index, CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (decompress is null)
         {
-            _plain ??= ArchiveFormats.OpenShared(path);
+            _plain ??= ArchiveFormats.OpenShared(path, verifyOpened);
             var (offset, length) = _plainData[index];
             if (offset < 0) throw new InvalidDataException("The member's data cannot be located.");
             return new SliceStream(_plain, offset, length);
@@ -493,14 +506,20 @@ internal sealed class TarMemberReader(string path, Func<Stream, Stream>? decompr
 
     public void Dispose()
     {
+        _disposed = true;
+        verifyOpened = null;
         CloseCursor();
         _plain?.Dispose();
     }
 }
 
 /// <summary>A single compressed file (.gz, .bz2, .xz, .zst): one member named after the file.</summary>
-internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decompress, string format, string displayName, string suffix) : IMemberReader
+internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decompress, string format, string displayName, string suffix, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null) : IMemberReader
 {
+    private bool _disposed;
+    public SingleStreamReader(string path, Func<Stream, Stream> decompress, string format, string displayName, string suffix)
+        : this(path, decompress, format, displayName, suffix, null) { }
+
     private FileStream? _file;
     private Stream? _data;
 
@@ -510,8 +529,9 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         // The stream must at least start like its format; the content itself is only read when opened.
-        using (var file = ArchiveFormats.OpenShared(path))
+        using (var file = ArchiveFormats.OpenShared(path, verifyOpened))
         {
             var kind = ArchiveFormats.BySignature(file);
             if (kind is not (ArchiveKind.Gzip or ArchiveKind.Bzip2 or ArchiveKind.Xz or ArchiveKind.Zstd))
@@ -525,10 +545,11 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
 
     public Stream Open(int index, CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         CloseMember();
         try
         {
-            _file = ArchiveFormats.OpenShared(path);
+            _file = ArchiveFormats.OpenShared(path, verifyOpened);
             _data = decompress(_file);
             return new BorrowedStream(_data);
         }
@@ -558,7 +579,12 @@ internal sealed class SingleStreamReader(string path, Func<Stream, Stream> decom
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
-    public void Dispose() => CloseMember();
+    public void Dispose()
+    {
+        _disposed = true;
+        verifyOpened = null;
+        CloseMember();
+    }
 }
 
 /// <summary>
@@ -620,14 +646,16 @@ internal sealed class SharpArchiveReader : IMemberReader
 
     public bool SharesCursor => _sequential;
 
-    public static SharpArchiveReader Open(string path, bool rar)
+    public static SharpArchiveReader Open(string path, bool rar) => Open(path, rar, null);
+
+    public static SharpArchiveReader Open(string path, bool rar, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
     {
         bool numberedVolumeGap = false;
         var volumes = new List<FileStream>();
         try
         {
             foreach (var volume in rar ? RarVolumes(path, out numberedVolumeGap) : [path])
-                volumes.Add(ArchiveFormats.OpenShared(volume));
+                volumes.Add(ArchiveFormats.OpenShared(volume, verifyOpened));
         }
         catch
         {
@@ -782,9 +810,11 @@ internal sealed class DiscImageReader : IMemberReader
     private readonly List<string> _paths = [];
     private bool _disposed;
 
-    public DiscImageReader(string path)
+    public DiscImageReader(string path) : this(path, null) { }
+
+    public DiscImageReader(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
     {
-        _file = ArchiveFormats.OpenShared(path);
+        _file = ArchiveFormats.OpenShared(path, verifyOpened);
         try
         {
             if (UdfReader.Detect(_file))

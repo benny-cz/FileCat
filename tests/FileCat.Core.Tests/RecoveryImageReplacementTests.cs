@@ -63,6 +63,7 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
         File.SetLastWriteTimeUtc(path, Stamp); File.SetLastWriteTimeUtc(next, Stamp);
         var files = new IdentityAwareTestFiles(); var provider = new RecoveryProvider();
         provider.GetType().GetProperty("GetSourceIdentity")?.SetValue(provider, (Func<string, string?>)(p => identityAvailable ? files.GetFileIdentity(p) : null));
+        provider.GetType().GetProperty("GetOpenedSourceIdentity")!.SetValue(provider, (Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?>)(handle => identityAvailable ? files.GetHandleIdentity(handle) : null));
         var location = RecoveryProvider.ForImage(path, 1); IContentSource? held = null;
         async Task<Sink> List() { var sink = new Sink(); await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken); return sink; }
         try

@@ -61,6 +61,7 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
         // The same control also compiles against the original provider, before this optional capability existed.
         provider.GetType().GetProperty("GetSourceIdentity")?.SetValue(provider,
             (Func<string, string?>)(p => identityAvailable ? files.GetFileIdentity(p) : null));
+        provider.GetType().GetProperty("GetOpenedSourceIdentity")!.SetValue(provider, (Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?>)(handle => identityAvailable ? files.GetHandleIdentity(handle) : null));
         var location = format == "zip" ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
         IContentSource? held = null;
         try
@@ -124,7 +125,10 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
         registry.Register(zip); registry.Register(archive); zip.OtherArchives = archive; zip.SpoolForeignMember = archive.Spool;
         var files = new IdentityAwareTestFiles();
         foreach (var p in new ResourceProvider[] { zip, archive })
+        {
             p.GetType().GetProperty("GetSourceIdentity")?.SetValue(p, (Func<string, string?>)(f => identityAvailable ? files.GetFileIdentity(f) : null));
+            p.GetType().GetProperty("GetOpenedSourceIdentity")!.SetValue(p, (Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?>)(handle => identityAvailable ? files.GetHandleIdentity(handle) : null));
+        }
         var outerLocation = outer == "zip" ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
         var location = new Location(inner == "zip" ? Schemes.Zip : Schemes.Archive, "", outerLocation.WithPath(member));
         ResourceProvider provider = inner == "zip" ? zip : archive;

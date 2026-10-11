@@ -40,6 +40,7 @@ public sealed class ArchiveReaderAdmissionTests(ITestOutputHelper output)
             foreach (object index in (System.Collections.IEnumerable)cache.GetType().GetProperty("Values")!.GetValue(cache)!) indexes.Add(index);
         }
         provider.GetType().GetProperty("GetSourceIdentity")!.SetValue(provider, (Func<string, string?>)(p => { Capture(); return identityAvailable ? files.GetFileIdentity(p) : null; }));
+        provider.GetType().GetProperty("GetOpenedSourceIdentity")!.SetValue(provider, (Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?>)(handle => identityAvailable ? files.GetHandleIdentity(handle) : null));
         var location = zip ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
         int failures = 0, reads = 0; string before = "";
         try

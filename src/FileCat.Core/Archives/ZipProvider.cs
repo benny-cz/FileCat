@@ -46,6 +46,10 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public Func<string, string?> GetSourceIdentity { get; set; } =
         path => UnixFiles.Stat(path, followLinks: true)?.Identity.ToString();
 
+    /// <summary>Identity of the actual opened source; required when a path identity is known.</summary>
+    public Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> GetOpenedSourceIdentity { get; set; } =
+        handle => UnixFiles.Stat(handle)?.Identity.ToString();
+
     // Length and modification time alone cannot distinguish an independently replaced file.
     // Without an identity, retain bounded ownership but do not reuse a previous index or spool.
     private string SourceIdentityKey(string path) => GetSourceIdentity(path) is { Length: > 0 } id ? id : Guid.NewGuid().ToString("N");
@@ -340,7 +344,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     {
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
-        var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}|{SourceIdentityKey(path)}";
+        string? sourceIdentity = GetSourceIdentity(path);
+        string identityKey = string.IsNullOrEmpty(sourceIdentity) ? Guid.NewGuid().ToString("N") : sourceIdentity;
+        var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}|{identityKey}";
         if (_cache.TryGetValue(key, out var cached))
         {
             cached.Touch();
@@ -351,7 +357,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         {
             if (_cache.TryRemove(k, out var old)) old.Dispose();
         }
-        var index = ZipIndex.Build(path, location.Session is { Length: > 0 } enc ? Encoding.GetEncoding(enc) : null);
+        var index = ZipIndex.Build(path, location.Session is { Length: > 0 } enc ? Encoding.GetEncoding(enc) : null,
+            handle => OpenedSourceIdentity.RequireMatch(handle, sourceIdentity, GetOpenedSourceIdentity));
         _cache[key] = index;
         // Archives opened before are kept for going back into them: eight at most, and their indexes together within
         // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The two used last
@@ -442,12 +449,15 @@ internal sealed class ZipIndex : IDisposable
     public bool ReadOnly { get; }
     public bool HasEncrypted { get; }
 
-    public static ZipIndex Build(string path, Encoding? nameEncoding)
+    public static ZipIndex Build(string path, Encoding? nameEncoding) => Build(path, nameEncoding, null);
+
+    public static ZipIndex Build(string path, Encoding? nameEncoding, Action<Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)
     {
         var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
         ZipArchive? archive = null;
         try
         {
+            verifyOpened?.Invoke(fs.SafeFileHandle);
             archive = new ZipArchive(fs, ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: nameEncoding);
             return Build(path, fs, archive);
         }

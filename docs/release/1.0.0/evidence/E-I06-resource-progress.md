@@ -16,6 +16,8 @@ Latest current-source refresh: [I306 exact/native](E-I306-native-find-retirement
 
 [I357 nested reader admission](E-I357-nested-reader-admission.md) extends outer ZIP index ownership through the complete private member copy.64 final host/native controls/2560 full reads,7178 affected outcomes/177 exact skips,377 App results and1161 native file checks pass;four roots restore. [Exact I355/I356](E-I355-I356-native-qualification.md) separately seals04f6f18. Whole-process/native/candidate scope remains.
 
+[I358 opened-source binding](E-I358-opened-source-binding.md) adds72 final controls/36 refusals/84 full reads,7242 affected outcomes/177 skips,377 App results and1161 native file checks;five roots restore. [Exact I357](E-I357-native-qualification.md) seals336 controls at dfe32b3. [Original CI](E-CI-nested-reader-admission.md) retains a separate Linux queued-rename shutdown failure; its cause requires investigation. Whole-process/native/candidate scope remains.
+
 | Resource group | Retained preliminary evidence | Remaining executable scope |
 |---|---|---|
 | 1. Shared content pages | [Page-cache fix](E-I06-P1-page-cache-budget.md): default 64 MiB shared target; thirteen-reader 148 MiB case becomes 64 MiB. Each reader keeps four pages; sufficiently many readers can exceed the target through those documented floors. DEC-06 is closed in the execution/gate history.  [Composed profiles](E-I06-composed-resource-accounting.md) retain separate charges, native scratch and qualified process snapshots. | Qualify chosen settings, saturation and consumer retirement at the exact candidate; distinguish the documented floor from a strict process-memory ceiling. Do not reopen the decided target merely because the exception exists. |

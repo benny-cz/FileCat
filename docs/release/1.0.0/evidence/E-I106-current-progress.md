@@ -16,6 +16,8 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I357](E-I357-nested-reader-admission.md) additionally keeps the outer ZIP index alive through nested-member copying, preserving source bytes and actual handle retirement in all64 final host/native controls. [Exact I355/I356](E-I355-I356-native-qualification.md) now seals04f6f18 without overlays. Atomic identity, in-place mutation, other spool-eviction interleavings and physical/candidate scope remain; physical-source HOLD is unchanged.
 
+[I358](E-I358-opened-source-binding.md) now binds known fresh source identities to actual archive/regular-image handles before reading.72 final controls qualify36 refusals/84 complete reads, with unchanged source bytes and exclusive handle closure. [Exact I357](E-I357-native-qualification.md) separately seals dfe32b3. Controlled lazy reopens, unknown initial identity, cached-path races, in-place changes, spool eviction and physical/candidate scope remain; physical HOLD is unchanged.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.

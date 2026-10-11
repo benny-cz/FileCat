@@ -55,6 +55,11 @@ public sealed class RecoveryProvider : ResourceProvider
     public Func<string, string?> GetSourceIdentity { get; set; } =
         path => UnixFiles.Stat(path, followLinks: true)?.Identity.ToString();
 
+    /// <summary>Identity of the actual opened source; required when a path identity is known.</summary>
+    public Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> GetOpenedSourceIdentity { get; set; } =
+        handle => UnixFiles.Stat(handle)?.Identity.ToString();
+
+
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device) : IDisposable
     {
@@ -552,7 +557,7 @@ public sealed class RecoveryProvider : ResourceProvider
             IBlockSource source = device
                 ? (OpenDevice ?? throw new NotSupportedException("Reading drives directly is not available here: make an image of the drive on another drive, then open the image."))
                     .Invoke(path, SourceName(location), ct)
-                : new ImageFileSource(path);
+                : new ImageFileSource(path, handle => OpenedSourceIdentity.RequireMatch(handle, identity, GetOpenedSourceIdentity));
             try
             {
                 if (device && _deviceLengths.TryGetValue(path, out long chosen) && source.Length != chosen)

@@ -53,10 +53,15 @@ public sealed class AppServices : IDisposable
         WorkingSets.SaveFailed += ex => ReportSaveFailure("working sets", ex);
         // Provider caches identify the actual local source, including a final symlink target.
         string? ArchiveIdentity(string path) => Platform.FileOperations.GetFileIdentity(Platform.FileOperations.GetFinalPath(path) ?? path);
-        Zip = new Core.Archives.ZipProvider(paths.TempDirectory) { GetSourceIdentity = ArchiveIdentity };
+        static string? OpenedArchiveIdentity(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
+        {
+            try { return FileCat.Platform.Windows.ProtectedHexFile.Identity(handle).ToString(); }
+            catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception) { return null; }
+        }
+        Zip = new Core.Archives.ZipProvider(paths.TempDirectory) { GetSourceIdentity = ArchiveIdentity, GetOpenedSourceIdentity = OpenedArchiveIdentity };
         Providers.Register(Zip);
         // Read-only TAR, 7z, RAR, compressed files, and disc images (P8); archives of either kind nest in the other.
-        Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers) { GetSourceIdentity = ArchiveIdentity };
+        Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers) { GetSourceIdentity = ArchiveIdentity, GetOpenedSourceIdentity = OpenedArchiveIdentity };
         Providers.Register(Archives);
         // Files staged for dragging out of archives are taken by other programs long before a day passes; members spooled
         // for viewing that a crash left behind (Linux, macOS) go after a day as well.
@@ -66,7 +71,7 @@ public sealed class AppServices : IDisposable
             paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
         });
         // Deleted items of disk images, read-only (P10).
-        Recovery = new FileCat.Recovery.RecoveryProvider { GetSourceIdentity = ArchiveIdentity };
+        Recovery = new FileCat.Recovery.RecoveryProvider { GetSourceIdentity = ArchiveIdentity, GetOpenedSourceIdentity = OpenedArchiveIdentity };
         if (OperatingSystem.IsWindows())
         {
             // Drives are read through the installed administrator helper, which only reads (ADR-08); a FileCat that

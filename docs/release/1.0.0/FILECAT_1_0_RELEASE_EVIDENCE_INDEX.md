@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**517 evidence entries; none is final candidate qualification.** No candidate exists.
+**521 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -528,6 +528,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I356 | [Archive reader admission ownership](evidence/E-I356-archive-reader-admission.md) | 2dda4a8/1610 raw blobs/seven combined overlays | 64 controls/2560 reads;7114 affected/177 skips;377 App | 1161 native files/six roots restored | Original CI cause unproven;broader scope remains |
 | E-I357 | [Nested ZIP reader admission ownership](evidence/E-I357-nested-reader-admission.md) | 04f6f18/1616 raw blobs/two overlays | 64 controls/2560 reads;7178 affected/177 skips;377 App | 1161 native files/four roots restored | Original failures retained;wider native/atomic/physical/candidate remain |
 | E-I355-I356-NATIVE | [Exact recovery and reader-admission qualification](evidence/E-I355-I356-native-qualification.md) | 04f6f18/1616 raw blobs/no overlays | 272 controls;7078 affected/179 skips;377 App | 966 native files/two roots restored | Original CI separate;I357 subsequent proposal |
+| E-I358 | [Fresh opened-source identity binding](evidence/E-I358-opened-source-binding.md) | dfe32b3/1619 raw blobs/sixteen overlays | 72 controls/36 refusals/84 full reads;7242 affected/177 skips;377 App | 1161 native files/five roots restored | Original failures retained;lazy-reopen/unknown/atomic/physical/candidate remain |
+| E-I357-NATIVE | [Exact nested-reader qualification](evidence/E-I357-native-qualification.md) | dfe32b3/1619 raw blobs/no overlays | 336 controls;7142 affected/179 skips;377 App | 966 native files/two roots restored | Original full CI remains adverse |
+| E-CI-RECOVERY-READER | [Original recovery and reader-admission CI](evidence/E-CI-recovery-reader-admission.md) | 38155740761/attempt1/04f6f18 | 32571P1077S;272 new controls pass | 27 archives/14TRX/1616 blobs/92 graphs/four clean builds | Four lanes pass;historical failures remain |
+| E-CI-NESTED-READER | [Original nested-reader CI with Linux shutdown failure](evidence/E-CI-nested-reader-admission.md) | 38157456129/attempt1/dfe32b3 | 32634P1077S1F;336 controls pass | 24 archives/14TRX/1619 blobs/92 graphs/four clean builds | Three lanes pass;Linux rename failure retained,cause unproven |
 
 <a id="commits-made-by-the-campaign"></a>
 

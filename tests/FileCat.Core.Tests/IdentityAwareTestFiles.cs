@@ -23,6 +23,13 @@ internal partial class IdentityAwareTestFiles : PortableFileOperations
         return new FileIdentity(info.Volume, Convert.ToHexString(new ReadOnlySpan<byte>(info.Id, 16))).ToString();
     }
 
+    public unsafe string? GetHandleIdentity(SafeFileHandle handle)
+    {
+        if (!OperatingSystem.IsWindows()) return UnixFiles.Stat(handle)?.Identity.ToString();
+        if (!ReadIdentity(handle, 18, out IdentityInfo info, (uint)sizeof(IdentityInfo))) return null;
+        return new FileIdentity(info.Volume, Convert.ToHexString(new ReadOnlySpan<byte>(info.Id, 16))).ToString();
+    }
+
     private unsafe struct IdentityInfo
     {
         public ulong Volume;
