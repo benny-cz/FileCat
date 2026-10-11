@@ -1,6 +1,6 @@
 # E-I106 — source-safety progress and remaining work
 
-Current follow-up: [exact committed I362](E-I362-native-qualification.md) passes at a8f7159 with 112 controls, 1,605 native affected records/77 exact skips and 907 independent file checks. [I363](E-I363-exited-worker-stderr.md) separately fixes exited-root pipe retirement; eight native controls and 220 affected records/six skips qualify, without containing the surviving child. Broader issue scopes and physical HOLD remain.
+Current follow-up: [virtual Windows disk-number reuse](E-I106-virtual-device-reuse.md) checks a held direct FileCat reader at exact clean `5508a79`: after distinct VHD B replaces A at number 1, destination admission is unknown and the old-handle read fails. This finite VM control does not qualify real USB, helper, atomic or candidate paths; physical-source HOLD remains. [Exact committed I362](E-I362-native-qualification.md) and [I363](E-I363-exited-worker-stderr.md) retain their separate source/lifetime qualifications.
 
 2026-10-11 CEST. **Open; physical-source validation remains on HOLD.** This record preserves the full preliminary I106 scope previously in the issue table, at ec5868e, and adds the latest independently qualified correction. It does not replace the operational plan or authorize a candidate.
 

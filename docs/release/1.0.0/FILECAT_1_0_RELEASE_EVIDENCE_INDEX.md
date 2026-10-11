@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**536 evidence entries; none is final candidate qualification.** No candidate exists.
+**537 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -540,6 +540,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I362 | [Nested private-source admission lifetime](evidence/E-I362-nested-spool-admission.md) | d9889ce /1,631 blobs/seven declared overlays | 112 final controls;1,605 native affected/77 skips;114 host App passes | 1,161 latest native files/seven host roots/ten files | 16 original pressure failures; first compile/Mac controller errors retained |
 | E-I359-I361-EXACT | [Committed scheduler/rename/archive qualification](evidence/E-I359-I361-committed-qualification.md) | d9889ce /1,631 raw blobs/no overlays | 408 source controls;7,114 affected Core/177 skips;1,524 App/46 skips | 1,590 native files/three host roots/eleven files | Predates I362; original wrapper errors and historical failures retained |
 | E-I106-LAZY | [Controlled cached-index lazy reopening](evidence/E-I106-lazy-source-reopen.md) | d9889ce /one identical new test overlay | 72 controls/36 refusals/108 complete reads | Whole original/replacement archives/actual source IDs/closure | No product change; wider atomic/topology/physical/candidate scope remains |
+| E-I106-VIRTUAL-REUSE | Windows held direct-reader behavior after owned VHD number reuse | 5508a79 clean source; two preliminary native precursors | Destination guard returns unknown and stale read fails; VM-only | [Record](evidence/E-I106-virtual-device-reuse.md) | I106/I110/V09/V23 |
 | E-CI-SCHEDULER-ARCHIVE | [Original scheduler/rename/archive CI](evidence/E-CI-scheduler-rename-archive.md) | 38163628223 /attempt1/d9889ce | 32,739 passes/1,077 exact skips;all33,648 predecessor records retained | 27 digest archives/14TRX/1,631 blobs/92 graphs/four clean builds | Two reader name-encoding rejections retained; predates I362/no candidate |
 | E-I363-exited-worker-stderr | Exited-root stderr retirement: paired baseline, bounded correction and native affected qualification | a8f7159 + two declared overlays | Preliminary | [Record](evidence/E-I363-exited-worker-stderr.md) | I08/I06/I363 |
 | E-I362-native-qualification | Exact committed nested-source admission, close and lazy-reopen controls | a8f7159 / no overlays | Preliminary | [Record](evidence/E-I362-native-qualification.md) | I06/I106/I362 |
