@@ -12,6 +12,10 @@ The first baseline compile lacked an archive namespace import. The first proposa
 
 This preliminary remediation qualifies fresh source admission. Controlled lazy-reopen interleavings remain to be executed separately; unknown initial identity, cached path-observation races, arbitrary in-place mutation, every nested-spool eviction interleaving and atomic publication remain outside this proof. I06/I106 remain open, I106/I110 physical-source validation remains on HOLD, and no candidate or human GO is implied. No workstation UI, physical source or persistent machine setting changed.
 
+## Current followup —2026-10-11
+
+[Exact committed qualification](E-I358-native-qualification.md) now seals0a8a8ee/1625 raw blobs/no overlays. The [original CI](E-CI-opened-source-binding.md) retains68 fixture-overload failures; [I361](E-I361-archive-fixture-overloads.md) corrects lookup signatures without changing assertions. Wider scope remains.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.

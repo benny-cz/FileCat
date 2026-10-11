@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**521 evidence entries; none is final candidate qualification.** No candidate exists.
+**526 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -532,6 +532,11 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I357-NATIVE | [Exact nested-reader qualification](evidence/E-I357-native-qualification.md) | dfe32b3/1619 raw blobs/no overlays | 336 controls;7142 affected/179 skips;377 App | 966 native files/two roots restored | Original full CI remains adverse |
 | E-CI-RECOVERY-READER | [Original recovery and reader-admission CI](evidence/E-CI-recovery-reader-admission.md) | 38155740761/attempt1/04f6f18 | 32571P1077S;272 new controls pass | 27 archives/14TRX/1616 blobs/92 graphs/four clean builds | Four lanes pass;historical failures remain |
 | E-CI-NESTED-READER | [Original nested-reader CI with Linux shutdown failure](evidence/E-CI-nested-reader-admission.md) | 38157456129/attempt1/dfe32b3 | 32634P1077S1F;336 controls pass | 24 archives/14TRX/1619 blobs/92 graphs/four clean builds | Three lanes pass;Linux rename failure retained,cause unproven |
+| E-I359 | [Idle-worker burst admission](evidence/E-I359-idle-worker-burst.md) | 0a8a8ee/1625 raw blobs/two overlays | 16 passing final controls; original eight failed assertions | 3492 shared native files/eight host roots | Windows post-test controller failure retained |
+| E-I360 | [Queued and entered rename-stop boundaries](evidence/E-I360-rename-stop-boundary.md) | 0a8a8ee/1625 raw blobs/two overlays | 136 final rename passes; Unix apphost one-case followups pass | Original381-case inventories retain missing-input failure | Original hosted cause unproven; strict assertions unchanged |
+| E-I361 | [Exact archive-fixture overload selection](evidence/E-I361-archive-fixture-overloads.md) | 0a8a8ee/1625 raw blobs/four overlays | 68 host/native passes/four Unix skips; broad3918P91S3F | Same binaries/short-temp bounded repeat4P | Original68 hosted failures and three host failures retained |
+| E-I358-NATIVE | [Exact opened-source binding qualification](evidence/E-I358-native-qualification.md) | 0a8a8ee/1625 raw blobs/no overlays | 408 controls;7142 affected/179 exact skips;377 App | 966 native files/two host roots/fifteen files | Wider lazy-reopen/native/atomic/physical/candidate remain |
+| E-CI-OPENED-BINDING | [Original opened-source binding CI](evidence/E-CI-opened-source-binding.md) | 38160106048/attempt1/0a8a8ee | 20165P590S68F;408 source controls pass | 14 archives/seven TRX/1625 blobs/92 graphs/four builds | All four lanes fail; downstream missing inventories retained |
 
 <a id="commits-made-by-the-campaign"></a>
 

@@ -31,7 +31,7 @@ public sealed class SharpVolumeOpenFailureTests
             bool before = Exclusive(first);
             blocker = denySecond ? new FileStream(second, FileMode.Open, FileAccess.Read, FileShare.None) : null;
             var type = Assembly.Load("FileCat.Archives").GetTypes().Single(t => t.Name == "SharpArchiveReader");
-            Exception? failure = Open(type.GetMethod("Open", BindingFlags.Public | BindingFlags.Static)!, first);
+            Exception? failure = Open(type.GetMethod("Open", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(bool)])!, first);
             bool after = Exclusive(first);
             blocker?.Dispose(); blocker = null;
             bool secondAfter = Exclusive(second);

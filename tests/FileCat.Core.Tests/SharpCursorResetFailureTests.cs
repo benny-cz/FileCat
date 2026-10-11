@@ -176,7 +176,7 @@ public sealed class SharpCursorResetFailureTests
     }
     private static object? Call(Type type, object? target, string name, params object?[] args)
     {
-        var method = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Single(m => m.Name == name && m.IsStatic == (target is null));
+        var method = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Single(m => m.Name == name && m.IsStatic == (target is null) && m.GetParameters().Select(p => p.ParameterType).SequenceEqual(args.Select(a => a!.GetType())));
         return Forward(method, target, args);
     }
     private static object? Forward(MethodInfo method, object? target, object?[]? args)

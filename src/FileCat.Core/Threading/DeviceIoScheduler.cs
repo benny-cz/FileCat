@@ -193,7 +193,9 @@ public sealed class DeviceIoScheduler : IDisposable
                 _queue.Enqueue(item, ((int)priority, _seq++));
                 if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);
-                else if (_workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
+                // A pulsed worker still counts as idle until it reacquires this lock. A burst can therefore
+                // outgrow those idle slots before any worker starts its call; admit the remaining capacity now.
+                if (_queue.Count > _idle && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
                     StartWorker();
             }
         }

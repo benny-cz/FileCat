@@ -87,21 +87,54 @@ public sealed class InterruptedRenameTests(ITestOutputHelper output)
     public async Task A_queued_rename_revalidation_cannot_enter_after_demand_ends(string end)
     {
         using var f = await Fixture.Create(); var run = f.Vm.CleanupInterruptedAsync(f.Interrupted); await Wait(() => f.HasDialog);
+        // Keep both blockers owned until the explicit release; active native calls are tested separately.
+        ((Timer)typeof(FileCat.Core.Threading.DeviceIoScheduler).GetField("_watchdog", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Services.Io)!).Change(Timeout.Infinite, Timeout.Infinite);
         using var gate = new ManualResetEventSlim(); int occupied = 0;
-        var first = f.Services.Io.Run("owned-interrupted-rename", FileCat.Core.Threading.IoPriority.Normal, _ => { Interlocked.Increment(ref occupied); gate.Wait(TimeSpan.FromSeconds(12)); return 1; });
-        var second = f.Services.Io.Run("owned-interrupted-rename", FileCat.Core.Threading.IoPriority.Normal, _ => { Interlocked.Increment(ref occupied); gate.Wait(TimeSpan.FromSeconds(12)); return 2; });
+        var first = f.Services.Io.Run("owned-interrupted-rename", FileCat.Core.Threading.IoPriority.Normal, _ => { Interlocked.Increment(ref occupied); gate.Wait(); return 1; });
+        var second = f.Services.Io.Run("owned-interrupted-rename", FileCat.Core.Threading.IoPriority.Normal, _ => { Interlocked.Increment(ref occupied); gate.Wait(); return 2; });
         try
         {
-            await Wait(() => occupied == 2); f.Click("Finish renaming"); Assert.False(run.IsCompleted); f.End(end); int atEnd = f.Files.Calls.Count;
+            await Wait(() => occupied == 2);
+            f.Click("Finish renaming"); Assert.False(run.IsCompleted); f.End(end); int atEnd = f.Files.Calls.Count;
+            Assert.DoesNotContain(f.Files.Calls, c => c.Operation == "move");
             if (end == "close") Assert.False(f.Window.IsVisible); else Assert.True(f.Services.Io.IsStopped);
-            // Placement saving precedes OnClosed. A watchdog worker can finish the approved move during that save.
-            // The accepted close/stop boundary prohibits later calls; it does not undo an earlier reviewed move.
+            // The rename remains queued until stop. No review or move may enter after this boundary.
             bool viaAtEnd = Exists(f.Via), targetAtEnd = Exists(f.Target); var bytesAtEnd = Bytes(viaAtEnd ? f.Via : f.Target);
             gate.Set(); await Task.WhenAll(first, second); await f.Drain(run);
             Emit(f, "queued-rename-end", new { end, Before = atEnd, After = f.Files.Calls.Count, Completed = await run, f.Ended, ViaAtEnd = viaAtEnd, TargetAtEnd = targetAtEnd, BytesAtEnd = bytesAtEnd, Via = Exists(f.Via), Target = Exists(f.Target), FinalBytes = Bytes(viaAtEnd ? f.Via : f.Target) });
             Assert.Equal(atEnd, f.Files.Calls.Count); Assert.False(await run); Assert.False(f.Ended); Assert.Equal(viaAtEnd, Exists(f.Via)); Assert.Equal(targetAtEnd, Exists(f.Target)); Assert.Equal("reviewed", bytesAtEnd); Assert.Equal(bytesAtEnd, Bytes(viaAtEnd ? f.Via : f.Target));
         }
         finally { gate.Set(); await Task.WhenAll(first, second); await f.Drain(run); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("info", "close")]
+    [InlineData("info", "shutdown")]
+    [InlineData("move", "close")]
+    [InlineData("move", "shutdown")]
+    public async Task An_entered_native_move_has_a_different_stop_boundary_from_queued_review(string held, string end)
+    {
+        using var f = await Fixture.Create(); var run = f.Vm.CleanupInterruptedAsync(f.Interrupted); await Wait(() => f.HasDialog);
+        f.Files.Held = held; f.Files.Release.Reset(); f.Click("Finish renaming");
+        try
+        {
+            await Wait(() => f.Files.Active > 0 || run.IsCompleted); Assert.Equal(1, f.Files.Active);
+            bool pendingBeforeStop = !run.IsCompleted; f.End(end); int atEnd = f.Files.Calls.Count;
+            bool pendingAfterStop = !run.IsCompleted, viaAtEnd = Exists(f.Via), targetAtEnd = Exists(f.Target);
+            int activeAtStop = f.Files.Active; string? bytesAtEnd = Bytes(f.Via);
+            f.Files.Release.Set(); await f.Drain(run);
+            Emit(f, "entered-native-stop", new { held, end, pendingBeforeStop, pendingAfterStop, ActiveAtStop = activeAtStop, Before = atEnd, After = f.Files.Calls.Count, Completed = await run, f.Ended, ViaAtEnd = viaAtEnd, TargetAtEnd = targetAtEnd, BytesAtEnd = bytesAtEnd, Via = Exists(f.Via), Target = Exists(f.Target), ViaBytes = Bytes(f.Via), TargetBytes = Bytes(f.Target) });
+            Assert.True(pendingBeforeStop); Assert.True(pendingAfterStop); Assert.Equal(1, activeAtStop);
+            Assert.True(viaAtEnd); Assert.False(targetAtEnd); Assert.Equal("reviewed", bytesAtEnd);
+            Assert.Equal(atEnd, f.Files.Calls.Count); Assert.False(await run); Assert.False(f.Ended);
+            // A native Move already entered before stop owns its call until return; stop cannot undo that call.
+            // A held review has not entered Move and must still refuse it after stop.
+            if (held == "move")
+            { Assert.False(Exists(f.Via)); Assert.True(Exists(f.Target)); Assert.Equal("reviewed", File.ReadAllText(f.Target)); Assert.Single(f.Files.Calls.Where(c => c.Operation == "move")); }
+            else
+            { Assert.True(Exists(f.Via)); Assert.False(Exists(f.Target)); Assert.Equal("reviewed", File.ReadAllText(f.Via)); Assert.DoesNotContain(f.Files.Calls, c => c.Operation == "move"); }
+        }
+        finally { f.Files.Release.Set(); await f.Drain(run); }
     }
 
     [AvaloniaFact]

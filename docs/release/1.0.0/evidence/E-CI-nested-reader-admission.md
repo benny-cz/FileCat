@@ -6,6 +6,10 @@ All **33712 observed records** remain: **32634 passes /1077 explicit skips /one 
 
 Independent collection verifies **24 available digest archives /14 TRX inventories /1619 canonical raw blobs /92 locked dependency graphs /four clean SDK10.0.401 build receipts**. Missing successful Linux package artifacts are not fabricated. No workflow rerun or result reclassification occurred. [Exact selected dfe32b3 qualification](E-I357-native-qualification.md) passed separately and does not replace this full hosted result. [Prior04f6f18 CI](E-CI-recovery-reader-admission.md) remains the latest fully green run. I358 source-opening remediation is unrelated to the rename failure; follow-up must preserve this source/artifact identity and original output.
 
+## Current followup —2026-10-11
+
+[I360 controlled followup](E-I360-rename-stop-boundary.md) now distinguishes genuinely queued review from an already entered native move and preserves the strict queued assertions. [I359](E-I359-idle-worker-burst.md) fixes a separately reproduced admission defect. Neither retrospectively establishes this original hosted failure cause. [Current0a8a8ee CI](E-CI-opened-source-binding.md) fails early in Core, so its missing App observation is not a successful rename repeat.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.

@@ -18,6 +18,10 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I358](E-I358-opened-source-binding.md) now binds known fresh source identities to actual archive/regular-image handles before reading.72 final controls qualify36 refusals/84 complete reads, with unchanged source bytes and exclusive handle closure. [Exact I357](E-I357-native-qualification.md) separately seals dfe32b3. Controlled lazy reopens, unknown initial identity, cached-path races, in-place changes, spool eviction and physical/candidate scope remain; physical HOLD is unchanged.
 
+## Current followup —2026-10-11
+
+[Exact I358](E-I358-native-qualification.md) seals fresh opened-handle binding at0a8a8ee without overlays. [Current original CI](E-CI-opened-source-binding.md) retains68 reflection-fixture failures, corrected separately in [I361](E-I361-archive-fixture-overloads.md). I359/I360 qualify scheduler/stop fixtures; controlled lazy reopens, cached observations, spool eviction, atomic and physical/candidate scopes remain. Physical HOLD is unchanged.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.

@@ -34,6 +34,10 @@ The latest sealed twenty-file consumer identity inventory is pinned at **c7416b6
 Broader transfer/synchronization follow-ups remain in V02/V08/V13 and their own issues: directory links, same-size/reverted/post-check changes, wider provider/account/permission/drop/reconnect, second SMB, identity/aliases/deletions and atomic publication. Their previous placement in the I06 dashboard is preserved in the [activity log](../FILECAT_1_0_RELEASE_ACTIVITY_LOG.md#scope-before-i06-resource-batch); this scope clarification removes no required work. Reference hardware, people, owner contract decisions, physical-source HOLD and final-candidate qualification remain separately queued.
 
 
+## Current followup —2026-10-11
+
+[I359 scheduler admission](E-I359-idle-worker-burst.md), [I360 rename stop boundaries](E-I360-rename-stop-boundary.md) and [I361 CI fixture overloads](E-I361-archive-fixture-overloads.md) now qualify sixteen/136/68 passing controls with four explicit Unix skips,3492 native file checks and eight restored host roots. The4012-case host Core result retains three failures and its separate four-pass bounded repeat; no all-Core green claim. [Exact I358](E-I358-native-qualification.md) passes408 controls; its [original CI](E-CI-opened-source-binding.md) retains68 fixture failures. Prior hosted timing causes and wider I06 scope remain.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence unless absolute. Nested receipts preserve the exact exports, commands, payloads, raw failures, skips and owned restoration.
