@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**459 evidence entries; none is final candidate qualification.** No candidate exists.
+**461 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -470,6 +470,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-BACKING-SOURCE-PUBLICATION | [Original backing-source CI](evidence/E-CI-backing-source-publication.md) | 9c8e6cf/run 38096783781 attempt 1 | All four required lanes; 32076 records/84 new passes/no failures/new skips | Every 31992 predecessor outcome/message/1029 exact skips; 27 archives/14 TRX/92 graphs/1529 raw blobs/four clean builds | Does not qualify later I334 source, installed candidate or physical-source resumption |
 | E-I335 | [Recovery publication destination admission](evidence/E-I335-recovery-publication-admission.md) | 10a8ced /1535 raw blobs/declared overlays | 24 adverse controls/twelve positives become 36 local/108 native passes | Every 3528 predecessor outcome/message/107 exact skips, complete bytes/progress/closure and 1161 independent native checks | Controlled topology, not kernel/atomic/physical qualification; exact committed/hosted/candidate remain |
 | E-CI-PUBLICATION-RETRY | [Original retry admission CI](evidence/E-CI-publication-retry-admission.md) | 38097729819 attempt 1 /5ec6968 | Four required lanes; 32104 records/31075 passes/1029 skips/zero failures; all 28 new controls pass | 27 digest archives/14 TRX/1532 raw blobs/92 restore graphs/four clean builds; every predecessor outcome/message/exact skip | Original source only; private observer/later I335/physical/candidate scopes separate |
+| E-I336 | [All selected recovery sources](evidence/E-I336-all-selected-source-admission.md) | c3d0ee6 /1538 raw blobs/declared overlays | 32 adverse controls/sixteen positives become 48 local/144 native passes | All 3672 predecessor outcomes/messages/107 exact skips, complete bytes/progress/guard origins/closure and 1161 native checks | Controlled topology, not kernel/atomic/physical; exact committed/hosted/candidate remain |
+| E-I335-NATIVE | [Exact recovery publication admission](evidence/E-I335-native-qualification.md) | c3d0ee6 /1538 raw blobs/no overlays | All 36 local/108 native controls and declared-overlay outcomes pass | Every 3528 predecessor outcome/message/107 exact skips and 907 native checks; complete bytes/progress/closure | Original CI collects separately; later I336/kernel/physical/atomic/candidate scopes remain separate |
 
 <a id="commits-made-by-the-campaign"></a>
 

@@ -41,6 +41,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     private string? _originMark;
     private sealed record BackingFile(string Path, string? FinalPath, string? Identity);
     private readonly List<BackingFile> _backingFiles = [];
+    private Location[] _sourceParents = [];
 
     /// <summary>
     /// Told of every file that arrived, with the version its source stated when it was read: a move from a server deletes
@@ -56,7 +57,8 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     {
         var destDir = Job.Request.Destination!.Path;
         // Checked before anything is created: a refused destination must stay untouched.
-        foreach (var parent in Job.Request.Sources.Select(s => s.Parent).Distinct())
+        _sourceParents = Job.Request.Sources.Select(s => s.Parent).Distinct().ToArray();
+        foreach (var parent in _sourceParents)
         {
             if (providers.Get(parent.Scheme).CheckTransferDestination(parent, destDir) is not { } refusal) continue;
             for (int i = 0; i < Job.Request.Sources.Count; i++)
@@ -135,10 +137,23 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
 
     private bool DestinationAllowed(Location source, string folder)
     {
-        if (providers.Get(source.Scheme).CheckTransferDestination(source, folder) is not { } refusal) return true;
+        if (DestinationRefusal(source, folder) is not { } refusal) return true;
         Job.ItemFailed();
         Issue(IssueSeverity.Error, folder, refusal, StepOutcome.Failed);
         return false;
+    }
+
+    private string? DestinationRefusal(Location source, string folder)
+    {
+        // Every selected recovery source matters, including one that another item has not read yet.
+        // Retain the distinct parents once; do not enumerate a potentially large selection for every file.
+        foreach (var parent in _sourceParents)
+        {
+            Job.Checkpoint();
+            if (providers.Get(parent.Scheme).CheckTransferDestination(parent, folder) is { } refusal) return refusal;
+        }
+        // A traversed child may itself have a different provider/source from the selected root.
+        return _sourceParents.Contains(source) ? null : providers.Get(source.Scheme).CheckTransferDestination(source, folder);
     }
 
     private void ReviewBackingSources()
@@ -501,7 +516,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             // Every retry is a new publication attempt; the preceding failure or decision can change aliases.
             // A successful staging check does not admit a later publication after content/decision work.
             // Check again inside the retry action; a changed or unknown source disk must still refuse.
-            if (provider.CheckTransferDestination(item.Parent, dir) is { } refusal) throw new IOException(refusal);
+            if (DestinationRefusal(item.Parent, dir) is { } refusal) throw new IOException(refusal);
             CheckBackingTarget(target);
             Fs.Move(staged, target, replace);
         });
