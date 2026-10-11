@@ -68,7 +68,7 @@ public sealed class RecoverySafetyTests
                 await vm.FindDeletedOnDriveAsync(panel, new Core.FileSystem.DriveTag(drive, "fixture", "Fixed", "NTFS", 0, 0, true), null, Census);
             }
             else if (route == "windows-disk")
-                await vm.FindDeletedOnDiskAsync(panel, new Platform.Windows.Recovery.PhysicalDisk(99999, 1024, "fixture", "virtual", false, [], "recording-identity"), Census);
+                await vm.FindDeletedOnDiskAsync(panel, new Platform.Windows.Recovery.PhysicalDisk(99999, 1024, "fixture", "virtual", false, [], "recording-identity", @"\\?\recording-disk-interface"), Census);
             else
             {
                 string image = Path.Combine(root, "device-reader-fixture.img");

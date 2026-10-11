@@ -190,7 +190,7 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, 
         }
         try
         {
-            return new DirectDeviceSource(handle, description, device.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase));
+            return new DirectDeviceSource(handle, description, DeviceTopology.IsWholeDiskPath(device));
         }
         catch
         {
@@ -514,7 +514,7 @@ public static partial class DeviceReadHost
         }
         if (!GetNamedPipeClientProcessId(pipe.SafePipeHandle, out uint client) || client != requesterProcessId)
             return "A program other than the FileCat that asked connected; nothing was read.";
-        return RawReadProtocol.Serve(pipe, handle, length, sector, device.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase));
+        return RawReadProtocol.Serve(pipe, handle, length, sector, DeviceTopology.IsWholeDiskPath(device));
     }
 
     /// <summary>
@@ -536,7 +536,7 @@ public static partial class DeviceReadHost
 /// A physical disk as recovery offers it (D-46): its number, size, the name its maker gave it, how it is attached, and
 /// the drives (letters) on it.
 /// </summary>
-public sealed record PhysicalDisk(int Number, long Length, string? Model, string Bus, bool Removable, IReadOnlyList<string> Drives, string? Identity = null)
+public sealed record PhysicalDisk(int Number, long Length, string? Model, string Bus, bool Removable, IReadOnlyList<string> Drives, string? Identity = null, string? InterfacePath = null)
 {
     public string Device => @"\\.\PhysicalDrive" + Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
@@ -544,6 +544,47 @@ public sealed record PhysicalDisk(int Number, long Length, string? Model, string
 /// <summary>Which physical disks volumes and folders are on, so recovery never writes to the disk it reads (plan §17.2).</summary>
 public static unsafe partial class DeviceTopology
 {
+    private static readonly Guid DiskInterfaceClass = new("53f56307-b6bf-11d0-94f2-00a0c91efb8b");
+
+    /// <summary>Present disk interface links from the Windows PnP manager, used as the read-open path for the selected disk.</summary>
+    internal static IReadOnlyList<string> DiskInterfaces()
+    {
+        if (!OperatingSystem.IsWindows()) return [];
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            Guid kind = DiskInterfaceClass;
+            if (CM_Get_Device_Interface_List_SizeW(out uint chars, ref kind, 0, 0) != 0 || chars is < 2 or > 65536) return [];
+            var buffer = new char[chars];
+            fixed (char* data = buffer)
+            {
+                uint result = CM_Get_Device_Interface_ListW(ref kind, 0, data, chars, 0);
+                if (result == 0)
+                {
+                    var paths = new List<string>();
+                    int start = 0;
+                    while (start < buffer.Length && buffer[start] != '\0')
+                    {
+                        int end = Array.IndexOf(buffer, '\0', start);
+                        if (end < 0) return [];
+                        paths.Add(new string(buffer, start, end - start));
+                        start = end + 1;
+                    }
+                    return paths;
+                }
+                if (result != 0x1A /* CR_BUFFER_SMALL */) return [];
+            }
+        }
+        return [];
+    }
+
+    /// <summary>Only a currently enumerated PnP disk interface may be used as a whole-disk read path.</summary>
+    public static bool IsDiskInterfacePath(string path) =>
+        path.StartsWith(@"\\?\", StringComparison.Ordinal) &&
+        DiskInterfaces().Contains(path, StringComparer.OrdinalIgnoreCase);
+
+    internal static bool IsWholeDiskPath(string path) =>
+        path.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase) || IsDiskInterfacePath(path);
+
     /// <summary>
     /// The physical disks of this computer that hold a medium. Asking needs no rights: each disk is opened for queries
     /// only, never for reading.
@@ -561,16 +602,19 @@ public static unsafe partial class DeviceTopology
             }
         }
         var result = new List<PhysicalDisk>();
-        for (int n = 0; n < 64; n++)
+        foreach (string path in DiskInterfaces())
         {
-            using var handle = CreateFile(@"\\.\PhysicalDrive" + n.ToString(System.Globalization.CultureInfo.InvariantCulture), 0, 3, 0, 3, 0, 0);
+            using var handle = CreateFile(path, 0, 3, 0, 3, 0, 0);
             if (handle.IsInvalid) continue;
+            if (DisksOf(handle, wholeDisk: true) is not { Count: 1 } numbers) continue;
+            int n = numbers[0];
             long length = GeometryLength(handle);
             if (length <= 0) continue; // no medium (an empty card reader)
             var (model, bus, removable) = Describe(handle);
-            result.Add(new PhysicalDisk(n, length, model, bus, removable, letters.GetValueOrDefault(n) ?? [], DeviceIdentity(handle)?.ToString("D")));
+            result.Add(new PhysicalDisk(n, length, model, bus, removable, letters.GetValueOrDefault(n) ?? [], DeviceIdentity(handle)?.ToString("D"), path));
         }
-        return result;
+        // Multiple live links for one disk would make selection ambiguous; offer neither.
+        return result.GroupBy(d => d.Number).Where(g => g.Count() == 1).Select(g => g.Single()).ToList();
     }
 
     /// <summary>A disk's size from its geometry (a query any handle may make, unlike the length a reading handle asks for).</summary>
@@ -640,6 +684,11 @@ public static unsafe partial class DeviceTopology
     {
         if (pathOrDevice.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase))
             return int.TryParse(pathOrDevice.AsSpan(17), out int n) ? [n] : null;
+        if (IsDiskInterfacePath(pathOrDevice))
+        {
+            using var disk = CreateFile(pathOrDevice, 0, 3, 0, 3, 0, 0);
+            return disk.IsInvalid ? null : DisksOf(disk, wholeDisk: true);
+        }
         string? volume = pathOrDevice.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase) ? pathOrDevice.TrimEnd('\\') : Locate(pathOrDevice)?.Volume;
         if (volume is null) return null;
         using var handle = CreateFile(volume, 0, 3, 0, 3, 0, 0);
@@ -834,6 +883,12 @@ public static unsafe partial class DeviceTopology
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+
+    [LibraryImport("cfgmgr32.dll")]
+    private static partial uint CM_Get_Device_Interface_List_SizeW(out uint chars, ref Guid interfaceClass, nint deviceId, uint flags);
+
+    [LibraryImport("cfgmgr32.dll")]
+    private static partial uint CM_Get_Device_Interface_ListW(ref Guid interfaceClass, nint deviceId, char* buffer, uint chars, uint flags);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

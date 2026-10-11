@@ -371,9 +371,9 @@ public sealed partial class MainViewModel
             Notify(problem, true);
             return;
         }
-        if (disk.Identity is null)
+        if (disk.Identity is null || disk.InterfacePath is null)
         {
-            Notify($"Disk {disk.Number} cannot be scanned: Windows did not provide a device identity FileCat can verify when it opens the disk.", true);
+            Notify($"Disk {disk.Number} cannot be scanned: Windows did not provide a device interface and identity FileCat can verify when it opens the disk.", true);
             return;
         }
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
@@ -400,8 +400,8 @@ public sealed partial class MainViewModel
         }
         if (!await RecheckDeviceSafetyAsync(disk.Device, name, otherProcesses)) return;
         _deviceScanned = true;
-        // Bind the selected disk to the actual opened read handle; another same-sized disk can reuse its number.
-        panel.OpenTab(Services.Recovery.ForDevice(disk.Device, name, length: disk.Length, identity: disk.Identity));
+        // Open the selected PnP link, not its reusable PhysicalDrive number; then compare the held handle's identity.
+        panel.OpenTab(Services.Recovery.ForDevice(disk.InterfacePath, name, length: disk.Length, identity: disk.Identity));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
     }
 

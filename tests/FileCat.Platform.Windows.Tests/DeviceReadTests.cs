@@ -223,6 +223,12 @@ public sealed class DeviceReadTests : IDisposable
         foreach (var disk in disks) TestContext.Current.TestOutputHelper?.WriteLine($"{disk.Device}: {disk.Model} · {disk.Bus} · {disk.Length:N0} bytes · {string.Join(", ", disk.Drives)}{(disk.Removable ? " · removable" : "")}");
         Assert.NotEmpty(disks);
         Assert.All(disks, d => Assert.True(d.Length > 0));
+        Assert.All(disks, d =>
+        {
+            Assert.NotNull(d.InterfacePath);
+            Assert.True(DeviceTopology.IsDiskInterfacePath(d.InterfacePath));
+            Assert.Equal([d.Number], DeviceTopology.DisksOf(d.InterfacePath));
+        });
         // The drive Windows runs from lies on one of them, and that disk is the one its volume says.
         string system = Path.GetPathRoot(Environment.SystemDirectory)!.TrimEnd('\\');
         var holder = Assert.Single(disks, d => d.Drives.Contains(system, StringComparer.OrdinalIgnoreCase));
@@ -267,6 +273,9 @@ public sealed class DeviceReadTests : IDisposable
         var good = Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = volume, Name = session });
         Assert.Empty(ElevationPlanCodec.Validate(ElevationPlanCodec.Parse(ElevationPlanCodec.Serialize(good)), DateTime.UtcNow));
         Assert.Empty(ElevationPlanCodec.Validate(Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = @"\\.\PhysicalDrive1", Name = session }), DateTime.UtcNow));
+        string diskInterface = DeviceTopology.Disks().First().InterfacePath!;
+        Assert.Empty(ElevationPlanCodec.Validate(Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = diskInterface, Name = session }), DateTime.UtcNow));
+        Refused(Plan(new ElevatedStep(ElevatedVerb.ReadDevice) { Path = diskInterface + "X", Name = session }));
         Assert.Contains("Nothing on it", ElevationPlanCodec.Describe(good.Steps[0], good.UserSid).Replace("nothing on it", "Nothing on it"), StringComparison.Ordinal);
 
         void Refused(ElevationPlan plan) => Assert.NotEmpty(ElevationPlanCodec.Validate(plan, DateTime.UtcNow));

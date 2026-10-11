@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
+using FileCat.Platform.Windows.Recovery;
 
 namespace FileCat.Platform.Windows.Elevation;
 
@@ -117,7 +118,8 @@ public static class ElevationPlanCodec
             case ElevatedVerb.CreateDirectory:
                 return PathProblem(s.Destination, "parent folder") ?? NameProblem(s.Name);
             case ElevatedVerb.ReadDevice:
-                if (s.Path is null || !DevicePath.IsMatch(s.Path)) return @"the device must be a volume (\\?\Volume{…}) or a physical disk (\\.\PhysicalDriveN).";
+                if (s.Path is null || !(DevicePath.IsMatch(s.Path) || DeviceTopology.IsDiskInterfacePath(s.Path)))
+                    return @"the device must be a volume (\\?\Volume{…}), a physical disk (\\.\PhysicalDriveN), or a present disk interface.";
                 if (s.Name is null || !SessionName.IsMatch(s.Name)) return "the read session has no valid name.";
                 return s.Destination is not null || s.ReplaceExisting || s.SetAttributes != 0 || s.ClearAttributes != 0
                     ? "a read session takes only a device and a session name." : null;
@@ -216,6 +218,7 @@ public static class ElevationPlanCodec
     {
         if (path is null) return "?";
         if (path.StartsWith(@"\\.\PhysicalDrive", StringComparison.OrdinalIgnoreCase)) return "physical disk " + path[17..];
+        if (DeviceTopology.IsDiskInterfacePath(path)) return "the selected physical disk (" + path + ")";
         string shown = ElevationPaths.ToDisplayPath(path + "\\");
         return shown.StartsWith(@"\\?\", StringComparison.Ordinal) ? "volume " + path : $"drive {shown.TrimEnd('\\')} ({path})";
     }
