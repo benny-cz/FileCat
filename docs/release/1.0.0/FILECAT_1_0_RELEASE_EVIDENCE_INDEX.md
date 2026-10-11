@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**493 evidence entries; none is final candidate qualification.** No candidate exists.
+**497 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -504,6 +504,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I346-NATIVE | [Exact memory-content retirement](evidence/E-I346-native-qualification.md) | ec5868e/1577 raw blobs/no overlays | 14 local/42 native passes with complete bytes | 6341 prior results/27 skips/907 native files/restoration | Wider I06/candidate scope remains |
 | E-CI-MEMORY-CONTENT | [Original memory-source CI and Mac hex failure](evidence/E-CI-memory-content-retirement.md) | 38134467259 attempt1/ec5868e | Three lanes pass/Mac one old failure; 32864 records/31834P1029S1F; all56 additions pass | 27 digest archives/14TRX/1577 raw blobs/92 restore graphs/four clean builds; all1029 skips retained | Adverse; existing HexOverlay case unproven; later I347/candidate/physical/GO separate |
 | E-I106-PROGRESS | [Source-safety progress and remaining work](evidence/E-I106-current-progress.md) | Full prior ec5868e I106 scope retained plus I347 overlay | All preceding preliminary corrections and producer links preserved | Issue table compacted; exact prior scope remains linked | Physical-source HOLD; initial unknown/atomic/topology/visibility/candidate remain |
+| E-I348 | [Changed backing identity](evidence/E-I348-backing-identity-replacement.md) | 0beaa10/1583 raw blobs/declared overlays | 24 local/48 native fixed; six baseline failures/six positives | 6242 predecessors/131 skips/347 App results/1449 native files; adverse records retained | I106/I110 HOLD; initial unknown/atomic/candidate remain |
+| E-I347-NATIVE | [Exact source-location refusal](evidence/E-I347-native-qualification.md) | 0beaa10/1583 raw blobs/no overlays | 24 local/48 native passes; complete bytes/native identities | 6194 predecessors/131 skips/966 native files/restoration | I106 wider source/physical/candidate scope remains |
+| E-CI-BACKING-VISIBILITY | [Original source-location refusal CI](evidence/E-CI-backing-visibility-loss.md) | 38136477388 attempt1/0beaa10 | Four lanes/32936 records/31907P1029S/all72 additions pass | 27 digest archives/14TRX/1583 blobs/92 graphs/four clean builds;32808 last-green outcomes retained | I18; historical Mac cause unproven; no candidate/GO |
+| E-I06-HEX-DIAGNOSTIC | [Unchanged Mac hex-retirement diagnostics](evidence/E-I06-hex-retirement-investigation.md) | 0beaa10/1583 raw blobs/no overlays | 32 host/992 native hex passes; full Mac App adverse/1534P117S1F | 408 native files/restoration; missing-apphost failure retained | I06/I04; no historical-cause or full-native-App qualification claim |
 
 <a id="commits-made-by-the-campaign"></a>
 

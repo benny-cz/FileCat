@@ -197,10 +197,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             if (observeCancellation) Job.Checkpoint();
             var currentFinal = Fs.GetFinalPath(backing.Path);
             var currentIdentity = Fs.GetFileIdentity(currentFinal ?? backing.Path);
-            // A formerly observed container that is no longer locatable may have moved into the output.
+            // A formerly observed container that moved or changed identity may now occupy the output.
             // Missing answers are not proof that cleanup or publication would leave its bytes alone.
-            if ((backing.FinalPath is not null || backing.Identity is not null) && currentFinal is null && currentIdentity is null)
-                throw new IOException("The source image or container location can no longer be checked. The copy was stopped to preserve its bytes.");
+            if (backing.Identity is not null && !StringComparer.Ordinal.Equals(backing.Identity, currentIdentity) ||
+                (backing.FinalPath is not null || backing.Identity is not null) && currentFinal is null && currentIdentity is null)
+                throw new IOException("The source image or container file identity changed or can no longer be checked. The copy was stopped to preserve its bytes.");
             if (final is not null && (PathUtil.SafetyComparer.Equals(final, backing.FinalPath) ||
                     PathUtil.SafetyComparer.Equals(final, currentFinal)) ||
                 identity is not null && (StringComparer.Ordinal.Equals(identity, backing.Identity) ||

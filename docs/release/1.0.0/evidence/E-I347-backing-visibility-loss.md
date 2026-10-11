@@ -10,7 +10,7 @@ Every **6194 affected predecessor outcome/message and 131 exact skips** remains.
 
 Earlier d909333 /1572-blob v1/v2 investigations retain twelve Core cases and 1342 affected records/seventeen skips each. Both v2 Windows fixtures fail compilation because their private TempDir helper is missing; no Windows test inventory is invented. Fresh v3 adds that helper and composes with committed I346. One Unix postcheck preparation selects an absent v2 manifest and stops before guest commands; fresh v4 independently checks the actual v3 roots without rerunning product tests. All original adverse records remain.
 
-No workstation UI, physical source, package or persistent setting changes. [I106 current progress](E-I106-current-progress.md) records the wider remaining source-safety work. I106/I110 physical-source HOLD, owner decisions, exact committed/hosted/candidate follow-up and explicit human GO remain.
+No workstation UI, physical source, package or persistent setting changes. [I106 current progress](E-I106-current-progress.md) records the wider remaining source-safety work. [Exact committed/native qualification](E-I347-native-qualification.md) and [original four-lane CI](E-CI-backing-visibility-loss.md) now pass at0beaa10. [I348](E-I348-backing-identity-replacement.md) separately addresses a changed known identity at a still-observable path. I106/I110 physical-source HOLD, owner decisions, candidate follow-up and explicit human GO remain.
 
 ## Selected immutable receipts
 

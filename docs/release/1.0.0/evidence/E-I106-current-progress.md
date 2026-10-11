@@ -6,6 +6,8 @@
 
 The remaining scope includes physical device entry/number reuse; initially unavailable or replaced backing identities; broader visibility and aliases; topology transitions and atomic directory/file mutations; full physical direct/helper tracing; and final installed-candidate qualification. I110's strict physical repeat shares the source-safety HOLD. Required owner decisions and explicit human GO remain.
 
+[I348](E-I348-backing-identity-replacement.md) additionally refuses changed known source identities at still-observable paths:24 local/48 native final passes,6242 affected results/131 skips,347 affected App results and1449 native files/restoration. [Exact I347](E-I347-native-qualification.md) and [original hosted CI](E-CI-backing-visibility-loss.md) are sealed at0beaa10. Initial unknown/other alias/topology/atomic/physical/candidate scopes remain.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.
