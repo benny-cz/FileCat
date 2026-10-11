@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**532 evidence entries; none is final candidate qualification.** No candidate exists.
+**534 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -543,6 +543,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-SCHEDULER-ARCHIVE | [Original scheduler/rename/archive CI](evidence/E-CI-scheduler-rename-archive.md) | 38163628223 /attempt1/d9889ce | 32,739 passes/1,077 exact skips;all33,648 predecessor records retained | 27 digest archives/14TRX/1,631 blobs/92 graphs/four clean builds | Two reader name-encoding rejections retained; predates I362/no candidate |
 | E-I363-exited-worker-stderr | Exited-root stderr retirement: paired baseline, bounded correction and native affected qualification | a8f7159 + two declared overlays | Preliminary | [Record](evidence/E-I363-exited-worker-stderr.md) | I08/I06/I363 |
 | E-I362-native-qualification | Exact committed nested-source admission, close and lazy-reopen controls | a8f7159 / no overlays | Preliminary | [Record](evidence/E-I362-native-qualification.md) | I06/I106/I362 |
+| E-CI-NESTED-EXIT | Original I362 and I363 CI and exact I363 qualification | a8f7159 and aeaea5c; runs 38168382231 and 38169832143, attempt 1 | Four required lanes pass; exact source/artifact scope only | [Record](evidence/E-CI-nested-spool-and-exited-root.md) | I06/I08/I106/I362/I363 |
+| E-I364 | Deep ZIP/TAR archive-index path baseline, corrected source and exact three-guest qualification | aeaea5c baseline; 165085a exact / no overlays | Four original bounded-stack failures; 6 host/18 native exact passes and whole recovered bytes; broader scope remains | [Record](evidence/E-I364-deep-archive-index-path.md) | I06/I364/V07/V16 |
 
 <a id="commits-made-by-the-campaign"></a>
 
