@@ -43,7 +43,14 @@ public sealed class HiddenDataUiTests
             string mark, payload;
             if (OperatingSystem.IsWindows())
             {
-                // The test services run on the portable platform: Windows' streams come in as the app registers them.
+                // The headless services use the portable platform. This native-stream job also needs
+                // actual Windows file identities for its backing-file safety review.
+                Assert.Empty(services.Jobs.Jobs);
+                Assert.False(services.Jobs.HasActiveWork);
+                typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(services.Jobs, new FileCat.Platform.Windows.WindowsFileOperations());
+                Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(
+                    typeof(JobManager).GetField("_fs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(services.Jobs));
                 services.Providers.Register(new HiddenDataProvider(new FileCat.Platform.Windows.WindowsHiddenData()));
                 File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
                 File.WriteAllText(file + ":payload", "hidden payload");

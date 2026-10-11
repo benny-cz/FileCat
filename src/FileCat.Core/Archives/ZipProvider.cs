@@ -27,7 +27,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { "zip", "jar", "nupkg", "vsix", "whl", "xpi", "snupkg", "aar" };
     // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
     private readonly object _cacheLock = new();
-    private readonly ConcurrentDictionary<string, ZipIndex> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ZipIndex> _cache = new(PathUtil.SafetyComparer);
     private readonly string _tempDirectory;
 
     /// <summary>Other archive formats found inside ZIPs (P8): flagged as containers and opened by their provider.</summary>
@@ -109,7 +109,8 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     public const int MaxNestedSpools = 4;
     public const int MaxNestingDepth = 8;
-    private readonly ConcurrentDictionary<string, NestedSpool> _nested = new(StringComparer.OrdinalIgnoreCase);
+    // A nested key also contains an archive member name, which is always case-sensitive.
+    private readonly ConcurrentDictionary<string, NestedSpool> _nested = new(StringComparer.Ordinal);
     private readonly object _nestedLock = new();
 
     /// <summary>An inner archive spooled privately; the file is deleted when the holder closes (also after a crash).</summary>
@@ -186,7 +187,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     {
         if (location.Container is not { IsFileSystem: true } container)
             return "Archives inside archives are read-only; extract the inner archive with F5 to change it.";
-        var index = _cache.Where(kv => kv.Key.StartsWith(container.Path + "|", StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Value).FirstOrDefault();
+        var index = _cache.Where(kv => kv.Key.StartsWith(container.Path + "|", PathUtil.SafetyComparison)).Select(kv => kv.Value).FirstOrDefault();
         if (index is null) return null;
         if (index.ReadOnly) return "The archive file is read-only; clear its read-only attribute to change it.";
         if (index.HasEncrypted) return "The archive has encrypted members, which FileCat cannot re-create, so it cannot be changed here. Extract what you need with F5.";
@@ -325,7 +326,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             return cached;
         }
         // The archive changed or was never opened: drop stale indexes for this path.
-        foreach (var k in _cache.Keys.Where(k => k.StartsWith(path + "|", StringComparison.OrdinalIgnoreCase)).ToList())
+        foreach (var k in _cache.Keys.Where(k => k.StartsWith(path + "|", PathUtil.SafetyComparison)).ToList())
         {
             if (_cache.TryRemove(k, out var old)) old.Dispose();
         }
@@ -358,7 +359,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     private void ReleaseIndexes(string zipPath)
     {
-        foreach (var k in _cache.Keys.Where(k => k.StartsWith(zipPath + "|", StringComparison.OrdinalIgnoreCase)).ToList())
+        foreach (var k in _cache.Keys.Where(k => k.StartsWith(zipPath + "|", PathUtil.SafetyComparison)).ToList())
         {
             if (_cache.TryRemove(k, out var old)) old.Dispose();
         }

@@ -30,7 +30,8 @@ public sealed class DeviceReadTests : IDisposable
     private static (PipeDeviceSource Client, Task<string> Server) Session(string file, int sector)
     {
         string name = "FileCat-test-" + Guid.NewGuid().ToString("N");
-        var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.None);
+        // Serving is synchronous on its dedicated thread; an overlapped pipe would depend on pool callbacks.
         var serving = Task.Factory.StartNew(() =>
         {
             using (server)

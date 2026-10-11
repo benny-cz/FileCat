@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**503 evidence entries; none is final candidate qualification.** No candidate exists.
+**508 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -514,6 +514,11 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I350 | [Unavailable initial backing identity](evidence/E-I350-initial-backing-identity.md) | e0bbc53/1594 raw blobs/declared overlays | 60 host/90 native safety passes; twelve baseline failures/eighteen positives | 4957 affected/97 skips;3890 local legacy cases/75 skips;347 App/1275 native files/restoration | I106/I110 HOLD; provider-handle/atomic/candidate remain |
 | E-I349-NATIVE | [Exact decoder parent lifetime](evidence/E-I349-native-qualification.md) | e0bbc53/1594 raw blobs/no overlays | 30 unit/twelve actual process controls; complete pixels;148 native picture results/four skips | 786 native files/six sockets absent/host restoration | I08 wider authority/detached descendants/candidate remain |
 | E-CI-PICTURE-PARENT-LIFETIME | [Original decoder parent-lifetime CI](evidence/E-CI-picture-parent-lifetime.md) | 38143197589 attempt1/e0bbc53 | Four lanes/33048 records/32019P1029S/all forty additions pass | 27 digest archives/14TRX/1594 blobs/92 graphs/four clean builds;33008 predecessor outcomes retained | I18; earlier failures remain; no candidate/GO |
+| E-I351 | [Archive source/member isolation](evidence/E-I351-archive-source-case-isolation.md) | 69cd563/1600 blobs/declared overlays | 80P48S controls;6718 affected/129 skips;347 App | 1161 native files/owned restoration | I06/I106 broader/physical/candidate remain |
+| E-I352 | [Pipe fixture observation](evidence/E-I352-pipe-fixture-observation.md) | 69cd563/one fixture overlay | Four paired pool controls/six existing native cases | 535 native files; unchanged deadlines/assertions | Original ARM timing cause unproven |
+| E-I353 | [Hidden-data native fixture](evidence/E-I353-hidden-data-native-fixture.md) | 69cd563/1600 blobs/five combined overlays | Exact original failure/corrected targeted pass | 1324 scratch files restored; full App timeout retained | Original CI and full timeout remain adverse |
+| E-I350-NATIVE | [Exact initial identity admission](evidence/E-I350-native-qualification.md) | 69cd563/1600 raw blobs/no overlays | 60 host/120 native controls;6686 affected/131 skips;347 App | 966 native files/two owned roots restored | I106/I110 HOLD/provider-handle/atomic remain |
+| E-CI-INITIAL-IDENTITY | [Original initial-identity CI adverse](evidence/E-CI-initial-identity-adverse.md) | 38146279696 attempt1/69cd563 | 29066 records/28216P848S2F;200 new controls pass | 23 archives/12TRX/92 graphs/four builds; ARM inventories absent | I352/I353 follow-up; no new green claim |
 
 <a id="commits-made-by-the-campaign"></a>
 

@@ -8,6 +8,8 @@ Latest current-source refresh: [I306 exact/native](E-I306-native-find-retirement
 
 [Current native combined refresh](E-I06-current-native-composition.md) passes six Windows/Ubuntu/Mac profiles at the same 0aec7a7 product: four actual listings/QuickViews plus one/eight F3 viewers, 420 compositor completions and 96 listing-owner retirements. Whole encoded-pixel oracles and final tracked retirement pass; finite process/native/frame accounts retain their limits.
 
+[I351 archive isolation](E-I351-archive-source-case-isolation.md) corrects case-folded ZIP/TAR source indexes and ZIP nested-member spools: 80 passing controls/48 exact filesystem-specific skips, 6718 affected results/129 skips, 347 App results and 1161 independent native file checks. Wider aggregate/leased/native and candidate qualification remains.
+
 | Resource group | Retained preliminary evidence | Remaining executable scope |
 |---|---|---|
 | 1. Shared content pages | [Page-cache fix](E-I06-P1-page-cache-budget.md): default 64 MiB shared target; thirteen-reader 148 MiB case becomes 64 MiB. Each reader keeps four pages; sufficiently many readers can exceed the target through those documented floors. DEC-06 is closed in the execution/gate history.  [Composed profiles](E-I06-composed-resource-accounting.md) retain separate charges, native scratch and qualified process snapshots. | Qualify chosen settings, saturation and consumer retirement at the exact candidate; distinguish the documented floor from a strict process-memory ceiling. Do not reopen the decided target merely because the exception exists. |

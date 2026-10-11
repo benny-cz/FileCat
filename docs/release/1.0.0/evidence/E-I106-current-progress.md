@@ -8,6 +8,8 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I348](E-I348-backing-identity-replacement.md) additionally refuses changed known source identities at still-observable paths:24 local/48 native final passes,6242 affected results/131 skips,347 affected App results and1449 native files/restoration. [Exact I347](E-I347-native-qualification.md) and [original hosted CI](E-CI-backing-visibility-loss.md) are sealed at0beaa10. [I350](E-I350-initial-backing-identity.md) now refuses unavailable initial identities with 60 host/90 native safety passes, 4957 affected results/97 skips, 347 headless App results and 1275 native files/restoration. Provider/handle identity, broader aliases/topology/atomic/physical/candidate scopes remain.
 
+[I351](E-I351-archive-source-case-isolation.md) separately corrects case-distinct ZIP/TAR cache source and ZIP nested-member isolation. It does not establish provider open-handle identity or atomic mutation safety; physical-source HOLD remains.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.

@@ -39,7 +39,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
 
     // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
     private readonly object _cacheLock = new();
-    private readonly ConcurrentDictionary<string, ArchiveIndex> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ArchiveIndex> _cache = new(PathUtil.SafetyComparer);
     private readonly ConcurrentDictionary<string, (string Path, FileStream Holder, DateTime Used)> _spools = new(StringComparer.Ordinal);
     private readonly object _spoolLock = new();
     private readonly string _tempDirectory;
@@ -327,7 +327,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     private void ReleaseIndexes(string archivePath)
     {
         Exception? failure = null;
-        foreach (var k in _cache.Keys.Where(k => k.StartsWith(archivePath + "|", StringComparison.OrdinalIgnoreCase)).ToList())
+        foreach (var k in _cache.Keys.Where(k => k.StartsWith(archivePath + "|", PathUtil.SafetyComparison)).ToList())
         {
             if (!_cache.TryRemove(k, out var old)) continue;
             try { old.Dispose(); }
