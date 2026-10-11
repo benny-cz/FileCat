@@ -42,6 +42,14 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         TextDecoding.EnsureCodePages();
     }
 
+    /// <summary>Stable identity of the archive file, following links; the platform supplies Windows IDs.</summary>
+    public Func<string, string?> GetSourceIdentity { get; set; } =
+        path => UnixFiles.Stat(path, followLinks: true)?.Identity.ToString();
+
+    // Length and modification time alone cannot distinguish an independently replaced file.
+    // Without an identity, retain bounded ownership but do not reuse a previous index or spool.
+    private string SourceIdentityKey(string path) => GetSourceIdentity(path) is { Length: > 0 } id ? id : Guid.NewGuid().ToString("N");
+
     public override string Scheme => Schemes.Zip;
 
     // ---- IContainerDetector ------------------------------------------------------------------------------
@@ -130,7 +138,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
         string outer = ArchiveFile(container, depth + 1);
         var info = new FileInfo(outer);
-        string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}";
+        string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}|{SourceIdentityKey(outer)}";
         lock (_nestedLock)
         {
             if (_nested.TryGetValue(key, out var cached))
@@ -319,7 +327,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     {
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
-        var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}";
+        var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}|{SourceIdentityKey(path)}";
         if (_cache.TryGetValue(key, out var cached))
         {
             cached.Touch();

@@ -6,7 +6,7 @@ Actual available evidence: **29066 records /28216 passes /848 explicit skips /tw
 
 [I352](E-I352-pipe-fixture-observation.md) reproduces and removes a fixture scheduler dependency without changing deadlines; the original ARM timing cause remains unproven. [I353](E-I353-hidden-data-native-fixture.md) corrects the native-stream fixture composition and passes its targeted test; its separate full App timeout remains adverse. [Exact/native I350](E-I350-native-qualification.md) is qualified separately. Reader v1 wrongly required absent ARM inventories; v2 preserves missing observations and raw failures without rerunning CI.
 
-Last fully green CI remains e0bbc53/run 38143197589. The new remediation batch needs its own original committed CI qualification. No contract freeze, candidate, physical-source resumption or publication is authorized.
+At the recording of this adverse run, last fully green CI was e0bbc53/run 38143197589. The subsequent remediation batch now has [independent original green CI at 7e88ef7](E-CI-archive-native-fixtures.md); this original failure remains adverse. No contract freeze, candidate, physical-source resumption or publication is authorized.
 
 ## Selected immutable receipts
 

@@ -28,7 +28,9 @@ public sealed class ArchiveIndexConcurrencyOwnershipTests(ITestOutputHelper outp
         string path = Path.Combine(root, zip ? "owned.zip" : "owned.tar");
         byte[] expected = Enumerable.Range(0, 4096).Select(i => (byte)(i * 31 + 7)).ToArray();
         var registry = new ProviderRegistry(); registry.Register(new LocalFileSystemProvider());
-        ResourceProvider Create() => zip ? new ZipProvider(root) : new ArchiveProvider(root, registry);
+        var identityFiles = new IdentityAwareTestFiles();
+        ResourceProvider Create() => zip ? new ZipProvider(root) { GetSourceIdentity = identityFiles.GetFileIdentity }
+            : new ArchiveProvider(root, registry) { GetSourceIdentity = identityFiles.GetFileIdentity };
         void Release(ResourceProvider p) { if (p is ZipProvider z) z.Release(path); else ((ArchiveProvider)p).Release(path); }
         var provider = Create();
         var flags = BindingFlags.NonPublic | BindingFlags.Instance;

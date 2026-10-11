@@ -10,6 +10,8 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I351](E-I351-archive-source-case-isolation.md) separately corrects case-distinct ZIP/TAR cache source and ZIP nested-member isolation. It does not establish provider open-handle identity or atomic mutation safety; physical-source HOLD remains.
 
+[I354](E-I354-archive-source-replacement.md) now refreshes ZIP/TAR indexes and nested spools after deterministic same-metadata source replacement, with actual stable identities and an unavailable-identity fallback that prevents reuse. This does not establish atomic path/open-handle binding or arbitrary concurrent source mutation safety; physical-source HOLD remains.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.

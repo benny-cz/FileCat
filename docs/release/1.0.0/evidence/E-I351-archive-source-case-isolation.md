@@ -12,6 +12,10 @@ Original preparation syntax and independent-reader mistakes remain before accept
 
 This corrects finite archive source/member isolation within I06 and provider provenance within I106. It does not establish stable open-handle identity, atomic replacement, topology/alias completeness, physical-source or installed-candidate acceptance. I106/I110 HOLD and human GO remain.
 
+## Committed follow-up — 2026-10-11
+
+[Exact committed/native qualification](E-I351-native-qualification.md) and [original green CI](E-CI-archive-native-fixtures.md) now verify 7e88ef7 separately. [I354](E-I354-archive-source-replacement.md) additionally corrects deterministic same-metadata source replacement; broader provider-handle/atomic/physical scope remains.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, original failures/skips and restoration.

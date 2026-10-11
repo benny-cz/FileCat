@@ -8,6 +8,10 @@ The combined source export independently verifies **1600 canonical blobs /five d
 
 Automatic approval review initially refused scratch cleanup pending process-exit verification. An independent process census confirmed the timed-out PID and all owned producers absent before cleanup was retried. Four bounded host scratch roots/**1324 files** are archived, hash/exclusive-open checked and restored. Original source/commands, timeout, reader import failure and approval refusal remain recorded. [The original CI](E-CI-initial-identity-adverse.md) stays adverse; committed follow-up remains required.
 
+## Committed follow-up — 2026-10-11
+
+[Exact committed/native qualification](E-I351-native-qualification.md) and [original green CI](E-CI-archive-native-fixtures.md) now pass at 7e88ef7. The earlier full App timeout remains incomplete and adverse, with its cause unproven.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, original failures/skips and restoration.

@@ -51,6 +51,14 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         _providers = providers;
     }
 
+    /// <summary>Stable identity of the archive file, following links; the platform supplies Windows IDs.</summary>
+    public Func<string, string?> GetSourceIdentity { get; set; } =
+        path => UnixFiles.Stat(path, followLinks: true)?.Identity.ToString();
+
+    // Length and modification time alone cannot distinguish an independently replaced file.
+    // Without an identity, retain bounded ownership but do not reuse a previous index or spool.
+    private string SourceIdentityKey(string path) => GetSourceIdentity(path) is { Length: > 0 } id ? id : Guid.NewGuid().ToString("N");
+
     public override string Scheme => Schemes.Archive;
 
     // ---- Detection -------------------------------------------------------------------------------------------
@@ -213,7 +221,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     {
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
-        string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}";
+        string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}|{SourceIdentityKey(path)}";
         if (_cache.TryGetValue(key, out var cached))
         {
             cached.Touch();
@@ -272,7 +280,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         var provider = _providers.For(member);
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
-        string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}";
+        string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}";
         lock (_spoolLock)
         {
             if (_spools.TryGetValue(key, out var existing))

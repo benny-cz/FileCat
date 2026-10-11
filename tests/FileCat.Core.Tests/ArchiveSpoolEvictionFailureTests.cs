@@ -27,7 +27,7 @@ public sealed class ArchiveSpoolEvictionFailureTests(ITestOutputHelper output)
         string temp = Path.Combine(root, "spools");
         byte[] expected = Enumerable.Range(0, 4096).Select(n => (byte)(n * 17 + 11)).ToArray();
         var registry = new ProviderRegistry(); registry.Register(new LocalFileSystemProvider());
-        var provider = new ArchiveProvider(temp, registry); registry.Register(provider);
+        var provider = new ArchiveProvider(temp, registry) { GetSourceIdentity = new IdentityAwareTestFiles().GetFileIdentity }; registry.Register(provider);
         var flags = BindingFlags.NonPublic | BindingFlags.Instance;
         var spools = (ConcurrentDictionary<string, (string Path, FileStream Holder, DateTime Used)>)typeof(ArchiveProvider).GetField("_spools", flags)!.GetValue(provider)!;
         var cache = (IDictionary)typeof(ArchiveProvider).GetField("_cache", flags)!.GetValue(provider)!;

@@ -8,6 +8,10 @@ The background Windows guest uses high RID 12288/session 0 and pinned .NET 10.0.
 
 The scheduler dependency is reproduced; the exact cause of the original ARM64 timeout remains unproven. The original CI failure, first log retrieval's terminal-escape refusal and reader timing quantization failure remain adverse. No retry, timeout extension, new skip, weaker assertion, physical-source access or host UI is introduced. A new original committed CI run still has to qualify the final batch.
 
+## Committed follow-up — 2026-10-11
+
+[Exact committed/native qualification](E-I351-native-qualification.md) and [original green CI](E-CI-archive-native-fixtures.md) now pass at 7e88ef7 with unchanged pipe deadlines/assertions. The original ARM timing cause remains unproven.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, original failures/skips and restoration.

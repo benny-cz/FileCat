@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**508 evidence entries; none is final candidate qualification.** No candidate exists.
+**511 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -519,6 +519,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I353 | [Hidden-data native fixture](evidence/E-I353-hidden-data-native-fixture.md) | 69cd563/1600 blobs/five combined overlays | Exact original failure/corrected targeted pass | 1324 scratch files restored; full App timeout retained | Original CI and full timeout remain adverse |
 | E-I350-NATIVE | [Exact initial identity admission](evidence/E-I350-native-qualification.md) | 69cd563/1600 raw blobs/no overlays | 60 host/120 native controls;6686 affected/131 skips;347 App | 966 native files/two owned roots restored | I106/I110 HOLD/provider-handle/atomic remain |
 | E-CI-INITIAL-IDENTITY | [Original initial-identity CI adverse](evidence/E-CI-initial-identity-adverse.md) | 38146279696 attempt1/69cd563 | 29066 records/28216P848S2F;200 new controls pass | 23 archives/12TRX/92 graphs/four builds; ARM inventories absent | I352/I353 follow-up; no new green claim |
+| E-I354 | [Archive source replacement and nested spool refresh](evidence/E-I354-archive-source-replacement.md) | 7e88ef7/1606 raw blobs/six declared overlays | 128 controls;6906 affected/177 skips;348 App | 1161 native files/six roots restored | I06/I106 atomic/physical/candidate remain |
+| E-I351-NATIVE | [Exact archive/native-fixture qualification](evidence/E-I351-native-qualification.md) | 7e88ef7/1606 raw blobs/no overlays | 80P48S archive;6806 affected/131 skips;348 App | 966 native files/two roots restored | Original transport failures retained |
+| E-CI-ARCHIVE-NATIVE | [Original archive/native-fixture CI green](evidence/E-CI-archive-native-fixtures.md) | 38149498386 attempt1/7e88ef7 | 33376 records/32299P1077S;328 additions qualified | 27 archives/14TRX/92 graphs/four clean builds | All33048 prior outcomes/messages/1029 skips retained |
 
 <a id="commits-made-by-the-campaign"></a>
 

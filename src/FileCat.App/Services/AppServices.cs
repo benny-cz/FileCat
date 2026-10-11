@@ -51,10 +51,12 @@ public sealed class AppServices : IDisposable
         Providers.Register(ResultSets);
         WorkingSets = new Core.Search.WorkingSets(paths.WorkingSetsFile, ResultSets);
         WorkingSets.SaveFailed += ex => ReportSaveFailure("working sets", ex);
-        Zip = new Core.Archives.ZipProvider(paths.TempDirectory);
+        // Provider caches identify the actual local source, including a final symlink target.
+        string? ArchiveIdentity(string path) => Platform.FileOperations.GetFileIdentity(Platform.FileOperations.GetFinalPath(path) ?? path);
+        Zip = new Core.Archives.ZipProvider(paths.TempDirectory) { GetSourceIdentity = ArchiveIdentity };
         Providers.Register(Zip);
         // Read-only TAR, 7z, RAR, compressed files, and disc images (P8); archives of either kind nest in the other.
-        Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers);
+        Archives = new FileCat.Archives.ArchiveProvider(paths.TempDirectory, Providers) { GetSourceIdentity = ArchiveIdentity };
         Providers.Register(Archives);
         // Files staged for dragging out of archives are taken by other programs long before a day passes; members spooled
         // for viewing that a crash left behind (Linux, macOS) go after a day as well.
