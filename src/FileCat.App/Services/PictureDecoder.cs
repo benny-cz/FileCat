@@ -300,7 +300,10 @@ public static class PictureDecoder
             }
             if (_process is not null)
             {
-                await _process.WaitForExitAsync().ConfigureAwait(false);
+                // WaitForExitAsync also waits for redirected stderr EOF. An exited root can leave that
+                // pipe in a descendant, so it cannot own decoder admission. Retire our pipe reader after
+                // the actual root exits; this does not establish containment of detached descendants.
+                while (!_process.HasExited) await Task.Delay(10).ConfigureAwait(false);
                 _process.Dispose();
             }
         }

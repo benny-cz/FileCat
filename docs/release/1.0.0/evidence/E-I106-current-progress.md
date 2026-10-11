@@ -1,5 +1,7 @@
 # E-I106 — source-safety progress and remaining work
 
+Current follow-up: [exact committed I362](E-I362-native-qualification.md) passes at a8f7159 with 112 controls, 1,605 native affected records/77 exact skips and 907 independent file checks. [I363](E-I363-exited-worker-stderr.md) separately fixes exited-root pipe retirement; eight native controls and 220 affected records/six skips qualify, without containing the surviving child. Broader issue scopes and physical HOLD remain.
+
 2026-10-11 CEST. **Open; physical-source validation remains on HOLD.** This record preserves the full preliminary I106 scope previously in the issue table, at ec5868e, and adds the latest independently qualified correction. It does not replace the operational plan or authorize a candidate.
 
 [I347](E-I347-backing-visibility-loss.md) stops cleanup/publication after a formerly observed source-container location becomes unavailable: 24 local/48 native controls, all 6194 affected results/131 exact skips, full App and 1279 native file checks. These are controlled unavailable-query cases with actual owned-file identities and whole bytes.

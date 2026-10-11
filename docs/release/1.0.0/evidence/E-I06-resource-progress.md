@@ -1,5 +1,7 @@
 # E-I06 — resource progress and remaining executable work
 
+Current follow-up: [exact committed I362](E-I362-native-qualification.md) passes at a8f7159 with 112 controls, 1,605 native affected records/77 exact skips and 907 independent file checks. [I363](E-I363-exited-worker-stderr.md) separately fixes exited-root pipe retirement; eight native controls and 220 affected records/six skips qualify, without containing the surviving child. Broader issue scopes and physical HOLD remain.
+
 2026-10-11. I06 remains open. This matrix tracks six resource groups, not six individual tests or a completion percentage. Original operational authority and acceptance criteria are unchanged. Existing page/cache decisions stay decided; no aggregate picture limit or acceptance result is invented.
 
 [I327 image source lifetime](E-I327-image-session-lifetime.md) adds eleven controls each on Windows/Ubuntu/Mac: active image sources survive cache retirement/replacement until the last reader closes. All 163 affected Core/App outcome/messages and 29 exact skips remain. Device source lifetimes and the physical-source HOLD are unchanged; aggregate/reference/human/candidate scope remains.
