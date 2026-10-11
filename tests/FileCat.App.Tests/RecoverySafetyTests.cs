@@ -74,7 +74,10 @@ public sealed class RecoverySafetyTests
                 string image = Path.Combine(root, "device-reader-fixture.img");
                 File.WriteAllBytes(image, new byte[1024]);
                 var device = new FileCat.Recovery.Unix.UnixBlockDevice(image, 1024, "fixture", "virtual", false,
-                    route == "unix-partition" ? "fixture-disk" : null, [], null);
+                    route == "unix-partition" ? "fixture-disk" : null, [], null)
+                {
+                    Identity = Core.FileSystem.UnixFiles.Stat(image, followLinks: true)?.Identity.ToString() ?? "recording-identity",
+                };
                 await vm.FindDeletedOnUnixDeviceAsync(panel, device, null, Census);
             }
             Assert.Equal(1, dialogs.ScanConfirmations);

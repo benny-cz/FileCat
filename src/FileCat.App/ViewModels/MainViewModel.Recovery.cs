@@ -590,6 +590,11 @@ public sealed partial class MainViewModel
     /// </summary>
     internal async Task FindDeletedOnUnixDeviceAsync(PanelViewModel panel, UnixBlockDevice device, string? folder, Func<bool?>? otherProcesses = null)
     {
+        if (device.Identity is null)
+        {
+            Notify($"{device.Name} cannot be scanned: Unix did not provide a device identity FileCat can verify when it opens the device. Select it again.", true);
+            return;
+        }
         bool disk = device.Disk is null;
         string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
         bool direct = await Task.Run(() => CanRead(device.Device));
@@ -617,8 +622,8 @@ public sealed partial class MainViewModel
         }
         if (!await RecheckDeviceSafetyAsync(device.Device, name, otherProcesses)) return;
         _deviceScanned = true;
-        // Its size when it was chosen: a disk plugged in meanwhile under the same name is refused.
-        var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1, device.Length);
+        // Bind the original list entry to the descriptor received after any authorization wait.
+        var root = Services.Recovery.ForDevice(device.Device, name, disk ? null : 1, device.Length, device.Identity);
         var scan = panel.OpenTab(root);
         if (!disk && folder is not null && device.MountPoints.FirstOrDefault(m => Holds(m, folder)) is { } mount && folder.Length > mount.TrimEnd('/').Length)
             GoToFolderWhenScanned(scan, root, folder[mount.TrimEnd('/').Length..].Trim('/'));

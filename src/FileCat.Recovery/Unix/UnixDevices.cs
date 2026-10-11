@@ -13,7 +13,7 @@ namespace FileCat.Recovery.Unix;
 /// authorization hands one over: UDisks2 asks polkit on Linux, authopen asks for an administrator on macOS. Nothing runs
 /// with more rights than that descriptor, and there is no write member.
 /// </summary>
-public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard
+public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard, IDeviceSelectionIdentity
 {
     private const int MaxChunk = 4 * 1024 * 1024;
     private readonly SafeFileHandle _handle;
@@ -33,6 +33,7 @@ public sealed class UnixDeviceSource : IBlockSource, IDevicePathGuard
 
     public string Description { get; }
     public long Length { get; }
+    public string? SelectionIdentity => _identity is { Inode: > 0 } selected ? selected.Identity.ToString() : null;
 
     /// <summary>
     /// Opens <paramref name="device"/> for reading, asking the system when this user may not. Throws
@@ -262,6 +263,8 @@ public sealed record UnixBlockDevice(string Device, long Length, string? Model, 
     IReadOnlyList<string> MountPoints, string? FileSystem)
 {
     public string Name => Path.GetFileName(Device);
+    /// <summary>The entry observed while building this choice, before any confirmation or authorization wait.</summary>
+    public string? Identity { get; init; }
 }
 
 /// <summary>
@@ -273,8 +276,15 @@ public static class UnixDisks
     /// <summary>Mounted file systems whose deleted files a scan finds.</summary>
     public static readonly string[] RecoverableTypes = ["vfat", "msdos", "exfat", "ntfs", "ntfs3", "fuseblk"];
 
-    public static IReadOnlyList<UnixBlockDevice> List() =>
-        OperatingSystem.IsLinux() ? Linux("/sys", "/proc/self/mountinfo") : OperatingSystem.IsMacOS() ? Mac() : [];
+    public static IReadOnlyList<UnixBlockDevice> List()
+    {
+        var devices = OperatingSystem.IsLinux() ? Linux("/sys", "/proc/self/mountinfo") : OperatingSystem.IsMacOS() ? Mac() : [];
+        return devices.Select(device => device with
+        {
+            Identity = UnixFiles.Stat(device.Device, followLinks: true) is { Inode: > 0 } selected
+                ? selected.Identity.ToString() : null,
+        }).ToArray();
+    }
 
     // ---- Linux ------------------------------------------------------------------------------------------------
 

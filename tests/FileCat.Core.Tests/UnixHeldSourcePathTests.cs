@@ -15,6 +15,85 @@ public sealed class UnixHeldSourcePathTests
 {
     [Theory]
     [InlineData("replace", false)]
+    [InlineData("retarget", false)]
+    [InlineData("unchanged", true)]
+    public async Task Recovery_selection_is_bound_to_the_descriptor_after_a_preopen_change(string route, bool allowed)
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Native descriptor identities require Linux or macOS.");
+        using var root = new TempDir();
+        string a = Path.Combine(root.Path, "a.img"), b = Path.Combine(root.Path, "b.img");
+        string selectedPath = Path.Combine(root.Path, "selected.img");
+        byte[] original = "selected A recovered bytes"u8.ToArray(), replacement = "replacement B content   "u8.ToArray();
+        WriteImage(a, original);
+        WriteImage(b, replacement);
+        if (route == "retarget") File.CreateSymbolicLink(selectedPath, a);
+        else File.Move(a, selectedPath);
+        string identity = UnixFiles.Stat(selectedPath, followLinks: true)!.Value.Identity.ToString();
+        long length = new FileInfo(route == "retarget" ? a : selectedPath).Length;
+        if (route == "replace")
+        {
+            File.Move(selectedPath, a);
+            File.Move(b, selectedPath);
+        }
+        if (route == "retarget")
+        {
+            File.Delete(selectedPath);
+            File.CreateSymbolicLink(selectedPath, b);
+        }
+        var recovery = new RecoveryProvider();
+        RecordingUnixSource? opened = null;
+        recovery.OpenDevice = (path, description, ct) => opened = new RecordingUnixSource(UnixDeviceSource.Open(path, description, ct));
+        var location = recovery.ForDevice(selectedPath, "chosen A", volume: 1, length: length, identity: identity);
+        var sink = new Sink();
+        try
+        {
+            if (allowed)
+            {
+                await recovery.EnumerateAsync(location.WithPath("docs"), sink, TestContext.Current.CancellationToken);
+                Assert.Contains(sink.Entries, row => row.Name == "_EPORT.TXT");
+                Assert.True(opened!.Reads > 0);
+                Assert.False(opened.Disposed);
+            }
+            else
+            {
+                var error = await Assert.ThrowsAsync<IOException>(() =>
+                    recovery.EnumerateAsync(location, sink, TestContext.Current.CancellationToken));
+                Assert.Contains("identity changed or could not be verified", error.Message, StringComparison.Ordinal);
+                Assert.Empty(sink.Entries);
+                Assert.Equal(0, opened!.Reads);
+                Assert.True(opened.Disposed);
+            }
+            string originalPath = route == "unchanged" ? selectedPath : a;
+            string replacementPath = route == "unchanged" ? b : selectedPath;
+            if (route == "retarget") replacementPath = b;
+            Assert.Equal(original, File.ReadAllBytes(originalPath).AsSpan(2560, original.Length).ToArray());
+            Assert.Equal(replacement, File.ReadAllBytes(replacementPath).AsSpan(2560, replacement.Length).ToArray());
+            TestContext.Current.TestOutputHelper?.WriteLine("UNIX_PREOPEN_SELECTION " + JsonSerializer.Serialize(new
+            {
+                route, allowed, identity, opened = opened?.SelectionIdentity, opened?.Reads, opened?.Disposed,
+                entries = sink.Entries.Select(row => row.Name).ToArray(), sourceBytesUnchanged = true,
+            }));
+        }
+        finally
+        {
+            recovery.CloseAll();
+            Assert.True(opened is null || opened.Disposed);
+        }
+    }
+
+    private sealed class RecordingUnixSource(UnixDeviceSource inner) : IBlockSource, IDeviceSelectionIdentity
+    {
+        public int Reads { get; private set; }
+        public bool Disposed { get; private set; }
+        public string? SelectionIdentity => inner.SelectionIdentity;
+        public string Description => inner.Description;
+        public long Length => inner.Length;
+        public int Read(long offset, Span<byte> buffer) { Reads++; return inner.Read(offset, buffer); }
+        public void Dispose() { Disposed = true; inner.Dispose(); }
+    }
+
+    [Theory]
+    [InlineData("replace", false)]
     [InlineData("remove", false)]
     [InlineData("retarget", false)]
     [InlineData("unchanged", true)]
