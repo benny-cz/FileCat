@@ -10,7 +10,7 @@ The identical fixed test passes both local controls. The affected selection pass
 
 Exact committed `a21fd0a` source is independently exported as **1,646 raw Git blobs with no overlays**. Its eight local and 24 native controls pass, with the same complete recovered bytes, budget observations, affected outcomes and guest cleanup. The initial exact-export reader assumed every checkout file used CRLF and stopped before compilation when the new test used LF; the corrected reader accepts either byte-identical or CRLF-normalized checkout content while building only raw Git blobs. In the proposal export, `Before.Path` named a file later overwritten by the producer; the first independent reader rejected that stale path. The next reader rederived and checked the original bytes from the pinned raw Git archive, retaining the erroneous path and first reader rather than rewriting their history.
 
-Original-push CI remains separate. The two newest indexes may exceed the configured limit by design; other retained objects, process-wide allocation, candidate workloads, physical-source behavior and I06 remain open. No host UI, source device, contract freeze, candidate or stable publication occurred.
+[Original-push CI](E-CI-archive-depth-and-budget.md) now passes all four lanes at `a21fd0a`, with eight new budget passes and every predecessor result/skip retained. The two newest indexes may exceed the configured limit by design; other retained objects, process-wide allocation, candidate workloads, physical-source behavior and I06 remain open. No host UI, source device, contract freeze, candidate or stable publication occurred.
 
 ## Selected immutable receipts
 
