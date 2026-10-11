@@ -433,12 +433,22 @@ internal sealed class ArchiveIndex : IDisposable
         var seen = new Dictionary<string, int>(StringComparer.Ordinal);
         void EnsureDir(string dir, long modified = 0)
         {
-            if (!dirs.Add(dir)) return;
-            int slash = dir.LastIndexOf('/');
-            var parent = slash < 0 ? string.Empty : dir[..slash];
-            EnsureDir(parent);
-            children[parent].Add(new Node(slash < 0 ? dir : dir[(slash + 1)..], true, -1, modified, null));
-            children.TryAdd(dir, []);
+            // A single archive name can contain thousands of segments. Its depth must not consume the call stack.
+            var missing = new Stack<string>();
+            for (string current = dir; dirs.Add(current);)
+            {
+                missing.Push(current);
+                int slash = current.LastIndexOf('/');
+                current = slash < 0 ? string.Empty : current[..slash];
+            }
+            while (missing.TryPop(out var current))
+            {
+                int slash = current.LastIndexOf('/');
+                var parent = slash < 0 ? string.Empty : current[..slash];
+                children[parent].Add(new Node(slash < 0 ? current : current[(slash + 1)..], true, -1,
+                    current == dir ? modified : 0, null));
+                children.TryAdd(current, []);
+            }
         }
         int count = 0;
         long nameChars = 0;

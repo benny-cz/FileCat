@@ -481,13 +481,22 @@ internal sealed class ZipIndex : IDisposable
         string? warning = null;
         void EnsureDir(string dir)
         {
-            if (!dirs.Add(dir)) return;
-            int slash = dir.LastIndexOf('/');
-            var parent = slash < 0 ? string.Empty : dir[..slash];
-            EnsureDir(parent);
-            if (!children.TryGetValue(parent, out var list)) children[parent] = list = [];
-            list.Add(new Node(slash < 0 ? dir : dir[(slash + 1)..], true, -1, 0, null));
-            children.TryAdd(dir, []);
+            // Archive names are untrusted. Walk missing ancestors without using one stack frame per segment.
+            var missing = new Stack<string>();
+            for (string current = dir; dirs.Add(current);)
+            {
+                missing.Push(current);
+                int slash = current.LastIndexOf('/');
+                current = slash < 0 ? string.Empty : current[..slash];
+            }
+            while (missing.TryPop(out var current))
+            {
+                int slash = current.LastIndexOf('/');
+                var parent = slash < 0 ? string.Empty : current[..slash];
+                if (!children.TryGetValue(parent, out var list)) children[parent] = list = [];
+                list.Add(new Node(slash < 0 ? current : current[(slash + 1)..], true, -1, 0, null));
+                children.TryAdd(current, []);
+            }
         }
         int i = 0;
         foreach (var entry in archive.Entries)
