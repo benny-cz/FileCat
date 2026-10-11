@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**541 evidence entries; none is final candidate qualification.** No candidate exists.
+**543 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -552,6 +552,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I366 | Original Windows lease-marker CI failure, corrected targeted cases and exact committed full VM attempts | dd6c18a original failure; b650ab9 overlay; 13b1bc5 exact/CI 38177420786 attempt1 | 16 Windows VM runs/32 passes; two exact full VM attempts remain adverse; original-push CI four lanes/32,891P1,085S green | [Record](evidence/E-I366-lease-marker-readiness.md) | I108/I366/V09/V20 |
 | E-I367 | Exited requester executable cleanup race, exact native and original CI qualification | 13b1bc5 exact failure; corrected 1b86024 no overlay/CI 38178386685 attempt1 | Exact 208 broker/381 Platform VM passes; four hosted lanes/32,891P1,085S, all 16 exited-requester cases pass | [Record](evidence/E-I367-broker-requester-cleanup.md) | I367/V09/V20 |
 | E-I368 | Unix list selection bound to the opened descriptor before recovery reads | c6c7f30 exact/no overlays | Eight Ubuntu/eight Mac native passes; same-size replacement and retarget refused with zero reads, unchanged source scans; adverse controller runs retained | [Record](evidence/E-I368-unix-preopen-device-selection.md) | I106/I110/I368/V09 |
+| E-I369 | Cloned Windows disk GUID collision and selected PnP interface read path | cc93071 exact/no overlays; earlier clone diagnostics retained | Preliminary virtual direct/helper; physical HOLD | [Record](evidence/E-I369-cloned-windows-disk-interface.md) | I106/I110/I369/V09 |
+| E-CI-PREOPEN-SELECTION | Original I106/I368 CI at separate source commits | cd19d7c/38180903387 and c6c7f30/38181890980, attempt 1 | Four lanes each; 27 archives/14 TRX each; no candidate | [Record](evidence/E-CI-preopen-disk-selection.md) | I106/I368/I369/V09 |
 
 <a id="commits-made-by-the-campaign"></a>
 
