@@ -79,7 +79,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             Issue(IssueSeverity.Error, destDir, "Not copied: the source container paths could not be checked: " + ex.Message, StepOutcome.Failed);
             return;
         }
-        if (!Directory.Exists(destDir) && !TryIo(destDir, "create the destination folder", () => Directory.CreateDirectory(destDir))) return;
+        if (!Directory.Exists(destDir) && !CreateDestinationDirectory(_sourceParents[0], destDir, "create the destination folder")) return;
         _originMark = FindOriginMark(Job.Request.Sources[0].Parent);
         var sources = Job.Request.Sources;
         for (int index = 0; index < sources.Count; index++)
@@ -109,7 +109,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 if (targetDir != destDir)
                 {
                     if (!DestinationAllowed(root.Parent, targetDir)) { Job.RootFailed(index); continue; }
-                    Directory.CreateDirectory(targetDir);
+                    if (!CreateDestinationDirectory(root.Parent, targetDir, "create the destination folder")) { Job.RootFailed(index); continue; }
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -142,6 +142,15 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         Issue(IssueSeverity.Error, folder, refusal, StepOutcome.Failed);
         return false;
     }
+
+    private bool CreateDestinationDirectory(Location source, string folder, string what) =>
+        TryIo(folder, what, () =>
+        {
+            // Source review, an I/O failure or an error decision can change admission before this attempt.
+            // Empty folders also write to the destination; do not wait for a later file-staging check.
+            if (DestinationRefusal(source, folder) is { } refusal) throw new IOException(refusal);
+            Fs.CreateDirectory(folder);
+        });
 
     private string? DestinationRefusal(Location source, string folder)
     {
@@ -229,7 +238,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         // A descendant can be a different mount or a link into the recovery source's disk.
         // The admitted root does not establish where this particular folder writes.
         if (!DestinationAllowed(dir.Parent, dst)) return false;
-        if (!Directory.Exists(dst) && !TryIo(dst, "create a folder", () => Fs.CreateDirectory(dst))) return false;
+        if (!Directory.Exists(dst) && !CreateDestinationDirectory(dir.Parent, dst, "create a folder")) return false;
         var children = new List<EntryData>();
         var sink = new ListSink(children);
         try

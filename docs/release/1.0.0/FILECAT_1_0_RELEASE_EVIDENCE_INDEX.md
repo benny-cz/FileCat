@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**461 evidence entries; none is final candidate qualification.** No candidate exists.
+**465 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -472,6 +472,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-PUBLICATION-RETRY | [Original retry admission CI](evidence/E-CI-publication-retry-admission.md) | 38097729819 attempt 1 /5ec6968 | Four required lanes; 32104 records/31075 passes/1029 skips/zero failures; all 28 new controls pass | 27 digest archives/14 TRX/1532 raw blobs/92 restore graphs/four clean builds; every predecessor outcome/message/exact skip | Original source only; private observer/later I335/physical/candidate scopes separate |
 | E-I336 | [All selected recovery sources](evidence/E-I336-all-selected-source-admission.md) | c3d0ee6 /1538 raw blobs/declared overlays | 32 adverse controls/sixteen positives become 48 local/144 native passes | All 3672 predecessor outcomes/messages/107 exact skips, complete bytes/progress/guard origins/closure and 1161 native checks | Controlled topology, not kernel/atomic/physical; exact committed/hosted/candidate remain |
 | E-I335-NATIVE | [Exact recovery publication admission](evidence/E-I335-native-qualification.md) | c3d0ee6 /1538 raw blobs/no overlays | All 36 local/108 native controls and declared-overlay outcomes pass | Every 3528 predecessor outcome/message/107 exact skips and 907 native checks; complete bytes/progress/closure | Original CI collects separately; later I336/kernel/physical/atomic/candidate scopes remain separate |
+| E-I337 | [Recovery folder creation attempts](evidence/E-I337-recovery-folder-attempt-admission.md) | 7a59616/1541 raw blobs/declared overlays | 16 adverse/eight healthy controls become24 local/72 native passes | 3864 predecessor outcomes/messages/107 exact skips;1161 native checks | Exact committed/hosted/candidate; wider kernel/atomic/physical remain |
+| E-I336-NATIVE | [Exact all-selected-source admission](evidence/E-I336-native-qualification.md) | 7a59616/1541 raw blobs/no overlays | 48 local/144 native targeted passes | 3672 predecessor outcomes/messages/107 exact skips;907 native checks | Complete native SMB failure and original hosted/candidate remain separate |
+| E-I336-FULL | [Complete native Core inventories](evidence/E-I336-full-native-core.md) | 7a59616/1541 raw blobs/no overlays | 11049 passes/256 explicit skips/one Windows SMB input-fence failure | 907 native checks;22 unchanged isolated SMB passes/279 further checks | Adverse full suite; cause unproven; no fix/candidate claim |
+| E-CI-I335 | [Original recovery publication admission CI](evidence/E-CI-recovery-publication-admission.md) | 38099761118 attempt1/c3d0ee6 | Four required lanes green;32248records/31219P1029S;144 additions pass | 27 digest archives/14TRX/1538 raw blobs/92 graphs/four builds | Every32104 predecessor outcome/message/1029 exact skips; no candidate |
 
 <a id="commits-made-by-the-campaign"></a>
 

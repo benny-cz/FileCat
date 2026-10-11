@@ -6,7 +6,7 @@ All **36 local and 108 native controls** pass at the committed source. Every **3
 
 Fresh native postchecks verify **907 files**: 279 Windows, 277 Ubuntu and 351 Mac. Owned processes and temporary roots are absent. The controllers retire only seven known duplicate input images per run after whole-byte verification against retained gzip inputs; all listeners stop. No test/controller command fails in this exact run; no package, persistent setting, workstation UI or physical source changes.
 
-Original [run 38099761118 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/38099761118) collects separately at c3d0ee6; no pending result is accepted. The subsequent [I336 all-selected-source gap](E-I336-all-selected-source-admission.md) has separate declared producers and does not revise these original outcomes. Wider topology/kernel/atomic/physical/installed-candidate scopes and explicit human GO remain.
+[Original hosted qualification](E-CI-recovery-publication-admission.md) now passes run38099761118 attempt1 at c3d0ee6:four required lanes/all144 additions, preserving32104 predecessor outcomes/messages/1029 exact skips. The subsequent [I336 all-selected-source gap](E-I336-all-selected-source-admission.md) has separate declared producers and does not revise these original outcomes. Wider topology/kernel/atomic/physical/installed-candidate scopes and explicit human GO remain.
 
 ## Selected immutable receipts
 

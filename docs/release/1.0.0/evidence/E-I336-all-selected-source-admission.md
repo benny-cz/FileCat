@@ -10,7 +10,7 @@ All **48 final local controls and 144 fixed native controls** pass with identica
 
 The first baseline fixture retains its original 32 failures/sixteen positives. Before the final paired producers, its strict expected refusal-prompt count is corrected for the pre-staging versus publication paths, and source names are added to the trace. Final baseline/fixed fixtures are byte-identical; source/output/progress/closure safety assertions remain strict. All three native baselines reproduce the same 32 adverse cases/sixteen positives.
 
-Exact committed/hosted/installed-candidate repeats remain separate. All-selected-source checks are still non-atomic path/provider observations; later directory/mount replacement, cleanup writes after topology changes, broader native identity/visibility/permission races, physical-source HOLD and owner/candidate gates remain. No contract freeze, candidate or stable publication is authorized.
+[Exact committed/native qualification](E-I336-native-qualification.md) now passes48 local/144 native controls at7a59616/no overlays, with every3672 predecessor outcome/message/107 exact skips and907 native checks. [Complete native Core](E-I336-full-native-core.md) retains a separate Windows SMB failure. Hosted/installed-candidate repeats remain separate. All-selected-source checks are still non-atomic path/provider observations; later directory/mount replacement, cleanup writes after topology changes, broader native identity/visibility/permission races, physical-source HOLD and owner/candidate gates remain. No contract freeze, candidate or stable publication is authorized.
 
 ## Selected immutable receipts
 
