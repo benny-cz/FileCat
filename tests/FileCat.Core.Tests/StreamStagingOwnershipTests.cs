@@ -21,9 +21,10 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
     public async Task Cleanup_only_deletes_a_staging_file_this_copy_created(string moment, bool collision)
     {
         using var root = new TempDir();
+        using var fixtureReady = new ManualResetEventSlim(false);
         string destination = root.Dir("destination"), target = Path.Combine(destination, "copy.bin"), staged = "";
         byte[] source = "complete owned staging source bytes"u8.ToArray(), previous = "complete unrelated preexisting staging bytes"u8.ToArray();
-        var provider = new Provider(source, moment);
+        var provider = new Provider(source, moment, fixtureReady);
         var files = new Files(moment);
         var providers = new ProviderRegistry(); providers.Register(provider); providers.Register(new LocalFileSystemProvider());
         var jobs = new JobManager(files, providers, Path.Combine(root.Path, "journal"));
@@ -31,6 +32,7 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
         {
             staged = Path.Combine(destination, $"{JournalRecovery.StagedPrefix}{job.ShortId}-1.tmp");
             if (collision) File.WriteAllBytes(staged, previous);
+            fixtureReady.Set();
         };
         jobs.DecisionRequested += pending => pending.Resolve(new Decision(DecisionAction.Skip));
         try
@@ -78,7 +80,7 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
         }
     }
 
-    private sealed class Provider(byte[] bytes, string moment) : ResourceProvider
+    private sealed class Provider(byte[] bytes, string moment, ManualResetEventSlim fixtureReady) : ResourceProvider
     {
         public int Opens, Closes, Reads;
         public override string Scheme => "owned-stream-staging";
@@ -87,7 +89,11 @@ public sealed class StreamStagingOwnershipTests(ITestOutputHelper output)
         public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
         public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.ReadContent;
         public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct) => Task.CompletedTask;
-        public override IContentSource OpenContent(ItemRef item) => new Source(this, ++Opens, bytes, moment);
+        public override IContentSource OpenContent(ItemRef item)
+        {
+            if (!fixtureReady.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("Owned staging fixture was not installed.");
+            return new Source(this, ++Opens, bytes, moment);
+        }
         private sealed class Source(Provider owner, int ordinal, byte[] bytes, string moment) : IContentSource
         {
             public string DisplayName => "owned staging source";

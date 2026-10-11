@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**475 evidence entries; none is final candidate qualification.** No candidate exists.
+**479 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -486,6 +486,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I339-NATIVE | [Exact recovery metadata admission](evidence/E-I339-native-qualification.md) | c7d17da/1553 raw blobs/no overlays | 18 local/54 native passes | 3960 prior outcomes/messages/107 skips; 907 native file checks | Native attributes/kernel/atomic/physical/candidate remain |
 | E-CI-I338 | [Original owned pipe fixture CI](evidence/E-CI-owned-pipe-fixture.md) | 38103316696 attempt 1/9086901 | Four lanes/32536 records/31507 passes/1029 skips; six safe methods pass | 27 digest archives/14 TRX/1549 raw blobs/92 graphs/four clean builds; all prior outcomes retained | Original earlier timing cause, reference/candidate remain |
 | E-CI-I339 | [Original metadata admission CI](evidence/E-CI-recovery-metadata-admission.md) | 38104302687 attempt 1/c7d17da | Four lanes/32608 records/31579 passes/1029 skips; 72 additions pass | 27 digest archives/14 TRX/1553 raw blobs/92 graphs/four clean builds; all 32536 prior records retained | No candidate or physical-source resumption |
+| E-I341 | [Local staging creation ownership](evidence/E-I341-local-staging-ownership.md) | e9f15bf/1558 raw blobs/declared overlays | 24 local/48 native fixed passes | 9778 prior results/122 skips/1472 file checks; timeouts and cleanup refusals retained | Later identity/atomic/physical/candidate remain |
+| E-I342 | [Staging fixture ordering and final gated batch](evidence/E-I342-staging-fixture-ordering.md) | e9f15bf/1558 raw blobs/four overlays | 38 local/90 native passes; controlled ordering reproduction | 4060 prior results/109 skips/966 native file checks; restored owned roots | Exact committed/hosted/candidate follow-up remains |
+| E-I340-NATIVE | [Exact stream staging qualification](evidence/E-I340-native-qualification.md) | e9f15bf/1558 raw blobs/no overlays | 14 local/42 native passes | 4032 prior results/107 skips/907 native file checks | Original CI failure remains adverse |
+| E-CI-I340 | [Original stream staging CI failure](evidence/E-CI-stream-staging-ownership.md) | 38126315498 attempt 1/e9f15bf | Three lanes pass; Mac fails one new fixture case | 24 digest archives/12 TRX/28492 records/55 new passes and one failure; two inventories unavailable | Original failure retained; I342 corrects fixture |
 
 <a id="commits-made-by-the-campaign"></a>
 

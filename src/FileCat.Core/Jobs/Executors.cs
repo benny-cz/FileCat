@@ -971,15 +971,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
             catch (OperationCanceledException)
             {
-                // The copy engine removes the partial file it was writing; a staged name is cleaned up here as well.
+                // Only the copy engine knows whether it created the destination; it owns failed-copy cleanup.
                 Job.AddBytes(-reported);
-                if (!direct) TryDeleteStaged(writeTo);
                 throw;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 Job.AddBytes(-reported);
-                if (!direct) TryDeleteStaged(writeTo);
                 if (Job.IsCancellationRequested) throw new OperationCanceledException();
                 var cls = ErrorText.Classify(ex);
                 if (cls == "sharing" && quietRetries < 3)
