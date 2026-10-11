@@ -61,7 +61,19 @@ public sealed class LiveUsbLeaseTests(ITestOutputHelper output) : IDisposable
                     throw new TimeoutException($"Lease helper PID {child.Id} did not report readiness within {startup.Elapsed}.");
                 await Task.Delay(25, ct);
             }
-            Assert.Equal("held", File.ReadAllText(readyPath));
+            // A rename can make the marker visible before Windows releases the writer's file handle.
+            // Keep the content assertion, but wait briefly for that handle to close.
+            string marker;
+            var markerRead = Stopwatch.StartNew();
+            while (true)
+            {
+                try { marker = File.ReadAllText(readyPath); break; }
+                catch (IOException) when (markerRead.Elapsed < TimeSpan.FromSeconds(5) && !child.HasExited)
+                {
+                    await Task.Delay(25, ct);
+                }
+            }
+            Assert.Equal("held", marker);
             Assert.False(child.HasExited, "Lease helper exited before the contention check.");
             output.WriteLine($"Lease helper PID {child.Id} acquired its handle after {startup.Elapsed}.");
             Assert.Throws<IOException>(() => LiveUsbGuard.AcquireLease(_directory, "fixture-serial"));

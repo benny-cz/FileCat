@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**537 evidence entries; none is final candidate qualification.** No candidate exists.
+**538 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -548,6 +548,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-ARCHIVE-DEPTH-BUDGET | Original I364/I365 archive depth and prefix-budget CI | 165085a and a21fd0a; runs 38172808844 and 38173988647, attempt 1 | Four lanes each; 24 deep-path and eight budget passes; all predecessor outcomes/skips retained | [Record](evidence/E-CI-archive-depth-and-budget.md) | I06/I364/I365/V07/V16 |
 | E-I364 | Deep ZIP/TAR archive-index path baseline, corrected source and exact three-guest qualification | aeaea5c baseline; 165085a exact / no overlays | Four original bounded-stack failures; 6 host/18 native exact passes and whole recovered bytes; broader scope remains | [Record](evidence/E-I364-deep-archive-index-path.md) | I06/I364/V07/V16 |
 | E-I365 | Retained archive directory-prefix accounting, cache eviction and exact three-guest qualification | 165085a baseline; a21fd0a exact / no overlays | Two original estimate/eviction failures; 8 host/24 native exact controls pass; process-wide/candidate scope remains | [Record](evidence/E-I365-archive-prefix-index-accounting.md) | I06/I365/V07/V16 |
+| E-I366 | Original Windows lease-marker CI failure and bounded native fixture correction | dd6c18a original failure; b650ab9 plus one test overlay | 16 Windows VM runs/32 passes; original failure retained, corrected CI pending | [Record](evidence/E-I366-lease-marker-readiness.md) | I108/I366/V09/V20 |
 
 <a id="commits-made-by-the-campaign"></a>
 
