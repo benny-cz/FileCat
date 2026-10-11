@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**452 evidence entries; none is final candidate qualification.** No candidate exists.
+**454 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -463,6 +463,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-LINUX-PICTURE-POLICY | Original I332 run 38094053882 attempt 1: all required lanes succeed | dcd4f8e /1523 raw blobs/92 locked graphs/four SDK receipts | 27 digest archives/14 TRX/31992 records: 30963 passes/1029 explicit skips/zero failures; all 31976 predecessor outcomes/messages/1017 earlier skips retained | [Original hosted qualification](evidence/E-CI-linux-picture-process-policy.md) | I08, I332, V10, V23; broader Unix authority/candidate remain |
 | E-I332-NATIVE | [Exact Linux x64 picture policy](evidence/E-I332-native-qualification.md) | dcd4f8e /1523 raw blobs/no overlays | Four permanent/two private native controls pass; 58 host/60 Ubuntu predecessor passes/two exact Windows skips | Every 120 predecessor outcome/message, all six overlay outcomes/full bytes and 294 independent staged/runtime checks | Direct x64 process calls only; broader Unix authority/parent-death/parser/current hosted/candidate remain |
 | E-I333 | Source image/archive preserved during stream publication | dcd4f8e /1523 raw blobs/declared overlays | 21 local/63 fixed native controls; 3416 predecessor outcomes/messages/107 exact skips retained | [E-I333](evidence/E-I333-source-container-publication.md) | I106, V07, V09, V23; physical HOLD and atomic/native-alias/candidate scopes remain |
+| E-I333-NATIVE | [Exact source-image/archive protection](evidence/E-I333-native-qualification.md) | 9c8e6cf /1529 raw blobs/no overlays | 21 local/63 native controls pass; every 3416 predecessor outcome/message/107 exact skips remains | Whole source/output bytes and 907 fresh independent native file checks | Wider aliases/atomic/physical/candidate and pending original hosted scope remain |
+| E-I334 | [Publication retry admission](evidence/E-I334-publication-retry-admission.md) | 9c8e6cf /1529 raw blobs/declared overlays | Five controlled failures/two positives become seven local/21 fixed native passes | Every 3448 predecessor outcome/message/107 exact skips; whole bytes/failed progress/closure and 1161 native checks | Recorded aliases, not kernel/atomic/physical qualification; exact committed/hosted/candidate remain |
 
 <a id="commits-made-by-the-campaign"></a>
 

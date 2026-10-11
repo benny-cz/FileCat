@@ -496,10 +496,16 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
         int step = Journal.Intent(replace ? "replace" : "publish", item.Name, target, staged, durable: replace);
-        bool ok = TryIo(target, "publish the extracted item", () => Fs.Move(staged, target, replace));
+        bool ok = TryIo(target, "publish the extracted item", () =>
+        {
+            // Every retry is a new publication attempt; the preceding failure or decision can change aliases.
+            CheckBackingTarget(target);
+            Fs.Move(staged, target, replace);
+        });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {
+            Job.AddBytes(-written);
             try { File.Delete(staged); } catch (IOException) { }
             Job.ItemFailed();
             return false;

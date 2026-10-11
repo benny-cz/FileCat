@@ -24,7 +24,9 @@ The original Mac controller fails on Python's unavailable hashlib.file_digest be
 
 ## Remaining boundary
 
-These are path/available-identity checks around a later path-based publication, not an atomic rename guarantee. Unavailable identity observations, held-image/path replacement, mount/directory races, broader provider variants, native Windows-adapter alias integration and exact committed/hosted/installed-candidate repeats remain. I106/I110 physical-source HOLD and the broader 20 unresolved statuses remain. No owner decision, contract freeze, candidate or stable publication is implied.
+[Exact committed/native qualification](E-I333-native-qualification.md) passes at 9c8e6cf /1529 raw blobs/no overlays: all 21 local/63 native controls, every 3416 predecessor outcome/message/107 exact skips and 907 independent native file checks. Original hosted run 38096783781 collects separately. [I334](E-I334-publication-retry-admission.md) subsequently identifies and remediates a retry-time gap with its own declared-overlay evidence.
+
+These are path/available-identity checks around a later path-based publication, not an atomic rename guarantee. Unavailable identity observations, held-image/path replacement, mount/directory races, broader provider variants, native Windows-adapter alias integration and hosted/installed-candidate repeats remain. I106/I110 physical-source HOLD and the broader 20 unresolved statuses remain. No owner decision, contract freeze, candidate or stable publication is implied.
 
 ## Selected immutable receipts
 
