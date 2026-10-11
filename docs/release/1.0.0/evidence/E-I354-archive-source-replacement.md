@@ -12,6 +12,10 @@ The initial eight- and sixteen-case probes remain separately retained. The origi
 
 This preliminary correction addresses deterministic same-metadata source replacement. It does not establish atomic path/open-handle binding, arbitrary concurrent in-place modification safety, physical topology/entry reuse, or final candidate qualification. I06/I106 remain open and I106/I110 physical-source validation remains on HOLD. No workstation UI, physical source or persistent setting changes occurred.
 
+## Committed follow-up — 2026-10-11
+
+[Exact committed/native qualification](E-I354-native-qualification.md) and [original adverse CI](E-CI-archive-source-replacement.md) now have separate exact records at2dda4a8. All original paired failures remain. [I355](E-I355-recovery-image-replacement.md) subsequently corrects the analogous regular recovery-image session gap.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.

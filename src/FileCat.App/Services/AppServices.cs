@@ -66,7 +66,7 @@ public sealed class AppServices : IDisposable
             paths.SweepTemporaryLeftovers(TimeSpan.FromDays(1));
         });
         // Deleted items of disk images, read-only (P10).
-        Recovery = new FileCat.Recovery.RecoveryProvider();
+        Recovery = new FileCat.Recovery.RecoveryProvider { GetSourceIdentity = ArchiveIdentity };
         if (OperatingSystem.IsWindows())
         {
             // Drives are read through the installed administrator helper, which only reads (ADR-08); a FileCat that

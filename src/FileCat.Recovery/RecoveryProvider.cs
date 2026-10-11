@@ -51,6 +51,11 @@ public sealed class RecoveryProvider : ResourceProvider
     private readonly ConcurrentDictionary<string, long> _deviceLengths = new(PathUtil.SafetyComparer);
     private readonly object _scanLock = new();
 
+    /// <summary>Stable image-file identity, following links; the platform supplies Windows IDs.</summary>
+    public Func<string, string?> GetSourceIdentity { get; set; } =
+        path => UnixFiles.Stat(path, followLinks: true)?.Identity.ToString();
+
+
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device) : IDisposable
     {
         public IBlockSource Source { get; } = source;
@@ -403,12 +408,14 @@ public sealed class RecoveryProvider : ResourceProvider
     }
 
     /// <summary>An image is scanned again when it changes; a drive is identified by its device alone.</summary>
-    private static string Key(Location location)
+    private string Key(Location location) => Key(location, IsDevice(location) ? null : GetSourceIdentity(SourcePath(location)));
+
+    private static string Key(Location location, string? identity)
     {
         string path = SourcePath(location);
         if (IsDevice(location)) return "device|" + path;
         var info = new FileInfo(path);
-        return $"{info.FullName}|{(info.Exists ? info.Length : -1)}|{(info.Exists ? info.LastWriteTimeUtc.Ticks : 0)}";
+        return $"{info.FullName}|{(info.Exists ? info.Length : -1)}|{(info.Exists ? info.LastWriteTimeUtc.Ticks : 0)}|{identity}";
     }
 
     /// <summary>What searching a volume's free space involves, for the user to decide (<see cref="SearchFreeSpace"/>).</summary>
@@ -496,15 +503,18 @@ public sealed class RecoveryProvider : ResourceProvider
         string path = SourcePath(location);
         bool device = IsDevice(location);
         if (!device && !File.Exists(path)) throw new FileNotFoundException("The disk image no longer exists.", path);
-        string key = Key(location);
-        if (_sessions.TryGetValue(key, out var cached) && !cached.Stale)
+        string? identity = device ? null : GetSourceIdentity(path);
+        string key = Key(location, identity);
+        bool reuse = device || !string.IsNullOrEmpty(identity);
+        Session? cached;
+        if (reuse && _sessions.TryGetValue(key, out cached) && !cached.Stale)
         {
             cached.Used = DateTime.UtcNow;
             return cached;
         }
         lock (_scanLock)
         {
-            if (_sessions.TryGetValue(key, out cached))
+            if (reuse && _sessions.TryGetValue(key, out cached))
             {
                 if (cached.Stale)
                 {
@@ -525,6 +535,14 @@ public sealed class RecoveryProvider : ResourceProvider
                 cached.Used = DateTime.UtcNow;
                 return cached;
             }
+            // An unidentified image is reopened for each content/listing request. Preserve the
+            // user's pending/completed search mode, so fresh scans still contain those results.
+            bool searchImageFreeSpace = false, searchImageDisk = false;
+            if (!reuse && _sessions.TryGetValue(key, out cached))
+            {
+                searchImageFreeSpace = cached.SearchFreeSpace || cached.Volumes.Any(v => v.FreeSpaceSearched);
+                searchImageDisk = cached.SearchDisk || cached.DiskSearched;
+            }
             // An image that changed since its scan is scanned again; the old session goes.
             if (!device)
                 foreach (var old in _sessions.Where(s => s.Key.StartsWith(Path.GetFullPath(path) + "|", PathUtil.SafetyComparison)).ToList())
@@ -540,7 +558,8 @@ public sealed class RecoveryProvider : ResourceProvider
                 if (device && _deviceLengths.TryGetValue(path, out long chosen) && source.Length != chosen)
                     throw new IOException($"{SourceName(location)} is not the disk that was chosen: it now holds {source.Length:N0} bytes, not {chosen:N0}. " +
                                           "A disk plugged in meanwhile can take another one's place: choose it again from the list of drives.");
-                var session = new Session(source, Scan(source, device, ct), device);
+                var session = new Session(source, Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk), device)
+                { DiskSearched = searchImageDisk };
                 _sessions[key] = session;
                 while (_sessions.Count > MaxSessions)
                 {

@@ -304,15 +304,21 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     public override IContentSource? OpenContent(ItemRef item)
     {
-        var index = GetIndex(item.Parent);
-        var name = item.Name;
-        int ordinal = item.Ordinal;
-        var full = item.Parent.Path.Length == 0 ? name : item.Parent.Path + "/" + name;
-        var node = index.FindFile(item.Parent.Path, name, ordinal);
-        if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
-        if (tag.Encrypted) return null;
-        if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
-        return index.Extract(tag, _tempDirectory);
+        string path = ZipPath(item.Parent);
+        // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
+        // Admission owns the index until extraction has copied bytes or acquired its progressive lease.
+        lock (_cacheLock)
+        {
+            var index = GetIndex(item.Parent, path);
+            var name = item.Name;
+            int ordinal = item.Ordinal;
+            var full = item.Parent.Path.Length == 0 ? name : item.Parent.Path + "/" + name;
+            var node = index.FindFile(item.Parent.Path, name, ordinal);
+            if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{full}\" is not in the archive.");
+            if (tag.Encrypted) return null;
+            if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
+            return index.Extract(tag, _tempDirectory);
+        }
     }
 
     // ---- Index ---------------------------------------------------------------------------------------------

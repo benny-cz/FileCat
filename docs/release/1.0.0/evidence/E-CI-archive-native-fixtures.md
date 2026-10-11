@@ -8,6 +8,10 @@ The reader verifies **27 downloaded digest-matched archives, fourteen TRX invent
 
 [Exact local/native qualification](E-I351-native-qualification.md) has its own matching source identity. [I354](E-I354-archive-source-replacement.md) is a subsequent declared-overlay remediation and still needs its own committed-source/CI follow-up. No contract freeze, candidate, physical-source resumption or stable release is authorized.
 
+## Subsequent committed qualification — 2026-10-11
+
+The subsequent I354 source now has [exact/native qualification](E-I354-native-qualification.md) and [independent original adverse CI](E-CI-archive-source-replacement.md). This original 7e88ef7 run and its full predecessor inventory remain unchanged.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.

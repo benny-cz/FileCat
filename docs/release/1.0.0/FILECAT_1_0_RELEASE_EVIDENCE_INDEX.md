@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**511 evidence entries; none is final candidate qualification.** No candidate exists.
+**515 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -522,6 +522,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I354 | [Archive source replacement and nested spool refresh](evidence/E-I354-archive-source-replacement.md) | 7e88ef7/1606 raw blobs/six declared overlays | 128 controls;6906 affected/177 skips;348 App | 1161 native files/six roots restored | I06/I106 atomic/physical/candidate remain |
 | E-I351-NATIVE | [Exact archive/native-fixture qualification](evidence/E-I351-native-qualification.md) | 7e88ef7/1606 raw blobs/no overlays | 80P48S archive;6806 affected/131 skips;348 App | 966 native files/two roots restored | Original transport failures retained |
 | E-CI-ARCHIVE-NATIVE | [Original archive/native-fixture CI green](evidence/E-CI-archive-native-fixtures.md) | 38149498386 attempt1/7e88ef7 | 33376 records/32299P1077S;328 additions qualified | 27 archives/14TRX/92 graphs/four clean builds | All33048 prior outcomes/messages/1029 skips retained |
+| E-I355 | [Recovery image source replacement](evidence/E-I355-recovery-image-replacement.md) | 2dda4a8/1610 raw blobs/four declared overlays | 80 controls;7034 affected/177 skips;348 App | 1161 native files/three roots restored | I06/I106 atomic/advisory/physical/candidate remain |
+| E-I354-NATIVE | [Exact archive-replacement qualification](evidence/E-I354-native-qualification.md) | 2dda4a8/1610 raw blobs/no overlays | 128 replacementP;6934 affected/179 skips;348 App | 966 native files/two roots restored | Original failures retained |
+| E-CI-ARCHIVE-REPLACEMENT | [Original archive-replacement CI adverse](evidence/E-CI-archive-source-replacement.md) | 38152465526 attempt1/2dda4a8 | 33504 records/32426P1077S1F;128 additions pass | 26 archives/14TRX/92 graphs/four clean builds | 33375 unchanged predecessors/1077 skips;one prior pass now fails |
+| E-I356 | [Archive reader admission ownership](evidence/E-I356-archive-reader-admission.md) | 2dda4a8/1610 raw blobs/seven combined overlays | 64 controls/2560 reads;7114 affected/177 skips;377 App | 1161 native files/six roots restored | Original CI cause unproven;broader scope remains |
 
 <a id="commits-made-by-the-campaign"></a>
 

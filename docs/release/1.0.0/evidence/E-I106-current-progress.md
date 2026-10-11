@@ -12,6 +12,8 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I354](E-I354-archive-source-replacement.md) now refreshes ZIP/TAR indexes and nested spools after deterministic same-metadata source replacement, with actual stable identities and an unavailable-identity fallback that prevents reuse. This does not establish atomic path/open-handle binding or arbitrary concurrent source mutation safety; physical-source HOLD remains.
 
+[I355](E-I355-recovery-image-replacement.md) now refreshes regular recovery-image sessions after deterministic same-metadata replacement. Actual source IDs identify known images; unavailable IDs prevent source reuse. Existing readers and unchanged-image search modes remain valid. Atomic path/open-handle binding, arbitrary in-place changes and unavailable-identity advisory metadata remain unqualified; device keys are unchanged and physical HOLD remains.
+
 ## Full preliminary scope retained from ec5868e
 
 Open: discovery corrections tested; [Current medium/high Windows controls](E-I106-current-windows-admission.md) pass 52/64 records with twelve explicit skips and actual parent/child tokens; recording readers never open devices.

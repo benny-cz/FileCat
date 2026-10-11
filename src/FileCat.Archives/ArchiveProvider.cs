@@ -197,15 +197,22 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
 
     public override IContentSource? OpenContent(ItemRef item)
     {
-        var index = GetIndex(item.Parent, CancellationToken.None);
-        var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
-        if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
-        if (tag.Encrypted) return null;
-        if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
-        if (tag.Kind is MemberKind.SymbolicLink or MemberKind.HardLink)
-            throw new InvalidDataException("Links inside archives are not followed or extracted" + (tag.LinkTarget is { } target ? $" (it points to \"{target}\")." : "."));
-        if (tag.Kind == MemberKind.Special) throw new InvalidDataException("Device and pipe entries have no content to extract.");
-        return index.Extract(tag, _tempDirectory);
+        var root = item.Parent.WithPath(string.Empty);
+        string path = ArchiveFile(root, 0);
+        // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
+        // Admission owns the index until extraction has copied bytes or acquired its progressive lease.
+        lock (_cacheLock)
+        {
+            var index = GetIndex(root, path, CancellationToken.None);
+            var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
+            if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
+            if (tag.Encrypted) return null;
+            if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
+            if (tag.Kind is MemberKind.SymbolicLink or MemberKind.HardLink)
+                throw new InvalidDataException("Links inside archives are not followed or extracted" + (tag.LinkTarget is { } target ? $" (it points to \"{target}\")." : "."));
+            if (tag.Kind == MemberKind.Special) throw new InvalidDataException("Device and pipe entries have no content to extract.");
+            return index.Extract(tag, _tempDirectory);
+        }
     }
 
     // ---- Index ---------------------------------------------------------------------------------------------
