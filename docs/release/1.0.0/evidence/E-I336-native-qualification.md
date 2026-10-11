@@ -6,7 +6,7 @@ All **48 local and 144 native controls** pass at the committed source. Every **3
 
 Fresh native postchecks verify **907 files**: 279 Windows, 277 Ubuntu and 351 Mac. Owned processes/temporary roots are absent, seven known duplicate input images per run are verified before retirement, and Windows listeners stop. No command fails in this targeted exact run. No workstation UI, package, persistent setting or physical source changes.
 
-The subsequent [complete native Core inventories](E-I336-full-native-core.md) retain a separate Windows SMB input-fence failure; this targeted qualification does not claim a green full suite. [I337](E-I337-recovery-folder-attempt-admission.md) subsequently corrects folder-attempt admission at its own declared identity. Original [run 38100449046 attempt 1](https://github.com/benny-cz/FileCat/actions/runs/38100449046) collects separately; no pending result is accepted. Wider kernel/atomic/physical/installed-candidate scopes and human GO remain.
+The subsequent [complete native Core inventories](E-I336-full-native-core.md) retain a separate Windows SMB input-fence failure; this targeted qualification does not claim a green full suite. [I337](E-I337-recovery-folder-attempt-admission.md) subsequently corrects folder-attempt admission at its own declared identity. [Original hosted CI](E-CI-all-selected-source-admission.md) retains one Windows helper-pipe timing failure; all 192 additions and three other required lanes pass. The failed batch remains adverse at its original identity. Wider kernel/atomic/physical/installed-candidate scopes and human GO remain.
 
 ## Selected immutable receipts
 

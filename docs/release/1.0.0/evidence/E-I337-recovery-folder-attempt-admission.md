@@ -10,7 +10,7 @@ All **24 local controls and 72 fixed native controls** pass with byte-identical 
 
 The first private fixture does not compile because of a nullable filename array; its failed commands remain. Fresh v2 baseline/fixed producers correct only that fixture nullability before paired execution. All safety assertions remain strict. No workstation UI, package, account, firewall, persistent setting or source device changes.
 
-Exact committed/hosted/installed-candidate follow-up remains separate. These provider/path checks are non-atomic; subsequent mount replacement, cleanup writes after topology changes, wider held-device identity/visibility/permission scopes and physical-source HOLD remain. No freeze, candidate or stable publication is authorized.
+[Exact committed/native follow-up](E-I337-native-qualification.md) now passes 24 local/72 native controls at 85ba1eb/no overlays, retaining 3864 predecessor outcomes/messages/107 exact skips and 907 file checks. Hosted/installed-candidate follow-up remains separate. These provider/path checks are non-atomic; subsequent mount replacement, cleanup writes after topology changes, wider held-device identity/visibility/permission scopes and physical-source HOLD remain. No freeze, candidate or stable publication is authorized.
 
 ## Selected immutable receipts
 

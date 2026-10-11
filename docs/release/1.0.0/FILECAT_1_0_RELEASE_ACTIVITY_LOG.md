@@ -2985,3 +2985,12 @@ Exact 270ffd7/1502 raw blobs/no overlays passes thirteen requester/fifty affecte
 [Exact I336](evidence/E-I336-native-qualification.md) passes48 local/144 native controls/no overlays, retaining3672 predecessor outcomes/messages/107 exact skips and907 native checks. The separate [complete native Core batch](evidence/E-I336-full-native-core.md) records11049 passes/256 skips/one Windows SMB input-fence failure.22 unchanged isolated Windows SMB controls pass with279 further file checks; the full batch remains adverse and its cause unproven. [Original I335 CI](evidence/E-CI-recovery-publication-admission.md) passes four required lanes/32248records/all144 additions. Original I336 collection continues separately.
 
 Counts337 issues/315 preliminary remediations/two preliminary closures/20 broader unresolved statuses;465 catalogue entries/6849 selected hashes. All24 campaigns/nine owner rows, host-UI restriction, physical-source HOLD and publication gates remain.
+
+
+## 2026-10-11 — Owned pipe fixture dependency, exact folder admission and original CI failure
+
+[I338](evidence/E-I338-device-pipe-fixture-scheduling.md) independently reproduces a blocking helper task's shared-worker dependency in an owned diagnostic process; the dedicated-server fixture corrects it on host/Windows guest. Four probes retain whole bytes/closed servers/restored private pools;12 healthy methods and 535 independent native file checks pass. The unchanged benchmark threshold, strengthened whole-byte assertions and exact server closure remain. Original restore refusal/aborted probe and verified owned cleanup remain. This does not establish the original hosted timing cause or a complete green CI result.
+
+[Exact I337](evidence/E-I337-native-qualification.md) passes 24 local/72 native controls at 85ba1eb/no overlays, preserving 3864 predecessor outcomes/messages/107 exact skips and 907 native checks. [Original I336 CI](evidence/E-CI-all-selected-source-admission.md) retains one Windows x64 helper-pipe timing failure; three other lanes/all 192 additions pass.26 digest archives/ 14TRX/32440 records/1029 exact skips/1541 raw blobs/92 restore graphs/four build receipts verify. I337 collection continues separately.
+
+Counts 338 issues/316 preliminary remediations/two preliminary closures/20 broader unresolved statuses;468 catalogue entries/6854 selected hashes. All 24 campaigns/nine owner rows, host-UI restriction, physical-source HOLD and publication gates remain.

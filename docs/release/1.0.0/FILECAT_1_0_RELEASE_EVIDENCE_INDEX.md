@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**465 evidence entries; none is final candidate qualification.** No candidate exists.
+**468 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -476,6 +476,9 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I336-NATIVE | [Exact all-selected-source admission](evidence/E-I336-native-qualification.md) | 7a59616/1541 raw blobs/no overlays | 48 local/144 native targeted passes | 3672 predecessor outcomes/messages/107 exact skips;907 native checks | Complete native SMB failure and original hosted/candidate remain separate |
 | E-I336-FULL | [Complete native Core inventories](evidence/E-I336-full-native-core.md) | 7a59616/1541 raw blobs/no overlays | 11049 passes/256 explicit skips/one Windows SMB input-fence failure | 907 native checks;22 unchanged isolated SMB passes/279 further checks | Adverse full suite; cause unproven; no fix/candidate claim |
 | E-CI-I335 | [Original recovery publication admission CI](evidence/E-CI-recovery-publication-admission.md) | 38099761118 attempt1/c3d0ee6 | Four required lanes green;32248records/31219P1029S;144 additions pass | 27 digest archives/14TRX/1538 raw blobs/92 graphs/four builds | Every32104 predecessor outcome/message/1029 exact skips; no candidate |
+| E-I338 | [File-backed pipe fixture scheduling](evidence/E-I338-device-pipe-fixture-scheduling.md) | 85ba1eb/1546 raw blobs/test-only overlays/private probe | Four controlled probes and 12 healthy method runs pass; unchanged timing threshold | 535 native file checks, whole bytes, server/caller/pool and owned temp restoration | Original hosted timing cause, exact committed/hosted/candidate remain |
+| E-I337-NATIVE | [Exact folder-attempt admission](evidence/E-I337-native-qualification.md) | 85ba1eb/1546 raw blobs/no overlays | 24 local/72 native controls pass | 3864 predecessor outcomes/messages/107 exact skips;907 native checks | Original hosted collects separately; wider kernel/atomic/physical/candidate remain |
+| E-CI-I336 | [Original all-selected-source CI](evidence/E-CI-all-selected-source-admission.md) | 38100449046 attempt 1/7a59616 | 32440 records: 31410P1029S1F; all 192 additions pass | 26 digest archives/ 14TRX/1541 raw blobs/92 graphs/four builds;1029 exact skips | Windows x64 pipe timing fails; three other lanes pass; original cause unproven |
 
 <a id="commits-made-by-the-campaign"></a>
 

@@ -1,5 +1,8 @@
 using System.IO.Compression;
 using System.IO.Pipes;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Security.Principal;
 using FileCat.Core.Jobs;
 using FileCat.Platform.Windows.Elevation;
@@ -28,7 +31,7 @@ public sealed class DeviceReadTests : IDisposable
     {
         string name = "FileCat-test-" + Guid.NewGuid().ToString("N");
         var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-        var serving = Task.Run(() =>
+        var serving = Task.Factory.StartNew(() =>
         {
             using (server)
             using (var handle = File.OpenHandle(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -36,7 +39,7 @@ public sealed class DeviceReadTests : IDisposable
                 server.WaitForConnection();
                 return RawReadProtocol.Serve(server, handle, new FileInfo(file).Length, sector);
             }
-        });
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         var client = new NamedPipeClientStream(".", name, PipeDirection.InOut);
         client.Connect(5000);
         return (new PipeDeviceSource(client, "test drive"), serving);
@@ -65,18 +68,18 @@ public sealed class DeviceReadTests : IDisposable
             }
             Assert.Equal(0, source.Read(bytes.Length + 5L, new byte[10]));
         }
-        Assert.Equal("FileCat closed the session.", await server);
+        Assert.Equal("FileCat closed the session.", await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public void A_disk_image_scans_through_the_helper_session_like_the_file_itself()
+    public async Task A_disk_image_scans_through_the_helper_session_like_the_file_itself()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("The read helper is part of FileCat for Windows.");
         string image = Path.Combine(_dir, "fat16.img");
         using (var input = new GZipStream(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "TestData", "fat16.img.gz")), CompressionMode.Decompress))
         using (var output = File.Create(image))
             input.CopyTo(output);
-        var (source, _) = Session(image, 512);
+        var (source, server) = Session(image, 512);
         using (source)
         {
             var volume = Assert.Single(RecoveryScanner.Scan(source, TestContext.Current.CancellationToken));
@@ -87,17 +90,26 @@ public sealed class DeviceReadTests : IDisposable
             Assert.Equal(data.Length, content.Read(0, data));
             Assert.StartsWith("report.txt:00000000\n", System.Text.Encoding.UTF8.GetString(data), StringComparison.Ordinal);
         }
+        Assert.Equal("FileCat closed the session.", await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     }
 
     /// <summary>TV-09: what the helper's pipe costs a scan and a whole-file read, compared with reading the image directly.</summary>
     [Fact]
-    public void Reading_through_the_helper_costs_a_small_factor()
+    public async Task Reading_through_the_helper_costs_a_small_factor()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("The read helper is part of FileCat for Windows.");
         string image = Path.Combine(_dir, "fat16.img");
         using (var input = new GZipStream(File.OpenRead(Path.Combine(AppContext.BaseDirectory, "TestData", "fat16.img.gz")), CompressionMode.Decompress))
         using (var output = File.Create(image))
             input.CopyTo(output);
+        // Whole known fixture bytes: a short or different answer must not make a performance control pass.
+        var expected = new byte[70000];
+        for (int offset = 0, line = 0; offset < expected.Length; line++)
+        {
+            byte[] part = Encoding.UTF8.GetBytes($"a.jpg:{line:D8}\n");
+            int count = Math.Min(part.Length, expected.Length - offset);
+            part.AsSpan(0, count).CopyTo(expected.AsSpan(offset)); offset += count;
+        }
         TimeSpan Measure(IBlockSource source)
         {
             var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -106,23 +118,34 @@ public sealed class DeviceReadTests : IDisposable
                 var volume = RecoveryScanner.Scan(source, TestContext.Current.CancellationToken)[0];
                 var photo = volume.Root.Children.Single(c => c.Name == "photos").Children.Single(c => c.Name == "a.jpg");
                 using var content = new RecoveryContent(new WindowSource(source, volume.Offset, volume.Length, "volume"), photo);
+                Assert.Equal(expected.Length, photo.Size);
                 var buffer = new byte[photo.Size];
-                content.Read(0, buffer);
+                Assert.Equal(buffer.Length, content.Read(0, buffer));
+                Assert.Equal(expected, buffer);
             }
             return clock.Elapsed;
         }
         // Each path is warmed up (the first scan also compiles the code), then the best of three runs counts: a shared CI
         // machine can stall any single run for seconds.
-        TimeSpan Best(IBlockSource source)
+        TimeSpan Best(IBlockSource source, string path)
         {
-            Measure(source);
-            return Enumerable.Range(0, 3).Select(_ => Measure(source)).Min();
+            var warmup = Measure(source);
+            var samples = Enumerable.Range(0, 3).Select(_ => Measure(source)).ToArray();
+            ThreadPool.GetAvailableThreads(out int workers, out int completionPorts);
+            TestContext.Current.TestOutputHelper?.WriteLine("TV09_SAMPLES " + JsonSerializer.Serialize(new
+            {
+                path, WarmupTicks = warmup.Ticks, SampleTicks = samples.Select(s => s.Ticks),
+                WholeFileBytes = expected.Length, WholeFileSHA256 = Convert.ToHexString(SHA256.HashData(expected)),
+                AvailableWorkerThreads = workers, AvailableCompletionPorts = completionPorts,
+            }));
+            return samples.Min();
         }
         TimeSpan direct;
-        using (var file = new ImageFileSource(image)) direct = Best(file);
-        var (piped, _) = Session(image, 512);
+        using (var file = new ImageFileSource(image)) direct = Best(file, "direct");
+        var (piped, server) = Session(image, 512);
         TimeSpan through;
-        using (piped) through = Best(piped);
+        using (piped) through = Best(piped, "pipe");
+        Assert.Equal("FileCat closed the session.", await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         TestContext.Current.TestOutputHelper?.WriteLine($"TV-09: five scans and reads: direct {direct.TotalMilliseconds:F0} ms, through the helper's pipe {through.TotalMilliseconds:F0} ms.");
         Assert.True(through < direct * 20 + TimeSpan.FromSeconds(2), $"The pipe costs too much: {through} against {direct}.");
     }
