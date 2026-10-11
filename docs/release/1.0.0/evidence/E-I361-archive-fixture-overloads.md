@@ -8,6 +8,10 @@ The broader host Core inventory remains **3918P91S3F /4012 records**. One real G
 
 All original hosted failures, missing downstream inventories, raw skips and controller/setup errors remain. Shared independent postchecks verify3492 native files and restore eight host scratch roots/24 files. Exact committed and new original-push CI qualification remain separate next steps. No workstation UI or physical source was used.
 
+## Current followup —2026-10-11
+
+[Exact d9889ce qualification](E-I359-I361-committed-qualification.md) and the [original four-lane CI](E-CI-scheduler-rename-archive.md) now qualify the intended overload selections and all original assertions. The earlier68 hosted failures and three broad host failures remain. [I362](E-I362-nested-spool-admission.md) is a separately tested newer correction.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payload, commands, original failures/skips and restoration. Shared batch receipts have separate scopes below.

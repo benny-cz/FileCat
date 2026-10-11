@@ -28,7 +28,7 @@ public sealed record ArchiveMemberTag(string FullName, int Index, long Size, lon
 /// not opened; archives inside archives (of any supported format, ZIP included) open read-only from a private spool.
 /// Mark-of-the-Web propagates on extraction from the outermost marked file.
 /// </summary>
-public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
+public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
 {
     public const int MaxEntries = 1_000_000;
     public const long MaxMemberInMemory = 32L * 1024 * 1024;
@@ -40,7 +40,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     // One owner builds/publishes or retires indexes; concurrent misses must not abandon a competing build.
     private readonly object _cacheLock = new();
     private readonly ConcurrentDictionary<string, ArchiveIndex> _cache = new(PathUtil.SafetyComparer);
-    private readonly ConcurrentDictionary<string, (string Path, FileStream Holder, DateTime Used)> _spools = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ArchiveSpool> _spools = new(StringComparer.Ordinal);
     private readonly object _spoolLock = new();
     private readonly string _tempDirectory;
     private readonly ProviderRegistry _providers;
@@ -202,12 +202,13 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     public override IContentSource? OpenContent(ItemRef item)
     {
         var root = item.Parent.WithPath(string.Empty);
-        string path = ArchiveFile(root, 0);
+        using var source = ArchiveFile(root, 0);
+        string path = source.Path;
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
         // Admission owns the index until extraction has copied bytes or acquired its progressive lease.
         lock (_cacheLock)
         {
-            var index = GetIndex(root, path, CancellationToken.None);
+            var index = GetIndex(root, source, CancellationToken.None);
             var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
             if (tag.Encrypted) return null;
@@ -224,12 +225,14 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     private ArchiveIndex GetIndex(Location location, CancellationToken ct)
     {
         var root = location.WithPath(string.Empty);
-        string path = ArchiveFile(root, 0);
-        lock (_cacheLock) return GetIndex(root, path, ct);
+        using var source = ArchiveFile(root, 0);
+        string path = source.Path;
+        lock (_cacheLock) return GetIndex(root, source, ct);
     }
 
-    private ArchiveIndex GetIndex(Location root, string path, CancellationToken ct)
+    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct)
     {
+        string path = source.Path;
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         string? sourceIdentity = GetSourceIdentity(path);
@@ -252,6 +255,7 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
             throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
         }
         var index = ArchiveIndex.Build(reader, fi.Length, ct);
+        index.KeepSource(source);
         _cache[key] = index;
         // Archives opened before are kept for going back into them: eight at most, and their indexes together within
         // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The two used last
@@ -274,12 +278,12 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     public int RetainedIndexes => _cache.Count;
 
     /// <summary>The local file holding the archive: the file itself, or a private spool of a member of another archive.</summary>
-    private string ArchiveFile(Location location, int depth)
+    private ArchiveSourceLease ArchiveFile(Location location, int depth)
     {
         var container = location.Container ?? throw new InvalidOperationException("Archive location without its archive.");
-        if (container.IsFileSystem) return container.Path;
+        if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
         if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
-        return Spool(container);
+        return OpenSpool(container);
     }
 
     /// <summary>
@@ -287,6 +291,12 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
     /// when FileCat ends (the file is opened delete-on-close). Used for ZIPs inside these archives too.
     /// </summary>
     public string Spool(Location member)
+    {
+        using var source = OpenSpool(member);
+        return source.Path;
+    }
+
+    public ArchiveSourceLease OpenSpool(Location member)
     {
         int slash = member.Path.LastIndexOf('/');
         var folder = member.WithPath(slash < 0 ? string.Empty : member.Path[..slash]);
@@ -299,16 +309,16 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
         {
             if (_spools.TryGetValue(key, out var existing))
             {
-                _spools[key] = existing with { Used = DateTime.UtcNow };
-                return existing.Path;
+                existing.Used = DateTime.UtcNow;
+                return existing.Acquire();
             }
-            using var source = ProgressiveContent.Sequential(provider.OpenContent(new ItemRef(folder, name, EntryKind.File)))
-                               ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
             Directory.CreateDirectory(_tempDirectory);
             string spoolPath = Path.Combine(_tempDirectory, $"nested-{Guid.NewGuid():N}{Path.GetExtension(name)}");
             var holder = new FileStream(spoolPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.DeleteOnClose);
             try
             {
+            using var source = ProgressiveContent.Sequential(provider.OpenContent(new ItemRef(folder, name, EntryKind.File)))
+                               ?? throw new NotSupportedException("The inner archive is encrypted and cannot be opened here.");
                 var buffer = new byte[256 * 1024];
                 long offset = 0;
                 int n;
@@ -325,7 +335,8 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
                 holder.Dispose();
                 throw;
             }
-            _spools[key] = (spoolPath, holder, DateTime.UtcNow);
+            var added = new ArchiveSpool(spoolPath, holder);
+            _spools[key] = added;
             while (_spools.Count > MaxNestedSpools)
             {
                 var oldest = _spools.OrderBy(kv => kv.Value.Used).First();
@@ -333,11 +344,11 @@ public sealed class ArchiveProvider : ResourceProvider, IContainerDetector
                 Exception? failure = null;
                 try { Release(evicted.Path); }
                 catch (Exception ex) { failure = ex; }
-                try { evicted.Holder.Dispose(); }
+                try { evicted.Dispose(); }
                 catch (Exception ex) when (failure is not null) { FileCat.Core.Diagnostics.AppLog.Warn("Secondary nested archive spool cleanup failure: " + ex.GetType().Name); }
                 if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
             }
-            return spoolPath;
+            return added.Acquire();
         }
     }
 
@@ -368,6 +379,8 @@ internal sealed class ArchiveIndex : IDisposable
 {
     private readonly object _lock = new();
     private readonly IMemberReader _reader;
+    private ArchiveSourceLease? _source;
+    public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
     private readonly long _archiveLength;
 
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ArchiveMemberTag? Tag);
@@ -558,7 +571,7 @@ internal sealed class ArchiveIndex : IDisposable
         lock (_lock)
         {
             if (ReferenceEquals(_cursorOwner, content)) _cursorOwner = null;
-            if (--_leases == 0 && _closing) _reader.Dispose();
+            if (--_leases == 0 && _closing) Close();
         }
     }
 
@@ -568,8 +581,16 @@ internal sealed class ArchiveIndex : IDisposable
         {
             if (_closing) return;
             _closing = true;
-            if (_leases == 0) _reader.Dispose();
+            if (_leases == 0) Close();
         }
+    }
+    private void Close()
+    {
+        Exception? failure = null;
+        try { _reader.Dispose(); } catch (Exception ex) { failure = ex; }
+        try { Interlocked.Exchange(ref _source, null)?.Dispose(); }
+        catch (Exception ex) when (failure is not null) { FileCat.Core.Diagnostics.AppLog.Warn("Secondary archive source cleanup failure: " + ex.GetType().Name); }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }
 

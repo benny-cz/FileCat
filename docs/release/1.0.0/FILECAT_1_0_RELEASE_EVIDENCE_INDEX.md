@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**526 evidence entries; none is final candidate qualification.** No candidate exists.
+**530 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -537,6 +537,10 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I361 | [Exact archive-fixture overload selection](evidence/E-I361-archive-fixture-overloads.md) | 0a8a8ee/1625 raw blobs/four overlays | 68 host/native passes/four Unix skips; broad3918P91S3F | Same binaries/short-temp bounded repeat4P | Original68 hosted failures and three host failures retained |
 | E-I358-NATIVE | [Exact opened-source binding qualification](evidence/E-I358-native-qualification.md) | 0a8a8ee/1625 raw blobs/no overlays | 408 controls;7142 affected/179 exact skips;377 App | 966 native files/two host roots/fifteen files | Wider lazy-reopen/native/atomic/physical/candidate remain |
 | E-CI-OPENED-BINDING | [Original opened-source binding CI](evidence/E-CI-opened-source-binding.md) | 38160106048/attempt1/0a8a8ee | 20165P590S68F;408 source controls pass | 14 archives/seven TRX/1625 blobs/92 graphs/four builds | All four lanes fail; downstream missing inventories retained |
+| E-I362 | [Nested private-source admission lifetime](evidence/E-I362-nested-spool-admission.md) | d9889ce /1,631 blobs/seven declared overlays | 112 final controls;1,605 native affected/77 skips;114 host App passes | 1,161 latest native files/seven host roots/ten files | 16 original pressure failures; first compile/Mac controller errors retained |
+| E-I359-I361-EXACT | [Committed scheduler/rename/archive qualification](evidence/E-I359-I361-committed-qualification.md) | d9889ce /1,631 raw blobs/no overlays | 408 source controls;7,114 affected Core/177 skips;1,524 App/46 skips | 1,590 native files/three host roots/eleven files | Predates I362; original wrapper errors and historical failures retained |
+| E-I106-LAZY | [Controlled cached-index lazy reopening](evidence/E-I106-lazy-source-reopen.md) | d9889ce /one identical new test overlay | 72 controls/36 refusals/108 complete reads | Whole original/replacement archives/actual source IDs/closure | No product change; wider atomic/topology/physical/candidate scope remains |
+| E-CI-SCHEDULER-ARCHIVE | [Original scheduler/rename/archive CI](evidence/E-CI-scheduler-rename-archive.md) | 38163628223 /attempt1/d9889ce | 32,739 passes/1,077 exact skips;all33,648 predecessor records retained | 27 digest archives/14TRX/1,631 blobs/92 graphs/four clean builds | Two reader name-encoding rejections retained; predates I362/no candidate |
 
 <a id="commits-made-by-the-campaign"></a>
 

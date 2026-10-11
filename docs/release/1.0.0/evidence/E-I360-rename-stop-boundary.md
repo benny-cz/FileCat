@@ -8,6 +8,10 @@ All **136 final rename controls pass** across host and three native platforms, i
 
 The [original dfe32b3 hosted shutdown failure](E-CI-nested-reader-admission.md) remains adverse with its historical cause unproven. The controlled distinction above is not retrospective schedule evidence. Zero-test selector/preparation failures and the Windows Core post-processing failure remain retained. Shared independent postchecks verify3492 native files and eight restored host roots/24 files. Atomic rename/source identity, physical-source HOLD, wider resources and candidate scope remain.
 
+## Current followup —2026-10-11
+
+[Exact d9889ce qualification](E-I359-I361-committed-qualification.md) now passes all136 rename controls and1,524 affected App records/46 explicit skips, with original controller errors retained separately. Its [original CI](E-CI-scheduler-rename-archive.md) also passes. Earlier failed hosted schedules retain unproven causes; strict queued assertions remain unchanged.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payload, commands, original failures/skips and restoration. Shared batch receipts have separate scopes below.

@@ -164,10 +164,9 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
                 foreach (var pair in cache)
                 {
                     var value = pair.GetType().GetProperty("Value")!.GetValue(pair)!;
-                    string spool = field == "_nested" ? (string)value.GetType().GetProperty("Path")!.GetValue(value)! : (string)value.GetType().GetField("Item1")!.GetValue(value)!;
+                    string spool = (string)value.GetType().GetProperty("Path")!.GetValue(value)!;
                     zip.Release(spool); archive.Release(spool);
-                    if (value is IDisposable disposable) disposable.Dispose();
-                    else ((FileStream)value.GetType().GetField("Item2")!.GetValue(value)!).Dispose();
+                    ((IDisposable)value).Dispose();
                 }
             }
             Directory.Delete(root, recursive: true);

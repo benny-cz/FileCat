@@ -71,7 +71,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     /// The local file of the archive a location is inside. For an archive nested in an archive, the location's container
     /// is the member location in the outer archive, and the inner archive is read from a private spool (plan §15).
     /// </summary>
-    private string ZipPath(Location l) => ArchiveFile(l, 0);
+    private ArchiveSourceLease ZipPath(Location l) => ArchiveFile(l, 0);
 
     /// <summary>What users see: "C:\x\outer.zip\dir\inner.zip\sub", never a spool path.</summary>
     private static string DisplayArchive(Location l)
@@ -122,33 +122,27 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public const int MaxNestedSpools = 4;
     public const int MaxNestingDepth = 8;
     // A nested key also contains an archive member name, which is always case-sensitive.
-    private readonly ConcurrentDictionary<string, NestedSpool> _nested = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ArchiveSpool> _nested = new(StringComparer.Ordinal);
     private readonly object _nestedLock = new();
 
-    /// <summary>An inner archive spooled privately; the file is deleted when the holder closes (also after a crash).</summary>
-    private sealed class NestedSpool(string path, FileStream holder) : IDisposable
-    {
-        public string Path { get; } = path;
-        public DateTime LastUsed { get; set; } = DateTime.UtcNow;
-        public void Dispose() => holder.Dispose();
-    }
-
-    private string ArchiveFile(Location location, int depth)
+    private ArchiveSourceLease ArchiveFile(Location location, int depth)
     {
         var container = location.Container ?? throw new InvalidOperationException("ZIP location without its archive.");
-        if (container.IsFileSystem) return container.Path;
+        if (container.IsFileSystem) return new ArchiveSourceLease(container.Path);
         if (container.Scheme != Schemes.Zip)
-            return SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from.");
+            return OtherArchives is IArchiveSpoolProvider spools ? spools.OpenSpool(container)
+                : new ArchiveSourceLease(SpoolForeignMember?.Invoke(container) ?? throw new NotSupportedException("This archive is inside a location FileCat cannot read archives from."));
         if (depth >= MaxNestingDepth) throw new InvalidDataException($"Archives are nested more than {MaxNestingDepth} levels deep.");
-        string outer = ArchiveFile(container, depth + 1);
+        using var outerSource = ArchiveFile(container, depth + 1);
+        string outer = outerSource.Path;
         var info = new FileInfo(outer);
         string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}|{SourceIdentityKey(outer)}";
         lock (_nestedLock)
         {
             if (_nested.TryGetValue(key, out var cached))
             {
-                cached.LastUsed = DateTime.UtcNow;
-                return cached.Path;
+                cached.Used = DateTime.UtcNow;
+                return cached.Acquire();
             }
             int slash = container.Path.LastIndexOf('/');
             var folder = container.WithPath(slash < 0 ? string.Empty : container.Path[..slash]);
@@ -159,7 +153,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             // The resolved outer path avoids taking the nested lock again under the cache lock.
             lock (_cacheLock)
             {
-                var index = GetIndex(folder, outer);
+                var index = GetIndex(folder, outerSource);
                 var node = index.Children.GetValueOrDefault(folder.Path)?.Where(n => !n.IsDirectory && n.Name == name).ToList() ?? [];
                 if (node.Count == 0) throw new FileNotFoundException($"\"{container.Path}\" is not in the archive.");
                 if (node.Count > 1) throw new NotSupportedException("Several members share this name; extract the one you want with F5, then open it.");
@@ -172,15 +166,16 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
                 try { index.CopyMember(tag, holder); }
                 catch { holder.Dispose(); throw; }
             }
-            _nested[key] = new NestedSpool(spoolPath, holder);
+            var added = new ArchiveSpool(spoolPath, holder);
+            _nested[key] = added;
             while (_nested.Count > MaxNestedSpools)
             {
-                var oldest = _nested.OrderBy(kv => kv.Value.LastUsed).First();
+                var oldest = _nested.OrderBy(kv => kv.Value.Used).First();
                 if (!_nested.TryRemove(oldest.Key, out var evicted)) break;
                 Release(evicted.Path);
                 evicted.Dispose();
             }
-            return spoolPath;
+            return added.Acquire();
         }
     }
 
@@ -315,12 +310,12 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     public override IContentSource? OpenContent(ItemRef item)
     {
-        string path = ZipPath(item.Parent);
+        using var source = ZipPath(item.Parent);
         // Resolve nested paths before taking the cache lock; cross-provider spool locks stay ordered.
         // Admission owns the index until extraction has copied bytes or acquired its progressive lease.
         lock (_cacheLock)
         {
-            var index = GetIndex(item.Parent, path);
+            var index = GetIndex(item.Parent, source);
             var name = item.Name;
             int ordinal = item.Ordinal;
             var full = item.Parent.Path.Length == 0 ? name : item.Parent.Path + "/" + name;
@@ -336,12 +331,13 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     private ZipIndex GetIndex(Location location)
     {
-        var path = ZipPath(location);
-        lock (_cacheLock) return GetIndex(location, path);
+        using var source = ZipPath(location);
+        lock (_cacheLock) return GetIndex(location, source);
     }
 
-    private ZipIndex GetIndex(Location location, string path)
+    private ZipIndex GetIndex(Location location, ArchiveSourceLease source)
     {
+        string path = source.Path;
         var fi = new FileInfo(path);
         if (!fi.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
         string? sourceIdentity = GetSourceIdentity(path);
@@ -359,6 +355,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         }
         var index = ZipIndex.Build(path, location.Session is { Length: > 0 } enc ? Encoding.GetEncoding(enc) : null,
             handle => OpenedSourceIdentity.RequireMatch(handle, sourceIdentity, GetOpenedSourceIdentity));
+        index.KeepSource(source);
         _cache[key] = index;
         // Archives opened before are kept for going back into them: eight at most, and their indexes together within
         // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The two used last
@@ -586,6 +583,8 @@ internal sealed class ZipIndex : IDisposable
         MemberLimits.Of(Math.Max(0, entry.Length), entry.CompressedLength, ZipProvider.MaxSpooledMember, ZipProvider.MaxExpansionRatio, entry.Crc32);
 
     // Members being read keep the archive open: an index dropped from the cache closes when the last one is disposed.
+    private ArchiveSourceLease? _source;
+    public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
     private int _leases;
     private bool _closing;
 
@@ -609,8 +608,13 @@ internal sealed class ZipIndex : IDisposable
 
     private void Close()
     {
-        _archive.Dispose();
-        _stream.Dispose();
+        Exception? failure = null;
+        try { _archive.Dispose(); } catch (Exception ex) { failure = ex; }
+        try { _stream.Dispose(); }
+        catch (Exception ex) { if (failure is null) failure = ex; else Diagnostics.AppLog.Warn("Secondary ZIP stream cleanup failure: " + ex.GetType().Name); }
+        try { Interlocked.Exchange(ref _source, null)?.Dispose(); }
+        catch (Exception ex) when (failure is not null) { Diagnostics.AppLog.Warn("Secondary ZIP source cleanup failure: " + ex.GetType().Name); }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }
 

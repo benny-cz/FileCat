@@ -36,7 +36,7 @@ Broader transfer/synchronization follow-ups remain in V02/V08/V13 and their own 
 
 ## Current followup —2026-10-11
 
-[I359 scheduler admission](E-I359-idle-worker-burst.md), [I360 rename stop boundaries](E-I360-rename-stop-boundary.md) and [I361 CI fixture overloads](E-I361-archive-fixture-overloads.md) now qualify sixteen/136/68 passing controls with four explicit Unix skips,3492 native file checks and eight restored host roots. The4012-case host Core result retains three failures and its separate four-pass bounded repeat; no all-Core green claim. [Exact I358](E-I358-native-qualification.md) passes408 controls; its [original CI](E-CI-opened-source-binding.md) retains68 fixture failures. Prior hosted timing causes and wider I06 scope remain.
+[I362](E-I362-nested-spool-admission.md) now keeps private nested source paths alive through admission and index/progressive retirement:112 final controls,1,605 native affected records/77 explicit skips and114 unchanged host App cases pass. Independent checks verify1,161 latest native files/seven restored host roots. [Exact d9889ce](E-I359-I361-committed-qualification.md) seals the preceding scheduler/rename/archive batch; its [original CI](E-CI-scheduler-rename-archive.md) is fully green. Original adverse results and broader whole-process/native resource scope remain.
 
 ## Selected immutable receipts
 

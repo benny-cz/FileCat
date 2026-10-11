@@ -20,7 +20,7 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 ## Current followup —2026-10-11
 
-[Exact I358](E-I358-native-qualification.md) seals fresh opened-handle binding at0a8a8ee without overlays. [Current original CI](E-CI-opened-source-binding.md) retains68 reflection-fixture failures, corrected separately in [I361](E-I361-archive-fixture-overloads.md). I359/I360 qualify scheduler/stop fixtures; controlled lazy reopens, cached observations, spool eviction, atomic and physical/candidate scopes remain. Physical HOLD is unchanged.
+[Controlled lazy reopening](E-I106-lazy-source-reopen.md) qualifies72 controls/36 refusals/108 complete reads on d9889ce with no product change. [I362](E-I362-nested-spool-admission.md) separately corrects an observed nested-spool eviction/admission defect, with112 final controls and full byte/lifetime oracles. [Exact preceding source](E-I359-I361-committed-qualification.md) and [original CI](E-CI-scheduler-rename-archive.md) qualify separately. Wider provider/topology/atomic/native/candidate scope remains; physical HOLD is unchanged.
 
 ## Full preliminary scope retained from ec5868e
 

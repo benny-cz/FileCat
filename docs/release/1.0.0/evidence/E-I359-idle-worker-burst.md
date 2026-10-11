@@ -8,6 +8,10 @@ Host affected coverage is **101 passes/one skip**. Native affected inventories r
 
 This scheduler defect was found while making the [rename stop fixture](E-I360-rename-stop-boundary.md) genuinely queued. It does not establish the cause of historical hosted rename or edit failures. Wider I06 resources/native/frame/reference/candidate scopes remain; no workstation UI, physical source or persistent machine setting changed.
 
+## Current followup —2026-10-11
+
+[Exact committed qualification](E-I359-I361-committed-qualification.md) now verifies this correction at d9889ce, and its [original four-lane CI](E-CI-scheduler-rename-archive.md) passes with all predecessor outcomes/messages/skips retained. [I362](E-I362-nested-spool-admission.md) is a separate newer source-lifetime correction requiring its own committed followup. Historical adverse causes and broader I06 scope remain.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payload, commands, original failures/skips and restoration. Shared batch receipts have separate scopes below.

@@ -29,7 +29,7 @@ public sealed class ArchiveSpoolEvictionFailureTests(ITestOutputHelper output)
         var registry = new ProviderRegistry(); registry.Register(new LocalFileSystemProvider());
         var provider = new ArchiveProvider(temp, registry) { GetSourceIdentity = new IdentityAwareTestFiles().GetFileIdentity, GetOpenedSourceIdentity = new IdentityAwareTestFiles().GetHandleIdentity }; registry.Register(provider);
         var flags = BindingFlags.NonPublic | BindingFlags.Instance;
-        var spools = (ConcurrentDictionary<string, (string Path, FileStream Holder, DateTime Used)>)typeof(ArchiveProvider).GetField("_spools", flags)!.GetValue(provider)!;
+        var spools = (ConcurrentDictionary<string, FileCat.Core.Archives.ArchiveSpool>)typeof(ArchiveProvider).GetField("_spools", flags)!.GetValue(provider)!;
         var cache = (IDictionary)typeof(ArchiveProvider).GetField("_cache", flags)!.GetValue(provider)!;
         FileStream? evictedHolder = null;
         try
@@ -109,7 +109,7 @@ public sealed class ArchiveSpoolEvictionFailureTests(ITestOutputHelper output)
         finally
         {
             foreach (string key in cache.Keys.Cast<string>().ToArray()) if (cache[key] is IDisposable index) try { index.Dispose(); } catch { }
-            foreach (var spool in spools.Values) spool.Holder.Dispose();
+            foreach (var spool in spools.Values) spool.Dispose();
             evictedHolder?.Dispose(); Directory.Delete(root, recursive: true);
         }
     }
