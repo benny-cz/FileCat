@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**479 evidence entries; none is final candidate qualification.** No candidate exists.
+**481 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -490,6 +490,8 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-I342 | [Staging fixture ordering and final gated batch](evidence/E-I342-staging-fixture-ordering.md) | e9f15bf/1558 raw blobs/four overlays | 38 local/90 native passes; controlled ordering reproduction | 4060 prior results/109 skips/966 native file checks; restored owned roots | Exact committed/hosted/candidate follow-up remains |
 | E-I340-NATIVE | [Exact stream staging qualification](evidence/E-I340-native-qualification.md) | e9f15bf/1558 raw blobs/no overlays | 14 local/42 native passes | 4032 prior results/107 skips/907 native file checks | Original CI failure remains adverse |
 | E-CI-I340 | [Original stream staging CI failure](evidence/E-CI-stream-staging-ownership.md) | 38126315498 attempt 1/e9f15bf | Three lanes pass; Mac fails one new fixture case | 24 digest archives/12 TRX/28492 records/55 new passes and one failure; two inventories unavailable | Original failure retained; I342 corrects fixture |
+| E-I343 | [Backing source protection at changed staging paths](evidence/E-I343-backing-staging-replacement.md) | 1b13697/1564 raw blobs/declared overlays | 24 local/48 native fixed controls; six adverse baseline cases per producer | 4060 prior results/109 skips/1279 native file checks; whole bytes and native identities | Unknown identity/atomic/physical/candidate remain |
+| E-I341-I342-NATIVE | [Exact staging ownership and fixture qualification](evidence/E-I341-I342-native-qualification.md) | 1b13697/1564 raw blobs/no overlays | 38 local/90 native passes | 4060 prior results/109 skips/966 native file checks; complete restoration | Original CI and candidate follow-up separate |
 
 <a id="commits-made-by-the-campaign"></a>
 

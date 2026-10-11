@@ -183,7 +183,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
     }
 
-    private void CheckBackingTarget(string target)
+    private void CheckBackingTarget(string target, bool observeCancellation = true)
     {
         if (_backingFiles.Count == 0) return;
         const string refusal = "The output would replace a source image or container file. Choose another name or destination.";
@@ -194,7 +194,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var identity = Fs.GetFileIdentity(final ?? path);
         foreach (var backing in _backingFiles)
         {
-            Job.Checkpoint();
+            if (observeCancellation) Job.Checkpoint();
             var currentFinal = Fs.GetFinalPath(backing.Path);
             var currentIdentity = Fs.GetFileIdentity(currentFinal ?? backing.Path);
             if (final is not null && (PathUtil.SafetyComparer.Equals(final, backing.FinalPath) ||
@@ -369,6 +369,19 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var dir = Path.GetDirectoryName(target)!;
         var staged = Path.Combine(dir, $"{JournalRecovery.StagedPrefix}{Job.ShortId}-{Interlocked.Increment(ref _staged)}.tmp");
         bool stagedOwned = false;
+        void DiscardOwnedStaging()
+        {
+            if (!stagedOwned) return;
+            try
+            {
+                // Creation ownership does not authorize deleting a source container renamed into this path later.
+                // Cleanup still runs during cancellation, while backing identity/path checks remain required.
+                CheckBackingTarget(staged, observeCancellation: false);
+                File.Delete(staged);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
         long written = 0;
         IReadOnlyList<(long Offset, long Length)>? lost = null;
         string? caveat = null;
@@ -489,10 +502,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                 if (Job.Request.Options.Verify == VerifyMode.ReadBack && !partial)
                 {
                     DisposeContent();
+                    CheckBackingTarget(staged);
                     if (VerifyCopy(provider, item, staged, written, revision) is not true and var verified)
                     {
                         Job.AddBytes(-written);
-                        try { if (stagedOwned) File.Delete(staged); } catch (IOException) { }
+                        DiscardOwnedStaging();
                         Job.ItemFailed();
                         Issue(IssueSeverity.Error, item.Name, verified is false
                             ? "Read-back verification found different content; the copy was discarded."
@@ -507,12 +521,13 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             }
             // Reading, verification or closing a provider can change the path. Refuse before publication and use
             // the same owned-staging/progress cleanup as other failed copies. Separate checks are not atomic rename.
+            CheckBackingTarget(staged);
             CheckBackingTarget(target);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
             Job.AddBytes(-written);
-            try { if (stagedOwned && File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
+            DiscardOwnedStaging();
             if (ex is OperationCanceledException) throw;
             Job.ItemFailed();
             if (ex is SkippedTransferException skipped)
@@ -524,7 +539,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         {
             // Keep the original unexpected failure, but release the owned partial copy and its progress first.
             Job.AddBytes(-written);
-            try { if (stagedOwned && File.Exists(staged)) File.Delete(staged); } catch (IOException) { }
+            DiscardOwnedStaging();
             throw;
         }
         // Publishing a new item is group-committed like local copies (plan §9.3); replacing one is flushed first.
@@ -536,13 +551,14 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             // Check again inside the retry action; a changed or unknown source disk must still refuse.
             if (DestinationRefusal(item.Parent, dir) is { } refusal) throw new IOException(refusal);
             CheckBackingTarget(target);
+            CheckBackingTarget(staged);
             Fs.Move(staged, target, replace);
         });
         Journal.Done(step, ok ? StepOutcome.Committed : StepOutcome.Failed);
         if (!ok)
         {
             Job.AddBytes(-written);
-            try { if (stagedOwned) File.Delete(staged); } catch (IOException) { }
+            DiscardOwnedStaging();
             Job.ItemFailed();
             return false;
         }

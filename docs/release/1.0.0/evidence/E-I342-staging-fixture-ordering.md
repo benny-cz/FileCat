@@ -8,7 +8,7 @@ Permanent fixtures now signal a ManualResetEventSlim after installation, and the
 
 All **38 local and 90 native controls** pass. Independent whole-byte oracles check collisions, healthy output, original target preservation, source closure, owned partial cleanup and failed progress. Every **4060 selected predecessor outcome/message and 109 exact skips** remains: 837 Core/14 Windows records locally, 1065 Core records on each native platform and fourteen native CopyFile2 records. Fresh postchecks verify **966 native files**, absent owned processes/temporary roots and stopped Windows listeners. Seven reconstructable host fixture images are verified before retirement; complete SDK logs remain retained. The controlled ordering probe's two owned roots are also restored. No host UI, physical device, package or persistent setting changes.
 
-The [broader paired I341 matrix](E-I341-local-staging-ownership.md) and its timeouts/cleanup refusals retain distinct identities. These final assemblies use declared overlays; exact committed and original hosted qualification follow separately. Wider fixture ordering, cleanup identity/atomic races, physical-source HOLD, candidate/owner decisions and explicit human GO remain.
+The [broader paired I341 matrix](E-I341-local-staging-ownership.md) and its timeouts/cleanup refusals retain distinct identities. These final assemblies use declared overlays; [exact committed/native follow-up](E-I341-I342-native-qualification.md) passes 38 local/90 native controls at 1b13697/no overlays. Original hosted qualification follows separately. Wider fixture ordering, cleanup identity/atomic races, physical-source HOLD, candidate/owner decisions and explicit human GO remain.
 
 ## Selected immutable receipts
 
