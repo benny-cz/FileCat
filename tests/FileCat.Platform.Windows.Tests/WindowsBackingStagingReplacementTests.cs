@@ -87,7 +87,8 @@ public sealed class WindowsBackingStagingReplacementTests(ITestOutputHelper outp
         public override string? GetFileIdentity(string path)
         {
             string? identity = NativeIdentityUsed ? base.GetFileIdentity(path) : File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(original) ? "controlled-owned-source-image" : null;
-            if (path == source && !Replaced) OriginalIdentity = identity;
+            // DirectoryInfo.FullName can normalize a Windows root's casing differently from GetTempPath().
+            if (string.Equals(path, source, StringComparison.OrdinalIgnoreCase) && !Replaced) OriginalIdentity = identity;
             Queries.Add(new { Path = path, Identity = identity, Replaced }); return identity;
         }
         public override void Move(string from, string to, bool replaceExisting, bool writeThrough = false)

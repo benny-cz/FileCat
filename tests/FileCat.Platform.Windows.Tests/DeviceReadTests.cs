@@ -17,6 +17,9 @@ namespace FileCat.Platform.Windows.Tests;
 /// </summary>
 public sealed class DeviceReadTests : IDisposable
 {
+    // Hosted ARM64 runners can pause the dedicated pipe-serving thread after the client closes.
+    // Keep a finite exit bound and still require the server's exact close acknowledgement.
+    private static readonly TimeSpan ServerExitTimeout = TimeSpan.FromSeconds(20);
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "filecat-device-tests", Guid.NewGuid().ToString("N")[..10]);
 
     public DeviceReadTests() => Directory.CreateDirectory(_dir);
@@ -69,7 +72,7 @@ public sealed class DeviceReadTests : IDisposable
             }
             Assert.Equal(0, source.Read(bytes.Length + 5L, new byte[10]));
         }
-        Assert.Equal("FileCat closed the session.", await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.Equal("FileCat closed the session.", await server.WaitAsync(ServerExitTimeout, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -91,7 +94,7 @@ public sealed class DeviceReadTests : IDisposable
             Assert.Equal(data.Length, content.Read(0, data));
             Assert.StartsWith("report.txt:00000000\n", System.Text.Encoding.UTF8.GetString(data), StringComparison.Ordinal);
         }
-        Assert.Equal("FileCat closed the session.", await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.Equal("FileCat closed the session.", await server.WaitAsync(ServerExitTimeout, TestContext.Current.CancellationToken));
     }
 
     /// <summary>TV-09: what the helper's pipe costs a scan and a whole-file read, compared with reading the image directly.</summary>
@@ -146,7 +149,7 @@ public sealed class DeviceReadTests : IDisposable
         var (piped, server) = Session(image, 512);
         TimeSpan through;
         using (piped) through = Best(piped, "pipe");
-        Assert.Equal("FileCat closed the session.", await server.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.Equal("FileCat closed the session.", await server.WaitAsync(ServerExitTimeout, TestContext.Current.CancellationToken));
         TestContext.Current.TestOutputHelper?.WriteLine($"TV-09: five scans and reads: direct {direct.TotalMilliseconds:F0} ms, through the helper's pipe {through.TotalMilliseconds:F0} ms.");
         Assert.True(through < direct * 20 + TimeSpan.FromSeconds(2), $"The pipe costs too much: {through} against {direct}.");
     }
