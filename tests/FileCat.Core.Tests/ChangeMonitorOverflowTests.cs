@@ -42,8 +42,15 @@ public sealed class ChangeMonitorOverflowTests
                 var state = active;
                 if (state is null) return;
                 string[] names = Directory.GetFiles(folder).Select(p => Path.GetFileName(p)).Order(StringComparer.Ordinal).ToArray();
+                bool FinalBytes(string name)
+                {
+                    try { return File.ReadAllBytes(Path.Combine(folder, name)).AsSpan().SequenceEqual("done"u8); }
+                    // A native notification can arrive while a writer still owns the completion marker, or
+                    // after a listed churn file has been removed. This is a non-final observation, not a test crash.
+                    catch (IOException) { return false; }
+                }
                 bool exact = names.SequenceEqual(state.ExpectedNames) &&
-                    names.All(name => File.ReadAllBytes(Path.Combine(folder, name)).AsSpan().SequenceEqual("done"u8));
+                    names.All(FinalBytes);
                 var reading = new Reading(state.Round, DateTime.UtcNow.Ticks, Stopwatch.GetTimestamp(), names.Length, exact);
                 observations.Add(reading);
                 if (exact) state.FinalObserved.TrySetResult(reading);

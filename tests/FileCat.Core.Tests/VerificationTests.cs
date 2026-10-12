@@ -67,6 +67,25 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void Repeated_manifest_claims_keep_each_line_but_cover_each_file_once()
+    {
+        Write("a.txt", "a");
+        Write("b.txt", "b");
+        string repeated = Sha256("a") + "  a.txt\n";
+        string[] otherNames = Enumerable.Range(0, 24).Select(i => $"other-{i:00}.txt").ToArray();
+        foreach (string name in otherNames) Write(name, name);
+        string otherLines = string.Concat(otherNames.Select(name => Sha256(name) + "  " + name + "\n"));
+        Write("SHA256SUMS", string.Concat(Enumerable.Repeat(repeated, 512)) + Sha256("b") + "  b.txt\n" + otherLines);
+
+        var sidecars = FolderSidecars.Scan(_dir, TestContext.Current.CancellationToken);
+        var claims = sidecars.Checksums("a.txt");
+        Assert.Equal(512, claims.Count);
+        Assert.Equal(Enumerable.Range(1, 512), claims.Select(c => c.Line));
+        Assert.Single(sidecars.Checksums("b.txt"));
+        Assert.Equal(["a.txt", "b.txt", .. otherNames], sidecars.Covered("SHA256SUMS"));
+    }
+
+    [Fact]
     public void A_file_matches_or_differs_and_weak_algorithms_say_what_they_show()
     {
         Write("a.txt", "a");

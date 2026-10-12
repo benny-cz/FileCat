@@ -41,6 +41,8 @@ public sealed class FolderSidecars
     private readonly Dictionary<string, List<ChecksumClaim>> _checksums;
     private readonly Dictionary<string, List<SignatureClaim>> _signatures;
     private readonly Dictionary<string, List<string>> _covers;
+    private readonly Dictionary<string, HashSet<string>> _coveredNames;
+    private readonly StringComparer _names;
 
     public string Folder { get; }
 
@@ -53,9 +55,11 @@ public sealed class FolderSidecars
     {
         Folder = folder;
         Sources = sources;
+        _names = names;
         _checksums = new(names);
         _signatures = new(names);
         _covers = new(names);
+        _coveredNames = new(names);
     }
 
     public IReadOnlyList<ChecksumClaim> Checksums(string name) => _checksums.TryGetValue(name, out var list) ? list : [];
@@ -98,8 +102,8 @@ public sealed class FolderSidecars
         if (FindFile(files, signed, signature.DirectoryName!) is not { } target) return;
         var kind = name.EndsWith(".minisig", StringComparison.OrdinalIgnoreCase) ? SignatureKind.Minisign : SignatureKind.OpenPgp;
         var claim = new SignatureClaim(kind, signature.FullName, target.FullName);
-        Add(_signatures, target.Name, claim);
-        Add(_covers, name, target.Name);
+        AddClaim(_signatures, target.Name, claim);
+        AddCovered(name, target.Name);
     }
 
     private void AddChecksums(string name, FileInfo sidecar, Dictionary<string, FileInfo> files)
@@ -114,8 +118,8 @@ public sealed class FolderSidecars
             if (!string.Equals(Path.GetDirectoryName(entry.Path), sidecar.DirectoryName, StringComparison.OrdinalIgnoreCase)) continue;
             string covered = Path.GetFileName(entry.Path);
             if (FindFile(files, covered, sidecar.DirectoryName!) is not { } coveredFile) continue;
-            Add(_checksums, coveredFile.Name, new ChecksumClaim(entry.Kind, entry.Expected, sidecar.FullName, entry.Line));
-            Add(_covers, name, coveredFile.Name);
+            AddClaim(_checksums, coveredFile.Name, new ChecksumClaim(entry.Kind, entry.Expected, sidecar.FullName, entry.Line));
+            AddCovered(name, coveredFile.Name);
             any = true;
         }
         if (any) return;
@@ -123,8 +127,8 @@ public sealed class FolderSidecars
         if (ChecksumManifests.KindFromName(name) is not { } kind || BareChecksum(sidecar.FullName, kind) is not { } expected) return;
         string? target = TargetOf(name, files, sidecar.DirectoryName!);
         if (target is null) return;
-        Add(_checksums, target, new ChecksumClaim(kind, expected, sidecar.FullName, 1));
-        Add(_covers, name, target);
+        AddClaim(_checksums, target, new ChecksumClaim(kind, expected, sidecar.FullName, 1));
+        AddCovered(name, target);
     }
 
     /// <summary>"X.iso.sha256" checks "X.iso"; "X.sha256" checks the one file named "X.something" there is.</summary>
@@ -160,9 +164,30 @@ public sealed class FolderSidecars
         return first.Length == Operations.Checksums.HexLength(kind) && first.All(Uri.IsHexDigit) ? first.ToLowerInvariant() : null;
     }
 
-    private static void Add<T>(Dictionary<string, List<T>> map, string key, T value)
+    private static void AddClaim<T>(Dictionary<string, List<T>> map, string key, T value)
     {
         if (!map.TryGetValue(key, out var list)) map[key] = list = [];
-        if (!list.Contains(value)) list.Add(value);
+        // Each parsed manifest line has a distinct source/line pair, and each signature file is scanned once.
+        // Checking the growing list for a duplicate on every line makes a legal manifest quadratic to scan.
+        list.Add(value);
+    }
+
+    private void AddCovered(string source, string file)
+    {
+        if (!_covers.TryGetValue(source, out var list))
+        {
+            _covers[source] = [file];
+            return;
+        }
+        if (_coveredNames.TryGetValue(source, out var seen))
+        {
+            if (seen.Add(file)) list.Add(file);
+            return;
+        }
+        // Most sidecars cover one file. Keep that case small, but stop linear duplicate searches
+        // once a manifest covers many distinct files.
+        if (list.Any(name => _names.Equals(name, file))) return;
+        list.Add(file);
+        if (list.Count == 16) _coveredNames[source] = new HashSet<string>(list, _names);
     }
 }
