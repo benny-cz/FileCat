@@ -157,8 +157,8 @@ public static class OpenPgp
     private static bool _looked;
 
     /// <summary>
-    /// gpg as the user runs it: on the PATH (as "gpg2" too, as some distributions name it), or where GnuPG and Gpg4win,
-    /// Homebrew, and GPG Suite install it (a program started from the Finder gets a PATH without them).
+    /// The GnuPG installed at a conventional OS location. Automatic signature checks must not execute a program from
+    /// an arbitrary PATH entry, even when that entry is absolute: it may be writable by a downloaded folder's owner.
     /// </summary>
     public static string? Tool
     {
@@ -169,17 +169,30 @@ public static class OpenPgp
             var installed = new List<string>();
             if (OperatingSystem.IsWindows())
             {
-                foreach (string? root in new[] { Environment.GetEnvironmentVariable("ProgramFiles(x86)"), Environment.GetEnvironmentVariable("ProgramFiles") })
+                foreach (string? root in new[]
+                         {
+                             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                         })
                     if (!string.IsNullOrEmpty(root)) installed.Add(Path.Combine(root, "GnuPG", "bin", "gpg.exe"));
             }
-            else installed.AddRange(["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg", "/usr/local/MacGPG2/bin/gpg", "/usr/bin/gpg", "/usr/bin/gpg2"]);
-            _tool = FindTool(Environment.GetEnvironmentVariable("PATH"), installed);
+            else if (OperatingSystem.IsMacOS())
+                installed.AddRange(["/opt/homebrew/bin/gpg", "/usr/local/bin/gpg", "/usr/local/MacGPG2/bin/gpg", "/usr/bin/gpg", "/usr/bin/gpg2"]);
+            else installed.AddRange(["/usr/bin/gpg", "/usr/bin/gpg2", "/bin/gpg", "/bin/gpg2"]);
+            _tool = SelectAutomaticTool(Environment.GetEnvironmentVariable("PATH"), installed);
             return _tool;
         }
     }
 
+    /// <summary>Automatic checks deliberately disregard PATH; installed candidates are OS-specific full paths.</summary>
+    internal static string? SelectAutomaticTool(string? environmentPath, IEnumerable<string> installed)
+    {
+        _ = environmentPath;
+        return FindTool(null, installed);
+    }
+
     /// <summary>
-    /// gpg by full path: from the absolute entries of <paramref name="path"/> (PATH), then where it is installed. A
+    /// Explicit gpg lookup by full path: from the absolute entries of <paramref name="path"/> (PATH), then where it is installed. A
     /// relative entry ("." and the like) would follow FileCat's current directory, where a gpg could have been planted
     /// (release plan I16); as with Git, such entries are not searched.
     /// </summary>

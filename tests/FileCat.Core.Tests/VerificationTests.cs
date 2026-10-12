@@ -272,6 +272,27 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void Automatic_Gpg_ignores_an_absolute_writable_PATH_entry()
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-auto-gpg-").FullName;
+        string exe = OperatingSystem.IsWindows() ? "gpg.exe" : "gpg";
+        try
+        {
+            string pathEntry = Directory.CreateDirectory(Path.Combine(root, "writable-path")).FullName;
+            string installedDir = Directory.CreateDirectory(Path.Combine(root, "installed-candidate")).FullName;
+            string fake = Path.Combine(pathEntry, exe);
+            string installed = Path.Combine(installedDir, exe);
+            File.WriteAllText(fake, "owned replacement");
+            File.WriteAllText(installed, "installed fixture");
+
+            Assert.Equal(fake, OpenPgp.FindTool(pathEntry, [])); // explicit lookup still has its own behavior
+            Assert.Null(OpenPgp.SelectAutomaticTool(pathEntry, []));
+            Assert.Equal(installed, OpenPgp.SelectAutomaticTool(pathEntry, [installed]));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void A_real_OpenPGP_signature_is_checked_with_the_systems_gpg()
     {
         string? gpg = FindGpg();
