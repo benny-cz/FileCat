@@ -1,0 +1,15 @@
+# I106 — recovery provider over the Windows helper read protocol
+
+2026-10-12 CEST. **Preliminary virtual-device qualification at exact pushed `8b18c91129c905a6d6db87b9ab6ccac5eb16d0e5`; physical-source validation remains on HOLD.** The [I369 cloned-disk case](E-I369-cloned-windows-disk-interface.md) proved that the old disk-number/GUID route scanned replacement B after selecting A. The corrected source had independently passed a full direct `RecoveryProvider` scan and separate helper-protocol reads, but not a full provider scan through that protocol.
+
+A new no-product-overlay probe used the same selected `GUID_DEVINTERFACE_DISK` path in the disposable Windows VMware guest. It created two owned, byte-identical, 64 MiB read-only VHDs. With A attached, `RecoveryProvider` used `DeviceReadHost` and `PipeDeviceSource` to scan one volume in **15 provider reads**, then closed the source and helper. After A detached and B took the same disk number, length, GUID and `Get-Disk.UniqueId`, B's present interface path differed. A second provider request through the helper protocol attempted one open of A's selected interface and returned an opening error, **zero provider reads and zero entries**. The direct-provider route also retained its 15-read positive and zero-read replacement refusal. Separate 512-byte direct/helper positive reads matched hashes. The probe exited **0**; the guest returned to its sole boot disk, with owned VHDs, files and processes removed.
+
+The test invokes the actual product recovery provider, helper read host and pipe source as an elevated guest process. It constructs the local pipe directly, so it does **not** exercise `BrokeredDeviceSource.Open`, the elevation plan, a standard-account requester, UAC consent or the installed helper launch. It does not prove that every physical device changes its interface path on replacement, cover kernel-level interface reuse or resolve the historical changed source hash and capture gap. USB G: was not used as a FileCat source. I106/I110 physical-source HOLD, installed candidate qualification, owner decisions and stable human GO remain.
+
+The private receipt is under `E:\FileCat\artifacts\release-evidence\i106-broker-provider-20261012-v1` (the E: compatibility junction points to V:). `inputs-v1.json` pins the exact source files, probe source/build and all **20** payload members; `commands-v1.json` retains raw VMware command exits and outputs. The independent audit rehashes those files, the ZIP members, native result, clone identities, both provider routes and cleanup.
+
+| Receipt | SHA-256 | Result |
+|---|---|---|
+| `native-result.json` | `03d561ac467e19fe498d36ce1f1ba940d0adc76e1a2d625722ef90bbd681c32a` | Positive and replacement direct/pipe-provider observations. |
+| `independent-broker-provider-v1.json` | `eb14c3e19a9c9410cce0aeb0336d9fa59b0d825cac44ba3f5253b501e31c8721` | Raw result, command and cleanup pins. |
+| `independent-audit-v1.json` | `39e999e37e095e933b9afabe568bf2ed569e8e9f88b6fb53e172914f78b5b2c3` | Independent exact-source/payload/native second read. |
