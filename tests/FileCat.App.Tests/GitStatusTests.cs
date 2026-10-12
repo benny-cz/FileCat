@@ -255,6 +255,26 @@ public sealed class GitStatusTests
     }
 
     [Fact]
+    public void Automatic_badges_select_only_an_OS_installed_Git()
+    {
+        string? selected = GitStatusReader.FindAutomaticGit();
+        if (selected is null) return; // optional badges when no system installation exists
+        if (!OperatingSystem.IsWindows())
+            Assert.Contains(selected, new[] { "/usr/bin/git", "/bin/git" });
+        else
+        {
+            string full = Path.GetFullPath(selected);
+            Assert.Contains(new[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            }.Where(path => !string.IsNullOrEmpty(path)),
+                folder => full.StartsWith(Path.Combine(folder, "Git") + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
     public async Task Folders_that_are_repositories_show_their_work_trees_state_where_they_are_listed()
     {
         if (GitStatusReader.FindGit(Environment.GetEnvironmentVariable("PATH")) is not { } git) { Assert.Skip("Git is not installed."); return; }

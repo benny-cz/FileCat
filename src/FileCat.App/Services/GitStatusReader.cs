@@ -73,9 +73,9 @@ internal static class GitStatusReader
     /// <summary>Repositories among a folder's children that get a badge; more are left plain.</summary>
     private const int MostRepositories = 24;
     private static readonly SemaphoreSlim Gate = new(2);
-    private static readonly Lazy<string?> s_git = new(() => FindGit(Environment.GetEnvironmentVariable("PATH")));
+    private static readonly Lazy<string?> s_git = new(FindAutomaticGit);
 
-    /// <param name="gitExecutable">Git by full path; by default the one on PATH.</param>
+    /// <param name="gitExecutable">Git by full path; by default an OS-installed copy for automatic badges.</param>
     internal static async Task<GitStatusSnapshot?> ReadAsync(string folder, CancellationToken cancellationToken, string? gitExecutable = null)
     {
         if (!Path.IsPathFullyQualified(folder) || !IsLocalPath(folder) || !Directory.Exists(folder)) return null;
@@ -514,6 +514,29 @@ internal static class GitStatusReader
             if (!Path.IsPathFullyQualified(dir)) continue; // "." and other relative entries follow the current directory
             string candidate = Path.Join(dir, name);
             if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Automatic folder badges must not run a Git program from a writable PATH directory. A separately supplied
+    /// executable remains the caller's explicit choice; default badge discovery uses conventional OS installations.
+    /// </summary>
+    internal static string? FindAutomaticGit()
+    {
+        if (!OperatingSystem.IsWindows())
+            return new[] { "/usr/bin/git", "/bin/git" }.FirstOrDefault(File.Exists);
+        foreach (string programFiles in new[]
+                 {
+                     Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                     Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                 }.Where(path => !string.IsNullOrEmpty(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (string subpath in new[] { @"Git\cmd\git.exe", @"Git\bin\git.exe" })
+            {
+                string candidate = Path.Combine(programFiles, subpath);
+                if (File.Exists(candidate)) return candidate;
+            }
         }
         return null;
     }
