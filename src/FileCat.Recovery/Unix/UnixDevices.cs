@@ -777,13 +777,30 @@ public static class UnixDisks
         var start = new ProcessStartInfo(program) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         foreach (var a in arguments) start.ArgumentList.Add(a);
         using var process = Process.Start(start) ?? throw new IOException(program + " did not start.");
-        var output = process.StandardOutput.ReadToEndAsync();
-        if (!process.WaitForExit(15_000))
+        const int deadlineMilliseconds = 15_000;
+        var clock = Stopwatch.StartNew();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(deadlineMilliseconds));
+        var output = process.StandardOutput.ReadToEndAsync(deadline.Token);
+        // A helper that fills stderr can otherwise block before exiting, even when stdout is being read.
+        var errors = process.StandardError.BaseStream.CopyToAsync(Stream.Null, deadline.Token);
+        try
         {
-            process.Kill();
-            throw new IOException(program + " did not answer.");
+            if (!process.WaitForExit(deadlineMilliseconds)) throw new IOException(program + " did not answer.");
+            int remaining = Math.Max(0, deadlineMilliseconds - (int)Math.Min(clock.ElapsedMilliseconds, deadlineMilliseconds));
+            var drained = Task.WhenAll(output, errors);
+            if (Task.WhenAny(drained, Task.Delay(remaining)).GetAwaiter().GetResult() != drained)
+                throw new IOException(program + " did not answer.");
+            try { drained.GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) { throw new IOException(program + " did not answer."); }
+            return output.GetAwaiter().GetResult();
         }
-        return output.Result;
+        finally
+        {
+            deadline.Cancel();
+            if (!process.HasExited)
+                try { process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) { /* Exited while retiring it. */ }
+        }
     }
 
     /// <summary>A property list's value: dictionaries, arrays, strings, integers (long), and booleans; other types as their text.</summary>
