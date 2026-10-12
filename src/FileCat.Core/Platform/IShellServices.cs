@@ -82,13 +82,13 @@ public class PortableShellServices : IShellServices
     public virtual void Open(string path)
     {
         var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
-        Start(opener, path);
+        StartSystem(opener, path);
     }
 
     public virtual void Reveal(string path)
     {
-        if (OperatingSystem.IsMacOS()) Start("open", "-R", path);
-        else Start("xdg-open", Directory.Exists(path) ? path : Path.GetDirectoryName(path) ?? path);
+        if (OperatingSystem.IsMacOS()) StartSystem("open", "-R", path);
+        else StartSystem("xdg-open", Directory.Exists(path) ? path : Path.GetDirectoryName(path) ?? path);
     }
 
     public virtual bool ShowProperties(string path) => false;
@@ -107,29 +107,29 @@ public class PortableShellServices : IShellServices
     /// Linux terminals FileCat knows, in the order it tries them: $TERMINAL first, then the distribution's default and the
     /// common desktops' own. Each knows how to start in a folder and how to run a command.
     /// </summary>
-    private static IEnumerable<(string Exe, string[] Open, string[] Run)> LinuxTerminals(string directory, string script)
+    private static IEnumerable<(string Exe, string[] Open, string[] Run, bool System)> LinuxTerminals(string directory, string script)
     {
         string[] sh = ["sh", "-c", script];
-        if (Environment.GetEnvironmentVariable("TERMINAL") is { Length: > 0 } preferred) yield return (preferred, [], ["-e", .. sh]);
-        yield return ("x-terminal-emulator", [], ["-e", .. sh]);
-        yield return ("gnome-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "--", .. sh]);
-        yield return ("konsole", ["--workdir", directory], ["--workdir", directory, "-e", .. sh]);
-        yield return ("xfce4-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "-x", .. sh]);
-        yield return ("kitty", ["--directory", directory], ["--directory", directory, .. sh]);
-        yield return ("alacritty", ["--working-directory", directory], ["--working-directory", directory, "-e", .. sh]);
-        yield return ("wezterm", ["start", "--cwd", directory], ["start", "--cwd", directory, "--", .. sh]);
-        yield return ("foot", ["--working-directory=" + directory], ["--working-directory=" + directory, .. sh]);
-        yield return ("xterm", [], ["-e", .. sh]);
+        if (Environment.GetEnvironmentVariable("TERMINAL") is { Length: > 0 } preferred) yield return (preferred, [], ["-e", .. sh], false);
+        yield return ("x-terminal-emulator", [], ["-e", .. sh], true);
+        yield return ("gnome-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "--", .. sh], true);
+        yield return ("konsole", ["--workdir", directory], ["--workdir", directory, "-e", .. sh], true);
+        yield return ("xfce4-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "-x", .. sh], true);
+        yield return ("kitty", ["--directory", directory], ["--directory", directory, .. sh], true);
+        yield return ("alacritty", ["--working-directory", directory], ["--working-directory", directory, "-e", .. sh], true);
+        yield return ("wezterm", ["start", "--cwd", directory], ["start", "--cwd", directory, "--", .. sh], true);
+        yield return ("foot", ["--working-directory=" + directory], ["--working-directory=" + directory, .. sh], true);
+        yield return ("xterm", [], ["-e", .. sh], true);
     }
 
     /// <summary>Starts the first Linux terminal that exists; false when none does.</summary>
     private static bool StartLinuxTerminal(string directory, string? script)
     {
-        foreach (var (exe, open, run) in LinuxTerminals(directory, script ?? string.Empty))
+        foreach (var (exe, open, run, system) in LinuxTerminals(directory, script ?? string.Empty))
         {
             try
             {
-                var psi = new ProcessStartInfo(Resolve(exe)) { WorkingDirectory = directory, UseShellExecute = false };
+                var psi = new ProcessStartInfo(system ? ResolveSystemTool(exe) : Resolve(exe)) { WorkingDirectory = directory, UseShellExecute = false };
                 foreach (var a in script is null ? open : run) psi.ArgumentList.Add(a);
                 Process.Start(psi)?.Dispose();
                 return true;
@@ -141,7 +141,7 @@ public class PortableShellServices : IShellServices
 
     public virtual void OpenTerminal(string directory, string shell)
     {
-        if (OperatingSystem.IsMacOS()) Start("open", "-a", "Terminal", directory);
+        if (OperatingSystem.IsMacOS()) StartSystem("open", "-a", "Terminal", directory);
         else if (!StartLinuxTerminal(directory, null))
             throw new FileNotFoundException("No terminal was found. Set the TERMINAL environment variable to your terminal program.");
     }
@@ -152,7 +152,7 @@ public class PortableShellServices : IShellServices
         if (OperatingSystem.IsMacOS())
         {
             var escaped = ("cd " + Tools.ShellQuoting.QuotePosix(directory) + " && " + command).Replace("\\", "\\\\").Replace("\"", "\\\"");
-            Start("osascript", "-e", $"tell application \"Terminal\" to do script \"{escaped}\"");
+            StartSystem("osascript", "-e", $"tell application \"Terminal\" to do script \"{escaped}\"");
             return;
         }
         if (!StartLinuxTerminal(directory, script))
@@ -222,11 +222,30 @@ public class PortableShellServices : IShellServices
         Process.Start(psi)?.Dispose();
     }
 
+    private static void StartSystem(string exe, params string[] args)
+    {
+        var psi = new ProcessStartInfo(ResolveSystemTool(exe)) { UseShellExecute = false };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+        Process.Start(psi)?.Dispose();
+    }
+
     /// <summary>
-    /// A program by full path, from PATH's absolute entries and the usual folders: started by bare name, it would be
-    /// looked for in the current directory first (release plan I16). A missing one gives the error starting it would.
+    /// An explicitly chosen program by full path, from PATH's absolute entries and the usual folders. Automatic
+    /// desktop helpers use ResolveSystemTool instead; a bare name would search the current directory first (I16).
     /// </summary>
     internal static string Resolve(string exe) =>
         Path.IsPathFullyQualified(exe) ? exe
         : Network.SmbTools.Find(exe) ?? throw new System.ComponentModel.Win32Exception(2, $"The program \"{exe}\" was not found.");
+
+    /// <summary>Implicit desktop helpers must come from OS tool directories, not an absolute but writable PATH entry.</summary>
+    internal static string ResolveSystemTool(string exe)
+    {
+        if (Path.GetFileName(exe) == exe && !Path.IsPathFullyQualified(exe))
+            foreach (string directory in new[] { "/usr/bin", "/bin", "/usr/sbin", "/sbin" })
+            {
+                string candidate = Path.Combine(directory, exe);
+                if (File.Exists(candidate)) return candidate;
+            }
+        throw new System.ComponentModel.Win32Exception(2, $"The system program \"{exe}\" was not found.");
+    }
 }

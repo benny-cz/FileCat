@@ -227,7 +227,8 @@ public class ContentAndToolTests
     public void Programs_are_found_by_full_path_never_through_a_relative_PATH_entry()
     {
         // Release plan I16: a relative PATH entry ("." and the like) is resolved against the current directory, where a
-        // program could have been planted; tools, shells, terminals and openers are looked for in absolute entries only.
+        // program could have been planted; explicitly chosen programs use absolute PATH entries only. Implicit openers
+        // have the stricter system-directory control in SystemOpenerSelectionTests.
         string name = "fc-planted-" + Guid.NewGuid().ToString("N")[..8];
         string file = OperatingSystem.IsWindows() ? name + ".exe" : name;
         string folder = Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory, name)).FullName;
