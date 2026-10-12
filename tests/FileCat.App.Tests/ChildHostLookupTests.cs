@@ -15,6 +15,19 @@ public sealed class ChildHostLookupTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Custom_host_never_selects_a_runtime_from_an_owned_absolute_PATH_directory(bool menu)
+    {
+        using var fixture = new Fixture(menu, removeHost: true, relativePathOnly: false, absolutePathBait: true);
+        string? executable = Selected(menu);
+        Observe(menu, executable, fixture);
+        Assert.NotNull(LoadedRuntimeHost.Current());
+        Assert.Equal(LoadedRuntimeHost.Current(), executable);
+        Assert.NotEqual(fixture.Bait, executable);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Custom_host_without_apphost_never_selects_a_program_by_bare_name(bool menu)
     {
         using var fixture = new Fixture(menu, removeHost: true, relativePathOnly: false);
@@ -28,9 +41,18 @@ public sealed class ChildHostLookupTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Missing_runtime_and_only_relative_PATH_refuse_the_custom_host_child(bool menu)
+    public void Relative_PATH_does_not_replace_the_loaded_runtime_for_a_custom_host(bool menu)
     {
         using var fixture = new Fixture(menu, removeHost: true, relativePathOnly: true);
+        Assert.Null(LoadedRuntimeHost.FromRuntimeDirectory(Path.Join(fixture.Root, "unrelated", "runtime")));
+        string? expected = LoadedRuntimeHost.Current();
+        if (expected is not null)
+        {
+            string? selected = Selected(menu);
+            Observe(menu, selected, fixture);
+            Assert.Equal(expected, selected);
+            return;
+        }
         if (menu)
         {
             string? executable = Selected(menu);
@@ -76,8 +98,9 @@ public sealed class ChildHostLookupTests
         private static readonly string Parent = Path.Join(Path.GetTempPath(), "filecat-child-host-lookup-tests");
         internal string Root { get; }
         internal string Host { get; }
+        internal string Bait => Path.Join(Root, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet");
 
-        internal Fixture(bool menu, bool removeHost, bool relativePathOnly)
+        internal Fixture(bool menu, bool removeHost, bool relativePathOnly, bool absolutePathBait = false)
         {
             if (menu && !OperatingSystem.IsWindows()) Assert.Skip("The Windows context-menu child is unavailable on this platform.");
             string process = Environment.ProcessPath ?? "";
@@ -91,7 +114,7 @@ public sealed class ChildHostLookupTests
             Root = Directory.CreateDirectory(Path.Join(Parent, Guid.NewGuid().ToString("N"))).FullName;
             try
             {
-                File.WriteAllText(Path.Join(Root, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"), "owned lookup-only bait; never executed by this test\n");
+                File.WriteAllText(Bait, "owned lookup-only bait; never executed by this test\n");
                 if (removeHost)
                 {
                     heldHost = Host + ".child-host-control-" + Guid.NewGuid().ToString("N");
@@ -99,6 +122,7 @@ public sealed class ChildHostLookupTests
                 }
                 Environment.CurrentDirectory = Root;
                 if (relativePathOnly) Environment.SetEnvironmentVariable("PATH", ".");
+                if (absolutePathBait) Environment.SetEnvironmentVariable("PATH", Root);
             }
             catch { Dispose(); throw; }
         }
