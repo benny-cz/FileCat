@@ -417,14 +417,15 @@ public sealed class RecoveryProvider : ResourceProvider
     }
 
     /// <summary>An image is scanned again when it changes; a drive is identified by its device alone.</summary>
-    private string Key(Location location) => Key(location, IsDevice(location) ? null : GetSourceIdentity(SourcePath(location)));
+    private string Key(Location location) => IsDevice(location) ? Key(location, null, null)
+        : Key(location, GetSourceIdentity(SourcePath(location)), SourceChangeToken.FromPath(SourcePath(location)));
 
-    private static string Key(Location location, string? identity)
+    private static string Key(Location location, string? identity, string? changeToken)
     {
         string path = SourcePath(location);
         if (IsDevice(location)) return "device|" + path;
         var info = new FileInfo(path);
-        return $"{info.FullName}|{(info.Exists ? info.Length : -1)}|{(info.Exists ? info.LastWriteTimeUtc.Ticks : 0)}|{identity}";
+        return $"{info.FullName}|{(info.Exists ? info.Length : -1)}|{(info.Exists ? info.LastWriteTimeUtc.Ticks : 0)}|{identity}|{changeToken}";
     }
 
     /// <summary>What searching a volume's free space involves, for the user to decide (<see cref="SearchFreeSpace"/>).</summary>
@@ -513,8 +514,9 @@ public sealed class RecoveryProvider : ResourceProvider
         bool device = IsDevice(location);
         if (!device && !File.Exists(path)) throw new FileNotFoundException("The disk image no longer exists.", path);
         string? identity = device ? null : GetSourceIdentity(path);
-        string key = Key(location, identity);
-        bool reuse = device || !string.IsNullOrEmpty(identity);
+        string? changeToken = device ? null : SourceChangeToken.FromPath(path);
+        string key = Key(location, identity, changeToken);
+        bool reuse = device || !string.IsNullOrEmpty(identity) && !string.IsNullOrEmpty(changeToken);
         Session? cached;
         if (reuse && _sessions.TryGetValue(key, out cached) && !cached.Stale)
         {
@@ -561,7 +563,12 @@ public sealed class RecoveryProvider : ResourceProvider
             IBlockSource source = device
                 ? (OpenDevice ?? throw new NotSupportedException("Reading drives directly is not available here: make an image of the drive on another drive, then open the image."))
                     .Invoke(path, SourceName(location), ct)
-                : new ImageFileSource(path, handle => OpenedSourceIdentity.RequireMatch(handle, identity, GetOpenedSourceIdentity));
+                : new ImageFileSource(path, handle =>
+                {
+                    OpenedSourceIdentity.RequireMatch(handle, identity, GetOpenedSourceIdentity);
+                    if (changeToken is not null && SourceChangeToken.FromHandle(handle) != changeToken)
+                        throw new IOException("The disk image changed before it could be opened. Open it again.");
+                });
             try
             {
                 if (device && _deviceLengths.TryGetValue(path, out long chosen) && source.Length != chosen)

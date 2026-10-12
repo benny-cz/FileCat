@@ -4,7 +4,8 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.FileSystem;
 
 /// <summary>What <c>stat</c> says about a file on Linux or macOS, links not followed.</summary>
-public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, bool IsDirectory, long Size)
+public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, bool IsDirectory, long Size,
+    long ChangeSeconds, long ChangeNanoseconds, bool HasChangeTime)
 {
     /// <summary>The identity as the hex editor and its journal record it (the inode in the first 8 of 16 bytes).</summary>
     public FileIdentity Identity => new(Device, Inode.ToString("X16") + new string('0', 16));
@@ -18,7 +19,7 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 public static unsafe partial class UnixFiles
 {
     private const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100, AtEmptyPath = 0x1000;
-    private const uint StatxType = 0x1, StatxIno = 0x100, StatxSize = 0x200;
+    private const uint StatxType = 0x1, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
     private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000;
 
     /// <summary>
@@ -32,7 +33,7 @@ public static unsafe partial class UnixFiles
         try
         {
             if (OperatingSystem.IsLinux())
-                return Statx(AtFdCwd, path, followLinks ? 0 : AtSymlinkNoFollow, StatxType | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
+                return Statx(AtFdCwd, path, followLinks ? 0 : AtSymlinkNoFollow, StatxType | StatxCtime | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
             if (OperatingSystem.IsMacOS())
             {
                 bool arm = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
@@ -75,7 +76,7 @@ public static unsafe partial class UnixFiles
             handle.DangerousAddRef(ref added);
             int fd = (int)handle.DangerousGetHandle();
             if (OperatingSystem.IsLinux())
-                return Statx(fd, string.Empty, AtEmptyPath | AtSymlinkNoFollow, StatxType | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
+                return Statx(fd, string.Empty, AtEmptyPath | AtSymlinkNoFollow, StatxType | StatxCtime | StatxIno | StatxSize, buffer) == 0 ? FromStatx(buffer) : null;
             if (OperatingSystem.IsMacOS())
                 return (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacFstat(fd, buffer) : MacFstatInode64(fd, buffer)) == 0
                     ? FromMacStat(buffer) : null;
@@ -90,19 +91,22 @@ public static unsafe partial class UnixFiles
         return null;
     }
 
-    // struct statx: u16 mode at 28, u64 ino at 32, u64 size at 40, u32 dev_major at 136, u32 dev_minor at 140.
+    // struct statx: u32 returned mask at 0, u16 mode at 28, u64 ino at 32, u64 size at 40, ctime seconds/nanoseconds at 96/104,
+    // u32 dev_major at 136, u32 dev_minor at 140.
     private static UnixStat FromStatx(byte* b)
     {
         int type = *(ushort*)(b + 28) & TypeMask;
         ulong device = ((ulong)*(uint*)(b + 136) << 32) | *(uint*)(b + 140);
-        return new UnixStat(device, *(ulong*)(b + 32), type == TypeLink, type == TypeDirectory, (long)*(ulong*)(b + 40));
+        return new UnixStat(device, *(ulong*)(b + 32), type == TypeLink, type == TypeDirectory,
+            (long)*(ulong*)(b + 40), *(long*)(b + 96), *(uint*)(b + 104), (*(uint*)b & StatxCtime) != 0);
     }
 
-    // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, i64 size at 96.
+    // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, ctimespec at 64, i64 size at 96.
     private static UnixStat FromMacStat(byte* b)
     {
         int type = *(ushort*)(b + 4) & TypeMask;
-        return new UnixStat((uint)*(int*)b, *(ulong*)(b + 8), type == TypeLink, type == TypeDirectory, *(long*)(b + 96));
+        return new UnixStat((uint)*(int*)b, *(ulong*)(b + 8), type == TypeLink, type == TypeDirectory,
+            *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true);
     }
 
     /// <summary>

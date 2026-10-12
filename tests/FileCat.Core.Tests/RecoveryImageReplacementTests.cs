@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FileCat.Core.Resources;
@@ -50,6 +51,61 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
     {
         try { using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.None); return true; }
         catch (IOException) { return false; }
+    }
+
+    [Fact]
+    public async Task In_place_image_write_with_restored_mtime_refreshes_recovery_catalog()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-in-place-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img");
+        byte[] original = Image(17, false), replacement = Image(97, true);
+        File.WriteAllBytes(path, original);
+        File.SetLastWriteTimeUtc(path, Stamp);
+        var files = new IdentityAwareTestFiles();
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = files.GetFileIdentity,
+            GetOpenedSourceIdentity = files.GetHandleIdentity,
+        };
+        var location = RecoveryProvider.ForImage(path, 1);
+        async Task<Sink> List() { var sink = new Sink(); await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken); return sink; }
+        try
+        {
+            string? originalId = files.GetFileIdentity(path);
+            string originalName = Assert.Single((await List()).Rows).Name;
+            using (var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                RandomAccess.Write(handle, replacement, 0);
+                RandomAccess.FlushToDisk(handle);
+            }
+            File.SetLastWriteTimeUtc(path, Stamp);
+            string? currentId = files.GetFileIdentity(path);
+            string currentName = Assert.Single((await List()).Rows).Name;
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                originalId, currentId, originalName, currentName,
+                sameLength = new FileInfo(path).Length == original.Length,
+                sameMtime = File.GetLastWriteTimeUtc(path) == Stamp,
+                actualSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                replacementSha256 = Convert.ToHexString(SHA256.HashData(replacement)),
+            }));
+            Assert.Equal(originalId, currentId);
+            Assert.Equal(original.Length, new FileInfo(path).Length);
+            Assert.Equal(Stamp, File.GetLastWriteTimeUtc(path));
+            Assert.Equal(replacement, File.ReadAllBytes(path));
+            Assert.NotEqual(originalName, currentName);
+        }
+        finally
+        {
+            provider.CloseAll();
+            bool sourceClosed = Exclusive(path);
+            File.Delete(path);
+            Directory.Delete(root);
+            output.WriteLine(JsonSerializer.Serialize(new { root, sourceClosed, absent = !Directory.Exists(root) }));
+            Assert.True(sourceClosed);
+            Assert.False(Directory.Exists(root));
+        }
     }
     [Theory]
     [MemberData(nameof(Cases))]
