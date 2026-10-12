@@ -12,6 +12,8 @@ The existing cache-sharing image-lifetime fixture now supplies actual stable fil
 
 This preliminary correction covers deterministic regular-image replacement. It does not establish atomic path/open-handle binding, arbitrary in-place mutation safety, complete freshness of advisory metadata when identity is unavailable, physical device entry reuse/topology or candidate qualification. Extra rescanning without identity is a deliberate correctness cost. I06/I106 remain open and I106/I110 physical-source validation stays on HOLD. No host UI, physical source or persistent settings changed.
 
+Subsequent [I404](E-I404-held-image-unknown-identity.md) tightens the held-reader behavior when identity is unavailable: an opened image with a changed native token now refuses the read. Thus the original deterministic replacement cases remain historical evidence, while an ambiguous renamed old reader may return its original bytes **or fail closed**; it must never return replacement bytes.
+
 ## Selected immutable receipts
 
 Paths are relative to private FileCatReleaseEvidence. Nested records retain exact source, payloads, commands, failures/skips and restoration.
