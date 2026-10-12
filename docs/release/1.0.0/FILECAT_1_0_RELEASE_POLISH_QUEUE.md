@@ -7,8 +7,10 @@ change the release issue/campaign counts.
 
 - Requested: 2026-10-06 by the product owner during release execution.
 - Priority: low; continue higher-priority release validation first.
-- Status: complete for reviewed presentation scope, 2026-10-09. [Exact evidence](evidence/E-PQ01-windows-theme-showcase.md).
-- Improve the README's text presentation of FileCat for GitHub readers.
+- Status: screenshots and reviewed presentation complete, 2026-10-09.
+  A separate main/advanced feature-list split is queued. [Exact screenshot evidence](evidence/E-PQ01-windows-theme-showcase.md).
+- Improve the README's text presentation of FileCat for GitHub readers;
+  include main and advanced feature lists.
 - Include polished screenshots of the real Windows app. Show its main window
   with four panels, each containing more than two tabs (at least three).
 - Include every available theme; verify the actual theme list before capture.
