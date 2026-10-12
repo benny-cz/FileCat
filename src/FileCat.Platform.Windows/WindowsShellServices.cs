@@ -154,12 +154,32 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     /// PowerShell unless they chose otherwise), else PowerShell 7, else Windows PowerShell.
     /// </summary>
     public static string ResolveShell(string shell) => shell != "auto" ? shell
-        : FindOnPath("wt.exe") is not null ? "wt"
-        : FindOnPath("pwsh.exe") is not null ? "pwsh"
+        : WindowsTerminalPackages.FindExecutable() is not null ? "wt"
+        : SystemPowerShell7 is not null ? "pwsh"
         : "powershell";
 
     /// <summary>Windows PowerShell where Windows keeps it: started by bare name it would be looked for in the current directory first (I16).</summary>
     internal static string WindowsPowerShell => Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+
+    /// <summary>The conventional protected PowerShell 7 installation used only for automatic selection.</summary>
+    internal static string? SystemPowerShell7
+    {
+        get
+        {
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell", "7", "pwsh.exe");
+            return File.Exists(path) ? path : null;
+        }
+    }
+
+    /// <summary>Automatic terminal choice uses a registered package, not an executable from PATH.</summary>
+    internal static string? AutomaticWindowsTerminal => WindowsTerminalPackages.FindExecutable();
+
+    /// <summary>The command terminal's child is the system command processor, even when the working folder is writable.</summary>
+    internal static string WindowsTerminalCommandArguments(string directory, string command)
+    {
+        string systemCmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+        return $"-d \"{directory.TrimEnd('\\')}\\\\\" \"{systemCmd}\" /K {command}";
+    }
 
     /// <summary>A program found by full path, or the error starting a missing one would give (never a bare name, I16).</summary>
     private static string Installed(string exe, string what) =>
@@ -252,11 +272,15 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
                 psi = new ProcessStartInfo(WindowsPowerShell) { ArgumentList = { "-NoExit", "-NoLogo" } };
                 break;
             case "pwsh":
-                psi = new ProcessStartInfo(Installed("pwsh.exe", "PowerShell 7")) { ArgumentList = { "-NoExit", "-NoLogo" } };
+                psi = new ProcessStartInfo(shell == "auto"
+                    ? SystemPowerShell7 ?? throw new System.ComponentModel.Win32Exception(2, "The system PowerShell 7 installation disappeared.")
+                    : Installed("pwsh.exe", "PowerShell 7")) { ArgumentList = { "-NoExit", "-NoLogo" } };
                 break;
             case "wt":
                 // As separate arguments: a quoted folder ending in a backslash ("C:\dir\") would escape its own quote.
-                psi = new ProcessStartInfo(Installed("wt.exe", "Windows Terminal")) { ArgumentList = { "-d", directory } };
+                psi = new ProcessStartInfo(shell == "auto"
+                    ? AutomaticWindowsTerminal ?? throw new System.ComponentModel.Win32Exception(2, "The registered Windows Terminal package disappeared.")
+                    : Installed("wt.exe", "Windows Terminal")) { ArgumentList = { "-d", directory } };
                 break;
             default:
                 psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
@@ -272,7 +296,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
     {
         ProcessStartInfo psi;
         // A typed command line is cmd's language: "auto" keeps it so (inside Windows Terminal when it is there).
-        switch (shell == "auto" ? FindOnPath("wt.exe") is not null ? "wt" : "cmd" : shell)
+        switch (shell == "auto" ? AutomaticWindowsTerminal is not null ? "wt" : "cmd" : shell)
         {
             case "powershell":
             case "pwsh":
@@ -282,7 +306,9 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
                 psi = new ProcessStartInfo(exe) { Arguments = "-NoExit -NoLogo -EncodedCommand " + encoded };
                 break;
             case "wt":
-                psi = new ProcessStartInfo(Installed("wt.exe", "Windows Terminal")) { Arguments = $"-d \"{directory.TrimEnd('\\')}\\\\\" cmd.exe /K {command}" };
+                psi = new ProcessStartInfo(shell == "auto"
+                    ? AutomaticWindowsTerminal ?? throw new System.ComponentModel.Win32Exception(2, "The registered Windows Terminal package disappeared.")
+                    : Installed("wt.exe", "Windows Terminal")) { Arguments = WindowsTerminalCommandArguments(directory, command) };
                 break;
             default:
                 // Explicit shell mode: the user's command line goes to cmd.exe verbatim.
