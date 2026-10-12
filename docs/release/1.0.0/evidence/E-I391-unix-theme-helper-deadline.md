@@ -13,3 +13,5 @@ This bounds a synchronous optional theme lookup and retires its live root on tim
 ## Selected immutable receipts
 
 The private `V:\FileCat\artifacts\release-evidence\i391-unix-theme-helper-lifetime-20261012-v1` contains three complete 146-file test publishes, raw native TRX/log/exit results, full Windows Core TRX, exact original/current sources, diff, guest-side hashes, commands and cleanup receipts. `audit.json` SHA-256 `11f4952e0af12c520e25ba40fe75ca261af909baac6202ab2a9cf28f15b492ab`; self-excluding `file-manifest.json` SHA-256 `7f1dc737629f91a7285555aa2948119e9b66f2c380bd837fdaad47bde52ec30c`. The original failed control and the corrected native runs have distinct package hashes and are not merged into one claimed source identity.
+
+The exact `e6c3dbcc` [original-push hosted run](E-CI-I391-I392-unix-helper-fixes.md) later passed all four platform lanes and its producer gate. Its 14 raw TRX inventories contain the two new helper tests as four Unix passes/four Windows skips, with every earlier row unchanged; that audit is distinct from the native control above.
