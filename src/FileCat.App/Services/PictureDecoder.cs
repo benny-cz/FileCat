@@ -247,8 +247,10 @@ public static class PictureDecoder
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
-            // A canceled worker is killed and cannot remove the runtime's debugger FIFOs on Unix. This content-only
-            // child needs no diagnostic port; match the existing Windows helper policy before the runtime starts.
+            // The decoder parses untrusted bytes and needs no parent environment variables. In particular, do not
+            // copy credentials or native-library search overrides into it. Supply only its private lifetime channel
+            // and the diagnostic-port refusal; neither changes its inherited Unix UID or filesystem/network rights.
+            psi.Environment.Clear();
             psi.Environment["DOTNET_EnableDiagnostics"] = "0";
             var lifetime = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
             Process? process = null;

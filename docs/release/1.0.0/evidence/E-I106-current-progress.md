@@ -2,7 +2,7 @@
 
 Current follow-up: [I369 cloned Windows media](E-I369-cloned-windows-disk-interface.md) defeats the earlier GUID-only correction: exact `cd19d7c` scans replacement B after selecting A, while exact `cc93071` opens the selected PnP interface and refuses that clone with zero recovery-provider reads or entries. The preceding [pre-open disk-number-reuse control](E-I106-preopen-device-identity.md) and [held-reader-reuse control](E-I106-virtual-device-reuse.md) retain their separate exact producers. These finite VM controls do not qualify real USB, actual UAC consent, all interface-path reuse, atomic races or a candidate; physical-source HOLD remains. [Exact committed I362](E-I362-native-qualification.md) and [I363](E-I363-exited-worker-stderr.md) retain their separate source/lifetime qualifications.
 
-2026-10-11 CEST. **Open; physical-source validation remains on HOLD.** This record preserves the full preliminary I106 scope previously in the issue table, at ec5868e, and adds the latest independently qualified correction. It does not replace the operational plan or authorize a candidate.
+Updated 2026-10-12 CEST. **Open; physical-source validation remains on HOLD.** This record preserves the full preliminary I106 scope previously in the issue table, at ec5868e, and adds the latest independently qualified correction. It does not replace the operational plan or authorize a candidate.
 
 [I347](E-I347-backing-visibility-loss.md) stops cleanup/publication after a formerly observed source-container location becomes unavailable: 24 local/48 native controls, all 6194 affected results/131 exact skips, full App and 1279 native file checks. These are controlled unavailable-query cases with actual owned-file identities and whole bytes.
 
@@ -20,7 +20,7 @@ The remaining scope includes physical device entry/number reuse; provider handle
 
 [I358](E-I358-opened-source-binding.md) now binds known fresh source identities to actual archive/regular-image handles before reading.72 final controls qualify36 refusals/84 complete reads, with unchanged source bytes and exclusive handle closure. [Exact I357](E-I357-native-qualification.md) separately seals dfe32b3. Controlled lazy reopens, unknown initial identity, cached-path races, in-place changes, spool eviction and physical/candidate scope remain; physical HOLD is unchanged.
 
-## Current followup —2026-10-11
+## Recent 2026-10-11 follow-up
 
 [Controlled lazy reopening](E-I106-lazy-source-reopen.md) qualifies72 controls/36 refusals/108 complete reads on d9889ce with no product change. [I362](E-I362-nested-spool-admission.md) separately corrects an observed nested-spool eviction/admission defect, with112 final controls and full byte/lifetime oracles. [Exact preceding source](E-I359-I361-committed-qualification.md) and [original CI](E-CI-scheduler-rename-archive.md) qualify separately. Wider provider/topology/atomic/native/candidate scope remains; physical HOLD is unchanged.
 
@@ -83,35 +83,3 @@ Open: discovery corrections tested; [Current medium/high Windows controls](E-I10
 [I343](E-I343-backing-staging-replacement.md) preserves selected source containers renamed into staging before cleanup/verification/publication: 24 local/48 native fixed controls with actual Unix/Windows file identities. Wider atomic/unknown identity/physical/candidate scopes remain.
 
 [Full record](../FILECAT_1_0_RELEASE_ISSUE_HISTORY_20261006.md#i106--recovery-discovery-misses-a-separate-portable-installation)
-
-## Prior dashboard scope retained from ec5868e
-
-[Twenty native alias controls](E-I106-native-runtime-aliases.md) pass;
-
-[I314](E-I314-incomplete-linux-topology.md) corrects one incomplete dependency-directory path;
-
-[I317](E-I317-network-source-topology.md) keeps unresolved NBD/RBD source backing unknown, passing 16 targeted/16 fixed Ubuntu controls and preserving 82 affected passes/29 exact skips;
-
-[exact I317](E-I317-native-qualification.md) passes at 59d37cd;
-
-[I318](E-I318-mac-topology-refresh.md) corrects an actual stale Mac mount classification, with [committed native qualification](E-I318-native-qualification.md) sealed at 55737cb;
-
-[original I317 CI](E-CI-network-source-topology.md) passes at 59d37cd;
-
-[I319](E-I319-recovery-source-case.md) separates case-distinct Unix admission/cache identities with six native passes;
-
-[I320](E-I320-incomplete-mac-topology.md) preserves unknown for incomplete Mac replies with eighteen Windows/twenty-five Mac passes;
-
-[exact I319](E-I319-native-qualification.md) and [original I318 CI](E-CI-mac-topology-refresh.md) are sealed;
-
-[I321](E-I321-recovery-device-reselection.md) refreshes explicit choices with seven passes each on Windows/Ubuntu/Mac;
-
-[exact I320](E-I320-native-qualification.md) and [original I319 CI](E-CI-recovery-source-case.md) are sealed;
-
-[exact I321](E-I321-native-qualification.md) passes;
-
-[I325](E-I325-mac-backing-fixture.md) retains actual c0677d9 empty-bus/Unknown backing and verifies refusal in twenty known/twenty controlled-unknown native passes;
-
-[I330](E-I330-held-windows-source-topology.md) corrects held Windows source topology with 56 native medium/high batch passes;
-
-[I333](E-I333-source-container-publication.md) adds 63 fixed native source-container publication controls and preserves every 3416 affected predecessor outcome/message/107 exact skips; finish broader visibility/device-number reuse/active-source identity/runtime-alias/topology races and keep physical-source testing held.

@@ -8,6 +8,8 @@ The declared-overlay VM probe first read 512 bytes from owned A through `DirectD
 
 [Original-push CI](E-CI-preopen-disk-selection.md) at exact `cc93071`, run `38183808053` attempt 1, passes all four required build/test lanes and the producer policy. Its 27 server-digest archives, 2,762 members, 14 raw TRX inventories and 32,909 passes/1,091 explicit skips/zero failures are independently checked; every predecessor case name/outcome/message multiset agrees with the prior exact green I368 source. This hosted run does not repeat the native VHD exchange.
 
+A separate **OS-only** VM control replaced a byte-cloned VHD at the *same owned VHD file path*, then remounted it. Disk number and `Get-Disk.UniqueId` matched the first attachment, but Windows assigned a **different present PnP interface path**. The two clone-file hashes, raw VMware command streams and sole-boot-disk/owned-file cleanup were checked by a second reader. This adds one observed remount pattern; it did **not** start FileCat, alter the cloned bytes, prove all hardware changes the path, or qualify a source read.
+
 | Private receipt under `FileCatReleaseEvidence` | SHA-256 | Scope |
 |---|---|---|
 | `i106-clone-guid-20261012-v3/independent-clone-guid-v3.json` | `db8cb511859f5cb8908532130b859fe57cc13b3400da352dcc04d80d86cfc4a0` | Earlier byte-clone GUID diagnostic; no FileCat source scan in that case. |
@@ -20,5 +22,7 @@ The declared-overlay VM probe first read 512 bytes from owned A through `DirectD
 | `i106-interface-clone-20261012-v3/independent-interface-clone-v3.json` | `58996be61891a92911d80c4a432e18402f19b9221d6b0ebc3b9fd7249ad619b3` | Exact corrected `RecoveryProvider` positive and clone refusal. |
 | `i106-interface-clone-20261012-v3/independent-audit-v1.json` | `5d976c3821226210410bd1c38fde24a2dcde98cd7fa408619a99e0c22f047c9e` | Independent source/payload/guest/zero-read audit. |
 | `ci-i369-interface-selection-20261012-v1/independent-ci-audit-v1.json` | `f0981cae569b97c1a9bd36981eb383b7a8ae02e32aa7d8a8b6e959319d3e1f94` | Original run, raw artifact/TRX rehash and unchanged predecessor outcomes. |
+| `i106-samepath-virtual-20261012-v1/independent-samepath-v1.json` | `273f83ca5e09e78d53a616d9f4ddb80516c3ed047a64f5a1ddd34158880708d6` | OS-only same-VHD-path replacement observation, no FileCat. |
+| `i106-samepath-virtual-20261012-v1/second-reader-v1.json` | `a3da628c19339a29c3e1cac3e3e41fadb609c432080126ef6c23e7188f3ad84f` | Independent input/result/cleanup rehash and finite limits. |
 
 The old exact probe exercised `RecoveryProvider` scans of cloned B through direct and pipe readers. The corrected exact probes exercised both read-open paths, including the actual `DeviceReadHost` protocol, and a full direct-provider clone-refusal scan with zero reads/entries. They did not exercise the actual UAC consent UI, a full brokered-provider clone scan, a physical USB source, or an installed release candidate. Interface path reuse by hardware, other topology/atomic races, source-write attribution and full V09 qualification remain unresolved. G: is disposable and available, but the historical changed source hash and incomplete capture attribution still block physical FileCat-source validation. No contract freeze, candidate or stable GO follows.

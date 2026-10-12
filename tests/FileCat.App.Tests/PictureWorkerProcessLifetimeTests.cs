@@ -8,6 +8,30 @@ namespace FileCat.App.Tests;
 /// <summary>A stopped Unix decoder must also stop an owned child that is still attached to it.</summary>
 public sealed class PictureWorkerProcessLifetimeTests
 {
+    [Fact]
+    public async Task Unix_decoder_does_not_inherit_parent_environment()
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix picture-worker process environment."); return; }
+        string marker = "FILECAT_PICTURE_ENV_PROBE_" + Guid.NewGuid().ToString("N");
+        Environment.SetEnvironmentVariable(marker, "owned-secret-marker");
+        try
+        {
+            Type type = typeof(PictureDecoder).GetNestedType("Worker", BindingFlags.NonPublic)!;
+            var worker = (IAsyncDisposable)type.GetMethod("Start")!.Invoke(null, ["/usr/bin/env", ""])!;
+            try
+            {
+                using var reader = new StreamReader((Stream)type.GetProperty("Output")!.GetValue(worker)!);
+                string variables = await reader.ReadToEndAsync(TestContext.Current.CancellationToken)
+                    .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                Assert.DoesNotContain(marker + "=", variables, StringComparison.Ordinal);
+                Assert.Contains("DOTNET_EnableDiagnostics=0", variables, StringComparison.Ordinal);
+                Assert.Contains(PictureWorkerLifetime.EnvironmentName + "=", variables, StringComparison.Ordinal);
+            }
+            finally { await worker.DisposeAsync(); }
+        }
+        finally { Environment.SetEnvironmentVariable(marker, null); }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

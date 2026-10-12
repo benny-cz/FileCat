@@ -58,7 +58,8 @@ ceiling across all viewers or a guarantee against native parser side effects.
   medium fallback retains ordinary-user access. Low integrity and job limits do not establish file-read or
   network isolation.
 - **Linux and macOS:** the decoder uses `Process.Start` with redirected standard streams and diagnostics disabled.
-  It inherits its parent's Unix UID, permissions and environment; the launch route does not lower privileges.
+  It inherits its parent's Unix UID and permissions; the launch route does not lower privileges. Its launch
+  environment is cleared, then supplied only the diagnostic-port refusal and private parent-lifetime channel.
   **Linux x64** applies an all-thread seccomp process-creation filter before reading encoded input or entering native
   decoding. It refuses direct fork/vfork/exec calls and non-thread clone; clone3 returns ENOSYS so libc can create
   ordinary runtime threads through the checked clone path. Failure to install the whole filter refuses decoding.
@@ -76,7 +77,8 @@ ceiling across all viewers or a guarantee against native parser side effects.
   Process separation limits the immediate effect of a decoder crash.
 
 [Current Windows controls](../release/1.0.0/evidence/E-I08-current-windows-worker-boundaries.md),
-[ordinary-user Unix controls](../release/1.0.0/evidence/E-I08-current-unix-worker-boundaries.md) and
+[ordinary-user Unix controls](../release/1.0.0/evidence/E-I08-current-unix-worker-boundaries.md),
+[Unix environment correction](../release/1.0.0/evidence/E-I08-unix-worker-environment.md),
 [I312 fallback controls](../release/1.0.0/evidence/E-I312-elevated-worker-fallback.md) and
 [I349 parent lifetime controls](../release/1.0.0/evidence/E-I349-unix-picture-parent-lifetime.md) retain their exact producers
 and finite observations. Synthetic permission helpers are not parser exploits or sandbox certification. Unix
