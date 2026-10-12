@@ -45,6 +45,7 @@ public sealed class MetadataDemandTests
             else retryShown.TrySetResult();
         };
         int calls = 0, active = 0, invalidations = 0;
+        var producedStates = new ConcurrentQueue<VerificationState>();
         Task<MetadataValue>? analysis = null;
         metadata.Register(new MetadataField("verified", "Verified", MetadataCost.Cheap, _ => true, (p, ct) =>
         {
@@ -52,6 +53,7 @@ public sealed class MetadataDemandTests
             try
             {
                 var value = verification.Automatic(p, ct)!;
+                producedStates.Enqueue(value.State);
                 if (Interlocked.Increment(ref calls) == 1)
                 {
                     started.TrySetResult(value);
@@ -88,7 +90,12 @@ public sealed class MetadataDemandTests
             MetadataValue current = default;
             await WaitFor(() => (current = metadata.Get("verified", path, entry, "owned", false)).State == MetadataState.Available);
             Assert.Equal(VerificationState.Differs, Assert.IsType<VerificationResult>(current.Value).State);
-            Assert.Equal(2, Volatile.Read(ref calls));
+            await WaitFor(() => Volatile.Read(ref active) == 0);
+            // A redraw may request another current producer after the obsolete one completes.
+            // The invariant is that no retry publishes or computes the old sidecar result.
+            Assert.True(Volatile.Read(ref calls) >= 2);
+            Assert.Equal(VerificationState.Matches, producedStates.First());
+            Assert.All(producedStates.Skip(1), state => Assert.Equal(VerificationState.Differs, state));
             Assert.Equal(bytes, File.ReadAllBytes(path));
             Assert.Equal(modified, File.GetLastWriteTimeUtc(path).Ticks);
         }
