@@ -519,9 +519,19 @@ public sealed class RecoveryProvider : ResourceProvider
         string? changeToken = device ? null : SourceChangeToken.FromPath(path);
         string key = Key(location, identity, changeToken);
         bool reuse = device || !string.IsNullOrEmpty(identity) && !string.IsNullOrEmpty(changeToken);
+        void VerifyImageScan(IBlockSource scanned)
+        {
+            if (device || scanned is not ImageFileSource image) return;
+            if (identity is not null && !string.Equals(GetSourceIdentity(path), identity, StringComparison.Ordinal))
+                throw new IOException("The disk image changed while it was being scanned. Open it again.");
+            if (changeToken is not null &&
+                (image.CurrentChangeToken() != changeToken || SourceChangeToken.FromPath(path) != changeToken))
+                throw new IOException("The disk image changed while it was being scanned. Open it again.");
+        }
         Session? cached;
         if (reuse && _sessions.TryGetValue(key, out cached) && !cached.Stale)
         {
+            VerifyImageScan(cached.Source);
             cached.Used = DateTime.UtcNow;
             return cached;
         }
@@ -535,7 +545,9 @@ public sealed class RecoveryProvider : ResourceProvider
                     cached.SearchFreeSpace = cached.SearchDisk = false;
                     try
                     {
-                        cached.Volumes = Scan(cached.Source, device, ct, searchFreeSpace, sink, searchDisk);
+                        var scanned = Scan(cached.Source, device, ct, searchFreeSpace, sink, searchDisk);
+                        VerifyImageScan(cached.Source);
+                        cached.Volumes = scanned;
                         cached.DiskSearched = searchDisk;
                         cached.Stale = false;
                     }
@@ -594,7 +606,9 @@ public sealed class RecoveryProvider : ResourceProvider
                             throw new IOException("The disk image changed while its deleted content was being read. Open it again.");
                     };
                 }
-                var session = new Session(source, Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk), device,
+                var volumes = Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk);
+                VerifyImageScan(source);
+                var session = new Session(source, volumes, device,
                     verifyImageContent)
                 { DiskSearched = searchImageDisk };
                 _sessions[key] = session;

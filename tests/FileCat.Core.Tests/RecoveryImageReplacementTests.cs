@@ -41,11 +41,46 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
         public void AddBatch(ReadOnlySpan<EntryData> entries) => Rows.AddRange(entries.ToArray());
         public void ReportIssue(string message) { }
     }
+    private sealed class MutatingSink(Action mutate) : IEnumerationSink
+    {
+        private bool _mutated;
+        public int ProgressCount { get; private set; }
+        public List<EntryData> Rows { get; } = [];
+        public void AddBatch(ReadOnlySpan<EntryData> entries) => Rows.AddRange(entries.ToArray());
+        public void ReportIssue(string message) { }
+        public void ReportProgress(string text)
+        {
+            ProgressCount++;
+            if (_mutated) return;
+            _mutated = true;
+            mutate();
+        }
+    }
     private static byte[] Read(IContentSource source)
     {
         byte[] bytes = new byte[4097]; int done = 0;
         while (done < bytes.Length) { int n = source.Read(done, bytes.AsSpan(done)); if (n == 0) break; done += n; }
         return bytes[..done];
+    }
+    private async Task<Sink> ListAfterMutation(RecoveryProvider provider, Location location)
+    {
+        for (int attempt = 1; attempt <= 3; attempt++)
+        {
+            var sink = new Sink();
+            try
+            {
+                await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
+                return sink;
+            }
+            catch (IOException ex) when (attempt < 3 && ex.Message.StartsWith("The disk image changed", StringComparison.Ordinal))
+            {
+                // A just-closed writer can advance a journal record between the path and opened-handle observations.
+                // Refusal is safe; the bounded fresh request must then show the replacement's actual bytes/catalog.
+                output.WriteLine(JsonSerializer.Serialize(new { safeRetry = attempt, error = ex.Message }));
+                await Task.Yield();
+            }
+        }
+        throw new InvalidOperationException("The image scan retry bound was exceeded.");
     }
     private static bool Exclusive(string path)
     {
@@ -73,6 +108,7 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
         try
         {
             string? originalId = files.GetFileIdentity(path);
+            string? originalToken = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path);
             string originalName = Assert.Single((await List()).Rows).Name;
             using (var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
             {
@@ -81,10 +117,11 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             }
             File.SetLastWriteTimeUtc(path, Stamp);
             string? currentId = files.GetFileIdentity(path);
-            string currentName = Assert.Single((await List()).Rows).Name;
+            string currentName = Assert.Single((await ListAfterMutation(provider, location)).Rows).Name;
             output.WriteLine(JsonSerializer.Serialize(new
             {
-                originalId, currentId, originalName, currentName,
+                originalId, currentId, originalToken,
+                currentToken = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path), originalName, currentName,
                 sameLength = new FileInfo(path).Length == original.Length,
                 sameMtime = File.GetLastWriteTimeUtc(path) == Stamp,
                 actualSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
@@ -132,6 +169,7 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             held = provider.OpenContent(provider.GetItemRef(location, Assert.Single(first.Rows)))!;
             Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), Read(held));
             string? identity = files.GetFileIdentity(path);
+            string? token = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path);
             using (var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
             {
                 RandomAccess.Write(handle, replacement, 0);
@@ -142,15 +180,15 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             Exception? error = Record.Exception(() => actual = Read(held));
             output.WriteLine(JsonSerializer.Serialize(new
             {
-                identity, currentIdentity = files.GetFileIdentity(path),
+                identity, currentIdentity = files.GetFileIdentity(path), token,
+                currentToken = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path),
                 sameMtime = File.GetLastWriteTimeUtc(path) == Stamp,
                 sourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
                 heldReadSha256 = actual is null ? null : Convert.ToHexString(SHA256.HashData(actual)),
                 error = error?.GetType().Name,
             }));
             Assert.IsType<IOException>(error);
-            var current = new Sink();
-            await provider.EnumerateAsync(location, current, TestContext.Current.CancellationToken);
+            var current = await ListAfterMutation(provider, location);
             using var fresh = provider.OpenContent(provider.GetItemRef(location, Assert.Single(current.Rows)))!;
             Assert.Equal(replacement.AsSpan(4 * 512, 4096).ToArray(), Read(fresh));
             Assert.Equal(identity, files.GetFileIdentity(path));
@@ -158,6 +196,66 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
         finally
         {
             held?.Dispose();
+            provider.CloseAll();
+            bool sourceClosed = Exclusive(path);
+            File.Delete(path);
+            Directory.Delete(root);
+            output.WriteLine(JsonSerializer.Serialize(new { root, sourceClosed, absent = !Directory.Exists(root) }));
+            Assert.True(sourceClosed);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Fact]
+    public async Task Free_space_rescan_refuses_image_rewritten_during_scan()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-scan-rewrite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img");
+        byte[] original = Image(17, false), replacement = Image(97, true);
+        File.WriteAllBytes(path, original);
+        File.SetLastWriteTimeUtc(path, Stamp);
+        var files = new IdentityAwareTestFiles();
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = files.GetFileIdentity,
+            GetOpenedSourceIdentity = files.GetHandleIdentity,
+        };
+        var location = RecoveryProvider.ForImage(path, 1);
+        try
+        {
+            var first = new Sink();
+            await provider.EnumerateAsync(location, first, TestContext.Current.CancellationToken);
+            Assert.Equal("_EASE.BIN", Assert.Single(first.Rows).Name);
+            string? identity = files.GetFileIdentity(path);
+            string? token = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path);
+            provider.SearchFreeSpace(location);
+            var sink = new MutatingSink(() =>
+            {
+                using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                RandomAccess.Write(handle, replacement, 0);
+                RandomAccess.FlushToDisk(handle);
+                File.SetLastWriteTimeUtc(path, Stamp);
+            });
+            Exception? error = await Record.ExceptionAsync(() => provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                identity, currentIdentity = files.GetFileIdentity(path), token,
+                currentToken = FileCat.Core.FileSystem.SourceChangeToken.FromPath(path),
+                sameMtime = File.GetLastWriteTimeUtc(path) == Stamp,
+                sourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                sink.ProgressCount, publishedNames = sink.Rows.Select(row => row.Name).ToArray(),
+                error = error?.GetType().Name,
+            }));
+            Assert.True(sink.ProgressCount > 0);
+            Assert.IsType<IOException>(error);
+            Assert.Empty(sink.Rows);
+            var current = await ListAfterMutation(provider, location);
+            Assert.Equal("_THER.BIN", Assert.Single(current.Rows).Name);
+            Assert.Equal(identity, files.GetFileIdentity(path));
+        }
+        finally
+        {
             provider.CloseAll();
             bool sourceClosed = Exclusive(path);
             File.Delete(path);
