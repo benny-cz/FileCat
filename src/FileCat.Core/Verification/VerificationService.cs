@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCat.Core.FileSystem;
@@ -149,9 +148,13 @@ public sealed class VerificationCache(string? file)
 public sealed class VerificationService(VerificationCache cache, Func<long> threshold, Func<IReadOnlyList<string>> keyFolders)
 {
     private static readonly TimeSpan Fresh = TimeSpan.FromSeconds(5);
+    // This is a short-lived scan cache, not a history of every folder visited during an app session.
+    private const int MaxCachedFolders = 512;
     /// <summary>How long a file must have been still before it is read on its own (see <see cref="VerificationResult.Settling"/>).</summary>
     public TimeSpan Settle { get; init; } = TimeSpan.FromSeconds(3);
-    private readonly ConcurrentDictionary<string, (FolderSidecars Sidecars, long Stamp, DateTime ReadAt)> _folders = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _folderLock = new();
+    private readonly Dictionary<string, (FolderSidecars Sidecars, long Stamp, DateTime ReadAt, long Access)> _folders = new(StringComparer.OrdinalIgnoreCase);
+    private long _folderAccess;
 
     /// <summary>The instance the app configured (its cache file, the size threshold setting, its key folders).</summary>
     public static VerificationService? Current { get; set; }
@@ -187,19 +190,47 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     public FolderSidecars SidecarsOf(string folder, CancellationToken ct)
     {
         long stamp = Directory.GetLastWriteTimeUtc(folder).Ticks;
-        if (_folders.TryGetValue(folder, out var known) && known.Stamp == stamp && DateTime.UtcNow - known.ReadAt < Fresh) return known.Sidecars;
+        lock (_folderLock)
+        {
+            if (_folders.TryGetValue(folder, out var known) && known.Stamp == stamp && DateTime.UtcNow - known.ReadAt < Fresh)
+            {
+                _folders[folder] = known with { Access = ++_folderAccess };
+                return known.Sidecars;
+            }
+        }
         var sidecars = FolderSidecars.Scan(folder, ct);
-        _folders[folder] = (sidecars, stamp, DateTime.UtcNow);
-        if (known.Sidecars is { } before && !SameSources(before, sidecars)) SidecarsChanged?.Invoke(folder);
+        bool changed;
+        lock (_folderLock)
+        {
+            _folders.TryGetValue(folder, out var known);
+            changed = known.Sidecars is { } before && !SameSources(before, sidecars);
+            _folders[folder] = (sidecars, stamp, DateTime.UtcNow, ++_folderAccess);
+            if (_folders.Count > MaxCachedFolders)
+            {
+                // Keep the folder just scanned. A revisited active folder must not lose its short-lived result
+                // solely because many other folders were browsed between two requests.
+                string oldest = _folders.Where(pair => !string.Equals(pair.Key, folder, StringComparison.OrdinalIgnoreCase))
+                    .MinBy(pair => pair.Value.Access).Key;
+                _folders.Remove(oldest);
+            }
+        }
+        if (changed) SidecarsChanged?.Invoke(folder);
         return sidecars;
     }
 
-    /// <summary>After the folder's listing changed: its sidecars are read again, and a change raises <see cref="SidecarsChanged"/>.</summary>
+    /// <summary>After the folder's listing changed: rescan its sidecars and invalidate rows when sources changed or the prior scan was evicted.</summary>
     public void FolderChanged(string folder, CancellationToken ct)
     {
-        if (!_folders.TryGetValue(folder, out var known)) return;
-        _folders[folder] = known with { ReadAt = DateTime.MinValue };
+        bool evicted;
+        lock (_folderLock)
+        {
+            evicted = !_folders.TryGetValue(folder, out var known);
+            if (!evicted) _folders[folder] = known with { ReadAt = DateTime.MinValue };
+        }
         SidecarsOf(folder, ct);
+        // A prior result may still be on screen after its parsed folder was evicted. With no old source list
+        // to compare, conservatively invalidate those rows after the fresh scan.
+        if (evicted) SidecarsChanged?.Invoke(folder);
     }
 
     private static bool SameSources(FolderSidecars a, FolderSidecars b) =>
