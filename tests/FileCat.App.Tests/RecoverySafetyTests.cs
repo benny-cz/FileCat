@@ -34,6 +34,7 @@ public sealed class RecoverySafetyTests
         }
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         int state = 0, opens = 0, initialChecks = 0;
+        var checkedSources = new System.Collections.Concurrent.ConcurrentQueue<string>();
         bool? Census()
         {
             Interlocked.Increment(ref initialChecks);
@@ -45,7 +46,7 @@ public sealed class RecoverySafetyTests
             Volatile.Write(ref state, lateProcess == false ? 0 : lateProcess == true ? 1 : 2);
         });
         vm.Dialogs = dialogs;
-        services.Recovery.SharesDisk = (_, _) => false;
+        services.Recovery.SharesDisk = (device, _) => { checkedSources.Enqueue(device); return false; };
         // Recording admission oracle: no actual device is opened, even by the failing baseline.
         services.Recovery.OpenDevice = (_, _, _) =>
         {
@@ -79,6 +80,11 @@ public sealed class RecoverySafetyTests
                     Identity = Core.FileSystem.UnixFiles.Stat(image, followLinks: true)?.Identity.ToString() ?? "recording-identity",
                 };
                 await vm.FindDeletedOnUnixDeviceAsync(panel, device, null, Census);
+            }
+            if (route == "windows-disk")
+            {
+                Assert.NotEmpty(checkedSources);
+                Assert.All(checkedSources, device => Assert.Equal(@"\\?\recording-disk-interface", device));
             }
             Assert.Equal(1, dialogs.ScanConfirmations);
             if (lateProcess == false)

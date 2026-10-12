@@ -378,7 +378,8 @@ public sealed partial class MainViewModel
         }
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
         bool system = HoldsWindows(disk);
-        var safety = await Task.Run(() => CheckDiskSafety(disk.Device, name, otherProcesses: otherProcesses));
+        // Admission must follow the selected interface that the reader will open, not a reusable disk number.
+        var safety = await Task.Run(() => CheckDiskSafety(disk.InterfacePath, name, otherProcesses: otherProcesses));
         if (safety.Refusal is not null)
         {
             await RefuseScanAsync(safety);
@@ -398,7 +399,7 @@ public sealed partial class MainViewModel
             ReleaseHoldOff();
             return;
         }
-        if (!await RecheckDeviceSafetyAsync(disk.Device, name, otherProcesses)) return;
+        if (!await RecheckDeviceSafetyAsync(disk.InterfacePath, name, otherProcesses)) return;
         _deviceScanned = true;
         // Open the selected PnP link, not its reusable PhysicalDrive number; then compare the held handle's identity.
         panel.OpenTab(Services.Recovery.ForDevice(disk.InterfacePath, name, length: disk.Length, identity: disk.Identity));
