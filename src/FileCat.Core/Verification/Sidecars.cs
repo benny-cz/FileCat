@@ -1,3 +1,4 @@
+using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
 
 namespace FileCat.Core.Verification;
@@ -37,7 +38,7 @@ public static class SidecarNames
 public sealed class FolderSidecars
 {
     public const long MaxChecksumFileBytes = 4L << 20;
-    private static readonly StringComparer Names = OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+    private static readonly StringComparer Names = PathUtil.SafetyComparer;
     private readonly Dictionary<string, List<ChecksumClaim>> _checksums = new(Names);
     private readonly Dictionary<string, List<SignatureClaim>> _signatures = new(Names);
     private readonly Dictionary<string, List<string>> _covers = new(Names);
@@ -91,7 +92,7 @@ public sealed class FolderSidecars
     private void AddSignature(string name, FileInfo signature, Dictionary<string, FileInfo> files)
     {
         string signed = SidecarNames.Signed(name);
-        if (!files.TryGetValue(signed, out var target)) return;
+        if (FindFile(files, signed, signature.DirectoryName!) is not { } target) return;
         var kind = name.EndsWith(".minisig", StringComparison.OrdinalIgnoreCase) ? SignatureKind.Minisign : SignatureKind.OpenPgp;
         var claim = new SignatureClaim(kind, signature.FullName, target.FullName);
         Add(_signatures, target.Name, claim);
@@ -109,28 +110,41 @@ public sealed class FolderSidecars
             if (entry.Problem is not null || entry.Path is null) continue;
             if (!string.Equals(Path.GetDirectoryName(entry.Path), sidecar.DirectoryName, StringComparison.OrdinalIgnoreCase)) continue;
             string covered = Path.GetFileName(entry.Path);
-            if (!files.ContainsKey(covered)) continue;
-            Add(_checksums, covered, new ChecksumClaim(entry.Kind, entry.Expected, sidecar.FullName, entry.Line));
-            Add(_covers, name, covered);
+            if (FindFile(files, covered, sidecar.DirectoryName!) is not { } coveredFile) continue;
+            Add(_checksums, coveredFile.Name, new ChecksumClaim(entry.Kind, entry.Expected, sidecar.FullName, entry.Line));
+            Add(_covers, name, coveredFile.Name);
             any = true;
         }
         if (any) return;
         // A bare checksum (with nothing after it, or only a name) in a file named after the one it checks.
         if (ChecksumManifests.KindFromName(name) is not { } kind || BareChecksum(sidecar.FullName, kind) is not { } expected) return;
-        string? target = TargetOf(name, files);
+        string? target = TargetOf(name, files, sidecar.DirectoryName!);
         if (target is null) return;
         Add(_checksums, target, new ChecksumClaim(kind, expected, sidecar.FullName, 1));
         Add(_covers, name, target);
     }
 
     /// <summary>"X.iso.sha256" checks "X.iso"; "X.sha256" checks the one file named "X.something" there is.</summary>
-    private static string? TargetOf(string sidecar, Dictionary<string, FileInfo> files)
+    private static string? TargetOf(string sidecar, Dictionary<string, FileInfo> files, string folder)
     {
         string stem = sidecar[..sidecar.LastIndexOf('.')];
         if (stem.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) stem = stem[..^4];
-        if (files.ContainsKey(stem)) return files[stem].Name;
+        if (FindFile(files, stem, folder) is { } exactOrAlias) return exactOrAlias.Name;
         var namesakes = files.Keys.Where(n => !SidecarNames.IsSidecar(n) && string.Equals(Path.GetFileNameWithoutExtension(n), stem, StringComparison.OrdinalIgnoreCase)).ToList();
         return namesakes.Count == 1 ? namesakes[0] : null;
+    }
+
+    private static FileInfo? FindFile(Dictionary<string, FileInfo> files, string name, string folder)
+    {
+        if (files.TryGetValue(name, out var exact)) return exact;
+        if (!OperatingSystem.IsMacOS()) return null;
+        // Preserve a case-insensitive Mac volume's existing spelling alias without merging distinct names on a
+        // case-sensitive volume. A single candidate is not enough: the requested spelling must name that inode.
+        var candidates = files.Values.Where(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+        if (candidates.Length != 1) return null;
+        var requested = UnixFiles.Stat(Path.Combine(folder, name));
+        var listed = UnixFiles.Stat(candidates[0].FullName);
+        return requested is { } a && listed is { } b && a.Identity == b.Identity && a.IsLink == b.IsLink ? candidates[0] : null;
     }
 
     private static string? BareChecksum(string path, ChecksumKind kind)
