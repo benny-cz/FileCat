@@ -1,10 +1,47 @@
 using FileCat.Core.Platform;
+using System.Diagnostics;
 
 namespace FileCat.Core.Tests;
 
 /// <summary>Icons from the desktop's icon theme on Linux (Icon Theme and Shared MIME-info specifications).</summary>
 public sealed class FreedesktopIconsTests
 {
+    [Fact]
+    public void A_stalled_theme_setting_helper_does_not_hold_icon_detection()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("The freedesktop theme helper is a Unix desktop command.");
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-theme-helper-" + Guid.NewGuid().ToString("N"))).FullName;
+        string helper = Path.Combine(root, "gsettings");
+        string pidFile = Path.Combine(root, "pid");
+        try
+        {
+            File.WriteAllText(helper, "#!/bin/sh\nprintf '%s\\n' \"$$\" > '" + pidFile + "'\nexec /bin/sleep 5\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var clock = Stopwatch.StartNew();
+            Assert.Null(FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 500));
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(3), $"Theme detection waited {clock.Elapsed} for a stalled helper.");
+            Assert.True(File.Exists(pidFile), "The owned helper did not reach its sleep control.");
+            int pid = int.Parse(File.ReadAllText(pidFile));
+            Assert.Throws<ArgumentException>(() => Process.GetProcessById(pid));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void A_finished_theme_setting_helper_preserves_its_exact_result()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("The freedesktop theme helper is a Unix desktop command.");
+        string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-theme-helper-" + Guid.NewGuid().ToString("N"))).FullName;
+        string helper = Path.Combine(root, "gsettings");
+        try
+        {
+            File.WriteAllText(helper, "#!/bin/sh\nprintf \"'Adwaita'\\n\"\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Assert.Equal("Adwaita", FreedesktopIcons.QueryGsettings(helper, "org.gnome.desktop.interface", "icon-theme", 500));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Types_folders_and_drives_find_their_theme_icons_and_draw()
     {

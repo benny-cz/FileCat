@@ -86,16 +86,41 @@ public sealed class FreedesktopIcons
     private static string? Gsettings(string schema, string key)
     {
         string? tool = new[] { "/usr/bin/gsettings", "/bin/gsettings" }.FirstOrDefault(File.Exists);
-        if (tool is null) return null;
+        return tool is null ? null : QueryGsettings(tool, schema, key, 2000);
+    }
+
+    internal static string? QueryGsettings(string tool, string schema, string key, int timeoutMilliseconds)
+    {
         try
         {
-            using var p = Process.Start(new ProcessStartInfo(tool, ["get", schema, key]) { RedirectStandardOutput = true, RedirectStandardError = true });
+            using var p = Process.Start(new ProcessStartInfo(tool, ["get", schema, key])
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            });
             if (p is null) return null;
-            string text = p.StandardOutput.ReadToEnd();
-            if (!p.WaitForExit(2000)) return null;
-            return p.ExitCode == 0 ? text.Trim().Trim('\'', '"') : null;
+            try
+            {
+                // Reading to EOF first makes the advertised exit timeout ineffective when the helper stalls.
+                // A noisy helper can instead fill either pipe: the exit wait still ends at the deadline.
+                if (!p.WaitForExit(timeoutMilliseconds) || p.ExitCode != 0) return null;
+                // An exited helper may have left stdout open in another process. Bound that read separately.
+                var output = p.StandardOutput.ReadToEndAsync();
+                if (!output.Wait(TimeSpan.FromMilliseconds(250))) return null;
+                return output.Result.Trim().Trim('\'', '"');
+            }
+            finally
+            {
+                if (!p.HasExited)
+                {
+                    try { p.Kill(entireProcessTree: true); p.WaitForExit(500); }
+                    catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                }
+            }
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or AggregateException)
         {
             return null;
         }
