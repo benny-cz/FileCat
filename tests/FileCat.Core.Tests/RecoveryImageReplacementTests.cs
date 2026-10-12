@@ -207,6 +207,63 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Held_image_reader_without_identity_refuses_in_place_source_rewrite()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-unknown-held-rewrite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img");
+        byte[] original = Image(17, false), replacement = Image(97, true);
+        File.WriteAllBytes(path, original);
+        File.SetLastWriteTimeUtc(path, Stamp);
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = _ => null,
+            GetOpenedSourceIdentity = _ => null,
+        };
+        var location = RecoveryProvider.ForImage(path, 1);
+        IContentSource? held = null;
+        try
+        {
+            string token = Assert.IsType<string>(FileCat.Core.FileSystem.SourceChangeToken.FromPath(path));
+            var first = new Sink();
+            await provider.EnumerateAsync(location, first, TestContext.Current.CancellationToken);
+            held = provider.OpenContent(provider.GetItemRef(location, Assert.Single(first.Rows)))!;
+            Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), Read(held));
+            using (var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                RandomAccess.Write(handle, replacement, 0);
+                RandomAccess.FlushToDisk(handle);
+            }
+            File.SetLastWriteTimeUtc(path, Stamp);
+            string currentToken = Assert.IsType<string>(FileCat.Core.FileSystem.SourceChangeToken.FromPath(path));
+            Assert.NotEqual(token, currentToken);
+            byte[]? actual = null;
+            Exception? error = Record.Exception(() => actual = Read(held));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                identity = (string?)null, token, currentToken,
+                sameMtime = File.GetLastWriteTimeUtc(path) == Stamp,
+                sourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                heldReadSha256 = actual is null ? null : Convert.ToHexString(SHA256.HashData(actual)),
+                error = error?.GetType().Name,
+            }));
+            Assert.Equal(Stamp, File.GetLastWriteTimeUtc(path));
+            Assert.IsType<IOException>(error);
+        }
+        finally
+        {
+            held?.Dispose();
+            provider.CloseAll();
+            bool sourceClosed = Exclusive(path);
+            File.Delete(path);
+            Directory.Delete(root);
+            output.WriteLine(JsonSerializer.Serialize(new { root, sourceClosed, absent = !Directory.Exists(root) }));
+            Assert.True(sourceClosed);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Fact]
     public async Task Free_space_rescan_refuses_image_rewritten_during_scan()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-scan-rewrite-" + Guid.NewGuid().ToString("N"));
@@ -293,19 +350,30 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             var current = Assert.Single((await List()).Rows);
             byte[] currentRead;
             using (var source = provider.OpenContent(provider.GetItemRef(location, current))!) currentRead = Read(source);
-            byte[]? heldRead = held is null ? null : Read(held);
+            byte[]? heldRead = null;
+            Exception? heldReadError = held is null ? null : Record.Exception(() => heldRead = Read(held));
             bool freeSpaceSearched = provider.DescribeFreeSpaceSearch(location)?.Searched == true;
             bool diskSearched = provider.DescribeDiskSearch(location)?.Searched == true;
             bool sourceUnchanged = File.ReadAllBytes(changed ? moved : path).SequenceEqual(original);
             bool currentUnchanged = File.ReadAllBytes(changed ? path : next).SequenceEqual(replacement);
             output.WriteLine(JsonSerializer.Serialize(new { route, changed, identityAvailable, originalId, nextId, CurrentIdentity = files.GetFileIdentity(path),
                 FirstName = first.Name, CurrentName = current.Name, FirstRead = Convert.ToBase64String(firstRead), CurrentRead = Convert.ToBase64String(currentRead),
-                HeldRead = heldRead is null ? null : Convert.ToBase64String(heldRead), freeSpaceSearched, diskSearched, sourceUnchanged, currentUnchanged,
+                HeldRead = heldRead is null ? null : Convert.ToBase64String(heldRead), heldReadError = heldReadError?.GetType().Name,
+                freeSpaceSearched, diskSearched, sourceUnchanged, currentUnchanged,
                 OriginalImage = Convert.ToBase64String(original), ReplacementImage = Convert.ToBase64String(replacement) }));
             Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), firstRead);
             Assert.Equal(replacement.AsSpan(4 * 512, 4096).ToArray(), currentRead);
             Assert.Equal(changed && route == "catalog", first.Name != current.Name);
-            if (heldRead is not null) Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), heldRead);
+            if (held is not null)
+            {
+                if (changed && !identityAvailable && heldReadError is IOException)
+                    Assert.Null(heldRead); // With no identity, a renamed old image may be conservatively refused.
+                else
+                {
+                    Assert.Null(heldReadError);
+                    Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), heldRead);
+                }
+            }
             if (!changed && route == "free-space") Assert.True(freeSpaceSearched);
             if (!changed && route == "disk-search") Assert.True(diskSearched);
             Assert.True(sourceUnchanged); Assert.True(currentUnchanged);

@@ -592,12 +592,20 @@ public sealed class RecoveryProvider : ResourceProvider
                     (source is not IDeviceSelectionIdentity opened || !string.Equals(opened.SelectionIdentity, selectedIdentity, StringComparison.OrdinalIgnoreCase)))
                     throw new IOException($"{SourceName(location)} is not the disk that was chosen: its device identity changed or could not be verified. Choose it again from the list of drives.");
                 Action? verifyImageContent = null;
-                if (!device && identity is not null && changeToken is not null && source is ImageFileSource image)
+                if (!device && changeToken is not null && source is ImageFileSource image)
                 {
                     // A held content reader needs this one identity query, not the provider and its other cached sessions.
                     Func<string, string?> getIdentity = GetSourceIdentity;
                     verifyImageContent = () =>
                     {
+                        // Without a path identity we cannot distinguish an in-place rewrite from a rename that
+                        // advanced the opened file's metadata token. Refuse changed-token reads in either case.
+                        if (identity is null)
+                        {
+                            if (image.CurrentChangeToken() != changeToken)
+                                throw new IOException("The disk image changed while its deleted content was being read. Open it again.");
+                            return;
+                        }
                         string? currentIdentity = getIdentity(path);
                         if (currentIdentity is null)
                             throw new IOException("The disk image's path identity cannot be verified while reading it.");
