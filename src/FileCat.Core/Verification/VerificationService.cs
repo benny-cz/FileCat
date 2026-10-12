@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FileCat.Core.FileSystem;
@@ -37,10 +38,24 @@ public sealed class VerificationCache(string? file)
     /// <summary>
     /// A result's key: the file, the sidecars it depends on, and what vouches for its signers (key files, gpg's keyring).
     /// The leading version drops results worked out by an earlier model (keys beside a file once counted as trusted; the
-    /// states were once ordered otherwise).
+    /// states were once ordered otherwise) and version 3's ambiguous delimiter-based source names.
     /// </summary>
-    public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources) =>
-        $"3|{path}|{size}|{modified}|{string.Join(";", sources.OrderBy(s => s.Name, StringComparer.Ordinal).Select(s => $"{s.Name}:{s.Size}:{s.Modified}"))}";
+    public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources)
+    {
+        // Names on Unix may contain the separators used by earlier cache keys. Length-prefix every untrusted
+        // string so a single sidecar cannot masquerade as two different sidecars with the same metadata.
+        var key = new StringBuilder("4|");
+        static void Name(StringBuilder key, string value) => key.Append(value.Length).Append(':').Append(value);
+        Name(key, path);
+        key.Append('|').Append(size).Append('|').Append(modified);
+        foreach (var source in sources.OrderBy(s => s.Name, StringComparer.Ordinal))
+        {
+            key.Append('|');
+            Name(key, source.Name);
+            key.Append(':').Append(source.Size).Append(':').Append(source.Modified);
+        }
+        return key.ToString();
+    }
 
     private static string HashKeyOf(string path, long size, long modified) => $"#{path}|{size}|{modified}";
 
