@@ -66,6 +66,45 @@ public release. This case does not qualify a clean Windows image, standard-user 
 SAC/WebView2 and other native integrations, portable/FDD absence/presence, ARM64 transition,
 signed uninstaller/setup, frozen support tiers or the final chosen candidate. I04 and V19 stay open.
 
+## Standard-user limit and VM recovery
+
+A later standard-user diagnostic installed the same exact setup and started FileCat as the owned
+`FileCatStdI04` account. The process ran for ten seconds under that account, but it was in
+session 0, had no window handle or title, and could not accept a normal window-close request;
+the harness terminated it. This is a noninteractive process-start observation, **not**
+standard-user desktop acceptance. The original 68 case inputs rehash correctly. The three
+additional raw files have a separate addendum manifest SHA-256
+`c3c371c73797bfbfdc2ff863a8335016e78ad05c6c1ce966d068defa905752eb`.
+
+A temporary VM-only automatic-login attempt then stalled during a guest soft reboot. One hard
+reset reached firmware but still did not restore guest operations. After the case data had been
+copied off the VM, the sole snapshot `updated #38` was restored and started without a host
+console. VMware Tools and the Admin guest login responded. A read-only post-restore audit found
+no test account, test root, installed FileCat or `DefaultPassword` registry value. The snapshot
+has its own baseline `AutoAdminLogon=0`, `DefaultUserName=Admin` and
+`DefaultDomainName=.` values; none equals the temporary automatic-login setting. The full
+stalled/restored VMware logs, audit script/result and file hashes are in the separate private
+`i04-windows11-vm-recovery-20261012-v1` receipt SHA-256
+`7a011fc317ea1b80cd2c468fc2ff2123f55e41dc55ddabb6e3b8ef8147421b3e`.
+No standard-user interactive or clean-machine conclusion follows from the snapshot recovery.
+
+At the owner's request, the restored disposable VM was temporarily quieted for later tests.
+The read-only baseline found Defender real-time protection already off, with behavior, IOAV
+and script scanning preferences still enabled. An exact baseline was retained before changing
+those three preferences, disabling the four enabled Defender scheduled tasks and setting the
+Windows Update `NoAutoUpdate=1` policy. The Update Orchestrator stopped and was disabled.
+Windows rejected disabling protected Delivery Optimization and Update Medic startup settings,
+and restarted `wuauserv`; the latter still reported `Manual/Running` in a later audit. Thus
+automatic updates are policy-blocked and Defender real-time/on-access scanning reports off,
+but the Windows Update and Defender services themselves are **not** fully disabled. An
+eight-second worker sample still showed `MsMpEng` using 3.484 CPU seconds after the task
+changes, while `TiWorker` and `TrustedInstaller` used zero. All action successes/failures,
+before/after states and CPU samples are retained in private
+`i04-windows11-vm-quiet-20261012-v1`, receipt SHA-256
+`a113371d08cb4784c663b921271ab29544f92e6d1835e93a9746b22d31b2a574`.
+Its baseline-specific restoration script is staged for use when VM testing finishes;
+restoration has not yet been claimed.
+
 ## Raw record
 
 Private case: `artifacts/release-evidence/i04-windows11-install-lifecycle-20261012-v1/`
@@ -73,4 +112,5 @@ Private case: `artifacts/release-evidence/i04-windows11-install-lifecycle-202610
 `b2bcb15e48c2fbde7f6bc6cdafd9a770f826d708e1e4f52f52457cf40c7efeec`.
 It retains the exact installer, source ZIP, publish and compiler receipts, raw stdout/stderr,
 guest scripts, adverse attempt results, registry reads, install/reinstall/uninstall JSON,
-payload checks and owned cleanup. No release candidate was formed or published.
+payload checks and owned cleanup. The standard-user addendum and VM-recovery receipt are
+separate from that 68-input manifest. No release candidate was formed or published.

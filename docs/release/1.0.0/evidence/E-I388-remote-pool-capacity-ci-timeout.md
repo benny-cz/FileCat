@@ -46,8 +46,36 @@ passed five separate 48/0/0 guest repeats and the complete Remote suite
 **2,324 passes/196 explicit skips/zero failures**. The guest skip inventory
 differs from CI because its network fixtures are unavailable; those skips
 remain skips. These are native test-binary observations, not corrected-source
-hosted CI or final-candidate qualification. The corrected pushed CI run is
+hosted CI or final-candidate qualification. The corrected pushed CI run was
 required before closing preliminary remediation.
+
+## Corrected-source hosted qualification
+
+Exact pushed `5788c9648c65f109e8f0140ab498a78902cb7a9b`
+[run 38249886093](https://github.com/benny-cz/FileCat/actions/runs/38249886093)
+completed success on Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26;
+the producer-reference policy passed. Four tag-only jobs explicitly skipped.
+An independent audit rehashed all **27 GitHub server-digest archives and 2,762
+uncompressed members**, then read all **fourteen TRX** without dropping repeated
+display names in other suites: **32,982 passes, 1,124 explicit skips and zero
+failures**. Windows x64 and ARM64 Remote each record **2,364 passes/156 skips**.
+The x64 Remote TRX has the same 2,520 names and identical outcome/error messages
+as the separately retained passing pre-correction Windows run; the former failed
+SFTP capacity case is **Passed** in this exact corrected-source run. This seals
+the test-harness deadline correction preliminarily. The original failed run
+remains failed; the particular runner scheduling pause is unattributed, and no
+remote pool product defect or candidate qualification is inferred.
+
+Private corrected-source case:
+`artifacts/release-evidence/ci-i388-corrected-hosted-20261012-v1/`, currently on
+`V:\FileCat\artifacts`. Artifact manifest SHA-256
+`4e48ccb67b987ed8b6412bd6ee5b6b26506179cd43f9bd624742638df8b47024`,
+independent CI audit SHA-256
+`5df3ca94781030d5d84d35fb96e57f1a55874bdf9a2a740e3b532b78ca19a311`,
+and case receipt SHA-256
+`5505592501a94059be14428fc1c8216de7a08bc1d325e419b11c5815e3156b38`.
+The 27 original ZIPs, per-member hashes, both audit scripts and run/job status
+are retained. Installed-app, network-service and final-candidate scope remain.
 
 ## Raw record
 
