@@ -2,7 +2,7 @@ using FileCat.App.Services;
 
 namespace FileCat.App.Tests;
 
-public sealed class GitStatusTests
+public sealed class GitStatusTests(ITestOutputHelper output)
 {
     [Theory]
     [InlineData("[core]\n\tbare = false # ignored slash\\\n[filter \"owned\"]\n\tclean = unused\n")]
@@ -310,7 +310,24 @@ public sealed class GitStatusTests
             Directory.CreateDirectory(Path.Combine(root, "plain"));
 
             // The folder that lists them is in no repository: each repository's folder says how its work tree is.
-            var snapshot = await GitStatusReader.ReadAsync(root, ct);
+            // A badge is optional when Git exceeds its per-repository deadline on a busy CI runner.
+            // Retry only missing badges; a present but wrong state must fail on the first observation.
+            GitStatusSnapshot? snapshot = null;
+            for (int attempt = 1; attempt <= 3; attempt++)
+            {
+                snapshot = await GitStatusReader.ReadAsync(root, ct);
+                GitStatusKind clean = snapshot?.ForName("clean") ?? GitStatusKind.None;
+                GitStatusKind added = snapshot?.ForName("new") ?? GitStatusKind.None;
+                GitStatusKind edited = snapshot?.ForName("edited") ?? GitStatusKind.None;
+                GitStatusKind plain = snapshot?.ForName("plain") ?? GitStatusKind.None;
+                output.WriteLine($"Git badge attempt {attempt}: clean={clean}, new={added}, edited={edited}, plain={plain}");
+                bool missing = clean == GitStatusKind.None || added == GitStatusKind.None || edited == GitStatusKind.None;
+                bool otherwiseCorrect = (clean is GitStatusKind.None or GitStatusKind.Clean) &&
+                    (added is GitStatusKind.None or GitStatusKind.Untracked) &&
+                    (edited is GitStatusKind.None or GitStatusKind.Modified) && plain == GitStatusKind.None;
+                if (!missing || !otherwiseCorrect || attempt == 3) break;
+                await Task.Delay(100, ct);
+            }
             Assert.NotNull(snapshot);
             Assert.Equal(GitStatusKind.Clean, snapshot.ForName("clean"));
             Assert.Equal(GitStatusKind.Untracked, snapshot.ForName("new"));
