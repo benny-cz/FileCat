@@ -253,18 +253,29 @@ public static class OpenPgp
         try
         {
             using var process = Process.Start(start) ?? throw new IOException("gpg did not start");
-            var output = process.StandardOutput.ReadToEndAsync(ct);
-            _ = process.StandardError.ReadToEndAsync(ct);
+            // The process may exit while a descendant still holds a redirected pipe. Bound exit and
+            // both drains together; stderr is diagnostic text and must not grow an unused string.
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromMinutes(1));
+            var output = process.StandardOutput.ReadToEndAsync(deadline.Token);
+            var errors = process.StandardError.BaseStream.CopyToAsync(Stream.Null, deadline.Token);
             try
             {
-                process.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
+                process.WaitForExitAsync(deadline.Token).GetAwaiter().GetResult();
+                Task.WhenAll(output, errors).GetAwaiter().GetResult();
                 ct.ThrowIfCancellationRequested();
             }
-            catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
+            catch (OperationCanceledException)
             {
-                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
                 ct.ThrowIfCancellationRequested();
                 return new SignatureResult(VerificationState.SignatureUnchecked, "gpg did not answer within a minute");
+            }
+            finally
+            {
+                deadline.Cancel();
+                if (!process.HasExited)
+                    try { process.Kill(entireProcessTree: true); }
+                    catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
             }
             status = output.GetAwaiter().GetResult();
         }
