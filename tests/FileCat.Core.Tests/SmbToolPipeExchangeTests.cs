@@ -56,7 +56,7 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
         JsonElement[] phases = [];
         Task<(int Code, string Output, string Errors)>? pending = null;
         var clock = Stopwatch.StartNew();
-        bool inputReady = false;
+        bool childReady = false;
         long? cancellationRequestedMilliseconds = null;
         try
         {
@@ -68,12 +68,15 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             pending = SmbTools.RunAsync(python!, arguments, TimeSpan.FromSeconds(toolTimeoutSeconds), cancel.Token, input);
             if (mode == "cancel")
             {
-                while (!ReadPhases(ledger).Any(v => v.GetProperty("Phase").GetString() == "input-read"))
+                // Normal exchanges below prove stdin contents, EOF, and output bytes. For
+                // cancellation, the boundary is the owned child's actual start: it must stop
+                // promptly even if a busy host delays its later pipe phases.
+                while (!ReadPhases(ledger).Any(v => v.GetProperty("Phase").GetString() == "started"))
                 {
-                    Assert.True(clock.Elapsed < TimeSpan.FromSeconds(25), "The owned child did not finish its input fence.");
+                    Assert.True(clock.Elapsed < TimeSpan.FromSeconds(25), "The owned child did not finish its startup fence.");
                     await Task.Delay(10, TestContext.Current.CancellationToken);
                 }
-                inputReady = true;
+                childReady = true;
                 cancellationRequestedMilliseconds = clock.ElapsedMilliseconds;
                 cancel.Cancel();
             }
@@ -104,8 +107,11 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             else if (mode == "cancel")
             {
                 Assert.IsAssignableFrom<OperationCanceledException>(error);
+                var started = Assert.Single(phases, p => p.GetProperty("Phase").GetString() == "started");
+                Assert.Equal(channel, started.GetProperty("Channel").GetString());
+                Assert.Equal(prefixBytes, started.GetProperty("PrefixBytes").GetInt32());
                 Assert.True(cancellationRequestedMilliseconds is { } requestedAt && clock.ElapsedMilliseconds - requestedAt < 5000,
-                    "Cancellation must end the owned child promptly after the input fence, independently of startup.");
+                    "Cancellation must end the owned child promptly after the startup fence, independently of startup delay.");
             }
             else
             {
@@ -132,7 +138,7 @@ public sealed class SmbToolPipeExchangeTests(ITestOutputHelper output)
             var current = ReadPhases(ledger);
             output.WriteLine("SMB_CANCELLATION_RESTORATION " + JsonSerializer.Serialize(new
             {
-                name, mode, inputReady, elapsedMilliseconds = clock.ElapsedMilliseconds,
+                name, mode, childReady, elapsedMilliseconds = clock.ElapsedMilliseconds,
                 pendingCompleted = pending?.IsCompleted, phases = current, root,
                 ownedProcessOnly = true, noHistoricalHostedCauseClaim = true,
             }));

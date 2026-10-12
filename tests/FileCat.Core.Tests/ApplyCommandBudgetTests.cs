@@ -98,7 +98,32 @@ public sealed class ApplyCommandBudgetTests(ITestOutputHelper output)
             Assert.Null(accepted.Problem); Assert.NotNull(refused.Problem); Assert.Equal(limit, ToolLauncher.CommandLineLength(accepted.Executable, accepted.Arguments));
             Assert.Equal(0, native!.Exit); Assert.Equal(Encoding.ASCII.GetBytes(new string('X', count) + "\r\n"), receipt);
         }
-        finally { Environment.SetEnvironmentVariable("ComSpec", old); Directory.Delete(root, true); }
+        finally { Environment.SetEnvironmentVariable("ComSpec", old); DeleteOwnedCustomRoot(root); }
+    }
+
+    private void DeleteOwnedCustomRoot(string root)
+    {
+        string resolved = Path.GetFullPath(root);
+        string temp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
+        Assert.True(string.Equals(Path.GetDirectoryName(resolved), temp,
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+        Assert.StartsWith("filecat-apply-custom-budget-", Path.GetFileName(resolved));
+        var clock = Stopwatch.StartNew();
+        int attempts = 0;
+        while (Directory.Exists(resolved))
+        {
+            TestContext.Current.CancellationToken.ThrowIfCancellationRequested();
+            attempts++;
+            try { Directory.Delete(resolved, recursive: true); }
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && clock.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                // Windows may keep the copied command processor image open briefly after its
+                // owned child exits. A persistent denial still fails this fixture.
+                Thread.Sleep(50);
+            }
+        }
+        Assert.False(Directory.Exists(resolved));
+        output.WriteLine("OWNED_CUSTOM_COMSPEC_REMOVED " + JsonSerializer.Serialize(new { Root = resolved, Attempts = attempts, ElapsedMilliseconds = clock.ElapsedMilliseconds, Absent = true }));
     }
 
     private void ObserveExplicit(string mode)

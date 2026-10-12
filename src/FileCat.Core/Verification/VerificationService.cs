@@ -337,14 +337,19 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>The folder's results so far, from the cache only (the status line): nothing is hashed for it.</summary>
     public (int Good, int Bad, int Unknown, int NotChecked) Summary(string folder, IEnumerable<string> names)
     {
-        if (!_folders.TryGetValue(folder, out var known)) return default;
+        FolderSidecars sidecars;
+        lock (_folderLock)
+        {
+            if (!_folders.TryGetValue(folder, out var known)) return default;
+            sidecars = known.Sidecars;
+        }
         int good = 0, bad = 0, unknown = 0, notChecked = 0;
         foreach (string name in names)
         {
-            if (!known.Sidecars.Covers(name)) continue;
+            if (!sidecars.Covers(name)) continue;
             string path = Path.Combine(folder, name);
             if (Stamp(path) is not { } stamp) continue;
-            var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(known.Sidecars, name).Concat(TrustOf(known.Sidecars, name))));
+            var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name))));
             if (result is null) notChecked++;
             else if (result.IsGood) good++;
             else if (result.IsBad) bad++;
