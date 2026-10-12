@@ -1,0 +1,7 @@
+# E-V09-G15 — read-only NTFS journal availability on the held USB
+
+2026-10-12. The owner confirmed disposable USB `G:` remained available. This is a **read-only historical attribution probe**, not a FileCat source-validation run and not a release of the I106/I110 physical-source HOLD.
+
+Before querying journal metadata, the probe independently matched disk 5, USB serial `2F2000129618`, device length **7,796,162,560 bytes**, NTFS partition offset **1,048,576** and partition length **7,795,113,984** against the held [G6 source](E-V09-G6-incomplete-usb-source-trace.md). `fsutil usn queryjournal G:` returned process exit 1 and the exact message `Error 1179: The volume change journal is not active.` No journal was created or changed. This route cannot identify the writer or changed blocks in G6's historical before/after full-device hash difference. G6's before image/chunk hashes were not retained; later matching after images do not reconstruct them. Attribution and the physical-source hold remain open.
+
+Private raw evidence: `E:\FileCat\artifacts\release-evidence\i106-g-journal-readonly-20261012-v1`. The four original output files are rehashed by `sha256.json` (SHA-256 `fff050e8ac2b7255b9210eb1c0da0da2d6330e386685f6206f77ec1d4ac0e760`); the retained probe script SHA-256 is `1ab107ae5d1c0ab635bf23b9b3ec647513fd199baeb78ce0c6cc41908b9ecd45`. No FileCat physical source path, source write, VM console, host UI, contract freeze, candidate or publication was exercised.
