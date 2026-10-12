@@ -64,10 +64,11 @@ public sealed class RecoveryProvider : ResourceProvider
 
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device,
-        Action? verifyImageContent = null) : IDisposable
+        Action? verifyImageContent = null, Action? verifyImageListing = null) : IDisposable
     {
         public IBlockSource Source { get; } = source;
         public Action? VerifyImageContent { get; } = verifyImageContent;
+        public Action? VerifyImageListing { get; } = verifyImageListing;
         private readonly ImageLifetime? _image = device ? null : new ImageLifetime(source);
         public IReadOnlyList<RecoveryVolume> Volumes { get; set; } = volumes;
         public DateTime Used { get; set; } = DateTime.UtcNow;
@@ -309,6 +310,7 @@ public sealed class RecoveryProvider : ResourceProvider
                     Flags = v.FileSystem == "Unknown" ? EntryFlags.Unavailable : EntryFlags.None,
                 });
             }
+            session.VerifyImageListing?.Invoke();
             sink.AddBatch(rows.ToArray());
             if (DescribeDiskSearch(session, location) is { } search)
                 sink.ReportIssue(search.Searched
@@ -340,6 +342,9 @@ public sealed class RecoveryProvider : ResourceProvider
                 Flags = lost ? EntryFlags.Unavailable : EntryFlags.None,
             });
         }
+        // Issue/progress callbacks can run user code after GetSession verified the image.
+        // Do not publish a catalog assembled from an image changed in that interval.
+        session.VerifyImageListing?.Invoke();
         sink.AddBatch(batch.ToArray());
         return Task.CompletedTask;
     }
@@ -617,7 +622,7 @@ public sealed class RecoveryProvider : ResourceProvider
                 var volumes = Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk);
                 VerifyImageScan(source);
                 var session = new Session(source, volumes, device,
-                    verifyImageContent)
+                    verifyImageContent, device ? null : () => VerifyImageScan(source))
                 { DiskSearched = searchImageDisk };
                 _sessions[key] = session;
                 while (_sessions.Count > MaxSessions)
