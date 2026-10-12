@@ -53,6 +53,7 @@ public sealed class DeviceIoScheduler : IDisposable
     public TimeSpan HangThreshold { get; }
     public int ThreadsPerDevice { get; }
     public int MaxThreadsPerDevice { get; }
+    internal TimeSpan IdleQueueTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Shutdown has begun; callers must not publish newly admitted work.</summary>
     public bool IsStopped => _disposed;
@@ -72,9 +73,14 @@ public sealed class DeviceIoScheduler : IDisposable
         // Late requests (a watcher notification posted just before exit) are canceled, not thrown at the UI.
         if (_disposed) return Task.FromCanceled<T>(new CancellationToken(canceled: true));
         var item = new WorkItem<T>(work, ct);
-        _devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority);
+        // A queue may retire between GetOrAdd and admission. Retry on a fresh queue rather than
+        // canceling a live caller or leaving work stranded on a worker that has exited.
+        while (!_devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority)) { }
         return item.Task;
     }
+
+    private void Forget(string key, DeviceQueue queue) =>
+        ((ICollection<KeyValuePair<string, DeviceQueue>>)_devices).Remove(new(key, queue));
 
     private void Watch()
     {
@@ -180,16 +186,17 @@ public sealed class DeviceIoScheduler : IDisposable
 
         public DeviceHealth Health { get; private set; }
 
-        public void Enqueue(WorkItem item, IoPriority priority)
+        public bool Enqueue(WorkItem item, IoPriority priority)
         {
             lock (_lock)
             {
                 // Admission can resume after Shutdown, or create a queue after Dispose took its snapshot.
-                if (_shutdown || owner._disposed)
+                if (owner._disposed)
                 {
                     item.Cancel();
-                    return;
+                    return true;
                 }
+                if (_shutdown) return false; // idle retirement; the caller retries on a new queue
                 _queue.Enqueue(item, ((int)priority, _seq++));
                 if (Diagnostics.FileCatEventSource.Log.IsEnabled()) Diagnostics.FileCatEventSource.Log.QueueDepth(key, _queue.Count);
                 if (_idle > 0) Monitor.Pulse(_lock);
@@ -197,6 +204,7 @@ public sealed class DeviceIoScheduler : IDisposable
                 // outgrow those idle slots before any worker starts its call; admit the remaining capacity now.
                 if (_queue.Count > _idle && _workers.Count < owner.MaxThreadsPerDevice && ActiveWorkers() < owner.ThreadsPerDevice)
                     StartWorker();
+                return true;
             }
         }
 
@@ -243,11 +251,20 @@ public sealed class DeviceIoScheduler : IDisposable
                             break;
                         }
                         _idle++;
-                        bool signaled = Monitor.Wait(_lock, TimeSpan.FromSeconds(30));
+                        bool signaled = Monitor.Wait(_lock, owner.IdleQueueTimeout);
                         _idle--;
                         if (!signaled && _queue.Count == 0 && ActiveWorkers() > 1)
                         {
                             _workers.Remove(self);
+                            return;
+                        }
+                        if (!signaled && _queue.Count == 0 && _workers.Count == 1)
+                        {
+                            // Retire the final idle worker and its key together. Enqueue either wins this
+                            // lock and wakes us, or sees _shutdown and retries after the exact-key removal.
+                            _shutdown = true;
+                            _workers.Remove(self);
+                            owner.Forget(key, this);
                             return;
                         }
                     }

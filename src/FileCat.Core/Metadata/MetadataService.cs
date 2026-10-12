@@ -147,7 +147,7 @@ public sealed class MetadataService
         if (outstanding > MaxOutstandingPerDevice * 64)
         {
             // Backlog guard: drop instead of growing unbounded; the row asks again while visible.
-            _outstanding.AddOrUpdate(deviceKey, 0, (_, n) => n - 1);
+            ReleaseOutstanding(deviceKey);
             _inFlight.TryRemove(key, out _);
             return;
         }
@@ -156,7 +156,7 @@ public sealed class MetadataService
         {
             if (!EndProduction(production)) return;
             _inFlight.TryRemove(key, out _);
-            _outstanding.AddOrUpdate(deviceKey, 0, (_, n) => Math.Max(0, n - 1));
+            ReleaseOutstanding(deviceKey);
             if (!IsCurrent(production)) Notify(); // visible rows can retry now that obsolete demand has ended
         }
         var work = _io.Run(deviceKey, IoPriority.Background, ct =>
@@ -175,6 +175,14 @@ public sealed class MetadataService
         // Shutdown cancels queued work without entering its callback; release its demand record in that case too.
         _ = work.ContinueWith(_ => Finished(), CancellationToken.None,
             TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    private void ReleaseOutstanding(string deviceKey)
+    {
+        int remaining = _outstanding.AddOrUpdate(deviceKey, 0, (_, n) => Math.Max(0, n - 1));
+        if (remaining == 0)
+            // Remove only the observed zero. A concurrent admission that changed it to one must survive.
+            ((ICollection<KeyValuePair<string, int>>)_outstanding).Remove(new(deviceKey, 0));
     }
 
     private static MetadataValue Produce(MetadataField field, string path, CancellationToken ct)

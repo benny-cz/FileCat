@@ -1,6 +1,6 @@
 # E-I06 — resource progress and remaining executable work
 
-Current follow-up: [exact committed I362](E-I362-native-qualification.md) passes at a8f7159 with 112 controls, 1,605 native affected records/77 exact skips and 907 independent file checks. [I363](E-I363-exited-worker-stderr.md) separately fixes exited-root pipe retirement; eight native controls and 220 affected records/six skips qualify, without containing the surviving child. Broader issue scopes and physical HOLD remain.
+Current follow-up: [I372 transient-device retirement](E-I372-transient-device-retirement.md) reproduces separate scheduler-worker and metadata-counter key retention after completed work, then corrects both in focused local controls. A scheduler-only full Core run and a separate combined repeat pass; one combined full run retains two adverse results, with isolated correction/SMB cases passing. Exact committed/native qualification remains. Earlier [exact I362](E-I362-native-qualification.md) and [I363](E-I363-exited-worker-stderr.md) retain their separate source/lifetime results. Broader aggregate/native/candidate scope and physical HOLD remain.
 
 2026-10-11. I06 remains open. This matrix tracks six resource groups, not six individual tests or a completion percentage. Original operational authority and acceptance criteria are unchanged. Existing page/cache decisions stay decided; no aggregate picture limit or acceptance result is invented.
 

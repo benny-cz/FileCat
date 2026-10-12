@@ -5,6 +5,64 @@ namespace FileCat.Core.Tests;
 
 public sealed class DeviceIoSchedulerTests
 {
+    [Fact]
+    public async Task Idle_transient_device_queues_release_their_workers_and_keys()
+    {
+        using var io = new DeviceIoScheduler { IdleQueueTimeout = TimeSpan.FromMilliseconds(80) };
+        const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+        var queues = (System.Collections.IDictionary)typeof(DeviceIoScheduler).GetField("_devices", fields)!.GetValue(io)!;
+        var keys = Enumerable.Range(0, 12).Select(i => $"owned-transient-{i}").ToArray();
+        int calls = 0;
+        var ct = TestContext.Current.CancellationToken;
+        await Task.WhenAll(keys.Select(key => io.Run(key, IoPriority.Interactive,
+            _ => { Interlocked.Increment(ref calls); }, ct))).WaitAsync(TimeSpan.FromSeconds(5), ct);
+        Assert.Equal(keys.Length, Volatile.Read(ref calls));
+        Assert.True(SpinWait.SpinUntil(() => queues.Count == 0, TimeSpan.FromSeconds(5)),
+            $"{queues.Count} completed device queues still own idle workers");
+        Assert.Equal(37, await io.Run(keys[0], IoPriority.Interactive, _ => 37, ct)
+            .WaitAsync(TimeSpan.FromSeconds(5), ct));
+    }
+
+    [Fact]
+    public async Task An_active_call_survives_idle_retirement_and_repeated_admission()
+    {
+        using var io = new DeviceIoScheduler { IdleQueueTimeout = TimeSpan.FromMilliseconds(25) };
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        var ct = TestContext.Current.CancellationToken;
+        var held = io.Run("owned-rotating-device", IoPriority.Interactive, _ =>
+        {
+            entered.TrySetResult();
+            if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException("Owned call was not released");
+            Interlocked.Increment(ref calls);
+        }, ct);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+            await Task.Delay(100, ct);
+            Assert.False(held.IsCompleted);
+            var queued = Enumerable.Range(0, 40).Select(_ =>
+                io.Run("owned-rotating-device", IoPriority.Interactive,
+                    _ => { Interlocked.Increment(ref calls); }, ct)).ToArray();
+            release.Set();
+            await Task.WhenAll(queued.Append(held)).WaitAsync(TimeSpan.FromSeconds(5), ct);
+            Assert.Equal(41, Volatile.Read(ref calls));
+            for (int i = 0; i < 40; i++)
+            {
+                await Task.Delay(15, ct);
+                await io.Run("owned-rotating-device", IoPriority.Interactive,
+                    _ => { Interlocked.Increment(ref calls); }, ct).WaitAsync(TimeSpan.FromSeconds(5), ct);
+            }
+            Assert.Equal(81, Volatile.Read(ref calls));
+        }
+        finally
+        {
+            release.Set();
+            await held.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
