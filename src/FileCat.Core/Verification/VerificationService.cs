@@ -25,7 +25,8 @@ internal sealed partial class VerificationJsonContext : JsonSerializerContext;
 /// that cover it; a changed file or sidecar makes a new key, so it is checked again. Hashes are keyed by the file alone:
 /// any job that reads a file (verifying a manifest, calculating checksums) leaves them, and a later check uses them
 /// instead of reading the file again. The file is rewritten, newest entries kept, when it grows past twice
-/// <see cref="MaxEntries"/>.
+/// <see cref="MaxEntries"/>. The same recent-entry window bounds memory when loading an older oversized file or
+/// when the cache has no persistence file.
 /// </summary>
 public sealed class VerificationCache(string? file)
 {
@@ -106,6 +107,7 @@ public sealed class VerificationCache(string? file)
             Load();
             _entries.Remove(entry.Key);
             _entries[entry.Key] = entry; // re-added last: the newest when the file is rewritten
+            TrimRecent();
             if (file is null) return;
             try
             {
@@ -133,12 +135,22 @@ public sealed class VerificationCache(string? file)
                     {
                         _entries.Remove(e.Key);
                         _entries[e.Key] = e;
+                        TrimRecent();
                     }
                 }
                 catch (JsonException) { } // a line cut short by a crash: the rest still counts
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private void TrimRecent()
+    {
+        if (_entries.Count <= 2 * MaxEntries) return;
+        // Dictionary insertion order tracks the same newest-wins rule used by Compact. Keep the
+        // whole compaction window until it fills, then retire its oldest half in one bounded pass.
+        while (_entries.Count > MaxEntries)
+            _entries.Remove(_entries.Keys.First());
     }
 
     private void Compact()
