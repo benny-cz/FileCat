@@ -15,6 +15,20 @@ public sealed class UnixNetworkTests
     }
 
     [Fact]
+    public void Automatic_network_helpers_are_selected_only_from_OS_tool_directories()
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix SMB helper selection."); return; }
+        string[] directories = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
+        foreach (string name in new[] { "gio", "smbclient", "smbutil", "mount" })
+        {
+            string? selected = SmbTools.FindSystemTool(name);
+            if (selected is not null)
+                Assert.Contains(Path.GetDirectoryName(selected), directories);
+        }
+        Assert.Null(SmbTools.FindSystemTool("../smbclient"));
+    }
+
+    [Fact]
     public void Each_tools_share_list_is_read_as_the_tool_writes_it()
     {
         // smbclient -L //server -g

@@ -26,6 +26,7 @@ public sealed class SmbSignInRequiredException(string message) : UnauthorizedAcc
 public static partial class SmbTools
 {
     private static readonly string[] ToolFolders = ["/usr/bin", "/bin", "/usr/local/bin", "/opt/homebrew/bin", "/usr/sbin", "/sbin"];
+    private static readonly string[] SystemToolFolders = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
 
     /// <summary>A tool by full path, from the absolute entries of PATH and the usual folders; null when it is not there.</summary>
     public static string? Find(string name)
@@ -35,6 +36,21 @@ public static partial class SmbTools
         foreach (string folder in folders)
         {
             string candidate = Path.Join(folder, name);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// An OS SMB helper used without an explicit executable choice. PATH and user-installed tool directories can be
+    /// writable, so they must not select a program that receives share credentials or runs during network browsing.
+    /// </summary>
+    internal static string? FindSystemTool(string name)
+    {
+        if (Path.GetFileName(name) != name) return null;
+        foreach (string folder in SystemToolFolders)
+        {
+            string candidate = Path.Combine(folder, name);
             if (File.Exists(candidate)) return candidate;
         }
         return null;
@@ -102,13 +118,13 @@ public static partial class SmbTools
     {
         if (OperatingSystem.IsMacOS()) return await ListWithSmbutilAsync(server, credentials, ct).ConfigureAwait(false);
         Exception? failure = null;
-        if (credentials is null && Find("gio") is { } gio)
+        if (credentials is null && FindSystemTool("gio") is { } gio)
         {
             var (code, output, errors) = await RunAsync(gio, ["list", $"smb://{server}/"], TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
             if (code == 0) return ParseGioList(output);
             failure = Failure(server, errors);
         }
-        if (Find("smbclient") is { } smbclient)
+        if (FindSystemTool("smbclient") is { } smbclient)
         {
             var arguments = new List<string> { "-L", $"//{server}", "-g" };
             Dictionary<string, string>? environment = null;
@@ -130,7 +146,7 @@ public static partial class SmbTools
 
     private static async Task<IReadOnlyList<SmbShare>> ListWithSmbutilAsync(string server, NetworkCredentials? credentials, CancellationToken ct)
     {
-        string smbutil = Find("smbutil") ?? throw new IOException("smbutil, which lists a Mac's view of a server's shares, is missing.");
+        string smbutil = FindSystemTool("smbutil") ?? throw new IOException("smbutil, which lists a Mac's view of a server's shares, is missing.");
         // As a guest, then anonymously, never asking on a terminal (-N); a user's password goes through NetFS instead.
         Exception? failure = null;
         foreach (string how in credentials is null ? new[] { "-g", "-A" } : ["-g"])
@@ -216,7 +232,7 @@ public static partial class SmbTools
                     foreach (string dir in Directory.EnumerateDirectories(gvfs, "smb-share:*"))
                         if (ParseGvfsName(Path.GetFileName(dir)) is { } g) mounts.Add((g.Server, g.Share, dir));
             }
-            else if (OperatingSystem.IsMacOS() && Find("mount") is { } mount)
+            else if (OperatingSystem.IsMacOS() && FindSystemTool("mount") is { } mount)
             {
                 var run = RunAsync(mount, [], TimeSpan.FromSeconds(5), CancellationToken.None).GetAwaiter().GetResult();
                 foreach (string line in run.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -277,7 +293,7 @@ public static partial class SmbTools
     /// </summary>
     public static async Task<string> MountWithGvfsAsync(string server, string share, NetworkCredentials? credentials, CancellationToken ct)
     {
-        string gio = Find("gio") ?? throw new IOException("Opening a share needs gvfs (the gvfs-backends and gvfs-fuse packages); or mount it with mount.cifs and open its folder.");
+        string gio = FindSystemTool("gio") ?? throw new IOException("Opening a share needs gvfs (the gvfs-backends and gvfs-fuse packages); or mount it with mount.cifs and open its folder.");
         string uri = $"smb://{server}/{Uri.EscapeDataString(share)}";
         (int Code, string Output, string Errors) run;
         if (credentials is null) run = await RunAsync(gio, ["mount", "-a", uri], TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
