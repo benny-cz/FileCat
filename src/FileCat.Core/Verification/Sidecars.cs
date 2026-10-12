@@ -43,11 +43,16 @@ public sealed class FolderSidecars
     private readonly Dictionary<string, List<string>> _covers;
     private readonly Dictionary<string, HashSet<string>> _coveredNames;
     private readonly StringComparer _names;
+    private long _retainedClaims;
+    private long _retainedCoveredNames;
 
     public string Folder { get; }
 
     /// <summary>The checksum and signature files, with their size and time (a result stays valid while they are unchanged).</summary>
     public IReadOnlyDictionary<string, (long Size, long Modified)> Sources { get; }
+
+    // Count parsed objects retained by a cached scan, independently of its source-file byte size.
+    internal long RetainedUnits => Sources.Count + _retainedClaims + _retainedCoveredNames;
 
     public bool IsEmpty => _checksums.Count == 0 && _signatures.Count == 0;
 
@@ -164,12 +169,13 @@ public sealed class FolderSidecars
         return first.Length == Operations.Checksums.HexLength(kind) && first.All(Uri.IsHexDigit) ? first.ToLowerInvariant() : null;
     }
 
-    private static void AddClaim<T>(Dictionary<string, List<T>> map, string key, T value)
+    private void AddClaim<T>(Dictionary<string, List<T>> map, string key, T value)
     {
         if (!map.TryGetValue(key, out var list)) map[key] = list = [];
         // Each parsed manifest line has a distinct source/line pair, and each signature file is scanned once.
         // Checking the growing list for a duplicate on every line makes a legal manifest quadratic to scan.
         list.Add(value);
+        _retainedClaims++;
     }
 
     private void AddCovered(string source, string file)
@@ -177,17 +183,19 @@ public sealed class FolderSidecars
         if (!_covers.TryGetValue(source, out var list))
         {
             _covers[source] = [file];
+            _retainedCoveredNames++;
             return;
         }
         if (_coveredNames.TryGetValue(source, out var seen))
         {
-            if (seen.Add(file)) list.Add(file);
+            if (seen.Add(file)) { list.Add(file); _retainedCoveredNames++; }
             return;
         }
         // Most sidecars cover one file. Keep that case small, but stop linear duplicate searches
         // once a manifest covers many distinct files.
         if (list.Any(name => _names.Equals(name, file))) return;
         list.Add(file);
+        _retainedCoveredNames++;
         if (list.Count == 16) _coveredNames[source] = new HashSet<string>(list, _names);
     }
 }

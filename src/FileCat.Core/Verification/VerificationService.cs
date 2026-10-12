@@ -165,6 +165,8 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     private static readonly TimeSpan Fresh = TimeSpan.FromSeconds(5);
     // This is a short-lived scan cache, not a history of every folder visited during an app session.
     private const int MaxCachedFolders = 512;
+    // A folder-count limit alone can retain millions of parsed claims from legal (<4 MiB) manifests.
+    private const long MaxCachedSidecarUnits = 128_000;
     /// <summary>How long a file must have been still before it is read on its own (see <see cref="VerificationResult.Settling"/>).</summary>
     public TimeSpan Settle { get; init; } = TimeSpan.FromSeconds(3);
     private readonly object _folderLock = new();
@@ -172,6 +174,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     // folders, differently spelled aliases can occupy separate bounded entries; that is a conservative rescan.
     private readonly Dictionary<string, (FolderSidecars Sidecars, long Stamp, DateTime ReadAt, long Access)> _folders = new(StringComparer.Ordinal);
     private long _folderAccess;
+    private long _folderUnits;
 
     /// <summary>The instance the app configured (its cache file, the size threshold setting, its key folders).</summary>
     public static VerificationService? Current { get; set; }
@@ -221,13 +224,23 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         {
             _folders.TryGetValue(folder, out var known);
             changed = known.Sidecars is { } before && !SameSources(before, sidecars);
-            _folders[folder] = (sidecars, stamp, DateTime.UtcNow, ++_folderAccess);
-            if (_folders.Count > MaxCachedFolders)
+            if (known.Sidecars is { } previous)
             {
-                // Keep the folder just scanned. A revisited active folder must not lose its short-lived result
-                // solely because many other folders were browsed between two requests.
+                _folders.Remove(folder);
+                _folderUnits -= previous.RetainedUnits;
+            }
+            if (sidecars.RetainedUnits <= MaxCachedSidecarUnits)
+            {
+                _folders[folder] = (sidecars, stamp, DateTime.UtcNow, ++_folderAccess);
+                _folderUnits += sidecars.RetainedUnits;
+            }
+            // Keep the folder just scanned when it fits. An exceptionally large scan is returned
+            // to this request without retaining it for every later visit.
+            while (_folders.Count > MaxCachedFolders || _folderUnits > MaxCachedSidecarUnits)
+            {
                 string oldest = _folders.Where(pair => !StringComparer.Ordinal.Equals(pair.Key, folder))
                     .MinBy(pair => pair.Value.Access).Key;
+                _folderUnits -= _folders[oldest].Sidecars.RetainedUnits;
                 _folders.Remove(oldest);
             }
         }
