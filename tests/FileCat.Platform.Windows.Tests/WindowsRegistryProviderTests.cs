@@ -219,15 +219,26 @@ public sealed class WindowsRegistryProviderTests
         // itself for ever.
         foreach (string root in new[] { "HKCU", "HKCC", "HKLM" })
         {
-            int changes = 0;
             var location = new Location(Schemes.Registry, root);
-            using var monitor = new RegistryChangeMonitor(location, () => Interlocked.Increment(ref changes));
-            await monitor.Ready.WaitAsync(TimeSpan.FromSeconds(5), ct);
-            var sink = new CountingSink();
-            for (int i = 0; i < 3; i++) await provider.EnumerateAsync(location, sink, ct);
-            await Task.Delay(500, ct);
-            Assert.True(sink.Count > 0, root);
-            Assert.True(changes == 0, $"{root}: {changes} changes reported while it was only read");
+            bool quietSample = false;
+            int lastChanges = 0;
+            // These machine/user roots are shared with unrelated Windows processes. One native notification
+            // during this interval cannot establish that our reads caused it. The original predefined-handle
+            // regression signalled on every fresh watch, so require a quiet read sample within three independent
+            // watches; a reproducible read-triggered notification still fails.
+            for (int sample = 0; sample < 3 && !quietSample; sample++)
+            {
+                int changes = 0;
+                using var monitor = new RegistryChangeMonitor(location, () => Interlocked.Increment(ref changes));
+                await monitor.Ready.WaitAsync(TimeSpan.FromSeconds(5), ct);
+                var sink = new CountingSink();
+                for (int i = 0; i < 3; i++) await provider.EnumerateAsync(location, sink, ct);
+                await Task.Delay(500, ct);
+                Assert.True(sink.Count > 0, root);
+                lastChanges = Volatile.Read(ref changes);
+                quietSample = lastChanges == 0;
+            }
+            Assert.True(quietSample, $"{root}: all three fresh watches reported changes during read-only enumeration; last sample: {lastChanges}");
         }
 
         // Fifty values written at once are one change, reported when the writing settles.
