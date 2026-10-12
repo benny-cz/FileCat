@@ -175,11 +175,17 @@ public class PortableShellServices : IShellServices
                 return;
             }
             if (_awake is { HasExited: false }) return;
-            // By full path: a bare name would be looked for in the current directory first (release plan I16).
-            if (Network.SmbTools.Find(OperatingSystem.IsMacOS() ? "caffeinate" : "systemd-inhibit") is not { } tool) return;
-            var psi = OperatingSystem.IsMacOS()
+            // This automatic launch uses only the OS tool directories. A PATH entry can be an absolute writable
+            // directory, and systemd-inhibit also resolves its child command through the inherited PATH (I16).
+            static string? SystemTool(string name) => new[] { "/usr/bin", "/bin" }
+                .Select(dir => Path.Combine(dir, name)).FirstOrDefault(File.Exists);
+            bool mac = OperatingSystem.IsMacOS();
+            if (SystemTool(mac ? "caffeinate" : "systemd-inhibit") is not { } tool) return;
+            string? sleep = mac ? null : SystemTool("sleep");
+            if (!mac && sleep is null) return;
+            var psi = mac
                 ? new ProcessStartInfo(tool, ["-i", "-w", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)])
-                : new ProcessStartInfo(tool, ["--what=idle:sleep", "--who=FileCat", "--why=File operations are running", "--mode=block", "sleep", "infinity"]);
+                : new ProcessStartInfo(tool, ["--what=idle:sleep", "--who=FileCat", "--why=File operations are running", "--mode=block", sleep!, "infinity"]);
             psi.UseShellExecute = false;
             psi.RedirectStandardOutput = psi.RedirectStandardError = true;
             try { _awake = Process.Start(psi); }
