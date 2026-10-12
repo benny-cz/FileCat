@@ -11,6 +11,7 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
 {
     private IBlockSource? _volume;
     private readonly bool _ownsVolume;
+    private Action? _verifySource;
     private RecoveryItem? _item;
     private readonly ContentRevision _revision;
     private readonly List<(long Offset, long Length)> _missing = [];
@@ -18,9 +19,10 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
 
     public RecoveryContent(IBlockSource volume, RecoveryItem item) : this(volume, item, ownsVolume: false) { }
 
-    internal RecoveryContent(IBlockSource volume, RecoveryItem item, bool ownsVolume)
+    internal RecoveryContent(IBlockSource volume, RecoveryItem item, bool ownsVolume, Action? verifySource = null)
     {
         _ownsVolume = ownsVolume;
+        _verifySource = verifySource;
         _volume = volume;
         _item = item;
         DisplayName = item.Name;
@@ -61,7 +63,10 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_item is null, this);
-            return ReadCore(_item, _volume!, offset, buffer);
+            _verifySource?.Invoke();
+            int read = ReadCore(_item, _volume!, offset, buffer);
+            _verifySource?.Invoke();
+            return read;
         }
     }
 
@@ -207,6 +212,7 @@ public sealed class RecoveryContent : IContentSource, IPartialContent
             owned = _ownsVolume ? _volume : null;
             _item = null;
             _volume = null;
+            _verifySource = null;
             _unit = null;
             _cachedUnit = -1;
             _missing.Clear();

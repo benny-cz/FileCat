@@ -107,6 +107,66 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             Assert.False(Directory.Exists(root));
         }
     }
+
+    [Fact]
+    public async Task Held_image_reader_refuses_in_place_source_rewrite()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-held-rewrite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img");
+        byte[] original = Image(17, false), replacement = Image(97, true);
+        File.WriteAllBytes(path, original);
+        File.SetLastWriteTimeUtc(path, Stamp);
+        var files = new IdentityAwareTestFiles();
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = files.GetFileIdentity,
+            GetOpenedSourceIdentity = files.GetHandleIdentity,
+        };
+        var location = RecoveryProvider.ForImage(path, 1);
+        IContentSource? held = null;
+        try
+        {
+            var first = new Sink();
+            await provider.EnumerateAsync(location, first, TestContext.Current.CancellationToken);
+            held = provider.OpenContent(provider.GetItemRef(location, Assert.Single(first.Rows)))!;
+            Assert.Equal(original.AsSpan(4 * 512, 4096).ToArray(), Read(held));
+            string? identity = files.GetFileIdentity(path);
+            using (var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                RandomAccess.Write(handle, replacement, 0);
+                RandomAccess.FlushToDisk(handle);
+            }
+            File.SetLastWriteTimeUtc(path, Stamp);
+            byte[]? actual = null;
+            Exception? error = Record.Exception(() => actual = Read(held));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                identity, currentIdentity = files.GetFileIdentity(path),
+                sameMtime = File.GetLastWriteTimeUtc(path) == Stamp,
+                sourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                heldReadSha256 = actual is null ? null : Convert.ToHexString(SHA256.HashData(actual)),
+                error = error?.GetType().Name,
+            }));
+            Assert.IsType<IOException>(error);
+            var current = new Sink();
+            await provider.EnumerateAsync(location, current, TestContext.Current.CancellationToken);
+            using var fresh = provider.OpenContent(provider.GetItemRef(location, Assert.Single(current.Rows)))!;
+            Assert.Equal(replacement.AsSpan(4 * 512, 4096).ToArray(), Read(fresh));
+            Assert.Equal(identity, files.GetFileIdentity(path));
+        }
+        finally
+        {
+            held?.Dispose();
+            provider.CloseAll();
+            bool sourceClosed = Exclusive(path);
+            File.Delete(path);
+            Directory.Delete(root);
+            output.WriteLine(JsonSerializer.Serialize(new { root, sourceClosed, absent = !Directory.Exists(root) }));
+            Assert.True(sourceClosed);
+            Assert.False(Directory.Exists(root));
+        }
+    }
     [Theory]
     [MemberData(nameof(Cases))]
     public async Task Same_metadata_image_replacement_refreshes_recovery_content_and_listing(string route, bool changed, bool identityAvailable)

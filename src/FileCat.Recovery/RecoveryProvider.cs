@@ -63,9 +63,11 @@ public sealed class RecoveryProvider : ResourceProvider
 
 
 
-    private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device) : IDisposable
+    private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device,
+        Action? verifyImageContent = null) : IDisposable
     {
         public IBlockSource Source { get; } = source;
+        public Action? VerifyImageContent { get; } = verifyImageContent;
         private readonly ImageLifetime? _image = device ? null : new ImageLifetime(source);
         public IReadOnlyList<RecoveryVolume> Volumes { get; set; } = volumes;
         public DateTime Used { get; set; } = DateTime.UtcNow;
@@ -390,7 +392,7 @@ public sealed class RecoveryProvider : ResourceProvider
             if (found.State == RecoveryState.NameOnly)
                 throw new InvalidDataException($"Only the name of \"{found.Name}\" survives: {string.Join(" ", found.Evidence)}");
             var window = session.Window(volume);
-            try { return new RecoveryContent(window, found, ownsVolume: !IsDevice(item.Parent)); }
+            try { return new RecoveryContent(window, found, ownsVolume: !IsDevice(item.Parent), session.VerifyImageContent); }
             catch { window.Dispose(); throw; }
         }
     }
@@ -577,7 +579,23 @@ public sealed class RecoveryProvider : ResourceProvider
                 if (device && _deviceIdentities.TryGetValue(path, out string? selectedIdentity) &&
                     (source is not IDeviceSelectionIdentity opened || !string.Equals(opened.SelectionIdentity, selectedIdentity, StringComparison.OrdinalIgnoreCase)))
                     throw new IOException($"{SourceName(location)} is not the disk that was chosen: its device identity changed or could not be verified. Choose it again from the list of drives.");
-                var session = new Session(source, Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk), device)
+                Action? verifyImageContent = null;
+                if (!device && identity is not null && changeToken is not null && source is ImageFileSource image)
+                {
+                    // A held content reader needs this one identity query, not the provider and its other cached sessions.
+                    Func<string, string?> getIdentity = GetSourceIdentity;
+                    verifyImageContent = () =>
+                    {
+                        string? currentIdentity = getIdentity(path);
+                        if (currentIdentity is null)
+                            throw new IOException("The disk image's path identity cannot be verified while reading it.");
+                        // A replaced path can leave a valid reader on its original file; an in-place rewrite cannot.
+                        if (currentIdentity == identity && image.CurrentChangeToken() != changeToken)
+                            throw new IOException("The disk image changed while its deleted content was being read. Open it again.");
+                    };
+                }
+                var session = new Session(source, Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk), device,
+                    verifyImageContent)
                 { DiskSearched = searchImageDisk };
                 _sessions[key] = session;
                 while (_sessions.Count > MaxSessions)

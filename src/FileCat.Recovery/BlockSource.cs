@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using FileCat.Core.FileSystem;
 using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Recovery;
@@ -66,6 +67,8 @@ public static class BlockSourceExtensions
 public sealed class ImageFileSource : IBlockSource
 {
     private readonly SafeFileHandle _handle;
+
+    internal string? CurrentChangeToken() => SourceChangeToken.FromHandle(_handle);
 
     public ImageFileSource(string path) : this(path, null) { }
 
