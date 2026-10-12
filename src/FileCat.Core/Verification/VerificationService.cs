@@ -153,7 +153,9 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>How long a file must have been still before it is read on its own (see <see cref="VerificationResult.Settling"/>).</summary>
     public TimeSpan Settle { get; init; } = TimeSpan.FromSeconds(3);
     private readonly object _folderLock = new();
-    private readonly Dictionary<string, (FolderSidecars Sidecars, long Stamp, DateTime ReadAt, long Access)> _folders = new(PathUtil.SafetyComparer);
+    // Exact keys keep names in a Windows per-directory case-sensitive parent separate. On ordinary Windows
+    // folders, differently spelled aliases can occupy separate bounded entries; that is a conservative rescan.
+    private readonly Dictionary<string, (FolderSidecars Sidecars, long Stamp, DateTime ReadAt, long Access)> _folders = new(StringComparer.Ordinal);
     private long _folderAccess;
 
     /// <summary>The instance the app configured (its cache file, the size threshold setting, its key folders).</summary>
@@ -209,7 +211,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             {
                 // Keep the folder just scanned. A revisited active folder must not lose its short-lived result
                 // solely because many other folders were browsed between two requests.
-                string oldest = _folders.Where(pair => !PathUtil.SafetyComparer.Equals(pair.Key, folder))
+                string oldest = _folders.Where(pair => !StringComparer.Ordinal.Equals(pair.Key, folder))
                     .MinBy(pair => pair.Value.Access).Key;
                 _folders.Remove(oldest);
             }

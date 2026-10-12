@@ -1,10 +1,45 @@
 using System.Security.Cryptography;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Verification;
 
 namespace FileCat.Core.Tests;
 
 public sealed class VerificationSidecarCaseTests
 {
+    [Theory]
+    [InlineData("bare")]
+    [InlineData("manifest")]
+    [InlineData("signature")]
+    public void Ordinary_windows_folder_keeps_case_insensitive_sidecar_aliases(string kind)
+    {
+        if (!OperatingSystem.IsWindows())
+            Assert.Skip("This control requires an ordinary case-insensitive Windows folder.");
+
+        using var root = new TempDir();
+        if (WindowsCaseSensitivity.NamesIn(root.Path) != StringComparer.OrdinalIgnoreCase)
+            Assert.Skip("The owned Windows folder is case-sensitive or its flag is unavailable.");
+        string file = root.File("item.bin", "owned-payload");
+        File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddMinutes(-2));
+        string hash = Hash("owned-payload");
+        switch (kind)
+        {
+            case "bare": root.File("ITEM.bin.sha256", hash + "\n"); break;
+            case "manifest": root.File("SHA256SUMS", hash + " *ITEM.bin\n"); break;
+            case "signature": root.File("ITEM.bin.sig", "owned-invalid-signature"); break;
+            default: throw new ArgumentOutOfRangeException(nameof(kind));
+        }
+
+        var service = new VerificationService(new VerificationCache(null), () => 1L << 20, () => []);
+        var scan = service.SidecarsOf(root.Path, TestContext.Current.CancellationToken);
+        if (kind == "signature")
+            Assert.Equal(file, Assert.Single(scan.Signatures("item.bin")).Signed);
+        else
+        {
+            Assert.Single(scan.Checksums("item.bin"));
+            Assert.Equal(VerificationState.Matches, service.Automatic(file, TestContext.Current.CancellationToken)!.State);
+        }
+    }
+
     [Theory]
     [InlineData("bare")]
     [InlineData("manifest")]

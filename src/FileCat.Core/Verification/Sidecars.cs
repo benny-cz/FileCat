@@ -38,10 +38,9 @@ public static class SidecarNames
 public sealed class FolderSidecars
 {
     public const long MaxChecksumFileBytes = 4L << 20;
-    private static readonly StringComparer Names = PathUtil.SafetyComparer;
-    private readonly Dictionary<string, List<ChecksumClaim>> _checksums = new(Names);
-    private readonly Dictionary<string, List<SignatureClaim>> _signatures = new(Names);
-    private readonly Dictionary<string, List<string>> _covers = new(Names);
+    private readonly Dictionary<string, List<ChecksumClaim>> _checksums;
+    private readonly Dictionary<string, List<SignatureClaim>> _signatures;
+    private readonly Dictionary<string, List<string>> _covers;
 
     public string Folder { get; }
 
@@ -50,10 +49,13 @@ public sealed class FolderSidecars
 
     public bool IsEmpty => _checksums.Count == 0 && _signatures.Count == 0;
 
-    private FolderSidecars(string folder, Dictionary<string, (long, long)> sources)
+    private FolderSidecars(string folder, Dictionary<string, (long, long)> sources, StringComparer names)
     {
         Folder = folder;
         Sources = sources;
+        _checksums = new(names);
+        _signatures = new(names);
+        _covers = new(names);
     }
 
     public IReadOnlyList<ChecksumClaim> Checksums(string name) => _checksums.TryGetValue(name, out var list) ? list : [];
@@ -68,14 +70,15 @@ public sealed class FolderSidecars
     /// <summary>Reads the folder's checksum files and signatures (not the files they cover).</summary>
     public static FolderSidecars Scan(string folder, CancellationToken ct)
     {
-        var files = new Dictionary<string, FileInfo>(Names);
+        var names = WindowsCaseSensitivity.NamesIn(folder);
+        var files = new Dictionary<string, FileInfo>(names);
         foreach (var info in new DirectoryInfo(folder).EnumerateFiles())
         {
             ct.ThrowIfCancellationRequested();
             files[info.Name] = info;
         }
-        var sources = new Dictionary<string, (long, long)>(Names);
-        var result = new FolderSidecars(folder, sources);
+        var sources = new Dictionary<string, (long, long)>(names);
+        var result = new FolderSidecars(folder, sources, names);
         foreach (var (name, info) in files)
         {
             if (!SidecarNames.IsSidecar(name)) continue;
