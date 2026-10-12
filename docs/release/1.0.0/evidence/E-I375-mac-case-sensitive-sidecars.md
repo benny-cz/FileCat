@@ -27,4 +27,6 @@ After each native session, the image was detached, its approximately 10 MiB spar
 | `independent-final-core-audit-v1.json` | `b0f6c6068de50092a48a52cd7f85dd5de8053443ca74df666ea4414660c3c2ca` | Full predecessor-case comparison and final source/raw hashes. |
 | `final-solution-build.log` | `5c7c8bdd2043985dc418ffe97d5ce81844897ac6f2dabde3b8ced9cc7901632f` | Final local source build: 41 warnings, zero errors. |
 
+Exact `adcdc330a721ac7b9f7e12e040b4a74e9278e47e` original-push CI [run 38198965150](https://github.com/benny-cz/FileCat/actions/runs/38198965150) subsequently passed policy and all four required lanes. Independent audit SHA-256 `9ffb1b74026c62e463ea4cda6f1b750a8c61d98a660dca530ba2ad2b9a78d22b` rehashed 27 server-digest archives/2,762 extracted members/fourteen TRX: **32,940 passes/1,114 explicit skips/zero failures**. Every preceding I374 case name/outcome/message remained; twenty added cases were two case-distinct Ubuntu passes, three default-Mac alias passes and fifteen explicit platform/volume skips. The default Mac runner did not test a case-sensitive volume; that native image control remains separately pinned above.
+
 I06's aggregate resource accounting, wider signature/manifest cases, reference/participant tests and exact candidate qualification remain open.
