@@ -1,6 +1,6 @@
 # E-I389/I390 — Windows platform test bounds and path identity
 
-Preliminary I108/ENV-06 test corrections, 2026-10-12. Neither observation proves a product device-read or source-safety failure. The original failed results remain failed; corrected-source hosted CI and final-candidate qualification are pending.
+Preliminary I108/ENV-06 test corrections, 2026-10-12. Neither observation proves a product device-read or source-safety failure. The original failed results remain failed; corrected-source hosted CI passes at its own exact producer. Final-candidate qualification remains pending.
 
 ## I389: ARM64 helper closure wait
 
@@ -16,4 +16,12 @@ The fixture now compares its two Windows paths with `OrdinalIgnoreCase`; it stil
 
 ## Immutable private inputs
 
-`V:\FileCat\artifacts\release-evidence\ci-i389-i390-20261012-v1` contains the ARM64 TRX, both local full-suite TRX, focused TRX, exact original source exports, correction diff, run/artifact metadata and a rechecked file manifest. `manifest.json` SHA-256: `6b59a60150c19a56de9bcfe077deb1382f7fc0dca160b6ca468b4e0c415df25b`. The original workflow was still running when its ARM64 artifact was collected; this record does not invent outcomes for unfinished lanes. I106/I110 physical-source validation remains on HOLD.
+`V:\FileCat\artifacts\release-evidence\ci-i389-i390-20261012-v1` contains the ARM64 TRX, both local full-suite TRX, focused TRX, exact original source exports, correction diff, run/artifact metadata and a rechecked file manifest. `manifest.json` SHA-256: `6b59a60150c19a56de9bcfe077deb1382f7fc0dca160b6ca468b4e0c415df25b`. The original workflow was still running when its ARM64 artifact was collected; its later completed failure is recorded below. I106/I110 physical-source validation remains on HOLD.
+
+## Exact corrected hosted qualification
+
+The original `f205828` [run 38254066723](https://github.com/benny-cz/FileCat/actions/runs/38254066723) completed **failure**. Its raw ARM64 platform TRX remains 381 passed/34 NotExecuted/one failed, with the expected image and content already established before the five-second close-acknowledgement timeout. The complete run/job/artifact responses and failed-step log are retained separately; no failed run is recast as passing.
+
+Exact pushed `095dadd364df9e59ae2f615b757fc6330ea87e85` [run 38256473070](https://github.com/benny-cz/FileCat/actions/runs/38256473070) completed **success** on Windows x64, Windows ARM64, Ubuntu 24.04, macOS 26 and producer-reference policy; four tag-only jobs skipped. All **27 server-digest ZIPs/2,762 members/fourteen TRX** rehash: **32,982 passes/1,124 explicit NotExecuted/zero failures**. ARM64's 416 platform names match the original failed inventory exactly; only the named helper-close case changes from Failed to Passed. The Windows x64 platform target passes too. The ARM64 downstream Remote/App and package-start/installer-compile steps complete successfully at this corrected producer. The host-local twelve I390 fixture failures do not occur in either hosted Windows platform suite; the local before/after record, rather than hosted CI alone, establishes that correction.
+
+The private `V:\FileCat\artifacts\release-evidence\ci-i389-i390-hosted-20261012-v1` retains raw original/final run responses, complete job/artifact metadata, original failed-step log, every corrected archive/member digest and full TRX inventory, the original ARM64 TRX pin and the executable audit script. `ci-audit.json` SHA-256 `984f1f85eeb019d238844535b73ff6bd4087451ab5402c0dad3ee62973eb358c`; self-excluding `file-manifest.json` SHA-256 `6b92fd1e04a63c9c5a9a87fd017fe22aeea4d357599c3c92b4371e7036fe5edc`. This qualifies the two test corrections at their own source/runner scope, without proving the unknown original scheduling cause, physical-source safety or candidate acceptance.
