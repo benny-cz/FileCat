@@ -513,12 +513,12 @@ public sealed partial class MainViewModel
             Notify("FTP servers have no terminal: SSH terminals open on SFTP connections.");
             return;
         }
-        string? ssh = Core.Tools.ToolLauncher.FindOnPath("ssh");
+        string? ssh = SystemSshClient.Find();
         if (ssh is null)
         {
             Notify(OperatingSystem.IsWindows()
                 ? "The OpenSSH client (ssh) was not found. Add it in Windows Settings → System → Optional features, then try again."
-                : "The OpenSSH client (ssh) was not found on PATH.", true);
+                : "The system OpenSSH client (ssh) was not found in the OS tool directories.", true);
             return;
         }
         var args = new List<string> { "-t" };
