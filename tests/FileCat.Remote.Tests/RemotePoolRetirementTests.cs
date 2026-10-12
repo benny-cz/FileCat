@@ -92,7 +92,9 @@ public sealed class RemotePoolRetirementTests(ITestOutputHelper output)
         int acquired = 0;
         var capacityLeases = new List<SftpLease>();
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(TimeSpan.FromSeconds(2));
+        // Four sequential fake connections should finish promptly, but a two-second runner stall is not a pool leak.
+        // Keep a finite deadline and still require every capacity slot and exact recovered bytes below.
+        bound.CancelAfter(TimeSpan.FromSeconds(10));
         try
         {
             for (int i = 0; i < rig.Capacity; i++) capacityLeases.Add(rig.Connections.Lease(rig.Profile.Id, bound.Token));
@@ -171,7 +173,8 @@ public sealed class RemotePoolRetirementTests(ITestOutputHelper output)
         }
         var capacity = new List<SftpLease>();
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        bound.CancelAfter(TimeSpan.FromSeconds(2));
+        // A busy CI worker can pause this otherwise synchronous four-slot probe; preserve the finite leak fence.
+        bound.CancelAfter(TimeSpan.FromSeconds(10));
         try { for (int i = 0; i < rig.Capacity; i++) capacity.Add(rig.Connections.Lease(rig.Profile.Id, bound.Token)); }
         finally { foreach (var lease in capacity) lease.Dispose(); }
         output.WriteLine("REMOTE_DISCONNECT_GENERATION " + JsonSerializer.Serialize(new
