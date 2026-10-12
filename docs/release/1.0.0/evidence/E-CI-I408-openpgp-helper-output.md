@@ -1,0 +1,11 @@
+# E-CI-I408 — exact OpenPGP helper-output deadline CI
+
+2026-10-13 CEST. Exact source `1b0f9aba0ba261aaa177c12821a4d76e67e3f57d`, [run 38321558752](https://github.com/benny-cz/FileCat/actions/runs/38321558752), attempt 1. This qualifies the pushed I408 source only; the later I409 status-budget correction is separate and has not inherited this CI result.
+
+Producer-reference policy, Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26 completed **success**; four tag/manual-only jobs skipped. Independent readers checked the official run head and all nine job conclusions, 27 artifact server SHA-256 digests, all **2,762 ZIP members**, and fourteen complete TRX inventories: **33,036 Passed, 1,140 NotExecuted, zero Failed**. ARM64 package start/draw and installer compilation passed as diagnostic checks, without producing a candidate.
+
+Every preceding I407 test name, outcome and error message remains unchanged across all fourteen inventories. Each Unix Core lane adds one passing I408 exited-helper/held-pipe control; each Windows Core lane adds the same case as an explicit Unix-only `NotExecuted` skip. This hosted result corroborates the corrected behavior but does not reclassify the original Mac/Ubuntu 70-second failures or qualify installed GnuPG/keyrings, UI, memory peaks or human acceptance. Those native limits remain in [E-I408](E-I408-openpgp-helper-output-deadline.md).
+
+The private official-artifact archive is `V:\FileCat\artifacts\release-evidence\ci-i408-openpgp-helper-20261013-v1`: **34-file** self-excluding manifest SHA-256 `31e67e9eb87e2abdb19df6b53527a467bc0c83fd06bcf131c25556ea6fd2cd5a`, audit JSON SHA-256 `39b4d5626ea0250d908c7397b37966a04c2fbb001e9e924dda4acce5f8dc1b2d`, full TRX inventory SHA-256 `8bb6cd1007d0187a7134b17f099f7248b9c231461ed82b326311d2dd53cfeb45`. The independent predecessor comparison is `V:\FileCat\artifacts\release-evidence\ci-i408-comparison-20261013-v1`: comparison JSON SHA-256 `8dbfc895781511ae48388a6654dcc2b96af0d0057f805e9a1d6bed41c86c6c82`, three-file sealed manifest SHA-256 `f9d86a95791a1ca57f44e0d5207b782ab733c439665664e6a688aab3604da474`. All archived files and ZIP members were rehashed after download.
+
+Final-candidate qualification, I106/I110 physical-source HOLD, contract freeze and explicit human stable GO remain open.

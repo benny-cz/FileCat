@@ -153,6 +153,7 @@ public static class Minisign
 /// </summary>
 public static class OpenPgp
 {
+    private const int MaxStatusCharacters = 1 << 20;
     private static string? _tool;
     private static bool _looked;
 
@@ -257,12 +258,19 @@ public static class OpenPgp
             // both drains together; stderr is diagnostic text and must not grow an unused string.
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromMinutes(1));
-            var output = process.StandardOutput.ReadToEndAsync(deadline.Token);
+            var output = ReadStatusAsync(process.StandardOutput, deadline.Token);
             var errors = process.StandardError.BaseStream.CopyToAsync(Stream.Null, deadline.Token);
+            var exited = process.WaitForExitAsync(deadline.Token);
             try
             {
-                process.WaitForExitAsync(deadline.Token).GetAwaiter().GetResult();
-                Task.WhenAll(output, errors).GetAwaiter().GetResult();
+                // A full status budget must fail promptly even if the helper then blocks on its pipe.
+                var pending = new List<Task> { exited, output, errors };
+                while (pending.Count != 0)
+                {
+                    Task completed = Task.WhenAny(pending).GetAwaiter().GetResult();
+                    completed.GetAwaiter().GetResult();
+                    pending.Remove(completed);
+                }
                 ct.ThrowIfCancellationRequested();
             }
             catch (OperationCanceledException)
@@ -284,6 +292,20 @@ public static class OpenPgp
             return new SignatureResult(VerificationState.SignatureUnchecked, "gpg could not be run: " + ex.Message);
         }
         return Interpret(status);
+    }
+
+    private static async Task<string> ReadStatusAsync(StreamReader reader, CancellationToken ct)
+    {
+        var status = new StringBuilder();
+        char[] buffer = new char[4096];
+        while (true)
+        {
+            int read = await reader.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+            if (read == 0) return status.ToString();
+            if (read > MaxStatusCharacters - status.Length)
+                throw new IOException("gpg status output exceeded 1 MiB");
+            status.Append(buffer, 0, read);
+        }
     }
 
     /// <summary>gpg's status lines ("[GNUPG:] GOODSIG …", "TRUST_FULLY", "NO_PUBKEY …") as a result.</summary>
