@@ -43,7 +43,8 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     /// <summary>Ends the helper and anything in its job at once.</summary>
     public void Kill() => TerminateJobObject(_job, 1);
 
-    public static RestrictedProcess Start(string executable, string arguments, bool lowIntegrity, long memoryLimitBytes)
+    public static RestrictedProcess Start(string executable, string arguments, bool lowIntegrity, long memoryLimitBytes,
+        bool inheritParentEnvironment = true)
     {
         nint job = CreateJob(memoryLimitBytes);
         nint childIn = 0, parentIn = 0, parentOut = 0, childOut = 0;
@@ -57,7 +58,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             SetHandleInformation(parentOut, HANDLE_FLAG_INHERIT, 0);
 
             bool low = lowIntegrity;
-            var pi = low ? TryCreate(executable, arguments, childIn, childOut, lowToken: true) : null;
+            var pi = low ? TryCreate(executable, arguments, childIn, childOut, lowToken: true, inheritParentEnvironment) : null;
             if (pi is null)
             {
                 // CreateProcessW inherits this process's token; an elevated FileCat must never turn a
@@ -65,7 +66,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                 if (lowIntegrity && !OrdinaryFallbackAllowed())
                     throw new Win32Exception("The Shell helper could not start at low integrity, so it was not started with administrator rights.");
                 low = false;
-                pi = TryCreate(executable, arguments, childIn, childOut, lowToken: false)
+                pi = TryCreate(executable, arguments, childIn, childOut, lowToken: false, inheritParentEnvironment)
                      ?? throw new Win32Exception(Marshal.GetLastPInvokeError(), "The Shell helper could not be started.");
             }
             var info = pi.Value;
@@ -149,7 +150,8 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     }
 
     /// <summary>Creates the helper suspended with only the pipe ends inherited; null when Windows refuses.</summary>
-    private static PROCESS_INFORMATION? TryCreate(string executable, string arguments, nint stdIn, nint stdOut, bool lowToken)
+    private static PROCESS_INFORMATION? TryCreate(string executable, string arguments, nint stdIn, nint stdOut,
+        bool lowToken, bool inheritParentEnvironment)
     {
         nint token = 0, attributes = 0;
         try
@@ -174,7 +176,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             };
             string commandLine = $"\"{executable}\" {arguments}";
             var cmd = commandLine.ToCharArray();
-            var env = EnvironmentBlock();
+            var env = EnvironmentBlock(inheritParentEnvironment);
             uint flags = CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
             PROCESS_INFORMATION pi;
             fixed (char* c = cmd)
@@ -231,12 +233,21 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         }
     }
 
-    /// <summary>FileCat's environment without diagnostics endpoints for the helper.</summary>
-    private static char[] EnvironmentBlock()
+    /// <summary>Only the picture decoder drops the parent's variables; Shell helpers retain their existing profile.</summary>
+    private static char[] EnvironmentBlock(bool inheritParentEnvironment)
     {
         var vars = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (System.Collections.DictionaryEntry e in Environment.GetEnvironmentVariables())
-            if (e.Key is string k && k.Length > 0 && !k.Contains('=')) vars[k] = e.Value as string ?? string.Empty;
+        if (inheritParentEnvironment)
+        {
+            foreach (System.Collections.DictionaryEntry e in Environment.GetEnvironmentVariables())
+                if (e.Key is string k && k.Length > 0 && !k.Contains('=')) vars[k] = e.Value as string ?? string.Empty;
+        }
+        else
+        {
+            // An absolute apphost/host path finds its own runtime. Retain Windows' loader root, not the parent's
+            // PATH, credentials, native loader overrides or user-profile settings, for hostile picture decoding.
+            vars["SystemRoot"] = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        }
         vars["DOTNET_EnableDiagnostics"] = "0";
         var sb = new StringBuilder();
         foreach (var (k, v) in vars) sb.Append(k).Append('=').Append(v).Append('\0');

@@ -14,7 +14,7 @@ public sealed class SandboxedWorker : IDisposable
 
     /// <summary>Starts <paramref name="executable"/> with <paramref name="arguments"/> (already quoted as needed).</summary>
     public static SandboxedWorker Start(string executable, string arguments, long memoryLimitBytes) =>
-        new(RestrictedProcess.Start(executable, arguments, lowIntegrity: true, memoryLimitBytes));
+        new(RestrictedProcess.Start(executable, arguments, lowIntegrity: true, memoryLimitBytes, inheritParentEnvironment: false));
 
     public Stream Input => _process.Input;
     public Stream Output => _process.Output;

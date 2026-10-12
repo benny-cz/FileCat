@@ -26,6 +26,12 @@ public sealed class PictureWorkerProcessLifetimeTests
                 Assert.DoesNotContain(marker + "=", variables, StringComparison.Ordinal);
                 Assert.Contains("DOTNET_EnableDiagnostics=0", variables, StringComparison.Ordinal);
                 Assert.Contains(PictureWorkerLifetime.EnvironmentName + "=", variables, StringComparison.Ordinal);
+                var runtimeDirectory = new DirectoryInfo(System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory());
+                var root = runtimeDirectory.Parent?.Parent?.Parent;
+                if (runtimeDirectory.Parent?.Name == "Microsoft.NETCore.App" &&
+                    runtimeDirectory.Parent.Parent?.Name == "shared" && root is not null &&
+                    File.Exists(Path.Combine(root.FullName, "dotnet")))
+                    Assert.Contains("DOTNET_ROOT=" + root.FullName, variables, StringComparison.Ordinal);
             }
             finally { await worker.DisposeAsync(); }
         }

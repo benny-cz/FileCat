@@ -252,6 +252,16 @@ public static class PictureDecoder
             // and the diagnostic-port refusal; neither changes its inherited Unix UID or filesystem/network rights.
             psi.Environment.Clear();
             psi.Environment["DOTNET_EnableDiagnostics"] = "0";
+            // Framework-dependent apphosts need the root of the runtime already loaded by this process.
+            // GitHub's setup-dotnet installs outside the OS default; copying the parent's DOTNET_ROOT
+            // would reintroduce an attacker-controlled loader override into the decoder.
+            var runtimeDirectory = new DirectoryInfo(RuntimeEnvironment.GetRuntimeDirectory());
+            var framework = runtimeDirectory.Parent;
+            var shared = framework?.Parent;
+            var root = shared?.Parent;
+            if (framework?.Name == "Microsoft.NETCore.App" && shared?.Name == "shared" && root is not null &&
+                File.Exists(Path.Combine(root.FullName, "dotnet")))
+                psi.Environment["DOTNET_ROOT"] = root.FullName;
             var lifetime = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
             Process? process = null;
             try
