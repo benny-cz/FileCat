@@ -7,7 +7,7 @@ using FileCat.Core.Operations;
 namespace FileCat.Core.Verification;
 
 /// <summary>
-/// One kept line: a result (its key says what it was computed from: the file's and its sidecars' sizes and times), or a
+/// One kept line: a result (its key says what it was computed from: the file's size/time and its sidecars' fingerprints), or a
 /// file's hashes (<see cref="Hashes"/>, algorithm name to value; its key is "#" and the file's path, size, and time).
 /// </summary>
 public sealed record VerificationCacheEntry(string Key, VerificationState State, string Text, string[] Details)
@@ -21,8 +21,8 @@ internal sealed partial class VerificationJsonContext : JsonSerializerContext;
 
 /// <summary>
 /// Results and hashes kept between runs (D-57), so a 40 GB image is read once, not on every visit: one JSON line each in
-/// FileCat's cache folder. A result is keyed by the file's path, size, and modification time and those of the sidecars
-/// that cover it; a changed file or sidecar makes a new key, so it is checked again. Hashes are keyed by the file alone:
+/// FileCat's cache folder. A result is keyed by the file's path, size, and modification time and the metadata/content
+/// fingerprints of the sidecars that cover it; a changed sidecar makes a new key after a fresh scan. Hashes are keyed by the file alone:
 /// any job that reads a file (verifying a manifest, calculating checksums) leaves them, and a later check uses them
 /// instead of reading the file again. The file is rewritten, newest entries kept, when it grows past twice
 /// <see cref="MaxEntries"/>. The same recent-entry window bounds memory when loading an older oversized file or
@@ -39,13 +39,17 @@ public sealed class VerificationCache(string? file)
     /// <summary>
     /// A result's key: the file, the sidecars it depends on, and what vouches for its signers (key files, gpg's keyring).
     /// The leading version drops results worked out by an earlier model (keys beside a file once counted as trusted; the
-    /// states were once ordered otherwise) and version 3's ambiguous delimiter-based source names.
+    /// states were once ordered otherwise), version 3's ambiguous delimiter-based source names, and version 4's
+    /// metadata-only sidecars (an in-place rewrite can restore both size and mtime).
     /// </summary>
-    public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources)
+    public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified)> sources) =>
+        KeyOf(path, size, modified, sources.Select(s => (s.Name, s.Size, s.Modified, "")));
+
+    public static string KeyOf(string path, long size, long modified, IEnumerable<(string Name, long Size, long Modified, string Fingerprint)> sources)
     {
         // Names on Unix may contain the separators used by earlier cache keys. Length-prefix every untrusted
         // string so a single sidecar cannot masquerade as two different sidecars with the same metadata.
-        var key = new StringBuilder("4|");
+        var key = new StringBuilder("5|");
         static void Name(StringBuilder key, string value) => key.Append(value.Length).Append(':').Append(value);
         Name(key, path);
         key.Append('|').Append(size).Append('|').Append(modified);
@@ -53,7 +57,8 @@ public sealed class VerificationCache(string? file)
         {
             key.Append('|');
             Name(key, source.Name);
-            key.Append(':').Append(source.Size).Append(':').Append(source.Modified);
+            key.Append(':').Append(source.Size).Append(':').Append(source.Modified).Append(':');
+            Name(key, source.Fingerprint);
         }
         return key.ToString();
     }
@@ -218,13 +223,13 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         if (Stamp(path) == before) cache.PutHashes(path, before.Size, before.Modified, hashes);
     }
 
-    /// <summary>The folder's sidecars, read again when the folder changed or after a few seconds.</summary>
-    public FolderSidecars SidecarsOf(string folder, CancellationToken ct)
+    /// <summary>The folder's sidecars, read again when the folder changed, after a few seconds, or for an explicit check.</summary>
+    public FolderSidecars SidecarsOf(string folder, CancellationToken ct, bool forceRefresh = false)
     {
         long stamp = Directory.GetLastWriteTimeUtc(folder).Ticks;
         lock (_folderLock)
         {
-            if (_folders.TryGetValue(folder, out var known) && known.Stamp == stamp && DateTime.UtcNow - known.ReadAt < Fresh)
+            if (!forceRefresh && _folders.TryGetValue(folder, out var known) && known.Stamp == stamp && DateTime.UtcNow - known.ReadAt < Fresh)
             {
                 _folders[folder] = known with { Access = ++_folderAccess };
                 return known.Sidecars;
@@ -276,7 +281,11 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     }
 
     private static bool SameSources(FolderSidecars a, FolderSidecars b) =>
-        a.Sources.Count == b.Sources.Count && a.Sources.All(s => b.Sources.TryGetValue(s.Key, out var other) && other == s.Value);
+        a.Sources.Count == b.Sources.Count && a.Sources.All(s =>
+            b.Sources.TryGetValue(s.Key, out var other) && other == s.Value &&
+            a.SourceFingerprints.TryGetValue(s.Key, out var beforeFingerprint) &&
+            b.SourceFingerprints.TryGetValue(s.Key, out var afterFingerprint) &&
+            beforeFingerprint == afterFingerprint);
 
     /// <summary>
     /// What a visible row shows: null when nothing covers the file; for a sidecar, what it covers; otherwise the result,
@@ -296,7 +305,9 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         string? folder = Path.GetDirectoryName(path);
         if (folder is null) return null;
         string name = Path.GetFileName(path);
-        var sidecars = SidecarsOf(folder, ct);
+        // An explicit check promises to read the current claims. A writer can rewrite a checksum file
+        // and restore both its own and its directory's timestamps inside the short scan-cache window.
+        var sidecars = SidecarsOf(folder, ct, forceRefresh: !automatic);
         if (!sidecars.Covers(name))
             return SidecarNames.IsSidecar(name) && sidecars.Covered(name) is { Count: > 0 } covered ? Coverage(name, covered) : null;
         if (Stamp(path) is not { } stamp) return null;
@@ -384,21 +395,22 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     }
 
     /// <summary>The sidecars a file's result depends on: its checksum files and signatures, and the signatures of those manifests.</summary>
-    private static IEnumerable<(string Name, long Size, long Modified)> SourcesOf(FolderSidecars sidecars, string name)
+    private static IEnumerable<(string Name, long Size, long Modified, string Fingerprint)> SourcesOf(FolderSidecars sidecars, string name)
     {
         var checksums = sidecars.Checksums(name);
         return checksums.Select(c => Path.GetFileName(c.Source))
             .Concat(sidecars.Signatures(name).Select(s => Path.GetFileName(s.Signature)))
             .Concat(checksums.SelectMany(c => sidecars.Signatures(Path.GetFileName(c.Source))).Select(s => Path.GetFileName(s.Signature)))
             .Distinct(StringComparer.Ordinal)
-            .Select(n => sidecars.Sources.TryGetValue(n, out var s) ? (n, s.Size, s.Modified) : (n, -1L, 0L));
+            .Select(n => sidecars.Sources.TryGetValue(n, out var s) && sidecars.SourceFingerprints.TryGetValue(n, out var fingerprint)
+                ? (n, s.Size, s.Modified, fingerprint) : (n, -1L, 0L, "missing"));
     }
 
     /// <summary>
     /// What vouches for a file's signers, as it is now: the minisign key files (trusted and beside the file) when a
     /// minisign signature is involved, gpg's keyring and trust database when an OpenPGP one is. A change checks it again.
     /// </summary>
-    private IEnumerable<(string Name, long Size, long Modified)> TrustOf(FolderSidecars sidecars, string name)
+    private IEnumerable<(string Name, long Size, long Modified, string Fingerprint)> TrustOf(FolderSidecars sidecars, string name)
     {
         var signatures = sidecars.Signatures(name)
             .Concat(sidecars.Checksums(name).SelectMany(c => sidecars.Signatures(Path.GetFileName(c.Source))))
@@ -411,7 +423,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
         if (signatures.Contains(SignatureKind.OpenPgp)) files.AddRange(OpenPgp.KeyringFiles());
-        return files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks));
+        return files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks, ""));
     }
 
     private static string Size(long bytes) => bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.#} GiB" : $"{bytes / (double)(1 << 20):0.#} MiB";

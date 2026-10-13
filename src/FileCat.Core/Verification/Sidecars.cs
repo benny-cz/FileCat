@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Operations;
 
@@ -48,18 +49,22 @@ public sealed class FolderSidecars
 
     public string Folder { get; }
 
-    /// <summary>The checksum and signature files, with their size and time (a result stays valid while they are unchanged).</summary>
+    /// <summary>The checksum and signature files, with their size and time.</summary>
     public IReadOnlyDictionary<string, (long Size, long Modified)> Sources { get; }
+
+    /// <summary>Content identity for bounded sidecars; a native change token for larger signatures.</summary>
+    public IReadOnlyDictionary<string, string> SourceFingerprints { get; }
 
     // Count parsed objects retained by a cached scan, independently of its source-file byte size.
     internal long RetainedUnits => Sources.Count + _retainedClaims + _retainedCoveredNames;
 
     public bool IsEmpty => _checksums.Count == 0 && _signatures.Count == 0;
 
-    private FolderSidecars(string folder, Dictionary<string, (long, long)> sources, StringComparer names)
+    private FolderSidecars(string folder, Dictionary<string, (long, long)> sources, Dictionary<string, string> fingerprints, StringComparer names)
     {
         Folder = folder;
         Sources = sources;
+        SourceFingerprints = fingerprints;
         _names = names;
         _checksums = new(names);
         _signatures = new(names);
@@ -87,7 +92,8 @@ public sealed class FolderSidecars
             files[info.Name] = info;
         }
         var sources = new Dictionary<string, (long, long)>(names);
-        var result = new FolderSidecars(folder, sources, names);
+        var fingerprints = new Dictionary<string, string>(names);
+        var result = new FolderSidecars(folder, sources, fingerprints, names);
         foreach (var (name, info) in files)
         {
             if (!SidecarNames.IsSidecar(name)) continue;
@@ -97,8 +103,37 @@ public sealed class FolderSidecars
             sources[name] = (info.Length, info.LastWriteTimeUtc.Ticks);
             if (SidecarNames.IsSignatureFile(name)) result.AddSignature(name, info, files);
             else if (info.Length <= MaxChecksumFileBytes) result.AddChecksums(name, info, files);
+            fingerprints[name] = Fingerprint(info, ct);
         }
         return result;
+    }
+
+    private static string Fingerprint(FileInfo info, CancellationToken ct)
+    {
+        // A writer can restore size and mtime. Hash only bounded sidecars; an arbitrarily large
+        // signature uses its native change token, or a one-scan nonce when no token is available.
+        if (info.Length <= MaxChecksumFileBytes)
+        {
+            try
+            {
+                using var stream = File.Open(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                byte[] buffer = new byte[64 * 1024];
+                long total = 0;
+                int read;
+                while ((read = stream.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, MaxChecksumFileBytes + 1 - total)))) > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    total += read;
+                    if (total > MaxChecksumFileBytes) break;
+                    digest.AppendData(buffer.AsSpan(0, read));
+                }
+                if (total <= MaxChecksumFileBytes)
+                    return "sha256:" + Convert.ToHexString(digest.GetHashAndReset());
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        return SourceChangeToken.FromPath(info.FullName) is { } token ? "native:" + token : "scan:" + Guid.NewGuid().ToString("N");
     }
 
     private void AddSignature(string name, FileInfo signature, Dictionary<string, FileInfo> files)
