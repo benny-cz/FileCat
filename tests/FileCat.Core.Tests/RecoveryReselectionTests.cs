@@ -120,9 +120,15 @@ public sealed class RecoveryReselectionTests(ITestOutputHelper output)
     private sealed class PathGuardReader(Reader reader) : IBlockSource, IDevicePathGuard
     {
         public bool Current { get; set; } = true;
+        public bool InvalidateOnRead { get; set; }
         public string Description => reader.Description;
         public long Length => reader.Length;
-        public int Read(long offset, Span<byte> buffer) => reader.Read(offset, buffer);
+        public int Read(long offset, Span<byte> buffer)
+        {
+            int count = reader.Read(offset, buffer);
+            if (InvalidateOnRead) Current = false;
+            return count;
+        }
         public bool IsCurrentDevicePath(string path) => Current;
         public void Dispose() => reader.Dispose();
     }
@@ -205,6 +211,64 @@ public sealed class RecoveryReselectionTests(ITestOutputHelper output)
             Assert.True(issues > 0);
             Assert.NotNull(refusal);
             Assert.Equal(0, sink.Batches);
+            Assert.Equal(bytes, File.ReadAllBytes(image));
+        }
+        finally
+        {
+            provider.CloseAll();
+            Assert.True(source.Disposed);
+            File.Delete(image);
+            Directory.Delete(root, recursive: false);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Held_device_content_refuses_a_changed_path_before_or_during_read(bool duringRead)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-held-content-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string image = Path.Combine(root, "a.img");
+        byte[] bytes = Image(64, "FC_SOURCE_A");
+        Encoding.ASCII.GetBytes("CONTENT BIN").CopyTo(bytes, 3 * 512);
+        bytes[3 * 512] = 0xE5;
+        bytes[3 * 512 + 11] = 0x20;
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(3 * 512 + 26), 2);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(3 * 512 + 28), 4096);
+        for (int i = 0; i < 4096; i++) bytes[4 * 512 + i] = (byte)(i * 29 + 17);
+        File.WriteAllBytes(image, bytes);
+        var provider = new RecoveryProvider();
+        var source = new Reader(image, "selected A");
+        var guard = new PathGuardReader(source);
+        provider.OpenDevice = (_, _, _) => guard;
+        try
+        {
+            var chosen = provider.ForDevice("owned-held-content-device", "selected A", volume: 1, length: bytes.Length);
+            var initial = new Sink();
+            await provider.EnumerateAsync(chosen, initial, TestContext.Current.CancellationToken);
+            var row = Assert.Single(initial.Rows);
+            using var content = provider.OpenContent(provider.GetItemRef(chosen, row))!;
+            var first = new byte[4096];
+            Assert.Equal(4096, content.Read(0, first));
+            Assert.Equal(bytes.AsSpan(4 * 512, 4096).ToArray(), first);
+            int readsBeforeChange = source.Reads;
+            if (duringRead) guard.InvalidateOnRead = true;
+            else guard.Current = false;
+            var later = new byte[4096];
+            IOException? refusal = null;
+            try { content.Read(0, later); }
+            catch (IOException ex) { refusal = ex; }
+            output.WriteLine("RECOVERY_HELD_CONTENT_PATH " + JsonSerializer.Serialize(new
+            {
+                duringRead, refused = refusal is not null, readsBeforeChange, source.Reads,
+                returnedOriginalBytes = later.SequenceEqual(first),
+                sourceUnchanged = File.ReadAllBytes(image).SequenceEqual(bytes),
+            }));
+            Assert.NotNull(refusal);
+            if (!duringRead) Assert.Equal(readsBeforeChange, source.Reads);
+            else Assert.True(source.Reads > readsBeforeChange);
             Assert.Equal(bytes, File.ReadAllBytes(image));
         }
         finally

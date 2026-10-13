@@ -404,7 +404,10 @@ public sealed class RecoveryProvider : ResourceProvider
             if (found.State == RecoveryState.NameOnly)
                 throw new InvalidDataException($"Only the name of \"{found.Name}\" survives: {string.Join(" ", found.Evidence)}");
             var window = session.Window(volume);
-            try { return new RecoveryContent(window, found, ownsVolume: !IsDevice(item.Parent), session.VerifyImageContent); }
+            // A device may change after this content handle opens. Keep the selected path
+            // bound around every later read, including reads already in progress at a swap.
+            try { return new RecoveryContent(window, found, ownsVolume: !IsDevice(item.Parent),
+                session.VerifyImageContent ?? (IsDevice(item.Parent) ? session.VerifyListing : null)); }
             catch { window.Dispose(); throw; }
         }
     }
