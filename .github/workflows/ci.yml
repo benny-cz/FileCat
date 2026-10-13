@@ -43,8 +43,9 @@ jobs:
     name: Windows (build, all tests)
     needs: producer-policy
     runs-on: windows-2025-vs2026
-    # A hung test stops the run in minutes, not hours; --blame-hang names it and dumps the processes.
-    timeout-minutes: 30
+    # The full solution test step can consume nearly 30 minutes on a slow hosted runner;
+    # keep the separate four-minute per-test blame-hang bound below.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

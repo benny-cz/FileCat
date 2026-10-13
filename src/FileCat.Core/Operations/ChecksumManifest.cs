@@ -143,6 +143,7 @@ public static partial class ChecksumManifests
 {
     public const long MaxManifestBytes = 64L << 20;
     public const int MaxEntries = 1_000_000;
+    private const int MaxLineChars = 65_536;
 
     /// <summary>The algorithm a manifest's file name announces, or null when the name is not a known manifest name.</summary>
     public static ChecksumKind? KindFromName(string fileName)
@@ -215,7 +216,11 @@ public static partial class ChecksumManifests
             if (!line.Trim().IsEmpty && line[0] is not ('#' or ';'))
             {
                 if (entries.Count >= MaxEntries) throw new InvalidDataException($"The manifest lists more than {MaxEntries:N0} files.");
-                entries.Add(ParseLine(root, line.ToString(), lineNumber, announced));
+                if (line.Length > MaxLineChars)
+                    entries.Add(new ManifestEntry(lineNumber, line[..120].ToString() + "…", null,
+                        announced ?? ChecksumKind.Sha256, "", "The checksum line is too long."));
+                else
+                    entries.Add(ParseLine(root, line.ToString(), lineNumber, announced));
             }
             if (newline < 0) break;
             remaining = remaining[(newline + 1)..];

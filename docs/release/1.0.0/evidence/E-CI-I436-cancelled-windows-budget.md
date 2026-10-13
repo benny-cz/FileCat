@@ -1,0 +1,9 @@
+# E-CI-I436 — original pushed-source Windows budget cancellation
+
+Exact pushed source `bec7cb7724f1138a02206ab1ecb2d0a01823b181`, [GitHub run 38475513546](https://github.com/benny-cz/FileCat/actions/runs/38475513546), completed **cancelled**. Producer policy, Ubuntu, macOS and Windows ARM64 succeeded; Windows x64 was cancelled at its 30-minute aggregate job limit; four tag/manual-only jobs skipped. [I439](E-I439-windows-ci-aggregate-budget.md) records the timing, raw Windows log and 60-minute correction. Neither record turns this run green.
+
+All **27 available server-SHA-256 artifacts**, **2,762 ZIP members** and **fourteen TRX** were downloaded and independently checked. The available tests have **33,189 Passed, 1,167 NotExecuted, zero Failed** results. A separate full-file/member/test-row comparison with exact [I435 green CI](E-CI-I435-list-input-budget.md) verifies all **34,344** predecessor rows unchanged and the twelve expected new I436 Core outcomes; **34,356** rows are available. The Windows FAT32 virtual-disk step was cancelled, so its completion cannot be claimed from the green TRX inventory.
+
+The private official archive is `V:\FileCat\artifacts\release-evidence\ci-i436-cancelled-20261014-v1`: 36 self-excluding listed files/43,343,065 bytes, manifest SHA-256 `08a340ff7b46ddc8d04a530b0e7f79d55911568cc4962c367a20a1750cf45ee7`, audit SHA-256 `54dac0670df13eb491e42c716852ed64fadb11ba985e8f1024bcbdbc1c4256cc`. The independent comparison is `ci-i436-cancelled-comparison-20261014-v1`: manifest SHA-256 `d70290888a7739bf32feb02c45541827530d8872833025002d00921b352c1837`, comparison SHA-256 `ede023d6114ed9af2c69cf01420bc0d605eb58c65f9a5198233b4fc27378c4cc`.
+
+This is preliminary automated evidence on exact source, with a failed required job and no candidate. The later corrected-source CI must pass all required jobs before the source is called hosted-qualified.
