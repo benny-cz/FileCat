@@ -214,6 +214,39 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void Automatic_signature_result_rechecks_a_trusted_key_rewritten_with_its_metadata_restored()
+    {
+        var signer = new MinisignKey();
+        var replacement = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "keys")).FullName;
+        string trustedKey = Path.Combine(keys, "release.pub");
+        File.WriteAllText(trustedKey, signer.PublicFile);
+        byte[] content = "signed archive"u8.ToArray();
+        string archive = Path.Combine(_dir, "archive.zip");
+        File.WriteAllBytes(archive, content);
+        Write("archive.zip.minisig", signer.Sign(content, "release"));
+        var service = Service(keys: [keys]);
+        Assert.Equal(VerificationState.SignatureGood, service.Automatic(archive, TestContext.Current.CancellationToken)!.State);
+
+        long length = new FileInfo(trustedKey).Length;
+        DateTime modified = File.GetLastWriteTimeUtc(trustedKey);
+        File.WriteAllText(trustedKey, replacement.PublicFile);
+        File.SetLastWriteTimeUtc(trustedKey, modified);
+        Assert.Equal(length, new FileInfo(trustedKey).Length);
+        Assert.Equal(modified, File.GetLastWriteTimeUtc(trustedKey));
+        Assert.NotEqual(signer.PublicFile, File.ReadAllText(trustedKey));
+
+        var unknown = service.Automatic(archive, TestContext.Current.CancellationToken)!;
+        Assert.Equal(VerificationState.SignatureUnknownKey, unknown.State);
+
+        // Minisign ignores public-key files above 4 KiB. Their presence must not make every
+        // automatic signed row reread the target or retain a fingerprint of unrelated bytes.
+        File.WriteAllBytes(Path.Combine(keys, "oversized.pub"), new byte[4097]);
+        Thread.Sleep(25);
+        Assert.Equal(unknown.CheckedUtc, service.Automatic(archive, TestContext.Current.CancellationToken)!.CheckedUtc);
+    }
+
+    [Fact]
     public void A_manifest_signed_by_a_trusted_key_makes_the_files_it_lists_authentic()
     {
         // Intact (the checksum matches) and authentic (a trusted key signed the list): the stronger mark wins.

@@ -313,7 +313,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         if (Stamp(path) is not { } stamp) return null;
         var checksums = sidecars.Checksums(name);
         var signatures = sidecars.Signatures(name);
-        string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name)));
+        string key = VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name, ct)));
         if (automatic && cache.Get(key) is { } cached) return cached;
         var known = automatic ? cache.HashesOf(path, stamp.Size, stamp.Modified) : new Dictionary<ChecksumKind, string>();
         // Signatures over the file read all of it; checksums only when their hashes are not known yet.
@@ -385,7 +385,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             if (!sidecars.Covers(name)) continue;
             string path = Path.Combine(folder, name);
             if (Stamp(path) is not { } stamp) continue;
-            var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name))));
+            var result = cache.Get(VerificationCache.KeyOf(path, stamp.Size, stamp.Modified, SourcesOf(sidecars, name).Concat(TrustOf(sidecars, name, CancellationToken.None))));
             if (result is null) notChecked++;
             else if (result.IsGood) good++;
             else if (result.IsBad) bad++;
@@ -410,7 +410,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// What vouches for a file's signers, as it is now: the minisign key files (trusted and beside the file) when a
     /// minisign signature is involved, gpg's keyring and trust database when an OpenPGP one is. A change checks it again.
     /// </summary>
-    private IEnumerable<(string Name, long Size, long Modified, string Fingerprint)> TrustOf(FolderSidecars sidecars, string name)
+    private IEnumerable<(string Name, long Size, long Modified, string Fingerprint)> TrustOf(FolderSidecars sidecars, string name, CancellationToken ct)
     {
         var signatures = sidecars.Signatures(name)
             .Concat(sidecars.Checksums(name).SelectMany(c => sidecars.Signatures(Path.GetFileName(c.Source))))
@@ -419,11 +419,13 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
         if (signatures.Contains(SignatureKind.Minisign))
             foreach (string folder in keyFolders().Append(sidecars.Folder))
             {
-                try { files.AddRange(new DirectoryInfo(folder).EnumerateFiles("*.pub")); }
+                // Minisign.KeysIn ignores larger public-key files. Do not hash unrelated multi-MiB
+                // *.pub files for every visible signed row.
+                try { files.AddRange(new DirectoryInfo(folder).EnumerateFiles("*.pub").Where(f => f.Length <= 4096)); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
         if (signatures.Contains(SignatureKind.OpenPgp)) files.AddRange(OpenPgp.KeyringFiles());
-        return files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks, ""));
+        return files.Select(f => ("trust:" + f.FullName, f.Length, f.LastWriteTimeUtc.Ticks, FolderSidecars.Fingerprint(f, ct)));
     }
 
     private static string Size(long bytes) => bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.#} GiB" : $"{bytes / (double)(1 << 20):0.#} MiB";

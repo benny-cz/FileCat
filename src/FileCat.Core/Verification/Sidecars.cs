@@ -108,7 +108,7 @@ public sealed class FolderSidecars
         return result;
     }
 
-    private static string Fingerprint(FileInfo info, CancellationToken ct)
+    internal static string Fingerprint(FileInfo info, CancellationToken ct)
     {
         // A writer can restore size and mtime. Hash only bounded sidecars; an arbitrarily large
         // signature uses its native change token, or a one-scan nonce when no token is available.
