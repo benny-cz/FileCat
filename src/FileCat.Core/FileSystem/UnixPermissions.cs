@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -161,13 +160,66 @@ public static unsafe partial class UnixPermissions
         }
     }
 
-    private static readonly ConcurrentDictionary<uint, string> Users = new(), Groups = new();
+    // IDs from removable media or remote filesystems are not constrained by the local account
+    // database. Keep only recent resolutions; a walk through many orphaned IDs must not grow
+    // process-wide owner/group strings for the lifetime of FileCat.
+    private static readonly NameCache Users = new(), Groups = new();
 
     /// <summary>The account name for a user ID, or the number when the system has no name for it.</summary>
-    public static string UserName(uint uid) => Users.GetOrAdd(uid, id => LookUp(id, user: true));
+    public static string UserName(uint uid) => Users.GetOrAdd(uid, static id => LookUp(id, user: true));
 
     /// <summary>The group name for a group ID, or the number when the system has no name for it.</summary>
-    public static string GroupName(uint gid) => Groups.GetOrAdd(gid, id => LookUp(id, user: false));
+    public static string GroupName(uint gid) => Groups.GetOrAdd(gid, static id => LookUp(id, user: false));
+
+    private sealed class NameCache
+    {
+        internal const int MaxEntries = 256;
+        internal const int MaxRetainedChars = 32_768;
+
+        private readonly object _gate = new();
+        private readonly Dictionary<uint, LinkedListNode<(uint Id, string Name)>> _entries = new();
+        private readonly LinkedList<(uint Id, string Name)> _recent = new();
+        private int _retainedChars;
+
+        public int Count { get { lock (_gate) return _entries.Count; } }
+        public int RetainedChars { get { lock (_gate) return _retainedChars; } }
+
+        public string GetOrAdd(uint id, Func<uint, string> lookup)
+        {
+            lock (_gate)
+            {
+                if (_entries.TryGetValue(id, out var current))
+                {
+                    _recent.Remove(current);
+                    _recent.AddLast(current);
+                    return current.Value.Name;
+                }
+            }
+
+            // NSS can block or load plugins. Do not hold the cache lock across the lookup.
+            string name = lookup(id);
+            if (name.Length > MaxRetainedChars) return name;
+            lock (_gate)
+            {
+                if (_entries.TryGetValue(id, out var current))
+                {
+                    _recent.Remove(current);
+                    _recent.AddLast(current);
+                    return current.Value.Name;
+                }
+                while (_entries.Count >= MaxEntries || _retainedChars + name.Length > MaxRetainedChars)
+                {
+                    var oldest = _recent.First!;
+                    _recent.RemoveFirst();
+                    _entries.Remove(oldest.Value.Id);
+                    _retainedChars -= oldest.Value.Name.Length;
+                }
+                _entries.Add(id, _recent.AddLast((id, name)));
+                _retainedChars += name.Length;
+            }
+            return name;
+        }
+    }
 
     private static string LookUp(uint id, bool user)
     {

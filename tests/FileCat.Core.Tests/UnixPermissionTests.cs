@@ -2,6 +2,7 @@ using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
+using System.Reflection;
 
 namespace FileCat.Core.Tests;
 
@@ -90,6 +91,57 @@ public sealed class UnixPermissionTests : IDisposable
         File.CreateSymbolicLink(link, file);
         Assert.NotEqual((UnixFileMode)0x180, UnixPermissions.Stat(link)!.Value.Mode);
         Assert.Null(UnixPermissions.Stat(Path.Combine(_dir.Path, "missing")));
+    }
+
+    [Fact]
+    public void Owner_and_group_name_lookup_caches_bound_distinct_ids()
+    {
+        // A browse of a filesystem with many orphaned numeric owners must not retain every ID
+        // for the process lifetime. The IDs need not exist in the local account database.
+        string? firstUser = null, firstGroup = null;
+        for (uint offset = 0; offset < 300; offset++)
+        {
+            uint id = 4_000_000_000 + offset;
+            string user = UnixPermissions.UserName(id), group = UnixPermissions.GroupName(id);
+            Assert.NotEmpty(user);
+            Assert.NotEmpty(group);
+            if (offset == 0) { firstUser = user; firstGroup = group; }
+        }
+
+        Assert.InRange(CacheMetric("Users", "Count"), 0, 256);
+        Assert.InRange(CacheMetric("Groups", "Count"), 0, 256);
+        Assert.InRange(CacheMetric("Users", "RetainedChars"), 0, 32_768);
+        Assert.InRange(CacheMetric("Groups", "RetainedChars"), 0, 32_768);
+        Assert.Equal(firstUser, UnixPermissions.UserName(4_000_000_000));
+        Assert.Equal(firstGroup, UnixPermissions.GroupName(4_000_000_000));
+
+        static int CacheMetric(string field, string property)
+        {
+            object cache = typeof(UnixPermissions).GetField(field, BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+            return (int)cache.GetType().GetProperty(property)!.GetValue(cache)!;
+        }
+    }
+
+    [Fact]
+    public void Owner_name_cache_bounds_retained_text_and_does_not_cache_oversized_names()
+    {
+        Type cacheType = typeof(UnixPermissions).GetNestedType("NameCache", BindingFlags.NonPublic)!;
+        object cache = Activator.CreateInstance(cacheType, nonPublic: true)!;
+        MethodInfo getOrAdd = cacheType.GetMethod("GetOrAdd")!;
+        PropertyInfo count = cacheType.GetProperty("Count")!, chars = cacheType.GetProperty("RetainedChars")!;
+        Func<uint, string> resolve = id => new string((char)('a' + id % 26), 1024);
+
+        for (uint id = 0; id < 100; id++)
+            Assert.Equal(resolve(id), getOrAdd.Invoke(cache, [id, resolve]));
+
+        Assert.InRange((int)count.GetValue(cache)!, 1, 32);
+        Assert.InRange((int)chars.GetValue(cache)!, 1024, 32_768);
+
+        int before = (int)count.GetValue(cache)!;
+        Func<uint, string> oversized = _ => new string('x', 32_769);
+        Assert.Equal(oversized(0), getOrAdd.Invoke(cache, [101U, oversized]));
+        Assert.Equal(before, count.GetValue(cache));
+        Assert.InRange((int)chars.GetValue(cache)!, 1024, 32_768);
     }
 
     [Fact]
