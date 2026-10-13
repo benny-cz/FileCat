@@ -273,6 +273,7 @@ public sealed record UnixBlockDevice(string Device, long Length, string? Model, 
 /// </summary>
 public static class UnixDisks
 {
+    private const int MaxToolOutputCharacters = 4 << 20;
     /// <summary>Mounted file systems whose deleted files a scan finds.</summary>
     public static readonly string[] RecoverableTypes = ["vfat", "msdos", "exfat", "ntfs", "ntfs3", "fuseblk"];
 
@@ -777,29 +778,44 @@ public static class UnixDisks
         var start = new ProcessStartInfo(program) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         foreach (var a in arguments) start.ArgumentList.Add(a);
         using var process = Process.Start(start) ?? throw new IOException(program + " did not start.");
-        const int deadlineMilliseconds = 15_000;
-        var clock = Stopwatch.StartNew();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(deadlineMilliseconds));
-        var output = process.StandardOutput.ReadToEndAsync(deadline.Token);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var output = ReadToolOutputAsync(process.StandardOutput, deadline.Token);
         // A helper that fills stderr can otherwise block before exiting, even when stdout is being read.
         var errors = process.StandardError.BaseStream.CopyToAsync(Stream.Null, deadline.Token);
+        var exited = process.WaitForExitAsync(deadline.Token);
         try
         {
-            if (!process.WaitForExit(deadlineMilliseconds)) throw new IOException(program + " did not answer.");
-            int remaining = Math.Max(0, deadlineMilliseconds - (int)Math.Min(clock.ElapsedMilliseconds, deadlineMilliseconds));
-            var drained = Task.WhenAll(output, errors);
-            if (Task.WhenAny(drained, Task.Delay(remaining)).GetAwaiter().GetResult() != drained)
-                throw new IOException(program + " did not answer.");
-            try { drained.GetAwaiter().GetResult(); }
-            catch (OperationCanceledException) { throw new IOException(program + " did not answer."); }
+            // A full output budget must refuse promptly even if the helper is then blocked writing its pipe.
+            var pending = new List<Task> { exited, output, errors };
+            while (pending.Count != 0)
+            {
+                Task completed = Task.WhenAny(pending).GetAwaiter().GetResult();
+                completed.GetAwaiter().GetResult();
+                pending.Remove(completed);
+            }
             return output.GetAwaiter().GetResult();
         }
+        catch (OperationCanceledException) { throw new IOException(program + " did not answer."); }
         finally
         {
             deadline.Cancel();
             if (!process.HasExited)
                 try { process.Kill(entireProcessTree: true); }
-                catch (InvalidOperationException) { /* Exited while retiring it. */ }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        }
+    }
+
+    private static async Task<string> ReadToolOutputAsync(StreamReader reader, CancellationToken ct)
+    {
+        var text = new System.Text.StringBuilder();
+        char[] buffer = new char[8192];
+        while (true)
+        {
+            int read = await reader.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+            if (read == 0) return text.ToString();
+            if (read > MaxToolOutputCharacters - text.Length)
+                throw new IOException("Unix topology helper output exceeded 4 MiB character budget.");
+            text.Append(buffer, 0, read);
         }
     }
 
