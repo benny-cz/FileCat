@@ -117,6 +117,106 @@ public sealed class RecoveryReselectionTests(ITestOutputHelper output)
         public void Dispose() { Disposed = true; _source.Dispose(); }
     }
 
+    private sealed class PathGuardReader(Reader reader) : IBlockSource, IDevicePathGuard
+    {
+        public bool Current { get; set; } = true;
+        public string Description => reader.Description;
+        public long Length => reader.Length;
+        public int Read(long offset, Span<byte> buffer) => reader.Read(offset, buffer);
+        public bool IsCurrentDevicePath(string path) => Current;
+        public void Dispose() => reader.Dispose();
+    }
+
+    private sealed class CallbackSink(Action issue) : IEnumerationSink
+    {
+        public int Batches { get; private set; }
+        public void AddBatch(ReadOnlySpan<EntryData> entries) => Batches++;
+        public void ReportIssue(string message) => issue();
+    }
+
+    [Fact]
+    public async Task Cached_device_listing_refuses_a_changed_held_source_path()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-held-listing-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string image = Path.Combine(root, "a.img");
+        byte[] bytes = Image(64, "FC_SOURCE_A");
+        File.WriteAllBytes(image, bytes);
+        var provider = new RecoveryProvider();
+        var source = new Reader(image, "selected A");
+        var guard = new PathGuardReader(source);
+        provider.OpenDevice = (_, _, _) => guard;
+        try
+        {
+            var chosen = provider.ForDevice("owned-held-device", "selected A", length: bytes.Length);
+            var initial = new Sink();
+            await provider.EnumerateAsync(chosen, initial, TestContext.Current.CancellationToken);
+            Assert.Contains("FC_SOURCE_A", Assert.IsType<RecoveryVolumeTag>(Assert.Single(initial.Rows).Tag).Details);
+
+            guard.Current = false;
+            var stale = new Sink();
+            IOException? refusal = null;
+            try { await provider.EnumerateAsync(chosen, stale, TestContext.Current.CancellationToken); }
+            catch (IOException ex) { refusal = ex; }
+            output.WriteLine("RECOVERY_HELD_PATH_LISTING " + JsonSerializer.Serialize(new
+            {
+                refused = refusal is not null, rows = stale.Rows.Count, source.Reads,
+                sourceUnchanged = File.ReadAllBytes(image).SequenceEqual(bytes),
+            }));
+            Assert.NotNull(refusal);
+            Assert.Empty(stale.Rows);
+            Assert.Equal(bytes, File.ReadAllBytes(image));
+        }
+        finally
+        {
+            provider.CloseAll();
+            Assert.True(source.Disposed);
+            File.Delete(image);
+            Directory.Delete(root, recursive: false);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Fact]
+    public async Task Device_listing_refuses_path_changed_by_issue_callback_before_publication()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-held-callback-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string image = Path.Combine(root, "a.img");
+        byte[] bytes = Image(64, "FC_SOURCE_A");
+        File.WriteAllBytes(image, bytes);
+        var provider = new RecoveryProvider();
+        var source = new Reader(image, "selected A");
+        var guard = new PathGuardReader(source);
+        provider.OpenDevice = (_, _, _) => guard;
+        try
+        {
+            var chosen = provider.ForDevice("owned-held-callback-device", "selected A", volume: 1, length: bytes.Length);
+            int issues = 0;
+            var sink = new CallbackSink(() => { issues++; guard.Current = false; });
+            IOException? refusal = null;
+            try { await provider.EnumerateAsync(chosen, sink, TestContext.Current.CancellationToken); }
+            catch (IOException ex) { refusal = ex; }
+            output.WriteLine("RECOVERY_HELD_PATH_CALLBACK " + JsonSerializer.Serialize(new
+            {
+                refused = refusal is not null, sink.Batches, issues, source.Reads,
+                sourceUnchanged = File.ReadAllBytes(image).SequenceEqual(bytes),
+            }));
+            Assert.True(issues > 0);
+            Assert.NotNull(refusal);
+            Assert.Equal(0, sink.Batches);
+            Assert.Equal(bytes, File.ReadAllBytes(image));
+        }
+        finally
+        {
+            provider.CloseAll();
+            Assert.True(source.Disposed);
+            File.Delete(image);
+            Directory.Delete(root, recursive: false);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
     private static byte[] Image(int sectors, string label)
     {
         var bytes = new byte[sectors * 512];

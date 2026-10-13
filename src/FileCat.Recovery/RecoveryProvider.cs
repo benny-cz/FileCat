@@ -67,11 +67,11 @@ public sealed class RecoveryProvider : ResourceProvider
 
 
     private sealed class Session(IBlockSource source, IReadOnlyList<RecoveryVolume> volumes, bool device,
-        Action? verifyImageContent = null, Action? verifyImageListing = null) : IDisposable
+        Action? verifyImageContent = null, Action? verifyListing = null) : IDisposable
     {
         public IBlockSource Source { get; } = source;
         public Action? VerifyImageContent { get; } = verifyImageContent;
-        public Action? VerifyImageListing { get; } = verifyImageListing;
+        public Action? VerifyListing { get; } = verifyListing;
         private readonly ImageLifetime? _image = device ? null : new ImageLifetime(source);
         public IReadOnlyList<RecoveryVolume> Volumes { get; set; } = volumes;
         public DateTime Used { get; set; } = DateTime.UtcNow;
@@ -321,7 +321,7 @@ public sealed class RecoveryProvider : ResourceProvider
                     : $"{RecoveryItem.Bytes(search.Unpartitioned)} of this disk is in no partition. Recover deleted files (Tools menu) here offers to search it for deleted partitions.");
             // The issue callback may change the image. Admit its catalog after that callback,
             // before any volume rows are published to the caller.
-            session.VerifyImageListing?.Invoke();
+            session.VerifyListing?.Invoke();
             sink.AddBatch(rows.ToArray());
             return Task.CompletedTask;
         }
@@ -351,7 +351,7 @@ public sealed class RecoveryProvider : ResourceProvider
         }
         // Issue/progress callbacks can run user code after GetSession verified the image.
         // Do not publish a catalog assembled from an image changed in that interval.
-        session.VerifyImageListing?.Invoke();
+        session.VerifyListing?.Invoke();
         sink.AddBatch(batch.ToArray());
         return Task.CompletedTask;
     }
@@ -540,10 +540,16 @@ public sealed class RecoveryProvider : ResourceProvider
                 (image.CurrentChangeToken() != changeToken || SourceChangeToken.FromPath(path) != changeToken))
                 throw new IOException("The disk image changed while it was being scanned. Open it again.");
         }
+        void VerifySourceListing(IBlockSource scanned)
+        {
+            VerifyImageScan(scanned);
+            if (device && scanned is IDevicePathGuard held && !held.IsCurrentDevicePath(path))
+                throw new IOException("The selected device changed or was removed while its deleted items were listed. Select it again.");
+        }
         Session? cached;
         if (reuse && _sessions.TryGetValue(key, out cached) && !cached.Stale)
         {
-            VerifyImageScan(cached.Source);
+            VerifySourceListing(cached.Source);
             cached.Used = DateTime.UtcNow;
             return cached;
         }
@@ -558,7 +564,7 @@ public sealed class RecoveryProvider : ResourceProvider
                     try
                     {
                         var scanned = Scan(cached.Source, device, ct, searchFreeSpace, sink, searchDisk);
-                        VerifyImageScan(cached.Source);
+                        VerifySourceListing(cached.Source);
                         cached.Volumes = scanned;
                         cached.DiskSearched = searchDisk;
                         cached.Stale = false;
@@ -627,9 +633,9 @@ public sealed class RecoveryProvider : ResourceProvider
                     };
                 }
                 var volumes = Scan(source, device, ct, searchImageFreeSpace, sink, searchImageDisk);
-                VerifyImageScan(source);
+                VerifySourceListing(source);
                 var session = new Session(source, volumes, device,
-                    verifyImageContent, device ? null : () => VerifyImageScan(source))
+                    verifyImageContent, () => VerifySourceListing(source))
                 { DiskSearched = searchImageDisk };
                 _sessions[key] = session;
                 while (_sessions.Count > MaxSessions)
