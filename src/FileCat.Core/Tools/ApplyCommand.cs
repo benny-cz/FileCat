@@ -201,6 +201,7 @@ public static class ApplyCommandPlanner
 internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, JobJournal journal) : ExecutorBase(job, fs, journal)
 {
     private const int OutputTail = 2000;
+    private static readonly TimeSpan OutputCloseGrace = TimeSpan.FromMilliseconds(750);
 
     public override void Execute()
     {
@@ -260,17 +261,6 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
             WorkingDirectory = Directory.Exists(run.WorkingDirectory) ? run.WorkingDirectory : Environment.CurrentDirectory,
         };
         foreach (var a in run.Arguments) psi.ArgumentList.Add(a);
-        var stdout = new StringBuilder();
-        var stderr = new StringBuilder();
-        void Keep(StringBuilder sb, string? line)
-        {
-            if (line is null) return;
-            lock (sb)
-            {
-                sb.AppendLine(line);
-                if (sb.Length > OutputTail * 2) sb.Remove(0, sb.Length - OutputTail);
-            }
-        }
         Process process;
         try
         {
@@ -282,27 +272,55 @@ internal sealed class ApplyCommandExecutor(Job job, IFileSystemOperations fs, Jo
         }
         using (process)
         {
-            process.OutputDataReceived += (_, e) => Keep(stdout, e.Data);
-            process.ErrorDataReceived += (_, e) => Keep(stderr, e.Data);
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            // DataReceived builds an entire line before invoking the callback. A command that emits
+            // no newline can therefore retain arbitrary output even though we keep only its tail.
+            using var outputCancel = new CancellationTokenSource();
+            Task<string> stdout = ReadOutputTailAsync(process.StandardOutput, outputCancel.Token);
+            Task<string> stderr = ReadOutputTailAsync(process.StandardError, outputCancel.Token);
             // Programs that ask for input get end-of-file instead of waiting forever.
             process.StandardInput.Close();
             while (!process.WaitForExit(200))
             {
                 if (Job.IsCancellationRequested)
                 {
+                    outputCancel.Cancel();
                     Issue(IssueSeverity.Warning, run.Item.FileSystemPath ?? run.Item.Name,
                         $"\"{Path.GetFileName(run.Executable)}\" was still running for this item when the job was canceled; it was left to finish.", StepOutcome.Skipped);
                     throw new OperationCanceledException();
                 }
             }
-            process.WaitForExit();
-            string tail;
-            lock (stderr) tail = stderr.ToString().Trim();
-            if (tail.Length == 0) lock (stdout) tail = stdout.ToString().Trim();
+            // A descendant can inherit the pipe after the command itself exits. Do not wait for
+            // that descendant forever; a bounded tail is enough for the job's issue message.
+            outputCancel.CancelAfter(OutputCloseGrace);
+            bool drained = Task.WaitAll([stdout, stderr], OutputCloseGrace + TimeSpan.FromMilliseconds(250));
+            if (!drained || outputCancel.IsCancellationRequested)
+            {
+                outputCancel.Cancel();
+                Issue(IssueSeverity.Warning, run.Item.FileSystemPath ?? run.Item.Name,
+                    "The program exited, but its output pipes stayed open; FileCat stopped collecting output.", StepOutcome.Skipped);
+            }
+            string tail = stderr.IsCompletedSuccessfully ? stderr.Result.Trim() : "";
+            if (tail.Length == 0 && stdout.IsCompletedSuccessfully) tail = stdout.Result.Trim();
             var lastLines = tail.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).TakeLast(3);
             return (process.ExitCode, string.Join(" / ", lastLines));
         }
+    }
+
+    private static async Task<string> ReadOutputTailAsync(StreamReader stream, CancellationToken ct)
+    {
+        var tail = new StringBuilder(OutputTail);
+        var buffer = new char[1024];
+        try
+        {
+            int read;
+            while ((read = await stream.ReadAsync(buffer.AsMemory(), ct)) > 0)
+            {
+                if (tail.Length + read > OutputTail)
+                    tail.Remove(0, tail.Length + read - OutputTail);
+                tail.Append(buffer, 0, read);
+            }
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException) { }
+        return tail.ToString();
     }
 }
