@@ -155,28 +155,55 @@ internal sealed class AlignedDeviceReader
 }
 
 /// <summary>
-/// Keeps a selected whole-disk interface bound to the read-only direct or brokered reader.
-/// Volume GUID paths retain their existing reader; they need a separate volume-identity check.
+/// Keeps a selected whole disk or single-disk volume bound to its present PnP disk interface.
+/// A volume path can survive a cloned disk replacement, so its GUID alone is not a source identity.
 /// </summary>
 public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard, IDeviceSelectionIdentity, IDeviceDestinationGuard
 {
     private readonly string _path;
     private readonly IBlockSource _source;
     private readonly string? _identity;
+    private readonly string _diskInterfacePath;
+    private readonly string? _diskIdentity;
+    private readonly long _diskLength;
+    private readonly int? _volumeDiskNumber;
 
-    private SelectedDiskInterfaceSource(string path, IBlockSource source)
+    private SelectedDiskInterfaceSource(string path, IBlockSource source, PhysicalDisk? volumeDisk)
     {
         _path = path;
         _source = source;
         _identity = (source as IDeviceSelectionIdentity)?.SelectionIdentity;
+        _diskInterfacePath = volumeDisk?.InterfacePath ?? path;
+        _diskIdentity = volumeDisk?.Identity ?? _identity;
+        _diskLength = volumeDisk?.Length ?? source.Length;
+        _volumeDiskNumber = volumeDisk?.Number;
     }
 
     public static IBlockSource Bind(string path, IBlockSource source)
     {
-        if (path.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase)) return source;
         try
         {
-            var bound = new SelectedDiskInterfaceSource(path, source);
+            PhysicalDisk? volumeDisk = null;
+            if (path.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase))
+            {
+                // Ask the opened direct/pipe reader which disk actually holds this volume,
+                // then bind that disk's present interface. A GUID path alone can name B after A is removed.
+                var heldDisks = source switch
+                {
+                    DirectDeviceSource direct => direct.QuerySourceDisks(),
+                    PipeDeviceSource pipe => pipe.QuerySourceDisks(),
+                    _ => null,
+                };
+                if (heldDisks is not { Count: 1 })
+                    throw new IOException("The selected volume's backing disk could not be verified. Select it again.");
+                var pathDisks = DeviceTopology.DisksOf(path);
+                if (pathDisks is not { Count: 1 } || heldDisks[0] != pathDisks[0])
+                    throw new IOException("The selected volume's backing disk could not be verified. Select it again.");
+                volumeDisk = DeviceTopology.Disks().SingleOrDefault(d => d.Number == heldDisks[0]);
+                if (volumeDisk?.InterfacePath is null || volumeDisk.Identity is null)
+                    throw new IOException("The selected volume's disk interface could not be verified. Select it again.");
+            }
+            var bound = new SelectedDiskInterfaceSource(path, source, volumeDisk);
             if (!bound.IsCurrentDevicePath(path))
                 throw new IOException("The selected disk interface changed or was removed while opening. Select it again.");
             return bound;
@@ -197,13 +224,19 @@ public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard
 
     public bool IsCurrentDevicePath(string path)
     {
-        if (!string.Equals(path, _path, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(_identity)) return false;
+        if (!string.Equals(path, _path, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(_diskIdentity)) return false;
         try
         {
+            if (_volumeDiskNumber is { } number)
+            {
+                var currentDisks = DeviceTopology.DisksOf(path);
+                if (currentDisks is not { Count: 1 } || currentDisks[0] != number) return false;
+            }
             var matches = DeviceTopology.Disks().Where(d =>
-                string.Equals(d.InterfacePath, path, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
-            return matches.Length == 1 && matches[0].Length == Length &&
-                string.Equals(matches[0].Identity, _identity, StringComparison.OrdinalIgnoreCase);
+                string.Equals(d.InterfacePath, _diskInterfacePath, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            return matches.Length == 1 && matches[0].Length == _diskLength &&
+                (_volumeDiskNumber is null || matches[0].Number == _volumeDiskNumber) &&
+                string.Equals(matches[0].Identity, _diskIdentity, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
         {
@@ -291,8 +324,12 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, 
 
     public bool? SharesDestinationDisk(string destinationDirectory)
     {
-        lock (_lock)
-            return DeviceTopology.SharesDisk(DeviceTopology.DisksOf(_handle, _wholeDisk), destinationDirectory);
+        return DeviceTopology.SharesDisk(QuerySourceDisks(), destinationDirectory);
+    }
+
+    internal IReadOnlyList<int>? QuerySourceDisks()
+    {
+        lock (_lock) return DeviceTopology.DisksOf(_handle, _wholeDisk);
     }
 
     public void Dispose()

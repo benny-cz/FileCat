@@ -18,15 +18,14 @@ public sealed class SelectedDiskInterfaceSourceTests
     }
 
     [Fact]
-    public void Volume_guid_path_keeps_its_existing_reader()
+    public void Unverifiable_volume_backing_refuses_and_closes_its_reader()
     {
         var source = new Reader(null);
-        var bound = SelectedDiskInterfaceSource.Bind(@"\\?\Volume{12345678-1234-1234-1234-123456789abc}", source);
+        Assert.Throws<IOException>(() => SelectedDiskInterfaceSource.Bind(
+            @"\\?\Volume{12345678-1234-1234-1234-123456789abc}", source));
 
-        Assert.Same(source, bound);
-        Assert.Equal(0, source.Disposals);
-        bound.Dispose();
         Assert.Equal(1, source.Disposals);
+        Assert.Equal(0, source.Reads);
     }
 
     private sealed class Reader(string? identity) : IBlockSource, IDeviceSelectionIdentity
