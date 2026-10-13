@@ -239,8 +239,9 @@ internal static class GitStatusReader
         if (!IsLocalPath(commonDir)) return null;
         if (File.Exists(commonDir))
         {
-            if (new FileInfo(commonDir).Length > 4096) return null;
-            string common = File.ReadAllText(commonDir).Trim();
+            string? common = ReadBoundedMetadataText(commonDir, 4096);
+            if (common is null) return null;
+            common = common.Trim();
             string full = Path.GetFullPath(Path.IsPathRooted(common) ? common : Path.Join(gitDir, common));
             if (!IsLocalPath(full)) return null;
             dirs.Add(full);
@@ -251,12 +252,33 @@ internal static class GitStatusReader
     /// <summary>A work tree's ".git" file (linked work trees, submodules): "gitdir: path", relative to the work tree.</summary>
     private static string? LinkedGitDir(string dotGitFile, string workTree)
     {
-        if (new FileInfo(dotGitFile).Length > 4096) return null;
-        string text = File.ReadAllText(dotGitFile).Trim();
+        string? text = ReadBoundedMetadataText(dotGitFile, 4096);
+        if (text is null) return null;
+        text = text.Trim();
         if (!text.StartsWith("gitdir:", StringComparison.Ordinal)) return null;
         string path = text["gitdir:".Length..].Trim();
         string full = Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Join(workTree, path));
         return IsLocalPath(full) && Directory.Exists(full) ? full : null;
+    }
+
+    private static string? ReadBoundedMetadataText(string path, int maxBytes)
+    {
+        var info = new FileInfo(path);
+        if (info.Length > maxBytes) return null;
+        // A short link or a file grown after the metadata check may lead to a much larger stream.
+        using var input = File.OpenRead(path);
+        using var content = new MemoryStream((int)Math.Min(info.Length, maxBytes));
+        Span<byte> buffer = stackalloc byte[4096];
+        while (true)
+        {
+            int count = input.Read(buffer[..Math.Min(buffer.Length, maxBytes + 1 - (int)content.Length)]);
+            if (count == 0) break;
+            if (content.Length + count > maxBytes) return null;
+            content.Write(buffer[..count]);
+        }
+        content.Position = 0;
+        using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     /// <summary>
@@ -308,8 +330,10 @@ internal static class GitStatusReader
         var info = new FileInfo(configPath);
         if (!info.Exists) return true;
         if (info.Length > 1_000_000) return false;
+        string? configuration = ReadBoundedMetadataText(configPath, 1_000_000);
+        if (configuration is null) return false;
         bool core = false, remote = false, extensions = false;
-        foreach (string? raw in LogicalConfigurationLines(configPath))
+        foreach (string? raw in LogicalConfigurationLines(configuration))
         {
             if (raw is null) return false;
             var line = raw.AsSpan().Trim();
@@ -361,12 +385,14 @@ internal static class GitStatusReader
     /// line, keeping quoted/escaped characters intact for the value reader. Comments end the physical line: a slash
     /// in a comment must not consume a following filter/include section. Null refuses incomplete or oversized input.
     /// </summary>
-    private static IEnumerable<string?> LogicalConfigurationLines(string configPath)
+    private static IEnumerable<string?> LogicalConfigurationLines(string configuration)
     {
+        using var reader = new StringReader(configuration);
         var line = new StringBuilder();
         bool quoted = false, continued = false;
         int characters = 0;
-        foreach (string raw in File.ReadLines(configPath))
+        string? raw;
+        while ((raw = reader.ReadLine()) is not null)
         {
             if (raw.Length > 1_000_000 - characters - 1) { yield return null; yield break; }
             characters += raw.Length + 1; // Include physical line endings so empty continued lines are bounded too.

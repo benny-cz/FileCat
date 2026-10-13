@@ -1,0 +1,9 @@
+# E-CI-I437 — exact pushed-source checksum-line CI
+
+Exact pushed source `fe57e7ab651fa0292916e7aedbb26b59536494ff`, [GitHub run 38478761744](https://github.com/benny-cz/FileCat/actions/runs/38478761744), passes the producer-policy job and Windows x64/ARM64, Ubuntu and macOS lanes; four tag/manual-only jobs skip. This run uses the earlier 30-minute Windows aggregate budget and completes it successfully. [I439](E-I439-windows-ci-aggregate-budget.md) addresses the separate cancelled I436 run and later increases that budget; the two run outcomes remain distinct.
+
+All **27 server-SHA-256 ZIPs/2,762 members/fourteen TRX** independently rehash at **33,197P/1,167S/0F**. Comparison directly with the last green [I435 run](E-CI-I435-list-input-budget.md) preserves all **34,344** predecessor rows (test name, outcome and diagnostic message). Only the expected three I436 and two I437 Core cases per lane add **20** rows, for **34,364** total. The I436 original-push run remains [cancelled](E-CI-I436-cancelled-windows-budget.md), even though its available test inventories passed.
+
+The private official archive `V:\FileCat\artifacts\release-evidence\ci-i437-green-20261014-v1` contains **34 self-excluding listed files/42,940,639 bytes**, manifest SHA-256 `adf6832e9cc1c6d6d5468b52fc3657d726811dbc02f3a85afeb016197e13d35d` and audit SHA-256 `8889a251bd66d2e858b5c2cf3138fa6d186b9995c0e66b2f43c23d14aeb47329`. The separate two-file full-member/test-row comparison archive `ci-i437-comparison-20261014-v1` has manifest SHA-256 `bd37d53bdcdcbf5a7889e67cc3303a8d4be287e978d288f974b99f0882a9befb` and comparison SHA-256 `eb15a5d3f0ac7d1d46b3b05e692946f020a2815204f7d7d24fe780225974d8e6`.
+
+This is exact-source hosted qualification for I436/I437 tests, not candidate, installed-UI, physical-source or stable-release approval. I106/I110 physical-source HOLD and explicit human GO remain.
