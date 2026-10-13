@@ -185,6 +185,7 @@ public sealed class RecoveryProvider : ResourceProvider
             if (_sessions.TryRemove("device|" + device, out var previous)) previous.Dispose();
             _deviceNames[device] = name;
             if (volume is not null) _volumeDevices[device] = true;
+            else _volumeDevices.TryRemove(device, out _);
             if (length > 0) _deviceLengths[device] = length;
             else _deviceLengths.TryRemove(device, out _);
             if (!string.IsNullOrEmpty(identity)) _deviceIdentities[device] = identity;

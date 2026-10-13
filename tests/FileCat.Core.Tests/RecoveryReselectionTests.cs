@@ -10,6 +10,23 @@ namespace FileCat.Core.Tests;
 /// <summary>A fresh explicit device choice cannot inherit the previous choice's open reader and scan.</summary>
 public sealed class RecoveryReselectionTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void Explicit_whole_disk_reselection_forgets_a_previous_single_volume_classification()
+    {
+        var provider = new RecoveryProvider();
+        const string path = "owned-classification-only-device";
+
+        var oneVolume = provider.ForDevice(path, "selected partition", volume: 1);
+        Assert.Equal(Schemes.Computer, provider.GetParent(oneVolume)?.Scheme);
+
+        var wholeDisk = provider.ForDevice(path, "selected whole disk");
+        var firstVolume = new Location(Schemes.Recovery, string.Empty, wholeDisk.Container, "0");
+        Assert.Equal("Volume 0", provider.GetDisplayName(firstVolume));
+        Assert.Equal(wholeDisk, provider.GetParent(firstVolume));
+
+        provider.CloseAll();
+    }
+
     private sealed class Sink : IEnumerationSink
     {
         public List<EntryData> Rows { get; } = [];
