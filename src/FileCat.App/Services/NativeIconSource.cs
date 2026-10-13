@@ -262,14 +262,26 @@ public sealed class NativeIconSource : INativeIconSource
         int size = PixelSize;
         return PerItem("dir|" + path + "|" + entry.Modified, async () =>
         {
-            string ini = Path.Join(path, "desktop.ini");
-            var fileInfo = new FileInfo(ini);
-            if (!fileInfo.Exists || fileInfo.Length > ShellFileIcons.MaxBytes || (fileInfo.Attributes & Placeholder) != 0) return new Plan(null, null);
-            var info = ShellFileIcons.ReadFolderIcon(ShellFileIcons.DecodeText(await File.ReadAllBytesAsync(ini).ConfigureAwait(false)), path);
+            var info = await ReadCustomFolderIconAsync(path).ConfigureAwait(false);
             if (info?.IconFile is not { } iconFile) return new Plan(null, null);
             var (named, askAgain) = await Resource(new IconLocation(iconFile, info.IconIndex), size).ConfigureAwait(false);
             return new Plan(named, null, askAgain);
         });
+    }
+
+    internal static async Task<ShellFileIcon?> ReadCustomFolderIconAsync(string path)
+    {
+        string ini = Path.Join(path, "desktop.ini");
+        var fileInfo = new FileInfo(ini);
+        if (!fileInfo.Exists || fileInfo.Length > ShellFileIcons.MaxBytes || (fileInfo.Attributes & Placeholder) != 0) return null;
+        using var file = new FileStream(ini, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
+            4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        long length = file.Length;
+        if (length > ShellFileIcons.MaxBytes) return null;
+        byte[] bytes = new byte[(int)length];
+        await file.ReadExactlyAsync(bytes).ConfigureAwait(false);
+        if (file.ReadByte() != -1) return null; // The file may have grown since its opened length was checked.
+        return ShellFileIcons.ReadFolderIcon(ShellFileIcons.DecodeText(bytes), path);
     }
 
     /// <summary>An icon a user's file names, read by the restricted helper under its policy (local files only).</summary>

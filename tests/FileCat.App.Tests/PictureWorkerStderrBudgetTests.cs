@@ -32,7 +32,8 @@ public sealed class PictureWorkerStderrBudgetTests(ITestOutputHelper output)
             long after = GC.GetTotalMemory(forceFullCollection: true);
             long retained = after - before;
             output.WriteLine($"PICTURE_STDERR_BUDGET emittedBytes={emitted} retainedManagedBytes={retained} maximumRetainedBytes={maximumRetained} rootAlive={!process.HasExited}");
-            Assert.InRange(retained, 0, maximumRetained);
+            // A full collection may free unrelated objects retained at the baseline sample.
+            Assert.True(retained <= maximumRetained, $"Retained {retained} managed bytes after emitting {emitted}.");
         }
         finally
         {
