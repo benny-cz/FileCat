@@ -223,13 +223,18 @@ public static class PictureDecoder
     {
         private readonly Platform.Windows.Shell.SandboxedWorker? _sandboxed;
         private readonly Process? _process;
+        private readonly Task? _stderrDrain;
+        private readonly CancellationTokenSource? _stderrCancel;
         private AnonymousPipeServerStream? _lifetime;
 
-        private Worker(Platform.Windows.Shell.SandboxedWorker? sandboxed, Process? process, AnonymousPipeServerStream? lifetime = null)
+        private Worker(Platform.Windows.Shell.SandboxedWorker? sandboxed, Process? process,
+            AnonymousPipeServerStream? lifetime = null, Task? stderrDrain = null, CancellationTokenSource? stderrCancel = null)
         {
             _sandboxed = sandboxed;
             _process = process;
             _lifetime = lifetime;
+            _stderrDrain = stderrDrain;
+            _stderrCancel = stderrCancel;
         }
 
         public Stream Input => _sandboxed?.Input ?? _process!.StandardInput.BaseStream;
@@ -270,9 +275,11 @@ public static class PictureDecoder
                 psi.Environment[PictureWorkerLifetime.EnvironmentName] = lifetime.GetClientHandleAsString();
                 process = Process.Start(psi) ?? throw new InvalidOperationException("The picture decoder could not be started.");
                 lifetime.DisposeLocalCopyOfClientHandle();
-                process.ErrorDataReceived += (_, _) => { };
-                process.BeginErrorReadLine();
-                return new Worker(null, process, lifetime);
+                // DataReceived buffers a complete line before invoking its callback. A worker that
+                // writes stderr without newlines can therefore grow the parent without a bound.
+                var stderrCancel = new CancellationTokenSource();
+                Task stderrDrain = DrainStderrAsync(process.StandardError.BaseStream, stderrCancel.Token);
+                return new Worker(null, process, lifetime, stderrDrain, stderrCancel);
             }
             catch
             {
@@ -315,7 +322,23 @@ public static class PictureDecoder
                 // pipe in a descendant, so it cannot own decoder admission. Retire our pipe reader after
                 // the actual root exits; this does not establish containment of detached descendants.
                 while (!_process.HasExited) await Task.Delay(10).ConfigureAwait(false);
+                _stderrCancel?.Cancel();
                 _process.Dispose();
+                if (_stderrDrain is not null)
+                {
+                    try { await _stderrDrain.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false); }
+                    catch (TimeoutException) { /* A detached descendant may still hold stderr. */ }
+                }
+                _stderrCancel?.Dispose();
+            }
+        }
+
+        private static async Task DrainStderrAsync(Stream stderr, CancellationToken ct)
+        {
+            try { await stderr.CopyToAsync(Stream.Null, 81920, ct).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
+            {
+                // stderr is diagnostic-only and can close while the worker is being retired.
             }
         }
     }
