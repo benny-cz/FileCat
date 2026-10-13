@@ -75,6 +75,40 @@ public sealed class ArchiveMultipartRarTests : IDisposable
     }
 
     [Fact]
+    public void Unidentified_secondary_volume_disables_catalog_reuse()
+    {
+        string archive = Fixture(1);
+        var before = InputHashes();
+        var files = new IdentityAwareTestFiles();
+        string selectedIdentity = Assert.IsType<string>(files.GetFileIdentity(archive));
+        int opened = 0;
+        _archives.GetSourceIdentity = path => PathUtil.SafetyComparer.Equals(path, archive) ? selectedIdentity : null;
+        _archives.GetOpenedSourceIdentity = handle =>
+        {
+            Interlocked.Increment(ref opened);
+            return files.GetHandleIdentity(handle) == selectedIdentity ? selectedIdentity : null;
+        };
+        var members = new ProviderArchiveMembers(_providers);
+        var firstWarnings = new List<string>();
+        var first = members.List(archive, firstWarnings.Add, TestContext.Current.CancellationToken)
+            .Where(item => !item.IsContainer).ToList();
+        Assert.Empty(firstWarnings);
+        Assert.Equal(Expected.Keys.Order(), first.Select(MemberPath).Order());
+        int firstOpens = Volatile.Read(ref opened);
+        Assert.True(firstOpens >= 6);
+
+        var nextWarnings = new List<string>();
+        var next = members.List(archive, nextWarnings.Add, TestContext.Current.CancellationToken)
+            .Where(item => !item.IsContainer).ToList();
+        Assert.Empty(nextWarnings);
+        Assert.Equal(first.Select(MemberPath).Order(), next.Select(MemberPath).Order());
+        Assert.True(Volatile.Read(ref opened) > firstOpens,
+            "A secondary volume has no opened identity, but the cached multipart catalog was reused.");
+        foreach (var item in next) CheckContent(item);
+        CheckInputs(before);
+    }
+
+    [Fact]
     public void In_place_secondary_volume_rewrite_does_not_reuse_the_old_catalog()
     {
         string archive = Fixture(1);

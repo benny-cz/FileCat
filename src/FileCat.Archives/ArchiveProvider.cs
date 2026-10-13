@@ -477,7 +477,10 @@ internal sealed class ArchiveIndex : IDisposable
                 volume.Identity is { Length: > 0 } id && _volumePathIdentity!(volume.Stream.Name) != id)
                 throw new IOException("An archive volume changed since its catalog was built.");
     }
-    public bool CanReuse => _openedChangeToken is not null && _volumes.All(volume => volume.Token is not null);
+    // A volume without an opened identity cannot be tied to its path on the next request. Its change token
+    // guards the current open handle, but is not sufficient to authorize reuse of a multipart catalog.
+    public bool CanReuse => _openedChangeToken is not null &&
+        _volumes.All(volume => volume.Token is not null && volume.Identity is { Length: > 0 });
     private ArchiveSourceLease? _source;
     public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
     private readonly long _archiveLength;
