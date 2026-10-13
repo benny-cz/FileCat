@@ -109,7 +109,8 @@ public class PortableShellServices : IShellServices
     /// </summary>
     private static IEnumerable<(string Exe, string[] Open, string[] Run, bool System)> LinuxTerminals(string directory, string script)
     {
-        string[] sh = ["sh", "-c", script];
+        // The terminal resolves -e's program itself. Keep the implicit command shell out of a writable PATH.
+        string[] sh = ["/bin/sh", "-c", script];
         if (Environment.GetEnvironmentVariable("TERMINAL") is { Length: > 0 } preferred) yield return (preferred, [], ["-e", .. sh], false);
         yield return ("x-terminal-emulator", [], ["-e", .. sh], true);
         yield return ("gnome-terminal", ["--working-directory=" + directory], ["--working-directory=" + directory, "--", .. sh], true);
@@ -148,7 +149,8 @@ public class PortableShellServices : IShellServices
 
     public virtual void RunInTerminal(string directory, string command, string shell)
     {
-        var script = command + "; exec \"${SHELL:-sh}\"";
+        // A relative inherited SHELL would be another implicit PATH lookup after the command finishes.
+        var script = command + "; case \"${SHELL:-}\" in /*) exec \"$SHELL\";; *) exec /bin/sh;; esac";
         if (OperatingSystem.IsMacOS())
         {
             var escaped = ("cd " + Tools.ShellQuoting.QuotePosix(directory) + " && " + command).Replace("\\", "\\\\").Replace("\"", "\\\"");
