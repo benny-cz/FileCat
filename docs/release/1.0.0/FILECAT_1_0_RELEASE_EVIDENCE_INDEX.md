@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**628 evidence entries; none is final candidate qualification.** No candidate exists.
+**631 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -640,6 +640,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 | E-CI-I416-FAILED | Exact I416 original-push CI failed a separate macOS App timing assertion | `a4da1369`/38377631532 | Four required jobs pass/macOS fails/four skip. 25 server-digest ZIPs/2,760 members/fourteen TRX give 33,095P/1,148S/1F. All four new I416 Core rows pass; 34,239/34,240 predecessor rows unchanged and one macOS App pass changes to failure; two downstream macOS artifacts unavailable. Official failure and independent comparison sealed; no candidate. | [Failed-run audit](evidence/E-CI-I416-failed-mac-conflict-fixture.md) | I06/I106/I416/I418/ENV-06 |
 | E-CI-I417-I418 | Exact corrected-source archive-publication and conflict-fixture CI | `dd41c293`/38382504458 | Five required jobs pass/four conditional skips. 27 server-digested ZIPs/2,762 members/fourteen TRX give 33,100P/1,148S/0F; 34,243/34,244 failed-run predecessor rows exact, one macOS App fail→pass and four new Core passes. Official audit and comparison sealed; no candidate. | [Hosted audit](evidence/E-CI-I417-I418-archive-publication-and-conflict-fixture.md) | I06/I106/I108/I416–I418/ENV-06 |
 | E-CI-I419 | Exact pushed-source ZIP warning-publication CI | `26effeb5`/38390574949 | Five required jobs pass/four conditional skips; 27 server-digest ZIPs/2,762 members/fourteen TRX give 33,112P/1,148S/0F. Three new Core passes per lane, every 34,248 preceding row exact. Independent official audit and comparison sealed; no candidate. | [Hosted audit](evidence/E-CI-I419-zip-warning-publication.md) | I06/I106/I419/ENV-06 |
+| E-CI-I420 | Exact pushed-source recovery volume-row publication CI | `f3b18069`/38395220417 | Five required jobs pass/four conditional skips; 27 server-digested ZIPs/2,762 members/fourteen TRX give 33,116P/1,148S/0F. One new Core pass per lane; all 34,260 predecessor rows exact. Independent official audit and comparison sealed; no candidate. | [Hosted audit](evidence/E-CI-I420-recovery-volume-issue-publication.md) | I106/I420/ENV-06 |
 | E-CI-PREOPEN-SELECTION | Original I106/I368/I369 CI at separate source commits | cd19d7c/38180903387, c6c7f30/38181890980 and cc93071/38183808053, attempt 1 each | Four lanes each; 27 archives/2,762 members/14 TRX each; I369 preserves every I368 case outcome/message; no candidate | [Record](evidence/E-CI-preopen-disk-selection.md) | I106/I368/I369/V09 |
 
 <a id="commits-made-by-the-campaign"></a>

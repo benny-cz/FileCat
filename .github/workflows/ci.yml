@@ -28,7 +28,7 @@ jobs:
       - name: Producer reference controls
         shell: pwsh
         run: ./eng/validation/validate-producer-reference.ps1 -EvidenceDirectory "${{ runner.temp }}/filecat-producer-reference-controls"
-      - name: Validate release issue register
+      - name: Validate release tracking tables
         run: python3 eng/validation/validate-release-issue-register.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
