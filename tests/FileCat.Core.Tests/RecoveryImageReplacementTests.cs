@@ -35,6 +35,20 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
         for (int i = 0; i < 4096; i++) bytes[4 * 512 + i] = (byte)(i * 29 + seed);
         return bytes;
     }
+    private static byte[] PartitionedImage(string label)
+    {
+        const int sector = 512, start = 2048, sectors = 64;
+        var disk = new byte[16 * 1024 * 1024];
+        var volume = Image(17, false);
+        Encoding.ASCII.GetBytes(label).CopyTo(volume, 43);
+        volume.CopyTo(disk, start * sector);
+        int entry = 446;
+        disk[entry + 4] = 0x06; // FAT16 partition in an otherwise unpartitioned owned image.
+        BinaryPrimitives.WriteUInt32LittleEndian(disk.AsSpan(entry + 8), start);
+        BinaryPrimitives.WriteUInt32LittleEndian(disk.AsSpan(entry + 12), sectors);
+        disk[510] = 0x55; disk[511] = 0xAA;
+        return disk;
+    }
     private sealed class Sink : IEnumerationSink
     {
         public List<EntryData> Rows { get; } = [];
@@ -95,6 +109,68 @@ public sealed class RecoveryImageReplacementTests(ITestOutputHelper output)
             }
         }
         throw new InvalidOperationException("The image scan retry bound was exceeded.");
+    }
+
+    [Fact]
+    public async Task Volume_listing_refuses_image_rewritten_in_disk_search_issue_callback()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-volume-issue-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "source.img");
+        byte[] original = PartitionedImage("FIRST_LABEL"), replacement = PartitionedImage("SECOND_NAME");
+        File.WriteAllBytes(path, original);
+        File.SetLastWriteTimeUtc(path, Stamp);
+        var files = new IdentityAwareTestFiles();
+        var provider = new RecoveryProvider
+        {
+            GetSourceIdentity = files.GetFileIdentity,
+            GetOpenedSourceIdentity = files.GetHandleIdentity,
+        };
+        var location = RecoveryProvider.ForImage(path);
+        try
+        {
+            var first = new MutatingIssueSink(() => { });
+            await provider.EnumerateAsync(location, first, TestContext.Current.CancellationToken);
+            Assert.True(first.IssueCount > 0);
+            Assert.Contains("FIRST_LABEL", Assert.Single(first.Rows).Tag!.ToString());
+            string identity = Assert.IsType<string>(files.GetFileIdentity(path));
+            string token = Assert.IsType<string>(FileCat.Core.FileSystem.SourceChangeToken.FromPath(path));
+            var changing = new MutatingIssueSink(() =>
+            {
+                using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                RandomAccess.Write(handle, replacement, 0);
+                RandomAccess.FlushToDisk(handle);
+                File.SetLastWriteTimeUtc(path, Stamp);
+            });
+            Exception? error = await Record.ExceptionAsync(() =>
+                provider.EnumerateAsync(location, changing, TestContext.Current.CancellationToken));
+            string currentToken = Assert.IsType<string>(FileCat.Core.FileSystem.SourceChangeToken.FromPath(path));
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                identity, currentIdentity = files.GetFileIdentity(path), token, currentToken,
+                changing.IssueCount, published = changing.Rows.Select(row => row.Tag?.ToString()).ToArray(),
+                error = error?.GetType().Name,
+                sourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+            }));
+            Assert.Equal(identity, files.GetFileIdentity(path));
+            Assert.NotEqual(token, currentToken);
+            Assert.Equal(Stamp, File.GetLastWriteTimeUtc(path));
+            Assert.Equal(replacement, File.ReadAllBytes(path));
+            Assert.IsType<IOException>(error);
+            Assert.Empty(changing.Rows);
+            var fresh = await ListAfterMutation(provider, location);
+            Assert.Contains("SECOND_NAME", Assert.Single(fresh.Rows).Tag!.ToString());
+        }
+        finally
+        {
+            provider.CloseAll();
+            bool sourceClosed = Exclusive(path);
+            File.Delete(path);
+            Directory.Delete(root);
+            output.WriteLine(JsonSerializer.Serialize(new { root, sourceClosed, absent = !Directory.Exists(root) }));
+            Assert.True(sourceClosed);
+            Assert.False(Directory.Exists(root));
+        }
     }
     private static bool Exclusive(string path)
     {

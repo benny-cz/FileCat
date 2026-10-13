@@ -310,12 +310,14 @@ public sealed class RecoveryProvider : ResourceProvider
                     Flags = v.FileSystem == "Unknown" ? EntryFlags.Unavailable : EntryFlags.None,
                 });
             }
-            session.VerifyImageListing?.Invoke();
-            sink.AddBatch(rows.ToArray());
             if (DescribeDiskSearch(session, location) is { } search)
                 sink.ReportIssue(search.Searched
                     ? $"The search for deleted partitions read all {RecoveryItem.Bytes(search.Unpartitioned)} of this disk that is in no partition."
                     : $"{RecoveryItem.Bytes(search.Unpartitioned)} of this disk is in no partition. Recover deleted files (Tools menu) here offers to search it for deleted partitions.");
+            // The issue callback may change the image. Admit its catalog after that callback,
+            // before any volume rows are published to the caller.
+            session.VerifyImageListing?.Invoke();
+            sink.AddBatch(rows.ToArray());
             return Task.CompletedTask;
         }
         var (volume, folder) = Resolve(session, location);
