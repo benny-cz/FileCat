@@ -149,7 +149,7 @@ public sealed class FolderSidecars
     private void AddChecksums(string name, FileInfo sidecar, Dictionary<string, FileInfo> files)
     {
         ChecksumManifest manifest;
-        try { manifest = ChecksumManifests.Load(sidecar.FullName); }
+        try { manifest = ChecksumManifests.Load(sidecar.FullName, MaxChecksumFileBytes); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { return; }
         bool any = false;
         foreach (var entry in manifest.Entries)

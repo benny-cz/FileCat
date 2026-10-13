@@ -173,11 +173,25 @@ public static partial class ChecksumManifests
     public static bool IsManifestName(string fileName) => KindFromName(fileName) is not null;
 
     /// <summary>Reads a manifest (UTF-8, or Latin-1 when it is not valid UTF-8) and parses it.</summary>
-    public static ChecksumManifest Load(string manifestPath)
+    public static ChecksumManifest Load(string manifestPath, long maxBytes = MaxManifestBytes)
     {
+        if (maxBytes is <= 0 or > MaxManifestBytes) throw new ArgumentOutOfRangeException(nameof(maxBytes));
         var info = new FileInfo(manifestPath);
-        if (info.Length > MaxManifestBytes) throw new InvalidDataException($"The manifest is larger than {MaxManifestBytes >> 20} MiB.");
-        var bytes = File.ReadAllBytes(manifestPath);
+        if (info.Length > maxBytes) throw new InvalidDataException($"The manifest is larger than {maxBytes} bytes.");
+        // A zero-length special file, or a regular file grown after the metadata check,
+        // must not make ReadAllBytes wait for EOF while retaining arbitrary input.
+        using var input = File.OpenRead(manifestPath);
+        using var content = new MemoryStream((int)info.Length);
+        byte[] buffer = new byte[64 * 1024];
+        while (true)
+        {
+            int count = input.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, maxBytes + 1 - content.Length)));
+            if (count == 0) break;
+            if (content.Length + count > maxBytes)
+                throw new InvalidDataException($"The manifest is larger than {maxBytes} bytes.");
+            content.Write(buffer, 0, count);
+        }
+        ReadOnlySpan<byte> bytes = content.GetBuffer().AsSpan(0, (int)content.Length);
         string text;
         try { text = new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(bytes); }
         catch (DecoderFallbackException) { text = Encoding.Latin1.GetString(bytes); }
