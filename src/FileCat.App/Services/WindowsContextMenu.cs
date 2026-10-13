@@ -54,7 +54,7 @@ internal static class WindowsContextMenu
             foreach (string? path in paths) start.ArgumentList.Add(path!);
             using var child = Process.Start(start);
             if (child is null) return Result.Failed;
-            Task<string> readErrors = child.StandardError.ReadToEndAsync();
+            Task<string> readErrors = ReadErrorPrefixAsync(child.StandardError);
             await child.WaitForExitAsync();
             string details = await readErrors;
             if (child.ExitCode is not (0 or 10 or 11 or 12))
@@ -72,6 +72,20 @@ internal static class WindowsContextMenu
             Interlocked.Exchange(ref _lastHostClosedAt, Stopwatch.GetTimestamp());
             Interlocked.Decrement(ref _openHosts);
         }
+    }
+
+    internal static async Task<string> ReadErrorPrefixAsync(StreamReader reader)
+    {
+        const int retainedCharacters = 240;
+        var prefix = new StringBuilder(retainedCharacters);
+        char[] buffer = new char[4096];
+        int read;
+        while ((read = await reader.ReadAsync(buffer.AsMemory()).ConfigureAwait(false)) != 0)
+        {
+            if (prefix.Length < retainedCharacters)
+                prefix.Append(buffer, 0, Math.Min(read, retainedCharacters - prefix.Length));
+        }
+        return prefix.ToString();
     }
 
     private static ProcessStartInfo? HostStartInfo()
