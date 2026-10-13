@@ -63,6 +63,9 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
     // Without an identity, retain bounded ownership but do not reuse a previous index or spool.
     private string SourceIdentityKey(string path) => GetSourceIdentity(path) is { Length: > 0 } id ? id : Guid.NewGuid().ToString("N");
 
+    // A same-file rewrite can restore length and mtime. Without a native change token, never reuse a spool.
+    private static string SourceChangeKey(string path) => SourceChangeToken.FromPath(path) ?? Guid.NewGuid().ToString("N");
+
     public override string Scheme => Schemes.Archive;
 
     // ---- Detection -------------------------------------------------------------------------------------------
@@ -216,7 +219,15 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             if (tag.Kind is MemberKind.SymbolicLink or MemberKind.HardLink)
                 throw new InvalidDataException("Links inside archives are not followed or extracted" + (tag.LinkTarget is { } target ? $" (it points to \"{target}\")." : "."));
             if (tag.Kind == MemberKind.Special) throw new InvalidDataException("Device and pipe entries have no content to extract.");
-            return index.Extract(tag, _tempDirectory);
+            try { return index.Extract(tag, _tempDirectory); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A lazy source-open refusal invalidates the index and closes its witness too. A later request
+                // may retry with restored identity capability, but no failed source handle stays retained.
+                try { ReleaseIndexes(path); }
+                catch (Exception cleanup) { FileCat.Core.Diagnostics.AppLog.Warn("Archive index cleanup after source refusal: " + cleanup.GetType().Name); }
+                throw;
+            }
         }
     }
 
@@ -240,22 +251,50 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         string key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{root.Session}|{identityKey}";
         if (_cache.TryGetValue(key, out var cached))
         {
-            cached.Touch();
-            return cached;
+            try
+            {
+                if (!cached.CanReuse) throw new IOException("The archive source has no change token for cache reuse.");
+                cached.VerifySource();
+                cached.Touch();
+                return cached;
+            }
+            catch (IOException)
+            {
+                if (_cache.TryRemove(key, out var changed)) changed.Dispose();
+            }
         }
         Release(path);
         string displayName = Path.GetFileName(DisplayArchive(root));
         var kind = root.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var k2) ? k2
             : ArchiveFormats.ByName(displayName) ?? throw new InvalidDataException("This file is not in an archive format FileCat reads.");
-        IMemberReader reader;
-        try { reader = ArchiveFormats.Open(path, kind, displayName, (openedPath, handle) =>
-                OpenedSourceIdentity.RequireMatch(handle, PathUtil.SafetyComparer.Equals(path, openedPath) ? sourceIdentity : GetSourceIdentity(openedPath), GetOpenedSourceIdentity)); }
-        catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
+        void VerifyOpened(string openedPath, Microsoft.Win32.SafeHandles.SafeFileHandle handle) =>
+            OpenedSourceIdentity.RequireMatch(handle, PathUtil.SafetyComparer.Equals(path, openedPath) ? sourceIdentity : GetSourceIdentity(openedPath), GetOpenedSourceIdentity);
+        FileStream? witness = null;
+        ArchiveIndex? index = null;
+        try
         {
-            throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
+            witness = ArchiveFormats.OpenShared(path, VerifyOpened);
+            string? before = SourceChangeToken.FromHandle(witness.SafeFileHandle);
+            IMemberReader reader;
+            try { reader = ArchiveFormats.Open(path, kind, displayName, VerifyOpened); }
+            catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
+            {
+                throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
+            }
+            index = ArchiveIndex.Build(reader, fi.Length, ct);
+            string? after = SourceChangeToken.FromHandle(witness.SafeFileHandle);
+            if (before is not null && before != after)
+                throw new IOException("The archive source changed while its catalog was being built.");
+            index.KeepWitness(witness, after);
+            witness = null;
+            index.KeepSource(source);
         }
-        var index = ArchiveIndex.Build(reader, fi.Length, ct);
-        index.KeepSource(source);
+        catch
+        {
+            index?.Dispose();
+            witness?.Dispose();
+            throw;
+        }
         _cache[key] = index;
         // Archives opened before are kept for going back into them: eight at most, and their indexes together within
         // RetainedIndexLimitBytes (I06: the index of a ZIP of a million members holds about 560 MiB). The two used last
@@ -304,7 +343,7 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
         var provider = _providers.For(member);
         string outer = OutermostFile(member);
         var outerInfo = new FileInfo(outer);
-        string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}";
+        string key = $"{member}|{outerInfo.Length}|{outerInfo.LastWriteTimeUtc.Ticks}|{SourceIdentityKey(outer)}|{SourceChangeKey(outer)}";
         lock (_spoolLock)
         {
             if (_spools.TryGetValue(key, out var existing))
@@ -379,6 +418,22 @@ internal sealed class ArchiveIndex : IDisposable
 {
     private readonly object _lock = new();
     private readonly IMemberReader _reader;
+    private FileStream? _witness;
+    private string? _openedChangeToken;
+    public void KeepWitness(FileStream witness, string? changeToken)
+    {
+        _witness = witness;
+        _openedChangeToken = changeToken;
+    }
+    public void VerifySource()
+    {
+        // Direct readers and filesystems without a token still permit one admitted read. The provider
+        // disables cache reuse when no token was captured; it cannot prove a later read is the same source.
+        if (_openedChangeToken is null) return;
+        if (_witness is null || SourceChangeToken.FromHandle(_witness.SafeFileHandle) != _openedChangeToken)
+            throw new IOException("The archive source changed while it was being read.");
+    }
+    public bool CanReuse => _openedChangeToken is not null;
     private ArchiveSourceLease? _source;
     public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
     private readonly long _archiveLength;
@@ -528,6 +583,7 @@ internal sealed class ArchiveIndex : IDisposable
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
+            VerifySource();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             long declared = tag.Size;
             var limits = MemberLimits.Of(declared, tag.CompressedSize > 0 ? tag.CompressedSize : _archiveLength, ArchiveProvider.MaxSpooledMember,
@@ -537,7 +593,7 @@ internal sealed class ArchiveIndex : IDisposable
                 _leases++;
                 ProgressiveContent? content = null;
                 content = new ProgressiveContent(tag.FullName, _lock, () => new DamageReportingStream(OpenFor(content, tag.Index)), limits,
-                    ArchiveProvider.MaxSpooledMember, tempDirectory, () => Returned(content!));
+                    ArchiveProvider.MaxSpooledMember, tempDirectory, () => Returned(content!), VerifySource);
                 return content;
             }
             Stream dst;
@@ -552,6 +608,7 @@ internal sealed class ArchiveIndex : IDisposable
             {
                 using var src = new DamageReportingStream(OpenFor(null, tag.Index));
                 limits.CopyAll(src, dst);
+                VerifySource();
             }
             catch (Exception ex)
             {
@@ -604,9 +661,18 @@ internal sealed class ArchiveIndex : IDisposable
     private void Close()
     {
         Exception? failure = null;
-        try { _reader.Dispose(); } catch (Exception ex) { failure = ex; }
-        try { Interlocked.Exchange(ref _source, null)?.Dispose(); }
-        catch (Exception ex) when (failure is not null) { FileCat.Core.Diagnostics.AppLog.Warn("Secondary archive source cleanup failure: " + ex.GetType().Name); }
+        void CloseOne(Action action, string name)
+        {
+            try { action(); }
+            catch (Exception ex)
+            {
+                if (failure is null) failure = ex;
+                else FileCat.Core.Diagnostics.AppLog.Warn("Secondary archive " + name + " cleanup failure: " + ex.GetType().Name);
+            }
+        }
+        CloseOne(_reader.Dispose, "reader");
+        CloseOne(() => Interlocked.Exchange(ref _witness, null)?.Dispose(), "witness");
+        CloseOne(() => Interlocked.Exchange(ref _source, null)?.Dispose(), "source");
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }

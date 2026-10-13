@@ -3,6 +3,8 @@ using System.IO.Compression;
 using System.Text.Json;
 using FileCat.Archives;
 using FileCat.Core.Archives;
+using FileCat.Core.Content;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
@@ -46,6 +48,160 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
     {
         public void AddBatch(ReadOnlySpan<EntryData> batch) { foreach (var e in batch) entries.Add(e); }
         public void ReportIssue(string message) => Assert.Fail(message);
+    }
+
+    [Fact]
+    public void In_place_tar_rewrite_refreshes_a_cached_catalog_with_restored_mtime()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-tar-in-place-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "owned.tar"), next = Path.Combine(root, "next.tar");
+        var provider = new ArchiveProvider(Path.Combine(root, "scratch"), new ProviderRegistry())
+        {
+            GetSourceIdentity = _ => "owned-stable-identity",
+            GetOpenedSourceIdentity = _ => "owned-stable-identity",
+        };
+        try
+        {
+            Write(path, "tar", "alpha.txt", Payload(11));
+            Write(next, "tar", "omega.txt", Payload(79));
+            byte[] replacement = File.ReadAllBytes(next);
+            long length = new FileInfo(path).Length;
+            Assert.Equal(length, replacement.LongLength);
+            var location = ArchiveProvider.ForFile(path);
+            var initial = new List<EntryData>();
+            provider.EnumerateAsync(location, new Sink(initial), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            Assert.Equal(["alpha.txt"], initial.Select(entry => entry.Name));
+
+            DateTime originalTime = File.GetLastWriteTimeUtc(path);
+            string? originalToken = SourceChangeToken.FromPath(path);
+            Assert.NotNull(originalToken);
+            string? changedToken = originalToken;
+            for (int attempt = 0; attempt < 8 && changedToken == originalToken; attempt++)
+            {
+                File.WriteAllBytes(path, replacement);
+                File.SetLastWriteTimeUtc(path, originalTime);
+                changedToken = SourceChangeToken.FromPath(path);
+                if (changedToken == originalToken) Thread.Sleep(25);
+            }
+            Assert.Equal(length, new FileInfo(path).Length);
+            Assert.Equal(originalTime, File.GetLastWriteTimeUtc(path));
+            Assert.NotEqual(originalToken, changedToken);
+
+            var current = new List<EntryData>();
+            provider.EnumerateAsync(location, new Sink(current), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            Assert.Equal(["omega.txt"], current.Select(entry => entry.Name));
+        }
+        finally
+        {
+            provider.Release(path);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Held_large_tar_member_refuses_bytes_after_an_in_place_rewrite()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-tar-held-rewrite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "owned.tar"), next = Path.Combine(root, "next.tar");
+        var provider = new ArchiveProvider(Path.Combine(root, "scratch"), new ProviderRegistry())
+        {
+            GetSourceIdentity = _ => "owned-stable-identity",
+            GetOpenedSourceIdentity = _ => "owned-stable-identity",
+        };
+        ProgressiveContent? held = null;
+        try
+        {
+            byte[] first = new byte[(int)ArchiveProvider.MaxMemberInMemory + 4096];
+            byte[] second = new byte[first.Length];
+            Array.Fill(first, (byte)0x35);
+            Array.Fill(second, (byte)0xA7);
+            Write(path, "tar", "payload.bin", first);
+            Write(next, "tar", "payload.bin", second);
+            byte[] replacement = File.ReadAllBytes(next);
+            Assert.Equal(new FileInfo(path).Length, replacement.LongLength);
+            var location = ArchiveProvider.ForFile(path);
+            held = Assert.IsType<ProgressiveContent>(provider.OpenContent(new ItemRef(location, "payload.bin", EntryKind.File)));
+            byte[] prefix = new byte[4096];
+            Assert.Equal(prefix.Length, held.Read(0, prefix));
+            Assert.True(prefix.All(b => b == 0x35));
+            DateTime originalTime = File.GetLastWriteTimeUtc(path);
+            string? originalToken = SourceChangeToken.FromPath(path);
+            Assert.NotNull(originalToken);
+            File.WriteAllBytes(path, replacement);
+            File.SetLastWriteTimeUtc(path, originalTime);
+            Assert.Equal(originalTime, File.GetLastWriteTimeUtc(path));
+            Assert.NotEqual(originalToken, SourceChangeToken.FromPath(path));
+            Assert.Throws<IOException>(() => { held.Read(8192, new byte[4096]); });
+        }
+        finally
+        {
+            held?.Dispose();
+            provider.Release(path);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("tar")]
+    [InlineData("zip")]
+    public void In_place_outer_rewrite_refreshes_a_nested_tar_spool(string outer)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-nested-in-place-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "owned." + outer), next = Path.Combine(root, "next." + outer);
+        string innerA = Path.Combine(root, "first.tar"), innerB = Path.Combine(root, "second.tar");
+        var registry = new ProviderRegistry();
+        var zip = new ZipProvider(Path.Combine(root, "scratch"));
+        var archive = new ArchiveProvider(Path.Combine(root, "scratch"), registry);
+        registry.Register(zip); registry.Register(archive); zip.OtherArchives = archive; zip.SpoolForeignMember = archive.Spool;
+        foreach (var provider in new ResourceProvider[] { zip, archive })
+        {
+            provider.GetType().GetProperty("GetSourceIdentity")!.SetValue(provider, (Func<string, string?>)(_ => "owned-stable-identity"));
+            provider.GetType().GetProperty("GetOpenedSourceIdentity")!.SetValue(provider,
+                (Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?>)(_ => "owned-stable-identity"));
+        }
+        try
+        {
+            Write(innerA, "tar", "alpha.txt", Payload(11));
+            Write(innerB, "tar", "omega.txt", Payload(79));
+            Write(path, outer, "inside.tar", File.ReadAllBytes(innerA));
+            Write(next, outer, "inside.tar", File.ReadAllBytes(innerB));
+            byte[] replacement = File.ReadAllBytes(next);
+            Assert.Equal(new FileInfo(path).Length, replacement.LongLength);
+            var outerLocation = outer == "zip" ? ZipProvider.ForFile(path) : ArchiveProvider.ForFile(path);
+            var innerLocation = new Location(Schemes.Archive, "", outerLocation.WithPath("inside.tar"));
+            var initial = new List<EntryData>();
+            archive.EnumerateAsync(innerLocation, new Sink(initial), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            Assert.Equal(["alpha.txt"], initial.Select(entry => entry.Name));
+            DateTime originalTime = File.GetLastWriteTimeUtc(path);
+            string? originalToken = SourceChangeToken.FromPath(path);
+            Assert.NotNull(originalToken);
+            File.WriteAllBytes(path, replacement);
+            File.SetLastWriteTimeUtc(path, originalTime);
+            Assert.Equal(originalTime, File.GetLastWriteTimeUtc(path));
+            Assert.NotEqual(originalToken, SourceChangeToken.FromPath(path));
+            var current = new List<EntryData>();
+            archive.EnumerateAsync(innerLocation, new Sink(current), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            Assert.Equal(["omega.txt"], current.Select(entry => entry.Name));
+        }
+        finally
+        {
+            zip.Release(path); archive.Release(path);
+            foreach (var (owner, field) in new (object Owner, string Field)[] { (zip, "_nested"), (archive, "_spools") })
+            {
+                var cache = (System.Collections.IEnumerable)owner.GetType().GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(owner)!;
+                foreach (var pair in cache)
+                {
+                    var value = pair.GetType().GetProperty("Value")!.GetValue(pair)!;
+                    string spool = (string)value.GetType().GetProperty("Path")!.GetValue(value)!;
+                    zip.Release(spool); archive.Release(spool);
+                    ((IDisposable)value).Dispose();
+                }
+            }
+            Directory.Delete(root, recursive: true);
+        }
     }
     [Theory]
     [MemberData(nameof(Cases))]

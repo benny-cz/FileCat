@@ -100,7 +100,8 @@ public sealed class ProgressiveContent : IContentSource
     public ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory, Action? closed = null)
         : this(displayName, gate, open, limits, maxKept, tempDirectory, closed, null) { }
 
-    internal ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory, Action? closed, Action? verifySource)
+    /// <param name="verifySource">Optional opened-source check invoked before and after each read.</param>
+    public ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory, Action? closed, Action? verifySource)
     {
         if (limits.Declared < 0) throw new ArgumentException("Progressive content needs a declared size.", nameof(limits));
         DisplayName = displayName;

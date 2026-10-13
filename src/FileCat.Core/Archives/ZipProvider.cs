@@ -136,7 +136,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         using var outerSource = ArchiveFile(container, depth + 1);
         string outer = outerSource.Path;
         var info = new FileInfo(outer);
-        string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}|{SourceIdentityKey(outer)}";
+        // A nested spool must not survive an in-place rewrite with restored mtime and unchanged file identity.
+        string change = SourceChangeToken.FromPath(outer) ?? Guid.NewGuid().ToString("N");
+        string key = $"{outer}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{container.Path}|{SourceIdentityKey(outer)}|{change}";
         lock (_nestedLock)
         {
             if (_nested.TryGetValue(key, out var cached))
