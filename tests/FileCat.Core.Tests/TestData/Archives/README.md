@@ -27,3 +27,10 @@ filesystem writes known empty, ASCII, Unicode, long-name and binary files, plus 
 match complete names/directories and exact bytes. The initial writable-census timing failure is
 retained in private release evidence. Images are detached, immutable and have no ISO 9660 descriptor.
 ZIP SHA-256: `446727ee330fb8b80f9375691c79516339c7ae4e091dcc723fc90744ea4419eb`.
+
+`InPlaceAlpha.7z` and `InPlaceOmega.7z` are FileCat-owned same-size rewrite controls,
+generated with 7-Zip 24.01 (x64) using `a -t7z -mx=0 -mtc=off -mta=off -mtm=off`.
+Each holds one 4,096-byte file, `alpha.txt` (all zero bytes) or `omega.txt`
+(all `0xA7` bytes). Both archives are 4,206 bytes. Their SHA-256 digests are
+`7931db9acac5fd0124f8189684fa71e10cf20b767caee3c29e282d314b88e419` and
+`9ba572ab801806f6cf4151fb358c24f7a7f10cfedfa3229d5115cb1cc76efc48`, respectively.

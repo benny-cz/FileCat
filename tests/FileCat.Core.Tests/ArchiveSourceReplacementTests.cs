@@ -50,6 +50,89 @@ public sealed class ArchiveSourceReplacementTests(ITestOutputHelper output)
         public void ReportIssue(string message) => Assert.Fail(message);
     }
 
+    [Theory]
+    [InlineData("7z")]
+    [InlineData("iso")]
+    [InlineData("tar.gz")]
+    public void In_place_other_format_rewrite_refreshes_names_and_bytes(string format)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-archive-format-in-place-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "owned." + format), next = Path.Combine(root, "next." + format);
+        byte[] firstBytes = format == "7z" ? new byte[4096] : Payload(11);
+        byte[] secondBytes = format == "7z" ? Enumerable.Repeat((byte)0xA7, 4096).ToArray() : Payload(79);
+        void Make(string target, string name, byte[] content)
+        {
+            if (format == "7z")
+            {
+                string fixture = name == "alpha.txt" ? "InPlaceAlpha.7z" : "InPlaceOmega.7z";
+                File.Copy(Path.Combine(AppContext.BaseDirectory, "TestData", "Archives", fixture), target);
+            }
+            else if (format == "iso")
+            {
+                var builder = new DiscUtils.Iso9660.CDBuilder { UseJoliet = true, VolumeIdentifier = "FILECAT" };
+                builder.AddFile(name, content);
+                builder.Build(target);
+            }
+            else
+            {
+                using var file = File.Create(target);
+                using var gzip = new GZipStream(file, CompressionLevel.NoCompression);
+                using var tar = new TarWriter(gzip, TarEntryFormat.Ustar);
+                using var data = new MemoryStream(content, writable: false);
+                tar.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, name)
+                    { DataStream = data, ModificationTime = Stamp });
+            }
+        }
+        var provider = new ArchiveProvider(Path.Combine(root, "scratch"), new ProviderRegistry())
+        {
+            GetSourceIdentity = _ => "owned-stable-identity",
+            GetOpenedSourceIdentity = _ => "owned-stable-identity",
+        };
+        try
+        {
+            Make(path, "alpha.txt", firstBytes);
+            Make(next, "omega.txt", secondBytes);
+            byte[] replacement = File.ReadAllBytes(next);
+            long length = new FileInfo(path).Length;
+            Assert.Equal(length, replacement.LongLength);
+            var location = ArchiveProvider.ForFile(path);
+            var first = new List<EntryData>();
+            provider.EnumerateAsync(location, new Sink(first), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            var oldItem = Assert.Single(first);
+            Assert.Equal("alpha.txt", oldItem.Name);
+            using (var content = provider.OpenContent(provider.GetItemRef(location, oldItem)))
+                Assert.Equal(firstBytes, Read(Assert.IsAssignableFrom<IContentSource>(content)));
+
+            DateTime stamp = File.GetLastWriteTimeUtc(path);
+            string? token = SourceChangeToken.FromPath(path);
+            Assert.NotNull(token);
+            string? changed = token;
+            for (int attempt = 0; attempt < 8 && changed == token; attempt++)
+            {
+                File.WriteAllBytes(path, replacement);
+                File.SetLastWriteTimeUtc(path, stamp);
+                changed = SourceChangeToken.FromPath(path);
+                if (changed == token) Thread.Sleep(25);
+            }
+            Assert.Equal(length, new FileInfo(path).Length);
+            Assert.Equal(stamp, File.GetLastWriteTimeUtc(path));
+            Assert.NotEqual(token, changed);
+
+            var current = new List<EntryData>();
+            provider.EnumerateAsync(location, new Sink(current), TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            var newItem = Assert.Single(current);
+            Assert.Equal("omega.txt", newItem.Name);
+            using (var content = provider.OpenContent(provider.GetItemRef(location, newItem)))
+                Assert.Equal(secondBytes, Read(Assert.IsAssignableFrom<IContentSource>(content)));
+        }
+        finally
+        {
+            provider.Release(path);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void In_place_tar_rewrite_refreshes_a_cached_catalog_with_restored_mtime()
     {
