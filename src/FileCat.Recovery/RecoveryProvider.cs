@@ -52,6 +52,9 @@ public sealed class RecoveryProvider : ResourceProvider
     /// <summary>Kernel identity of a selected whole disk, checked against the handle opened for scanning.</summary>
     private readonly ConcurrentDictionary<string, string> _deviceIdentities = new(PathUtil.SafetyComparer);
     private readonly object _scanLock = new();
+    // A device may be opened after one explicit choice only. Cached sessions can be reused or rescanned,
+    // but a tab whose session was evicted must not silently open a later device at the same path.
+    private readonly HashSet<string> _pendingDeviceChoices = new(PathUtil.SafetyComparer);
 
     /// <summary>Stable image-file identity, following links; the platform supplies Windows IDs.</summary>
     public Func<string, string?> GetSourceIdentity { get; set; } =
@@ -190,6 +193,7 @@ public sealed class RecoveryProvider : ResourceProvider
             else _deviceLengths.TryRemove(device, out _);
             if (!string.IsNullOrEmpty(identity)) _deviceIdentities[device] = identity;
             else _deviceIdentities.TryRemove(device, out _);
+            _pendingDeviceChoices.Add(device);
         }
         return new(Schemes.Recovery, string.Empty, new Location(Schemes.Device, device), volume?.ToString(CultureInfo.InvariantCulture));
     }
@@ -580,7 +584,7 @@ public sealed class RecoveryProvider : ResourceProvider
             if (!device)
                 foreach (var old in _sessions.Where(s => s.Key.StartsWith(Path.GetFullPath(path) + "|", PathUtil.SafetyComparison)).ToList())
                     if (_sessions.TryRemove(old.Key, out var stale)) stale.Dispose();
-            if (device && !_deviceNames.ContainsKey(path))
+            if (device && !_pendingDeviceChoices.Remove(path))
                 throw new UnauthorizedAccessException("A drive's deleted files are scanned only when you ask for it: right-click the drive or disk and choose Find deleted files, so that FileCat can first check that it may.");
             IBlockSource source = device
                 ? (OpenDevice ?? throw new NotSupportedException("Reading drives directly is not available here: make an image of the drive on another drive, then open the image."))
@@ -690,7 +694,10 @@ public sealed class RecoveryProvider : ResourceProvider
     public void CloseAll()
     {
         lock (_scanLock)
+        {
             foreach (var key in _sessions.Keys.ToList())
                 if (_sessions.TryRemove(key, out var session)) session.Dispose();
+            _pendingDeviceChoices.Clear();
+        }
     }
 }

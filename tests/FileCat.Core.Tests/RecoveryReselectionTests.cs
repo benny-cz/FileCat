@@ -27,6 +27,72 @@ public sealed class RecoveryReselectionTests(ITestOutputHelper output)
         provider.CloseAll();
     }
 
+    [Fact]
+    public async Task Evicted_device_scan_cannot_reopen_from_an_old_location_without_fresh_selection()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-recovery-admission-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string a = Path.Combine(root, "a.img"), b = Path.Combine(root, "b.img");
+        byte[] bytesA = Image(64, "FC_SOURCE_A"), bytesB = Image(64, "FC_SOURCE_B");
+        File.WriteAllBytes(a, bytesA);
+        File.WriteAllBytes(b, bytesB);
+        var provider = new RecoveryProvider();
+        var opens = new Dictionary<string, int>(StringComparer.Ordinal);
+        var readers = new List<Reader>();
+        provider.OpenDevice = (path, name, _) =>
+        {
+            opens[path] = opens.GetValueOrDefault(path) + 1;
+            var reader = new Reader(path == "owned-device-0" && opens[path] > 1 ? b : a, name);
+            readers.Add(reader);
+            return reader;
+        };
+
+        try
+        {
+            var first = provider.ForDevice("owned-device-0", "approved A", length: bytesA.Length);
+            var sink = new Sink();
+            await provider.EnumerateAsync(first, sink, TestContext.Current.CancellationToken);
+            Assert.Contains("FC_SOURCE_A", Assert.IsType<RecoveryVolumeTag>(Assert.Single(sink.Rows).Tag).Details);
+
+            // The fifth owned source evicts the first scan from the four-session cache.
+            for (int i = 1; i <= 4; i++)
+            {
+                var next = provider.ForDevice("owned-device-" + i, "approved " + i, length: bytesA.Length);
+                await provider.EnumerateAsync(next, new Sink(), TestContext.Current.CancellationToken);
+            }
+
+            Assert.True(readers[0].Disposed);
+            var oldTab = new Sink();
+            UnauthorizedAccessException? refusal = null;
+            try { await provider.EnumerateAsync(first, oldTab, TestContext.Current.CancellationToken); }
+            catch (UnauthorizedAccessException ex) { refusal = ex; }
+            string? reopenedDetails = oldTab.Rows.Count == 1
+                ? Assert.IsType<RecoveryVolumeTag>(oldTab.Rows[0].Tag).Details : null;
+            output.WriteLine("RECOVERY_EVICTED_DEVICE_REOPEN " + JsonSerializer.Serialize(new
+            {
+                refused = refusal is not null,
+                reopenedDetails,
+                opensOfFirstPath = opens["owned-device-0"],
+                readers = readers.Select(reader => new { reader.Description, reader.Reads, reader.Disposed }),
+                unchanged = File.ReadAllBytes(a).SequenceEqual(bytesA) && File.ReadAllBytes(b).SequenceEqual(bytesB),
+            }));
+            Assert.NotNull(refusal);
+            Assert.Empty(oldTab.Rows);
+            Assert.Equal(1, opens["owned-device-0"]);
+            Assert.Equal(bytesA, File.ReadAllBytes(a));
+            Assert.Equal(bytesB, File.ReadAllBytes(b));
+        }
+        finally
+        {
+            provider.CloseAll();
+            Assert.All(readers, reader => Assert.True(reader.Disposed));
+            File.Delete(a);
+            File.Delete(b);
+            Directory.Delete(root, recursive: false);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
     private sealed class Sink : IEnumerationSink
     {
         public List<EntryData> Rows { get; } = [];
