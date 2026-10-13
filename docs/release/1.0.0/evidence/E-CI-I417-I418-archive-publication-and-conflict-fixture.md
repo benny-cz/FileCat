@@ -1,0 +1,9 @@
+# E-CI-I417/I418 — exact pushed-source CI and failed-run comparison
+
+Exact `dd41c29385926dcf9c69b32475dbe5d074768014` [run 38382504458](https://github.com/benny-cz/FileCat/actions/runs/38382504458) completed **success**. Producer reference policy and the Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26 platform jobs all pass; four tag/manual conditional jobs skip as designed. This is the original pushed-source run for the I417 archive publication correction and I418 conflict-comparison test correction. It does not make the prior [`a4da1369` run](E-CI-I416-failed-mac-conflict-fixture.md) green.
+
+The retained official response lists **27 server-digested ZIP artifacts**. Their digests, **2,762 members** and **14 raw TRX inventories** were independently rehashed. Those TRX contain **33,100 Passed, 1,148 explicit NotExecuted, zero Failed**. The 34-file official archive is `V:\FileCat\artifacts\release-evidence\ci-i417-i418-green-20261013-v1`, with file-manifest SHA-256 `ffa416f70e85ef6d9b92ed26d0c4cb3d130d2c0c01065e39289befb5a54ea0ec` and audit SHA-256 `6c117c75d59736231ed56072ab4fa2b65f4dda6655aa0d146618b7c95c3159fe`.
+
+An independent multiset comparison against the **failed** original I416 run preserves all **34,244** predecessor rows except its one macOS App conflict-comparison result, which changes from Failed to Passed. The single new I417 Core test passes once in each of the four platform lanes. No other row changes. The separate `ci-i417-i418-comparison-20261013-v1` archive has manifest SHA-256 `e11ed94158f3f917fe3ef442cd050377c0e2cb13e5e6510f227ceb295a8b8f79` and comparison SHA-256 `4f9cc87dcd1f69f43de6de29c8f66a052fe7cae6ca0d25947f1e814b911ba52b`. I416's four Core cases also remain passing in this run.
+
+This proves the exact pushed source's CI result and the observed test-row transition. It does not qualify an installed final candidate, physical I106/I110 source validation, production signing, contract freeze or stable GO.

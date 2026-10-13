@@ -288,6 +288,10 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             batch.Add(e);
         }
         if (index.Warning is not null) sink.ReportIssue(index.Warning);
+        // A warning sink can run caller code after index admission. Refuse stale rows if the
+        // opened ZIP changed or its path now names a different file.
+        index.VerifySource();
+        index.VerifyPath(GetSourceIdentity, GetOpenedSourceIdentity);
         sink.AddBatch(batch.ToArray());
         return Task.CompletedTask;
     }
@@ -436,6 +440,17 @@ internal sealed class ZipIndex : IDisposable
     {
         if (_openedChangeToken is not null && SourceChangeToken.FromHandle(_stream.SafeFileHandle) != _openedChangeToken)
             throw new IOException("The archive source changed while it was being read.");
+    }
+
+    public void VerifyPath(Func<string, string?> pathIdentity,
+        Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> openedIdentity)
+    {
+        var handle = _stream.SafeFileHandle;
+        string? opened = openedIdentity(handle);
+        string? path = pathIdentity(_stream.Name);
+        if (opened is { Length: > 0 } && path is { Length: > 0 } && path != opened ||
+            _openedChangeToken is not null && SourceChangeToken.FromPath(_stream.Name) != _openedChangeToken)
+            throw new IOException("The archive source changed since its listing was built.");
     }
 
     public void Touch() => LastUsed = DateTime.UtcNow;
