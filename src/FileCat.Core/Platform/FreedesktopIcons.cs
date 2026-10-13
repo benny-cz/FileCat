@@ -11,6 +11,7 @@ namespace FileCat.Core.Platform;
 /// </summary>
 public sealed class FreedesktopIcons
 {
+    private const int MaxThemeSettingCharacters = 16 * 1024;
     private sealed record ThemeDirectory(string Path, int Size, int Scale, string Type, int MinSize, int MaxSize, int Threshold);
 
     private sealed class Theme
@@ -107,9 +108,9 @@ public sealed class FreedesktopIcons
                 // A noisy helper can instead fill either pipe: the exit wait still ends at the deadline.
                 if (!p.WaitForExit(timeoutMilliseconds) || p.ExitCode != 0) return null;
                 // An exited helper may have left stdout open in another process. Bound that read separately.
-                var output = p.StandardOutput.ReadToEndAsync();
-                if (!output.Wait(TimeSpan.FromMilliseconds(250))) return null;
-                return output.Result.Trim().Trim('\'', '"');
+                using var outputDeadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+                var output = ReadThemeSettingAsync(p.StandardOutput, outputDeadline.Token);
+                return output.GetAwaiter().GetResult().Trim().Trim('\'', '"');
             }
             finally
             {
@@ -120,9 +121,23 @@ public sealed class FreedesktopIcons
                 }
             }
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or AggregateException)
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or OperationCanceledException or AggregateException)
         {
             return null;
+        }
+    }
+
+    private static async Task<string> ReadThemeSettingAsync(StreamReader reader, CancellationToken ct)
+    {
+        var text = new System.Text.StringBuilder();
+        char[] buffer = new char[4096];
+        while (true)
+        {
+            int read = await reader.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+            if (read == 0) return text.ToString();
+            if (read > MaxThemeSettingCharacters - text.Length)
+                throw new IOException("Theme setting helper output exceeded the budget.");
+            text.Append(buffer, 0, read);
         }
     }
 
