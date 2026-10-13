@@ -205,13 +205,20 @@ public static partial class ChecksumManifests
         var announced = KindFromName(System.IO.Path.GetFileName(manifestPath));
         var entries = new List<ManifestEntry>();
         int lineNumber = 0;
-        foreach (var raw in text.Split('\n'))
+        ReadOnlySpan<char> remaining = text;
+        while (true)
         {
+            int newline = remaining.IndexOf('\n');
+            ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
             lineNumber++;
-            string line = raw.TrimEnd('\r');
-            if (line.Trim().Length == 0 || line.StartsWith('#') || line.StartsWith(';')) continue;
-            if (entries.Count >= MaxEntries) throw new InvalidDataException($"The manifest lists more than {MaxEntries:N0} files.");
-            entries.Add(ParseLine(root, line, lineNumber, announced));
+            ReadOnlySpan<char> line = raw.TrimEnd('\r');
+            if (!line.Trim().IsEmpty && line[0] is not ('#' or ';'))
+            {
+                if (entries.Count >= MaxEntries) throw new InvalidDataException($"The manifest lists more than {MaxEntries:N0} files.");
+                entries.Add(ParseLine(root, line.ToString(), lineNumber, announced));
+            }
+            if (newline < 0) break;
+            remaining = remaining[(newline + 1)..];
         }
         return new ChecksumManifest(manifestPath, root, entries);
     }
