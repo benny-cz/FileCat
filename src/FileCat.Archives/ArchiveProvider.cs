@@ -255,6 +255,7 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             {
                 if (!cached.CanReuse) throw new IOException("The archive source has no change token for cache reuse.");
                 cached.VerifySource();
+                cached.VerifyVolumePaths();
                 cached.Touch();
                 return cached;
             }
@@ -281,12 +282,31 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             {
                 throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
             }
+            // A multipart RAR's other files can change without changing the selected file. Capture every
+            // opened volume before listing; the index will check their handles on reads and their paths on reuse.
+            ArchiveIndex.VolumeWitness[] volumes;
+            try
+            {
+                volumes = reader is SharpArchiveReader sharp
+                    ? sharp.VolumeStreams.Select(stream => new ArchiveIndex.VolumeWitness(stream,
+                        SourceChangeToken.FromHandle(stream.SafeFileHandle), GetOpenedSourceIdentity(stream.SafeFileHandle))).ToArray()
+                    : [];
+            }
+            catch
+            {
+                try { reader.Dispose(); }
+                catch (Exception cleanup) { FileCat.Core.Diagnostics.AppLog.Warn("Archive volume cleanup after capture failure: " + cleanup.GetType().Name); }
+                throw;
+            }
             index = ArchiveIndex.Build(reader, fi.Length, ct);
             string? after = SourceChangeToken.FromHandle(witness.SafeFileHandle);
             if (before is not null && before != after)
                 throw new IOException("The archive source changed while its catalog was being built.");
             index.KeepWitness(witness, after);
             witness = null;
+            index.KeepVolumes(volumes, GetSourceIdentity, kind == ArchiveKind.Rar ? path : null);
+            index.VerifySource();
+            index.VerifyVolumePaths();
             index.KeepSource(source);
         }
         catch
@@ -420,6 +440,16 @@ internal sealed class ArchiveIndex : IDisposable
     private readonly IMemberReader _reader;
     private FileStream? _witness;
     private string? _openedChangeToken;
+    internal readonly record struct VolumeWitness(FileStream Stream, string? Token, string? Identity);
+    private VolumeWitness[] _volumes = [];
+    private Func<string, string?>? _volumePathIdentity;
+    private string? _rarEntryPath;
+    public void KeepVolumes(VolumeWitness[] volumes, Func<string, string?> pathIdentity, string? rarEntryPath)
+    {
+        _volumes = volumes;
+        _volumePathIdentity = pathIdentity;
+        _rarEntryPath = rarEntryPath;
+    }
     public void KeepWitness(FileStream witness, string? changeToken)
     {
         _witness = witness;
@@ -429,11 +459,25 @@ internal sealed class ArchiveIndex : IDisposable
     {
         // Direct readers and filesystems without a token still permit one admitted read. The provider
         // disables cache reuse when no token was captured; it cannot prove a later read is the same source.
-        if (_openedChangeToken is null) return;
-        if (_witness is null || SourceChangeToken.FromHandle(_witness.SafeFileHandle) != _openedChangeToken)
+        if (_openedChangeToken is not null && (_witness is null || SourceChangeToken.FromHandle(_witness.SafeFileHandle) != _openedChangeToken))
             throw new IOException("The archive source changed while it was being read.");
+        foreach (var volume in _volumes)
+            if (volume.Token is not null && SourceChangeToken.FromHandle(volume.Stream.SafeFileHandle) != volume.Token)
+                throw new IOException("An archive volume changed while it was being read.");
     }
-    public bool CanReuse => _openedChangeToken is not null;
+    public void VerifyVolumePaths()
+    {
+        // Discovery is part of the catalog: a newly added numbered part can fill a gap without changing
+        // any volume that was already open. Re-enumerate only at index admission/reuse, never per byte read.
+        if (_rarEntryPath is { } entryPath &&
+            !SharpArchiveReader.RarVolumes(entryPath).SequenceEqual(_volumes.Select(v => v.Stream.Name), PathUtil.SafetyComparer))
+            throw new IOException("The set of archive volumes changed since its catalog was built.");
+        foreach (var volume in _volumes)
+            if (volume.Token is null || SourceChangeToken.FromPath(volume.Stream.Name) != volume.Token ||
+                volume.Identity is { Length: > 0 } id && _volumePathIdentity!(volume.Stream.Name) != id)
+                throw new IOException("An archive volume changed since its catalog was built.");
+    }
+    public bool CanReuse => _openedChangeToken is not null && _volumes.All(volume => volume.Token is not null);
     private ArchiveSourceLease? _source;
     public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
     private readonly long _archiveLength;

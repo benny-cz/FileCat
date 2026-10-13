@@ -1,0 +1,9 @@
+# E-CI-I414 — exact pushed-source archive change-guard CI
+
+The official [GitHub Actions run 38364064723](https://github.com/benny-cz/FileCat/actions/runs/38364064723) completed successfully for pushed main commit `69284d0e3844602fcb1714b89ee40c2d97f507d0`. Producer reference policy and the Ubuntu 24.04, Windows, macOS 26 and Windows ARM64 build/test jobs passed; the four tag/manual-only package jobs skipped. This is hosted validation of I414 source, not an installed candidate or stable publication.
+
+The API reported 27 unexpired artifacts with server SHA-256 digests. Each downloaded ZIP matches its server digest. An independent pass rehashed all **2,762 members** in those ZIPs and parsed **14 TRX** inventories: **33,070 passed, 1,146 not executed, zero failed**. Each of the four Core lanes adds exactly four passing I414 TAR/held-member/nested-spool rows to I413. Every preceding test name, outcome and error message remains unchanged; other suites add no rows. The Windows ARM64 package start/draw and installer compilation steps passed in the required job.
+
+The official-artifact archive is `V:\FileCat\artifacts\release-evidence\ci-i414-archive-in-place-source-change-20261013-v1`. Its 34-file manifest SHA-256 is `522b61ce51c76d111a930a44ddb1cffc64ad83a3947d5a613b0f4572dc377849`, and its audit SHA-256 is `c19bdc41a7432015c6af1ec5820906698b0d6e7c4fb75c4d1ae51f85324aaa5f`. The separately sealed predecessor comparison is `ci-i414-comparison-20261013-v1`; its two-file manifest SHA-256 is `e0b5e273786dce27632171534961a40f35b1336c264a7da24a45b917cb1e6555`, and comparison JSON SHA-256 is `8138ee4ed8352c786f34952519d44824454a87d7ea32fe0abd267db696172a52`.
+
+The evidence is exact to I414's pushed source and the hosted runners. The later I415 multipart-RAR correction has separate payloads and validation. I106/I110 physical-source validation remains on HOLD; no candidate or stable GO follows from this CI result.

@@ -646,6 +646,10 @@ internal sealed class SharpArchiveReader : IMemberReader
 
     public bool SharesCursor => _sequential;
 
+    // The provider retains this reader while its index is live. Every RAR volume is a source of its catalog
+    // and members, even when the selected path is only the first part.
+    internal IReadOnlyList<FileStream> VolumeStreams => _volumes;
+
     public static SharpArchiveReader Open(string path, bool rar) => Open(path, rar, null);
 
     public static SharpArchiveReader Open(string path, bool rar, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null)

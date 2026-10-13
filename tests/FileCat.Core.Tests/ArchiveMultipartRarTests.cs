@@ -74,6 +74,107 @@ public sealed class ArchiveMultipartRarTests : IDisposable
         Assert.Equal(expected.SHA256, Convert.ToHexString(SHA256.HashData(bytes.AsSpan(0, total))).ToLowerInvariant());
     }
 
+    [Fact]
+    public void In_place_secondary_volume_rewrite_does_not_reuse_the_old_catalog()
+    {
+        string archive = Fixture(1);
+        string secondary = Path.Combine(_dir.Path, "Rar5.multi.part03.rar");
+        _archives.GetSourceIdentity = _ => "owned-stable-identity";
+        int opened = 0;
+        _archives.GetOpenedSourceIdentity = _ =>
+        {
+            Interlocked.Increment(ref opened);
+            return "owned-stable-identity";
+        };
+        var members = new ProviderArchiveMembers(_providers);
+        var warnings = new List<string>();
+        var first = members.List(archive, warnings.Add, TestContext.Current.CancellationToken).Where(i => !i.IsContainer).ToList();
+        Assert.Equal(Expected.Keys.Order(), first.Select(MemberPath).Order());
+        Assert.Empty(warnings);
+        int firstOpens = Volatile.Read(ref opened);
+        Assert.True(firstOpens >= 6);
+        Assert.Equal(3, members.List(archive, warnings.Add, TestContext.Current.CancellationToken).Count(i => !i.IsContainer));
+        Assert.Equal(firstOpens, Volatile.Read(ref opened));
+
+        byte[] original = File.ReadAllBytes(secondary);
+        byte[] changed = (byte[])original.Clone();
+        changed[changed.Length / 2] ^= 0x5A;
+        DateTime stamp = File.GetLastWriteTimeUtc(secondary);
+        string? token = SourceChangeToken.FromPath(secondary);
+        Assert.NotNull(token);
+        File.WriteAllBytes(secondary, changed);
+        File.SetLastWriteTimeUtc(secondary, stamp);
+        Assert.Equal(original.Length, new FileInfo(secondary).Length);
+        Assert.Equal(stamp, File.GetLastWriteTimeUtc(secondary));
+        Assert.NotEqual(token, SourceChangeToken.FromPath(secondary));
+
+        warnings.Clear();
+        var error = Record.Exception(() => members.List(archive, warnings.Add, TestContext.Current.CancellationToken).ToList());
+        Assert.True(error is null or IOException or InvalidDataException, error?.ToString());
+        Assert.True(Volatile.Read(ref opened) > firstOpens,
+            "The secondary source changed in place, but the cached RAR catalog was reused without reopening its volumes.");
+        Assert.Equal(changed, File.ReadAllBytes(secondary));
+    }
+
+    [Fact]
+    public void Replaced_secondary_volume_does_not_reuse_the_old_catalog()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "The Windows test host blocks renaming the held volume; Unix uses the owned rename control.");
+        string archive = Fixture(1);
+        string secondary = Path.Combine(_dir.Path, "Rar5.multi.part03.rar");
+        _archives.GetSourceIdentity = _ => "owned-stable-identity";
+        int opened = 0;
+        _archives.GetOpenedSourceIdentity = _ =>
+        {
+            Interlocked.Increment(ref opened);
+            return "owned-stable-identity";
+        };
+        var members = new ProviderArchiveMembers(_providers);
+        Assert.Equal(3, members.List(archive, _ => { }, TestContext.Current.CancellationToken).Count(i => !i.IsContainer));
+        int firstOpens = Volatile.Read(ref opened);
+
+        string retired = Path.Combine(_dir.Path, "retired-part03");
+        string replacement = Path.Combine(_dir.Path, "replacement-part03");
+        File.Copy(secondary, replacement);
+        File.SetLastWriteTimeUtc(replacement, File.GetLastWriteTimeUtc(secondary));
+        string? originalToken = SourceChangeToken.FromPath(secondary);
+        Assert.NotNull(originalToken);
+        File.Move(secondary, retired);
+        File.Move(replacement, secondary);
+        Assert.NotEqual(originalToken, SourceChangeToken.FromPath(secondary));
+
+        var error = Record.Exception(() => members.List(archive, _ => { }, TestContext.Current.CancellationToken).ToList());
+        Assert.True(error is null or IOException or InvalidDataException, error?.ToString());
+        Assert.True(Volatile.Read(ref opened) > firstOpens,
+            "The selected RAR path was unchanged, but its replaced secondary volume reused the old catalog.");
+    }
+
+    [Fact]
+    public void Newly_available_middle_volume_refreshes_the_incomplete_catalog()
+    {
+        string archive = Fixture(1, 3);
+        _archives.GetSourceIdentity = _ => "owned-stable-identity";
+        int opened = 0;
+        _archives.GetOpenedSourceIdentity = _ =>
+        {
+            Interlocked.Increment(ref opened);
+            return "owned-stable-identity";
+        };
+        var members = new ProviderArchiveMembers(_providers);
+        var warnings = new List<string>();
+        Assert.Equal(3, members.List(archive, warnings.Add, TestContext.Current.CancellationToken).Count(i => !i.IsContainer));
+        Assert.Contains(warnings, w => w.Contains("Some volumes", StringComparison.Ordinal));
+        int firstOpens = Volatile.Read(ref opened);
+
+        string restored = Path.Combine(_dir.Path, "Rar5.multi.part03.rar");
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "TestData", "Archives", "Rar5.multi.part03.rar"), restored);
+        _files.Add(restored);
+        warnings.Clear();
+        Assert.Equal(3, members.List(archive, warnings.Add, TestContext.Current.CancellationToken).Count(i => !i.IsContainer));
+        Assert.Empty(warnings);
+        Assert.True(Volatile.Read(ref opened) > firstOpens);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
