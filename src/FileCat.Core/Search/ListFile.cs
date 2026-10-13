@@ -15,6 +15,10 @@ public static class ListFile
     /// <summary>The largest list read (a million paths fit several times over).</summary>
     public const long MaxBytes = 64L << 20;
 
+    // A path cannot usefully exceed the Windows extended-length path limit. Keep one
+    // unterminated line bounded even when a special file reports a zero length.
+    private const int MaxLineChars = 32_768;
+
     /// <summary>The most members one list adds.</summary>
     public const int MaxItems = 500_000;
 
@@ -32,9 +36,8 @@ public static class ListFile
         var batch = new List<(ItemRef Item, string Relative)>(1024);
         using (var reader = new StreamReader(info.FullName, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true))
         {
-            for (string? line; (line = reader.ReadLine()) is not null;)
+            foreach (string line in ReadBoundedLines(reader, ct))
             {
-                ct.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 if (IsNetwork(line))
                 {
@@ -75,6 +78,46 @@ public static class ListFile
         }
         added += set.AddRange(batch);
         return new Outcome(added, missing, network, truncated);
+    }
+
+    private static IEnumerable<string> ReadBoundedLines(StreamReader reader, CancellationToken ct)
+    {
+        var buffer = new char[4096];
+        var line = new StringBuilder();
+        long decodedChars = 0;
+        bool afterCarriageReturn = false;
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            int count = reader.Read(buffer, 0, buffer.Length);
+            if (count == 0) break;
+            decodedChars += count;
+            if (decodedChars > MaxBytes)
+                throw new IOException($"The list file is larger than {MaxBytes >> 20} MiB.");
+
+            for (int i = 0; i < count; i++)
+            {
+                char c = buffer[i];
+                if (afterCarriageReturn)
+                {
+                    afterCarriageReturn = false;
+                    if (c == '\n') continue;
+                }
+                if (c is '\r' or '\n')
+                {
+                    yield return line.ToString();
+                    line.Clear();
+                    afterCarriageReturn = c == '\r';
+                }
+                else
+                {
+                    if (line.Length == MaxLineChars)
+                        throw new IOException($"A list path exceeds {MaxLineChars} characters.");
+                    line.Append(c);
+                }
+            }
+        }
+        if (line.Length != 0) yield return line.ToString();
     }
 
     private static bool IsNetwork(string path) =>
