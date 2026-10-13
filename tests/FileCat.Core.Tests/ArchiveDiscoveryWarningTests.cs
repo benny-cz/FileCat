@@ -66,6 +66,68 @@ public sealed class ArchiveDiscoveryWarningTests : IDisposable
         return file;
     }
 
+    private sealed class RewriteOnWarningSink(string path) : IEnumerationSink
+    {
+        public int Warnings { get; private set; }
+        public int Published { get; private set; }
+        public string? BeforeToken { get; private set; }
+        public string? AfterToken { get; private set; }
+
+        public void ReportIssue(string message)
+        {
+            Assert.Contains("damaged after", message, StringComparison.Ordinal);
+            Warnings++;
+            BeforeToken = SourceChangeToken.FromPath(path);
+            Assert.NotNull(BeforeToken);
+            DateTime stamp = File.GetLastWriteTimeUtc(path);
+            using (var file = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                file.Position = 512; // First member's data; leave both TAR headers and total length intact.
+                file.WriteByte((byte)'y');
+                file.Flush(flushToDisk: true);
+            }
+            File.SetLastWriteTimeUtc(path, stamp);
+            AfterToken = SourceChangeToken.FromPath(path);
+            Assert.NotEqual(BeforeToken, AfterToken);
+        }
+
+        public void AddBatch(ReadOnlySpan<EntryData> batch) => Published += batch.Length;
+    }
+
+    [Fact]
+    public async Task A_warning_callback_rewrite_cannot_publish_the_old_archive_listing()
+    {
+        string file = Tar(gzip: false, damaged: true);
+        var location = ArchiveProvider.ForFile(file);
+        var initial = new List<EntryData>();
+        var firstWarnings = new List<string>();
+        await _archives.EnumerateAsync(location, new ListingSink(initial, firstWarnings), TestContext.Current.CancellationToken);
+        Assert.Equal("first.txt", Assert.Single(initial).Name);
+        Assert.Single(firstWarnings);
+
+        var changing = new RewriteOnWarningSink(file);
+        var failure = await Record.ExceptionAsync(() => _archives.EnumerateAsync(location, changing, TestContext.Current.CancellationToken));
+        Assert.IsType<IOException>(failure);
+        Assert.Equal(1, changing.Warnings);
+        Assert.Equal(0, changing.Published);
+        Assert.Equal((byte)'y', File.ReadAllBytes(file)[512]);
+
+        var refreshed = new List<EntryData>();
+        var refreshedWarnings = new List<string>();
+        await _archives.EnumerateAsync(location, new ListingSink(refreshed, refreshedWarnings), TestContext.Current.CancellationToken);
+        Assert.Equal("first.txt", Assert.Single(refreshed).Name);
+        Assert.Single(refreshedWarnings);
+    }
+
+    private sealed class ListingSink(List<EntryData> entries, List<string> warnings) : IEnumerationSink
+    {
+        public void ReportIssue(string message) => warnings.Add(message);
+        public void AddBatch(ReadOnlySpan<EntryData> batch)
+        {
+            foreach (var item in batch) entries.Add(item);
+        }
+    }
+
     private (ResultSet Result, SearchSession Session) Search(SearchCriteria criteria, List<(ItemRef Item, string Relative)>? within = null)
     {
         Assert.True(criteria.TryBuildQuery(DateTime.UtcNow, [], within, out var query, out var error, new ProviderArchiveMembers(_providers)), error);

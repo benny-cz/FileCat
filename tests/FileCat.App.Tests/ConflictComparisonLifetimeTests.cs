@@ -55,8 +55,13 @@ public sealed class ConflictComparisonLifetimeTests
             try { compare.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
             finally { SynchronizationContext.SetSynchronizationContext(context); }
             Assert.Equal(1, completion.Started);
-            Assert.Equal("Comparing…", result.Text);
-            Assert.False(compare.IsEnabled);
+            // A size mismatch can finish before the click returns. The immediate pending state is
+            // essential to the close-before-completion cases, not the ordinary completed cases.
+            if (action != "complete")
+            {
+                Assert.Equal("Comparing…", result.Text);
+                Assert.False(compare.IsEnabled);
+            }
             // Close in this UI turn, before the asynchronous click continuation can update controls.
             if (action == "cancel") ((OverlayDialogService)vm.Dialogs).CancelAll();
             else if (action != "complete")

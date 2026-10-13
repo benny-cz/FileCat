@@ -177,6 +177,10 @@ public sealed class ArchiveProvider : ResourceProvider, IArchiveSpoolProvider
             batch.Add(e);
         }
         foreach (var warning in index.Warnings) sink.ReportIssue(warning);
+        // Warning callbacks may run caller code that rewrites the source after index admission.
+        // Refuse the assembled rows before publishing them if any opened archive volume changed.
+        index.VerifySource();
+        index.VerifyVolumePaths();
         sink.AddBatch(batch.ToArray());
         return Task.CompletedTask;
     }
