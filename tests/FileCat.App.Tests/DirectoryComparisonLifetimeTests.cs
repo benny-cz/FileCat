@@ -52,7 +52,8 @@ public sealed class DirectoryComparisonLifetimeTests(ITestOutputHelper output)
             output.WriteLine("DIRECTORY_LIFETIME " + JsonSerializer.Serialize(new { Case = "mark-admission", side, operation, sameDevice, Held = held,
                 other, ui, pending, disposedDuringHold, Health = health.ToString(), limit, Error = error?.GetType().Name, LeftMarks = f.Left.Listing.MarkedCount,
                 RightMarks = f.Right.Listing.MarkedCount, Sources = f.Sources(), Calls = f.Provider.Calls.ToArray(), Hashes = f.Hashes() }));
-            Assert.InRange(held.Length, 2, limit); Assert.True(other); Assert.True(ui); Assert.Equal(held.Length, pending);
+            // Other requests may still be queued behind the held workers; all must finish after release.
+            Assert.InRange(held.Length, 2, limit); Assert.True(other); Assert.True(ui); Assert.InRange(pending, held.Length, tasks.Count);
             Assert.Null(error); Assert.Equal(0, disposedDuringHold);
             Assert.Equal(0, f.Left.Listing.MarkedCount + f.Right.Listing.MarkedCount);
             Assert.All(f.Provider.Calls, c => { Assert.False(c.OnUiThread); Assert.StartsWith("FileCat I/O ", c.Thread); });

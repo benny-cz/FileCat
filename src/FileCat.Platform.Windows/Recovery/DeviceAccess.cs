@@ -155,6 +155,66 @@ internal sealed class AlignedDeviceReader
 }
 
 /// <summary>
+/// Keeps a selected whole-disk interface bound to the read-only direct or brokered reader.
+/// Volume GUID paths retain their existing reader; they need a separate volume-identity check.
+/// </summary>
+public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard, IDeviceSelectionIdentity, IDeviceDestinationGuard
+{
+    private readonly string _path;
+    private readonly IBlockSource _source;
+    private readonly string? _identity;
+
+    private SelectedDiskInterfaceSource(string path, IBlockSource source)
+    {
+        _path = path;
+        _source = source;
+        _identity = (source as IDeviceSelectionIdentity)?.SelectionIdentity;
+    }
+
+    public static IBlockSource Bind(string path, IBlockSource source)
+    {
+        if (path.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase)) return source;
+        try
+        {
+            var bound = new SelectedDiskInterfaceSource(path, source);
+            if (!bound.IsCurrentDevicePath(path))
+                throw new IOException("The selected disk interface changed or was removed while opening. Select it again.");
+            return bound;
+        }
+        catch
+        {
+            source.Dispose();
+            throw;
+        }
+    }
+
+    public string Description => _source.Description;
+    public long Length => _source.Length;
+    public string? SelectionIdentity => _identity;
+    public int Read(long offset, Span<byte> buffer) => _source.Read(offset, buffer);
+    public bool? SharesDestinationDisk(string destinationDirectory) =>
+        (_source as IDeviceDestinationGuard)?.SharesDestinationDisk(destinationDirectory);
+
+    public bool IsCurrentDevicePath(string path)
+    {
+        if (!string.Equals(path, _path, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(_identity)) return false;
+        try
+        {
+            var matches = DeviceTopology.Disks().Where(d =>
+                string.Equals(d.InterfacePath, path, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            return matches.Length == 1 && matches[0].Length == Length &&
+                string.Equals(matches[0].Identity, _identity, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    public void Dispose() => _source.Dispose();
+}
+
+/// <summary>
 /// A drive FileCat reads itself because it already runs as administrator: the helper would ask for rights FileCat
 /// has. It opens the device for reading only (other programs keep reading and writing it), and nothing is ever written.
 /// </summary>
