@@ -81,6 +81,7 @@ public sealed class ProgressiveContent : IContentSource
     private Func<Stream>? _open;
     private Action? _closed;
     private readonly MemberLimits _limits;
+    private Action? _verifySource;
     private readonly long _maxKept;
     private readonly string _tempDirectory;
     private uint _crc;
@@ -97,6 +98,9 @@ public sealed class ProgressiveContent : IContentSource
     /// <param name="maxKept">The most a spool keeps for reading back; forward-only readers are not limited by it.</param>
     /// <param name="closed">Called once when the content is disposed (under the gate).</param>
     public ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory, Action? closed = null)
+        : this(displayName, gate, open, limits, maxKept, tempDirectory, closed, null) { }
+
+    internal ProgressiveContent(string displayName, object gate, Func<Stream> open, MemberLimits limits, long maxKept, string tempDirectory, Action? closed, Action? verifySource)
     {
         if (limits.Declared < 0) throw new ArgumentException("Progressive content needs a declared size.", nameof(limits));
         DisplayName = displayName;
@@ -106,6 +110,7 @@ public sealed class ProgressiveContent : IContentSource
         _maxKept = maxKept;
         _tempDirectory = tempDirectory;
         _closed = closed;
+        _verifySource = verifySource;
     }
 
     public string DisplayName { get; }
@@ -148,22 +153,30 @@ public sealed class ProgressiveContent : IContentSource
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (buffer.IsEmpty) return 0;
-            _read = true;
-            if (!_decided)
-            {
-                // A member stream that can seek is read in place (no checksum to verify then: formats with one compress).
-                _inPlace = Source().CanSeek && _limits.Crc is null;
-                _decided = true;
-            }
-            if (_inPlace) return ReadInPlace(offset, buffer);
-            if (_forwardOnly) return ReadForward(offset, buffer);
-            Produce(offset + buffer.Length);
-            if (offset >= _produced) return _damage is null ? 0 : throw new InvalidDataException(_damage);
-            int n = (int)Math.Min(buffer.Length, _produced - offset);
-            _spool!.Position = offset;
-            _spool.ReadExactly(buffer[..n]);
+            _verifySource?.Invoke();
+            int n = ReadLocked(offset, buffer);
+            _verifySource?.Invoke();
             return n;
         }
+    }
+
+    private int ReadLocked(long offset, Span<byte> buffer)
+    {
+        _read = true;
+        if (!_decided)
+        {
+            // A member stream that can seek is read in place (no checksum to verify then: formats with one compress).
+            _inPlace = Source().CanSeek && _limits.Crc is null;
+            _decided = true;
+        }
+        if (_inPlace) return ReadInPlace(offset, buffer);
+        if (_forwardOnly) return ReadForward(offset, buffer);
+        Produce(offset + buffer.Length);
+        if (offset >= _produced) return _damage is null ? 0 : throw new InvalidDataException(_damage);
+        int n = (int)Math.Min(buffer.Length, _produced - offset);
+        _spool!.Position = offset;
+        _spool.ReadExactly(buffer[..n]);
+        return n;
     }
 
     private Stream Source()
@@ -332,6 +345,7 @@ public sealed class ProgressiveContent : IContentSource
             _closedOnce = true;
             // A caller may retain disposed content; it no longer owns an archive index or callback captures.
             _open = null;
+            _verifySource = null;
             var closed = _closed;
             _closed = null;
             Exception? failure = null;

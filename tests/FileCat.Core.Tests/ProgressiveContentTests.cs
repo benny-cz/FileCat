@@ -114,6 +114,84 @@ public sealed class ProgressiveContentTests : IDisposable
     }
 
     [Fact]
+    public void A_held_large_zip_member_refuses_bytes_from_an_in_place_source_rewrite()
+    {
+        var data = Pattern(Large, 29);
+        string zip = MakeZip("held-rewrite.zip", data, CompressionLevel.NoCompression);
+        var member = Member(_zip, ZipProvider.ForFile(zip), "big.bin");
+        using var content = _zip.OpenContent(member)!;
+        Assert.IsType<ProgressiveContent>(content);
+        Assert.Equal(data[..65536], ReadAt(content, 0, 65536));
+
+        var originalTime = File.GetLastWriteTimeUtc(zip);
+        long originalLength = new FileInfo(zip).Length;
+        string? originalToken = SourceChangeToken.FromPath(zip);
+        Assert.NotNull(originalToken);
+        byte[] archive = File.ReadAllBytes(zip);
+        int at = archive.AsSpan().IndexOf(data.AsSpan(1_000_000, 64));
+        Assert.True(at >= 0);
+        string? changedToken = originalToken;
+        for (int attempt = 0; attempt < 8 && changedToken == originalToken; attempt++)
+        {
+            using (var writer = new FileStream(zip, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                writer.Position = at;
+                writer.WriteByte((byte)(data[1_000_000] ^ (attempt + 1)));
+                writer.Flush(flushToDisk: true);
+            }
+            File.SetLastWriteTimeUtc(zip, originalTime);
+            changedToken = SourceChangeToken.FromPath(zip);
+            if (changedToken == originalToken) Thread.Sleep(25);
+        }
+        Assert.Equal(originalLength, new FileInfo(zip).Length);
+        Assert.Equal(originalTime, File.GetLastWriteTimeUtc(zip));
+        Assert.NotEqual(originalToken, changedToken);
+
+        Assert.ThrowsAny<IOException>(() => content.Read(1_000_000, new byte[4096]));
+    }
+
+    [Fact]
+    public async Task An_in_place_zip_rewrite_refreshes_a_cached_catalog_with_restored_mtime()
+    {
+        string first = Path.Combine(_dir.Path, "first.zip");
+        string replacement = Path.Combine(_dir.Path, "replacement.zip");
+        static void WriteArchive(string path, string name)
+        {
+            using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+            using var stream = archive.CreateEntry(name, CompressionLevel.NoCompression).Open();
+            stream.Write("owned payload"u8);
+        }
+        WriteArchive(first, "alpha.txt");
+        WriteArchive(replacement, "omega.txt");
+        long length = new FileInfo(first).Length;
+        byte[] replacementBytes = File.ReadAllBytes(replacement);
+        Assert.Equal(length, replacementBytes.LongLength);
+
+        _zip.GetSourceIdentity = _ => "owned-stable-identity";
+        _zip.GetOpenedSourceIdentity = _ => "owned-stable-identity";
+        var root = ZipProvider.ForFile(first);
+        Assert.Equal("alpha.txt", Member(_zip, root, "alpha.txt").Name);
+        var originalTime = File.GetLastWriteTimeUtc(first);
+        string? originalToken = SourceChangeToken.FromPath(first);
+        Assert.NotNull(originalToken);
+        string? changedToken = originalToken;
+        for (int attempt = 0; attempt < 8 && changedToken == originalToken; attempt++)
+        {
+            File.WriteAllBytes(first, replacementBytes);
+            File.SetLastWriteTimeUtc(first, originalTime);
+            changedToken = SourceChangeToken.FromPath(first);
+            if (changedToken == originalToken) Thread.Sleep(25);
+        }
+        Assert.Equal(length, new FileInfo(first).Length);
+        Assert.Equal(originalTime, File.GetLastWriteTimeUtc(first));
+        Assert.NotEqual(originalToken, changedToken);
+
+        var listed = new List<EntryData>();
+        await _zip.EnumerateAsync(root, new Sink(listed), TestContext.Current.CancellationToken);
+        Assert.Equal(["omega.txt"], listed.Select(entry => entry.Name));
+    }
+
+    [Fact]
     public void A_copy_keeps_nothing_aside_and_the_member_checksum_is_verified()
     {
         var data = Pattern(Large, 2);

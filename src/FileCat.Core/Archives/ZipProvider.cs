@@ -345,8 +345,17 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         var key = $"{path}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}|{location.Session}|{identityKey}";
         if (_cache.TryGetValue(key, out var cached))
         {
-            cached.Touch();
-            return cached;
+            try
+            {
+                cached.VerifySource();
+                cached.Touch();
+                return cached;
+            }
+            catch (IOException)
+            {
+                // A same-identity, same-metadata rewrite cannot reuse the old central directory.
+                if (_cache.TryRemove(key, out var changed)) changed.Dispose();
+            }
         }
         // The archive changed or was never opened: drop stale indexes for this path.
         foreach (var k in _cache.Keys.Where(k => k.StartsWith(path + "|", PathUtil.SafetyComparison)).ToList())
@@ -397,11 +406,12 @@ internal sealed class ZipIndex : IDisposable
     private readonly FileStream _stream;
     private readonly ZipArchive _archive;
     private readonly List<ZipArchiveEntry> _entries;
+    private readonly string? _openedChangeToken;
 
     public sealed record Node(string Name, bool IsDirectory, long Size, long Modified, ZipMemberTag? Tag);
 
     private ZipIndex(FileStream stream, ZipArchive archive, List<ZipArchiveEntry> entries, Dictionary<string, List<Node>> children, string? warning,
-        bool readOnly, long estimatedBytes)
+        bool readOnly, long estimatedBytes, string? openedChangeToken)
     {
         _stream = stream;
         _archive = archive;
@@ -411,6 +421,7 @@ internal sealed class ZipIndex : IDisposable
         ReadOnly = readOnly;
         HasEncrypted = entries.Any(e => e.IsEncrypted);
         EstimatedBytes = estimatedBytes;
+        _openedChangeToken = openedChangeToken;
         LastUsed = DateTime.UtcNow;
     }
 
@@ -419,6 +430,11 @@ internal sealed class ZipIndex : IDisposable
     /// with members of 30-character names (ArchiveIndexScaleTests): 584 bytes a member at a million, 598 at 200,000.
     /// </summary>
     public long EstimatedBytes { get; }
+    public void VerifySource()
+    {
+        if (_openedChangeToken is not null && SourceChangeToken.FromHandle(_stream.SafeFileHandle) != _openedChangeToken)
+            throw new IOException("The archive source changed while it was being read.");
+    }
 
     public void Touch() => LastUsed = DateTime.UtcNow;
 
@@ -455,8 +471,11 @@ internal sealed class ZipIndex : IDisposable
         try
         {
             verifyOpened?.Invoke(fs.SafeFileHandle);
+            string? changeToken = SourceChangeToken.FromHandle(fs.SafeFileHandle);
             archive = new ZipArchive(fs, ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: nameEncoding);
-            return Build(path, fs, archive);
+            var index = Build(path, fs, archive, changeToken);
+            index.VerifySource();
+            return index;
         }
         catch
         {
@@ -470,7 +489,7 @@ internal sealed class ZipIndex : IDisposable
         }
     }
 
-    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive)
+    private static ZipIndex Build(string path, FileStream fs, ZipArchive archive, string? changeToken)
     {
         var entries = new List<ZipArchiveEntry>();
         long nameChars = 0;
@@ -554,7 +573,7 @@ internal sealed class ZipIndex : IDisposable
         // Generated ancestor paths are retained as separate strings and directory nodes. A single
         // deeply nested member can own much more index memory than its one central-directory name.
         long estimate = archive.Entries.Count * 460L + nameChars * 4 + directoryChars * 2 + directoryCount * 160;
-        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate);
+        return new ZipIndex(fs, archive, entries, children, warning, readOnly, estimate, changeToken);
     }
 
     /// <summary>
@@ -567,16 +586,18 @@ internal sealed class ZipIndex : IDisposable
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
+            VerifySource();
             if (_closing && _leases == 0) throw new IOException("The archive was closed; open it again.");
             var entry = _entries[tag.EntryIndex];
             var limits = Limits(entry);
             if (entry.Length > ZipProvider.MaxMemberInMemory)
             {
                 _leases++;
-                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember, tempDirectory, Returned);
+                return new ProgressiveContent(tag.FullName, _lock, entry.Open, limits, ZipProvider.MaxSpooledMember, tempDirectory, Returned, VerifySource);
             }
             var memory = new MemoryStream((int)Math.Max(0, entry.Length));
             using (var source = entry.Open()) limits.CopyAll(source, memory);
+            VerifySource();
             return new MemoryContentSource(tag.FullName, memory.ToArray());
         }
     }
@@ -587,9 +608,11 @@ internal sealed class ZipIndex : IDisposable
         LastUsed = DateTime.UtcNow;
         lock (_lock)
         {
+            VerifySource();
             var entry = _entries[tag.EntryIndex];
             if (entry.Length > ZipProvider.MaxSpooledMember) throw new InvalidDataException("The inner archive is larger than FileCat opens in place; extract it with F5.");
             using (var source = entry.Open()) Limits(entry).CopyAll(source, destination);
+            VerifySource();
             destination.Flush();
         }
     }
