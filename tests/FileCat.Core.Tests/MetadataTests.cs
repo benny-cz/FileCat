@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
 using FileCat.Core.Threading;
@@ -58,5 +59,48 @@ public class MetadataTests
         Assert.Equal(MetadataState.Unsupported, service.Get("dimensions", path, entry with { Modified = 1 }, "dev", slowLocation: true).State);
         // Items the field does not apply to are absent, not failed.
         Assert.Equal(MetadataState.Absent, service.Get("dimensions", path, new EntryData("a.txt", EntryKind.File, 1, 1), "dev", false).State);
+    }
+
+    [Fact]
+    public void Link_target_is_available_for_directory_links_and_absent_for_plain_directories()
+    {
+        using var dir = new TempDir();
+        var target = dir.Dir("target");
+        var link = Path.Combine(dir.Path, "link");
+        try { Directory.CreateSymbolicLink(link, target); }
+        catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("This Windows account cannot create symbolic links.");
+            return;
+        }
+
+        using var io = new DeviceIoScheduler();
+        var service = new MetadataService(io);
+        var linked = service.Compute("linkTarget", link, new EntryData("link", EntryKind.Directory), TestContext.Current.CancellationToken);
+        Assert.Equal(MetadataState.Available, linked.State);
+        Assert.Equal(target, linked.Value);
+        Assert.Equal(MetadataState.Absent,
+            service.Compute("linkTarget", target, new EntryData("target", EntryKind.Directory), TestContext.Current.CancellationToken).State);
+    }
+
+    [Fact]
+    public void Windows_junction_target_is_available_as_directory_metadata()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var dir = new TempDir();
+        var target = dir.Dir("target");
+        var link = Path.Combine(dir.Path, "junction");
+        using (var mklink = Process.Start(new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
+               { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true })!)
+        {
+            Assert.True(mklink.WaitForExit(10_000), "Junction creation timed out.");
+            Assert.Equal(0, mklink.ExitCode);
+        }
+
+        using var io = new DeviceIoScheduler();
+        var service = new MetadataService(io);
+        var value = service.Compute("linkTarget", link, new EntryData("junction", EntryKind.Directory), TestContext.Current.CancellationToken);
+        Assert.Equal(MetadataState.Available, value.State);
+        Assert.Equal(target, value.Value);
     }
 }

@@ -166,7 +166,8 @@ public static partial class SmbTools
         string text = said.Trim();
         if (Regex.IsMatch(text, "ACCESS_DENIED|LOGON_FAILURE|Password required|Authentication|authentication|EAUTH|syserr = Authentication|Permission denied", RegexOptions.IgnoreCase))
             return new SmbSignInRequiredException($"{server} wants a user name and password.");
-        if (Regex.IsMatch(text, "HOST_UNREACHABLE|Connection to .* failed|could not connect|Could not connect|No route to host|NT_STATUS_IO_TIMEOUT|Name or service not known|not found|Unable to find|timed out|failed to resolve", RegexOptions.IgnoreCase))
+        if (HasFailedConnectionLine(text) ||
+            Regex.IsMatch(text, "HOST_UNREACHABLE|could not connect|Could not connect|No route to host|NT_STATUS_IO_TIMEOUT|Name or service not known|not found|Unable to find|timed out|failed to resolve", RegexOptions.IgnoreCase))
             return new DirectoryNotFoundException($"{server} is not reachable, or it does not share files over SMB.");
         // Only the last nonempty diagnostic line is shown. Splitting a bounded but line-dense
         // tool reply would still allocate one string per line during automatic network browsing.
@@ -185,6 +186,20 @@ public static partial class SmbTools
             remaining = remaining[..separator];
         }
         return new IOException($"{server}: {line}");
+    }
+
+    private static bool HasFailedConnectionLine(ReadOnlySpan<char> text)
+    {
+        while (!text.IsEmpty)
+        {
+            int newline = text.IndexOf('\n');
+            ReadOnlySpan<char> line = newline < 0 ? text : text[..newline];
+            int prefix = line.IndexOf("Connection to ", StringComparison.OrdinalIgnoreCase);
+            if (prefix >= 0 && line[(prefix + "Connection to ".Length)..].IndexOf(" failed", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+            text = newline < 0 ? [] : text[(newline + 1)..];
+        }
+        return false;
     }
 
     /// <summary>"gio list smb://server/": one share per line.</summary>

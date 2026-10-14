@@ -165,6 +165,8 @@ public sealed class UnixNetworkTests(ITestOutputHelper output)
         Assert.IsType<SmbSignInRequiredException>(SmbTools.Failure("nas", "session setup failed: NT_STATUS_ACCESS_DENIED"));
         Assert.IsType<SmbSignInRequiredException>(SmbTools.Failure("nas", "gio: smb://nas/: Password required for share public on nas"));
         Assert.IsType<DirectoryNotFoundException>(SmbTools.Failure("nas", "do_connect: Connection to nas failed (Error NT_STATUS_HOST_UNREACHABLE)"));
+        Assert.IsType<DirectoryNotFoundException>(SmbTools.Failure("nas", "Connection to nas failed (Error 55)"));
+        Assert.IsType<IOException>(SmbTools.Failure("nas", "Connection to nas\nother failed\nlast detail"));
         var other = Assert.IsType<IOException>(SmbTools.Failure("nas", "line one\nprotocol negotiation failed: NT_STATUS_CONNECTION_RESET"));
         Assert.Contains("NT_STATUS_CONNECTION_RESET", other.Message);
     }
@@ -182,6 +184,21 @@ public sealed class UnixNetworkTests(ITestOutputHelper output)
         output.WriteLine($"SMB_FAILURE_ALLOCATED_BYTES={allocated}; INPUT_CHARACTERS={reply.Length}");
         Assert.Equal("nas: final detail", Assert.IsType<IOException>(failure).Message);
         Assert.InRange(allocated, 0, 8 * 1024 * 1024);
+    }
+
+    [Fact]
+    public void Repeated_connection_prefixes_do_not_make_failure_classification_quadratic()
+    {
+        string reply = string.Concat(Enumerable.Repeat("Connection to ", 6_000)) + "\nfinal detail";
+        _ = SmbTools.Failure("nas", "warmup\nlast");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        Exception failure = SmbTools.Failure("nas", reply);
+
+        watch.Stop();
+        output.WriteLine($"SMB_FAILURE_CLASSIFY_MILLISECONDS={watch.ElapsedMilliseconds}; INPUT_CHARACTERS={reply.Length}");
+        Assert.Equal("nas: final detail", Assert.IsType<IOException>(failure).Message);
+        Assert.InRange(watch.ElapsedMilliseconds, 0, 500);
     }
 
     [Fact]

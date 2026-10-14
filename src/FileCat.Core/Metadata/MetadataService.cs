@@ -316,7 +316,8 @@ public static class BuiltInFields
     public static readonly MetadataField LinkTarget = new("linkTarget", "Link target", MetadataCost.Cheap,
         _ => true,
         (p, _) => new FileInfo(p).LinkTarget,
-        v => v as string ?? string.Empty);
+        v => v as string ?? string.Empty,
+        Folders: true);
 
     /// <summary>Linux and macOS: permissions as ls prints them ("rwxr-xr-x"), for files and folders.</summary>
     public static readonly MetadataField Permissions = new("permissions", "Permissions", MetadataCost.Cheap,

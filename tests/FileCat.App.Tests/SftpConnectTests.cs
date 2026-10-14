@@ -26,9 +26,9 @@ public sealed class SftpConnectTests
         window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == text).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     }
 
-    private static async Task WaitAsync(Func<bool> condition)
+    private static async Task WaitAsync(Func<bool> condition, int attempts = 250)
     {
-        for (int i = 0; i < 250 && !condition(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);
+        for (int i = 0; i < attempts && !condition(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Connects the first panel to an in-memory server: host key, then password.</summary>
@@ -105,8 +105,10 @@ public sealed class SftpConnectTests
             Assert.Equal("hello, edited", s.Server.Read("/home/user/remote.txt"));
             // Job completion precedes the asynchronous session acknowledgement. LoadAll is a best-effort
             // persisted-record read; don't throw from the wait predicate if it momentarily finds no record.
+            // The upload job completes before the separate session acknowledgement. ARM64 hosted
+            // runs can take longer than the fixture's usual five-second UI readiness wait.
             await WaitAsync(() => s.Services.EditSessions.LoadAll().FirstOrDefault() is { } current &&
-                s.Services.EditSessions.StateOf(current) == Core.Edit.EditState.Unchanged);
+                s.Services.EditSessions.StateOf(current) == Core.Edit.EditState.Unchanged, attempts: 1_000);
             Assert.Equal(Core.Edit.EditState.Unchanged, s.Services.EditSessions.StateOf(s.Services.EditSessions.LoadAll().Single()));
         }
         finally
