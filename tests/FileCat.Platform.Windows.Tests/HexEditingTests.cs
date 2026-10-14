@@ -194,6 +194,58 @@ public sealed partial class HexEditingTests
     }
 
     [Fact]
+    public void Save_as_does_not_publish_when_the_download_mark_cannot_be_read()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string directory = NewDirectory("filecat-hexmarklocked-");
+        string source = Path.Combine(directory, "source.bin");
+        string copy = Path.Combine(directory, "copy.bin");
+        File.WriteAllBytes(source, [1, 2, 3, 4]);
+        File.WriteAllText(source + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        try
+        {
+            using var file = new ProtectedHexFile(source);
+            using var overlay = new HexPatchOverlay(file);
+            overlay.Write(1, [9]);
+            using (var heldMark = new FileStream(source + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.Throws<IOException>(() => HexSaveAs.CreateNew(file, overlay, copy, TestContext.Current.CancellationToken));
+                Assert.False(File.Exists(copy));
+                Assert.Empty(Directory.EnumerateFiles(directory, ".filecat-hex-*.tmp"));
+            }
+            Assert.Equal("[ZoneTransfer]\r\nZoneId=3\r\n", File.ReadAllText(source + ":Zone.Identifier"));
+            var unchanged = new byte[4];
+            Assert.Equal(unchanged.Length, file.Read(0, unchanged));
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, unchanged);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void Save_as_does_not_publish_an_oversized_download_mark()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string directory = NewDirectory("filecat-hexmarklarge-");
+        string source = Path.Combine(directory, "source.bin");
+        string copy = Path.Combine(directory, "copy.bin");
+        File.WriteAllBytes(source, [1, 2, 3, 4]);
+        File.WriteAllText(source + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=" + new string('a', 128 * 1024));
+        try
+        {
+            using var file = new ProtectedHexFile(source);
+            using var overlay = new HexPatchOverlay(file);
+            overlay.Write(1, [9]);
+            Assert.Throws<IOException>(() => HexSaveAs.CreateNew(file, overlay, copy, TestContext.Current.CancellationToken));
+            Assert.False(File.Exists(copy));
+            Assert.Empty(Directory.EnumerateFiles(directory, ".filecat-hex-*.tmp"));
+            var unchanged = new byte[4];
+            Assert.Equal(unchanged.Length, file.Read(0, unchanged));
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, unchanged);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public void Protected_open_refuses_empty_read_only_shared_and_linked_files_with_reasons()
     {
         if (!OperatingSystem.IsWindows()) return;

@@ -17,6 +17,7 @@ public enum HexOriginMark { None, Copied, Lost }
 public static partial class HexSaveAs
 {
     private const string ZoneStream = ":Zone.Identifier";
+    private const int MaxOriginMarkBytes = 64 * 1024;
     private const int ChunkBytes = 1024 * 1024;
     private const long FreeSpaceMargin = 64L * 1024 * 1024;
 
@@ -107,18 +108,42 @@ public static partial class HexSaveAs
             if (unix.ReadOriginMark(source) is not { } origin) return HexOriginMark.None;
             return unix.WriteOriginMark(target, origin) ? HexOriginMark.Copied : HexOriginMark.Lost;
         }
-        string? mark;
-        try { mark = File.Exists(source + ZoneStream) ? File.ReadAllText(source + ZoneStream) : null; }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { mark = null; }
-        if (mark is null) return HexOriginMark.None;
+        // File.Exists also returns false for inaccessible streams. Treat only a missing stream as unmarked;
+        // a sharing violation or read failure must not publish an unmarked derivative.
+        FileStream input;
+        try { input = new FileStream(source + ZoneStream, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
+        catch (FileNotFoundException) { return HexOriginMark.None; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            throw new IOException("The source download mark could not be read, so Save As did not publish a copy.", ex);
+        }
+        byte[] mark;
+        using (input)
+        {
+            if (input.Length > MaxOriginMarkBytes)
+                throw new IOException("The source download mark exceeds the supported 64 KiB limit, so Save As did not publish a copy.");
+            mark = new byte[MaxOriginMarkBytes + 1];
+            int read = 0;
+            while (read < mark.Length)
+            {
+                int count = input.Read(mark, read, mark.Length - read);
+                if (count == 0) break;
+                read += count;
+            }
+            if (read > MaxOriginMarkBytes)
+                throw new IOException("The source download mark grew beyond the supported 64 KiB limit, so Save As did not publish a copy.");
+            Array.Resize(ref mark, read);
+        }
         try
         {
-            File.WriteAllText(target + ZoneStream, mark);
+            using var output = new FileStream(target + ZoneStream, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            output.Write(mark);
+            output.Flush(flushToDisk: true);
             return HexOriginMark.Copied;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            return HexOriginMark.Lost;
+            throw new IOException("The download mark could not be copied, so Save As did not publish a copy.", ex);
         }
     }
 
