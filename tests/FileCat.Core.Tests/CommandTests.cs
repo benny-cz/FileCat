@@ -114,4 +114,33 @@ public class CommandTests
         File.WriteAllText(Path.Combine(dir.Path, "de.json"), "{ broken");
         Assert.Null(CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("de-DE")));
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Oversized_language_file_is_ignored_before_json_is_materialized(bool linked)
+    {
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "cs-CZ.json");
+        string target = linked ? Path.Combine(dir.Path, "large-language.json") : path;
+        using (var stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            stream.Write("{\"file.copy\":\""u8);
+            byte[] padding = new byte[64 * 1024];
+            Array.Fill(padding, (byte)'x');
+            for (int i = 0; i < 128; i++) stream.Write(padding);
+            stream.Write("\"}"u8);
+        }
+        if (linked)
+        {
+            try { File.CreateSymbolicLink(path, target); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+            }
+            if (new FileInfo(path).Length > 1024 * 1024)
+                Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+        }
+        Assert.Null(CommandTranslations.Load(dir.Path, new System.Globalization.CultureInfo("cs-CZ")));
+    }
 }
