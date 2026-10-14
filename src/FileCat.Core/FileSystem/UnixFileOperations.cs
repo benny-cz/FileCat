@@ -59,13 +59,14 @@ public class UnixFileOperations : PortableFileOperations
         if (OperatingSystem.IsMacOS())
         {
             // flags;hex time;agent;event id — 0081 as browsers write for downloads.
-            string value = quarantine ?? $"0081;{DateTimeOffset.UtcNow.ToUnixTimeSeconds():x8};FileCat;";
-            return Xattr.Set(path, QuarantineAttribute, value);
+            string value = string.IsNullOrWhiteSpace(quarantine)
+                ? $"0081;{DateTimeOffset.UtcNow.ToUnixTimeSeconds():x8};FileCat;" : quarantine;
+            return Xattr.WriteReadable(path, QuarantineAttribute, value);
         }
         if (OperatingSystem.IsLinux())
             // Linux only has an origin-URL xattr here. A zone-only Internet mark has no value to
             // write, so reporting success would hand out an unmarked copy as if it were safe.
-            return !string.IsNullOrWhiteSpace(hostUrl) && Xattr.Set(path, OriginAttribute, hostUrl);
+            return !string.IsNullOrWhiteSpace(hostUrl) && Xattr.WriteReadable(path, OriginAttribute, hostUrl);
         return false;
     }
 
@@ -91,18 +92,46 @@ public class UnixFileOperations : PortableFileOperations
 internal static partial class Xattr
 {
     private const int MacNoFollow = 0x0001;
+    internal const int MaxValueBytes = 64 * 1024;
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+
+    private static IOException ReadFailure(string name, int error) =>
+        new($"The origin attribute '{name}' could not be read (errno {error}).");
+
+    private static bool MissingAttribute(int error) =>
+        OperatingSystem.IsMacOS() ? error == 93 /* ENOATTR */ : error == 61 /* ENODATA */;
 
     public static string? Get(string path, string name)
     {
         try
         {
             nint size = OperatingSystem.IsMacOS() ? MacGet(path, name, null, 0, 0, MacNoFollow) : LinuxGet(path, name, null, 0);
-            if (size <= 0 || size > 64 * 1024) return null;
+            if (size < 0)
+            {
+                int error = Marshal.GetLastPInvokeError();
+                if (MissingAttribute(error)) return null;
+                throw ReadFailure(name, error);
+            }
+            if (size == 0 || size > MaxValueBytes)
+                throw new IOException($"The origin attribute '{name}' is empty or exceeds {MaxValueBytes} bytes.");
             var buffer = new byte[size];
-            size = OperatingSystem.IsMacOS() ? MacGet(path, name, buffer, size, 0, MacNoFollow) : LinuxGet(path, name, buffer, size);
-            return size <= 0 ? null : Encoding.UTF8.GetString(buffer, 0, (int)size).TrimEnd('\0');
+            nint read = OperatingSystem.IsMacOS() ? MacGet(path, name, buffer, size, 0, MacNoFollow) : LinuxGet(path, name, buffer, size);
+            if (read < 0) throw ReadFailure(name, Marshal.GetLastPInvokeError());
+            if (read != size) throw new IOException($"The origin attribute '{name}' changed while it was read.");
+            string value;
+            try { value = StrictUtf8.GetString(buffer).TrimEnd('\0'); }
+            catch (DecoderFallbackException ex) { throw new IOException($"The origin attribute '{name}' is not valid UTF-8.", ex); }
+            if (value.Length == 0) throw new IOException($"The origin attribute '{name}' is empty.");
+            return value;
         }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        { throw new IOException($"The origin attribute '{name}' cannot be read on this system.", ex); }
+    }
+
+    public static bool WriteReadable(string path, string name, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || StrictUtf8.GetByteCount(value) > MaxValueBytes) return false;
+        return Set(path, name, value) && string.Equals(Get(path, name), value, StringComparison.Ordinal);
     }
 
     public static bool Set(string path, string name, string value)
@@ -116,13 +145,13 @@ internal static partial class Xattr
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return false; }
     }
 
-    [LibraryImport("libc", EntryPoint = "getxattr", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "getxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint MacGet(string path, string name, byte[]? value, nint size, uint position, int options);
 
     [LibraryImport("libc", EntryPoint = "setxattr", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int MacSet(string path, string name, byte[] value, nint size, uint position, int options);
 
-    [LibraryImport("libc", EntryPoint = "lgetxattr", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport("libc", EntryPoint = "lgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint LinuxGet(string path, string name, byte[]? value, nint size);
 
     [LibraryImport("libc", EntryPoint = "lsetxattr", StringMarshalling = StringMarshalling.Utf8)]

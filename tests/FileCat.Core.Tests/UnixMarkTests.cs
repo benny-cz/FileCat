@@ -65,4 +65,54 @@ public sealed class UnixMarkTests : IDisposable
         Assert.Empty(store.LoadAll());
         if (Directory.Exists(store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(store.Root));
     }
+
+    [Fact]
+    public void A_missing_source_is_not_reported_as_having_no_origin_mark()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("Unix xattr semantics only.");
+        var ops = new UnixFileOperations();
+        Assert.Throws<IOException>(() => ops.ReadOriginMark(Path.Combine(_dir.Path, "missing.bin")));
+    }
+
+    [Fact]
+    public void An_empty_origin_attribute_is_not_reported_as_an_absent_mark()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("Unix xattr semantics only.");
+        var ops = new UnixFileOperations();
+        string file = _dir.File("empty-origin.bin", "owned");
+        string name = OperatingSystem.IsMacOS() ? UnixFileOperations.QuarantineAttribute : UnixFileOperations.OriginAttribute;
+        Assert.True(Xattr.Set(file, name, string.Empty));
+        Assert.Throws<IOException>(() => ops.ReadOriginMark(file));
+    }
+
+    [Fact]
+    public void An_oversized_quarantine_attribute_is_refused_before_materialization()
+    {
+        if (!OperatingSystem.IsMacOS()) Assert.Skip("macOS quarantine xattr size only.");
+        var ops = new UnixFileOperations();
+        string file = _dir.File("large-quarantine.bin", "owned");
+        if (!Xattr.Set(file, UnixFileOperations.QuarantineAttribute, new string('x', 64 * 1024 + 1)))
+            Assert.Skip("This filesystem does not admit a quarantine attribute larger than 64 KiB.");
+        Assert.Throws<IOException>(() => ops.ReadOriginMark(file));
+    }
+
+    [Fact]
+    public void Mac_empty_quarantine_value_is_replaced_by_a_readable_mark()
+    {
+        if (!OperatingSystem.IsMacOS()) Assert.Skip("macOS quarantine semantics only.");
+        var ops = new UnixFileOperations();
+        string file = _dir.File("empty-quarantine-write.bin", "owned");
+        Assert.True(ops.WriteOriginMark(file, "[ZoneTransfer]\r\nZoneId=3\r\nQuarantine=\r\n"));
+        Assert.Contains("Quarantine=0081;", Assert.IsType<string>(ops.ReadOriginMark(file)));
+    }
+
+    [Fact]
+    public void Mac_oversized_quarantine_value_is_refused_before_write()
+    {
+        if (!OperatingSystem.IsMacOS()) Assert.Skip("macOS quarantine semantics only.");
+        var ops = new UnixFileOperations();
+        string file = _dir.File("large-quarantine-write.bin", "owned");
+        Assert.False(ops.WriteOriginMark(file, "[ZoneTransfer]\r\nZoneId=3\r\nQuarantine=" + new string('x', 64 * 1024 + 1) + "\r\n"));
+        Assert.Null(ops.ReadOriginMark(file));
+    }
 }

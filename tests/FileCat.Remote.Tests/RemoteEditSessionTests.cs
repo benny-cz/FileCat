@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -16,6 +17,18 @@ public sealed class RemoteEditSessionTests : IDisposable
     private readonly SftpProvider _sftp;
     private readonly JobManager _jobs;
     private readonly EditSessionStore _store;
+    private readonly MarkingOps _fs = new();
+
+    private sealed class MarkingOps : PortableFileOperations
+    {
+        private readonly ConcurrentDictionary<string, string> _marks = new(StringComparer.Ordinal);
+        public override string? ReadOriginMark(string path) => _marks.TryGetValue(path, out var mark) ? mark : null;
+        public override bool WriteOriginMark(string path, string mark)
+        {
+            _marks[path] = mark;
+            return true;
+        }
+    }
 
     public RemoteEditSessionTests()
     {
@@ -28,9 +41,8 @@ public sealed class RemoteEditSessionTests : IDisposable
         providers.Register(new LocalFileSystemProvider());
         providers.Register(_sftp);
         SftpJobs.Register();
-        var fs = new PortableFileOperations();
-        _jobs = new JobManager(fs, providers, Path.Combine(_dir, "journal"));
-        _store = new EditSessionStore(Path.Combine(_dir, "sessions"), fs);
+        _jobs = new JobManager(_fs, providers, Path.Combine(_dir, "journal"));
+        _store = new EditSessionStore(Path.Combine(_dir, "sessions"), _fs);
     }
 
     public void Dispose()
@@ -78,6 +90,7 @@ public sealed class RemoteEditSessionTests : IDisposable
         _server.File("/srv/app.conf", "port=80");
         var session = Start("/srv/app.conf");
         Assert.True(session.IsRemote);
+        Assert.NotNull(_fs.ReadOriginMark(session.WorkingPath));
         Assert.Equal(("app.conf", "user@files.example:/srv/app.conf"), (session.DisplayName, session.DisplayContainer));
         Assert.Equal("port=80", File.ReadAllText(session.WorkingPath));
         Assert.Equal(session.Id, _store.FindRemote(_profile.Id, "/srv/app.conf")!.Id);
