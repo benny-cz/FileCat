@@ -53,15 +53,27 @@ Dynamic: the read-only run above leaves the device byte-identical across two sca
 
 ## A short read at the very end of the volume, and its correction
 
-The direct/helper comparison asked for the last 5,000 bytes of the volume and **both paths returned 904** — equal short reads, which is exactly the acceptance risk [I110](FILECAT_1_0_RELEASE_ISSUES.md#i110) names. Measured with plain `CreateFile`/`ReadFile`, the volume device serves nothing from its last 4,096 bytes: `IOCTL_DISK_GET_LENGTH_INFO` reports the partition's `7,795,113,984`, while the volume reads end at `7,795,109,888` — exactly the size Windows itself reports for the file system (`1,903,103` clusters × 4,096). The same bytes read normally through `\\.\PhysicalDrive5`, so the NTFS **backup boot sector** is reachable from the whole disk and not through the volume.
+The direct/helper comparison asked for the last 5,000 bytes of the volume and **both paths returned 904** — equal short reads, which is exactly the acceptance risk [I110](../FILECAT_1_0_RELEASE_ISSUES.md#i110) names. Measured with plain `CreateFile`/`ReadFile`, the volume device serves nothing from its last 4,096 bytes: `IOCTL_DISK_GET_LENGTH_INFO` reports the partition's `7,795,113,984`, while the volume reads end at `7,795,109,888` — exactly the size Windows itself reports for the file system (`1,903,103` clusters × 4,096). The same bytes read normally through `\\.\PhysicalDrive5`, so the NTFS **backup boot sector** is reachable from the whole disk and not through the volume.
 
 FileCat was therefore telling a scan that 4,096 bytes existed which it could never read. `DeviceTopology.ServedLength` now probes the end once at open and reports what the device will actually serve, and both the direct source and the installed helper use it, so the two still agree on the source's size. Three unit controls fix the contract and the full Windows Platform suite passes 442 tests with 35 explicit skips. On the stick, the same comparison now reads the **full 5,000 bytes through both paths** at offset 7,795,104,888 with identical SHA-256, instead of two equal 904-byte reads.
 
 The two remaining live failures in both runs are the signed-program assertions: this stick no longer carries deleted signed programs, so nothing recovered can have a valid signature. That fixture is independent of the write question and of the two corrections above.
 
+## Run 3 — the destructive ground truth, all three file systems
+
+With the attribution settled, the owner's destructive authorization was used for the gate it exists for: `LiveDriveScenarioTests` formats the stick, writes generated files, has Windows delete most of them, scans through the helper's read protocol and compares **every byte FileCat calls recovered** with what was written. **All three cases pass**, 432 s in total.
+
+| File system | Written | Found | Bytes read back | States | Cluster size |
+|---|---|---|---|---|---|
+| FAT32 | 328 (74 MiB) | 328 | 74 MiB | 327 Recoverable, 1 Overwritten | 4,096 |
+| exFAT | 328 (74 MiB) | 328 | 74 MiB | 327 Recoverable, 1 Overwritten | 32,768 |
+| NTFS | 328 (71 MiB) | 326 | 71 MiB | 326 Recoverable | 4,096 |
+
+The fixture deliberately includes a file whose data is gone, a fragmented file and an overwritten one; the overwritten case is reported as `Overwritten` on FAT32 and exFAT with its missing range named, and the unrecoverable ones are not offered as recoverable. Each run's written and observed manifests are retained per file system. The stick is left formatted by the last case, as this gate requires; its previous contents remain in the retained `before-image.bin`.
+
 ## Retained private evidence
 
-`E:\FileCat\artifacts\release-evidence\i495-usb-source-safety-20261014-v1`, 24 files (15.6 GB, both full device images kept), self-excluding manifest `sha256.json` SHA-256 `67f0268557bcaea9f2495f7adbdadfaf2956f5fc07c2e829420430ca9f550da2`. It holds both full images, all five per-chunk hash lists (1,859 lines each) with their summaries and before/after source identities, the chunk comparison, the difference identification, the live test output, the scripts used, and the failing CI log for `925ef29b`. Unlike G6, a future difference on this stick can be located against these chunk hashes and read back from the images.
+`E:\FileCat\artifacts\release-evidence\i495-usb-source-safety-20261014-v1`, 32 files (14.5 GiB, both full device images kept), self-excluding manifest `sha256.json` SHA-256 `ba10565dfc005e6cb0c52d2537d6594ab88cfd550cb67e3774c91975d52164f6`. It holds both full images, all five per-chunk hash lists (1,859 lines each) with their summaries and before/after source identities, the chunk comparison, the difference identification, the live test output, the scripts used, the three destructive runs' written and observed manifests, and the failing CI log for `925ef29b`. Unlike G6, a future difference on this stick can be located against these chunk hashes and read back from the images.
 
 ## What this does not establish
 

@@ -88,6 +88,25 @@ An image of the stick in this state (7.8 GB, SHA-256 `42eb936a…52cb00`) keeps 
 `FILECAT_RECOVERY_LIVE_IMAGE=<image>` runs the same checks on it, with the same results (the free-space search takes
 1.4 s from a local disk).
 
+## The whole disk, and what a scan changes on the source (2026-10-15)
+
+Two gates were added on the authorized stick, both read-only.
+
+`LiveDriveRecoveryTests.A_whole_usb_disk_is_scanned_for_its_partitions_through_the_helper_protocol_and_directly`
+scans the **physical disk** instead of its volume, which is the lost-partition path: the scan has to find the
+partition itself. Through the helper's protocol and directly it reports the same thing, `NTFS at 1048576
+(7434 MiB)`, and the partition is found at its own offset rather than at byte zero.
+
+The same run answers what a scan changes on the source. With the volume mounted read/write, a full device image
+before and after differs in 4 of 1,859 chunks — 64 sectors, 32 KiB of 7.8 GB — and every changed sector is NTFS
+metadata (`RSTR`/`RCRD` journal records, `FILE` MFT records, `INDX` index blocks) at the volume's own structure
+offsets. With the disk made read-only at the storage layer, so that Windows cannot write either, the device hash is
+byte-identical before and after two scans: FileCat changed none of the 7,796,162,560 bytes. Every device open in the
+recovery paths asks for read access only, and the seven IOCTLs it issues are queries. This also caught a real
+instance of the equal-short-read risk: both paths returned 904 of the last 5,000 bytes of the volume and agreed,
+because a volume serves nothing from the final cluster that NTFS keeps outside its own extent, so a source now
+reports what it will actually serve. Full record: `docs/release/1.0.0/evidence/E-I495-usb-source-write-attribution.md`.
+
 ## A real drive with known contents (destructive, 2026-09-28)
 
 `LiveDriveScenarioTests` (opt-in: `FILECAT_RECOVERY_LIVE_DESTRUCTIVE=1` on top of the shared physical-device guard) formats the

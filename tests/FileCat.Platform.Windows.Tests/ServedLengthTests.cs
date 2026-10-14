@@ -41,7 +41,7 @@ public sealed class ServedLengthTests
     }
 
     [Fact]
-    public void A_source_whose_end_cannot_be_read_never_reports_more_than_it_claims()
+    public void A_few_sectors_the_source_cannot_serve_are_trimmed()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows device lengths.");
         string path = Path.Combine(Path.GetTempPath(), "filecat-served-" + Guid.NewGuid().ToString("N")[..8]);
@@ -49,10 +49,24 @@ public sealed class ServedLengthTests
         try
         {
             using var handle = File.OpenHandle(path);
-            // Claiming more than the source holds: the reported length is trimmed to what reads, never raised.
-            long served = DeviceTopology.ServedLength(handle, 16384, 512);
-            Assert.Equal(2048, served);
-            Assert.True(served <= 16384);
+            // Four sectors more than the source holds, the shape a file system's reserved tail has.
+            Assert.Equal(2048, DeviceTopology.ServedLength(handle, 4096, 512));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void A_source_that_cannot_serve_anything_near_its_end_keeps_the_length_it_claims()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows device lengths.");
+        string path = Path.Combine(Path.GetTempPath(), "filecat-served-" + Guid.NewGuid().ToString("N")[..8]);
+        File.WriteAllBytes(path, new byte[2048]);
+        try
+        {
+            using var handle = File.OpenHandle(path);
+            // A damaged source answers a refused read slowly, so the end is probed only a few times: far beyond
+            // that the device's own answer stands rather than a search down a failing device.
+            Assert.Equal(1L << 20, DeviceTopology.ServedLength(handle, 1L << 20, 512));
         }
         finally { File.Delete(path); }
     }

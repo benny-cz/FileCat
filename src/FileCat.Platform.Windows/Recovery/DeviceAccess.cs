@@ -1006,7 +1006,9 @@ public static unsafe partial class DeviceTopology
         if (length <= 0 || sectorSize is < 512 or > 65536) return length;
         var probe = new byte[sectorSize];
         long end = length / sectorSize * sectorSize;
-        for (long trimmed = 0; trimmed < 64 * 1024 && end >= sectorSize; trimmed += sectorSize, end -= sectorSize)
+        // A damaged source answers a refused read slowly, so the end is probed a few times at most: enough for a
+        // file system that keeps a sector or two outside its own extent, not a search down a failing device.
+        for (int attempt = 0; attempt < 16 && end >= sectorSize; attempt++, end -= sectorSize)
         {
             try
             {
