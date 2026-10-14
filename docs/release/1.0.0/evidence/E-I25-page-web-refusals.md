@@ -19,6 +19,7 @@ I25's remaining page scope named "fonts/CSS/permission/download/popup workflows"
 | Development host, elevated | Both controls pass; the four existing WebView2 controls also pass **unskipped**, with the installed runtime (155.0.4283.45) |
 | Disposable Windows 11 VM, signed-in medium session | Both controls pass; same refusal lists and completion reasons |
 | Same VM, elevated in that session | Both controls pass |
+| Owner's Mac (macOS 27.0.1, Apple Silicon), over SSH | The macOS smoke tool passes at this commit: the HTML page loads with its own title, so its script did not run, one remote request is refused; the Markdown page loads as `README.md` with nothing requested from the web; 12 of 12 engine lifecycles show both titles and no event arrives after disposal |
 
 The full Windows Platform suite passes **454 tests with 36 explicit skips** on the host.
 
