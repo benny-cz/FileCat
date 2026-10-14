@@ -135,7 +135,8 @@ public sealed partial class WindowsFileRecordsTests
     public void As_administrator_the_MFT_record_shows_a_creation_time_set_afterwards()
     {
         if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
-        string dir = NewFolder();
+        // These records come from the volume's own structures, so the fixtures need a volume FileCat may read raw.
+        string dir = RawReadableVolume.NewFolder("filecat-record-tests");
         try
         {
             string file = StompedFile(dir);
@@ -170,7 +171,8 @@ public sealed partial class WindowsFileRecordsTests
     public void As_administrator_the_live_log_shows_creation_and_a_time_change_while_history_is_retained()
     {
         if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
-        string dir = NewFolder();
+        // These records come from the volume's own structures, so the fixtures need a volume FileCat may read raw.
+        string dir = RawReadableVolume.NewFolder("filecat-record-tests");
         try
         {
             string file = StompedFile(dir);
@@ -211,7 +213,8 @@ public sealed partial class WindowsFileRecordsTests
     public void As_administrator_a_folder_shows_the_names_its_index_kept_after_deletes()
     {
         if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
-        string dir = NewFolder();
+        // These records come from the volume's own structures, so the fixtures need a volume FileCat may read raw.
+        string dir = RawReadableVolume.NewFolder("filecat-record-tests");
         try
         {
             if (!OnNtfs(dir)) Assert.Skip("The test folder is not on NTFS.");
@@ -347,7 +350,8 @@ public sealed partial class WindowsFileRecordsTests
     public void As_administrator_a_DACL_stored_without_inheritance_marks_is_the_same_as_Windows_reports()
     {
         if (!OperatingSystem.IsWindows() || !Environment.IsPrivilegedProcess) Assert.Skip("Needs Windows and administrator rights.");
-        string dir = NewFolder();
+        // These records come from the volume's own structures, so the fixtures need a volume FileCat may read raw.
+        string dir = RawReadableVolume.NewFolder("filecat-record-tests");
         try
         {
             if (!OnNtfs(dir)) Assert.Skip("The test folder is not on NTFS.");

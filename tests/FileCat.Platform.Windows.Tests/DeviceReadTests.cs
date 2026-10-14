@@ -163,16 +163,18 @@ public sealed class DeviceReadTests : IDisposable
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Drives are read directly on Windows.");
         string root = Path.GetPathRoot(_dir)!;
-        string device = DeviceTopology.VolumeDevice(root)!;
         using (var identity = WindowsIdentity.GetCurrent())
         {
             if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
             {
-                var refused = Assert.Throws<UnauthorizedAccessException>(() => DirectDeviceSource.Open(device, "drive " + root));
+                string unprivileged = DeviceTopology.VolumeDevice(root)!;
+                var refused = Assert.Throws<UnauthorizedAccessException>(() => DirectDeviceSource.Open(unprivileged, "drive " + root));
                 Assert.Contains("administrator", refused.Message, StringComparison.Ordinal);
                 return;
             }
         }
+        // Some systems refuse direct reads of their system volume for everyone; read one this computer allows.
+        string device = RawReadableVolume.VolumeDevice();
         using var source = DirectDeviceSource.Open(device, "drive " + root);
         Assert.True(source.Length > 1024 * 1024);
         Assert.InRange(source.SectorSize, 512, 65536);
