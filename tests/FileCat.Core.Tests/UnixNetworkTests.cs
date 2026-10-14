@@ -4,7 +4,7 @@ using FileCat.Core.Resources;
 namespace FileCat.Core.Tests;
 
 /// <summary>D-54 on Linux and macOS: the system's SMB tools read right, and a real Samba server where CI runs one.</summary>
-public sealed class UnixNetworkTests
+public sealed class UnixNetworkTests(ITestOutputHelper output)
 {
     private sealed class Sink : IEnumerationSink
     {
@@ -60,6 +60,23 @@ public sealed class UnixNetworkTests
         Assert.Equal(["public", "Private Stuff"], smbutil.Select(s => s.Name));
         Assert.Equal("Public files", smbutil[0].Comment);
         Assert.Null(smbutil[1].Comment);
+    }
+
+    [Fact]
+    public void A_near_budget_smbclient_reply_does_not_allocate_a_field_per_separator()
+    {
+        string reply = "Disk|public|Public files\n" + new string('|', 999_900) + "\nDisk|backup|Backups\n";
+        _ = SmbTools.ParseSmbclient("Disk|warmup|\n");
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        var shares = SmbTools.ParseSmbclient(reply);
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"SMB_SHARE_PARSE_ALLOCATED_BYTES={allocated}; INPUT_CHARACTERS={reply.Length}");
+        Assert.Equal(["public", "backup"], shares.Select(share => share.Name));
+        Assert.Equal("Public files", shares[0].Comment);
+        Assert.Equal("Backups", shares[1].Comment);
+        Assert.InRange(allocated, 0, 8 * 1024 * 1024);
     }
 
     [Fact]

@@ -181,11 +181,22 @@ public static partial class SmbTools
     internal static List<SmbShare> ParseSmbclient(string output)
     {
         var shares = new List<SmbShare>();
-        foreach (string line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        ReadOnlySpan<char> remaining = output;
+        while (!remaining.IsEmpty)
         {
-            var parts = line.Split('|');
-            if (parts.Length >= 2 && parts[0] == "Disk" && parts[1].Length > 0)
-                shares.Add(new SmbShare(parts[1], parts.Length > 2 && parts[2].Length > 0 ? parts[2] : null));
+            int newline = remaining.IndexOf('\n');
+            ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
+            remaining = newline < 0 ? [] : remaining[(newline + 1)..];
+            ReadOnlySpan<char> line = raw.Trim();
+            if (!line.StartsWith("Disk|", StringComparison.Ordinal)) continue;
+            ReadOnlySpan<char> fields = line["Disk|".Length..];
+            int separator = fields.IndexOf('|');
+            ReadOnlySpan<char> name = separator < 0 ? fields : fields[..separator];
+            if (name.IsEmpty) continue;
+            ReadOnlySpan<char> comment = separator < 0 ? [] : fields[(separator + 1)..];
+            int next = comment.IndexOf('|');
+            if (next >= 0) comment = comment[..next];
+            shares.Add(new SmbShare(name.ToString(), comment.IsEmpty ? null : comment.ToString()));
         }
         return shares;
     }
