@@ -266,29 +266,10 @@ public sealed class JobJournal : IDisposable
         return Encoding.UTF8.GetString(bytes);
     }
 
-    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
-    private static extern int OpenUnix(string path, int flags);
-
     [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
     private static extern int Flock(int fd, int operation);
 
-    internal static SafeFileHandle OpenUnixRegularFile(string path)
-    {
-        int flags = OperatingSystem.IsMacOS() ? 4 | 16777216 : 2048 | 524288; // O_NONBLOCK | O_CLOEXEC
-        int fd = OpenUnix(path, flags); // O_RDONLY is zero on both systems.
-        if (fd < 0) throw new IOException("The job journal could not be opened.");
-        var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
-        try
-        {
-            if (UnixFiles.Stat(handle) is { IsRegular: true }) return handle;
-            throw new IOException("The job journal is not a regular file.");
-        }
-        catch
-        {
-            handle.Dispose();
-            throw;
-        }
-    }
+    internal static SafeFileHandle OpenUnixRegularFile(string path) => UnixFiles.OpenRegularFileForRead(path);
 
     internal static bool UnixJournalInUse(string path)
     {

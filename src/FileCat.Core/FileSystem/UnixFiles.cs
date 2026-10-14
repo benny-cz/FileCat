@@ -91,6 +91,26 @@ public static unsafe partial class UnixFiles
         return null;
     }
 
+    /// <summary>Open a regular Unix file without waiting on a FIFO or device. The type check uses the opened descriptor.</summary>
+    internal static SafeFileHandle OpenRegularFileForRead(string path)
+    {
+        if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        int flags = OperatingSystem.IsMacOS() ? 4 | 16777216 : 2048 | 524288; // O_RDONLY(0) | O_NONBLOCK | O_CLOEXEC
+        int fd = OpenReadOnly(path, flags);
+        if (fd < 0) throw new IOException("The input file could not be opened.");
+        var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+        try
+        {
+            if (Stat(handle) is { IsRegular: true }) return handle;
+            throw new IOException("The input is not a regular file.");
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
     // struct statx: u32 returned mask at 0, u16 mode at 28, u64 ino at 32, u64 size at 40, ctime seconds/nanoseconds at 96/104,
     // u32 dev_major at 136, u32 dev_minor at 140.
     private static UnixStat FromStatx(byte* b)
@@ -156,6 +176,9 @@ public static unsafe partial class UnixFiles
 
     [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8)]
     private static partial byte* RealPathNative(string path, byte* resolved);
+
+    [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int OpenReadOnly(string path, int flags);
 
     [LibraryImport("libc", EntryPoint = "statx", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int Statx(int directory, string path, int flags, uint mask, byte* buffer);

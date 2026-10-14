@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -31,6 +32,8 @@ internal sealed partial class VerificationJsonContext : JsonSerializerContext;
 public sealed class VerificationCache(string? file)
 {
     public const int MaxEntries = 20_000;
+    private const int MaxCacheLineBytes = 1024 * 1024;
+    private const int MaxCacheFileBytes = 64 * 1024 * 1024;
     private readonly Dictionary<string, VerificationCacheEntry> _entries = new(StringComparer.Ordinal);
     private readonly object _lock = new();
     private bool _loaded;
@@ -131,7 +134,7 @@ public sealed class VerificationCache(string? file)
         if (file is null || !File.Exists(file)) return;
         try
         {
-            foreach (string line in File.ReadLines(file))
+            foreach (string line in ReadBoundedLines(file))
             {
                 _lines++;
                 try
@@ -146,7 +149,64 @@ public sealed class VerificationCache(string? file)
                 catch (JsonException) { } // a line cut short by a crash: the rest still counts
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // The persisted cache is disposable. Replace an oversized file at the next append.
+            _lines = 2 * MaxEntries;
+        }
+    }
+
+    /// <summary>Read an owned cache with finite byte budgets; one damaged line does not hide later valid results.</summary>
+    private static IEnumerable<string> ReadBoundedLines(string path)
+    {
+        using var input = OperatingSystem.IsWindows()
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read, 64 * 1024);
+        if (input.Length > MaxCacheFileBytes) throw new InvalidDataException("Verification cache exceeds its input limit.");
+        var chunk = new byte[64 * 1024];
+        var line = new ArrayBufferWriter<byte>(4096);
+        bool discard = false, first = true;
+        long total = 0;
+        int read;
+        while ((read = input.Read(chunk)) != 0)
+        {
+            total += read;
+            if (total > MaxCacheFileBytes) throw new InvalidDataException("Verification cache grew beyond its input limit.");
+            for (int i = 0; i < read; i++)
+            {
+                byte value = chunk[i];
+                if (value == (byte)'\n')
+                {
+                    if (!discard) yield return DecodeLine(line, first);
+                    first = false;
+                    discard = false;
+                    line.Clear();
+                }
+                else if (!discard)
+                {
+                    if (line.WrittenCount == MaxCacheLineBytes)
+                    {
+                        discard = true;
+                        line.Clear();
+                    }
+                    else
+                    {
+                        line.GetSpan(1)[0] = value;
+                        line.Advance(1);
+                    }
+                }
+            }
+        }
+        if (!discard && line.WrittenCount != 0) yield return DecodeLine(line, first);
+    }
+
+    private static string DecodeLine(ArrayBufferWriter<byte> line, bool first)
+    {
+        ReadOnlySpan<byte> bytes = line.WrittenSpan;
+        if (bytes.Length > 0 && bytes[^1] == (byte)'\r') bytes = bytes[..^1];
+        if (first && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            bytes = bytes[3..];
+        return Encoding.UTF8.GetString(bytes);
     }
 
     private void TrimRecent()
