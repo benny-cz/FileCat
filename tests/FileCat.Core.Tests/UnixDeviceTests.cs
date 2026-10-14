@@ -1,5 +1,6 @@
 using FileCat.Recovery;
 using FileCat.Recovery.Unix;
+using System.Runtime.InteropServices;
 
 namespace FileCat.Core.Tests;
 
@@ -9,6 +10,9 @@ namespace FileCat.Core.Tests;
 /// </summary>
 public sealed class UnixDeviceTests : IDisposable
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
     private readonly TempDir _dir = new();
 
     public void Dispose() => _dir.Dispose();
@@ -16,6 +20,36 @@ public sealed class UnixDeviceTests : IDisposable
     private static byte[] Hex(string hex) => Convert.FromHexString(hex.Replace(" ", ""));
 
     private static string AsciiHex(string text) => Convert.ToHexString(System.Text.Encoding.ASCII.GetBytes(text));
+
+    [Fact]
+    public void Linux_discovery_does_not_wait_on_an_owned_sysfs_fifo()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix FIFO control.");
+        string sys = Path.Combine(_dir.Path, "sys");
+        string block = Path.Combine(sys, "block", "sdb");
+        Directory.CreateDirectory(block);
+        Assert.Equal(0, MakeFifo(Path.Combine(block, "size"), 384));
+        string mountInfo = Path.Combine(_dir.Path, "mountinfo");
+        File.WriteAllText(mountInfo, "");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Empty(UnixDisks.Linux(sys, mountInfo));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Discovery took {clock.Elapsed}.");
+    }
+
+    [Fact]
+    public void Linux_discovery_does_not_materialize_an_oversized_sysfs_value()
+    {
+        string sys = Path.Combine(_dir.Path, "sys");
+        string block = Path.Combine(sys, "block", "sdb");
+        Directory.CreateDirectory(block);
+        File.WriteAllText(Path.Combine(block, "size"), new string('1', 4 * 1024 * 1024));
+        string mountInfo = Path.Combine(_dir.Path, "mountinfo");
+        File.WriteAllText(mountInfo, "");
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        Assert.Empty(UnixDisks.Linux(sys, mountInfo));
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 1_000_000, $"Discovery allocated {allocated:N0} bytes.");
+    }
 
     [Fact]
     public void A_method_call_is_marshalled_as_the_bus_reads_it()

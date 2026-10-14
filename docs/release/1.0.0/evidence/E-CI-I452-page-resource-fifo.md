@@ -1,0 +1,9 @@
+# E-CI-I452 — exact pushed-source page-resource FIFO qualification
+
+Exact source `a5e4b60252e31a929abd47c5d7a0956271bae277` ran in [GitHub Actions 38494871494](https://github.com/benny-cz/FileCat/actions/runs/38494871494). Producer policy, Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26 all succeeded; four tag/manual-only jobs skipped. The 27 server-digested ZIP artifacts contain **2,762 members** and fourteen TRX with **33,293 passes/1,179 explicit skips/zero failures**. This is hosted source qualification, not a release-candidate artifact.
+
+The independent comparison with the preceding green I450/I451 run 38493630078 retains all **34,468** prior test result/name/message/skip rows. Only the new `HtmlPageTests.A_page_does_not_open_an_adjacent_fifo_waiting_for_a_writer` row appears: a pass on Mac and Ubuntu and an explicit `Unix FIFO control.` skip on both Windows lanes. No predecessor row changed. The original I452 local physical-Mac old-call FIFO timeout and the native corrected tests remain separately recorded in [E-I452](E-I452-page-resource-fifo.md).
+
+Private archive `V:\FileCat\artifacts\release-evidence\ci-i452-20261014-v1` retains API run/job/artifact responses, server digests, all ZIPs, member inventory, TRX inventory and the audit. Independent file rehash passed for all **35** files: manifest SHA-256 `0473569c0baa09cd3ad03d2abc0a4bfcda0fa8a250201a0314b8a539d071a810`, audit SHA-256 `730e0db24a7bee8cb2f5f2513de680dd28402b2541ffcdaee53b1b107b9f9876`. The separate two-file comparison archive `ci-i452-comparison-20261014-v1` rehashes under manifest SHA-256 `da49acdc4851b30786436c0a246d49861062af2529814111a1382374b22ea7e9`.
+
+This does not qualify later I453/I454/I455 source, all special-file kinds or races, an installed UI, a frozen candidate or physical-source recovery. I106/I110 remains on HOLD; stable publication still requires explicit human GO.

@@ -1,6 +1,8 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Xml.Linq;
 using FileCat.Core.FileSystem;
 using Microsoft.Win32.SafeHandles;
@@ -274,6 +276,10 @@ public sealed record UnixBlockDevice(string Device, long Length, string? Model, 
 public static class UnixDisks
 {
     private const int MaxToolOutputCharacters = 4 << 20;
+    private const int MaxSysfsValueBytes = 4096;
+
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenUnixReadOnly(string path, int flags);
     /// <summary>Mounted file systems whose deleted files a scan finds.</summary>
     public static readonly string[] RecoverableTypes = ["vfat", "msdos", "exfat", "ntfs", "ntfs3", "fuseblk"];
 
@@ -330,9 +336,38 @@ public static class UnixDisks
         try
         {
             string path = Path.Combine(dir, file);
-            return File.Exists(path) ? File.ReadAllText(path).Trim() : null;
+            if (!File.Exists(path)) return null;
+            // sysfs normally yields a short value from a zero-length pseudo-file. Opening a substituted FIFO
+            // normally waits for a writer, so Unix opens nonblocking and refuses a nonseekable descriptor.
+            FileStream input;
+            if (OperatingSystem.IsWindows())
+                input = File.OpenRead(path);
+            else
+            {
+                int nonblock = OperatingSystem.IsMacOS() ? 4 : 2048;
+                int closeOnExec = OperatingSystem.IsMacOS() ? 16777216 : 524288;
+                int fd = OpenUnixReadOnly(path, nonblock | closeOnExec);
+                if (fd < 0) return null;
+                var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+                try { input = new FileStream(handle, FileAccess.Read); }
+                catch { handle.Dispose(); throw; }
+            }
+            using (input)
+            {
+                if (!input.CanSeek || input.Length > MaxSysfsValueBytes) return null;
+                byte[] bytes = new byte[MaxSysfsValueBytes + 1];
+                int total = 0;
+                while (total < bytes.Length)
+                {
+                    int count = input.Read(bytes, total, bytes.Length - total);
+                    if (count == 0) break;
+                    total += count;
+                }
+                if (total > MaxSysfsValueBytes) return null;
+                return Encoding.UTF8.GetString(bytes, 0, total).Trim();
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             return null;
         }
