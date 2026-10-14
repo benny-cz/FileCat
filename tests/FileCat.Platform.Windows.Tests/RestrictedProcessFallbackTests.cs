@@ -12,7 +12,7 @@ public sealed partial class RestrictedProcessFallbackTests
     [InlineData(0)]
     [InlineData(4096)]
     [InlineData(8192)]
-    public unsafe void A_separate_token_lowered_to_ordinary_integrity_allows_fallback(int integrity)
+    public unsafe void A_separate_token_lowered_to_ordinary_integrity_keeps_its_elevation_boundary(int integrity)
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows worker token boundary.");
         using var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query | TokenAccessLevels.Duplicate);
@@ -30,7 +30,33 @@ public sealed partial class RestrictedProcessFallbackTests
                     throw new Win32Exception(Marshal.GetLastPInvokeError());
             }
             Assert.Equal($"S-1-16-{integrity}", ActualIntegritySID(copy));
-            Assert.True(RestrictedProcess.CanUseFallbackToken(copy.DangerousGetHandle()));
+            Assert.Equal(ActualElevation(identity.AccessToken), ActualElevation(copy));
+            Assert.Equal(!ActualElevation(copy), RestrictedProcess.CanUseFallbackToken(copy.DangerousGetHandle()));
+        }
+    }
+
+    [Fact]
+    public unsafe void An_elevated_administrator_token_lowered_to_medium_integrity_refuses_fallback()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows worker token boundary.");
+        using var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query | TokenAccessLevels.Duplicate);
+        if (!ActualElevation(identity.AccessToken)) Assert.Skip("An elevated administrator parent is required.");
+        if (!DuplicateTokenEx(identity.AccessToken, 0x88, 0, 2, 1, out var copy))
+            throw new Win32Exception(Marshal.GetLastPInvokeError());
+        using (copy)
+        {
+            var sid = new SecurityIdentifier("S-1-16-8192");
+            var bytes = new byte[sid.BinaryLength];
+            sid.GetBinaryForm(bytes, 0);
+            fixed (byte* address = bytes)
+            {
+                var label = new Label { SID = (nint)address, Attributes = 0x20 };
+                if (!SetTokenInformation(copy, 25, ref label, Marshal.SizeOf<Label>() + bytes.Length))
+                    throw new Win32Exception(Marshal.GetLastPInvokeError());
+            }
+            Assert.Equal("S-1-16-8192", ActualIntegritySID(copy));
+            Assert.True(ActualElevation(copy));
+            Assert.False(RestrictedProcess.CanUseFallbackToken(copy.DangerousGetHandle()));
         }
     }
 
@@ -60,7 +86,20 @@ public sealed partial class RestrictedProcessFallbackTests
         using var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query);
         string actual = ActualIntegritySID(identity.AccessToken);
         uint integrity = uint.Parse(actual[(actual.LastIndexOf('-') + 1)..], System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Equal(integrity <= 8192, RestrictedProcess.CanUseFallbackToken(identity.AccessToken.DangerousGetHandle()));
+        Assert.Equal(integrity <= 8192 && !ActualElevation(identity.AccessToken),
+            RestrictedProcess.CanUseFallbackToken(identity.AccessToken.DangerousGetHandle()));
+    }
+
+    private static bool ActualElevation(SafeAccessTokenHandle token)
+    {
+        nint data = Marshal.AllocHGlobal(sizeof(int));
+        try
+        {
+            if (!GetTokenInformation(token, 20, data, sizeof(int), out int returned) || returned != sizeof(int))
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+            return Marshal.ReadInt32(data) != 0;
+        }
+        finally { Marshal.FreeHGlobal(data); }
     }
 
     private static string ActualIntegritySID(SafeAccessTokenHandle token)

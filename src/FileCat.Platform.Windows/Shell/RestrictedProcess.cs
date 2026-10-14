@@ -103,9 +103,14 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         finally { CloseHandle(token); }
     }
 
-    /// <summary>The ordinary fallback requires a positively queried process token at most medium integrity.</summary>
+    /// <summary>The ordinary fallback requires a non-elevated token at most medium integrity.</summary>
     internal static bool CanUseFallbackToken(nint token)
     {
+        // Integrity can be lowered on a duplicated full administrator token without removing
+        // its privileges. Never treat that token as safe for an ordinary worker fallback.
+        int elevated = 0;
+        if (!GetTokenInformation(token, TokenElevation, (nint)(&elevated), sizeof(int), out uint elevationSize) ||
+            elevationSize != sizeof(int) || elevated != 0) return false;
         GetTokenInformation(token, TokenIntegrityLevel, 0, 0, out uint size);
         if (size == 0) return false;
         nint data = Marshal.AllocHGlobal(checked((int)size));
@@ -278,7 +283,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     private const uint JOB_OBJECT_UILIMIT_READCLIPBOARD = 0x2, JOB_OBJECT_UILIMIT_WRITECLIPBOARD = 0x4, JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS = 0x8,
         JOB_OBJECT_UILIMIT_DISPLAYSETTINGS = 0x10, JOB_OBJECT_UILIMIT_GLOBALATOMS = 0x20, JOB_OBJECT_UILIMIT_DESKTOP = 0x40, JOB_OBJECT_UILIMIT_EXITWINDOWS = 0x80;
     private const uint TOKEN_ASSIGN_PRIMARY = 0x1, TOKEN_DUPLICATE = 0x2, TOKEN_QUERY = 0x8, TOKEN_ADJUST_DEFAULT = 0x80;
-    private const int SecurityImpersonation = 2, TokenPrimary = 1, TokenIntegrityLevel = 25;
+    private const int SecurityImpersonation = 2, TokenPrimary = 1, TokenElevation = 20, TokenIntegrityLevel = 25;
     private const uint SE_GROUP_INTEGRITY = 0x20;
 
     [StructLayout(LayoutKind.Sequential)]
