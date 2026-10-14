@@ -231,6 +231,24 @@ public sealed class WindowsFileOperationsTests : IDisposable
     }
 
     [Fact]
+    public void Origin_writer_refuses_an_unreadable_oversized_mark_without_replacing_an_existing_mark()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var file = Path.Combine(_root, "bounded-mark.bin");
+        File.WriteAllBytes(file, [1, 2, 3]);
+        if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
+        const string prefix = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=";
+        var largestReadable = prefix + new string('a', 64 * 1024 - prefix.Length);
+        Assert.True(_ops.WriteOriginMark(file, largestReadable));
+        Assert.Equal(largestReadable, _ops.ReadOriginMark(file));
+
+        Assert.False(_ops.WriteOriginMark(file, largestReadable + "b"));
+        Assert.Equal(largestReadable, _ops.ReadOriginMark(file));
+        Assert.False(_ops.WriteOriginMark(file, prefix + new string('é', 32 * 1024)));
+        Assert.Equal(largestReadable, _ops.ReadOriginMark(file));
+    }
+
+    [Fact]
     public async Task Extraction_does_not_publish_when_the_archive_download_mark_cannot_be_read()
     {
         if (!OperatingSystem.IsWindows()) return;

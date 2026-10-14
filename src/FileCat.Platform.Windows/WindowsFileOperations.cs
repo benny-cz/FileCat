@@ -141,11 +141,16 @@ public partial class WindowsFileOperations : PortableFileOperations
     {
         try
         {
+            // A mark we cannot read back is not a preserved security attribute. Refuse it before
+            // FileMode.Create can replace an existing, readable Zone.Identifier stream.
+            if (mark.Length > MaxOriginMarkBytes) return false;
+            var bytes = System.Text.Encoding.UTF8.GetBytes(mark);
+            if (bytes.Length > MaxOriginMarkBytes) return false;
             // Writing a stream makes NTFS stamp the file as modified now. The file's own time is put back through the same
             // handle, so marking an extracted or downloaded file never loses the time it came with.
             var modified = File.GetLastWriteTimeUtc(path);
             using var stream = new FileStream(path + ZoneStream, FileMode.Create, FileAccess.Write, FileShare.None);
-            stream.Write(System.Text.Encoding.UTF8.GetBytes(mark));
+            stream.Write(bytes);
             File.SetLastWriteTimeUtc(stream.SafeFileHandle, modified);
             return true;
         }

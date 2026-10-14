@@ -8,4 +8,4 @@ The final affected edit-commit class passes **38/38**. The complete headless Win
 
 The 12-file private archive `V:\FileCat\artifacts\release-evidence\i466-edit-commit-checkpoint-20261014-v1` retains both affected TRX, final complete App TRX, the cancelled invocation note/log, zero-error build and source diff. Independent member rehash passes under manifest SHA-256 `2841f6a9845282f377ad654fbea1171b38d600909a99f09ebacc5e3bb8da392a`.
 
-The longer bound is not proof that a stuck job cannot occur. Exact corrected-source CI, installed UI and candidate qualification remain. I106/I110 physical-source HOLD and explicit human GO remain unchanged.
+The longer bound is not proof that a stuck job cannot occur. [Exact corrected-source CI](E-CI-I466-edit-commit-checkpoint.md) passes five required jobs and preserves every predecessor test row. Installed UI and candidate qualification remain. I106/I110 physical-source HOLD and explicit human GO remain unchanged.
