@@ -175,6 +175,38 @@ public sealed class ArchiveUpdateTests : IDisposable
         }
     }
 
+    private sealed class ChangePublishedMarkDuringBackupReadUnixFileOperations(
+        string archive, string firstReplacement) : UnixFileOperations
+    {
+        public const string NewMark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/new-mark.zip\r\nQuarantine=0081;12345678;FileCat;new-mark\r\n";
+        public bool SwappedSource { get; private set; }
+        public bool ChangedPublication { get; private set; }
+        public byte[]? PublishedBytes { get; private set; }
+        public string? InjectedMark { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (!SwappedSource && string.Equals(path, archive, StringComparison.Ordinal))
+            {
+                if (mark is null) throw new IOException("The controlled source had no original mark.");
+                File.Move(firstReplacement, archive, overwrite: true);
+                SwappedSource = true;
+            }
+            else if (SwappedSource && !ChangedPublication &&
+                     Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal))
+            {
+                PublishedBytes = File.ReadAllBytes(archive);
+                if (!base.WriteOriginMark(archive, NewMark))
+                    throw new IOException("The controlled replacement mark could not be written.");
+                InjectedMark = base.ReadOriginMark(archive) ??
+                    throw new IOException("The controlled replacement mark could not be read back.");
+                ChangedPublication = true;
+            }
+            return mark;
+        }
+    }
+
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
@@ -430,6 +462,37 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.Equal(operations.InjectedMark, operations.ReadOriginMark(zip));
         string preserved = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
         Assert.Equal(firstBytes, File.ReadAllBytes(preserved));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_changed_download_mark_on_publication_during_rollback_is_not_discarded()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled changed origin mark uses Unix extended attributes.");
+        string zip = MakeZip("changed-mark-source.zip", ("record.txt", "original"));
+        string first = MakeZip("changed-mark-first.zip", ("record.txt", "first change"));
+        byte[] firstBytes = File.ReadAllBytes(first);
+        const string oldMark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/old-mark.zip\r\nQuarantine=0081;12345678;FileCat;old-mark\r\n";
+        var native = new UnixFileOperations();
+        Assert.True(native.WriteOriginMark(zip, oldMark));
+        Assert.True(native.WriteOriginMark(first, oldMark));
+        string normalizedOldMark = Assert.IsType<string>(native.ReadOriginMark(zip));
+        var operations = new ChangePublishedMarkDuringBackupReadUnixFileOperations(zip, first);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.SwappedSource);
+        Assert.True(operations.ChangedPublication);
+        Assert.NotEqual(normalizedOldMark, operations.InjectedMark);
+        Assert.Equal(operations.InjectedMark, operations.ReadOriginMark(zip));
+        Assert.Equal(operations.PublishedBytes, File.ReadAllBytes(zip));
+        string preserved = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
+        Assert.Equal(firstBytes, File.ReadAllBytes(preserved));
+        Assert.Equal(normalizedOldMark, native.ReadOriginMark(preserved));
         Assert.Equal(JobState.Failed, job.State);
         Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
         Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));

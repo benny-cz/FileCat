@@ -199,11 +199,12 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                             intendedPublishedIdentity is not null &&
                             !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
                             throw new IOException("The published archive pathname changed before restoration.");
-                        // If the source was unmarked, a newly added Internet mark on the
-                        // publication belongs to a concurrent change, even when bytes and inode
-                        // are unchanged. Retain both files for inspection instead of erasing it.
-                        if (mark is null && Fs.ReadOriginMark(archive) is not null)
-                            throw new IOException("The published archive gained a download mark before restoration.");
+                        // A newly added or changed Internet mark belongs to a concurrent change,
+                        // even when bytes and inode are unchanged. If a mark disappeared, rolling
+                        // back to the marked backup is still the safe result.
+                        if (Fs.ReadOriginMark(archive) is { } currentMark &&
+                            !string.Equals(currentMark, mark, StringComparison.Ordinal))
+                            throw new IOException("The published archive's download mark changed before restoration.");
                         if (!DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(intendedPublishedDigest))
                             throw new IOException("The published archive pathname changed before restoration.");
                         // Restore the whole file that occupied the pathname at replacement time,
