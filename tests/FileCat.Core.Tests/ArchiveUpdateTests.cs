@@ -251,6 +251,28 @@ public sealed class ArchiveUpdateTests : IDisposable
     }
 
     [Fact]
+    public async Task A_same_metadata_replacement_before_open_is_not_modified()
+    {
+        string zip = MakeZip("planned.zip", ("record.txt", "alpha"));
+        var baseline = ArchiveBaseline.Of(zip);
+        string replacement = MakeZip("concurrent.zip", ("record.txt", "bravo"));
+        byte[] concurrentBytes = File.ReadAllBytes(replacement);
+        Assert.Equal(baseline.Length, concurrentBytes.LongLength);
+        File.SetLastWriteTimeUtc(replacement, new DateTime(baseline.LastWriteUtcTicks, DateTimeKind.Utc));
+        File.Move(replacement, zip, overwrite: true);
+        Assert.Equal(baseline.Length, new FileInfo(zip).Length);
+        Assert.Equal(baseline.LastWriteUtcTicks, File.GetLastWriteTimeUtc(zip).Ticks);
+
+        var job = await RunAsync(new ArchivePlan(zip, baseline,
+            [new ArchiveChange(ArchiveChangeKind.Delete, "record.txt")]));
+
+        Assert.Equal(concurrentBytes, File.ReadAllBytes(zip));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal("bravo", Read(zip)["record.txt"]);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
     public async Task Pack_creates_an_archive_of_files_and_folders_with_empty_folders_kept()
     {
         string src = _dir.Dir("pack");

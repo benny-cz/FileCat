@@ -47,7 +47,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         bool updating = plan.Baseline is not null;
         if (updating)
         {
-            if (!plan.Baseline!.Matches(archive))
+            if (!plan.Baseline!.Matches(archive, Job.Checkpoint))
                 throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
             if ((File.GetAttributes(archive) & FileAttributes.ReadOnly) != 0)
                 throw new UnauthorizedAccessException("The archive is read-only; clear its read-only attribute first.");
@@ -80,6 +80,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 // The pathname can be replaced while this descriptor remains open on Unix. Retain
                 // the bytes we actually opened so the replacement backup can be checked later.
                 openedSourceDigest = DigestOpened(sourceStream);
+                if (!string.Equals(Convert.ToHexString(openedSourceDigest), plan.Baseline!.Sha256Hex, StringComparison.Ordinal))
+                    throw new IOException("The archive changed after it was opened, so this change was not applied. Open it again and repeat the change.");
                 source = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: true);
                 if (source.Entries.FirstOrDefault(e => e.IsEncrypted) is { } encrypted)
                     throw new NotSupportedException($"The archive has encrypted members (for example \"{encrypted.FullName}\"), which FileCat cannot re-create, so it cannot be changed here.");
@@ -127,7 +129,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 output.Flush(flushToDisk: true);
             }
             Verify(temp, written);
-            if (updating && !plan.Baseline!.Matches(archive))
+            if (updating && !plan.Baseline!.Matches(archive, Job.Checkpoint))
                 throw new IOException("The archive changed while it was being rebuilt; the original was kept.");
             string? mark = updating ? Fs.ReadOriginMark(archive) : null;
             if (mark is not null &&

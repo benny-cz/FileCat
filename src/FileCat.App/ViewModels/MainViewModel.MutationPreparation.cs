@@ -30,7 +30,10 @@ public sealed partial class MainViewModel
                     Check(); var info = fs.TryGetInfo(archive) ?? throw new FileNotFoundException("The archive no longer exists.", archive);
                     if (info.IsDirectory) throw new IOException("The archive path is a folder.");
                     if (info.IsReadOnly) throw new UnauthorizedAccessException("The archive file is read-only; clear its read-only attribute to change it.");
-                    return new ArchiveBaseline(info.Size, info.ModifiedUtc.Ticks);
+                    var revision = ArchiveBaseline.Of(archive, Check);
+                    if (revision.Length != info.Size || revision.LastWriteUtcTicks != info.ModifiedUtc.Ticks)
+                        throw new IOException("The archive changed while its update was being prepared; refresh and try again.");
+                    return revision;
                 }
                 var baseline = ReadRevision();
                 using var zip = ZipFile.OpenRead(archive);

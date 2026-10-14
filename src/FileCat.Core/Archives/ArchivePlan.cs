@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace FileCat.Core.Archives;
 
@@ -23,19 +24,39 @@ public enum ArchiveChangeKind
 public sealed record ArchiveChange(ArchiveChangeKind Kind, string MemberPath, string? SourcePath = null, string? NewMemberPath = null, int? Ordinal = null);
 
 /// <summary>The archive as the plan saw it; any later change makes the update refuse instead of losing that change.</summary>
-public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks)
+public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks, string Sha256Hex)
 {
-    public static ArchiveBaseline Of(string path)
+    public static ArchiveBaseline Of(string path, Action? checkpoint = null)
     {
         var info = new FileInfo(path);
         if (!info.Exists) throw new FileNotFoundException("The archive no longer exists.", path);
-        return new ArchiveBaseline(info.Length, info.LastWriteTimeUtc.Ticks);
+        long length = info.Length;
+        long modified = info.LastWriteTimeUtc.Ticks;
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            64 * 1024, FileOptions.SequentialScan);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[1024 * 1024];
+        int read;
+        while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
+        {
+            checkpoint?.Invoke();
+            hash.AppendData(buffer, 0, read);
+        }
+        checkpoint?.Invoke();
+        info.Refresh();
+        if (!info.Exists || info.Length != length || info.LastWriteTimeUtc.Ticks != modified)
+            throw new IOException("The archive changed while its revision was being read.");
+        return new ArchiveBaseline(length, modified, Convert.ToHexString(hash.GetHashAndReset()));
     }
 
-    public bool Matches(string path)
+    public bool Matches(string path, Action? checkpoint = null)
     {
         var info = new FileInfo(path);
-        return info.Exists && info.Length == Length && info.LastWriteTimeUtc.Ticks == LastWriteUtcTicks;
+        if (!info.Exists || info.Length != Length || info.LastWriteTimeUtc.Ticks != LastWriteUtcTicks)
+            return false;
+        try { return this == Of(path, checkpoint); }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
     }
 }
 

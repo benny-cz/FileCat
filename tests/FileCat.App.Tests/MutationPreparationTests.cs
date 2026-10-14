@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -140,16 +141,18 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
     [AvaloniaTheory]
     [InlineData("delete", "unchanged")]
     [InlineData("delete", "changed")]
+    [InlineData("delete", "same-metadata")]
     [InlineData("delete", "shutdown")]
     [InlineData("folder", "unchanged")]
     [InlineData("folder", "changed")]
+    [InlineData("folder", "same-metadata")]
     [InlineData("folder", "shutdown")]
     public async Task Archive_prompts_keep_the_preapproval_revision_and_shutdown_cannot_submit(string operation, string action)
     {
         using var f = new Fixture(); await f.Load(true);
         var task = f.StartArchive(operation); await Wait(() => f.Button(operation == "delete" ? "Delete" : "Create") is not null);
         if (operation == "folder") f.Window.GetVisualDescendants().OfType<TextBox>().Single(t => t.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop"))).Text = "new-folder";
-        if (action == "changed") f.ReplaceArchive();
+        if (action is "changed" or "same-metadata") f.ReplaceArchive(action == "same-metadata");
         var approvedHash = f.Hash(); var approvedBaseline = ArchiveBaseline.Of(f.Archive);
         if (action == "shutdown") f.Services.Io.Dispose();
         f.Click(operation == "delete" ? "Delete" : "Create"); await task.WaitAsync(TimeSpan.FromSeconds(15));
@@ -159,7 +162,7 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         else
         {
             var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished());
-            if (action == "changed") { Assert.NotEqual(approvedBaseline, job.Request.Archive!.Baseline); Assert.Equal(approvedHash, f.Hash()); Assert.NotEqual(JobState.Completed, job.State); }
+            if (action is "changed" or "same-metadata") { Assert.NotEqual(approvedBaseline, job.Request.Archive!.Baseline); Assert.Equal(approvedHash, f.Hash()); Assert.NotEqual(JobState.Completed, job.State); }
             else
             {
                 Assert.Equal(JobState.Completed, job.State); using var zip = ZipFile.OpenRead(f.Archive);
@@ -340,7 +343,30 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
             await Wait(() => Left.Listing.State == ListingState.Complete && Right.Listing.State == ListingState.Complete); Assert.True(Left.Listing.FocusName(inside ? "kept.txt" : "source.txt"));
         }
         public string Hash() => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Archive)));
-        public void ReplaceArchive() { Services.Zip.Release(Archive); string replacement = Path.Join(Root, "external-replacement.zip"); using (var zip = new ZipArchive(File.Create(replacement), ZipArchiveMode.Create)) { using var s = zip.CreateEntry("kept.txt").Open(); s.Write("new external bytes must survive the old approval"u8); } File.SetLastWriteTimeUtc(replacement, DateTime.UtcNow.AddMinutes(1)); File.Move(replacement, Archive, true); }
+        public void ReplaceArchive(bool sameMetadata = false)
+        {
+            Services.Zip.Release(Archive);
+            string replacement = Path.Join(Root, "external-replacement.zip");
+            if (sameMetadata)
+            {
+                byte[] bytes = File.ReadAllBytes(Archive);
+                byte[] name = Encoding.ASCII.GetBytes("kept.txt");
+                int changed = 0;
+                for (int i = 0; i <= bytes.Length - name.Length; i++)
+                    if (bytes.AsSpan(i, name.Length).SequenceEqual(name)) { bytes[i] = (byte)'l'; changed++; }
+                Assert.Equal(2, changed); // local header and central directory keep one valid new name
+                File.WriteAllBytes(replacement, bytes);
+                File.SetLastWriteTimeUtc(replacement, File.GetLastWriteTimeUtc(Archive));
+                Assert.Equal(new FileInfo(Archive).Length, new FileInfo(replacement).Length);
+            }
+            else
+            {
+                using (var zip = new ZipArchive(File.Create(replacement), ZipArchiveMode.Create))
+                { using var s = zip.CreateEntry("kept.txt").Open(); s.Write("new external bytes must survive the old approval"u8); }
+                File.SetLastWriteTimeUtc(replacement, DateTime.UtcNow.AddMinutes(1));
+            }
+            File.Move(replacement, Archive, true);
+        }
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
         public TextBox PathBox(string name) => Window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == name);

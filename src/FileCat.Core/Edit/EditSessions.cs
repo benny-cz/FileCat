@@ -43,7 +43,7 @@ public sealed record EditSessionRecord
     public string DisplayTarget => IsRemote ? ServerDisplay : Path.GetFileName(ArchivePath);
     public string MemberPath { get; init; } = "";
     /// <summary>The archive version the working copy is based on (updated after each commit).</summary>
-    public ArchiveBaseline Baseline { get; init; } = new(0, 0);
+    public ArchiveBaseline Baseline { get; init; } = new(0, 0, "");
     /// <summary>The member as extracted (or as last committed): its CRC-32 in the archive and the content hash.</summary>
     public uint MemberCrc32 { get; init; }
     public long MemberLength { get; init; }

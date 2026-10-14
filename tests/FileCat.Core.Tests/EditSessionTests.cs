@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.Json.Nodes;
 using FileCat.Core.Archives;
 using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
@@ -150,6 +151,23 @@ public sealed class EditSessionTests : IDisposable
         store.Discard(restored);
         Assert.Empty(store.LoadAll());
         Assert.False(File.Exists(session.WorkingPath));
+    }
+
+    [Fact]
+    public void A_pre_fingerprint_edit_session_is_retained_but_requires_explicit_rebase()
+    {
+        string zip = MakeZip();
+        var store = new EditSessionStore(Path.Combine(_dir.Path, "old-sessions"), _ops);
+        var session = store.Create(_zip, Member(zip, "notes", "todo.txt"));
+        string record = Path.Combine(store.Root, session.Id, "session.json");
+        var document = JsonNode.Parse(File.ReadAllText(record))!.AsObject();
+        Assert.True(document["Baseline"]!.AsObject().Remove("Sha256Hex"));
+        File.WriteAllText(record, document.ToJsonString());
+
+        var restored = Assert.Single(store.LoadAll());
+        Assert.Equal(session.Id, restored.Id);
+        Assert.Equal(CommitCheck.ArchiveChanged, store.Check(restored));
+        Assert.Equal("buy milk", ReadMember(zip, "notes/todo.txt"));
     }
 
     [Fact]
