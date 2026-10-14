@@ -168,7 +168,22 @@ public static partial class SmbTools
             return new SmbSignInRequiredException($"{server} wants a user name and password.");
         if (Regex.IsMatch(text, "HOST_UNREACHABLE|Connection to .* failed|could not connect|Could not connect|No route to host|NT_STATUS_IO_TIMEOUT|Name or service not known|not found|Unable to find|timed out|failed to resolve", RegexOptions.IgnoreCase))
             return new DirectoryNotFoundException($"{server} is not reachable, or it does not share files over SMB.");
-        string line = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? "no answer";
+        // Only the last nonempty diagnostic line is shown. Splitting a bounded but line-dense
+        // tool reply would still allocate one string per line during automatic network browsing.
+        ReadOnlySpan<char> remaining = text;
+        string line = "no answer";
+        while (!remaining.IsEmpty)
+        {
+            int separator = remaining.LastIndexOf('\n');
+            ReadOnlySpan<char> last = (separator < 0 ? remaining : remaining[(separator + 1)..]).Trim();
+            if (!last.IsEmpty)
+            {
+                line = last.ToString();
+                break;
+            }
+            if (separator < 0) break;
+            remaining = remaining[..separator];
+        }
         return new IOException($"{server}: {line}");
     }
 

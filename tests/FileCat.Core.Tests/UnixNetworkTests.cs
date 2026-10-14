@@ -170,6 +170,21 @@ public sealed class UnixNetworkTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Near_budget_tool_failure_does_not_materialize_every_diagnostic_line()
+    {
+        string reply = string.Concat(Enumerable.Repeat("junk\n", 200_000)) + "final detail";
+        _ = SmbTools.Failure("nas", "warmup\nlast");
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        Exception failure = SmbTools.Failure("nas", reply);
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"SMB_FAILURE_ALLOCATED_BYTES={allocated}; INPUT_CHARACTERS={reply.Length}");
+        Assert.Equal("nas: final detail", Assert.IsType<IOException>(failure).Message);
+        Assert.InRange(allocated, 0, 8 * 1024 * 1024);
+    }
+
+    [Fact]
     public void Network_addresses_read_and_lead_up_as_the_desktops_write_them()
     {
         var provider = new UnixNetworkProvider();
