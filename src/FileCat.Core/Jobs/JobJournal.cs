@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -36,6 +37,8 @@ public sealed class JobJournal : IDisposable
 
     /// <summary>Sources beyond this count are not listed durably (a rerun then needs a new selection).</summary>
     public const int ManifestLimit = 1_000_000;
+    // A begin record can contain sixty-four long paths, but no single durable line should grow without bound.
+    internal const int MaxJournalLineBytes = 4 * 1024 * 1024;
 
     /// <summary>Sidecar listing every source path of a large job, one per line (plan §9.3 durable manifest).</summary>
     public static string ManifestPathOf(string journalPath) => journalPath + ".sources";
@@ -166,6 +169,8 @@ public sealed class JobJournal : IDisposable
     {
         var json = record.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);
+        if (bytes.Length > MaxJournalLineBytes - 10)
+            throw new IOException("A job journal record is too large to recover safely.");
         var crc = Crc32.HashToUInt32(bytes);
         var line = Encoding.UTF8.GetBytes($"{crc:x8} {json}\n");
         lock (_lock)
@@ -200,7 +205,7 @@ public sealed class JobJournal : IDisposable
     /// <summary>CRC-checked records are yielded one at a time so recovery does not retain completed steps.</summary>
     internal static IEnumerable<JournalRecord> ReadRecords(string path)
     {
-        foreach (var line in File.ReadLines(path))
+        foreach (var line in ReadBoundedLines(path))
         {
             // A torn line (crash mid-write) fails its checksum and is skipped; records appended later by
             // recovery still count.
@@ -214,6 +219,47 @@ public sealed class JobJournal : IDisposable
             catch (JsonException) { continue; }
             if (node is not null) yield return new JournalRecord(node);
         }
+    }
+
+    /// <summary>Read one durable UTF-8 record at a time without allowing a damaged line to consume arbitrary memory.</summary>
+    internal static IEnumerable<string> ReadBoundedLines(string path)
+    {
+        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);
+        var chunk = new byte[64 * 1024];
+        var line = new ArrayBufferWriter<byte>(1024);
+        bool first = true;
+        int read;
+        while ((read = input.Read(chunk)) != 0)
+        {
+            for (int i = 0; i < read; i++)
+            {
+                byte value = chunk[i];
+                if (value == (byte)'\n')
+                {
+                    string text = DecodeLine(line, first);
+                    first = false;
+                    line.Clear();
+                    yield return text;
+                }
+                else
+                {
+                    if (line.WrittenCount >= MaxJournalLineBytes)
+                        throw new IOException("A job journal line exceeds its recovery input limit.");
+                    line.GetSpan(1)[0] = value;
+                    line.Advance(1);
+                }
+            }
+        }
+        if (line.WrittenCount != 0) yield return DecodeLine(line, first);
+    }
+
+    private static string DecodeLine(ArrayBufferWriter<byte> line, bool first)
+    {
+        ReadOnlySpan<byte> bytes = line.WrittenSpan;
+        if (bytes.Length > 0 && bytes[^1] == (byte)'\r') bytes = bytes[..^1];
+        if (first && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            bytes = bytes[3..];
+        return Encoding.UTF8.GetString(bytes);
     }
 }
 
@@ -663,7 +709,7 @@ public static partial class JournalRecovery
         try
         {
             var list = new List<string>(Math.Min(job.SourceCount, JobJournal.ManifestLimit));
-            foreach (var line in File.ReadLines(manifest))
+            foreach (var line in JobJournal.ReadBoundedLines(manifest))
             {
                 if (line.Length > 0) list.Add(line);
                 if (list.Count > JobJournal.ManifestLimit) return null;
@@ -730,7 +776,10 @@ public static partial class JournalRecovery
     private static string Line(JsonObject o)
     {
         var json = o.ToJsonString();
-        return $"{Crc32.HashToUInt32(Encoding.UTF8.GetBytes(json)):x8} {json}\n";
+        byte[] bytes = Encoding.UTF8.GetBytes(json);
+        if (bytes.Length > JobJournal.MaxJournalLineBytes - 10)
+            throw new IOException("A job journal record is too large to recover safely.");
+        return $"{Crc32.HashToUInt32(bytes):x8} {json}\n";
     }
 
     private static void TryDelete(string path)
