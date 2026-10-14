@@ -21,10 +21,16 @@ public sealed class ArchiveUpdateTests : IDisposable
         public bool LoseReplacementMarkOnce;
         public int TemporaryMarkAttempts;
         private int _archiveReads;
+        private string? _lastArchivePath;
 
         public override string? ReadOriginMark(string path)
         {
             if (!File.Exists(path)) return null;
+            // File.Replace moves the original file, including its metadata, to the backup. This
+            // synthetic adapter stores marks by path, so model that native move on backup reads.
+            if (Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal) && _lastArchivePath is { } original)
+                return Marks.GetValueOrDefault(original);
+            if (Path.GetExtension(path).Equals(".zip", StringComparison.Ordinal)) _lastArchivePath = path;
             if (LoseReplacementMarkOnce && Path.GetFileName(path) == "marked.zip" && ++_archiveReads == 2)
                 return null;
             return Marks.GetValueOrDefault(path);
@@ -39,6 +45,26 @@ public sealed class ArchiveUpdateTests : IDisposable
             }
             Marks[path] = mark;
             return true;
+        }
+    }
+
+    private sealed class MarkAfterFirstReadUnixFileOperations(string archive) : UnixFileOperations
+    {
+        public bool Injected { get; private set; }
+        public string? InjectedMark { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (!Injected && string.Equals(path, archive, StringComparison.Ordinal))
+            {
+                if (mark is not null) throw new IOException("The owned archive was marked before the controlled update.");
+                const string newlyDownloaded = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/during-update.zip\r\n";
+                if (!base.WriteOriginMark(path, newlyDownloaded)) throw new IOException("The controlled origin mark could not be set.");
+                InjectedMark = base.ReadOriginMark(path) ?? throw new IOException("The controlled origin mark could not be read back.");
+                Injected = true;
+            }
+            return mark;
         }
     }
 
@@ -164,6 +190,25 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.Equal(JobState.Completed, job.State);
         Assert.Contains("new-folder/", Read(zip).Keys);
         Assert.Equal(mark, operations.ReadOriginMark(zip));
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
+    public async Task A_download_mark_added_during_an_unmarked_update_is_not_discarded()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled mark is a Unix extended attribute.");
+        string zip = MakeZip("during-update.zip", ("original.txt", "original"));
+        byte[] before = File.ReadAllBytes(zip);
+        var operations = new MarkAfterFirstReadUnixFileOperations(zip);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.Injected);
+        Assert.Equal(operations.InjectedMark, operations.ReadOriginMark(zip));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(before, File.ReadAllBytes(zip));
         Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
     }
 

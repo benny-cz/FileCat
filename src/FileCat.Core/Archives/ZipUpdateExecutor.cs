@@ -135,18 +135,27 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (updating)
             {
                 // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
-                if (mark is not null)
-                    backup = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".bak");
+                // Keep the actual original even when it was unmarked at the earlier read. Another
+                // process can add a download mark without changing ZIP bytes or last-write time.
+                backup = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".bak");
                 File.Replace(temp, archive, backup, ignoreMetadataErrors: true);
             }
             else File.Move(temp, archive, overwrite: false);
             published = true;
-            if (mark is not null)
+            if (updating)
             {
                 Exception? markError = null;
+                string? replacedOriginalMark = null;
+                bool originalMarkReadable = false;
                 try
                 {
-                    if (!string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
+                    // The backup is the original at replacement time, including a mark that appeared
+                    // after the temporary ZIP was prepared. Compare it before accepting publication.
+                    replacedOriginalMark = Fs.ReadOriginMark(backup!);
+                    originalMarkReadable = true;
+                    if (!string.Equals(replacedOriginalMark, mark, StringComparison.Ordinal))
+                        markError = new IOException("The original archive's download mark changed during the update.");
+                    else if (mark is not null && !string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
                         markError = new IOException("The replacement archive lost its downloaded-from-the-internet mark.");
                 }
                 catch (Exception ex) { markError = ex; }
@@ -159,19 +168,20 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         // a whole instead of merging metadata from the unmarked replacement.
                         File.Move(backup!, archive, overwrite: true);
                         backup = null;
-                        if (!string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
+                        if (!originalMarkReadable ||
+                            !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
                             throw new IOException("The original archive's download mark could not be verified after restoration.");
                     }
                     catch (Exception ex) { restoreError = ex; }
                     if (restoreError is not null)
                     {
-                        Journal.Done(step, StepOutcome.Uncertain, "The archive replacement lost its download mark and restoration could not be verified.");
-                        Issue(IssueSeverity.Error, archive, "The archive may have lost its downloaded-from-the-internet mark; inspect it before using it.", StepOutcome.Uncertain, "security");
+                        Journal.Done(step, StepOutcome.Uncertain, "The archive's download mark changed or became unreadable, and restoration could not be verified.");
+                        Issue(IssueSeverity.Error, archive, "The archive's downloaded-from-the-internet mark could not be verified; inspect it before using it.", StepOutcome.Uncertain, "security");
                         throw new IOException("The archive's download mark could not be kept or the original restored.",
                             new AggregateException(markError, restoreError));
                     }
                     published = false;
-                    throw new IOException("The rebuilt archive lost its download mark; the marked original was restored.", markError);
+                    throw new IOException("The archive's download mark changed or was lost; the original was restored.", markError);
                 }
             }
             Journal.Done(step, StepOutcome.Committed);
@@ -182,7 +192,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 try { File.Delete(backup); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    Issue(IssueSeverity.Warning, backup, "The marked original archive backup could not be removed: " + ex.Message,
+                    Issue(IssueSeverity.Warning, backup, "The original archive backup could not be removed: " + ex.Message,
                         StepOutcome.Committed);
                 }
             }

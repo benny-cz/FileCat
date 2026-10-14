@@ -29,7 +29,16 @@ public sealed class EditSessionTests : IDisposable
     {
         public readonly Dictionary<string, string> Marks = new(StringComparer.OrdinalIgnoreCase);
         public bool RejectWrites { get; set; }
-        public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
+        private string? _lastArchivePath;
+        public override string? ReadOriginMark(string path)
+        {
+            // The fixture stores marks by path; File.Replace moves the original file and its
+            // mark to the backup, so model that native metadata move for the executor's check.
+            if (Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal) && _lastArchivePath is { } original)
+                return Marks.GetValueOrDefault(original);
+            if (Path.GetExtension(path).Equals(".zip", StringComparison.Ordinal)) _lastArchivePath = path;
+            return Marks.GetValueOrDefault(path);
+        }
         public override bool WriteOriginMark(string path, string mark)
         {
             if (RejectWrites) return false;
