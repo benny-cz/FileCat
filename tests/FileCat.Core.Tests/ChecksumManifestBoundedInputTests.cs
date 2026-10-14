@@ -7,6 +7,26 @@ namespace FileCat.Core.Tests;
 public sealed class ChecksumManifestBoundedInputTests
 {
     [Fact]
+    public void Bare_checksum_fallback_does_not_materialize_an_oversized_file()
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-bare-sum-budget-").FullName;
+        try
+        {
+            string path = Path.Combine(root, "target.bin.sha256");
+            string hash = new string('a', 64);
+            File.WriteAllText(path, hash + "\n");
+            Assert.Equal(hash, FolderSidecars.BareChecksum(path, ChecksumKind.Sha256));
+
+            File.WriteAllText(path, new string('x', (int)FolderSidecars.MaxChecksumFileBytes + 1));
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            Assert.Null(FolderSidecars.BareChecksum(path, ChecksumKind.Sha256));
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.True(allocated < 1_000_000, $"Bare sidecar fallback allocated {allocated:N0} bytes.");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public void A_regular_manifest_still_parses_within_its_budget()
     {
         string root = Directory.CreateTempSubdirectory("filecat-manifest-budget-").FullName;

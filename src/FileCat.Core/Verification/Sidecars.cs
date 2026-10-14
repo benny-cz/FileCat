@@ -194,11 +194,29 @@ public sealed class FolderSidecars
         return requested is { } a && listed is { } b && a.Identity == b.Identity && a.IsLink == b.IsLink ? candidates[0] : null;
     }
 
-    private static string? BareChecksum(string path, ChecksumKind kind)
+    internal static string? BareChecksum(string path, ChecksumKind kind)
     {
         string text;
-        try { text = File.ReadAllText(path).Trim(); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        try
+        {
+            // The manifest parser above has its own opened-byte budget. A bare checksum fallback reopens the
+            // path, so that earlier check cannot authorize an unbounded second read after a file changes.
+            using var input = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (input.CanSeek && input.Length > MaxChecksumFileBytes) return null;
+            using var bytes = new MemoryStream();
+            byte[] buffer = new byte[64 * 1024];
+            while (true)
+            {
+                int count = input.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, MaxChecksumFileBytes + 1 - bytes.Length)));
+                if (count == 0) break;
+                if (bytes.Length + count > MaxChecksumFileBytes) return null;
+                bytes.Write(buffer, 0, count);
+            }
+            text = System.Text.Encoding.UTF8.GetString(bytes.GetBuffer(), 0, (int)bytes.Length);
+            if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
+            text = text.Trim();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { return null; }
         if (text.Contains('\n')) return null;
         string first = text.Split((char[])[' ', '\t'], 2)[0].TrimStart('\\');
         return first.Length == Operations.Checksums.HexLength(kind) && first.All(Uri.IsHexDigit) ? first.ToLowerInvariant() : null;
