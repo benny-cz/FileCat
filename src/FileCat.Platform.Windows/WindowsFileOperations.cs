@@ -10,6 +10,7 @@ namespace FileCat.Platform.Windows;
 public partial class WindowsFileOperations : PortableFileOperations
 {
     private const string ZoneStream = ":Zone.Identifier";
+    private const int MaxOriginMarkBytes = 64 * 1024;
 
     public override unsafe VolumeInfo GetVolumeInfo(string path)
     {
@@ -106,14 +107,33 @@ public partial class WindowsFileOperations : PortableFileOperations
 
     public override string? ReadOriginMark(string path)
     {
+        FileStream stream;
         try
         {
-            var ads = path + ZoneStream;
-            return File.Exists(ads) ? File.ReadAllText(ads) : null;
+            stream = new FileStream(path + ZoneStream, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         }
+        catch (FileNotFoundException) { return null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            return null;
+            throw new IOException("The file's download mark could not be read; it cannot be treated as absent.", ex);
+        }
+        using (stream)
+        {
+            if (stream.Length > MaxOriginMarkBytes)
+                throw new InvalidDataException("The file's download mark exceeds the supported 64 KiB limit.");
+            var bytes = new byte[MaxOriginMarkBytes + 1];
+            int read = 0;
+            while (read < bytes.Length)
+            {
+                int count = stream.Read(bytes, read, bytes.Length - read);
+                if (count == 0) break;
+                read += count;
+            }
+            if (read > MaxOriginMarkBytes)
+                throw new InvalidDataException("The file's download mark grew beyond the supported 64 KiB limit.");
+            using var reader = new StreamReader(new MemoryStream(bytes, 0, read, writable: false),
+                System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return reader.ReadToEnd();
         }
     }
 

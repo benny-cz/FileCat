@@ -208,6 +208,60 @@ public sealed class WindowsFileOperationsTests : IDisposable
     }
 
     [Fact]
+    public void Unreadable_download_mark_is_not_reported_as_absent()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var file = Path.Combine(_root, "locked-mark.bin");
+        File.WriteAllBytes(file, [1, 2, 3]);
+        if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
+        File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        using var held = new FileStream(file + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None);
+        Assert.Throws<IOException>(() => _ops.ReadOriginMark(file));
+    }
+
+    [Fact]
+    public void Oversized_download_mark_is_refused_before_text_materialization()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var file = Path.Combine(_root, "large-mark.bin");
+        File.WriteAllBytes(file, [1, 2, 3]);
+        if (!_ops.GetVolumeInfo(file).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
+        File.WriteAllText(file + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=" + new string('a', 128 * 1024));
+        Assert.Throws<InvalidDataException>(() => _ops.ReadOriginMark(file));
+    }
+
+    [Fact]
+    public async Task Extraction_does_not_publish_when_the_archive_download_mark_cannot_be_read()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var zip = Path.Combine(_root, "locked-download.zip");
+        using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+        using (var writer = new StreamWriter(archive.CreateEntry("readme.txt").Open()))
+            writer.Write("hello");
+        if (!_ops.GetVolumeInfo(zip).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
+        File.WriteAllText(zip + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
+        var providers = new ProviderRegistry();
+        providers.Register(new WindowsFileSystemProvider());
+        var zipProvider = new Core.Archives.ZipProvider(Path.Combine(_root, "spool"));
+        providers.Register(zipProvider);
+        var jobs = new JobManager(_ops, providers, Path.Combine(_root, "journal"));
+        var output = Directory.CreateDirectory(Path.Combine(_root, "out")).FullName;
+        var root = Core.Archives.ZipProvider.ForFile(zip);
+        var listed = new List<EntryData>();
+        await zipProvider.EnumerateAsync(root, new ListSink(listed), TestContext.Current.CancellationToken);
+        using var held = new FileStream(zip + ":Zone.Identifier", FileMode.Open, FileAccess.Read, FileShare.None);
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [zipProvider.GetItemRef(root, Assert.Single(listed))],
+            Destination = Location.FileSystem(output),
+        });
+        while (!job.State.IsFinished()) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.NotEqual(JobState.Completed, job.State);
+        Assert.False(File.Exists(Path.Combine(output, "readme.txt")));
+    }
+
+    [Fact]
     public async Task Files_extracted_from_a_downloaded_zip_keep_their_times_and_the_mark()
     {
         if (!OperatingSystem.IsWindows()) return;
