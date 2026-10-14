@@ -171,7 +171,17 @@ public sealed class EditCommitTests(ITestOutputHelper output)
     }
 
     private void Emit(Fixture f, string control, object detail) => output.WriteLine("EDIT_COMMIT " + JsonSerializer.Serialize(new { f.Scheme, control, detail, NativeDesktopInteraction = false, PhysicalOrNetworkSource = false, SyntheticSftp = f.Session.IsRemote }));
-    private static async Task Wait(Func<bool> done) { var clock = Stopwatch.StartNew(); while (!done()) { Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), "Owned edit commit checkpoint timed out."); await Task.Delay(10, TestContext.Current.CancellationToken); } }
+    private static async Task Wait(Func<bool> done, TimeSpan? limit = null, Func<string>? detail = null)
+    {
+        var clock = Stopwatch.StartNew();
+        while (!done())
+        {
+            if (clock.Elapsed >= (limit ?? TimeSpan.FromSeconds(10)))
+                Assert.Fail("Owned edit commit checkpoint timed out." +
+                    (detail is null ? string.Empty : " " + detail()));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+    }
     private sealed class Fixture : IDisposable
     {
         public readonly string Root, Archive, Scheme; public readonly AppServices Services; public readonly MainViewModel Vm; public readonly MainWindow Window; public readonly EditSessionRecord Session;
@@ -199,7 +209,17 @@ public sealed class EditCommitTests(ITestOutputHelper output)
         public string Source(Job job) => Session.IsRemote ? Assert.Single(job.Request.Sources).FileSystemPath! : Assert.Single(job.Request.Archive!.Changes).SourcePath!;
         public Button? Button(string text) => Window.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == text && b.GetVisualAncestors().OfType<Border>().Any(a => a.Classes.Contains("backdrop")));
         public void Click(string text) => Assert.IsType<Button>(Button(text)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        public async Task Finish() { await Wait(() => Services.Jobs.Jobs.All(j => j.State.IsFinished())); await Wait(() => ((IDictionary)typeof(MainViewModel).GetField("_sessionCommits", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Vm)!).Count == 0); }
+        public async Task Finish()
+        {
+            // Hosted runners share CPU and disk across test projects. Preserve a finite bound while
+            // recording which owned phase remained active if the queued job does not settle.
+            var limit = TimeSpan.FromSeconds(30);
+            await Wait(() => Services.Jobs.Jobs.All(j => j.State.IsFinished()), limit,
+                () => "Jobs: " + string.Join(", ", Services.Jobs.Jobs.Select(j => j.State)));
+            IDictionary commits = (IDictionary)typeof(MainViewModel)
+                .GetField("_sessionCommits", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Vm)!;
+            await Wait(() => commits.Count == 0, limit, () => $"Pending session commits: {commits.Count}.");
+        }
         public void Dispose() { Services.Jobs.MaxConcurrent = 4; foreach (var job in Services.Jobs.Jobs) job.Cancel(); Services.Jobs.Schedule(); Services.Zip.Release(Archive); AccessibilityTests.Close(Services, Window, Root); }
     }
 }

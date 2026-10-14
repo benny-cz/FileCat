@@ -1,0 +1,11 @@
+# E-I466 — bounded queued edit-commit completion checkpoint
+
+The exact I462 [failed CI run](E-CI-I462-failed-remote-fixture.md) at `a0d0d0068b63ef2559e0425e75ce507dc480541d` has one Windows x64 `EditCommitTests` failure in addition to the synthetic Remote fixture failures: queued ZIP duplicate commit timed out in `Fixture.Finish` after a ten-second polling limit. The old assertion reports only “Owned edit commit checkpoint timed out,” so the raw result does not establish whether the job itself or its session-commit cleanup remained active. The same source's local full App suite passed, and the exact I463 Windows App run did not repeat this timeout. This is a timing/diagnostic gap, with the underlying delay unattributed.
+
+Only `Fixture.Finish` now allows **30 seconds** for the queued job to settle and **30 seconds** for the session-commit registry to retire. Other edit-commit waits retain their ten-second bound. If either phase reaches its finite deadline, the failure includes the current job states or pending commit count; diagnostics are constructed only at timeout. No product code or workload assertion changed.
+
+The final affected edit-commit class passes **38/38**. The complete headless Windows App suite passes **1,643/1,643** with **40 explicit skips**; the Release solution build has **zero errors/146 warnings**. An initial affected run on the first 30-second version also passed 38/38, then a full App invocation was cancelled before a final TRX when source review found eager diagnostic formatting on every polling step. The final lazy-diagnostic source was rebuilt and both affected and complete suites rerun. The cancelled invocation and its lack of a final TRX remain in the record.
+
+The 12-file private archive `V:\FileCat\artifacts\release-evidence\i466-edit-commit-checkpoint-20261014-v1` retains both affected TRX, final complete App TRX, the cancelled invocation note/log, zero-error build and source diff. Independent member rehash passes under manifest SHA-256 `2841f6a9845282f377ad654fbea1171b38d600909a99f09ebacc5e3bb8da392a`.
+
+The longer bound is not proof that a stuck job cannot occur. Exact corrected-source CI, installed UI and candidate qualification remain. I106/I110 physical-source HOLD and explicit human GO remain unchanged.
