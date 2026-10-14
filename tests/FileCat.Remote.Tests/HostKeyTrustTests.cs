@@ -30,6 +30,47 @@ public sealed class HostKeyTrustTests : IDisposable
     private static string Line(string hosts, byte[] key, string? marker = null) =>
         (marker is null ? "" : marker + " ") + $"{hosts} {HostKeyTrust.KeyTypeOf(key)} {Convert.ToBase64String(key)} comment";
 
+    private static void WriteLargeKnownHosts(string path, string firstLine)
+    {
+        using var writer = new StreamWriter(path, false, new UTF8Encoding(false));
+        writer.WriteLine(firstLine);
+        writer.Write('#');
+        char[] padding = new char[64 * 1024];
+        Array.Fill(padding, 'x');
+        for (int i = 0; i < 128; i++) writer.Write(padding);
+        writer.WriteLine();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Oversized_known_hosts_seed_is_not_materialized_or_trusted(bool linked)
+    {
+        string target = Path.Combine(_dir, "large-seed");
+        string seed = linked ? Path.Combine(_dir, "seed-link") : target;
+        WriteLargeKnownHosts(target, Line("large.example", Ed));
+        if (linked)
+        {
+            try { File.CreateSymbolicLink(seed, target); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+            }
+        }
+        Assert.Equal(HostKeyStatus.Unknown,
+            new HostKeyTrust(Path.Combine(_dir, "own"), [seed]).Check("large.example", 22, Ed).Status);
+    }
+
+    [Fact]
+    public void Remember_does_not_replace_an_oversized_own_known_hosts_file()
+    {
+        string own = Path.Combine(_dir, "own-known-hosts");
+        WriteLargeKnownHosts(own, Line("existing.example", EdOther));
+        string before = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(own)));
+        new HostKeyTrust(own, []).Remember("new.example", 22, Ed);
+        Assert.Equal(before, Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(own))));
+    }
+
     [Fact]
     public void Fingerprints_and_key_types_match_OpenSSH()
     {

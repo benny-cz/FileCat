@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using FileCat.Core.Diagnostics;
 
 namespace FileCat.Remote.Sftp;
 
@@ -30,6 +31,7 @@ public sealed record HostKeyCheck(HostKeyStatus Status, string Host, int Port, s
 /// </summary>
 public sealed class HostKeyTrust
 {
+    private const int MaxKnownHostsBytes = 4 * 1024 * 1024;
     private readonly string _ownFile;
     private readonly IReadOnlyList<string> _seedFiles;
     private readonly object _lock = new();
@@ -86,7 +88,13 @@ public sealed class HostKeyTrust
             var keep = new List<string>();
             if (File.Exists(_ownFile))
             {
-                foreach (var line in File.ReadAllLines(_ownFile))
+                var lines = BoundedTrustText.ReadLines(_ownFile, MaxKnownHostsBytes);
+                if (lines is null)
+                {
+                    AppLog.Warn("FileCat's known-hosts file exceeds its input budget; existing trust entries were left untouched.");
+                    return;
+                }
+                foreach (var line in lines)
                 {
                     var entry = KnownHostEntry.Parse(line);
                     if (entry is not null && !entry.Revoked && entry.KeyType == type && entry.Matches(host, port)) continue;
@@ -107,7 +115,7 @@ public sealed class HostKeyTrust
         try
         {
             if (!File.Exists(file)) yield break;
-            lines = File.ReadAllLines(file);
+            lines = BoundedTrustText.ReadLines(file, MaxKnownHostsBytes) ?? [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

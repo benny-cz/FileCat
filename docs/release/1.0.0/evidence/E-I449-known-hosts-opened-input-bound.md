@@ -1,0 +1,11 @@
+# E-I449 — bounded SSH known-host input
+
+**Scope:** High trust-input memory and persistence integrity within I06/V08. This is preliminary local/native qualification, not an installed or candidate test.
+
+At exact parent `74d17e38fedce8eb8519138c566dde7f8a1b08f6`, `HostKeyTrust` used `File.ReadAllLines` for both FileCat's own file and OpenSSH seed files. Ordinary and linked owned **8 MiB** seed files with a valid key at the start still returned `Trusted` after materializing the entire file. A third control showed `Remember` overwrote an oversized own known-hosts file. These three and the three FTPS controls fail on the exact parent (**3 passed / 6 failed** focused overall).
+
+The final reader checks **4 MiB** against the opened stream, reads exactly the accepted byte count and checks EOF, with a **32,768-line** cap. An oversized seed or own file contributes no automatic trust match. `Remember` refuses to replace an oversized own file and logs the refusal; it can therefore prompt again on the next connection. Final Windows focused trust classes pass **9/9**, full Remote passes **2,370 passed / 156 explicit skips / zero failed**, and the Release solution build completes with zero errors (163 warnings).
+
+The same verified **44-member** package (SHA-256 `eac627d6360fd2ae48d27c58c9e7cc552465748460da784358df9898fd7d9ec8`) passes both trust classes **9/9** on Mac and Ubuntu, including all six new bounds/preservation controls per system. **100 native cleanup-file hashes** verify, with both owned roots/stages absent. The combined **72-file** archive `V:\FileCat\artifacts\release-evidence\i448-i449-trust-input-20261014-v1` independently rehashes under self-excluding manifest SHA-256 `838bff685173a6c1651997e5d7f78d87592fae5c8600a957237e5be61ebb06ae` and audit SHA-256 `c1dceaf971b203747b764b3fbe99ca0622a1a485fc4e0085f8fd20bc543c58a5`. It retains the exact parent/final source, raw test outcomes, package and cleanup receipts.
+
+The evidence qualifies finite local trust files. An enterprise seed file above the new budget is ignored for automatic trust and can cause a new explicit host-key prompt; no old entry is silently trusted from an oversized file. Live SSH session interaction, whole-process peak memory, concurrent replacement, exact hosted CI and candidate scope remain.

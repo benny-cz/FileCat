@@ -22,12 +22,13 @@ public sealed record CertificateCheck(string Host, int Port, CertificateInfo Cer
 /// </summary>
 public sealed class CertificateTrust(string path)
 {
+    private const int MaxPinsBytes = 1024 * 1024;
     private readonly object _lock = new();
 
     public CertificateCheck Check(string host, int port, CertificateInfo certificate)
     {
         if (certificate.Problems.Count == 0) return new CertificateCheck(host, port, certificate, CertificateStatus.Valid, null);
-        var pinned = Pins().Where(p => p.Key == Key(host, port)).Select(p => p.Sha256).ToList();
+        var pinned = Pins().Entries.Where(p => p.Key == Key(host, port)).Select(p => p.Sha256).ToList();
         if (pinned.Contains(certificate.Sha256, StringComparer.OrdinalIgnoreCase)) return new CertificateCheck(host, port, certificate, CertificateStatus.Pinned, certificate.Sha256);
         return new CertificateCheck(host, port, certificate, pinned.Count > 0 ? CertificateStatus.Changed : CertificateStatus.Unknown, pinned.FirstOrDefault());
     }
@@ -37,7 +38,9 @@ public sealed class CertificateTrust(string path)
     {
         lock (_lock)
         {
-            var lines = Pins().Where(p => p.Key != Key(host, port)).Select(p => $"{p.Key} {p.Sha256}").Append($"{Key(host, port)} {sha256}").ToList();
+            var existing = Pins();
+            if (!existing.Readable) return;
+            var lines = existing.Entries.Where(p => p.Key != Key(host, port)).Select(p => $"{p.Key} {p.Sha256}").Append($"{Key(host, port)} {sha256}").ToList();
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -54,24 +57,30 @@ public sealed class CertificateTrust(string path)
 
     private static string Key(string host, int port) => $"{host.ToLowerInvariant()}:{port}";
 
-    private List<(string Key, string Sha256)> Pins()
+    private (bool Readable, List<(string Key, string Sha256)> Entries) Pins()
     {
         lock (_lock)
         {
             try
             {
-                if (!File.Exists(path)) return [];
-                return File.ReadAllLines(path)
+                if (!File.Exists(path)) return (true, []);
+                var lines = BoundedTrustText.ReadLines(path, MaxPinsBytes);
+                if (lines is null)
+                {
+                    AppLog.Warn("Trusted certificate file exceeds its input budget; existing pins were left untouched.");
+                    return (false, []);
+                }
+                return (true, lines
                     .Where(l => l.Length > 0 && !l.StartsWith('#'))
                     .Select(l => l.Split(' ', 2, StringSplitOptions.TrimEntries))
                     .Where(p => p.Length == 2 && p[1].Length == 64)
                     .Select(p => (p[0].ToLowerInvariant(), p[1]))
-                    .ToList();
+                    .ToList());
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 AppLog.Warn("Could not read trusted certificates", ex);
-                return [];
+                return (false, []);
             }
         }
     }

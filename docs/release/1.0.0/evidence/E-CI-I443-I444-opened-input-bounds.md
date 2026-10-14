@@ -1,0 +1,9 @@
+# E-CI-I443/I444 — exact pushed-source hosted qualification
+
+Run [`38488146633`](https://github.com/benny-cz/FileCat/actions/runs/38488146633) at exact `0f5ad89b8f685a6bab86d360ef8c31a969ba467e` completed **success**. Producer policy, Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26 passed; the four conditional package/draft jobs skipped.
+
+The private `V:\FileCat\artifacts\release-evidence\ci-i443-i444-20261014-v1` archive contains all **27 server-digested ZIPs**, **2,762 ZIP members** and **fourteen TRX inventories**: **33,229 passed / 1,177 explicitly skipped / zero failed**. Every archive and member was independently rehashed after download. Its self-excluding file-manifest SHA-256 is `a2cf1381e5cde3a7299ee9aeec3b3f3bf789ebe486c33926c5047681a0c94411`; audit SHA-256 is `b36c621f7d0bc4b2b0e8bb2dbd64f8f426f96bc6294b5f0483594b0a9822c345`.
+
+An independent all-file, all-member and all-test-row comparison against the preceding green [`e426` run](E-CI-I438-I442-corrected-source.md) retains all **34,392** predecessor rows unchanged. It adds exactly **twelve passing I443 minisign cases** (three on each of four Core lanes) and **two passing I444 hex-patch cases** (Windows x64 and ARM64). No other outcomes or messages changed. The `ci-i443-i444-comparison-20261014-v1` archive has self-excluding manifest SHA-256 `ba3d8f0e909dd4b83f7b0c3df5dc5afdcb6fc5eb26d7cc301dfe90f34d78edf2`, comparison SHA-256 `8b8c0d570a1324a6a349a42e1c32cae9e496759d738e1b666f1c65f97a1ae055` and exact-addition check SHA-256 `dad8283ee3643c478ce73de87dbd947dba4536d72a28b045f191fe4ced403bbc`.
+
+This qualifies the combined I443/I444 source and required hosted jobs at this exact commit. I445 and later fixes are separate source identities. No installed release candidate exists; I106/I110 physical-source validation remains on HOLD and stable publication requires explicit human GO.
