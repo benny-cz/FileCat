@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -94,6 +95,13 @@ public sealed class HexOverlayRetirementTests(ITestOutputHelper output)
             }
             else
             {
+                int initiallyAlive = weak.Count(w => w.IsAlive);
+                var settling = SettleRetiredWindowStorage(weak);
+                output.WriteLine("HEX_OVERLAY_RETIREMENT_SETTLED " + JsonSerializer.Serialize(new
+                {
+                    route, size, history, initiallyAlive, FinalAlive = weak.Count(w => w.IsAlive),
+                    settling.Rounds, settling.ElapsedMilliseconds,
+                }));
                 AssertRetired(overlay, weak);
                 using var exclusive = new FileStream(first, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 Assert.Equal(before, Convert.ToHexStringLower(SHA256.HashData(Read(exclusive))));
@@ -186,6 +194,23 @@ public sealed class HexOverlayRetirementTests(ITestOutputHelper output)
     private static void Collect()
     {
         for (int i = 0; i < 3; i++) { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); }
+    }
+
+    // Closed/replaced Avalonia windows can leave submitted UI work holding a retired
+    // frame briefly. Keep the exact weak-reference oracle, but observe it after a
+    // finite UI/GC retirement window instead of assuming one immediate collection.
+    private static (int Rounds, long ElapsedMilliseconds) SettleRetiredWindowStorage(List<WeakReference> weak)
+    {
+        var timer = Stopwatch.StartNew();
+        int rounds = 0;
+        while (weak.Any(w => w.IsAlive) && timer.Elapsed < TimeSpan.FromSeconds(2))
+        {
+            Dispatcher.UIThread.RunJobs();
+            Collect();
+            rounds++;
+            if (weak.Any(w => w.IsAlive)) Thread.Sleep(20);
+        }
+        return (rounds, timer.ElapsedMilliseconds);
     }
 
     private static void AssertRetired(HexPatchOverlay overlay, List<WeakReference> weak)
