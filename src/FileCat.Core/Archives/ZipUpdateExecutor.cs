@@ -68,6 +68,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         FileStream? sourceStream = null;
         ZipArchive? source = null;
         bool published = false;
+        string? backup = null;
         try
         {
             if (updating)
@@ -124,6 +125,9 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (updating && !plan.Baseline!.Matches(archive))
                 throw new IOException("The archive changed while it was being rebuilt; the original was kept.");
             string? mark = updating ? Fs.ReadOriginMark(archive) : null;
+            if (mark is not null &&
+                (!Fs.WriteOriginMark(temp, mark) || !string.Equals(Fs.ReadOriginMark(temp), mark, StringComparison.Ordinal)))
+                throw new IOException("The rebuilt archive could not keep its downloaded-from-the-internet mark; the original was kept.");
             source?.Dispose();
             sourceStream?.Dispose();
             source = null;
@@ -131,15 +135,57 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (updating)
             {
                 // ReplaceFile keeps the original's security, attributes, and creation time on the rebuilt file.
-                File.Replace(temp, archive, null, ignoreMetadataErrors: true);
-                if (mark is not null && Fs.ReadOriginMark(archive) is null && !Fs.WriteOriginMark(archive, mark))
-                    Issue(IssueSeverity.Warning, archive, "The archive's downloaded-from-the-internet mark could not be kept.", StepOutcome.Committed, "security");
+                if (mark is not null)
+                    backup = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".bak");
+                File.Replace(temp, archive, backup, ignoreMetadataErrors: true);
             }
             else File.Move(temp, archive, overwrite: false);
             published = true;
+            if (mark is not null)
+            {
+                Exception? markError = null;
+                try
+                {
+                    if (!string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
+                        markError = new IOException("The replacement archive lost its downloaded-from-the-internet mark.");
+                }
+                catch (Exception ex) { markError = ex; }
+                if (markError is not null)
+                {
+                    Exception? restoreError = null;
+                    try
+                    {
+                        // The backup is the original file, including its attached metadata. Move it back as
+                        // a whole instead of merging metadata from the unmarked replacement.
+                        File.Move(backup!, archive, overwrite: true);
+                        backup = null;
+                        if (!string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
+                            throw new IOException("The original archive's download mark could not be verified after restoration.");
+                    }
+                    catch (Exception ex) { restoreError = ex; }
+                    if (restoreError is not null)
+                    {
+                        Journal.Done(step, StepOutcome.Uncertain, "The archive replacement lost its download mark and restoration could not be verified.");
+                        Issue(IssueSeverity.Error, archive, "The archive may have lost its downloaded-from-the-internet mark; inspect it before using it.", StepOutcome.Uncertain, "security");
+                        throw new IOException("The archive's download mark could not be kept or the original restored.",
+                            new AggregateException(markError, restoreError));
+                    }
+                    published = false;
+                    throw new IOException("The rebuilt archive lost its download mark; the marked original was restored.", markError);
+                }
+            }
             Journal.Done(step, StepOutcome.Committed);
             // The rebuilt archive replaced the original as a whole, so every item of the plan completed together.
             for (int root = 0; root < Math.Max(1, Job.Request.Sources.Count); root++) Job.RootCompleted(root);
+            if (backup is not null)
+            {
+                try { File.Delete(backup); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Issue(IssueSeverity.Warning, backup, "The marked original archive backup could not be removed: " + ex.Message,
+                        StepOutcome.Committed);
+                }
+            }
         }
         catch (Exception ex) when (!published)
         {

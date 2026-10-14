@@ -11,19 +11,50 @@ public sealed class ArchiveUpdateTests : IDisposable
 {
     private readonly TempDir _dir = new();
     private readonly ProviderRegistry _providers = new();
+    private readonly MarkingFileOperations _operations = new();
     private readonly JobManager _jobs;
+
+    private sealed class MarkingFileOperations : PortableFileOperations
+    {
+        public readonly Dictionary<string, string> Marks = new(StringComparer.Ordinal);
+        public bool RefuseTemporaryMark;
+        public bool LoseReplacementMarkOnce;
+        public int TemporaryMarkAttempts;
+        private int _archiveReads;
+
+        public override string? ReadOriginMark(string path)
+        {
+            if (!File.Exists(path)) return null;
+            if (LoseReplacementMarkOnce && Path.GetFileName(path) == "marked.zip" && ++_archiveReads == 2)
+                return null;
+            return Marks.GetValueOrDefault(path);
+        }
+
+        public override bool WriteOriginMark(string path, string mark)
+        {
+            if (Path.GetFileName(path).StartsWith(".filecat-zip-", StringComparison.Ordinal))
+            {
+                TemporaryMarkAttempts++;
+                if (RefuseTemporaryMark) return false;
+            }
+            Marks[path] = mark;
+            return true;
+        }
+    }
 
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
-        _jobs = new JobManager(new PortableFileOperations(), _providers, Path.Combine(_dir.Path, "journal"));
+        _jobs = new JobManager(_operations, _providers, Path.Combine(_dir.Path, "journal"));
     }
 
     public void Dispose() => _dir.Dispose();
 
-    private async Task<Job> RunAsync(ArchivePlan plan, IReadOnlyList<ItemRef>? sources = null)
+    private async Task<Job> RunAsync(ArchivePlan plan, IReadOnlyList<ItemRef>? sources = null,
+        IFileSystemOperations? operations = null)
     {
-        var job = _jobs.Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan, Sources = sources ?? [] });
+        var manager = operations is null ? _jobs : new JobManager(operations, _providers, Path.Combine(_dir.Path, "journal-native"));
+        var job = manager.Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = plan, Sources = sources ?? [] });
         var deadline = DateTime.UtcNow.AddSeconds(20);
         while (!job.State.IsFinished())
         {
@@ -59,6 +90,81 @@ public sealed class ArchiveUpdateTests : IDisposable
             writer.Write(text);
         }
         return zip;
+    }
+
+    [Fact]
+    public async Task A_marked_archive_is_not_replaced_when_its_rebuilt_copy_cannot_be_marked()
+    {
+        string zip = MakeZip("marked.zip", ("original.txt", "original"));
+        byte[] before = File.ReadAllBytes(zip);
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/marked.zip\r\n";
+        _operations.Marks[zip] = mark;
+        _operations.RefuseTemporaryMark = true;
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]));
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(before, File.ReadAllBytes(zip));
+        Assert.Equal(mark, _operations.ReadOriginMark(zip));
+        Assert.True(_operations.TemporaryMarkAttempts > 0);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
+    public async Task A_marked_archive_is_restored_if_replacement_loses_its_mark()
+    {
+        string zip = MakeZip("marked.zip", ("original.txt", "original"));
+        byte[] before = File.ReadAllBytes(zip);
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/marked.zip\r\n";
+        _operations.Marks[zip] = mark;
+        _operations.LoseReplacementMarkOnce = true;
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]));
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(before, File.ReadAllBytes(zip));
+        Assert.Equal(mark, _operations.ReadOriginMark(zip));
+        Assert.True(_operations.TemporaryMarkAttempts > 0);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
+    public async Task A_marked_archive_update_checks_its_rebuilt_mark_before_completion()
+    {
+        string zip = MakeZip("marked.zip", ("original.txt", "original"));
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/marked.zip\r\n";
+        _operations.Marks[zip] = mark;
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]));
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Contains("new-folder/", Read(zip).Keys);
+        Assert.Equal(mark, _operations.ReadOriginMark(zip));
+        Assert.True(_operations.TemporaryMarkAttempts > 0);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
+    public async Task A_native_unix_archive_update_keeps_its_download_attribute()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("Extended-attribute marks are for Linux and macOS.");
+        string zip = MakeZip("native-marked.zip", ("original.txt", "original"));
+        var operations = new UnixFileOperations();
+        Assert.True(operations.WriteOriginMark(zip,
+            "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/native-marked.zip\r\n"));
+        string mark = Assert.IsType<string>(operations.ReadOriginMark(zip));
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Contains("new-folder/", Read(zip).Keys);
+        Assert.Equal(mark, operations.ReadOriginMark(zip));
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
     }
 
     [Fact]

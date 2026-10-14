@@ -262,6 +262,41 @@ public sealed class WindowsFileOperationsTests : IDisposable
     }
 
     [Fact]
+    public async Task Updating_a_downloaded_zip_keeps_its_native_zone_stream()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Zone.Identifier is a Windows named stream.");
+        string zip = Path.Combine(_root, "update-marked.zip");
+        using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+        using (var writer = new StreamWriter(archive.CreateEntry("original.txt").Open()))
+            writer.Write("original");
+        if (!_ops.GetVolumeInfo(zip).SupportsNamedStreams) Assert.Skip("The test folder's volume has no named streams.");
+        const string mark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/update-marked.zip\r\n";
+        Assert.True(_ops.WriteOriginMark(zip, mark));
+        var providers = new ProviderRegistry();
+        providers.Register(new WindowsFileSystemProvider());
+        var jobs = new JobManager(_ops, providers, Path.Combine(_root, "update-journal"));
+
+        var job = jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.ArchiveUpdate,
+            Archive = new Core.Archives.ArchivePlan(zip, Core.Archives.ArchiveBaseline.Of(zip),
+                [new Core.Archives.ArchiveChange(Core.Archives.ArchiveChangeKind.CreateFolderEntry, "new-folder")]),
+        });
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (!job.State.IsFinished())
+        {
+            if (DateTime.UtcNow >= deadline) throw new TimeoutException($"Archive job still {job.State}.");
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(mark, _ops.ReadOriginMark(zip));
+        using (var archive = System.IO.Compression.ZipFile.OpenRead(zip))
+            Assert.Contains(archive.Entries, entry => entry.FullName == "new-folder/");
+        Assert.Empty(Directory.GetFiles(_root, ".filecat-zip-*"));
+    }
+
+    [Fact]
     public async Task Files_extracted_from_a_downloaded_zip_keep_their_times_and_the_mark()
     {
         if (!OperatingSystem.IsWindows()) return;
