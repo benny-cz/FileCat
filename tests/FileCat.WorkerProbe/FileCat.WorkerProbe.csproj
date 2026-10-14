@@ -11,4 +11,8 @@
     <IsPackable>false</IsPackable>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The probe reports the worker identity change the product performs, from the product's own code. -->
+    <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />
+  </ItemGroup>
 </Project>

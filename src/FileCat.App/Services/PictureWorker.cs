@@ -39,6 +39,10 @@ internal static class PictureWorker
         try
         {
             using var lifetime = PictureWorkerLifetime.Start();
+            // Give up root before a hostile picture is read: the process-creation filter below bounds what the
+            // worker may start, not what it may read or rewrite.
+            var identity = FileCat.Core.FileSystem.UnixWorkerIdentity.Drop();
+            if (identity.Refusal is { } refusal) return Fail(output, refusal);
             LinuxPictureProcessPolicy.Apply();
             int maxSide = args.Length > 1 && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int wanted) ? Math.Clamp(wanted, MinSide, MaxSide) : 2048;
             using var input = Console.OpenStandardInput();

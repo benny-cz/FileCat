@@ -197,7 +197,10 @@
         }
       },
       "filecat.workerprobe": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "FileCat.Core": "[0.1.0-preview, )"
+        }
       },
       "BouncyCastle.Cryptography": {
         "type": "CentralTransitive",
