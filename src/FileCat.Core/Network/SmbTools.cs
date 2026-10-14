@@ -25,6 +25,7 @@ public sealed class SmbSignInRequiredException(string message) : UnauthorizedAcc
 /// </summary>
 public static partial class SmbTools
 {
+    private const int MaxListedShares = 4096;
     private static readonly string[] ToolFolders = ["/usr/bin", "/bin", "/usr/local/bin", "/opt/homebrew/bin", "/usr/sbin", "/sbin"];
     private static readonly string[] SystemToolFolders = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
 
@@ -172,10 +173,21 @@ public static partial class SmbTools
     }
 
     /// <summary>"gio list smb://server/": one share per line.</summary>
-    internal static List<SmbShare> ParseGioList(string output) =>
-        output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(name => name.Length > 0 && !name.Contains('/') && !name.Equals("IPC$", StringComparison.OrdinalIgnoreCase))
-            .Select(name => new SmbShare(name, null)).ToList();
+    internal static List<SmbShare> ParseGioList(string output)
+    {
+        var shares = new List<SmbShare>();
+        ReadOnlySpan<char> remaining = output;
+        while (!remaining.IsEmpty)
+        {
+            int newline = remaining.IndexOf('\n');
+            ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
+            remaining = newline < 0 ? [] : remaining[(newline + 1)..];
+            ReadOnlySpan<char> name = raw.Trim();
+            if (name.IsEmpty || name.Contains('/') || name.Equals("IPC$", StringComparison.OrdinalIgnoreCase)) continue;
+            AddShare(shares, name, []);
+        }
+        return shares;
+    }
 
     /// <summary>"smbclient -L //server -g": "Disk|name|comment" lines (IPC and printers left out).</summary>
     internal static List<SmbShare> ParseSmbclient(string output)
@@ -196,7 +208,7 @@ public static partial class SmbTools
             ReadOnlySpan<char> comment = separator < 0 ? [] : fields[(separator + 1)..];
             int next = comment.IndexOf('|');
             if (next >= 0) comment = comment[..next];
-            shares.Add(new SmbShare(name.ToString(), comment.IsEmpty ? null : comment.ToString()));
+            AddShare(shares, name, comment);
         }
         return shares;
     }
@@ -205,13 +217,25 @@ public static partial class SmbTools
     internal static List<SmbShare> ParseSmbutil(string output)
     {
         var shares = new List<SmbShare>();
-        foreach (string line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        ReadOnlySpan<char> remaining = output;
+        while (!remaining.IsEmpty)
         {
-            var match = SmbutilRow().Match(line.TrimEnd());
-            if (match.Success && match.Groups["type"].Value == "Disk")
-                shares.Add(new SmbShare(match.Groups["name"].Value.Trim(), match.Groups["comment"].Value.Trim() is { Length: > 0 } c ? c : null));
+            int newline = remaining.IndexOf('\n');
+            ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
+            remaining = newline < 0 ? [] : remaining[(newline + 1)..];
+            if (raw.IsEmpty) continue;
+            var match = SmbutilRow().Match(raw.TrimEnd().ToString());
+            if (match.Success && match.Groups["type"].ValueSpan.SequenceEqual("Disk"))
+                AddShare(shares, match.Groups["name"].ValueSpan.Trim(), match.Groups["comment"].ValueSpan.Trim());
         }
         return shares;
+    }
+
+    private static void AddShare(List<SmbShare> shares, ReadOnlySpan<char> name, ReadOnlySpan<char> comment)
+    {
+        if (shares.Count == MaxListedShares)
+            throw new IOException($"The server listed more than {MaxListedShares} SMB shares.");
+        shares.Add(new SmbShare(name.ToString(), comment.IsEmpty ? null : comment.ToString()));
     }
 
     [GeneratedRegex(@"^(?<name>\S.*?)\s+(?<type>Disk|Pipe|Printer|Comm|Device)(?:\s+(?<comment>.*))?$")]

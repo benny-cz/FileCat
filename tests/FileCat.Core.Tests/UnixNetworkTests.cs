@@ -79,6 +79,49 @@ public sealed class UnixNetworkTests(ITestOutputHelper output)
         Assert.InRange(allocated, 0, 8 * 1024 * 1024);
     }
 
+    [Theory]
+    [InlineData("gio")]
+    [InlineData("smbclient")]
+    [InlineData("smbutil")]
+    public void Share_lists_refuse_more_than_4096_valid_rows(string format)
+    {
+        string row = format switch
+        {
+            "gio" => "public\n",
+            "smbclient" => "Disk|public|Files\n",
+            _ => "public Disk Files\n"
+        };
+        string allowed = string.Concat(Enumerable.Repeat(row, 4096));
+        Assert.Equal(4096, ParseShareList(format, allowed).Count);
+        var error = Assert.Throws<IOException>(() => ParseShareList(format, allowed + row));
+        Assert.Contains("4096", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("gio", "abc\n", 250_000)]
+    [InlineData("smbclient", "Disk|x|\n", 125_000)]
+    [InlineData("smbutil", "x Disk\n", 140_000)]
+    public void Near_budget_share_lists_stop_before_materializing_every_row(string format, string row, int count)
+    {
+        string reply = string.Concat(Enumerable.Repeat(row, count));
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        Exception? error = Record.Exception(() => ParseShareList(format, reply));
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"SMB_SHARE_LIMIT_FORMAT={format}; ALLOCATED_BYTES={allocated}; INPUT_CHARACTERS={reply.Length}");
+        Assert.IsType<IOException>(error);
+        Assert.InRange(allocated, 0, 8 * 1024 * 1024);
+    }
+
+    private static List<SmbShare> ParseShareList(string format, string reply) => format switch
+    {
+        "gio" => SmbTools.ParseGioList(reply),
+        "smbclient" => SmbTools.ParseSmbclient(reply),
+        "smbutil" => SmbTools.ParseSmbutil(reply),
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
     [Fact]
     public void Mounted_shares_are_recognized_in_each_systems_form()
     {
