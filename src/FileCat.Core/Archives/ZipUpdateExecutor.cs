@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 
@@ -67,6 +68,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         int step = Journal.Intent("zip-update", archive, null, temp);
         FileStream? sourceStream = null;
         ZipArchive? source = null;
+        byte[]? openedSourceDigest = null;
         bool published = false;
         string? backup = null;
         try
@@ -75,6 +77,9 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             {
                 // Writers are excluded while the copy is made, so the members read are the members replaced.
                 sourceStream = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
+                // The pathname can be replaced while this descriptor remains open on Unix. Retain
+                // the bytes we actually opened so the replacement backup can be checked later.
+                openedSourceDigest = DigestOpened(sourceStream);
                 source = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: true);
                 if (source.Entries.FirstOrDefault(e => e.IsEncrypted) is { } encrypted)
                     throw new NotSupportedException($"The archive has encrypted members (for example \"{encrypted.FullName}\"), which FileCat cannot re-create, so it cannot be changed here.");
@@ -144,44 +149,50 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             published = true;
             if (updating)
             {
-                Exception? markError = null;
+                Exception? integrityError = null;
                 string? replacedOriginalMark = null;
                 bool originalMarkReadable = false;
+                byte[]? replacedOriginalDigest = null;
                 try
                 {
-                    // The backup is the original at replacement time, including a mark that appeared
-                    // after the temporary ZIP was prepared. Compare it before accepting publication.
+                    // The backup is the pathname's actual file at replacement time. It may differ
+                    // from the opened source even when a late check of path metadata passed.
+                    replacedOriginalDigest = DigestFile(backup!);
                     replacedOriginalMark = Fs.ReadOriginMark(backup!);
                     originalMarkReadable = true;
-                    if (!string.Equals(replacedOriginalMark, mark, StringComparison.Ordinal))
-                        markError = new IOException("The original archive's download mark changed during the update.");
+                    if (!openedSourceDigest!.AsSpan().SequenceEqual(replacedOriginalDigest))
+                        integrityError = new IOException("The archive source changed during the update.");
+                    else if (!string.Equals(replacedOriginalMark, mark, StringComparison.Ordinal))
+                        integrityError = new IOException("The original archive's download mark changed during the update.");
                     else if (mark is not null && !string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
-                        markError = new IOException("The replacement archive lost its downloaded-from-the-internet mark.");
+                        integrityError = new IOException("The replacement archive lost its downloaded-from-the-internet mark.");
                 }
-                catch (Exception ex) { markError = ex; }
-                if (markError is not null)
+                catch (Exception ex) { integrityError = ex; }
+                if (integrityError is not null)
                 {
                     Exception? restoreError = null;
                     try
                     {
-                        // The backup is the original file, including its attached metadata. Move it back as
-                        // a whole instead of merging metadata from the unmarked replacement.
+                        // Restore the whole file that occupied the pathname at replacement time,
+                        // including its bytes and attached metadata.
                         File.Move(backup!, archive, overwrite: true);
                         backup = null;
-                        if (!originalMarkReadable ||
+                        if (replacedOriginalDigest is null ||
+                            !DigestFile(archive).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                            !originalMarkReadable ||
                             !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
-                            throw new IOException("The original archive's download mark could not be verified after restoration.");
+                            throw new IOException("The archive's bytes or download mark could not be verified after restoration.");
                     }
                     catch (Exception ex) { restoreError = ex; }
                     if (restoreError is not null)
                     {
-                        Journal.Done(step, StepOutcome.Uncertain, "The archive's download mark changed or became unreadable, and restoration could not be verified.");
-                        Issue(IssueSeverity.Error, archive, "The archive's downloaded-from-the-internet mark could not be verified; inspect it before using it.", StepOutcome.Uncertain, "security");
-                        throw new IOException("The archive's download mark could not be kept or the original restored.",
-                            new AggregateException(markError, restoreError));
+                        Journal.Done(step, StepOutcome.Uncertain, "The archive source or download mark changed, and restoration could not be verified.");
+                        Issue(IssueSeverity.Error, archive, "The archive's original bytes or download mark could not be verified; inspect it before using it.", StepOutcome.Uncertain, "security");
+                        throw new IOException("The archive changed and restoration could not be verified.",
+                            new AggregateException(integrityError, restoreError));
                     }
                     published = false;
-                    throw new IOException("The archive's download mark changed or was lost; the original was restored.", markError);
+                    throw new IOException("The archive source or download mark changed; the original was restored.", integrityError);
                 }
             }
             Journal.Done(step, StepOutcome.Committed);
@@ -212,6 +223,30 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 catch (IOException) { }
             }
         }
+    }
+
+    private byte[] DigestFile(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            64 * 1024, FileOptions.SequentialScan);
+        return DigestOpened(stream);
+    }
+
+    private byte[] DigestOpened(Stream stream)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[BufferSize];
+        try
+        {
+            int read;
+            while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
+            {
+                Job.Checkpoint();
+                hash.AppendData(buffer, 0, read);
+            }
+            return hash.GetHashAndReset();
+        }
+        finally { stream.Position = 0; }
     }
 
     /// <summary>

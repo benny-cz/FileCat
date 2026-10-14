@@ -68,6 +68,24 @@ public sealed class ArchiveUpdateTests : IDisposable
         }
     }
 
+    private sealed class SwapAfterFirstMarkReadUnixFileOperations(string archive, string replacement) : UnixFileOperations
+    {
+        public bool Swapped { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (!Swapped && string.Equals(path, archive, StringComparison.Ordinal))
+            {
+                // The final baseline check has already run, but the opened source is still held.
+                // Unix rename replaces the pathname while that old descriptor remains readable.
+                File.Move(replacement, archive, overwrite: true);
+                Swapped = true;
+            }
+            return mark;
+        }
+    }
+
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
@@ -209,6 +227,26 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.Equal(operations.InjectedMark, operations.ReadOriginMark(zip));
         Assert.Equal(JobState.Failed, job.State);
         Assert.Equal(before, File.ReadAllBytes(zip));
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
+    public async Task A_source_replaced_after_the_final_baseline_check_is_not_overwritten()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled replacement uses Unix pathname/descriptor semantics.");
+        string zip = MakeZip("source-before.zip", ("original.txt", "original"));
+        string replacement = MakeZip("source-after.zip", ("original.txt", "concurrent"));
+        byte[] concurrentBytes = File.ReadAllBytes(replacement);
+        var operations = new SwapAfterFirstMarkReadUnixFileOperations(zip, replacement);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.Swapped);
+        Assert.Equal(concurrentBytes, File.ReadAllBytes(zip));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal("concurrent", Read(zip)["original.txt"]);
         Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
     }
 
