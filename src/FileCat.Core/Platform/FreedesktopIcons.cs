@@ -1,5 +1,8 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Platform;
 
@@ -12,6 +15,8 @@ namespace FileCat.Core.Platform;
 public sealed class FreedesktopIcons
 {
     private const int MaxThemeSettingCharacters = 16 * 1024;
+    private const int MaxThemeInputBytes = 8 * 1024 * 1024;
+    private const int MaxThemeLineBytes = 64 * 1024;
     private sealed record ThemeDirectory(string Path, int Size, int Scale, string Type, int MinSize, int MaxSize, int Threshold);
 
     private sealed class Theme
@@ -147,7 +152,7 @@ public sealed class FreedesktopIcons
         {
             if (!File.Exists(file)) return null;
             bool inSection = false;
-            foreach (var raw in File.ReadLines(file))
+            foreach (var raw in ReadThemeLines(file))
             {
                 var line = raw.Trim();
                 if (line.StartsWith('[')) inSection = line.Equals("[" + section + "]", StringComparison.OrdinalIgnoreCase);
@@ -168,7 +173,7 @@ public sealed class FreedesktopIcons
             string globs = Path.Combine(mimeDir, "globs2");
             if (File.Exists(globs))
             {
-                foreach (var line in File.ReadLines(globs))
+                foreach (var line in ReadThemeLines(globs))
                 {
                     if (line.Length == 0 || line[0] == '#') continue;
                     var parts = line.Split(':');
@@ -197,7 +202,7 @@ public sealed class FreedesktopIcons
     private static void ReadPairs(string file, Dictionary<string, string> map)
     {
         if (!File.Exists(file)) return;
-        foreach (var line in File.ReadLines(file))
+        foreach (var line in ReadThemeLines(file))
         {
             int colon = line.IndexOf(':');
             if (colon > 0) map[line[..colon]] = line[(colon + 1)..].Trim();
@@ -249,7 +254,7 @@ public sealed class FreedesktopIcons
         try
         {
             if (!File.Exists(file)) return;
-            foreach (var raw in File.ReadLines(file))
+            foreach (var raw in ReadThemeLines(file))
             {
                 int eq = raw.IndexOf('=');
                 if (eq <= 0 || !icons.TryGetValue(raw[..eq].Trim(), out var icon)) continue;
@@ -388,20 +393,77 @@ public sealed class FreedesktopIcons
     {
         var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         Dictionary<string, string>? current = null;
-        foreach (var raw in File.ReadLines(file))
+        try
         {
-            var line = raw.Trim();
-            if (line.Length == 0 || line[0] == '#') continue;
-            if (line[0] == '[' && line[^1] == ']')
+            foreach (var raw in ReadThemeLines(file))
             {
-                string name = line[1..^1];
-                if (!sections.TryGetValue(name, out current)) sections[name] = current = new Dictionary<string, string>(StringComparer.Ordinal);
-                continue;
+                var line = raw.Trim();
+                if (line.Length == 0 || line[0] == '#') continue;
+                if (line[0] == '[' && line[^1] == ']')
+                {
+                    string name = line[1..^1];
+                    if (!sections.TryGetValue(name, out current)) sections[name] = current = new Dictionary<string, string>(StringComparer.Ordinal);
+                    continue;
+                }
+                int eq = line.IndexOf('=');
+                if (current is not null && eq > 0) current[line[..eq].Trim()] = line[(eq + 1)..].Trim();
             }
-            int eq = line.IndexOf('=');
-            if (current is not null && eq > 0) current[line[..eq].Trim()] = line[(eq + 1)..].Trim();
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return sections;
+    }
+
+    /// <summary>Desktop configuration is data, never an unbounded or blocking input to icon lookup.</summary>
+    private static IEnumerable<string> ReadThemeLines(string path)
+    {
+        using var input = OperatingSystem.IsWindows()
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read, 64 * 1024);
+        if (input.Length > MaxThemeInputBytes) throw new IOException("Desktop icon configuration exceeds its input limit.");
+        var chunk = new byte[64 * 1024];
+        var line = new ArrayBufferWriter<byte>(1024);
+        bool discard = false, first = true;
+        long total = 0;
+        int read;
+        while ((read = input.Read(chunk)) != 0)
+        {
+            total += read;
+            if (total > MaxThemeInputBytes) throw new IOException("Desktop icon configuration grew beyond its input limit.");
+            for (int i = 0; i < read; i++)
+            {
+                byte value = chunk[i];
+                if (value == (byte)'\n')
+                {
+                    if (!discard) yield return DecodeThemeLine(line, first);
+                    first = false;
+                    discard = false;
+                    line.Clear();
+                }
+                else if (!discard)
+                {
+                    if (line.WrittenCount == MaxThemeLineBytes)
+                    {
+                        discard = true;
+                        line.Clear();
+                    }
+                    else
+                    {
+                        line.GetSpan(1)[0] = value;
+                        line.Advance(1);
+                    }
+                }
+            }
+        }
+        if (!discard && line.WrittenCount != 0) yield return DecodeThemeLine(line, first);
+    }
+
+    private static string DecodeThemeLine(ArrayBufferWriter<byte> line, bool first)
+    {
+        ReadOnlySpan<byte> bytes = line.WrittenSpan;
+        if (bytes.Length > 0 && bytes[^1] == (byte)'\r') bytes = bytes[..^1];
+        if (first && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            bytes = bytes[3..];
+        return Encoding.UTF8.GetString(bytes);
     }
 
     // ---- Drawing -------------------------------------------------------------------------------------------

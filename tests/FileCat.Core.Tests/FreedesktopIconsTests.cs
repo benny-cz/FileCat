@@ -1,11 +1,15 @@
 using FileCat.Core.Platform;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace FileCat.Core.Tests;
 
 /// <summary>Icons from the desktop's icon theme on Linux (Icon Theme and Shared MIME-info specifications).</summary>
 public sealed class FreedesktopIconsTests
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
     [Fact]
     public void A_stalled_theme_setting_helper_does_not_hold_icon_detection()
     {
@@ -91,5 +95,60 @@ public sealed class FreedesktopIconsTests
             Assert.Null(icons.Find(["no-such-icon"], 16));
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void A_theme_index_fifo_does_not_block_icon_lookup()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix theme FIFO control.");
+        string root = Directory.CreateTempSubdirectory("filecat-icons-fifo-").FullName;
+        try
+        {
+            string theme = Directory.CreateDirectory(Path.Combine(root, "TestTheme")).FullName;
+            Assert.Equal(0, MakeFifo(Path.Combine(theme, "index.theme"), 384));
+            var icons = FreedesktopIcons.ForTests("TestTheme", root);
+            var clock = Stopwatch.StartNew();
+            Assert.Null(icons.Find(["filecat-i459-nonexistent"], 16));
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Theme lookup waited {clock.Elapsed}.");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+            Assert.False(Directory.Exists(root));
+        }
+    }
+
+    [Fact]
+    public void Oversized_theme_line_does_not_materialize_it_or_hide_later_sections()
+    {
+        string root = Directory.CreateTempSubdirectory("filecat-icons-line-").FullName;
+        string dir = Directory.CreateDirectory(Path.Combine(root, "TestTheme", "16x16", "mimetypes")).FullName;
+        try
+        {
+            string icon = Path.Combine(dir, "filecat-i459-control.svg");
+            File.WriteAllText(icon, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"/>");
+            string index = Path.Combine(root, "TestTheme", "index.theme");
+            using (var writer = new StreamWriter(index))
+            {
+                writer.WriteLine(new string('X', 4 * 1024 * 1024));
+                writer.WriteLine("[Icon Theme]");
+                writer.WriteLine("Name=TestTheme");
+                writer.WriteLine("Directories=16x16/mimetypes");
+                writer.WriteLine("[16x16/mimetypes]");
+                writer.WriteLine("Size=16");
+                writer.WriteLine("Type=Fixed");
+            }
+            var icons = FreedesktopIcons.ForTests("TestTheme", root);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            Assert.Equal(icon.Replace('\\', '/'), icons.Find(["filecat-i459-control"], 16)?.Replace('\\', '/'));
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.True(allocated < 16 * 1024 * 1024, $"Theme lookup allocated {allocated:N0} bytes.");
+            Assert.True(File.Exists(index));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+            Assert.False(Directory.Exists(root));
+        }
     }
 }
