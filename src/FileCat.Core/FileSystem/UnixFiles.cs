@@ -5,7 +5,7 @@ namespace FileCat.Core.FileSystem;
 
 /// <summary>What <c>stat</c> says about a file on Linux or macOS, links not followed.</summary>
 public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, bool IsDirectory, long Size,
-    long ChangeSeconds, long ChangeNanoseconds, bool HasChangeTime)
+    long ChangeSeconds, long ChangeNanoseconds, bool HasChangeTime, bool IsRegular)
 {
     /// <summary>The identity as the hex editor and its journal record it (the inode in the first 8 of 16 bytes).</summary>
     public FileIdentity Identity => new(Device, Inode.ToString("X16") + new string('0', 16));
@@ -20,7 +20,7 @@ public static unsafe partial class UnixFiles
 {
     private const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100, AtEmptyPath = 0x1000;
     private const uint StatxType = 0x1, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
-    private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000;
+    private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000, TypeRegular = 0x8000;
 
     /// <summary>
     /// The path's own entry (a link is reported as a link), or with <paramref name="followLinks"/> what a link at its end
@@ -98,7 +98,8 @@ public static unsafe partial class UnixFiles
         int type = *(ushort*)(b + 28) & TypeMask;
         ulong device = ((ulong)*(uint*)(b + 136) << 32) | *(uint*)(b + 140);
         return new UnixStat(device, *(ulong*)(b + 32), type == TypeLink, type == TypeDirectory,
-            (long)*(ulong*)(b + 40), *(long*)(b + 96), *(uint*)(b + 104), (*(uint*)b & StatxCtime) != 0);
+            (long)*(ulong*)(b + 40), *(long*)(b + 96), *(uint*)(b + 104), (*(uint*)b & StatxCtime) != 0,
+            type == TypeRegular);
     }
 
     // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, ctimespec at 64, i64 size at 96.
@@ -106,7 +107,7 @@ public static unsafe partial class UnixFiles
     {
         int type = *(ushort*)(b + 4) & TypeMask;
         return new UnixStat((uint)*(int*)b, *(ulong*)(b + 8), type == TypeLink, type == TypeDirectory,
-            *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true);
+            *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true, type == TypeRegular);
     }
 
     /// <summary>

@@ -3,9 +3,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Jobs;
 
@@ -224,7 +226,9 @@ public sealed class JobJournal : IDisposable
     /// <summary>Read one durable UTF-8 record at a time without allowing a damaged line to consume arbitrary memory.</summary>
     internal static IEnumerable<string> ReadBoundedLines(string path)
     {
-        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024);
+        using var input = OperatingSystem.IsWindows()
+            ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024)
+            : new FileStream(OpenUnixRegularFile(path), FileAccess.Read, 64 * 1024);
         var chunk = new byte[64 * 1024];
         var line = new ArrayBufferWriter<byte>(1024);
         bool first = true;
@@ -260,6 +264,41 @@ public sealed class JobJournal : IDisposable
         if (first && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
             bytes = bytes[3..];
         return Encoding.UTF8.GetString(bytes);
+    }
+
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenUnix(string path, int flags);
+
+    [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
+    private static extern int Flock(int fd, int operation);
+
+    internal static SafeFileHandle OpenUnixRegularFile(string path)
+    {
+        int flags = OperatingSystem.IsMacOS() ? 4 | 16777216 : 2048 | 524288; // O_NONBLOCK | O_CLOEXEC
+        int fd = OpenUnix(path, flags); // O_RDONLY is zero on both systems.
+        if (fd < 0) throw new IOException("The job journal could not be opened.");
+        var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+        try
+        {
+            if (UnixFiles.Stat(handle) is { IsRegular: true }) return handle;
+            throw new IOException("The job journal is not a regular file.");
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    internal static bool UnixJournalInUse(string path)
+    {
+        using var handle = OpenUnixRegularFile(path);
+        int fd = (int)handle.DangerousGetHandle();
+        // The .NET FileStream writer's shared lock conflicts with this exclusive nonblocking lock on
+        // both supported Unix systems. Refuse on any lock error rather than reviewing a possibly live job.
+        if (Flock(fd, 2 | 4) != 0) return true; // LOCK_EX | LOCK_NB
+        Flock(fd, 8); // LOCK_UN; closing the handle also releases it.
+        return false;
     }
 }
 
@@ -417,6 +456,7 @@ public static partial class JournalRecovery
     {
         try
         {
+            if (!OperatingSystem.IsWindows()) return JobJournal.UnixJournalInUse(path);
             using var probe = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
             return false;
         }

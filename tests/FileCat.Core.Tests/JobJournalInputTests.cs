@@ -1,10 +1,14 @@
 using System.Text;
+using System.Runtime.InteropServices;
 using FileCat.Core.Jobs;
 
 namespace FileCat.Core.Tests;
 
 public sealed class JobJournalInputTests : IDisposable
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
     private readonly TempDir _dir = new();
 
     public void Dispose() => _dir.Dispose();
@@ -48,5 +52,17 @@ public sealed class JobJournalInputTests : IDisposable
         TestContext.Current.TestOutputHelper?.WriteLine($"Manifest read allocated {allocated:N0} bytes.");
         Assert.True(allocated < 16 * 1024 * 1024, $"Manifest read allocated {allocated:N0} bytes.");
         Assert.True(File.Exists(manifest));
+    }
+
+    [Fact]
+    public void Recovery_scan_does_not_wait_for_an_owned_fifo_journal()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix FIFO control.");
+        string path = Path.Combine(_dir.Path, "job-fifo.fcj");
+        Assert.Equal(0, MakeFifo(path, 384));
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Empty(JournalRecovery.Scan(_dir.Path));
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Recovery scan waited {clock.Elapsed}.");
+        Assert.True(File.Exists(path));
     }
 }
