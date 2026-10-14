@@ -1,4 +1,6 @@
 using FileCat.Core.FileSystem;
+using FileCat.Core.Edit;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Tests;
 
@@ -38,5 +40,29 @@ public sealed class UnixMarkTests : IDisposable
     {
         Assert.Equal((3, "https://example.com/a.zip", (string?)null), UnixFileOperations.Parse("[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.com/a.zip\r\n"));
         Assert.Equal((0, (string?)null, "0081;5f;Safari;"), UnixFileOperations.Parse("[ZoneTransfer]\nQuarantine=0081;5f;Safari;\n"));
+    }
+
+    [Fact]
+    public void Linux_zone_only_internet_mark_cannot_report_success_without_an_xattr()
+    {
+        if (!OperatingSystem.IsLinux()) Assert.Skip("Linux origin-url xattr semantics only.");
+        var ops = new UnixFileOperations();
+        string file = _dir.File("zone-only.bin", "owned");
+        Assert.False(ops.WriteOriginMark(file, "[ZoneTransfer]\r\nZoneId=3\r\n"));
+        Assert.Null(ops.ReadOriginMark(file));
+    }
+
+    [Fact]
+    public void Linux_zone_only_remote_edit_refuses_an_unmarked_private_copy()
+    {
+        if (!OperatingSystem.IsLinux()) Assert.Skip("Linux origin-url xattr semantics only.");
+        var ops = new UnixFileOperations();
+        var store = new EditSessionStore(Path.Combine(_dir.Path, "zone-only-sessions"), ops);
+        using var source = new MemoryContentSource("remote.bin", "owned"u8.ToArray());
+        var revision = source.GetRevision()!.Value;
+        Assert.Throws<IOException>(() => store.CreateRemote("owned", "owned", "/remote.bin", source, revision,
+            "[ZoneTransfer]\r\nZoneId=3\r\n", TestContext.Current.CancellationToken));
+        Assert.Empty(store.LoadAll());
+        if (Directory.Exists(store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(store.Root));
     }
 }

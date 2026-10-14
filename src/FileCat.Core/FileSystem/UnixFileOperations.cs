@@ -63,7 +63,9 @@ public class UnixFileOperations : PortableFileOperations
             return Xattr.Set(path, QuarantineAttribute, value);
         }
         if (OperatingSystem.IsLinux())
-            return hostUrl is null || Xattr.Set(path, OriginAttribute, hostUrl);
+            // Linux only has an origin-URL xattr here. A zone-only Internet mark has no value to
+            // write, so reporting success would hand out an unmarked copy as if it were safe.
+            return !string.IsNullOrWhiteSpace(hostUrl) && Xattr.Set(path, OriginAttribute, hostUrl);
         return false;
     }
 
