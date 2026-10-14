@@ -86,6 +86,30 @@ public sealed class ArchiveUpdateTests : IDisposable
         }
     }
 
+    private sealed class SwapAgainDuringBackupMarkReadUnixFileOperations(
+        string archive, string firstReplacement, string thirdPartyReplacement) : UnixFileOperations
+    {
+        public bool SwappedSource { get; private set; }
+        public bool SwappedPublication { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (!SwappedSource && string.Equals(path, archive, StringComparison.Ordinal))
+            {
+                File.Move(firstReplacement, archive, overwrite: true);
+                SwappedSource = true;
+            }
+            else if (SwappedSource && !SwappedPublication &&
+                     Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal))
+            {
+                File.Move(thirdPartyReplacement, archive, overwrite: true);
+                SwappedPublication = true;
+            }
+            return mark;
+        }
+    }
+
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
@@ -270,6 +294,32 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.Equal(JobState.Failed, job.State);
         Assert.Equal("bravo", Read(zip)["record.txt"]);
         Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*"));
+    }
+
+    [Fact]
+    public async Task A_third_party_replacement_during_rollback_is_not_overwritten()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled replacements use Unix pathname/descriptor semantics.");
+        string zip = MakeZip("rollback-source.zip", ("record.txt", "original"));
+        string first = MakeZip("first-concurrent.zip", ("record.txt", "first change"));
+        string third = MakeZip("third-concurrent.zip", ("record.txt", "third change"));
+        byte[] firstBytes = File.ReadAllBytes(first);
+        byte[] thirdBytes = File.ReadAllBytes(third);
+        var operations = new SwapAgainDuringBackupMarkReadUnixFileOperations(zip, first, third);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.SwappedSource);
+        Assert.True(operations.SwappedPublication);
+        Assert.Equal(thirdBytes, File.ReadAllBytes(zip));
+        Assert.Equal("third change", Read(zip)["record.txt"]);
+        string preserved = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
+        Assert.Equal(firstBytes, File.ReadAllBytes(preserved));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
     }
 
     [Fact]

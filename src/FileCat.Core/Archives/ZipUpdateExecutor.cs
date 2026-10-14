@@ -69,6 +69,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         FileStream? sourceStream = null;
         ZipArchive? source = null;
         byte[]? openedSourceDigest = null;
+        byte[]? intendedPublishedDigest = null;
         bool published = false;
         string? backup = null;
         try
@@ -135,6 +136,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (mark is not null &&
                 (!Fs.WriteOriginMark(temp, mark) || !string.Equals(Fs.ReadOriginMark(temp), mark, StringComparison.Ordinal)))
                 throw new IOException("The rebuilt archive could not keep its downloaded-from-the-internet mark; the original was kept.");
+            if (updating) intendedPublishedDigest = DigestFile(temp);
             source?.Dispose();
             sourceStream?.Dispose();
             source = null;
@@ -159,7 +161,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 {
                     // The backup is the pathname's actual file at replacement time. It may differ
                     // from the opened source even when a late check of path metadata passed.
-                    replacedOriginalDigest = DigestFile(backup!);
+                    replacedOriginalDigest = DigestFile(backup!, checkCancellation: false);
                     replacedOriginalMark = Fs.ReadOriginMark(backup!);
                     originalMarkReadable = true;
                     if (!openedSourceDigest!.AsSpan().SequenceEqual(replacedOriginalDigest))
@@ -175,12 +177,16 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     Exception? restoreError = null;
                     try
                     {
+                        // A third party may have replaced our newly published pathname while the
+                        // backup was inspected. Never roll back over bytes that are no longer ours.
+                        if (!DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(intendedPublishedDigest))
+                            throw new IOException("The published archive pathname changed before restoration.");
                         // Restore the whole file that occupied the pathname at replacement time,
                         // including its bytes and attached metadata.
                         File.Move(backup!, archive, overwrite: true);
                         backup = null;
                         if (replacedOriginalDigest is null ||
-                            !DigestFile(archive).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                            !DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
                             !originalMarkReadable ||
                             !string.Equals(Fs.ReadOriginMark(archive), replacedOriginalMark, StringComparison.Ordinal))
                             throw new IOException("The archive's bytes or download mark could not be verified after restoration.");
@@ -188,8 +194,11 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     catch (Exception ex) { restoreError = ex; }
                     if (restoreError is not null)
                     {
-                        Journal.Done(step, StepOutcome.Uncertain, "The archive source or download mark changed, and restoration could not be verified.");
-                        Issue(IssueSeverity.Error, archive, "The archive's original bytes or download mark could not be verified; inspect it before using it.", StepOutcome.Uncertain, "security");
+                        string guidance = backup is null
+                            ? "Restoration could not be verified; inspect the archive before using it."
+                            : $"Restoration would overwrite changed archive bytes or could not be verified. The backup remains at {backup}; inspect both files before using them.";
+                        Journal.Done(step, StepOutcome.Uncertain, guidance);
+                        Issue(IssueSeverity.Error, archive, guidance, StepOutcome.Uncertain, "security");
                         throw new IOException("The archive changed and restoration could not be verified.",
                             new AggregateException(integrityError, restoreError));
                     }
@@ -227,14 +236,14 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         }
     }
 
-    private byte[] DigestFile(string path)
+    private byte[] DigestFile(string path, bool checkCancellation = true)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
             64 * 1024, FileOptions.SequentialScan);
-        return DigestOpened(stream);
+        return DigestOpened(stream, checkCancellation);
     }
 
-    private byte[] DigestOpened(Stream stream)
+    private byte[] DigestOpened(Stream stream, bool checkCancellation = true)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[BufferSize];
@@ -243,7 +252,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             int read;
             while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
             {
-                Job.Checkpoint();
+                if (checkCancellation) Job.Checkpoint();
                 hash.AppendData(buffer, 0, read);
             }
             return hash.GetHashAndReset();
