@@ -30,6 +30,71 @@ public sealed class PageViewTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// The rest of what a page can reach for (release issue I25): a style sheet, a web font, a frame and a
+    /// navigation of its own, each naming the web. The engine must refuse every one of them, and the page still
+    /// draws with its own title.
+    /// </summary>
+    [Fact]
+    public void A_page_asks_the_web_for_styles_fonts_frames_and_its_next_page_in_vain()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        string site = Directory.CreateDirectory(Path.Combine(_dir, "remote-site")).FullName;
+        File.WriteAllText(Path.Combine(site, "page.html"),
+            "<!doctype html><html><head><title>Own title</title>" +
+            "<link rel=stylesheet href=\"https://styles.example.com/theme.css\">" +
+            "<style>@font-face { font-family: Far; src: url(https://fonts.example.com/far.woff2); } body { font-family: Far }</style>" +
+            "<meta http-equiv=\"refresh\" content=\"0; url=https://next.example.com/elsewhere.html\">" +
+            "</head><body><p>Styled from afar.</p>" +
+            "<iframe src=\"https://frames.example.com/inner.html\"></iframe>" +
+            "<img src=\"https://pictures.example.com/remote.png\">" +
+            "</body></html>");
+
+        var blocked = new ConcurrentQueue<string>();
+        var served = new ConcurrentQueue<(string Path, bool Found)>();
+        var completions = new ConcurrentQueue<(bool Ok, string? Why)>();
+        string? title = null;
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var source = new FileContentSource(Path.Combine(site, "page.html"));
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-remote"));
+            var done = new TaskCompletionSource();
+            view.Served += (path, found) => served.Enqueue((path, found));
+            view.Blocked += blocked.Enqueue;
+            // The refused refresh completes a navigation of its own, so every completion is kept in order.
+            view.Loaded += (ok, why) =>
+            {
+                completions.Enqueue((ok, why));
+                done.TrySetResult();
+            };
+            view.SetSize(640, 480);
+            view.Show(new HtmlPage(source, Path.Combine(site, "page.html")));
+            await done.Task;
+            // A style sheet, a font, a frame and the refresh all arrive after the document reports itself loaded,
+            // and the refresh is the last of them: wait for it by name, not for a count.
+            for (int i = 0; i < 300 && !(blocked.Count >= 4 && blocked.Any(b => b.Contains("next.example.com", StringComparison.Ordinal))); i++)
+                await Task.Delay(50);
+            title = view.Title;
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(90));
+
+        TestContext.Current.TestOutputHelper?.WriteLine("Refused: " + string.Join(", ", blocked));
+        TestContext.Current.TestOutputHelper?.WriteLine("Navigations: " + string.Join(", ", completions.Select(c => $"{c.Ok}/{c.Why}")));
+        Assert.True(completions.TryPeek(out var first) && first.Ok, $"The page itself did not load: {first.Why}");
+        // Any later completion is the refused refresh, which the view cancels rather than follows.
+        Assert.All(completions.Skip(1), c => Assert.False(c.Ok, "a navigation away from the page succeeded"));
+        // The page is still its own: the refresh did not take it anywhere.
+        Assert.Equal("Own title", title);
+        Assert.Contains(served, s => s.Path == "/page.html" && s.Found);
+        foreach (var host in new[] { "styles.example.com", "fonts.example.com", "frames.example.com", "pictures.example.com" })
+            Assert.Contains(blocked, b => b.Contains(host, StringComparison.Ordinal));
+        // The navigation the page asked for is refused as well, by address.
+        Assert.Contains(blocked, b => b.Contains("next.example.com", StringComparison.Ordinal));
+        Assert.DoesNotContain(served, s => s.Found && s.Path.Contains("example.com", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void A_page_shows_without_its_scripts_and_gets_nothing_from_outside_its_folder()
     {
