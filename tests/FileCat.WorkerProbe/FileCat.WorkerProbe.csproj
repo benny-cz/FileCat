@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    A worker stand-in for the restricted-helper tests: a plain .NET console program, like FileCat's own Shell and
+    picture helpers, so the tests exercise what the product actually starts. Windows' own console tools load
+    user32, which needs a window station the restricted worker token may not reach; this probe does not.
+  -->
+  <PropertyGroup>
+    <!-- Windowless, like FileCat.ShellHost: a console program would need a console, and that needs the window
+         station the restricted worker token cannot reach. Its standard output is a pipe either way. -->
+    <OutputType>WinExe</OutputType>
+    <IsPackable>false</IsPackable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

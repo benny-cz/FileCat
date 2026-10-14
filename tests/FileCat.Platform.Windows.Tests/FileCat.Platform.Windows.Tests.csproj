@@ -16,6 +16,8 @@
     <ProjectReference Include="..\..\src\FileCat.PrivilegedHost\FileCat.PrivilegedHost.csproj" />
     <!-- TV-16 tests start the real Shell helper from the test output folder. -->
     <ProjectReference Include="..\..\src\FileCat.ShellHost\FileCat.ShellHost.csproj" />
+    <!-- A .NET worker stand-in for restricted-helper tests, started from the same folder. -->
+    <ProjectReference Include="..\FileCat.WorkerProbe\FileCat.WorkerProbe.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

@@ -196,6 +196,9 @@
           "FileCat.Platform.Windows": "[0.1.0-preview, )"
         }
       },
+      "filecat.workerprobe": {
+        "type": "Project"
+      },
       "BouncyCastle.Cryptography": {
         "type": "CentralTransitive",
         "requested": "[2.7.0, )",

@@ -12,11 +12,10 @@ public sealed class SandboxedWorkerEnvironmentTests
         Environment.SetEnvironmentVariable(marker, "owned-secret-marker");
         try
         {
-            string cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-            using var worker = SandboxedWorker.Start(cmd, "/d /c set", 128L * 1024 * 1024);
+            using var worker = SandboxedWorker.Start(RestrictedProcessLowTokenTests.WorkerProbe, "env", 128L * 1024 * 1024);
             using var reader = new StreamReader(worker.Output);
             string variables = await reader.ReadToEndAsync(TestContext.Current.CancellationToken)
-                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                .WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             Assert.False(variables.Contains(marker + "=", StringComparison.OrdinalIgnoreCase));
             Assert.True(variables.Contains("DOTNET_EnableDiagnostics=0", StringComparison.OrdinalIgnoreCase));
         }
