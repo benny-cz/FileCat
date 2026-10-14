@@ -21,25 +21,29 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
     internal static GitStatusSnapshot Parse(string tracked, string status)
     {
         var entries = new Dictionary<string, GitStatusKind>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-        static string Child(string path)
+        var lookup = entries.GetAlternateLookup<ReadOnlySpan<char>>();
+        void Add(ReadOnlySpan<char> path, GitStatusKind kind)
         {
             int separator = path.IndexOf('/');
-            return separator < 0 ? path : path[..separator];
-        }
-        void Add(string path, GitStatusKind kind)
-        {
-            string child = Child(path);
-            if (child.Length == 0 || child == ".") return;
-            if (!entries.TryGetValue(child, out var old) || kind > old) entries[child] = kind;
+            ReadOnlySpan<char> child = separator < 0 ? path : path[..separator];
+            if (child.IsEmpty || child.SequenceEqual(".")) return;
+            if (!lookup.TryGetValue(child, out var old) || kind > old) entries[child.ToString()] = kind;
         }
 
-        foreach (var path in tracked.Split('\0', StringSplitOptions.RemoveEmptyEntries)) Add(path, GitStatusKind.Clean);
+        int trackedPosition = 0;
+        while (trackedPosition < tracked.Length)
+        {
+            int end = tracked.IndexOf('\0', trackedPosition);
+            if (end < 0) end = tracked.Length;
+            if (end > trackedPosition) Add(tracked.AsSpan(trackedPosition, end - trackedPosition), GitStatusKind.Clean);
+            trackedPosition = end + 1;
+        }
         int position = 0;
         while (position < status.Length)
         {
             int end = status.IndexOf('\0', position);
             if (end < 0) break;
-            string record = status[position..end];
+            ReadOnlySpan<char> record = status.AsSpan(position, end - position);
             position = end + 1;
             if (record.Length < 4 || record[2] != ' ') continue;
             char x = record[0], y = record[1];
@@ -54,7 +58,7 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
             {
                 int oldEnd = status.IndexOf('\0', position);
                 if (oldEnd < 0) break;
-                Add(status[position..oldEnd], GitStatusKind.Modified);
+                Add(status.AsSpan(position, oldEnd - position), GitStatusKind.Modified);
                 position = oldEnd + 1;
             }
         }

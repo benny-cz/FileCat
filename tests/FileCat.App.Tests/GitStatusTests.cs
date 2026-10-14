@@ -48,6 +48,23 @@ public sealed class GitStatusTests(ITestOutputHelper output)
         Assert.Equal(GitStatusKind.Untracked, snapshot.ForName("unknown.cs"));
     }
 
+    [Fact]
+    public void Snapshot_near_the_git_output_budget_does_not_allocate_per_tracked_path()
+    {
+        // Every path belongs to the same immediate child. The reader permits up to four million
+        // characters of Git output, but the visible badge needs only one dictionary entry.
+        string tracked = string.Concat(Enumerable.Repeat("same/one\0", 400_000));
+        _ = GitStatusSnapshot.Parse("warmup/file\0", "");
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        var snapshot = GitStatusSnapshot.Parse(tracked, "");
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"GIT_SNAPSHOT_ALLOCATED_BYTES={allocated}; TRACKED_CHARACTERS={tracked.Length}");
+        Assert.Equal(GitStatusKind.Clean, snapshot.ForName("same"));
+        Assert.InRange(allocated, 0, 8 * 1024 * 1024);
+    }
+
     /// <summary>A downloaded folder controls its repository's configuration: Git is not run where it would run its programs.</summary>
     [Fact]
     public void Repositories_whose_configuration_names_programs_get_no_badges()
