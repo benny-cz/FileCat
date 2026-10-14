@@ -207,6 +207,51 @@ public sealed class ArchiveUpdateTests : IDisposable
         }
     }
 
+    private sealed class ChangeBackupDuringMarkReadFileOperations(string replacement, bool replacePath)
+        : PortableFileOperations
+    {
+        public string? BackupPath { get; private set; }
+        public string? PreservedOriginal { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (BackupPath is null && Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal))
+            {
+                BackupPath = path;
+                if (replacePath)
+                {
+                    PreservedOriginal = path + ".held-original";
+                    File.Move(path, PreservedOriginal);
+                    File.Move(replacement, path);
+                }
+                else File.WriteAllBytes(path, File.ReadAllBytes(replacement));
+            }
+            return mark;
+        }
+    }
+
+    private sealed class MarkBackupDuringMarkReadUnixFileOperations : UnixFileOperations
+    {
+        public string? BackupPath { get; private set; }
+        public string? InjectedMark { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (BackupPath is null && Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal))
+            {
+                BackupPath = path;
+                const string addedMark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/backup-new-mark.zip\r\nQuarantine=0081;12345678;FileCat;backup-new-mark\r\n";
+                if (!base.WriteOriginMark(path, addedMark))
+                    throw new IOException("The controlled backup mark could not be written.");
+                InjectedMark = base.ReadOriginMark(path) ??
+                    throw new IOException("The controlled backup mark could not be read back.");
+            }
+            return mark;
+        }
+    }
+
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
@@ -495,6 +540,66 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.Equal(normalizedOldMark, native.ReadOriginMark(preserved));
         Assert.Equal(JobState.Failed, job.State);
         Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_backup_replaced_before_success_cleanup_is_not_deleted()
+    {
+        string zip = MakeZip("cleanup-replacement-source.zip", ("record.txt", "original"));
+        byte[] originalBytes = File.ReadAllBytes(zip);
+        string third = MakeZip("cleanup-replacement-third.zip", ("record.txt", "third-party data"));
+        byte[] thirdBytes = File.ReadAllBytes(third);
+        var operations = new ChangeBackupDuringMarkReadFileOperations(third, replacePath: true);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.Contains("new-folder/", Read(zip).Keys);
+        string backup = Assert.IsType<string>(operations.BackupPath);
+        Assert.Equal(thirdBytes, File.ReadAllBytes(backup));
+        Assert.Equal(originalBytes, File.ReadAllBytes(Assert.IsType<string>(operations.PreservedOriginal)));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_backup_rewritten_in_place_before_success_cleanup_is_not_deleted()
+    {
+        string zip = MakeZip("cleanup-rewrite-source.zip", ("record.txt", "original"));
+        string third = MakeZip("cleanup-rewrite-third.zip", ("record.txt", "third-party rewrite"));
+        byte[] thirdBytes = File.ReadAllBytes(third);
+        var operations = new ChangeBackupDuringMarkReadFileOperations(third, replacePath: false);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.Contains("new-folder/", Read(zip).Keys);
+        Assert.Equal(thirdBytes, File.ReadAllBytes(Assert.IsType<string>(operations.BackupPath)));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_backup_marked_in_place_before_success_cleanup_is_not_deleted()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled backup mark uses Unix extended attributes.");
+        string zip = MakeZip("cleanup-mark-source.zip", ("record.txt", "original"));
+        byte[] originalBytes = File.ReadAllBytes(zip);
+        var operations = new MarkBackupDuringMarkReadUnixFileOperations();
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.Contains("new-folder/", Read(zip).Keys);
+        string backup = Assert.IsType<string>(operations.BackupPath);
+        Assert.Equal(originalBytes, File.ReadAllBytes(backup));
+        Assert.Equal(operations.InjectedMark, operations.ReadOriginMark(backup));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
         Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
     }
 

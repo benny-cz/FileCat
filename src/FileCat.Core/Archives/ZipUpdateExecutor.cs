@@ -71,6 +71,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         byte[]? openedSourceDigest = null;
         byte[]? intendedPublishedDigest = null;
         string? intendedPublishedIdentity = null;
+        string? replacedOriginalIdentity = null;
+        byte[]? replacedOriginalDigest = null;
+        string? replacedOriginalMark = null;
+        bool originalMarkReadable = false;
         bool published = false;
         string? backup = null;
         try
@@ -159,9 +163,6 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (updating)
             {
                 Exception? integrityError = null;
-                string? replacedOriginalMark = null;
-                bool originalMarkReadable = false;
-                byte[]? replacedOriginalDigest = null;
                 string? publishedIdentity = null;
                 try
                 {
@@ -174,6 +175,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         integrityError = new IOException("The published archive pathname changed immediately after replacement.");
                     // The backup is the pathname's actual file at replacement time. It may differ
                     // from the opened source even when a late check of path metadata passed.
+                    replacedOriginalIdentity = Fs.GetFileIdentity(backup!);
                     replacedOriginalDigest = DigestFile(backup!, checkCancellation: false);
                     replacedOriginalMark = Fs.ReadOriginMark(backup!);
                     originalMarkReadable = true;
@@ -237,10 +239,23 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             for (int root = 0; root < Math.Max(1, Job.Request.Sources.Count); root++) Job.RootCompleted(root);
             if (backup is not null)
             {
-                try { File.Delete(backup); }
+                try
+                {
+                    // This path is visible to other processes. A later replacement or in-place
+                    // change is not our original backup and must not be deleted as cleanup.
+                    if (replacedOriginalIdentity is not null &&
+                        !string.Equals(Fs.GetFileIdentity(backup), replacedOriginalIdentity, StringComparison.Ordinal))
+                        throw new IOException("The original archive backup pathname changed before cleanup.");
+                    if (replacedOriginalDigest is null ||
+                        !DigestFile(backup, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                        !originalMarkReadable ||
+                        !string.Equals(Fs.ReadOriginMark(backup), replacedOriginalMark, StringComparison.Ordinal))
+                        throw new IOException("The original archive backup bytes or download mark changed before cleanup.");
+                    File.Delete(backup);
+                }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    Issue(IssueSeverity.Warning, backup, "The original archive backup could not be removed: " + ex.Message,
+                    Issue(IssueSeverity.Warning, backup, "The original archive backup was kept: " + ex.Message,
                         StepOutcome.Committed);
                 }
             }
