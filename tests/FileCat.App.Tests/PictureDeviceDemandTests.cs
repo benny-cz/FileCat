@@ -39,10 +39,10 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             await Navigate(tab, "held", "p0.png");
             pane.Attach(tab);
             pending.Add(Load(pane));
-            await sources[0].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await sources[0].Entered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
             Assert.True(tab.Listing.FocusName("p1.png"));
             pending.Add(Load(pane));
-            await sources[1].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await sources[1].Entered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
             var clock = Stopwatch.StartNew();
             Assert.True(tab.Listing.FocusName("p2.png"));
             pending.Add(Load(pane));
@@ -50,7 +50,7 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
             int activeAtCheckpoint = sources.Take(3).Sum(s => s.ActiveReads);
             await Navigate(tab, "healthy", "p3.png");
             pending.Add(Load(pane));
-            await pending[^1].WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            await pending[^1].WaitAsync(Patient, TestContext.Current.CancellationToken);
             var image = pane.GetVisualDescendants().OfType<Image>().Single();
             await WaitFor(() => image.Source is not null);
             Assert.Contains(pane.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("44 × 30", StringComparison.Ordinal) == true);
@@ -99,15 +99,15 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
                 return window;
             }
             await Open(0, "held");
-            await sources[0].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await sources[0].Entered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
             await Open(1, "held");
-            await sources[1].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await sources[1].Entered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
             queued = Open(2, "held");
             await Task.WhenAny(sources[2].Entered.Task, Task.Delay(1500, TestContext.Current.CancellationToken));
             int activeAtCheckpoint = sources.Take(3).Sum(s => s.ActiveReads);
             var healthy = await Open(3, "healthy");
             await WaitFor(() => healthy.PictureLoad is not null);
-            await healthy.PictureLoad!.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            await healthy.PictureLoad!.WaitAsync(Patient, TestContext.Current.CancellationToken);
             Assert.Equal((44, 30), (healthy.Picture!.Width, healthy.Picture.Height));
             output.WriteLine($"Held viewer reads at checkpoint {activeAtCheckpoint}; third feed entered {sources[2].Entered.Task.IsCompleted}; separate healthy provider device renders 44 x 30.");
             Assert.Equal(services.Io.ThreadsPerDevice, activeAtCheckpoint);
@@ -159,15 +159,15 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
                 return window;
             }
             await Open(0, "held");
-            await sources[0].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await sources[0].Entered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
             await Open(1, "held");
-            await sources[1].Entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await sources[1].Entered.Task.WaitAsync(Patient, TestContext.Current.CancellationToken);
             queued = Open(2, "held");
             await Task.WhenAny(sources[2].Entered.Task, Task.Delay(500, TestContext.Current.CancellationToken));
             int activeAtCheckpoint = sources.Take(3).Sum(s => s.ActiveReads);
             var healthy = await Open(3, "healthy");
             await WaitFor(() => healthy.PictureLoad is not null);
-            await healthy.PictureLoad!.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            await healthy.PictureLoad!.WaitAsync(Patient, TestContext.Current.CancellationToken);
             Assert.Equal((44, 30), (healthy.Picture!.Width, healthy.Picture.Height));
             output.WriteLine($"Header calls at checkpoint {activeAtCheckpoint}; third header entered {sources[2].Entered.Task.IsCompleted}; healthy device 44 x 30; calls: {string.Join(" | ", sources.Take(3).Select(s => s.HeldCallStack))}");
             Assert.Equal(services.Io.ThreadsPerDevice, activeAtCheckpoint);
@@ -221,12 +221,20 @@ public sealed class PictureDeviceDemandTests(ITestOutputHelper output)
         ((DispatcherTimer)typeof(QuickViewPane).GetField("_debounce", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(pane)!).Stop();
         return (Task)typeof(QuickViewPane).GetMethod("LoadAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(pane, null)!;
     }
+    /// <summary>
+    /// How long a wait for something that should happen may take. These waits bound progress, not
+    /// promptness: a hosted runner with four cores runs this headless suite far slower than a developer
+    /// machine, and a tight bound there fails a test for being slow rather than for being wrong. The
+    /// deliberate 1.5-second window that shows the third feed is *not* admitted is separate and unchanged.
+    /// </summary>
+    private static readonly TimeSpan Patient = TimeSpan.FromSeconds(30);
+
     private static async Task WaitFor(Func<bool> condition)
     {
         var clock = Stopwatch.StartNew();
         while (!condition())
         {
-            if (clock.Elapsed > TimeSpan.FromSeconds(7)) throw new TimeoutException("Owned picture device fixture did not reach its checkpoint.");
+            if (clock.Elapsed > Patient) throw new TimeoutException("Owned picture device fixture did not reach its checkpoint.");
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }
