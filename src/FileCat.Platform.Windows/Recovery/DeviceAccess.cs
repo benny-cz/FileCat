@@ -368,6 +368,9 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, 
 /// <summary>A device read through a session: FileCat parses, the elevated helper only reads (ADR-08).</summary>
 public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSelectionIdentity
 {
+    /// <summary>One pebibyte: past every drive FileCat reads, and far short of a length that breaks a scan's arithmetic.</summary>
+    private const long MaxDeviceLength = 1L << 50;
+
     private readonly Stream _pipe;
     private readonly object _lock = new();
     private readonly byte[] _request = new byte[RawReadProtocol.RequestSize];
@@ -384,8 +387,16 @@ public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSe
         var info = new byte[16];
         if (!RawReadProtocol.ReadExactly(_pipe, info) || BinaryPrimitives.ReadInt32LittleEndian(info) != 0)
             throw new IOException("The administrator helper did not describe the drive.");
-        Length = BinaryPrimitives.ReadInt64LittleEndian(info.AsSpan(4));
-        SectorSize = BinaryPrimitives.ReadInt32LittleEndian(info.AsSpan(12));
+        long length = BinaryPrimitives.ReadInt64LittleEndian(info.AsSpan(4));
+        int sectorSize = BinaryPrimitives.ReadInt32LittleEndian(info.AsSpan(12));
+        // Nothing else can check this description, and it becomes a scan's bounds, so an impossible one ends the
+        // session here. The limit is far beyond any drive FileCat reads; a sector size is a power of two.
+        if (length <= 0 || length > MaxDeviceLength)
+            throw new IOException($"The administrator helper described {description} as {length:N0} bytes, which no drive is.");
+        if (sectorSize is < 512 or > 65536 || (sectorSize & (sectorSize - 1)) != 0)
+            throw new IOException($"The administrator helper described {description} with sectors of {sectorSize:N0} bytes, which no drive has.");
+        Length = length;
+        SectorSize = sectorSize;
     }
 
     public string Description { get; }
