@@ -17,10 +17,14 @@
   <!--
     global.json selects SDK 10.0.101, whose bundled packs are .NET 10.0.1. Self-contained packages, apphosts and
     ReadyToRun code instead use the serviced runtime below (restore downloads its packs), so a package never ships
-    an older runtime than the latest security release. Framework-dependent builds still roll forward at run time.
+    a ten-month-old runtime. Framework-dependent builds still roll forward at run time.
+
+    This is the runtime pack whose license texts are pinned and reviewed in licenses/dependencies/index.json, which
+    the publish step enforces. Raising it means regenerating and reviewing that snapshot for every RID first; the
+    latest release at the time of writing (10.0.13) has no reviewed snapshot, so the packages stay on 10.0.12.
   -->
   <PropertyGroup>
-    <FileCatServicedRuntimeVersion>10.0.13</FileCatServicedRuntimeVersion>
+    <FileCatServicedRuntimeVersion>10.0.12</FileCatServicedRuntimeVersion>
   </PropertyGroup>
   <Target Name="FileCatUseServicedRuntimePacks" BeforeTargets="ProcessFrameworkReferences">
     <ItemGroup>

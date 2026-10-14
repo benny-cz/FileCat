@@ -56,7 +56,11 @@ public sealed class LiveDriveRecoveryTests : IDisposable
             using (var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 server.WaitForConnection();
-                return RawReadProtocol.Serve(server, handle, DeviceTopology.Length(handle), DeviceTopology.SectorSize(handle));
+                int sector = DeviceTopology.SectorSize(handle);
+                // As the installed helper does: serve what the device will actually read, so the helper and a
+                // direct read agree on the source's size (I110).
+                long length = DeviceTopology.ServedLength(handle, DeviceTopology.Length(handle), sector);
+                return RawReadProtocol.Serve(server, handle, length, sector);
             }
         }, ct);
         var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
@@ -89,7 +93,11 @@ public sealed class LiveDriveRecoveryTests : IDisposable
             using (var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 server.WaitForConnection();
-                return RawReadProtocol.Serve(server, handle, DeviceTopology.Length(handle), DeviceTopology.SectorSize(handle));
+                int sector = DeviceTopology.SectorSize(handle);
+                // As the installed helper does: serve what the device will actually read, so the helper and a
+                // direct read agree on the source's size (I110).
+                long length = DeviceTopology.ServedLength(handle, DeviceTopology.Length(handle), sector);
+                return RawReadProtocol.Serve(server, handle, length, sector);
             }
         }, ct);
         var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
@@ -119,6 +127,56 @@ public sealed class LiveDriveRecoveryTests : IDisposable
             int directDeleted = Deleted(direct, ct);
             TestContext.Current.TestOutputHelper?.WriteLine($"Deleted-entry comparison: pipe={pipedDeleted}, direct={directDeleted}.");
             Assert.Equal(pipedDeleted, directDeleted);
+        }
+        Assert.Equal("FileCat closed the session.", await serving);
+    }
+
+    /// <summary>
+    /// The lost-partition path on real hardware: the whole authorized disk is read instead of its volume, and the
+    /// scan has to find the partition and its file system for itself. Read-only, through the helper's protocol and
+    /// directly, and the two must agree.
+    /// </summary>
+    [Fact]
+    public async Task A_whole_usb_disk_is_scanned_for_its_partitions_through_the_helper_protocol_and_directly()
+    {
+        using var usb = LiveUsbGuard.Capture();
+        if (!Environment.IsPrivilegedProcess) Assert.Skip("Reading a whole disk needs administrator rights.");
+        var ct = TestContext.Current.CancellationToken;
+        usb.Recheck();
+        string device = usb.DiskDevice;
+
+        string pipeName = "FileCat-live-disk-" + Guid.NewGuid().ToString("N");
+        var server = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        var serving = Task.Run(() =>
+        {
+            using (server)
+            using (var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                server.WaitForConnection();
+                int sector = DeviceTopology.SectorSize(handle);
+                long length = DeviceTopology.ServedLength(handle, DeviceTopology.Length(handle), sector);
+                return RawReadProtocol.Serve(server, handle, length, sector, wholeDisk: true);
+            }
+        }, ct);
+        var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);
+        await client.ConnectAsync(5000, ct);
+        using (var direct = DirectDeviceSource.Open(device, device))
+        using (var piped = new PipeDeviceSource(client, device))
+        {
+            Assert.Equal(piped.Length, direct.Length);
+            Assert.Equal(piped.SectorSize, direct.SectorSize);
+            // A whole disk holds its partition table, so the scan finds the volume at its own offset.
+            var fromDisk = RecoveryScanner.Scan(direct, ct).Where(v => v.FileSystem != "Unknown").ToList();
+            var throughPipe = RecoveryScanner.Scan(piped, ct).Where(v => v.FileSystem != "Unknown").ToList();
+            TestContext.Current.TestOutputHelper?.WriteLine(
+                $"{device} ({direct.Length / (1024 * 1024)} MiB): direct found {fromDisk.Count} file systems, " +
+                $"the helper's protocol found {throughPipe.Count}: " +
+                string.Join(", ", fromDisk.Select(v => $"{v.FileSystem} at {v.Offset} ({v.Length / (1024 * 1024)} MiB)")));
+            Assert.NotEmpty(fromDisk);
+            Assert.Equal(fromDisk.Count, throughPipe.Count);
+            Assert.Equal(fromDisk.Select(v => (v.FileSystem, v.Offset, v.Length)), throughPipe.Select(v => (v.FileSystem, v.Offset, v.Length)));
+            // The partition does not start at the disk's first byte, which is what makes this the lost-partition path.
+            Assert.All(fromDisk, v => Assert.True(v.Offset > 0, "a partition on a whole disk starts after the partition table"));
         }
         Assert.Equal("FileCat closed the session.", await serving);
     }

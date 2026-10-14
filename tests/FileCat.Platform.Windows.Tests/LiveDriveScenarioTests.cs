@@ -127,7 +127,11 @@ public sealed class LiveDriveScenarioTests
             using (var handle = File.OpenHandle(device, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 server.WaitForConnection();
-                return RawReadProtocol.Serve(server, handle, DeviceTopology.Length(handle), DeviceTopology.SectorSize(handle));
+                int sector = DeviceTopology.SectorSize(handle);
+                // As the installed helper does: serve what the device will actually read, so the helper and a
+                // direct read agree on the source's size (I110).
+                long length = DeviceTopology.ServedLength(handle, DeviceTopology.Length(handle), sector);
+                return RawReadProtocol.Serve(server, handle, length, sector);
             }
         }, ct);
         var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut);

@@ -293,7 +293,8 @@ public sealed class DirectDeviceSource : IBlockSource, IDeviceDestinationGuard, 
         Description = description;
         long length = DeviceTopology.Length(handle);
         if (length <= 0) throw new IOException($"The size of {description} could not be read.");
-        _reader = new AlignedDeviceReader(handle, length, DeviceTopology.SectorSize(handle));
+        int sectorSize = DeviceTopology.SectorSize(handle);
+        _reader = new AlignedDeviceReader(handle, DeviceTopology.ServedLength(handle, length, sectorSize), sectorSize);
     }
 
     /// <summary>Opens a volume device (\\?\Volume{…}) or a disk for reading; access denied without administrator rights.</summary>
@@ -625,6 +626,8 @@ public static partial class DeviceReadHost
         long length = DeviceTopology.Length(handle);
         int sector = DeviceTopology.SectorSize(handle);
         if (length <= 0) return "The drive's size could not be read.";
+        // The helper and a direct read must agree on the source's size, so both ask what it will serve.
+        length = DeviceTopology.ServedLength(handle, length, sector);
         var security = new PipeSecurity();
         security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(userSid), PipeAccessRights.ReadWrite, AccessControlType.Allow));
         using (var self = WindowsIdentity.GetCurrent()) security.AddAccessRule(new PipeAccessRule(self.User!, PipeAccessRights.FullControl, AccessControlType.Allow));
@@ -989,6 +992,31 @@ public static unsafe partial class DeviceTopology
         long length;
         uint returned;
         return DeviceIoControl(device, 0x0007405C /* IOCTL_DISK_GET_LENGTH_INFO */, null, 0, &length, 8, &returned, 0) ? length : -1;
+    }
+
+    /// <summary>
+    /// How many bytes the device will actually serve, at or below <paramref name="length"/>. A volume reports its
+    /// partition's length, but NTFS keeps a backup boot sector outside the volume's own extent and the last sectors
+    /// are then refused: a scan must not be told those bytes exist, and a direct/helper comparison there would
+    /// otherwise compare two equally short reads and call them equal (I110). Costs one sector read when nothing is
+    /// missing. Whole disks normally serve every byte.
+    /// </summary>
+    internal static long ServedLength(SafeFileHandle device, long length, int sectorSize)
+    {
+        if (length <= 0 || sectorSize is < 512 or > 65536) return length;
+        var probe = new byte[sectorSize];
+        long end = length / sectorSize * sectorSize;
+        for (long trimmed = 0; trimmed < 64 * 1024 && end >= sectorSize; trimmed += sectorSize, end -= sectorSize)
+        {
+            try
+            {
+                if (RandomAccess.Read(device, probe, end - sectorSize) == sectorSize) return end;
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+        // Nothing near the end reads: report what the device claims rather than invent a smaller source.
+        return length;
     }
 
     internal static int SectorSize(SafeFileHandle device)

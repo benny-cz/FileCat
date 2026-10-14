@@ -28,6 +28,8 @@ internal sealed class LiveUsbGuard : IDisposable
     internal string Root => _identity.Volume;
     internal string Device => Root.TrimEnd('\\');
     internal string Evidence => _evidence;
+    /// <summary>The whole authorized disk, for the lost-partition path; the identity is rechecked like the volume's.</summary>
+    internal string DiskDevice => @"\\.\PhysicalDrive" + _identity.DiskNumber.ToString(CultureInfo.InvariantCulture);
 
     private LiveUsbGuard(Identity identity, string evidence) { _identity = identity; _evidence = evidence; }
 
