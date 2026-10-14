@@ -124,9 +124,14 @@ public sealed class GitWorktreeTreeTests
             using var process = Process.Start(start)!;
             var stdout = process.StandardOutput.ReadToEndAsync();
             var stderr = process.StandardError.ReadToEndAsync();
-            bool exited = process.WaitForExit(10000);
+            // Hosted Windows runs the solution tests concurrently; a tiny local commit can exceed ten seconds
+            // under runner contention without indicating that Git or the badge boundary is broken.
+            bool exited = process.WaitForExit(30000);
             if (!exited) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
-            Assert.True(exited && process.ExitCode == 0, stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
+            Assert.True(exited && process.ExitCode == 0,
+                $"{Path.GetFileName(executable)} {string.Join(' ', arguments)} " +
+                (exited ? $"exited {process.ExitCode}" : "exceeded the 30-second fixture deadline") +
+                Environment.NewLine + stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
         }
 
         public void Dispose()

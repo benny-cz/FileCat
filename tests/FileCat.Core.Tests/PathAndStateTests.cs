@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.State;
@@ -231,6 +233,75 @@ public class PathAndStateTests
         File.WriteAllText(path, "{\"SchemaVersion\": 99, \"Theme\": \"Future\"}");
         loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings, AppSettings.CurrentSchema, () => new AppSettings(), out st);
         Assert.Equal(StateLoadStatus.NewerSchemaReadOnly, st);
+    }
+
+    private static void WriteOversizedSettings(string path)
+    {
+        using var writer = new StreamWriter(path, false, new UTF8Encoding(false));
+        writer.Write("{\"SchemaVersion\":1,\"Theme\":\"");
+        char[] padding = new char[64 * 1024];
+        Array.Fill(padding, 'A');
+        for (int i = 0; i < 129; i++) writer.Write(padding);
+        writer.Write("\"}");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Oversized_primary_state_uses_backup_without_replacing_the_original(bool linked)
+    {
+        using var dir = new TempDir();
+        string target = Path.Combine(dir.Path, "large-settings.json");
+        string path = linked ? Path.Combine(dir.Path, "settings-link.json") : target;
+        WriteOversizedSettings(target);
+        if (linked)
+        {
+            try { File.CreateSymbolicLink(path, target); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+            }
+        }
+        File.WriteAllText(path + ".bak", "{\"SchemaVersion\":1,\"Theme\":\"backed-up\"}");
+        string before;
+        using (var stream = File.OpenRead(target)) before = Convert.ToHexString(SHA256.HashData(stream));
+
+        var loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings,
+            AppSettings.CurrentSchema, () => new AppSettings(), out var status);
+
+        Assert.Equal("backed-up", loaded.Theme);
+        Assert.Equal(StateLoadStatus.OversizedReadOnly, status);
+        using (var stream = File.OpenRead(target)) Assert.Equal(before, Convert.ToHexString(SHA256.HashData(stream)));
+        Assert.Empty(Directory.GetFiles(dir.Path, "*.corrupt-*"));
+    }
+
+    [Fact]
+    public void Oversized_backup_state_is_not_materialized_after_a_bad_primary()
+    {
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "settings.json");
+        File.WriteAllText(path, "{bad json");
+        WriteOversizedSettings(path + ".bak");
+        var loaded = JsonFileStore.Load(path, StateJsonContext.Default.AppSettings,
+            AppSettings.CurrentSchema, () => new AppSettings(), out var status);
+        Assert.Equal("System", loaded.Theme);
+        Assert.Equal(StateLoadStatus.OversizedReadOnly, status);
+    }
+
+    [Fact]
+    public void Save_refuses_a_state_record_that_the_next_launch_could_not_read()
+    {
+        using var dir = new TempDir();
+        string path = Path.Combine(dir.Path, "settings.json");
+        JsonFileStore.Save(path, new AppSettings { Theme = "retained" }, StateJsonContext.Default.AppSettings);
+        string before;
+        using (var stream = File.OpenRead(path)) before = Convert.ToHexString(SHA256.HashData(stream));
+
+        var tooLarge = new AppSettings { Theme = new string('A', 8 * 1024 * 1024 + 1) };
+        Assert.Throws<IOException>(() => JsonFileStore.Save(path, tooLarge, StateJsonContext.Default.AppSettings));
+
+        using (var stream = File.OpenRead(path)) Assert.Equal(before, Convert.ToHexString(SHA256.HashData(stream)));
+        Assert.False(File.Exists(path + ".tmp"));
     }
 
     [Fact]

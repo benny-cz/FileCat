@@ -1,0 +1,9 @@
+# E-CI-I447 — green corrected-source hosted qualification
+
+Run [38490284000](https://github.com/benny-cz/FileCat/actions/runs/38490284000) at exact `74d17e38fedce8eb8519138c566dde7f8a1b08f6` completed **success**: producer policy, Windows x64, Windows ARM64, Ubuntu 24.04 and macOS 26 passed; four conditional package/draft jobs skipped.
+
+The private `V:\FileCat\artifacts\release-evidence\ci-i447-20261014-v1` archive retains all **27 server-digested ZIPs**, **2,762 members** and **fourteen TRX**: **33,247 passed / 1,177 explicitly skipped / zero failed**. Every file and member independently rehashed. Its 34-file self-excluding manifest SHA-256 is `82389f3f262252a74bc34eda9895f9c0bb1c8931c0b35c862866e492be46d497`; audit SHA-256 is `f49233d3265d7807a99b61dca2b095b520ca8c03ee1f27ded280ac2c93b366c7`.
+
+An independent all-test-row comparison against the preceding green [`0f5ad89b` run](E-CI-I443-I444-opened-input-bounds.md) retains all **34,406** predecessor rows and their outcomes/messages. It adds only **eighteen passes**: eight I446 edit-session records, two I445 Recycle Bin records, and eight I447 language-file records across the appropriate lanes. The two-file `ci-i447-comparison-20261014-v1` archive independently rehashes under manifest SHA-256 `66cdf9bd2e5f751376c9d16670cf0e8471324c638d0ab9b8d920ae67c5c46970`; comparison SHA-256 is `1c5ffe1f1b196120bf8de95d6f70d2ccf2cf1cc88e9f84a663f7bc8cdc20b651`.
+
+This qualifies I445–I447 tests at the combined corrected source. The intervening [exact `ad06424f` run](E-CI-I445-I446-failed-windows.md) remains failed due its one Git fixture timeout; it is not relabelled. I448/I449 and later state fixes are separate source identities. No installed candidate exists; I106/I110 physical-source validation stays on HOLD and stable publication requires explicit human GO.

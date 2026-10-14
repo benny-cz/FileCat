@@ -1,0 +1,7 @@
+# E-I450 — bounded Git fixture deadline under hosted load
+
+**Scope:** High required-CI reliability. [Exact `ad06424f` run 38489450487](E-CI-I445-I446-failed-windows.md) failed one Windows App test while its I445/I446 additions passed. The failed test created an owned Git worktree; its fixture's local `git commit` stopped at the hard-coded ten-second `WaitForExit` limit with no Git output. The preceding green run had passed that same row. This evidence supports a fixture deadline problem under hosted contention, not a demonstrated FileCat product failure.
+
+The fixture now allows **30 seconds** for each bounded local Git command and reports the command, exit code or deadline in any assertion. It still kills the process tree on timeout, leaves the four-minute per-test CI hang control in place, and retains the same worktree/junction assertions. The corrected headless Windows `GitWorktreeTreeTests` class passes **8/8**; the later combined App selection passes **10/10**. Both raw TRX are retained.
+
+The private `V:\FileCat\artifacts\release-evidence\i450-i451-state-ci-20261014-v1` archive holds exact `25edf006` parent/final source, raw tests and build logs. Its 38 files independently rehash under self-excluding manifest SHA-256 `1c7ccf9b754d126bf11d15b03f1f65467232059e315261138ea1ebb1e5a63588` and audit SHA-256 `c651129befd3dd2f5b24138637e6e312dc99139fed7893408bfee61bd1d8e332`. Exact pushed-source CI must still pass. The original failed run stays failed.

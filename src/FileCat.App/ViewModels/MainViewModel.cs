@@ -125,11 +125,17 @@ public sealed partial class MainViewModel : ObservableObject
         _ = RefreshDriveButtonsAsync();
         Workspace.LoadState(state);
         if (WorkspaceReadOnly)
-            Notify("The window layout was saved by a newer FileCat; this one starts with the default layout and does not save over it.", true);
-        if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)
+            Notify(WorkspaceOversized
+                ? "The saved window layout exceeds FileCat's safe input limit. The default layout is shown and the original file will not be overwritten."
+                : "The window layout was saved by a newer FileCat; this one starts with the default layout and does not save over it.", true);
+        if (Services.SettingsStatus == StateLoadStatus.OversizedReadOnly)
+            Notify("Settings exceed FileCat's safe input limit. A backup or defaults are shown read-only; the original file was left untouched.", true);
+        else if (Services.SettingsStatus == StateLoadStatus.NewerSchemaReadOnly)
             Notify("Settings were written by a newer FileCat and are opened read-only; changes will not be saved.", true);
         else if (Services.SettingsStatus is StateLoadStatus.RecoveredFromBackup or StateLoadStatus.CorruptUsingDefaults)
             Notify("Settings were damaged; FileCat restored a usable copy and kept the damaged file for inspection.", true);
+        if (Services.HistoryStatus == StateLoadStatus.OversizedReadOnly)
+            Notify("History exceeds FileCat's safe input limit. It is shown from a backup or defaults and will not be saved over the original.", true);
     }
 
     public void UpdateKeyBar(KeyMods mods)
@@ -226,10 +232,11 @@ public sealed partial class MainViewModel : ObservableObject
     public WindowPlacement? LastPlacement { get; set; }
 
     /// <summary>
-    /// The window layout (workspace.json) was written by a newer FileCat: this one starts with the default layout and
-    /// never saves over it — not on exit, not in the minute's autosave (plan §19.1) — as settings and history do.
+    /// The window layout is newer or too large to read safely: this one starts with the default layout and
+    /// never saves over the original — not on exit, not in the minute's autosave (plan §19.1).
     /// </summary>
     public bool WorkspaceReadOnly { get; private set; }
+    private bool WorkspaceOversized { get; set; }
 
     /// <summary>
     /// The saved window layout, or null for the default one: none saved yet, damaged beyond its backup, written by a
@@ -241,7 +248,8 @@ public sealed partial class MainViewModel : ObservableObject
         var state = JsonFileStore.Load(Services.Paths.WorkspaceFile, StateJsonContext.Default.WorkspaceState,
             WorkspaceState.CurrentSchema, () => new WorkspaceState(), out var status);
         if (status is StateLoadStatus.CorruptUsingDefaults) AppLog.Warn("Workspace was corrupt; using the default layout.");
-        WorkspaceReadOnly = status is StateLoadStatus.NewerSchemaReadOnly;
+        WorkspaceOversized = status == StateLoadStatus.OversizedReadOnly;
+        WorkspaceReadOnly = status is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly;
         return WorkspaceReadOnly || reset ? null : state;
     }
 

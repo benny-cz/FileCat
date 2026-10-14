@@ -15,6 +15,8 @@ public enum StateLoadStatus
     CorruptUsingDefaults,
     /// <summary>Written by a newer FileCat; loaded read-only so it is never overwritten (plan §19.1).</summary>
     NewerSchemaReadOnly,
+    /// <summary>Too large to read safely; defaults or a backup are used without replacing the original.</summary>
+    OversizedReadOnly,
 }
 
 public interface IVersionedState
@@ -28,6 +30,8 @@ public interface IVersionedState
 /// </summary>
 public static class JsonFileStore
 {
+    private const int MaxStateBytes = 8 * 1024 * 1024;
+
     public static T Load<T>(string path, JsonTypeInfo<T> typeInfo, int currentSchema, Func<T> defaults, out StateLoadStatus status)
         where T : class, IVersionedState
     {
@@ -36,12 +40,19 @@ public static class JsonFileStore
             status = StateLoadStatus.Missing;
             return defaults();
         }
-        if (TryRead(path, typeInfo, out var value))
+        if (TryRead(path, typeInfo, out var value, out bool primaryOversized))
         {
             status = value!.SchemaVersion > currentSchema ? StateLoadStatus.NewerSchemaReadOnly : StateLoadStatus.Loaded;
             return value;
         }
-        if (TryRead(path + ".bak", typeInfo, out var backup))
+        bool backupLoaded = TryRead(path + ".bak", typeInfo, out var backup, out bool backupOversized);
+        if (primaryOversized || backupOversized)
+        {
+            // An oversized state might be valid or from a newer release. Never move or overwrite it automatically.
+            status = StateLoadStatus.OversizedReadOnly;
+            return backupLoaded ? backup! : defaults();
+        }
+        if (backupLoaded)
         {
             PreserveCorrupt(path);
             status = backup!.SchemaVersion > currentSchema ? StateLoadStatus.NewerSchemaReadOnly : StateLoadStatus.RecoveredFromBackup;
@@ -52,14 +63,20 @@ public static class JsonFileStore
         return defaults();
     }
 
-    private static bool TryRead<T>(string path, JsonTypeInfo<T> typeInfo, out T? value) where T : class
+    private static bool TryRead<T>(string path, JsonTypeInfo<T> typeInfo, out T? value, out bool oversized) where T : class
     {
         value = null;
+        oversized = false;
         try
         {
             if (!File.Exists(path)) return false;
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            value = JsonSerializer.Deserialize(fs, typeInfo);
+            if (fs.Length > MaxStateBytes) { oversized = true; return false; }
+            byte[] bytes = new byte[checked((int)fs.Length)];
+            fs.ReadExactly(bytes);
+            if (fs.ReadByte() != -1) { oversized = true; return false; }
+            using var bounded = new MemoryStream(bytes, writable: false);
+            value = JsonSerializer.Deserialize(bounded, typeInfo);
             return value is not null;
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
@@ -72,7 +89,14 @@ public static class JsonFileStore
     {
         try
         {
-            if (File.Exists(path)) File.Copy(path, $"{path}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmss}", overwrite: false);
+            if (!File.Exists(path)) return;
+            using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (source.Length > MaxStateBytes) return;
+            byte[] bytes = new byte[checked((int)source.Length)];
+            source.ReadExactly(bytes);
+            if (source.ReadByte() != -1) return;
+            using var copy = new FileStream($"{path}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmss}", FileMode.CreateNew, FileAccess.Write);
+            copy.Write(bytes);
         }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
@@ -84,10 +108,17 @@ public static class JsonFileStore
         var dir = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(dir);
         var tmp = path + ".tmp";
+        long writtenBytes;
         using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
         {
             JsonSerializer.Serialize(fs, value, typeInfo);
-            fs.Flush(flushToDisk: true);
+            writtenBytes = fs.Length;
+            if (writtenBytes <= MaxStateBytes) fs.Flush(flushToDisk: true);
+        }
+        if (writtenBytes > MaxStateBytes)
+        {
+            File.Delete(tmp);
+            throw new IOException($"State exceeds the {MaxStateBytes}-byte read and write limit.");
         }
         if (File.Exists(path))
         {

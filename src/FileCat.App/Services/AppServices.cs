@@ -219,7 +219,7 @@ public sealed class AppServices : IDisposable
     public IShellServices Shell { get; }
     public ProviderRegistry Providers { get; }
 
-    public bool SettingsReadOnly => SettingsStatus == StateLoadStatus.NewerSchemaReadOnly;
+    public bool SettingsReadOnly => SettingsStatus is StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly;
 
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
@@ -310,7 +310,7 @@ public sealed class AppServices : IDisposable
 
     public void SaveHistory()
     {
-        if (HistoryStatus != StateLoadStatus.NewerSchemaReadOnly)
+        if (HistoryStatus is not (StateLoadStatus.NewerSchemaReadOnly or StateLoadStatus.OversizedReadOnly))
         {
             try { JsonFileStore.Save(Paths.HistoryFile, History, StateJsonContext.Default.HistoryState); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ReportSaveFailure("history", ex); }
