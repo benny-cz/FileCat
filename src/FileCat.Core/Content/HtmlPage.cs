@@ -1,5 +1,7 @@
 using System.Text;
+using System.Runtime.InteropServices;
 using FileCat.Core.Resources;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Content;
 
@@ -11,6 +13,9 @@ namespace FileCat.Core.Content;
 /// </summary>
 public sealed class HtmlPage
 {
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenUnixReadOnly(string path, int flags);
+
     /// <summary>A reserved name (RFC 2606): no such site exists.</summary>
     public const string Host = "filecat-page.example";
 
@@ -100,15 +105,54 @@ public sealed class HtmlPage
             string folder = ResolveLinks(_folder);
             string resolved = ResolveLinks(full);
             if (!Inside(resolved, folder)) return null;
-            var file = new FileInfo(resolved);
-            if (!file.Exists) return null;
-            if (file.Length > MaxBytes) return null;
+            using var input = OpenResource(resolved);
+            if (input is null || input.Length > MaxBytes) return null;
             _ct.ThrowIfCancellationRequested();
-            var bytes = File.ReadAllBytes(resolved);
+            var bytes = new byte[checked((int)input.Length)];
+            for (int read = 0; read < bytes.Length;)
+            {
+                _ct.ThrowIfCancellationRequested();
+                int count = input.Read(bytes, read, Math.Min(64 * 1024, bytes.Length - read));
+                if (count == 0) return null;
+                read += count;
+            }
+            if (input.ReadByte() != -1) return null;
             _ct.ThrowIfCancellationRequested();
             return (bytes, MimeType(full));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { return null; }
+    }
+
+    private static FileStream? OpenResource(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (stream.CanSeek) return stream;
+            stream.Dispose();
+            return null;
+        }
+
+        // O_NONBLOCK prevents a FIFO beside the page from hanging the viewer during open. O_NOFOLLOW refuses
+        // a final link swapped in after ResolveLinks; the opened descriptor supplies the actual size bound.
+        int nonblock = OperatingSystem.IsMacOS() ? 4 : 2048;
+        int closeOnExec = OperatingSystem.IsMacOS() ? 16777216 : 524288;
+        int noFollow = OperatingSystem.IsMacOS() ? 256 : 131072;
+        int fd = OpenUnixReadOnly(path, nonblock | closeOnExec | noFollow);
+        if (fd < 0) return null;
+        var handle = new SafeFileHandle((IntPtr)fd, ownsHandle: true);
+        try
+        {
+            var stream = new FileStream(handle, FileAccess.Read);
+            if (stream.CanSeek) return stream;
+            stream.Dispose();
+            return null;
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
     }
 
     private bool Inside(string full) => Inside(full, _folder!);

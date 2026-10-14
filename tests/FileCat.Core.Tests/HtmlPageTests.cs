@@ -1,4 +1,6 @@
 using System.Text;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using FileCat.Core.Content;
 using FileCat.Core.Resources;
 
@@ -7,6 +9,27 @@ namespace FileCat.Core.Tests;
 /// <summary>The page view serves the page and the files in its own folder, and nothing else (D-51).</summary>
 public sealed class HtmlPageTests
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
+    [Fact]
+    public void A_page_does_not_open_an_adjacent_fifo_waiting_for_a_writer()
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix FIFO control."); return; }
+        using var root = new TempDir();
+        string pagePath = Path.Combine(root.Path, "index.html");
+        string pipePath = Path.Combine(root.Path, "owned.pipe");
+        File.WriteAllText(pagePath, "<html></html>");
+        Assert.Equal(0, MakeFifo(pipePath, 384));
+        using var source = new FileContentSource(pagePath);
+        var page = new HtmlPage(source, pagePath);
+        var elapsed = Stopwatch.StartNew();
+
+        Assert.Null(page.Resolve("/owned.pipe"));
+        Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(10), $"FIFO refusal took {elapsed.Elapsed}.");
+        Assert.Equal("<html></html>", Encoding.UTF8.GetString(page.Resolve("/index.html")!.Value.Bytes));
+    }
+
     [Fact]
     public void A_page_on_disk_gets_the_files_in_its_folder_and_nothing_outside_it()
     {
