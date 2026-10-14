@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using FileCat.Core.Operations;
 using FileCat.Core.Verification;
 
@@ -6,6 +7,44 @@ namespace FileCat.Core.Tests;
 
 public sealed class ChecksumManifestBoundedInputTests
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MakeFifo(string path, uint mode);
+
+    [Fact]
+    public void Unix_checksum_manifest_fifo_is_refused_without_waiting_for_a_writer()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix FIFO control.");
+        string root = Directory.CreateTempSubdirectory("filecat-manifest-fifo-").FullName;
+        try
+        {
+            string path = Path.Combine(root, "target.bin.sha256");
+            Assert.Equal(0, MakeFifo(path, 384));
+            var clock = Stopwatch.StartNew();
+            Assert.ThrowsAny<IOException>(() => ChecksumManifests.Load(path, FolderSidecars.MaxChecksumFileBytes));
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"FIFO refusal took {clock.Elapsed}.");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void Unix_automatic_sidecar_scan_does_not_wait_on_a_fifo_link()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix FIFO control.");
+        string root = Directory.CreateTempSubdirectory("filecat-sidecar-fifo-").FullName;
+        try
+        {
+            string pipe = Path.Combine(root, "source.pipe");
+            Assert.Equal(0, MakeFifo(pipe, 384));
+            File.WriteAllText(Path.Combine(root, "target.bin"), "owned");
+            File.CreateSymbolicLink(Path.Combine(root, "target.bin.sha256"), pipe);
+            var clock = Stopwatch.StartNew();
+            FolderSidecars scan = FolderSidecars.Scan(root, TestContext.Current.CancellationToken);
+            Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"Sidecar scan took {clock.Elapsed}.");
+            Assert.Empty(scan.Checksums("target.bin"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public void Bare_checksum_fallback_does_not_materialize_an_oversized_file()
     {

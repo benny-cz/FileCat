@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
+using FileCat.Core.Verification;
 
 namespace FileCat.Core.Operations;
 
@@ -181,7 +182,7 @@ public static partial class ChecksumManifests
         if (info.Length > maxBytes) throw new InvalidDataException($"The manifest is larger than {maxBytes} bytes.");
         // A zero-length special file, or a regular file grown after the metadata check,
         // must not make ReadAllBytes wait for EOF while retaining arbitrary input.
-        using var input = File.OpenRead(manifestPath);
+        using var input = VerificationFileReader.OpenRead(manifestPath);
         using var content = new MemoryStream((int)info.Length);
         byte[] buffer = new byte[64 * 1024];
         while (true)

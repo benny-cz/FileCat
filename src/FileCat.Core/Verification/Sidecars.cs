@@ -116,7 +116,7 @@ public sealed class FolderSidecars
         {
             try
             {
-                using var stream = File.Open(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var stream = VerificationFileReader.OpenRead(info.FullName, FileShare.ReadWrite | FileShare.Delete);
                 using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                 byte[] buffer = new byte[64 * 1024];
                 long total = 0;
@@ -201,7 +201,7 @@ public sealed class FolderSidecars
         {
             // The manifest parser above has its own opened-byte budget. A bare checksum fallback reopens the
             // path, so that earlier check cannot authorize an unbounded second read after a file changes.
-            using var input = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var input = VerificationFileReader.OpenRead(path, FileShare.ReadWrite | FileShare.Delete);
             if (input.CanSeek && input.Length > MaxChecksumFileBytes) return null;
             using var bytes = new MemoryStream();
             byte[] buffer = new byte[64 * 1024];
