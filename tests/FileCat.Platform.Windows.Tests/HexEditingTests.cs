@@ -94,6 +94,33 @@ public sealed partial class HexEditingTests
     }
 
     [Fact]
+    public void Patch_import_checks_the_opened_file_size_before_reading_a_link_target()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string directory = NewDirectory("filecat-hexpatch-bound-");
+        try
+        {
+            string target = Path.Combine(directory, "oversized.json");
+            string link = Path.Combine(directory, "linked.json");
+            using (var stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                SetSparse(stream.SafeFileHandle);
+                stream.SetLength(64L * 1024 * 1024 + 1);
+            }
+            try { File.CreateSymbolicLink(link, target); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+            }
+            if (new FileInfo(link).Length > 64L * 1024 * 1024)
+                Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+            Assert.Equal("The patch file is larger than 64 MiB.",
+                Assert.Throws<InvalidDataException>(() => HexPatchExport.Read(link)).Message);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public void A_patch_that_does_not_fit_beside_the_edits_made_is_not_applied_in_part()
     {
         // Release plan DPI P05: the patch's ranges were staged one by one until the touched-byte limit stopped one, and

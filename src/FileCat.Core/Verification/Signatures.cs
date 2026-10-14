@@ -67,7 +67,8 @@ public static class Minisign
             {
                 try
                 {
-                    if (new FileInfo(file).Length <= 4096 && ParsePublicKey(File.ReadAllText(file), file) is { } key) keys.Add(key with { Trusted = trusted });
+                    if (ReadBoundedText(file) is { } text && ParsePublicKey(text, file) is { } key)
+                        keys.Add(key with { Trusted = trusted });
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
@@ -81,7 +82,7 @@ public static class Minisign
     {
         string keysFolder = trustedFolder ?? "FileCat's keys folder";
         Signature? signature;
-        try { signature = new FileInfo(signaturePath).Length <= 4096 ? ParseSignature(File.ReadAllText(signaturePath)) : null; }
+        try { signature = ReadBoundedText(signaturePath) is { } text ? ParseSignature(text) : null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new SignatureResult(VerificationState.SignatureUnchecked, "it could not be read: " + ex.Message); }
         if (signature is null) return new SignatureResult(VerificationState.SignatureBad, "it is not a minisign signature");
         // A key the user trusts wins over the same key found beside the file.
@@ -95,9 +96,10 @@ public static class Minisign
             if (signature.Prehashed) message = Blake2b(file, ct, progress);
             else
             {
-                if (new FileInfo(file).Length > MaxLegacyBytes)
+                byte[]? legacyMessage = ReadLegacyMessage(file, ct);
+                if (legacyMessage is null)
                     return new SignatureResult(VerificationState.SignatureUnchecked, $"its legacy form signs the whole file, which is larger than {MaxLegacyBytes >> 20} MiB");
-                message = File.ReadAllBytes(file);
+                message = legacyMessage;
                 progress?.Invoke(message.Length);
             }
         }
@@ -120,6 +122,35 @@ public static class Minisign
                 Short: "? signed by a key found beside it");
         return new SignatureResult(VerificationState.SignatureGood,
             $"good minisign signature, key {key.Id} from {Path.GetFileName(key.Source)} (a trusted key); trusted comment: {signature.TrustedComment}", signer);
+    }
+
+    private static string? ReadBoundedText(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length > 4096) return null;
+        byte[] bytes = new byte[4097];
+        int length = stream.ReadAtLeast(bytes, bytes.Length, throwOnEndOfStream: false);
+        if (length > 4096) return null;
+        using var reader = new StreamReader(new MemoryStream(bytes, 0, length, writable: false), Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
+
+    private static byte[]? ReadLegacyMessage(string path, CancellationToken ct)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length > MaxLegacyBytes) return null;
+        byte[] bytes = new byte[checked((int)stream.Length)];
+        int read = 0;
+        while (read < bytes.Length)
+        {
+            ct.ThrowIfCancellationRequested();
+            int count = stream.Read(bytes, read, bytes.Length - read);
+            if (count == 0) throw new EndOfStreamException("The legacy signed file changed while it was read.");
+            read += count;
+        }
+        ct.ThrowIfCancellationRequested();
+        return stream.ReadByte() == -1 ? bytes : null;
     }
 
     /// <summary>BLAKE2b-512 of a file, read in 1 MiB blocks.</summary>

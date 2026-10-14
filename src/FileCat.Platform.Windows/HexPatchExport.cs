@@ -52,8 +52,12 @@ public static class HexPatchExport
     {
         var info = new FileInfo(path);
         if (!info.Exists) throw new FileNotFoundException("The patch file no longer exists.", path);
-        if (info.Length > MaxPatchFileBytes) throw new InvalidDataException("The patch file is larger than 64 MiB.");
-        using var document = JsonDocument.Parse(File.ReadAllBytes(path), new JsonDocumentOptions { MaxDepth = 8 });
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length > MaxPatchFileBytes) throw new InvalidDataException("The patch file is larger than 64 MiB.");
+        byte[] bytes = new byte[checked((int)stream.Length)];
+        stream.ReadExactly(bytes);
+        if (stream.ReadByte() != -1) throw new InvalidDataException("The patch file is larger than 64 MiB.");
+        using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 8 });
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("format", out var format) || format.GetString() != Format)
             throw new InvalidDataException("This is not a FileCat hex patch file.");

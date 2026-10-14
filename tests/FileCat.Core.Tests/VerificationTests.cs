@@ -214,6 +214,79 @@ public sealed class VerificationTests : IDisposable
     }
 
     [Fact]
+    public void Minisign_ignores_oversized_link_target_for_trusted_key()
+    {
+        var signer = new MinisignKey();
+        string keys = Directory.CreateDirectory(Path.Combine(_dir, "linked-keys")).FullName;
+        string oversizedKey = Path.Combine(_dir, "oversized.pub");
+        string linkedKey = Path.Combine(keys, "release.pub");
+        WriteSparseText(oversizedKey, signer.PublicFile, 8 * 1024 * 1024);
+        try { File.CreateSymbolicLink(linkedKey, oversizedKey); }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+        }
+        if (new FileInfo(linkedKey).Length > 4096)
+            Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+
+        Assert.Empty(Minisign.KeysIn([keys], trusted: true));
+    }
+
+    [Fact]
+    public void Minisign_ignores_oversized_link_target_for_signature_sidecar()
+    {
+        var signer = new MinisignKey();
+        byte[] content = "signed bytes"u8.ToArray();
+        string source = Path.Combine(_dir, "linked-signed.bin");
+        File.WriteAllBytes(source, content);
+        string oversizedSignature = Path.Combine(_dir, "oversized.minisig");
+        string linkedSignature = source + ".minisig";
+        WriteSparseText(oversizedSignature, signer.Sign(content, "release") + "\n", 8 * 1024 * 1024);
+        try { File.CreateSymbolicLink(linkedSignature, oversizedSignature); }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+        }
+        if (new FileInfo(linkedSignature).Length > 4096)
+            Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+
+        var publicKey = Assert.IsType<Minisign.PublicKey>(Minisign.ParsePublicKey(signer.PublicFile, "release.pub"));
+        Assert.Equal(VerificationState.SignatureBad,
+            Minisign.Verify(source, linkedSignature, [publicKey with { Trusted = true }], TestContext.Current.CancellationToken).State);
+    }
+
+    [Fact]
+    public void Minisign_refuses_oversized_link_target_for_legacy_signed_content()
+    {
+        var signer = new MinisignKey();
+        byte[] smallContent = "signed bytes"u8.ToArray();
+        string oversizedSource = Path.Combine(_dir, "oversized-legacy.bin");
+        string linkedSource = Path.Combine(_dir, "linked-legacy.bin");
+        using (var stream = new FileStream(oversizedSource, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            stream.SetLength(Minisign.MaxLegacyBytes + 1);
+        try { File.CreateSymbolicLink(linkedSource, oversizedSource); }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+        }
+        if (new FileInfo(linkedSource).Length > Minisign.MaxLegacyBytes)
+            Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+
+        string signature = Path.Combine(_dir, "legacy.minisig");
+        File.WriteAllText(signature, signer.Sign(smallContent, "legacy", prehashed: false));
+        var publicKey = Assert.IsType<Minisign.PublicKey>(Minisign.ParsePublicKey(signer.PublicFile, "release.pub"));
+        Assert.Equal(VerificationState.SignatureUnchecked,
+            Minisign.Verify(linkedSource, signature, [publicKey with { Trusted = true }], TestContext.Current.CancellationToken).State);
+    }
+
+    private static void WriteSparseText(string path, string text, int length)
+    {
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        stream.Write(Encoding.UTF8.GetBytes(text));
+        stream.SetLength(length);
+    }
+
+    [Fact]
     public void Automatic_signature_result_rechecks_a_trusted_key_rewritten_with_its_metadata_restored()
     {
         var signer = new MinisignKey();
