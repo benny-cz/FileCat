@@ -42,6 +42,16 @@ if ($Selector.sdk.rollForward -ne 'disable' -or $Selector.sdk.allowPrerelease -n
 }
 $Dirty = -not [string]::IsNullOrWhiteSpace((ReadCommand 'git' 'status --porcelain').Stdout)
 if ($RequireCleanCheckout -and $Dirty) { throw 'Build provenance requires a clean source checkout.' }
+$SourceCommit = (ReadCommand 'git' 'rev-parse HEAD').Stdout.Trim()
+$TriggerSha = [Environment]::GetEnvironmentVariable('GITHUB_SHA')
+if ([Environment]::GetEnvironmentVariable('GITHUB_ACTIONS') -eq 'true' -and [string]::IsNullOrWhiteSpace($TriggerSha)) {
+    throw 'Hosted build provenance requires a triggering commit SHA.'
+}
+if (-not [string]::IsNullOrWhiteSpace($TriggerSha) -and
+    (-not [regex]::IsMatch($TriggerSha, '\A[0-9a-fA-F]{40}\z') -or
+     -not [string]::Equals($SourceCommit, $TriggerSha, [StringComparison]::OrdinalIgnoreCase))) {
+    throw 'The checked-out build commit does not match the triggering commit SHA.'
+}
 # Only configuration key names are requested: credential/header values must never enter the receipt or logs.
 $CredentialKeys = (ReadCommand 'git' 'config --local --name-only --get-regexp "(^http\..*\.extraheader$|^credential\.|^core\.sshCommand$|^include(if)?\.)"' @(0,1)).Stdout.Trim()
 if ($RequireCleanCheckout -and -not [string]::IsNullOrWhiteSpace($CredentialKeys)) {
@@ -64,7 +74,7 @@ foreach ($Name in @('RUNNER_OS','RUNNER_ARCH','ImageOS','ImageVersion','GITHUB_R
 }
 $Receipt = [ordered]@{
     UTC = [DateTime]::UtcNow.ToString('o')
-    SourceCommit = (ReadCommand 'git' 'rev-parse HEAD').Stdout.Trim()
+    SourceCommit = $SourceCommit
     SourceTreeDirty = $Dirty
     ExactSDK = $Selected
     GlobalJsonSHA256 = (Get-FileHash -LiteralPath $GlobalPath -Algorithm SHA256).Hash.ToLowerInvariant()
