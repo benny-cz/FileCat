@@ -40,6 +40,18 @@ public sealed class SelectedDiskInterfaceSourceTests
             SelectedDiskInterfaceSource.VolumeSelectionIdentity(replacement));
         Assert.Null(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original with { Identity = null }));
         Assert.Null(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original with { InterfacePath = null }));
+        Assert.Null(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original with { Length = 0 }));
+    }
+
+    [Fact]
+    public void Volume_selection_distinguishes_same_interface_and_guid_with_changed_disk_length()
+    {
+        const string clonedGuid = "a75c39bd-652d-4efb-871e-6a4a1e93e127";
+        var selected = new PhysicalDisk(7, 64 * 1024 * 1024, "A", "virtual", false, [], clonedGuid, @"\\?\SCSI#FileCat#slot7");
+        var replacement = selected with { Length = 128 * 1024 * 1024, Model = "B" };
+
+        Assert.NotEqual(SelectedDiskInterfaceSource.VolumeSelectionIdentity(selected),
+            SelectedDiskInterfaceSource.VolumeSelectionIdentity(replacement));
     }
 
     [Fact]
