@@ -57,7 +57,7 @@ The direct/helper comparison asked for the last 5,000 bytes of the volume and **
 
 FileCat was therefore telling a scan that 4,096 bytes existed which it could never read. `DeviceTopology.ServedLength` now probes the end once at open and reports what the device will actually serve, and both the direct source and the installed helper use it, so the two still agree on the source's size. Three unit controls fix the contract and the full Windows Platform suite passes 442 tests with 35 explicit skips. On the stick, the same comparison now reads the **full 5,000 bytes through both paths** at offset 7,795,104,888 with identical SHA-256, instead of two equal 904-byte reads.
 
-The two remaining live failures in both runs are the signed-program assertions: this stick no longer carries deleted signed programs, so nothing recovered can have a valid signature. That fixture is independent of the write question and of the two corrections above.
+The two remaining live failures in both runs were the signed-program assertions: the stick no longer carried deleted signed programs, so nothing recovered could have a valid signature. After the destructive runs below left it freshly formatted, 40 signed Windows programs (18.0 MiB) were copied to it and deleted, and the **whole live suite then passes 5 of 5 with no skips**: both scans find 326 deleted files, recover all 40 programs in 0.6 s, and their signatures come back **7 valid, 33 unsigned, none altered**. The 33 are catalog-signed system libraries, which an embedded-signature check reports as unsigned, as earlier runs recorded; a signature verifies only over the exact bytes that were signed, so the seven valid ones are byte-exact recoveries.
 
 ## Run 3 — the destructive ground truth, all three file systems
 
@@ -73,7 +73,7 @@ The fixture deliberately includes a file whose data is gone, a fragmented file a
 
 ## Retained private evidence
 
-`E:\FileCat\artifacts\release-evidence\i495-usb-source-safety-20261014-v1`, 32 files (14.5 GiB, both full device images kept), self-excluding manifest `sha256.json` SHA-256 `ba10565dfc005e6cb0c52d2537d6594ab88cfd550cb67e3774c91975d52164f6`. It holds both full images, all five per-chunk hash lists (1,859 lines each) with their summaries and before/after source identities, the chunk comparison, the difference identification, the live test output, the scripts used, the three destructive runs' written and observed manifests, and the failing CI log for `925ef29b`. Unlike G6, a future difference on this stick can be located against these chunk hashes and read back from the images.
+`E:\FileCat\artifacts\release-evidence\i495-usb-source-safety-20261014-v1`, 34 files (14.5 GiB, both full device images kept), self-excluding manifest `sha256.json` SHA-256 `3315d6684df941e20045e8b0c59029fe80965159b9ed4322b70ab23cd2861578`. It holds both full images, all five per-chunk hash lists (1,859 lines each) with their summaries and before/after source identities, the chunk comparison, the difference identification, the live test output, the scripts used, the three destructive runs' written and observed manifests, and the failing CI log for `925ef29b`. Unlike G6, a future difference on this stick can be located against these chunk hashes and read back from the images.
 
 ## What this does not establish
 
