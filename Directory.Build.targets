@@ -14,6 +14,28 @@
     </ItemGroup>
   </Target>
 
+  <!--
+    global.json selects SDK 10.0.101, whose bundled packs are .NET 10.0.1. Self-contained packages, apphosts and
+    ReadyToRun code instead use the serviced runtime below (restore downloads its packs), so a package never ships
+    an older runtime than the latest security release. Framework-dependent builds still roll forward at run time.
+  -->
+  <PropertyGroup>
+    <FileCatServicedRuntimeVersion>10.0.13</FileCatServicedRuntimeVersion>
+  </PropertyGroup>
+  <Target Name="FileCatUseServicedRuntimePacks" BeforeTargets="ProcessFrameworkReferences">
+    <ItemGroup>
+      <KnownFrameworkReference Condition="'%(Identity)' == 'Microsoft.NETCore.App' and '%(TargetFramework)' == 'net10.0'">
+        <LatestRuntimeFrameworkVersion>$(FileCatServicedRuntimeVersion)</LatestRuntimeFrameworkVersion>
+      </KnownFrameworkReference>
+      <KnownAppHostPack Condition="'%(Identity)' == 'Microsoft.NETCore.App' and '%(TargetFramework)' == 'net10.0'">
+        <AppHostPackVersion>$(FileCatServicedRuntimeVersion)</AppHostPackVersion>
+      </KnownAppHostPack>
+      <KnownCrossgen2Pack Condition="'%(Identity)' == 'Microsoft.NETCore.App.Crossgen2' and '%(TargetFramework)' == 'net10.0'">
+        <Crossgen2PackVersion>$(FileCatServicedRuntimeVersion)</Crossgen2PackVersion>
+      </KnownCrossgen2Pack>
+    </ItemGroup>
+  </Target>
+
   <Target Name="FileCatRequireDependencyLock" BeforeTargets="_GenerateRestoreGraphProjectEntry"
           Condition="'$(RestorePackagesWithLockFile)' == 'true' and '$(FileCatUpdateDependencyLocks)' != 'true' and '$(MSBuildProjectExtension)' == '.csproj'">
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/packages.lock.json')"
