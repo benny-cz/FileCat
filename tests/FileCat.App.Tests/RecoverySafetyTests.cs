@@ -22,6 +22,43 @@ public sealed class RecoverySafetyTests
     public async Task Drive_letter_scan_refuses_a_reused_interface_with_a_new_disk_number()
         => await RunReplacedDriveSelectionAsync(changedDiskNumber: true);
 
+    [AvaloniaFact]
+    public async Task Whole_disk_scan_refuses_a_reader_without_the_selected_disk_number()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows disk interfaces are required.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var selected = Platform.Windows.Recovery.DeviceTopology.Disks().FirstOrDefault(d =>
+                d.InterfacePath is not null && d.Identity is not null && d.Length > 0);
+            if (selected is null) Assert.Skip("The test host has no verifiable disk interface.");
+            if (!Environment.IsPrivilegedProcess &&
+                Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
+                Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
+
+            var reader = new ReplacedReader(selected.Identity!, selected.Length);
+            int opens = 0;
+            services.Recovery.SharesDisk = (_, _) => false;
+            services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
+            vm.Dialogs = new AdmissionDialogs(() => { });
+            var panel = vm.Workspace.Panels[0];
+            var original = panel.ActiveTab;
+
+            await vm.FindDeletedOnDiskAsync(panel, selected, () => false);
+            Assert.NotSame(original, panel.ActiveTab);
+            for (int i = 0; i < 250 && (Volatile.Read(ref opens) == 0 ||
+                panel.ActiveTab!.Listing.State is ListingState.Loading or ListingState.Empty); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+
+            Assert.Equal(1, opens);
+            Assert.Equal(0, reader.Reads);
+            Assert.Equal(1, reader.Disposals);
+            Assert.Equal(ListingState.Failed, panel.ActiveTab!.Listing.State);
+            Assert.Contains("identity changed", panel.ActiveTab!.Listing.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     private static async Task RunReplacedDriveSelectionAsync(bool changedDiskNumber)
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows volume selection is required.");
@@ -68,10 +105,10 @@ public sealed class RecoverySafetyTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
-    private sealed class ReplacedReader(string selectionIdentity) : IBlockSource, IDeviceSelectionIdentity
+    private sealed class ReplacedReader(string selectionIdentity, long length = 64 * 1024 * 1024) : IBlockSource, IDeviceSelectionIdentity
     {
         public string Description => "byte-cloned replacement";
-        public long Length => 64 * 1024 * 1024;
+        public long Length => length;
         public string? SelectionIdentity => selectionIdentity;
         public int Reads { get; private set; }
         public int Disposals { get; private set; }

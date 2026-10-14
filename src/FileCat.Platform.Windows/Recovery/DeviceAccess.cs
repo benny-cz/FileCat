@@ -163,48 +163,54 @@ public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard
 {
     private readonly string _path;
     private readonly IBlockSource _source;
-    private readonly string? _identity;
     private readonly string _diskInterfacePath;
     private readonly string? _diskIdentity;
     private readonly long _diskLength;
-    private readonly int? _volumeDiskNumber;
+    private readonly int _diskNumber;
+    private readonly bool _volumePath;
 
-    private SelectedDiskInterfaceSource(string path, IBlockSource source, PhysicalDisk? volumeDisk)
+    private SelectedDiskInterfaceSource(string path, IBlockSource source, PhysicalDisk disk, bool volumePath)
     {
         _path = path;
         _source = source;
-        _identity = (source as IDeviceSelectionIdentity)?.SelectionIdentity;
-        _diskInterfacePath = volumeDisk?.InterfacePath ?? path;
-        _diskIdentity = volumeDisk?.Identity ?? _identity;
-        _diskLength = volumeDisk?.Length ?? source.Length;
-        _volumeDiskNumber = volumeDisk?.Number;
+        _diskInterfacePath = disk.InterfacePath!;
+        _diskIdentity = disk.Identity;
+        _diskLength = disk.Length;
+        _diskNumber = disk.Number;
+        _volumePath = volumePath;
     }
 
     public static IBlockSource Bind(string path, IBlockSource source)
     {
         try
         {
-            PhysicalDisk? volumeDisk = null;
-            if (path.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase))
+            bool volumePath = path.StartsWith(@"\\?\Volume{", StringComparison.OrdinalIgnoreCase);
+            if (!volumePath && !DeviceTopology.IsDiskInterfacePath(path))
+                throw new IOException("The selected disk interface is no longer available. Select it again.");
+            // Query the already-open source. A PnP link can be reused for another disk with
+            // the same storage GUID and size, so the selected number must be retained too.
+            var heldDisks = source switch
             {
-                // Ask the opened direct/pipe reader which disk actually holds this volume,
-                // then bind that disk's present interface. A GUID path alone can name B after A is removed.
-                var heldDisks = source switch
-                {
-                    DirectDeviceSource direct => direct.QuerySourceDisks(),
-                    PipeDeviceSource pipe => pipe.QuerySourceDisks(),
-                    _ => null,
-                };
-                if (heldDisks is not { Count: 1 })
-                    throw new IOException("The selected volume's backing disk could not be verified. Select it again.");
+                DirectDeviceSource direct => direct.QuerySourceDisks(),
+                PipeDeviceSource pipe => pipe.QuerySourceDisks(),
+                _ => null,
+            };
+            if (heldDisks is not { Count: 1 })
+                throw new IOException("The selected source's backing disk could not be verified. Select it again.");
+            if (volumePath)
+            {
+                // A volume GUID can survive disk replacement. Its held disk and current path
+                // must agree before we bind to the selected PnP disk interface.
                 var pathDisks = DeviceTopology.DisksOf(path);
                 if (pathDisks is not { Count: 1 } || heldDisks[0] != pathDisks[0])
                     throw new IOException("The selected volume's backing disk could not be verified. Select it again.");
-                volumeDisk = DeviceTopology.Disks().SingleOrDefault(d => d.Number == heldDisks[0]);
-                if (volumeDisk?.InterfacePath is null || volumeDisk.Identity is null)
-                    throw new IOException("The selected volume's disk interface could not be verified. Select it again.");
             }
-            var bound = new SelectedDiskInterfaceSource(path, source, volumeDisk);
+            var disk = DeviceTopology.Disks().SingleOrDefault(d => d.Number == heldDisks[0]);
+            if (disk?.InterfacePath is null || disk.Identity is null || disk.Length <= 0 ||
+                (!volumePath && (!string.Equals(disk.InterfacePath, path, StringComparison.OrdinalIgnoreCase) ||
+                                 !string.Equals((source as IDeviceSelectionIdentity)?.SelectionIdentity, disk.Identity, StringComparison.OrdinalIgnoreCase))))
+                throw new IOException("The selected disk interface could not be verified. Select it again.");
+            var bound = new SelectedDiskInterfaceSource(path, source, disk, volumePath);
             if (!bound.IsCurrentDevicePath(path))
                 throw new IOException("The selected disk interface changed or was removed while opening. Select it again.");
             return bound;
@@ -221,8 +227,16 @@ public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard
     // A volume GUID can survive replacement by a byte-cloned disk with the same storage GUID.
     // Keep the selected PnP interface, disk number and length. A different disk can reuse
     // the interface and storage GUID while the confirmation or administrator dialog is open.
-    public string? SelectionIdentity => _volumeDiskNumber is null
-        ? _identity : VolumeSelectionIdentity(_diskInterfacePath, _diskIdentity, _diskLength, _volumeDiskNumber.Value);
+    public string? SelectionIdentity => _volumePath
+        ? VolumeSelectionIdentity(_diskInterfacePath, _diskIdentity, _diskLength, _diskNumber)
+        : WholeDiskSelectionIdentity(_diskInterfacePath, _diskIdentity, _diskLength, _diskNumber);
+
+    public static string? WholeDiskSelectionIdentity(PhysicalDisk? disk) =>
+        disk is null ? null : WholeDiskSelectionIdentity(disk.InterfacePath, disk.Identity, disk.Length, disk.Number);
+
+    private static string? WholeDiskSelectionIdentity(string? interfacePath, string? identity, long diskLength, int diskNumber) =>
+        string.IsNullOrEmpty(interfacePath) || string.IsNullOrEmpty(identity) || diskLength <= 0 || diskNumber < 0
+            ? null : $"disk|{interfacePath}|{identity}|{diskLength.ToString(CultureInfo.InvariantCulture)}|{diskNumber.ToString(CultureInfo.InvariantCulture)}";
 
     public static string? VolumeSelectionIdentity(PhysicalDisk? disk) =>
         disk is null ? null : VolumeSelectionIdentity(disk.InterfacePath, disk.Identity, disk.Length, disk.Number);
@@ -239,15 +253,15 @@ public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard
         if (!string.Equals(path, _path, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(_diskIdentity)) return false;
         try
         {
-            if (_volumeDiskNumber is { } number)
+            if (_volumePath)
             {
                 var currentDisks = DeviceTopology.DisksOf(path);
-                if (currentDisks is not { Count: 1 } || currentDisks[0] != number) return false;
+                if (currentDisks is not { Count: 1 } || currentDisks[0] != _diskNumber) return false;
             }
             var matches = DeviceTopology.Disks().Where(d =>
                 string.Equals(d.InterfacePath, _diskInterfacePath, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
             return matches.Length == 1 && matches[0].Length == _diskLength &&
-                (_volumeDiskNumber is null || matches[0].Number == _volumeDiskNumber) &&
+                matches[0].Number == _diskNumber &&
                 string.Equals(matches[0].Identity, _diskIdentity, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)

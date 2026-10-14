@@ -66,6 +66,22 @@ public sealed class SelectedDiskInterfaceSourceTests
     }
 
     [Fact]
+    public void Whole_disk_selection_distinguishes_same_interface_guid_and_length_with_changed_disk_number()
+    {
+        const string clonedGuid = "a75c39bd-652d-4efb-871e-6a4a1e93e127";
+        var selected = new PhysicalDisk(7, 64 * 1024 * 1024, "A", "virtual", false, [], clonedGuid, @"\\?\SCSI#FileCat#slot7");
+        var replacement = selected with { Number = 8, Model = "B" };
+
+        Assert.NotNull(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected));
+        Assert.NotEqual(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected),
+            SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(replacement));
+        Assert.Null(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected with { Number = -1 }));
+        Assert.Null(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected with { Identity = null }));
+        Assert.Null(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected with { InterfacePath = null }));
+        Assert.Null(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected with { Length = 0 }));
+    }
+
+    [Fact]
     public void Disposable_virtual_volume_reports_the_selected_backing_interface_from_its_held_reader()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows volume interfaces are required.");
@@ -82,6 +98,24 @@ public sealed class SelectedDiskInterfaceSourceTests
             device, DirectDeviceSource.Open(device, "disposable virtual volume")));
         Assert.Equal(expected, bound.SelectionIdentity);
         Assert.True(bound.IsCurrentDevicePath(device));
+    }
+
+    [Fact]
+    public void Disposable_virtual_disk_reports_the_selected_number_from_its_held_reader()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows disk interfaces are required.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_I487_VIRTUAL_VOLUME");
+        if (string.IsNullOrEmpty(root)) Assert.Skip("Set FILECAT_I487_VIRTUAL_VOLUME to an owned disposable VHD volume root.");
+        string device = DeviceTopology.VolumeDevice(root!) ?? throw new IOException("The disposable volume has no GUID path.");
+        int number = Assert.Single(DeviceTopology.DisksOf(device) ?? throw new IOException("The disposable volume has no backing disk."));
+        var selected = Assert.Single(DeviceTopology.Disks(), disk => disk.Number == number);
+        string interfacePath = Assert.IsType<string>(selected.InterfacePath);
+        string expected = Assert.IsType<string>(SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(selected));
+
+        using var bound = Assert.IsType<SelectedDiskInterfaceSource>(SelectedDiskInterfaceSource.Bind(
+            interfacePath, DirectDeviceSource.Open(interfacePath, "disposable virtual disk")));
+        Assert.Equal(expected, bound.SelectionIdentity);
+        Assert.True(bound.IsCurrentDevicePath(interfacePath));
     }
 
     private sealed class Reader(string? identity) : IBlockSource, IDeviceSelectionIdentity

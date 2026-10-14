@@ -386,7 +386,9 @@ public sealed partial class MainViewModel
             Notify(problem, true);
             return;
         }
-        if (disk.Identity is null || disk.InterfacePath is null)
+        string? selectedIdentity = FileCat.Platform.Windows.Recovery.SelectedDiskInterfaceSource.WholeDiskSelectionIdentity(disk);
+        string? interfacePath = disk.InterfacePath;
+        if (selectedIdentity is null || interfacePath is null)
         {
             Notify($"Disk {disk.Number} cannot be scanned: Windows did not provide a device interface and identity FileCat can verify when it opens the disk.", true);
             return;
@@ -394,7 +396,7 @@ public sealed partial class MainViewModel
         string name = $"disk {disk.Number}" + (disk.Model is null ? "" : $" ({disk.Model})");
         bool system = HoldsWindows(disk);
         // Admission must follow the selected interface that the reader will open, not a reusable disk number.
-        var safety = await Task.Run(() => CheckDiskSafety(disk.InterfacePath, name, otherProcesses: otherProcesses));
+        var safety = await Task.Run(() => CheckDiskSafety(interfacePath, name, otherProcesses: otherProcesses));
         if (safety.Refusal is not null)
         {
             await RefuseScanAsync(safety);
@@ -414,10 +416,10 @@ public sealed partial class MainViewModel
             ReleaseHoldOff();
             return;
         }
-        if (!await RecheckDeviceSafetyAsync(disk.InterfacePath, name, otherProcesses)) return;
+        if (!await RecheckDeviceSafetyAsync(interfacePath, name, otherProcesses)) return;
         _deviceScanned = true;
         // Open the selected PnP link, not its reusable PhysicalDrive number; then compare the held handle's identity.
-        panel.OpenTab(Services.Recovery.ForDevice(disk.InterfacePath, name, length: disk.Length, identity: disk.Identity));
+        panel.OpenTab(Services.Recovery.ForDevice(interfacePath, name, length: disk.Length, identity: selectedIdentity));
         Notify("The disk's partitions are in a new tab, lost ones marked as such: open one, mark what to recover, and copy it (F5) to a folder on another disk.");
     }
 
