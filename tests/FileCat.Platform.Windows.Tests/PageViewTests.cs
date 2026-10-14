@@ -95,6 +95,54 @@ public sealed class PageViewTests : IDisposable
         Assert.DoesNotContain(served, s => s.Found && s.Path.Contains("example.com", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// A page may not save a file to disk. Scripts are off, so the page asks the only way left to it: it refreshes
+    /// to a file beside it that is served as a download. The view cancels it, and nothing is written.
+    /// </summary>
+    [Fact]
+    public void A_page_that_sends_itself_a_download_saves_nothing()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("WebView2 is Windows'.");
+        if (WebView2Page.RuntimeVersion is null) Assert.Skip("The WebView2 runtime is not installed here.");
+        string site = Directory.CreateDirectory(Path.Combine(_dir, "download-site")).FullName;
+        File.WriteAllBytes(Path.Combine(site, "payload.bin"), [1, 2, 3, 4, 5, 6, 7, 8]);
+        File.WriteAllText(Path.Combine(site, "page.html"),
+            "<!doctype html><html><head><title>Saves nothing</title>" +
+            "<meta http-equiv=\"refresh\" content=\"0; url=payload.bin\"></head><body><p>No.</p></body></html>");
+        string downloads = Directory.CreateDirectory(Path.Combine(_dir, "downloads")).FullName;
+
+        var served = new ConcurrentQueue<(string Path, bool Found)>();
+        var completions = new ConcurrentQueue<(bool Ok, string? Why)>();
+        StaPump.Run(async () =>
+        {
+            nint parent = StaPump.CreateHiddenWindow();
+            using var source = new FileContentSource(Path.Combine(site, "page.html"));
+            using var view = new WebView2Page(parent, Path.Combine(_dir, "webview-download"));
+            var done = new TaskCompletionSource();
+            view.Served += (path, found) => served.Enqueue((path, found));
+            view.Loaded += (ok, why) =>
+            {
+                completions.Enqueue((ok, why));
+                done.TrySetResult();
+            };
+            view.SetSize(640, 480);
+            view.Show(new HtmlPage(source, Path.Combine(site, "page.html")));
+            await done.Task;
+            // The refresh, the request for the file and the cancelled download all follow the first completion.
+            for (int i = 0; i < 200 && !served.Any(s => s.Path == "/payload.bin"); i++) await Task.Delay(50);
+            await Task.Delay(500);
+            StaPump.DestroyWindow(parent);
+        }, TimeSpan.FromSeconds(90));
+
+        TestContext.Current.TestOutputHelper?.WriteLine("Served: " + string.Join(", ", served.Select(s => $"{s.Path}={s.Found}")));
+        TestContext.Current.TestOutputHelper?.WriteLine("Navigations: " + string.Join(", ", completions.Select(c => $"{c.Ok}/{c.Why}")));
+        Assert.True(completions.TryPeek(out var first) && first.Ok, $"The page itself did not load: {first.Why}");
+        // The file was asked for as the page's own resource; what must not happen is a file appearing on disk.
+        foreach (var folder in new[] { downloads, _dir, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads") })
+            if (Directory.Exists(folder))
+                Assert.DoesNotContain("payload.bin", Directory.GetFiles(folder).Select(Path.GetFileName));
+    }
+
     [Fact]
     public void A_page_shows_without_its_scripts_and_gets_nothing_from_outside_its_folder()
     {
