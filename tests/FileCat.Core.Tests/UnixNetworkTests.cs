@@ -123,6 +123,30 @@ public sealed class UnixNetworkTests(ITestOutputHelper output)
     };
 
     [Fact]
+    public void Near_budget_smbutil_non_disk_rows_do_not_allocate_per_line()
+    {
+        string reply = string.Concat(Enumerable.Repeat("x Pipe\n", 140_000));
+        _ = SmbTools.ParseSmbutil("warmup Pipe\n");
+        long before = GC.GetAllocatedBytesForCurrentThread();
+
+        var shares = SmbTools.ParseSmbutil(reply);
+
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"SMBUTIL_NON_DISK_ALLOCATED_BYTES={allocated}; INPUT_CHARACTERS={reply.Length}");
+        Assert.Empty(shares);
+        Assert.InRange(allocated, 0, 8 * 1024 * 1024);
+    }
+
+    [Fact]
+    public void Smbutil_type_column_uses_the_first_recognized_type_after_a_name()
+    {
+        var shares = SmbTools.ParseSmbutil(
+            "Disk room Pipe Ignore later Disk\nDisk room Disk A place\nx\tDisk\tTabbed\n leading Disk Skip\nmissing Unknown Not a share\n");
+        Assert.Equal(["Disk room", "x"], shares.Select(share => share.Name));
+        Assert.Equal(["A place", "Tabbed"], shares.Select(share => share.Comment));
+    }
+
+    [Fact]
     public void Mounted_shares_are_recognized_in_each_systems_form()
     {
         Assert.Equal(("nas", "public"), SmbTools.ParseUnc("//nas/public"));

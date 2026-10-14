@@ -223,13 +223,30 @@ public static partial class SmbTools
             int newline = remaining.IndexOf('\n');
             ReadOnlySpan<char> raw = newline < 0 ? remaining : remaining[..newline];
             remaining = newline < 0 ? [] : remaining[(newline + 1)..];
-            if (raw.IsEmpty) continue;
-            var match = SmbutilRow().Match(raw.TrimEnd().ToString());
-            if (match.Success && match.Groups["type"].ValueSpan.SequenceEqual("Disk"))
-                AddShare(shares, match.Groups["name"].ValueSpan.Trim(), match.Groups["comment"].ValueSpan.Trim());
+            ReadOnlySpan<char> line = raw.TrimEnd();
+            if (line.IsEmpty || char.IsWhiteSpace(line[0])) continue;
+            // The first recognized type column determines the row; Pipe/Printer/etc. are not disk shares.
+            for (int start = 1; start < line.Length; start++)
+            {
+                if (!char.IsWhiteSpace(line[start - 1]) || char.IsWhiteSpace(line[start])) continue;
+                int end = start + 1;
+                while (end < line.Length && !char.IsWhiteSpace(line[end])) end++;
+                ReadOnlySpan<char> type = line[start..end];
+                if (IsSmbutilType(type))
+                {
+                    if (type.SequenceEqual("Disk"))
+                        AddShare(shares, line[..start].Trim(), line[end..].Trim());
+                    break;
+                }
+                start = end;
+            }
         }
         return shares;
     }
+
+    private static bool IsSmbutilType(ReadOnlySpan<char> type) =>
+        type.SequenceEqual("Disk") || type.SequenceEqual("Pipe") || type.SequenceEqual("Printer") ||
+        type.SequenceEqual("Comm") || type.SequenceEqual("Device");
 
     private static void AddShare(List<SmbShare> shares, ReadOnlySpan<char> name, ReadOnlySpan<char> comment)
     {
@@ -237,9 +254,6 @@ public static partial class SmbTools
             throw new IOException($"The server listed more than {MaxListedShares} SMB shares.");
         shares.Add(new SmbShare(name.ToString(), comment.IsEmpty ? null : comment.ToString()));
     }
-
-    [GeneratedRegex(@"^(?<name>\S.*?)\s+(?<type>Disk|Pipe|Printer|Comm|Device)(?:\s+(?<comment>.*))?$")]
-    private static partial Regex SmbutilRow();
 
     // ---- Mounted shares ---------------------------------------------------------------------------------------
 
