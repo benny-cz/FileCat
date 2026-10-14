@@ -99,12 +99,20 @@ public sealed class RecycleBinProvider : ResourceProvider
         {
             var info = new FileInfo(recordPath);
             if (!info.Exists) return null;
-            if (info.Length > MaxRecordBytes)
+            using var stream = new FileStream(recordPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (stream.Length > MaxRecordBytes)
             {
                 problem = "larger than any record";
                 return null;
             }
-            return RecycleBinRecords.Parse(File.ReadAllBytes(recordPath), out problem);
+            byte[] bytes = new byte[checked((int)stream.Length)];
+            stream.ReadExactly(bytes);
+            if (stream.ReadByte() != -1)
+            {
+                problem = "larger than any record";
+                return null;
+            }
+            return RecycleBinRecords.Parse(bytes, out problem);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

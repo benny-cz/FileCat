@@ -108,6 +108,29 @@ public sealed class RecycleBinProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task An_oversized_linked_record_is_not_loaded_or_shown_as_a_deleted_item()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows' Recycle Bin."); return; }
+        string target = Path.Combine(_root, "$IQQQQQQ.txt");
+        string link = Path.Combine(_binC, "$IQQQQQQ.txt");
+        File.WriteAllText(Path.Combine(_binC, "$RQQQQQQ.txt"), "owned deleted item");
+        Record(_root, "QQQQQQ.txt", @"C:\Work\oversized.txt", 18, First, 2);
+        using (var stream = new FileStream(target, FileMode.Open, FileAccess.Write, FileShare.None))
+            stream.SetLength(1024 * 1024);
+        try { File.CreateSymbolicLink(link, target); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+        }
+        if (new FileInfo(link).Length > 64 * 1024)
+            Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+
+        var listed = await List(RecycleBinProvider.Root);
+        Assert.DoesNotContain(listed.Entries, entry => entry.Name == "oversized.txt");
+        Assert.Contains(listed.Issues, issue => issue.Contains("2 of the Recycle Bin's records on C:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_deleted_folder_opens_and_leads_back_up()
     {
         if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows' Recycle Bin."); return; }

@@ -105,6 +105,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
 {
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
+    private const int MaxRecordBytes = 1024 * 1024;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
     public string Root { get; } = root;
@@ -117,7 +118,13 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         {
             try
             {
-                var record = JsonSerializer.Deserialize<EditSessionRecord>(File.ReadAllBytes(Path.Combine(dir, RecordFile)), Json);
+                using var stream = new FileStream(Path.Combine(dir, RecordFile), FileMode.Open, FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+                if (stream.Length > MaxRecordBytes) continue;
+                byte[] bytes = new byte[checked((int)stream.Length)];
+                stream.ReadExactly(bytes);
+                if (stream.ReadByte() != -1) continue;
+                var record = JsonSerializer.Deserialize<EditSessionRecord>(bytes, Json);
                 if (record is { Version: EditSessionRecord.CurrentVersion } && record.Id == Path.GetFileName(dir)) sessions.Add(record);
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }

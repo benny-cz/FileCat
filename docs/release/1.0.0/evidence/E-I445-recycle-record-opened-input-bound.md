@@ -1,0 +1,11 @@
+# E-I445 — Recycle Bin record input bound
+
+**Scope:** High availability/input-memory finding within I06/I16. This is preliminary component and native qualification, not candidate qualification.
+
+At exact parent `0f5ad89b8f685a6bab86d360ef8c31a969ba467e`, an owned Windows Recycle Bin `$I` link reported short path metadata while opening a 1 MiB valid record. The existing 64 KiB guard checked `FileInfo.Length` for the link, then `File.ReadAllBytes` followed it and published the deleted item. The final test overlay against that parent failed **0 passed / 1 failed**: `oversized.txt` appeared. The final reader uses one opened stream, checks its length before allocation, reads exactly that count, and checks EOF before parsing. The same oversize case is refused and listed as a record issue.
+
+Final Windows host Recycle Bin provider class passed **8/8**; full Windows Platform passed **383 passed / 38 explicit skips / zero failed**. The Windows 11 VMware guest ran the same provider class **8/8** with .NET 10.0.201 from a verified **51-file** package, SHA-256 `e30b2bd5954ee4f5c7303340a7923c808fe64a82255ffef00530f95bdf87f8bb`. Its 54 staged files, three result files and six top-level cleanup targets were hashed or confirmed absent after use. The full Release solution build completed with zero errors (174 warnings). No host workstation UI or physical source was used.
+
+The private archive `V:\FileCat\artifacts\release-evidence\i445-recycle-record-input-budget-20261014-v1` holds the exact parent source, final source/test patch, baseline and corrected TRX/logs, package, raw guest results and cleanup receipts. Independent rehash of all **51 files**, every staged package member, and the guest result bundle passed. Self-excluding manifest SHA-256: `4a1c7bd58aff0b56007176cd340c6c1c64e87d4b9a215b9ea86116c2e55df83a`; audit SHA-256: `28e8e4b04dea71e238b8be62a3c738038f7770211a41dc4fd6e2982824c88abb`.
+
+The evidence shows bounded handling of the owned linked record and preserves normal provider behavior. Whole-process memory, arbitrary concurrent replacement, installed UI and final-candidate validation remain. Exact pushed-source hosted CI is separate. I106/I110 physical-source HOLD remains.

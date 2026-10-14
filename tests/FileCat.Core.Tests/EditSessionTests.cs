@@ -76,6 +76,38 @@ public sealed class EditSessionTests : IDisposable
         return reader.ReadToEnd();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Reload_ignores_a_session_record_larger_than_the_bounded_metadata_budget(bool linked)
+    {
+        string root = Path.Combine(_dir.Path, "bounded-sessions");
+        string id = Guid.NewGuid().ToString("N");
+        Directory.CreateDirectory(Path.Combine(root, id));
+        var store = new EditSessionStore(root, _ops);
+        store.Save(new EditSessionRecord { Id = id, CreatedUtc = DateTime.UtcNow });
+        Assert.Single(store.LoadAll());
+        string record = Path.Combine(root, id, "session.json");
+        byte[] spaces = new byte[64 * 1024];
+        Array.Fill(spaces, (byte)' ');
+        using (var stream = new FileStream(record, FileMode.Append, FileAccess.Write, FileShare.None))
+            while (stream.Length < 8L * 1024 * 1024)
+                stream.Write(spaces.AsSpan(0, (int)Math.Min(spaces.Length, 8L * 1024 * 1024 - stream.Length)));
+        if (linked)
+        {
+            string target = Path.Combine(_dir.Path, "padded-session.json");
+            File.Move(record, target);
+            try { File.CreateSymbolicLink(record, target); }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                Assert.Skip("This account cannot create a file symbolic link: " + ex.Message);
+            }
+            if (new FileInfo(record).Length > 1024 * 1024)
+                Assert.Skip("This filesystem reports the opened target length for a file symbolic link.");
+        }
+        Assert.Empty(store.LoadAll());
+    }
+
     [Fact]
     public async Task An_edit_is_private_until_committed_and_stays_open_for_more_changes()
     {
