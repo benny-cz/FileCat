@@ -16,6 +16,13 @@ public sealed class RecoverySafetyTests
 {
     [AvaloniaFact]
     public async Task Drive_letter_scan_refuses_a_replaced_backing_before_reading_it()
+        => await RunReplacedDriveSelectionAsync(changedDiskNumber: false);
+
+    [AvaloniaFact]
+    public async Task Drive_letter_scan_refuses_a_reused_interface_with_a_new_disk_number()
+        => await RunReplacedDriveSelectionAsync(changedDiskNumber: true);
+
+    private static async Task RunReplacedDriveSelectionAsync(bool changedDiskNumber)
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows volume selection is required.");
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
@@ -33,7 +40,11 @@ public sealed class RecoverySafetyTests
                 Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
                 Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
 
-            var reader = new ReplacedReader();
+            string replacementIdentity = changedDiskNumber
+                ? Assert.IsType<string>(Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(
+                    selected! with { Number = selected.Number == int.MaxValue ? selected.Number - 1 : selected.Number + 1 }))
+                : "volume|replacement-interface|same-disk-guid";
+            var reader = new ReplacedReader(replacementIdentity);
             int opens = 0;
             services.Recovery.SharesDisk = (_, _) => false;
             services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
@@ -57,11 +68,11 @@ public sealed class RecoverySafetyTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
-    private sealed class ReplacedReader : IBlockSource, IDeviceSelectionIdentity
+    private sealed class ReplacedReader(string selectionIdentity) : IBlockSource, IDeviceSelectionIdentity
     {
         public string Description => "byte-cloned replacement";
         public long Length => 64 * 1024 * 1024;
-        public string? SelectionIdentity => "volume|replacement-interface|same-disk-guid";
+        public string? SelectionIdentity => selectionIdentity;
         public int Reads { get; private set; }
         public int Disposals { get; private set; }
         public int Read(long offset, Span<byte> buffer)

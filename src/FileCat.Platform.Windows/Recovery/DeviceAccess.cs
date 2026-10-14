@@ -219,16 +219,17 @@ public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard
     public string Description => _source.Description;
     public long Length => _source.Length;
     // A volume GUID can survive replacement by a byte-cloned disk with the same storage GUID.
-    // The selected PnP interface and disk length are part of the volume's identity, just as for a whole-disk open.
+    // Keep the selected PnP interface, disk number and length. A different disk can reuse
+    // the interface and storage GUID while the confirmation or administrator dialog is open.
     public string? SelectionIdentity => _volumeDiskNumber is null
-        ? _identity : VolumeSelectionIdentity(_diskInterfacePath, _diskIdentity, _diskLength);
+        ? _identity : VolumeSelectionIdentity(_diskInterfacePath, _diskIdentity, _diskLength, _volumeDiskNumber.Value);
 
     public static string? VolumeSelectionIdentity(PhysicalDisk? disk) =>
-        disk is null ? null : VolumeSelectionIdentity(disk.InterfacePath, disk.Identity, disk.Length);
+        disk is null ? null : VolumeSelectionIdentity(disk.InterfacePath, disk.Identity, disk.Length, disk.Number);
 
-    private static string? VolumeSelectionIdentity(string? interfacePath, string? identity, long diskLength) =>
-        string.IsNullOrEmpty(interfacePath) || string.IsNullOrEmpty(identity) || diskLength <= 0
-            ? null : $"volume|{interfacePath}|{identity}|{diskLength.ToString(CultureInfo.InvariantCulture)}";
+    private static string? VolumeSelectionIdentity(string? interfacePath, string? identity, long diskLength, int diskNumber) =>
+        string.IsNullOrEmpty(interfacePath) || string.IsNullOrEmpty(identity) || diskLength <= 0 || diskNumber < 0
+            ? null : $"volume|{interfacePath}|{identity}|{diskLength.ToString(CultureInfo.InvariantCulture)}|{diskNumber.ToString(CultureInfo.InvariantCulture)}";
     public int Read(long offset, Span<byte> buffer) => _source.Read(offset, buffer);
     public bool? SharesDestinationDisk(string destinationDirectory) =>
         (_source as IDeviceDestinationGuard)?.SharesDestinationDisk(destinationDirectory);

@@ -55,6 +55,17 @@ public sealed class SelectedDiskInterfaceSourceTests
     }
 
     [Fact]
+    public void Volume_selection_distinguishes_same_interface_guid_and_length_with_changed_disk_number()
+    {
+        const string clonedGuid = "a75c39bd-652d-4efb-871e-6a4a1e93e127";
+        var selected = new PhysicalDisk(7, 64 * 1024 * 1024, "A", "virtual", false, [], clonedGuid, @"\\?\SCSI#FileCat#slot7");
+        var replacement = selected with { Number = 8, Model = "B" };
+
+        Assert.NotEqual(SelectedDiskInterfaceSource.VolumeSelectionIdentity(selected),
+            SelectedDiskInterfaceSource.VolumeSelectionIdentity(replacement));
+    }
+
+    [Fact]
     public void Disposable_virtual_volume_reports_the_selected_backing_interface_from_its_held_reader()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows volume interfaces are required.");
