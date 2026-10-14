@@ -70,6 +70,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         ZipArchive? source = null;
         byte[]? openedSourceDigest = null;
         byte[]? intendedPublishedDigest = null;
+        string? intendedPublishedIdentity = null;
         bool published = false;
         string? backup = null;
         try
@@ -136,7 +137,11 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (mark is not null &&
                 (!Fs.WriteOriginMark(temp, mark) || !string.Equals(Fs.ReadOriginMark(temp), mark, StringComparison.Ordinal)))
                 throw new IOException("The rebuilt archive could not keep its downloaded-from-the-internet mark; the original was kept.");
-            if (updating) intendedPublishedDigest = DigestFile(temp);
+            if (updating)
+            {
+                intendedPublishedDigest = DigestFile(temp);
+                intendedPublishedIdentity = Fs.GetFileIdentity(temp);
+            }
             source?.Dispose();
             sourceStream?.Dispose();
             source = null;
@@ -157,8 +162,16 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 string? replacedOriginalMark = null;
                 bool originalMarkReadable = false;
                 byte[]? replacedOriginalDigest = null;
+                string? publishedIdentity = null;
                 try
                 {
+                    publishedIdentity = Fs.GetFileIdentity(archive);
+                    // Unix replacement renames the verified temp inode into place. Detect a
+                    // replacement even before the backup inspection begins when possible.
+                    if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) &&
+                        intendedPublishedIdentity is not null &&
+                        !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
+                        integrityError = new IOException("The published archive pathname changed immediately after replacement.");
                     // The backup is the pathname's actual file at replacement time. It may differ
                     // from the opened source even when a late check of path metadata passed.
                     replacedOriginalDigest = DigestFile(backup!, checkCancellation: false);
@@ -177,8 +190,20 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     Exception? restoreError = null;
                     try
                     {
-                        // A third party may have replaced our newly published pathname while the
-                        // backup was inspected. Never roll back over bytes that are no longer ours.
+                        // A different inode can carry identical ZIP bytes and a different origin
+                        // mark. Never roll back over a pathname that is no longer our publication.
+                        if (publishedIdentity is not null &&
+                            !string.Equals(Fs.GetFileIdentity(archive), publishedIdentity, StringComparison.Ordinal))
+                            throw new IOException("The published archive pathname changed before restoration.");
+                        if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) &&
+                            intendedPublishedIdentity is not null &&
+                            !string.Equals(publishedIdentity, intendedPublishedIdentity, StringComparison.Ordinal))
+                            throw new IOException("The published archive pathname changed before restoration.");
+                        // If the source was unmarked, a newly added Internet mark on the
+                        // publication belongs to a concurrent change, even when bytes and inode
+                        // are unchanged. Retain both files for inspection instead of erasing it.
+                        if (mark is null && Fs.ReadOriginMark(archive) is not null)
+                            throw new IOException("The published archive gained a download mark before restoration.");
                         if (!DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(intendedPublishedDigest))
                             throw new IOException("The published archive pathname changed before restoration.");
                         // Restore the whole file that occupied the pathname at replacement time,

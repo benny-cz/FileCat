@@ -110,6 +110,71 @@ public sealed class ArchiveUpdateTests : IDisposable
         }
     }
 
+    private sealed class SwapSameBytesDuringBackupMarkReadUnixFileOperations(
+        string archive, string firstReplacement) : UnixFileOperations
+    {
+        public const string ThirdPartyMark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/same-bytes.zip\r\n";
+        public bool SwappedSource { get; private set; }
+        public bool SwappedPublication { get; private set; }
+        public byte[]? PublishedBytes { get; private set; }
+        public string? WrittenMark { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (!SwappedSource && string.Equals(path, archive, StringComparison.Ordinal))
+            {
+                File.Move(firstReplacement, archive, overwrite: true);
+                SwappedSource = true;
+            }
+            else if (SwappedSource && !SwappedPublication &&
+                     Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal))
+            {
+                PublishedBytes = File.ReadAllBytes(archive);
+                string third = Path.Combine(Path.GetDirectoryName(archive)!, "same-bytes-third.zip");
+                File.Copy(archive, third);
+                if (!base.WriteOriginMark(third, ThirdPartyMark))
+                    throw new IOException("The controlled third-party origin mark could not be written.");
+                WrittenMark = base.ReadOriginMark(third) ??
+                    throw new IOException("The controlled third-party origin mark could not be read back.");
+                File.Move(third, archive, overwrite: true);
+                SwappedPublication = true;
+            }
+            return mark;
+        }
+    }
+
+    private sealed class MarkPublishedArchiveDuringBackupReadUnixFileOperations(
+        string archive, string firstReplacement) : UnixFileOperations
+    {
+        public bool SwappedSource { get; private set; }
+        public bool MarkedPublication { get; private set; }
+        public byte[]? PublishedBytes { get; private set; }
+        public string? InjectedMark { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            var mark = base.ReadOriginMark(path);
+            if (!SwappedSource && string.Equals(path, archive, StringComparison.Ordinal))
+            {
+                File.Move(firstReplacement, archive, overwrite: true);
+                SwappedSource = true;
+            }
+            else if (SwappedSource && !MarkedPublication &&
+                     Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal))
+            {
+                PublishedBytes = File.ReadAllBytes(archive);
+                const string addedMark = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://owned.invalid/in-place.zip\r\n";
+                if (!base.WriteOriginMark(archive, addedMark))
+                    throw new IOException("The controlled in-place mark could not be written.");
+                InjectedMark = base.ReadOriginMark(archive) ??
+                    throw new IOException("The controlled in-place mark could not be read back.");
+                MarkedPublication = true;
+            }
+            return mark;
+        }
+    }
+
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
@@ -315,6 +380,54 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.True(operations.SwappedPublication);
         Assert.Equal(thirdBytes, File.ReadAllBytes(zip));
         Assert.Equal("third change", Read(zip)["record.txt"]);
+        string preserved = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
+        Assert.Equal(firstBytes, File.ReadAllBytes(preserved));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_same_byte_third_party_replacement_during_rollback_keeps_its_origin_mark()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled same-byte replacement and origin mark use Unix semantics.");
+        string zip = MakeZip("same-byte-source.zip", ("record.txt", "original"));
+        string first = MakeZip("same-byte-first.zip", ("record.txt", "first change"));
+        byte[] firstBytes = File.ReadAllBytes(first);
+        var operations = new SwapSameBytesDuringBackupMarkReadUnixFileOperations(zip, first);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.SwappedSource);
+        Assert.True(operations.SwappedPublication);
+        Assert.Equal(operations.PublishedBytes, File.ReadAllBytes(zip));
+        Assert.Equal(operations.WrittenMark, operations.ReadOriginMark(zip));
+        string preserved = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
+        Assert.Equal(firstBytes, File.ReadAllBytes(preserved));
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Uncertain);
+        Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_download_mark_added_to_publication_during_rollback_is_not_discarded()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            Assert.Skip("The controlled in-place origin mark uses Unix extended attributes.");
+        string zip = MakeZip("in-place-mark-source.zip", ("record.txt", "original"));
+        string first = MakeZip("in-place-mark-first.zip", ("record.txt", "first change"));
+        byte[] firstBytes = File.ReadAllBytes(first);
+        var operations = new MarkPublishedArchiveDuringBackupReadUnixFileOperations(zip, first);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.SwappedSource);
+        Assert.True(operations.MarkedPublication);
+        Assert.Equal(operations.PublishedBytes, File.ReadAllBytes(zip));
+        Assert.Equal(operations.InjectedMark, operations.ReadOriginMark(zip));
         string preserved = Assert.Single(Directory.GetFiles(_dir.Path, ".filecat-zip-*.bak"));
         Assert.Equal(firstBytes, File.ReadAllBytes(preserved));
         Assert.Equal(JobState.Failed, job.State);
