@@ -299,7 +299,7 @@ public sealed class TransferRevalidationTests(ITestOutputHelper output)
         public void Dispose()
         {
             foreach (var job in _jobs.Jobs) job.Cancel();
-            SpinWait.SpinUntil(() => !_jobs.HasActiveWork, TimeSpan.FromSeconds(3)); Directory.Delete(Root, true);
+            SpinWait.SpinUntil(() => !_jobs.HasActiveWork, TimeSpan.FromSeconds(3)); FileCat.Tests.TestCleanup.DeleteTree(Root);
         }
     }
     private sealed class Files(string destinationRoot) : PortableFileOperations

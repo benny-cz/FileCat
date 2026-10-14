@@ -25,4 +25,7 @@
          eng/make-recovery-fixtures.sh; see TestData/Recovery/README.md. -->
     <None Include="TestData\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
+  </ItemGroup>
 </Project>

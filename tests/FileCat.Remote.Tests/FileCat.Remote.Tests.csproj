@@ -17,4 +17,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
+  </ItemGroup>
 </Project>

@@ -144,7 +144,7 @@ public sealed class SyncLinkPublicationTests(ITestOutputHelper output)
         {
             foreach (var j in Jobs.Jobs) j.Cancel(); Assert.True(SpinWait.SpinUntil(() => !Jobs.HasActiveWork, TimeSpan.FromSeconds(3)));
             string parent = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
-            Assert.StartsWith(parent, Path.GetFullPath(Root)); Directory.Delete(Root, recursive: true); Assert.False(Directory.Exists(Root));
+            Assert.StartsWith(parent, Path.GetFullPath(Root)); FileCat.Tests.TestCleanup.DeleteTree(Root); Assert.False(Directory.Exists(Root));
         }
         private sealed class Files(Rig rig) : PortableFileOperations
         {

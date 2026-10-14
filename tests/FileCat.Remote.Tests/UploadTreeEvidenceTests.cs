@@ -342,7 +342,7 @@ public sealed class UploadTreeEvidenceTests(ITestOutputHelper output)
         public string File(string name, byte[] bytes) { string p = System.IO.Path.Join(Path, name); System.IO.File.WriteAllBytes(p, bytes); return p; }
         public void Dispose()
         {
-            string resolved = System.IO.Path.GetFullPath(Path); Assert.Equal(System.IO.Path.GetFileName(Path), System.IO.Path.GetRelativePath(Root, resolved)); Directory.Delete(resolved, true);
+            string resolved = System.IO.Path.GetFullPath(Path); Assert.Equal(System.IO.Path.GetFileName(Path), System.IO.Path.GetRelativePath(Root, resolved)); FileCat.Tests.TestCleanup.DeleteTree(resolved);
         }
     }
     private static byte[] Pattern(int length) => Enumerable.Range(0, length).Select(i => (byte)(i % 251)).ToArray();
