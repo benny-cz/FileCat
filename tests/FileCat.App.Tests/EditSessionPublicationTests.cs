@@ -96,7 +96,8 @@ public sealed class EditSessionPublicationTests(ITestOutputHelper output)
         private readonly Location location;
         public Fixture(string scheme, string primary, string cleanup, bool seek)
         {
-            (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(new NoNetworkConnector());
+            (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(
+                new NoNetworkConnector(), nativeWindowsOriginMarks: scheme == "sftp");
             Services.Settings.Editor = new ToolDefinition { Executable = Path.Join(Root, "owned-editor-does-not-exist.exe") };
             SourcePath = Path.Join(Root, "owned-source.dat"); File.WriteAllBytes(SourcePath, "owned editable bytes"u8.ToArray()); Before = Hash(SourcePath);
             Archive = Path.Join(Root, "owned.zip");

@@ -32,11 +32,11 @@ public sealed class SftpConnectTests
     }
 
     /// <summary>Connects the first panel to an in-memory server: host key, then password.</summary>
-    private static async Task<Session> ConnectAsync()
+    private static async Task<Session> ConnectAsync(bool nativeWindowsOriginMarks = false)
     {
         var server = new FakeSftpServer();
         server.File("/home/user/remote.txt", "hello");
-        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(new FakeConnector(server));
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(new FakeConnector(server), nativeWindowsOriginMarks);
         Assert.True(services.Providers.TryParse("sftp://user@files.example/~", null, out var location));
         // The server in the first panel; the second keeps the local test folder.
         vm.Workspace.Activate(vm.Workspace.Panels[0]);
@@ -80,7 +80,7 @@ public sealed class SftpConnectTests
     [AvaloniaFact]
     public async Task F4_edits_a_server_file_in_a_session_and_commits_it_explicitly()
     {
-        var s = await ConnectAsync();
+        var s = await ConnectAsync(nativeWindowsOriginMarks: true);
         try
         {
             // No real editor in tests: a program that exits at once.

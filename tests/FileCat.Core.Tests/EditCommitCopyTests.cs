@@ -61,6 +61,33 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
+    public void Marked_edit_commit_snapshot_is_not_returned_without_its_download_mark()
+    {
+        var ops = new Marks { RejectWrites = true };
+        var store = new EditSessionStore(Path.Join(_dir.Path, "sessions"), ops);
+        string working = _dir.File("working.txt", "mine");
+        ops.Values[working] = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        string temp = Directory.CreateDirectory(Path.Join(_dir.Path, "temp")).FullName;
+        Assert.Throws<IOException>(() => Prepare(store, new EditSessionRecord { WorkingPath = working }, temp));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(temp));
+        Assert.Equal("mine", File.ReadAllText(working));
+    }
+
+    [Fact]
+    public void Marked_edit_save_copy_is_not_returned_without_its_download_mark()
+    {
+        var ops = new Marks { RejectWrites = true };
+        var store = new EditSessionStore(Path.Join(_dir.Path, "sessions"), ops);
+        string working = _dir.File("working-save.txt", "mine");
+        ops.Values[working] = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        string temp = Directory.CreateDirectory(Path.Join(_dir.Path, "temp-save")).FullName;
+        Assert.Throws<IOException>(() => store.PrepareSaveCopy(new EditSessionRecord { WorkingPath = working },
+            temp, new LocalFileSystemProvider(), () => { }));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(temp));
+        Assert.Equal("mine", File.ReadAllText(working));
+    }
+
+    [Fact]
     public async Task A_committed_archive_baseline_describes_written_bytes_even_when_the_editor_has_saved_again()
     {
         string archive = Path.Join(_dir.Path, "owned.zip"); using (var z = ZipFile.Open(archive, ZipArchiveMode.Create)) { using var w = new StreamWriter(z.CreateEntry("notes.txt").Open()); w.Write("base"); }
@@ -77,7 +104,13 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
     private sealed class Marks : PortableFileOperations
     {
         public readonly Dictionary<string, string> Values = new();
+        public bool RejectWrites { get; set; }
         public override string? ReadOriginMark(string path) => Values.GetValueOrDefault(path);
-        public override bool WriteOriginMark(string path, string mark) { Values[path] = mark; return true; }
+        public override bool WriteOriginMark(string path, string mark)
+        {
+            if (RejectWrites) return false;
+            Values[path] = mark;
+            return true;
+        }
     }
 }

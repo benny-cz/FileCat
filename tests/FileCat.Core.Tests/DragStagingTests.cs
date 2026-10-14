@@ -16,9 +16,11 @@ public sealed class DragStagingTests : IDisposable
     private sealed class MarkingOps : PortableFileOperations
     {
         public Dictionary<string, string> Marks { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public bool RejectWrites { get; set; }
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
         public override bool WriteOriginMark(string path, string mark)
         {
+            if (RejectWrites) return false;
             Marks[path] = mark;
             return true;
         }
@@ -75,6 +77,20 @@ public sealed class DragStagingTests : IDisposable
         Assert.All(paths!, p => Assert.Equal("[ZoneTransfer]\r\nZoneId=3\r\n", _ops.Marks[p])); // the download mark travels
         Assert.All(paths!, p => Assert.True((File.GetAttributes(p) & FileAttributes.ReadOnly) != 0));
         Assert.StartsWith(Path.Combine(_dir.Path, "drag"), paths![0], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Marked_archive_members_are_not_dragged_without_their_download_mark()
+    {
+        string zip = Zip(("a.txt", "alpha"));
+        _ops.Marks[zip] = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        _ops.RejectWrites = true;
+        var member = Assert.Single(Members(zip));
+        var (paths, refusal) = DragStaging.Stage([member], _providers, _ops, _dir.Path, TestContext.Current.CancellationToken);
+        Assert.Null(paths);
+        Assert.Contains("download mark", refusal, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.EnumerateFiles(_dir.Path, "a.txt", SearchOption.AllDirectories));
+        Assert.Equal("[ZoneTransfer]\r\nZoneId=3\r\n", _ops.Marks[zip]);
     }
 
     [Fact]

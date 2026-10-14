@@ -28,9 +28,11 @@ public sealed class EditSessionTests : IDisposable
     private sealed class MarkingOps : PortableFileOperations
     {
         public readonly Dictionary<string, string> Marks = new(StringComparer.OrdinalIgnoreCase);
+        public bool RejectWrites { get; set; }
         public override string? ReadOriginMark(string path) => Marks.GetValueOrDefault(path);
         public override bool WriteOriginMark(string path, string mark)
         {
+            if (RejectWrites) return false;
             Marks[path] = mark;
             return true;
         }
@@ -139,6 +141,32 @@ public sealed class EditSessionTests : IDisposable
         store.Discard(restored);
         Assert.Empty(store.LoadAll());
         Assert.False(File.Exists(session.WorkingPath));
+    }
+
+    [Fact]
+    public void Marked_archive_member_does_not_start_an_unmarked_edit_session()
+    {
+        string zip = MakeZip();
+        _ops.Marks[zip] = "[ZoneTransfer]\r\nZoneId=3\r\n";
+        _ops.RejectWrites = true;
+        var store = new EditSessionStore(Path.Combine(_dir.Path, "refused-sessions"), _ops);
+        Assert.Throws<IOException>(() => store.Create(_zip, Member(zip, "notes", "todo.txt")));
+        Assert.Empty(store.LoadAll());
+        if (Directory.Exists(store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(store.Root));
+        Assert.Equal("[ZoneTransfer]\r\nZoneId=3\r\n", _ops.Marks[zip]);
+    }
+
+    [Fact]
+    public void Marked_remote_file_does_not_start_an_unmarked_edit_session()
+    {
+        _ops.RejectWrites = true;
+        var store = new EditSessionStore(Path.Combine(_dir.Path, "refused-remote-sessions"), _ops);
+        using var source = new MemoryContentSource("notes.txt", "mine"u8.ToArray());
+        var revision = source.GetRevision()!.Value;
+        Assert.Throws<IOException>(() => store.CreateRemote("owned", "owned", "/notes.txt", source, revision,
+            "[ZoneTransfer]\r\nZoneId=3\r\n"));
+        Assert.Empty(store.LoadAll());
+        if (Directory.Exists(store.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(store.Root));
     }
 
     [Fact]

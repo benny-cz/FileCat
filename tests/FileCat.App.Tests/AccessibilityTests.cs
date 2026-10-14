@@ -11,6 +11,7 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using FileCat.Core.Platform;
 using FileCat.Core.State;
 using Location = FileCat.Core.Resources.Location;
 
@@ -22,6 +23,10 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class AccessibilityTests
 {
+    private sealed class WindowsMarkPlatform : PortablePlatform
+    {
+        public WindowsMarkPlatform() => FileOperations = new FileCat.Platform.Windows.WindowsFileOperations();
+    }
     /// <summary>Visible, enabled interactive controls whose accessible name would be empty.</summary>
     internal static List<string> Unnamed(Control root)
     {
@@ -39,13 +44,24 @@ public sealed class AccessibilityTests
         return problems;
     }
 
-    internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow(Remote.Sftp.ISftpConnector? sftp = null)
+    internal static (AppServices Services, MainViewModel Vm, MainWindow Window, string Root) OpenMainWindow(
+        Remote.Sftp.ISftpConnector? sftp = null, bool nativeWindowsOriginMarks = false)
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
         var folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
         File.WriteAllText(Path.Combine(folder, "a.txt"), "alpha");
         File.WriteAllText(Path.Combine(folder, "b.txt"), "beta");
-        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root), sftp);
+        // These origin-mark flows must use an adapter that can actually write the Windows ADS. The usual
+        // headless PortablePlatform intentionally has no Windows-specific mark implementation.
+        var previousFactory = PlatformFactory.WindowsFactory;
+        AppServices services;
+        try
+        {
+            if (nativeWindowsOriginMarks && OperatingSystem.IsWindows())
+                PlatformFactory.WindowsFactory = () => new WindowsMarkPlatform();
+            services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root), sftp);
+        }
+        finally { PlatformFactory.WindowsFactory = previousFactory; }
         var vm = new MainViewModel(services);
         var window = new MainWindow(vm, null) { Width = 1200, Height = 800 };
         vm.Initialize(null);

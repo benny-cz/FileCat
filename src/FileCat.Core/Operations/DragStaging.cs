@@ -71,7 +71,8 @@ public static class DragStaging
                 if (content is IPartialContent { Caveat: not null })
                     return Fail(folder, $"Where \"{item.Name}\" starts is a guess, so it is recovered with F5, whose report says so.");
                 if (item.Modified > 0) File.SetLastWriteTimeUtc(target, new DateTime(item.Modified, DateTimeKind.Utc));
-                if (OriginMark(item.Parent, fs, providers) is { } mark) fs.WriteOriginMark(target, mark);
+                if (OriginMark(item.Parent, fs, providers) is { } mark && !fs.WriteOriginMark(target, mark))
+                    throw new IOException("The download mark could not be kept on the staged copy.");
                 File.SetAttributes(target, File.GetAttributes(target) | FileAttributes.ReadOnly); // a copy to hand over, not to edit here
                 staged.Add(target);
             }

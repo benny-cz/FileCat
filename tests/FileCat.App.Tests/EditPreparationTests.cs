@@ -153,7 +153,8 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
         private readonly Location _location;
         public Fixture(string scheme, string outcome = "ordinary", string? held = null)
         {
-            Scheme = scheme; (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(new NoNetworkConnector());
+            Scheme = scheme; (Services, Vm, Window, Root) = AccessibilityTests.OpenMainWindow(
+                new NoNetworkConnector(), nativeWindowsOriginMarks: scheme == "sftp");
             Services.Settings.Editor = new ToolDefinition { Executable = Path.Join(Root, "owned-editor-does-not-exist.exe") };
             Archive = Path.Join(Root, "owned.zip");
             using (var zip = new ZipArchive(File.Create(Archive), ZipArchiveMode.Create)) for (int i = 0; i < 8; i++) { using var s = zip.CreateEntry($"notes{i}.txt").Open(); s.Write("owned editable bytes"u8); }

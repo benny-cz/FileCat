@@ -152,7 +152,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         string name = remotePath[(remotePath.LastIndexOf('/') + 1)..];
         return CreateSession(name, working => WriteWorkingCopy(source, working, ct, revision), (working, copy) =>
         {
-            if (originMark is not null) fs.WriteOriginMark(working, originMark);
+            if (originMark is not null) PreserveOriginMark(working, originMark);
             return new EditSessionRecord
             {
                 Kind = EditSessionRecord.RemoteKind,
@@ -184,7 +184,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
             });
         }, (working, copy) =>
         {
-            if (originMark is not null) fs.WriteOriginMark(working, originMark);
+            if (originMark is not null) PreserveOriginMark(working, originMark);
             return new EditSessionRecord
             {
                 Kind = EditSessionRecord.RemoteKind,
@@ -217,6 +217,12 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
 
     /// <summary>A session folder with the working copy under the edited file's own name (or a safe stand-in).</summary>
     private sealed record WorkingCopy(string Sha256, uint Crc, long Length);
+
+    private void PreserveOriginMark(string path, string mark)
+    {
+        if (!fs.WriteOriginMark(path, mark))
+            throw new IOException("The download mark could not be kept on the private edit copy.");
+    }
 
     private EditSessionRecord CreateSession(string fileName, Func<string, WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
     {
@@ -334,7 +340,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
             });
         }, (working, copy) =>
         {
-            if (fs.ReadOriginMark(archive) is { } mark) fs.WriteOriginMark(working, mark);
+            if (fs.ReadOriginMark(archive) is { } mark) PreserveOriginMark(working, mark);
             return new EditSessionRecord
             {
                 ArchivePath = archive,
@@ -451,7 +457,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
             using var source = new CommitContent(record.WorkingPath);
             var copy = WriteWorkingCopy(source, path, ct);
             File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
-            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) fs.WriteOriginMark(path, mark);
+            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
             ct.ThrowIfCancellationRequested();
             return new EditCommitCopy(path, copy.Sha256, copy.Crc, copy.Length);
         }
@@ -477,7 +483,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
             check();
             var bytes = WriteWorkingCopy(source, path, default, check: check);
             check();
-            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) fs.WriteOriginMark(path, mark);
+            if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
             check(); return new EditCommitCopy(path, bytes.Sha256, bytes.Crc, bytes.Length);
         }
         catch
