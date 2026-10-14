@@ -28,6 +28,39 @@ public sealed class SelectedDiskInterfaceSourceTests
         Assert.Equal(0, source.Reads);
     }
 
+    [Fact]
+    public void Volume_selection_distinguishes_byte_clones_on_different_disk_interfaces()
+    {
+        const string clonedGuid = "a75c39bd-652d-4efb-871e-6a4a1e93e127";
+        var original = new PhysicalDisk(7, 64 * 1024 * 1024, "A", "virtual", false, [], clonedGuid, @"\\?\SCSI#FileCat#A");
+        var replacement = original with { Number = 7, Model = "B", InterfacePath = @"\\?\SCSI#FileCat#B" };
+
+        Assert.NotNull(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original));
+        Assert.NotEqual(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original),
+            SelectedDiskInterfaceSource.VolumeSelectionIdentity(replacement));
+        Assert.Null(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original with { Identity = null }));
+        Assert.Null(SelectedDiskInterfaceSource.VolumeSelectionIdentity(original with { InterfacePath = null }));
+    }
+
+    [Fact]
+    public void Disposable_virtual_volume_reports_the_selected_backing_interface_from_its_held_reader()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows volume interfaces are required.");
+        string? root = Environment.GetEnvironmentVariable("FILECAT_I487_VIRTUAL_VOLUME");
+        if (string.IsNullOrEmpty(root)) Assert.Skip("Set FILECAT_I487_VIRTUAL_VOLUME to an owned disposable VHD volume root.");
+        string device = DeviceTopology.VolumeDevice(root!) ?? throw new IOException("The disposable volume has no GUID path.");
+        var numbers = DeviceTopology.DisksOf(device);
+        Assert.NotNull(numbers);
+        int number = Assert.Single(numbers);
+        var selected = Assert.Single(DeviceTopology.Disks(), disk => disk.Number == number);
+        string expected = Assert.IsType<string>(SelectedDiskInterfaceSource.VolumeSelectionIdentity(selected));
+
+        using var bound = Assert.IsType<SelectedDiskInterfaceSource>(SelectedDiskInterfaceSource.Bind(
+            device, DirectDeviceSource.Open(device, "disposable virtual volume")));
+        Assert.Equal(expected, bound.SelectionIdentity);
+        Assert.True(bound.IsCurrentDevicePath(device));
+    }
+
     private sealed class Reader(string? identity) : IBlockSource, IDeviceSelectionIdentity
     {
         public string Description => "owned reader fixture";

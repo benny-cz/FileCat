@@ -1,7 +1,9 @@
 using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
 using FileCat.App.ViewModels;
+using FileCat.Core.Listing;
 using FileCat.Core.State;
+using FileCat.Recovery;
 
 namespace FileCat.App.Tests;
 
@@ -12,6 +14,66 @@ namespace FileCat.App.Tests;
 /// </summary>
 public sealed class RecoverySafetyTests
 {
+    [AvaloniaFact]
+    public async Task Drive_letter_scan_refuses_a_replaced_backing_before_reading_it()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows volume selection is required.");
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            string drive = Path.GetPathRoot(root)!;
+            string? device = Platform.Windows.Recovery.DeviceTopology.VolumeDevice(drive);
+            var numbers = device is null ? null : Platform.Windows.Recovery.DeviceTopology.DisksOf(device);
+            var selected = numbers is { Count: 1 }
+                ? Platform.Windows.Recovery.DeviceTopology.Disks().SingleOrDefault(d => d.Number == numbers[0])
+                : null;
+            if (Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(selected) is null)
+                Assert.Skip("The test volume has no verifiable single-disk interface identity.");
+            if (!Environment.IsPrivilegedProcess &&
+                Platform.Windows.Elevation.ElevationBroker.Locate(services.Paths.IsPortable, out _) is null)
+                Assert.Skip("The recording reader requires elevation or an installed helper to pass preflight.");
+
+            var reader = new ReplacedReader();
+            int opens = 0;
+            services.Recovery.SharesDisk = (_, _) => false;
+            services.Recovery.OpenDevice = (_, _, _) => { Interlocked.Increment(ref opens); return reader; };
+            vm.Dialogs = new AdmissionDialogs(() => { });
+            var panel = vm.Workspace.Panels[0];
+            var original = panel.ActiveTab;
+
+            await vm.FindDeletedOnDriveAsync(panel,
+                new Core.FileSystem.DriveTag(drive, "fixture", "Fixed", "NTFS", 0, 0, true), null, () => false);
+            Assert.NotSame(original, panel.ActiveTab);
+            for (int i = 0; i < 250 && (Volatile.Read(ref opens) == 0 ||
+                panel.ActiveTab!.Listing.State is ListingState.Loading or ListingState.Empty); i++)
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+
+            Assert.Equal(1, opens);
+            Assert.Equal(0, reader.Reads);
+            Assert.Equal(1, reader.Disposals);
+            Assert.Equal(ListingState.Failed, panel.ActiveTab!.Listing.State);
+            Assert.Contains("identity changed", panel.ActiveTab!.Listing.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    private sealed class ReplacedReader : IBlockSource, IDeviceSelectionIdentity
+    {
+        public string Description => "byte-cloned replacement";
+        public long Length => 64 * 1024 * 1024;
+        public string? SelectionIdentity => "volume|replacement-interface|same-disk-guid";
+        public int Reads { get; private set; }
+        public int Disposals { get; private set; }
+        public int Read(long offset, Span<byte> buffer)
+        {
+            Reads++;
+            int count = (int)Math.Min(buffer.Length, Length - offset);
+            buffer[..count].Clear();
+            return count;
+        }
+        public void Dispose() => Disposals++;
+    }
+
     [AvaloniaTheory]
     [InlineData("windows-drive", true)]
     [InlineData("windows-drive", null)]

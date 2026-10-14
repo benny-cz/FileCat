@@ -217,7 +217,17 @@ public sealed class SelectedDiskInterfaceSource : IBlockSource, IDevicePathGuard
 
     public string Description => _source.Description;
     public long Length => _source.Length;
-    public string? SelectionIdentity => _identity;
+    // A volume GUID can survive replacement by a byte-cloned disk with the same storage GUID.
+    // The selected PnP interface is part of the volume's identity, just as it is for a whole-disk open.
+    public string? SelectionIdentity => _volumeDiskNumber is null
+        ? _identity : VolumeSelectionIdentity(_diskInterfacePath, _diskIdentity);
+
+    public static string? VolumeSelectionIdentity(PhysicalDisk? disk) =>
+        disk is null ? null : VolumeSelectionIdentity(disk.InterfacePath, disk.Identity);
+
+    private static string? VolumeSelectionIdentity(string? interfacePath, string? identity) =>
+        string.IsNullOrEmpty(interfacePath) || string.IsNullOrEmpty(identity)
+            ? null : $"volume|{interfacePath}|{identity}";
     public int Read(long offset, Span<byte> buffer) => _source.Read(offset, buffer);
     public bool? SharesDestinationDisk(string destinationDirectory) =>
         (_source as IDeviceDestinationGuard)?.SharesDestinationDisk(destinationDirectory);

@@ -328,6 +328,21 @@ public sealed partial class MainViewModel
             Notify($"{drive.RootPath} is not a local volume FileCat can read directly.", true);
             return;
         }
+        // Retain the selected volume's physical interface before the confirmation/administrator wait.
+        // A volume GUID and disk number can both be reused by a cloned replacement meanwhile.
+        var selectedDisk = await Task.Run(() =>
+        {
+            var numbers = FileCat.Platform.Windows.Recovery.DeviceTopology.DisksOf(device);
+            return numbers is { Count: 1 }
+                ? FileCat.Platform.Windows.Recovery.DeviceTopology.Disks().SingleOrDefault(d => d.Number == numbers[0])
+                : null;
+        });
+        string? selectedIdentity = FileCat.Platform.Windows.Recovery.SelectedDiskInterfaceSource.VolumeSelectionIdentity(selectedDisk);
+        if (selectedIdentity is null)
+        {
+            Notify($"{drive.RootPath} cannot be scanned: Windows did not provide one backing disk interface and identity FileCat can verify when it opens the volume. Select the drive again.", true);
+            return;
+        }
         string name = $"drive {drive.RootPath.TrimEnd('\\')}" + (string.IsNullOrWhiteSpace(drive.Label) ? "" : $" ({drive.Label})");
         bool system = string.Equals(Path.GetPathRoot(Environment.SystemDirectory), drive.RootPath, StringComparison.OrdinalIgnoreCase);
         var safety = await Task.Run(() => CheckDiskSafety(device, name, otherProcesses: otherProcesses));
@@ -354,7 +369,7 @@ public sealed partial class MainViewModel
         }
         if (!await RecheckDeviceSafetyAsync(device, name, otherProcesses)) return;
         _deviceScanned = true;
-        var root = Services.Recovery.ForDevice(device, name, 1);
+        var root = Services.Recovery.ForDevice(device, name, 1, identity: selectedIdentity);
         var scan = panel.OpenTab(root);
         if (folder is not null && folder.Length > drive.RootPath.Length)
             GoToFolderWhenScanned(scan, root, folder[drive.RootPath.Length..].Replace('\\', '/').Trim('/'));
