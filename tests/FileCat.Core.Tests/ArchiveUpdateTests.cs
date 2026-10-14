@@ -252,6 +252,28 @@ public sealed class ArchiveUpdateTests : IDisposable
         }
     }
 
+    private sealed class ReplaceBackupAfterFinalMarkReadFileOperations(string replacement) : PortableFileOperations
+    {
+        private int _backupReads;
+        public string? BackupPath { get; private set; }
+        public string? OriginalAtRace { get; private set; }
+        public bool Replaced { get; private set; }
+
+        public override string? ReadOriginMark(string path)
+        {
+            string? mark = base.ReadOriginMark(path);
+            if (Path.GetExtension(path).Equals(".bak", StringComparison.Ordinal) && ++_backupReads == 2)
+            {
+                BackupPath = path;
+                OriginalAtRace = path + ".held-original";
+                File.Move(path, OriginalAtRace);
+                File.Move(replacement, path);
+                Replaced = true;
+            }
+            return mark;
+        }
+    }
+
     public ArchiveUpdateTests()
     {
         _providers.Register(new LocalFileSystemProvider());
@@ -601,6 +623,31 @@ public sealed class ArchiveUpdateTests : IDisposable
         Assert.Equal(JobState.CompletedWithIssues, job.State);
         Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
         Assert.Empty(Directory.GetFiles(_dir.Path, ".filecat-zip-*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_backup_replaced_after_the_final_cleanup_check_is_not_deleted()
+    {
+        string zip = MakeZip("cleanup-final-check-source.zip", ("record.txt", "original"));
+        byte[] originalBytes = File.ReadAllBytes(zip);
+        string third = MakeZip("cleanup-final-check-third.zip", ("record.txt", "external replacement"));
+        byte[] thirdBytes = File.ReadAllBytes(third);
+        var operations = new ReplaceBackupAfterFinalMarkReadFileOperations(third);
+
+        var job = await RunAsync(new ArchivePlan(zip, ArchiveBaseline.Of(zip),
+            [new ArchiveChange(ArchiveChangeKind.CreateFolderEntry, "new-folder")]), operations: operations);
+
+        Assert.True(operations.Replaced);
+        Assert.Contains("new-folder/", Read(zip).Keys);
+        Assert.Equal(originalBytes, File.ReadAllBytes(Assert.IsType<string>(operations.OriginalAtRace)));
+        string backup = Assert.IsType<string>(operations.BackupPath);
+        string[] retained = Directory.GetFiles(_dir.Path, Path.GetFileName(backup) + "*")
+            .Where(path => !string.Equals(path, operations.OriginalAtRace, StringComparison.Ordinal))
+            .ToArray();
+        Assert.Single(retained);
+        Assert.Equal(thirdBytes, File.ReadAllBytes(retained[0]));
+        Assert.Equal(JobState.CompletedWithIssues, job.State);
+        Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
     }
 
     [Fact]

@@ -239,6 +239,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             for (int root = 0; root < Math.Max(1, Job.Request.Sources.Count); root++) Job.RootCompleted(root);
             if (backup is not null)
             {
+                string retainedBackup = backup;
                 try
                 {
                     // This path is visible to other processes. A later replacement or in-place
@@ -251,11 +252,25 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         !originalMarkReadable ||
                         !string.Equals(Fs.ReadOriginMark(backup), replacedOriginalMark, StringComparison.Ordinal))
                         throw new IOException("The original archive backup bytes or download mark changed before cleanup.");
-                    File.Delete(backup);
+                    // A concurrent rename can happen after that last mark read. Move the
+                    // pathname to a fresh same-folder name, then verify the file actually
+                    // moved before deleting it. If the move captured someone else's file,
+                    // keep that file at the new name and report exactly where it remains.
+                    string cleanupPath = backup + ".held-" + Guid.NewGuid().ToString("N") + ".bak";
+                    File.Move(backup, cleanupPath);
+                    retainedBackup = cleanupPath;
+                    if (replacedOriginalIdentity is not null &&
+                        !string.Equals(Fs.GetFileIdentity(cleanupPath), replacedOriginalIdentity, StringComparison.Ordinal))
+                        throw new IOException("The original archive backup pathname changed during cleanup.");
+                    if (!DigestFile(cleanupPath, checkCancellation: false).AsSpan().SequenceEqual(replacedOriginalDigest) ||
+                        !string.Equals(Fs.ReadOriginMark(cleanupPath), replacedOriginalMark, StringComparison.Ordinal))
+                        throw new IOException("The original archive backup bytes or download mark changed during cleanup.");
+                    File.Delete(cleanupPath);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    Issue(IssueSeverity.Warning, backup, "The original archive backup was kept: " + ex.Message,
+                    Issue(IssueSeverity.Warning, retainedBackup, "The original archive backup was kept at " +
+                        retainedBackup + ": " + ex.Message,
                         StepOutcome.Committed);
                 }
             }
