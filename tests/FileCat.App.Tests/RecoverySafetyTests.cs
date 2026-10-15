@@ -24,6 +24,8 @@ public sealed class RecoverySafetyTests
         Assert.False(MainViewModel.IsRecoverableVolume(mapped with { MountPoints = [] }));
         Assert.False(MainViewModel.IsRecoverableVolume(mapped with { FileSystem = "ext4" }));
         Assert.False(MainViewModel.IsRecoverableVolume(mapped with { IsLayeredVolume = false }));
+        Assert.False(MainViewModel.IsWholeSourceChoice(mapped));
+        Assert.True(MainViewModel.IsWholeSourceChoice(mapped with { MountPoints = [], FileSystem = null }));
     }
 
     [AvaloniaFact]

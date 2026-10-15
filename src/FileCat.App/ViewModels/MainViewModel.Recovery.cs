@@ -107,14 +107,14 @@ public sealed partial class MainViewModel
                     isHere ? "this folder's drive" : isFocused ? "under the cursor" : null) { Icon = () => icons.GetIcon(row) }, () => FindDeletedOnUnixDeviceAsync(panel, volume, folder)));
             }
             if (selected < 0) selected = preferred;
-            foreach (var disk in devices.Where(v => v.Disk is null && !v.IsLayeredVolume))
+            foreach (var disk in devices.Where(IsWholeSourceChoice))
             {
                 var row = new EntryData(disk.Name, EntryKind.Drive) { Tag = new DriveTag(disk.Device, disk.Model, disk.Removable ? "Removable" : "Fixed", null, -1, disk.Length, true) };
                 var parts = devices.Where(v => v.Disk == disk.Device).ToList();
                 string mounted = string.Join(", ", parts.SelectMany(v => v.MountPoints).Concat(disk.MountPoints));
-                string detail = $"Whole disk, {Formatters.SizeWithUnit(disk.Length)}{(disk.Bus.Length > 0 ? " " + disk.Bus : "")} · " +
-                                (mounted.Length > 0 ? "mounted at " + mounted : parts.Count == 0 ? "no partitions" : "nothing mounted") + " · also finds deleted partitions";
-                choices.Add((new ChoiceItem($"Disk {disk.Name}" + (disk.Model is null ? "" : ": " + disk.Model), detail) { Icon = () => icons.GetIcon(row) },
+                string detail = $"{(disk.IsLayeredVolume ? "Mapped source" : "Whole disk")}, {Formatters.SizeWithUnit(disk.Length)}{(disk.Bus.Length > 0 ? " " + disk.Bus : "")} · " +
+                                (mounted.Length > 0 ? "mounted at " + mounted : disk.IsLayeredVolume ? "not mounted" : parts.Count == 0 ? "no partitions" : "nothing mounted") + " · also finds deleted partitions";
+                choices.Add((new ChoiceItem($"{(disk.IsLayeredVolume ? "Mapped source" : "Disk")} {disk.Name}" + (disk.Model is null ? "" : ": " + disk.Model), detail) { Icon = () => icons.GetIcon(row) },
                     () => FindDeletedOnUnixDeviceAsync(panel, disk, null)));
             }
         }
@@ -598,6 +598,10 @@ public sealed partial class MainViewModel
     internal static bool IsRecoverableVolume(UnixBlockDevice device) =>
         (device.Disk is not null || device.IsLayeredVolume) && device.MountPoints.Count > 0 && UnixDisks.RecoverableTypes.Contains(device.FileSystem);
 
+    /// <summary>An unmounted mapped layer must still be selectable, so its contents can be identified by a read-only scan.</summary>
+    internal static bool IsWholeSourceChoice(UnixBlockDevice device) =>
+        device.Disk is null && (!device.IsLayeredVolume || device.MountPoints.Count == 0);
+
     /// <summary>Whether <paramref name="path"/> lies at or below the mount point <paramref name="mount"/>.</summary>
     private static bool Holds(string mount, string path) => path == mount || mount == "/" || path.StartsWith(mount.TrimEnd('/') + "/", StringComparison.Ordinal);
 
@@ -613,8 +617,8 @@ public sealed partial class MainViewModel
             Notify($"{device.Name} cannot be scanned: Unix did not provide a device identity FileCat can verify when it opens the device. Select it again.", true);
             return;
         }
-        bool disk = device.Disk is null && !device.IsLayeredVolume;
-        string name = disk ? $"disk {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
+        bool disk = IsWholeSourceChoice(device);
+        string name = disk ? $"{(device.IsLayeredVolume ? "mapped source" : "disk")} {device.Name}" + (device.Model is null ? "" : $" ({device.Model})") : $"{device.MountPoints.FirstOrDefault() ?? device.Name} ({device.Name})";
         bool direct = await Task.Run(() => CanRead(device.Device));
         string how = direct ? "FileCat can read it with your own rights, and only reads: FileCat changes nothing on it. "
             : OperatingSystem.IsMacOS() ? "macOS asks for an administrator's password, and FileCat then only reads it: FileCat changes nothing on it. "
@@ -627,7 +631,7 @@ public sealed partial class MainViewModel
             await RefuseScanAsync(safety);
             return;
         }
-        string text = $"Scan {name} for deleted files? " + (disk ? "The scan lists the disk's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " : "") + how +
+        string text = $"Scan {name} for deleted files? " + (disk ? "The scan lists this source's partitions, and looks where partitions usually start for ones that were deleted or whose table was lost. " : "") + how +
                       (system ? "The system runs from this disk and keeps writing to it, so deleted files can be overwritten at any moment; for the best chance, image the disk from another computer. "
                        : mounts.Count > 0 ? $"It is mounted ({string.Join(", ", mounts)}), so programs can write to it while FileCat reads: unmounting it first keeps it unchanged (its disk stays in this list). " : "") +
                       safety.HeldOff +

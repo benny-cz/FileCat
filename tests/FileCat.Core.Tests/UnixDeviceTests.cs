@@ -149,7 +149,7 @@ public sealed class UnixDeviceTests : IDisposable
         Write(sys, "block/dm-0/size", "1048576");
         Write(sys, "block/dm-0/dev", "253:0");
         Write(sys, "block/dm-0/dm/name", "filecat-test-stripe");
-        Write(sys, "block/dm-1/size", "1048576"); // an unmounted mapped layer is not a mounted recovery choice
+        Write(sys, "block/dm-1/size", "1048576"); // unmounted layer remains selectable as a whole source
         Write(sys, "block/dm-1/dev", "253:1");
         Write(sys, "block/md0/size", "1048576");
         Write(sys, "block/md0/dev", "9:0");
@@ -170,7 +170,9 @@ public sealed class UnixDeviceTests : IDisposable
         Assert.True(mapped.IsLayeredVolume);
         Assert.Equal("mapped volume", mapped.Bus);
         Assert.Equal("filecat-test-stripe", mapped.Model);
-        Assert.DoesNotContain(devices, d => d.Device == "/dev/dm-1");
+        var unmounted = Assert.Single(devices, d => d.Device == "/dev/dm-1");
+        Assert.Empty(unmounted.MountPoints);
+        Assert.True(unmounted.IsLayeredVolume);
         var raid = Assert.Single(devices, d => d.Device == "/dev/md0");
         Assert.True(raid.IsLayeredVolume);
         Assert.Equal("RAID volume", raid.Bus);

@@ -401,9 +401,10 @@ public static class UnixDisks
             if (length <= 0) continue; // no medium, or an unused loop device
             bool layered = name.StartsWith("dm-", StringComparison.Ordinal) || name.StartsWith("md", StringComparison.Ordinal);
             var deviceMounts = MountsOf(mounts, dir, name).ToList();
-            // A mapped layer is offered as a volume only when a supported file system is actually mounted on it.
-            // Its physical slaves remain separate whole-disk choices; topology resolves all of them for write safety.
-            if (layered && !deviceMounts.Any(m => RecoverableTypes.Contains(m.Type))) continue;
+            // A supported mounted layer is a volume. An unmounted layer remains a whole-source choice: its
+            // file system (or deleted partitions) can only be determined by reading it after authorization.
+            // Physical slaves remain separate choices; topology resolves them for destination write safety.
+            if (layered && deviceMounts.Count > 0 && !deviceMounts.Any(m => RecoverableTypes.Contains(m.Type))) continue;
             string real = RealPath(dir);
             string bus = layered ? name.StartsWith("dm-", StringComparison.Ordinal) ? "mapped volume" : "RAID volume"
                 : name.StartsWith("nvme", StringComparison.Ordinal) ? "NVMe"
