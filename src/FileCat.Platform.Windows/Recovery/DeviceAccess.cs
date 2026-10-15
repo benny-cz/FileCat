@@ -463,10 +463,28 @@ public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSe
                 }
                 int status = BinaryPrimitives.ReadInt32LittleEndian(header);
                 int count = BinaryPrimitives.ReadInt32LittleEndian(header[4..]);
-                if (count < 0 || count > want) throw new IOException("The administrator helper answered out of bounds.");
-                if (!RawReadProtocol.ReadExactly(_pipe, buffer.Slice(done, count))) throw new IOException("The administrator helper stopped mid-answer.");
+                if (count < 0 || count > want || status != 0 && count != 0)
+                {
+                    // A malformed frame may have unread bytes still in the pipe. They must never
+                    // become the header or content of a later recovery read.
+                    _closed = true;
+                    throw new IOException("The administrator helper sent a malformed read answer.");
+                }
                 if (status != 0) throw new IOException($"The drive could not be read at byte {offset + done:N0}: {new Win32Exception(status).Message}") { HResult = status };
-                if (count == 0) break;
+                if (count == 0)
+                {
+                    _closed = true;
+                    throw new IOException("The administrator helper ended the drive before its reported length.");
+                }
+                try
+                {
+                    if (!RawReadProtocol.ReadExactly(_pipe, buffer.Slice(done, count))) throw new EndOfStreamException();
+                }
+                catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+                {
+                    _closed = true;
+                    throw new IOException("The administrator helper stopped mid-answer.", ex);
+                }
                 done += count;
             }
         }
