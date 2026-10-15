@@ -141,6 +141,8 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
 {
     private readonly object _lock = new();
     private readonly Dictionary<long, byte[]> _blocks = [];
+    // One load per block keeps concurrent recovery readers on the same observed source bytes.
+    private readonly Dictionary<long, Lazy<byte[]>> _loading = [];
     private readonly LinkedList<long> _order = new();
 
     public string Description => inner.Description;
@@ -170,10 +172,48 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
 
     private byte[] Block(long block)
     {
+        Lazy<byte[]> loading;
         lock (_lock)
         {
             if (_blocks.TryGetValue(block, out var cached)) return cached;
+            if (!_loading.TryGetValue(block, out loading!))
+            {
+                loading = new Lazy<byte[]>(() => LoadBlock(block), LazyThreadSafetyMode.ExecutionAndPublication);
+                _loading.Add(block, loading);
+            }
         }
+        byte[] data;
+        try { data = loading.Value; }
+        catch
+        {
+            lock (_lock)
+            {
+                if (_loading.TryGetValue(block, out var current) && ReferenceEquals(current, loading))
+                    _loading.Remove(block);
+            }
+            throw;
+        }
+        lock (_lock)
+        {
+            if (_loading.TryGetValue(block, out var current) && ReferenceEquals(current, loading))
+            {
+                _loading.Remove(block);
+                if (_blocks.TryAdd(block, data))
+                {
+                    _order.AddLast(block);
+                    while (_order.Count > maxBlocks)
+                    {
+                        _blocks.Remove(_order.First!.Value);
+                        _order.RemoveFirst();
+                    }
+                }
+            }
+        }
+        return data;
+    }
+
+    private byte[] LoadBlock(long block)
+    {
         long start = block * blockSize;
         var data = new byte[(int)Math.Min(blockSize, Length - start)];
         int done = 0;
@@ -184,18 +224,6 @@ public sealed class CachedSource(IBlockSource inner, int blockSize = 64 * 1024, 
             done += n;
         }
         if (done < data.Length) Array.Resize(ref data, done);
-        lock (_lock)
-        {
-            if (_blocks.TryAdd(block, data))
-            {
-                _order.AddLast(block);
-                while (_order.Count > maxBlocks)
-                {
-                    _blocks.Remove(_order.First!.Value);
-                    _order.RemoveFirst();
-                }
-            }
-        }
         return data;
     }
 
