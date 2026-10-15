@@ -1,4 +1,4 @@
-# E-CI-I108 — picture revision fixture fails on Windows x64 hosted CI
+# E-CI-I108 — picture revision fixture failure and corrected-source qualification
 
 The exact `main` push `e0e009bc4dcc70cea9a73fd74180c14f8ceb06fd` [run 38656838365](https://github.com/benny-cz/FileCat/actions/runs/38656838365) is **failed**, and remains failed. Windows x64 App failed three `PictureRevisionStatusTests.Cached_picture_status_distinguishes_changed_source_from_current_bytes` theory rows at the initial `PictureLoad.WaitAsync(TimeSpan.FromSeconds(10))`; the other four required jobs passed and the four conditional jobs skipped. The failure is a `System.TimeoutException` in each case, not a pixel or revision mismatch. Adjacent `6fea12b7` and `480dad83` runs also failed the same three rows. The earlier `95e7096a` [run 38655407242](https://github.com/benny-cz/FileCat/actions/runs/38655407242) passed all five required jobs and those same rows.
 
@@ -6,14 +6,21 @@ The official failed run retains 26 server-digest ZIPs, 2,752 members and 14 TRX:
 
 TRX timing narrows the scheduling hypothesis: the three failures each spent roughly ten seconds in the fixture wait, at 23:58:49–23:59:20 UTC. The held-feed picture admission/demand tests started eight to nine minutes **later** in that Windows x64 run. An initial proposal to put those classes in one xUnit collection was therefore withdrawn before commit; overlap with those tests does not explain the failure. The actual hosted delay has not been proven. The green run's same six picture-revision theory rows took about 0.2 seconds each.
 
-The fixture's initial and repeated picture-load waits have been increased from ten seconds to `PictureDecoder.Timeout + 15 seconds` (45 seconds), allowing the product's own 30-second decoder timeout plus startup/scheduling margin to complete. The production decoder, pixels, byte hashes, statuses, revisions and cleanup assertions are unchanged. This is a test-boundary correction, **not** evidence that the underlying hosted delay is fixed. The separate `CheckForChanges` ten-second wait was not implicated and remains. Local final-source and corrected-source CI results must be appended before calling the new bound qualified.
+The fixture's initial and repeated picture-load waits have been increased from ten seconds to `PictureDecoder.Timeout + 15 seconds` (45 seconds), allowing the product's own 30-second decoder timeout plus startup/scheduling margin to complete. The production decoder, pixels, byte hashes, statuses, revisions and cleanup assertions are unchanged. This is a test-boundary correction, **not** evidence that the underlying hosted delay is fixed. The separate `CheckForChanges` ten-second wait was not implicated and remains. At exact correction commit `8fe93efe84a53d6b677ffc4aa805105cfbe4521f`, the focused six picture-revision cases pass **6P/0S/0F**, followed by the complete headless App suite **1,646P/43 explicit skips/0F** in 13m22s. An earlier full App attempt **1,646P/43S/0F** used a now-withdrawn xUnit collection assembly and is retained only as a diagnostic, not final-source validation.
 
-Every official artifact ZIP was checked against its GitHub server SHA-256 digest. The three retained archives under `V:\FileCat\artifacts\release-evidence` independently rehash:
+The exact correction-commit [hosted run 38699373291](https://github.com/benny-cz/FileCat/actions/runs/38699373291) is **green**: five required jobs succeed and four conditional jobs skip. Its 27 GitHub server-digested ZIPs contain 2,778 members and fourteen TRX with **33,552 passed, 1,242 explicitly not executed and zero failed**. A member-level comparison of all 34,794 test rows against the failed run finds exactly the three Windows App picture-revision rows changing Failed/Timeout→Passed, with every other row retaining its outcome. A second comparison against the earlier green `95e7096a` run finds **zero changed test inventories** across the same 34,794 rows. Each comparison re-verifies ZIP members and preserves the original failures; neither changes the status of the original failed run or proves why its hosted delay occurred.
+
+The local tests, exact commit patch and assembly hashes are retained in `V:\FileCat\artifacts\release-evidence\i108-picture-revision-local-20261015-v1`. Its eleven files independently rehash against self-excluding `file-manifest.json` SHA-256 `bfcb0338c8c316b59559a620b713e3eb1072cf2629c051578fa4a49440e58a81`; the audit JSON SHA-256 is `12ae8155752f08b5b141a320b03c5cd20bca83288f211c5d540df1ecdfb8609d`. The hosted failure has its own archive below.
+
+Every official artifact ZIP was checked against its GitHub server SHA-256 digest. The six retained archives under `V:\FileCat\artifacts\release-evidence` independently rehash:
 
 | Archive | `file-manifest.json` SHA-256 | Audit/comparison JSON SHA-256 |
 |---|---|---|
 | `ci-i496-last-green-20261015-v1` | `62a4d0ab292b8a28ebe39427f7ebf3ed1415f69a86b79244521860d8d76c29fc` | `d6142286a1635a7700d22c0191ad07944f8b73f632be562183d859128da72827` |
 | `ci-i108-picture-fixture-failed-20261015-v1` | `58accb8fac3e2a46801e7b8361b1b83622043820283fe5ec0a2a92a8a38f15b0` | `b39f47152e381b8cd7d2a41c05421f5d3cb34900bf8cf748a7099a209888b69a` |
 | `ci-i108-picture-failed-vs-green-20261015-v1` | `5b81bb1e776443cc9a768b76f106249e46429665aed80f4ce75e89fb50af846f` | `91cfe2730b65c19d90f6f47de713e39dd4cb6d74d95e43f59e3c26fb7d426f4a` |
+| `ci-i108-picture-corrected-20261015-v1` | `cf093f14558d41b88a07297e130db64799daf879f1b4bc76bb5642a6e4db5325` | `919304df246c93e8fa395e2a30ae902f470000e19343084b4884490feb119349` |
+| `ci-i108-picture-corrected-vs-failed-20261015-v1` | `fbe85f73b6a466ceaef3a42255e42a312bcf43de4e8b98056c6f3ebdfb2efab3` | `b39cc3181f0ddbbf1a4dfe6f9e84d6949acbd2fb47ed593c3d0a28015ed0d377` |
+| `ci-i108-picture-corrected-vs-green-20261015-v1` | `874d0b71ecc80778c801eb0d027d5504c496fd72dd69ffdc636948d693bff068` | `f7547ee928ebc82f4904b58d3fb78a054e3ce5fa6a7da2cc61fab38fce77beed` |
 
-No candidate, contract freeze or stable release is inferred from either run.
+No candidate, contract freeze or stable release is inferred from any of these runs.

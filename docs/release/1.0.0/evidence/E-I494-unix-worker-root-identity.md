@@ -1,6 +1,6 @@
 # E-I494 — the Unix picture worker decoded hostile input as root
 
-I08/TV-16, 2026-10-14. **A demonstrated containment gap, corrected and verified on Ubuntu.** The macOS root case is not verified. No candidate, publication or human GO follows.
+I08/TV-16, 2026-10-14. **A demonstrated containment gap, corrected and verified on Ubuntu.** The Mac root case was unavailable in this original run and is now separately measured in the [2026-10-15 Mac follow-up](E-I494-mac-root-worker-identity.md). No candidate, publication or human GO follows.
 
 ## The gap
 
@@ -28,4 +28,4 @@ The third row is the authority the product now declines to use: the probe keeps 
 
 ## What this does not establish
 
-The macOS root case uses the same code but is **not verified**: the owned Mac's account needs a password for `sudo` that this campaign does not hold, so no root run was made there. It does not prove a verified sandbox — the dropped worker still has the requesting user's own filesystem and network reach — nor the behaviour of `pkexec`, `doas`, a root login shell with no sudo record, setuid installations, containers with a single uid, or an installed candidate. The pushed-source CI lanes cover only the non-root controls, because the hosted runners do not run tests as root. I08 remains open.
+At this original source identity the macOS root case was **not verified**: no root run was made there. The later [Mac follow-up](E-I494-mac-root-worker-identity.md) closes that identity-probe gap at its own source commit. Neither record proves a verified sandbox — the dropped worker still has the requesting user's own filesystem and network reach — nor the behaviour of `pkexec`, `doas`, a root login shell with no sudo record, setuid installations, containers with a single uid, or an installed candidate. The pushed-source CI lanes cover only the non-root controls, because the hosted runners do not run tests as root. I08 remains open.
