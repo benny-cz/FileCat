@@ -20,7 +20,7 @@ public sealed class Job
     private readonly CancellationTokenSource _cts = new();
     private readonly Dictionary<string, Decision> _applyToAll = new(StringComparer.Ordinal);
     private long _bytesTotal, _bytesDone, _itemsTotal, _itemsDone, _itemsFailed, _itemsSkipped;
-    private long _verifyTotal, _verifyDone, _settled;
+    private long _verifyTotal, _verifyDone, _settled, _dataBytesProcessed;
     // The file being worked on: what it was planned to cost, and the counts when it began (a job works on one at a time).
     private long _itemPlanned = -1, _itemStartBytes, _itemStartVerify;
     private long _itemPlannedBytes;
@@ -65,6 +65,8 @@ public sealed class Job
     public string? CurrentItem => _currentItem;
     public long BytesTotal => Interlocked.Read(ref _bytesTotal);
     public long BytesDone => Interlocked.Read(ref _bytesDone);
+    /// <summary>Actual copy/write and verification-read progress, including failed attempts; never logical skip/rename credit.</summary>
+    public long DataBytesProcessed => Interlocked.Read(ref _dataBytesProcessed);
     public long ItemsTotal => Interlocked.Read(ref _itemsTotal);
     public long ItemsDone => Interlocked.Read(ref _itemsDone);
     public long ItemsFailed => Interlocked.Read(ref _itemsFailed);
@@ -123,7 +125,7 @@ public sealed class Job
                 var dt = (now - _speedMarkTime).TotalSeconds;
                 if (dt >= 1)
                 {
-                    long b = BytesDone;
+                    long b = DataBytesProcessed;
                     double instant = (b - _speedMarkBytes) / dt;
                     _speed = _speed <= 0 ? instant : _speed * 0.6 + instant * 0.4;
                     _speedMarkBytes = b;
@@ -308,6 +310,11 @@ public sealed class Job
 
     internal void AddBytes(long bytes) => Interlocked.Add(ref _bytesDone, bytes);
 
+    internal void AddDataProcessed(long bytes)
+    {
+        if (bytes > 0) Interlocked.Add(ref _dataBytesProcessed, bytes);
+    }
+
     internal void AddVerifyTotal(long bytes, bool currentItem = false)
     {
         if (!currentItem) { Interlocked.Add(ref _verifyTotal, bytes); return; }
@@ -426,6 +433,12 @@ public sealed class Job
     {
         RetriedAsAdministrator = true;
         Changed?.Invoke(this);
+    }
+
+    /// <summary>Whether a class already has a job-scoped "skip all" answer.</summary>
+    internal bool HasRememberedSkip(string classKey)
+    {
+        lock (_lock) return _applyToAll.TryGetValue(classKey, out var answer) && answer.Action == DecisionAction.Skip;
     }
 
     /// <summary>Asks the user (or a remembered "apply to all" answer) and blocks the job thread until answered.</summary>

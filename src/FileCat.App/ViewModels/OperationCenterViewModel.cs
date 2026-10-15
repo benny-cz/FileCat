@@ -81,12 +81,12 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private string _itemsText = string.Empty;
     [ObservableProperty] private string _dataText = string.Empty;
     [ObservableProperty] private string _speedText = string.Empty;
-    /// <summary>The pace along the job: X is how far it was (0 to 1), Y the bytes per second then.</summary>
+    /// <summary>The last 90 seconds of actual data or completed items: X is elapsed seconds, Y units per second.</summary>
     [ObservableProperty] private Avalonia.Point[] _speedHistory = [];
-
-    private readonly List<Avalonia.Point> _speeds = [];
-    private TimeSpan? _lastSpeedSample;
-    private long _lastSpeedBytes;
+    [ObservableProperty] private string _graphCaption = string.Empty;
+    private readonly OperationSpeedHistory _speedHistorySamples = new();
+    private bool MeasuresItems => Job.Kind is JobKind.Delete or JobKind.Recycle or JobKind.CreateDirectory or
+        JobKind.CreateFile or JobKind.Rename or JobKind.Attributes or JobKind.Registry or JobKind.CreateLink or JobKind.ApplyCommand;
 
     /// <summary>A large file gets a bar of its own; a small one is done before a bar would help.</summary>
     private const long OwnBarFrom = 16L << 20;
@@ -218,29 +218,26 @@ public sealed partial class JobViewModel : ObservableObject
             ? $"{Formatters.SizeWithUnit(bd)} of {Formatters.SizeWithUnit(bt)}{(j.TotalsFinal ? "" : "+")}" +
               (j.VerifyBytesTotal > 0 ? $" · verified {Formatters.SizeWithUnit(j.VerifyBytesDone / 2)} of {Formatters.SizeWithUnit(j.VerifyBytesTotal / 2)}" : "")
             : string.Empty;
-        // The pace, once a second: now, and on average since the start.
+        // The pace, once a second and over the last 90 seconds. Logical byte credit for a same-volume rename or a
+        // skipped copy is excluded; only actual copied data, verification reads or completed items move this graph.
         var now = System.Diagnostics.Stopwatch.GetElapsedTime(_clockStart);
-        if (!running) _lastSpeedSample = null;
-        else if (_lastSpeedSample is not { } last)
+        long units = MeasuresItems ? j.ItemsDone : j.DataBytesProcessed;
+        if (_speedHistorySamples.Sample(now, units, running))
         {
-            _lastSpeedSample = now;
-            _lastSpeedBytes = j.WorkBytesDone;
+            SpeedHistory = [.. _speedHistorySamples.Samples];
+            HasSpeedHistory = _speedHistorySamples.HasActivity;
+            GraphCaption = MeasuresItems
+                ? $"Last 90 s · peak {_speedHistorySamples.Peak:0.#} items/s"
+                : $"Last 90 s · peak {Formatters.Size((long)_speedHistorySamples.Peak)}/s";
         }
-        else if (now - last >= TimeSpan.FromSeconds(1))
-        {
-            long work = j.WorkBytesDone;
-            _speeds.Add(new Avalonia.Point(Percent / 100, Math.Max(0, (work - _lastSpeedBytes) / (now - last).TotalSeconds)));
-            // The whole job stays drawn: past 600 points, every other one goes.
-            if (_speeds.Count > 600) for (int i = _speeds.Count - 2; i > 0; i -= 2) _speeds.RemoveAt(i);
-            SpeedHistory = [.. _speeds];
-            HasSpeedHistory = true;
-            _lastSpeedSample = now;
-            _lastSpeedBytes = work;
-        }
-        double average = j.StartedUtc is { } from && (DateTime.UtcNow - from).TotalSeconds is var seconds and > 1 ? j.WorkBytesDone / seconds : 0;
+        double average = j.StartedUtc is { } from && (DateTime.UtcNow - from).TotalSeconds is var seconds and > 1 ? units / seconds : 0;
         SpeedText = !IsActive ? string.Empty
-            : _speeds.Count > 0 ? $"{Formatters.Size((long)_speeds[^1].Y)}/s now · {Formatters.Size((long)average)}/s on average"
-            : average > 0 ? $"{Formatters.Size((long)average)}/s on average" : string.Empty;
+            : !running ? string.Empty
+            : MeasuresItems
+                ? $"{_speedHistorySamples.Current:0.#} items/s now · {average:0.#} items/s on average"
+                : _speedHistorySamples.Samples.Count > 0
+                    ? $"{Formatters.Size((long)_speedHistorySamples.Current)}/s now · {Formatters.Size((long)average)}/s on average"
+                    : average > 0 ? $"{Formatters.Size((long)average)}/s on average" : string.Empty;
 
         static string Duration(TimeSpan t) =>
             t.TotalHours >= 1 ? $"{(int)t.TotalHours} h {t.Minutes} min" : t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes} min {t.Seconds} s" : $"{Math.Max(0, t.Seconds)} s";

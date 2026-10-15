@@ -23,6 +23,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private readonly List<Location> _forward = [];
     private int _columnProfile;
     private long _freeBytes = -1;
+    private Location? _freeBytesLocation;
     /// <summary>The tab's own order while it shows a change journal (which reads newest first).</summary>
     private SortSpec? _sortOutsideJournal;
     private string? _freeBytesDevice;
@@ -59,6 +60,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _displayPath = string.Empty;
     [ObservableProperty] private string _statusLeft = string.Empty;
     [ObservableProperty] private string _statusRight = string.Empty;
+    /// <summary>Available space for the current file-system volume, shown beside the panel's mask.</summary>
+    [ObservableProperty] private string _freeSpaceText = string.Empty;
     /// <summary>
     /// With items marked, what they are and their size ("Marked 1 of 2 folders, 2 of 3 files · 2,39 MB"), shown first
     /// in the mark color; <see cref="StatusLeft"/> then holds the rest of the line. Empty with nothing marked.
@@ -558,8 +561,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     {
         if (Location is not { IsFileSystem: true } loc) return;
         var device = Services.Providers.For(loc).GetDeviceKey(loc);
+        _freeBytesLocation = loc;
         if (device == _freeBytesDevice && _freeBytes >= 0) { UpdateStatus(); return; }
+        _freeBytes = -1;
         _freeBytesDevice = device;
+        UpdateStatus();
         _ = Services.Io.Run(device, Core.Threading.IoPriority.Background, _ =>
         {
             var root = Path.GetPathRoot(loc.Path);
@@ -607,10 +613,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (l.State == ListingState.Loading) rest.Add(l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) rest.Add(l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) rest.Add($"filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}");
-        // Checksums before free space: a failed one matters more, and the end of a long line is what gets cut.
+        // Checksums remain in the status; free space has a stable place beside the mask above.
         if (_verificationSummary is { } verified && fileSystem) rest.Add(verified);
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
-        if (_freeBytes >= 0 && fileSystem) rest.Add($"{Formatters.SizeWithUnit(_freeBytes)} free");
+        // A navigation can enter Loading before RequestFreeSpace runs. Match the last queried location without
+        // consulting mapped-drive identity on every focus, mark or listing-status refresh.
+        bool currentFreeSpace = fileSystem && _freeBytes >= 0 && Location == _freeBytesLocation;
+        FreeSpaceText = currentFreeSpace ? $"{Formatters.SizeWithUnit(_freeBytes)} free" : string.Empty;
 
         var stats = l.GetMarkStats();
         if (stats.Count == 0)

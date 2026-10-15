@@ -12,13 +12,14 @@
         <!-- What it does and how far, in words and as a bar with its percentage; then the file in hand, a large one with a
              bar of its own (release issue I30). -->
         <StackPanel Spacing="3" Margin="0,3">
-          <TextBlock TextTrimming="CharacterEllipsis" Classes="small" ToolTip.Tip="{Binding Route}">
-            <Run Text="{Binding Title}" FontWeight="SemiBold" />
-            <Run Text=" — " />
-            <Run Text="{Binding PhaseText}" />
+          <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Classes="small" FontWeight="SemiBold" />
+          <TextBlock TextTrimming="CharacterEllipsis" Classes="small">
+            <Run Text="{Binding PhaseText}" FontWeight="SemiBold" />
             <Run Text=" · " />
             <Run Text="{Binding DetailText}" />
           </TextBlock>
+          <TextBlock Text="{Binding Route}" Classes="small muted" TextTrimming="CharacterEllipsis"
+                     IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" ToolTip.Tip="{Binding Route}" />
           <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsActive}">
             <ProgressBar Height="6" MinHeight="6" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}"
                          VerticalAlignment="Center" AutomationProperties.Name="Progress of the operation" />
@@ -132,8 +133,8 @@
               <TextBlock Text="{Binding SpeedText}" Classes="small" TextTrimming="CharacterEllipsis" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="2" Margin="12,2,0,0" IsVisible="{Binding HasSpeedHistory}">
-              <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: how far the operation is. Up: its speed then." />
-              <TextBlock Text="Speed along the operation" Classes="small muted" HorizontalAlignment="Right" />
+              <controls:SpeedGraph Width="260" Height="64" Values="{Binding SpeedHistory}" ToolTip.Tip="Across: elapsed time, newest at right. Up: copied data and verification reads, or completed items per second. Skipped work is excluded." />
+              <TextBlock Text="{Binding GraphCaption}" Classes="small muted" HorizontalAlignment="Right" />
             </StackPanel>
           </Grid>
           <ListBox ItemsSource="{Binding $parent[UserControl].((vm:OperationCenterViewModel)DataContext).SelectedIssues}" Classes="choices">

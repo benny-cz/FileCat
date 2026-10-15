@@ -196,7 +196,9 @@ internal abstract class ExecutorBase(Job job, IFileSystemOperations fs, JobJourn
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 var cls = ErrorText.Classify(ex);
-                if (cls == "sharing" && autoRetries < 3)
+                // Once the user chose Skip for all sharing errors, retrying every following locked item adds
+                // 250 + 500 + 750 ms per item before Ask can apply that remembered answer.
+                if (cls == "sharing" && autoRetries < 3 && !Job.HasRememberedSkip("error-" + cls))
                 {
                     autoRetries++;
                     Job.Token.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(250 * autoRetries));
@@ -961,7 +963,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 };
                 Fs.CopyFile(src, writeTo, options, (done, total) =>
                 {
-                    Job.AddBytes(done - reported);
+                    long advanced = done - reported;
+                    Job.AddBytes(advanced);
+                    Job.AddDataProcessed(advanced);
                     reported = done;
                     if (Job.IsPaused) Job.Checkpoint();
                     Job.Throttle(done, clock);
@@ -1109,7 +1113,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         {
             Fs.CopyFile(src, dst, new FileCopyOptions { CopyLinkAsLink = !followLink, DisablePreallocation = true }, (done, total) =>
             {
-                Job.AddBytes(done - reported);
+                long advanced = done - reported;
+                Job.AddBytes(advanced);
+                Job.AddDataProcessed(advanced);
                 reported = done;
                 if (Job.IsPaused) Job.Checkpoint();
                 Job.Throttle(done, clock);
@@ -1464,7 +1470,9 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         void Read(long done)
         {
             Job.Checkpoint();
-            Job.AddVerified(done - counted);
+            long advanced = done - counted;
+            Job.AddVerified(advanced);
+            Job.AddDataProcessed(advanced);
             counted = done;
         }
         var ha = PortableFileOperations.HashFile(a, HashAlgorithmName.SHA256, Job.Token, Read, length);

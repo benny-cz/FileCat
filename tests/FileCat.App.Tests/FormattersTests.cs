@@ -6,6 +6,20 @@ namespace FileCat.App.Tests;
 
 public sealed class FormattersTests
 {
+    [Fact]
+    public void Panel_attribute_letters_are_uppercase()
+    {
+        var attributes = FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System |
+            FileAttributes.Archive | FileAttributes.Compressed | FileAttributes.Encrypted | FileAttributes.ReparsePoint;
+        var entry = new Core.Resources.EntryData("sample", Core.Resources.EntryKind.File)
+        {
+            Attributes = (uint)attributes,
+            Flags = Core.Resources.EntryFlags.Offline,
+        };
+        Assert.Equal("RHSACELO", Formatters.Attributes(entry));
+        Assert.Equal(string.Empty, Formatters.Attributes(new Core.Resources.EntryData("..", Core.Resources.EntryKind.Parent)));
+    }
+
     /// <summary>
     /// §18.3 and V23 B14: a name cannot turn itself around (a right-to-left override would show "photo" RLO "gpj.exe" as
     /// "photoexe.jpg") or break its one line (the Unicode line and paragraph separators, which may hide a name's end).

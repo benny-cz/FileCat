@@ -484,6 +484,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                         outStream.Write(buffer, 0, n);
                         written += n;
                         Job.AddBytes(n);
+                        Job.AddDataProcessed(n);
                         Job.Throttle(written, clock);
                     }
                     CheckLength();
@@ -597,8 +598,10 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
             long verified = 0, streamDone = 0;
             void Progress(long done)
             {
-                Job.AddVerified(done - streamDone);
-                verified += done - streamDone;
+                long advanced = done - streamDone;
+                Job.AddVerified(advanced);
+                Job.AddDataProcessed(advanced);
+                verified += advanced;
                 streamDone = done;
             }
             try

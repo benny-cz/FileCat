@@ -22,6 +22,10 @@ public sealed class PathLineTests
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
+            // Exercise every segment as a link. The adjacent free-space label legitimately truncates long paths at the
+            // default 600-pixel panel width, so give this all-segments case room to display its whole owned path.
+            window.Width = 2000;
+            window.CaptureRenderedFrame();
             var ct = TestContext.Current.CancellationToken;
             string files = Path.Combine(root, "files");
             string deeper = Directory.CreateDirectory(Path.Combine(files, "sub", "deeper")).FullName;
@@ -259,6 +263,9 @@ public sealed class PathLineTests
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
         {
+            // This test inspects the escaped name itself; a narrow panel is expected to replace middle names with ….
+            window.Width = 2000;
+            window.CaptureRenderedFrame();
             var ct = TestContext.Current.CancellationToken;
             string name = "docs" + (char)0x202E + "fdp.exe";
             string folder = Directory.CreateDirectory(Path.Combine(root, "files", name)).FullName;

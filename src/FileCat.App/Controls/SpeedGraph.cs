@@ -5,18 +5,17 @@ using Avalonia.Media;
 namespace FileCat.App.Controls;
 
 /// <summary>
-/// An operation's pace along the way (release issue I30), as the Windows copy dialog draws it: across is how far the
-/// operation is (the right edge is its end), up is the speed, scaled to the fastest so far. It fills from the left while
-/// the operation runs; a stall shows as a drop to the floor, a slower part of the work as a step.
+/// The last 90 seconds of an operation's pace: time advances to the right and a stall occupies horizontal space at
+/// the floor. The height scales to the fastest recent sample; the numeric unit and peak are labelled by the view.
 /// </summary>
 public sealed class SpeedGraph : Control
 {
-    /// <summary>X: how far the operation was, 0 to 1. Y: its speed then, in bytes per second.</summary>
+    /// <summary>X: elapsed seconds. Y: actual bytes or settled items per second.</summary>
     public static readonly StyledProperty<Point[]> ValuesProperty = AvaloniaProperty.Register<SpeedGraph, Point[]>(nameof(Values), []);
 
     static SpeedGraph() => AffectsRender<SpeedGraph>(ValuesProperty);
 
-    public SpeedGraph() => Avalonia.Automation.AutomationProperties.SetName(this, "Speed along the operation");
+    public SpeedGraph() => Avalonia.Automation.AutomationProperties.SetName(this, "Operation speed over the last 90 seconds");
 
     public Point[] Values
     {
@@ -31,26 +30,41 @@ public sealed class SpeedGraph : Control
         if (width < 10 || height < 4) return;
         var accent = this.TryFindResource("FcActiveAccent", ActualThemeVariant, out var found) && found is ISolidColorBrush solid ? solid.Color : Colors.SteelBlue;
         context.DrawRectangle(null, new Pen(new SolidColorBrush(accent, 0.35), 1), new Rect(0.5, 0.5, width - 1, height - 1));
-        if (values.Length == 0) return;
-        double max = Math.Max(values.Max(v => v.Y), 1);
-        double X(Point v) => 1 + Math.Clamp(v.X, 0, 1) * (width - 2);
-        double Y(Point v) => height - 1 - v.Y / max * (height - 4);
+        var points = Project(values, width, height);
+        if (points.Length == 0) return;
+        context.DrawLine(new Pen(new SolidColorBrush(accent, 0.18), 1), new Point(1, height / 2), new Point(width - 1, height / 2));
+        context.DrawLine(new Pen(new SolidColorBrush(accent, 0.28), 1), new Point(1, height - 1), new Point(width - 1, height - 1));
         var area = new StreamGeometry();
         using (var g = area.Open())
         {
-            g.BeginFigure(new Point(X(values[0]), height - 1), true);
-            foreach (var v in values) g.LineTo(new Point(X(v), Y(v)));
-            g.LineTo(new Point(X(values[^1]), height - 1));
+            g.BeginFigure(new Point(points[0].X, height - 1), true);
+            foreach (var point in points) g.LineTo(point);
+            g.LineTo(new Point(points[^1].X, height - 1));
             g.EndFigure(true);
         }
         context.DrawGeometry(new SolidColorBrush(accent, 0.25), null, area);
         var line = new StreamGeometry();
         using (var g = line.Open())
         {
-            g.BeginFigure(new Point(X(values[0]), Y(values[0])), false);
-            foreach (var v in values.Skip(1)) g.LineTo(new Point(X(v), Y(v)));
+            g.BeginFigure(points[0], false);
+            foreach (var point in points.Skip(1)) g.LineTo(point);
             g.EndFigure(false);
         }
         context.DrawGeometry(null, new Pen(new SolidColorBrush(accent), 1.4), line);
+    }
+
+    /// <summary>Projects timestamped samples into pixels; kept pure so stalls and window limits can be tested.</summary>
+    internal static Point[] Project(Point[] values, double width, double height)
+    {
+        if (width < 10 || height < 4 || values.Length == 0) return [];
+        var valid = values.Where(v => double.IsFinite(v.X) && double.IsFinite(v.Y)).ToArray();
+        if (valid.Length == 0) return [];
+        double last = valid[^1].X;
+        double earliest = Math.Max(0, last - 90);
+        double span = Math.Max(1, last - earliest);
+        double peak = Math.Max(1, valid.Max(v => v.Y));
+        return valid.Where(v => v.X >= earliest).Select(v => new Point(
+            1 + Math.Clamp((v.X - earliest) / span, 0, 1) * (width - 2),
+            height - 1 - Math.Clamp(v.Y, 0, peak) / peak * (height - 4))).ToArray();
     }
 }

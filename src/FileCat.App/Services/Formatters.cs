@@ -145,14 +145,14 @@ public static class Formatters
         var a = (FileAttributes)e.Attributes;
         Span<char> s = stackalloc char[8];
         int n = 0;
-        if ((a & FileAttributes.ReadOnly) != 0) s[n++] = 'r';
-        if ((a & FileAttributes.Hidden) != 0) s[n++] = 'h';
-        if ((a & FileAttributes.System) != 0) s[n++] = 's';
-        if ((a & FileAttributes.Archive) != 0) s[n++] = 'a';
-        if ((a & FileAttributes.Compressed) != 0) s[n++] = 'c';
-        if ((a & FileAttributes.Encrypted) != 0) s[n++] = 'e';
-        if ((a & FileAttributes.ReparsePoint) != 0) s[n++] = 'l';
-        if (e.Has(EntryFlags.Offline)) s[n++] = 'o';
+        if ((a & FileAttributes.ReadOnly) != 0) s[n++] = 'R';
+        if ((a & FileAttributes.Hidden) != 0) s[n++] = 'H';
+        if ((a & FileAttributes.System) != 0) s[n++] = 'S';
+        if ((a & FileAttributes.Archive) != 0) s[n++] = 'A';
+        if ((a & FileAttributes.Compressed) != 0) s[n++] = 'C';
+        if ((a & FileAttributes.Encrypted) != 0) s[n++] = 'E';
+        if ((a & FileAttributes.ReparsePoint) != 0) s[n++] = 'L';
+        if (e.Has(EntryFlags.Offline)) s[n++] = 'O';
         return new string(s[..n]);
     }
 
