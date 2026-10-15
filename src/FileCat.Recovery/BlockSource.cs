@@ -109,7 +109,14 @@ public sealed class ImageFileSource : IBlockSource
     {
         if (offset >= Length) return 0;
         if (buffer.Length > Length - offset) buffer = buffer[..(int)(Length - offset)];
-        return RandomAccess.Read(_handle, buffer, offset);
+        int completed = 0;
+        while (completed < buffer.Length)
+        {
+            int n = RandomAccess.Read(_handle, buffer[completed..], offset + completed);
+            if (n == 0) throw new IOException("The selected image ended before its reported length.");
+            completed += n;
+        }
+        return completed;
     }
 
     public void Dispose() => _handle.Dispose();
