@@ -404,12 +404,38 @@ public sealed class RecoverySafetyTests
         try
         {
             Assert.True(SingleInstance.OtherFileCatRunning(() => [System.Diagnostics.Process.GetProcessById(child.Id)]));
+            Assert.False(SingleInstance.OtherFileCatRunning(
+                () => [System.Diagnostics.Process.GetProcessById(child.Id)], additionallyExcludedProcessId: child.Id));
         }
         finally
         {
             child.StandardInput.Close();
             if (!child.WaitForExit(5000)) { child.Kill(); child.WaitForExit(); }
         }
+    }
+
+    [Fact]
+    public void Privileged_recovery_census_accepts_only_the_matching_complete_reply()
+    {
+        const string nonce = "0123456789ABCDEF0123456789ABCDEF";
+        Assert.False(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce}:clear\n", nonce, 0));
+        Assert.True(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce}:running\n", nonce, 0));
+        Assert.Null(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce}:clear\n", nonce, 1));
+        Assert.Null(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce[..^1]}0:clear\n", nonce, 0));
+        Assert.Null(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce}:clear\nextra", nonce, 0));
+        Assert.Null(RecoveryProcessCensus.ParseReply($"FileCatRecoveryProcessCensusV1:{nonce}:unknown\n", nonce, 0));
+    }
+
+    [Fact]
+    public void Privileged_recovery_census_retries_a_transient_unknown_but_never_assumes_a_persistent_one_is_clear()
+    {
+        var transient = new Queue<bool?>([null, false]);
+        Assert.False(RecoveryProcessCensus.RepeatUncertain(transient.Dequeue, () => { }));
+        var writer = new Queue<bool?>([null, true]);
+        Assert.True(RecoveryProcessCensus.RepeatUncertain(writer.Dequeue, () => { }));
+        int attempts = 0;
+        Assert.Null(RecoveryProcessCensus.RepeatUncertain(() => { attempts++; return null; }, () => { }));
+        Assert.Equal(3, attempts);
     }
 
     [AvaloniaTheory]

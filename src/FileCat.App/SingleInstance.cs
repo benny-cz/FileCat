@@ -35,7 +35,8 @@ public static partial class SingleInstance
     /// </summary>
     public static bool? OtherFileCatRunning() => OtherFileCatRunning(null);
 
-    internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate, Func<Process, bool?>? identify = null)
+    internal static bool? OtherFileCatRunning(Func<Process[]>? enumerate, Func<Process, bool?>? identify = null,
+        int? additionallyExcludedProcessId = null)
     {
         var snapshot = new List<Process>();
         try
@@ -50,7 +51,7 @@ public static partial class SingleInstance
             bool unknown = false;
             foreach (var process in snapshot)
             {
-                if (process.Id == Environment.ProcessId) continue;
+                if (process.Id == Environment.ProcessId || process.Id == additionallyExcludedProcessId) continue;
                 try
                 {
                     if (process.HasExited) continue;

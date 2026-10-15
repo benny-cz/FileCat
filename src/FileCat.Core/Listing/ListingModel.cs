@@ -520,7 +520,13 @@ public sealed class ListingModel : IDisposable
         }
         if (ReferenceEquals(p, _pendingRefresh))
         {
-            if (!r.Done && Stopwatch.GetElapsedTime(p.StartedTimestamp) < RefreshSwapDelay)
+            // Keep the previous complete view while a refresh has fewer visible rows than it. Otherwise
+            // its temporary short list clamps the scrollbar to the focused row (often the top) on every
+            // filesystem notification. The old view stays interactive until enough rows arrive or the
+            // enumeration completes with a genuinely shorter result.
+            int refreshedVisible = r.External?.Count ?? r.Visible.Length;
+            if (!r.Done && (Stopwatch.GetElapsedTime(p.StartedTimestamp) < RefreshSwapDelay ||
+                refreshedVisible < VisibleCount))
             {
                 r.External?.Dispose();
                 return;

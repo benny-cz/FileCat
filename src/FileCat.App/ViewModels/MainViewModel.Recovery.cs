@@ -482,7 +482,7 @@ public sealed partial class MainViewModel
             return new DiskSafety(refusal, command, false, false);
         }
         string? profile = App.StartupOptions.Profile;
-        if ((otherProcesses ?? SingleInstance.OtherFileCatRunning)() != false)
+        if ((otherProcesses ?? RecoveryProcessCensus.OtherFileCatRunning)() != false)
             return new DiskSafety($"FileCat does not scan {name} yet: other FileCat processes may still write to this disk. " +
                                   "Close other FileCat windows, wait for their helpers to finish, then ask for the scan again. " +
                                   "If none are open, check that process information is accessible.", null, false, false);

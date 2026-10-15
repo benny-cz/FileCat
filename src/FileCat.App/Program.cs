@@ -11,6 +11,9 @@ internal static class Program
         if (args.Length > 0 && args[0] == Services.PictureWorker.Argument) return Services.PictureWorker.Run(args);
         if (args.Length > 0 && args[0] == Services.WindowsContextMenu.HostArgument)
             return Services.WindowsContextMenu.RunHost(args);
+        // A narrow read-only Linux process check can run after PolicyKit authorization without starting a GUI.
+        if (args.Length > 0 && args[0] == RecoveryProcessCensus.Argument)
+            return RecoveryProcessCensus.RunHelper(args);
         // Answered before any window or instance check: packages are smoke-tested this way on machines without a display.
         if (args is ["--version"] or ["-v"])
         {

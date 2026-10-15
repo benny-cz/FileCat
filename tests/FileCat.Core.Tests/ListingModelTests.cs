@@ -449,6 +449,33 @@ public sealed class ListingModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Incomplete_refresh_keeps_the_full_view_until_it_can_cover_the_old_scroll_position()
+    {
+        var provider = new ShortFirstRefreshProvider();
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(new Location(provider.Scheme, "root")));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+        await _ui.InvokeAsync(() =>
+        {
+            Assert.True(model.FocusName("item-180.txt"));
+            model.Refresh();
+        });
+        try
+        {
+            Assert.True(provider.FirstRefreshBatch.Wait(TimeSpan.FromSeconds(10)));
+            await Task.Delay(650, TestContext.Current.CancellationToken); // beyond the partial-refresh swap delay
+            Assert.Equal(200, await _ui.InvokeAsync(() => model.VisibleCount));
+            Assert.Equal("item-180.txt", await _ui.InvokeAsync(() => model.TryGetFocused(out var e) ? e.Name : null));
+            Assert.True(await _ui.InvokeAsync(() => model.IsRefreshing));
+        }
+        finally { provider.Release(); }
+        await _ui.WaitUntilAsync(() => !model.IsRefreshing && model.VisibleCount == 201);
+        Assert.Equal("item-180.txt", await _ui.InvokeAsync(() => model.TryGetFocused(out var e) ? e.Name : null));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
+    [Fact]
     public async Task A_refresh_during_the_first_load_keeps_the_name_that_is_to_be_focused()
     {
         // Going up focuses the folder just left; a change noticed while the parent loads must not move the cursor to the top.
@@ -531,6 +558,32 @@ public sealed class ListingModelTests : IDisposable
                 _release.Wait(ct);
             }
             sink.AddBatch([new EntryData("second.txt", EntryKind.File)]);
+        }
+        public void Release() => _release.Set();
+    }
+
+    private sealed class ShortFirstRefreshProvider : ResourceProvider
+    {
+        private readonly ManualResetEventSlim _release = new();
+        private int _calls;
+        public ManualResetEventSlim FirstRefreshBatch { get; } = new();
+        public override string Scheme => "short-first-refresh";
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+        public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            int call = Interlocked.Increment(ref _calls);
+            if (call > 1)
+            {
+                sink.AddBatch([new EntryData("item-000.txt", EntryKind.File)]);
+                FirstRefreshBatch.Set();
+                _release.Wait(ct);
+                sink.AddBatch(Enumerable.Range(1, 200).Select(i => new EntryData($"item-{i:000}.txt", EntryKind.File)).ToArray());
+            }
+            else sink.AddBatch(Enumerable.Range(0, 200).Select(i => new EntryData($"item-{i:000}.txt", EntryKind.File)).ToArray());
+            return Task.CompletedTask;
         }
         public void Release() => _release.Set();
     }
