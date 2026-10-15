@@ -15,8 +15,8 @@ public interface IShellServices
     /// <summary>Opens the OS file manager with the item selected.</summary>
     void Reveal(string path);
 
-    /// <summary>Shows the OS properties dialog, where one exists.</summary>
-    bool ShowProperties(string path);
+    /// <summary>Shows the OS properties dialog, where one exists, owned by the invoking window.</summary>
+    bool ShowProperties(string path, nint owner = 0);
 
     /// <summary>Extension-only icon as 32-bit BGRA pixels (never reads the file; SHGFI_USEFILEATTRIBUTES).</summary>
     bool TryGetTypeIcon(string name, bool isDirectory, int size, out int width, out int height, out byte[] bgra);
@@ -91,7 +91,7 @@ public class PortableShellServices : IShellServices
         else StartSystem("xdg-open", Directory.Exists(path) ? path : Path.GetDirectoryName(path) ?? path);
     }
 
-    public virtual bool ShowProperties(string path) => false;
+    public virtual bool ShowProperties(string path, nint owner = 0) => false;
 
     public virtual bool TryGetTypeIcon(string name, bool isDirectory, int size, out int width, out int height, out byte[] bgra)
     {

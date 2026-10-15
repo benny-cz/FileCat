@@ -48,7 +48,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
         return start;
     }
 
-    public override bool ShowProperties(string path)
+    public override bool ShowProperties(string path, nint owner = 0)
     {
         var verb = Marshal.StringToHGlobalUni("properties");
         var file = Marshal.StringToHGlobalUni(path);
@@ -58,6 +58,7 @@ public sealed unsafe class WindowsShellServices : PortableShellServices
             {
                 cbSize = sizeof(SHELLEXECUTEINFOW),
                 fMask = SEE_MASK_INVOKEIDLIST | SEE_MASK_FLAG_NO_UI,
+                hwnd = owner,
                 lpVerb = verb,
                 lpFile = file,
                 nShow = 1,

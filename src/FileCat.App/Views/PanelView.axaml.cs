@@ -254,6 +254,7 @@ public partial class PanelView : UserControl
         [
             place.BarTip,
             place.OpensInPanel ? "Middle-click opens it in a new tab" : null,
+            OperatingSystem.IsWindows() && place.Drive is not null ? "Right-click for drive properties" : null,
             place.Variants.Count > 0 ? "Right-click offers: " + string.Join(", ", place.Variants.Select(v => v.Title)) : null,
         ]);
         ToolTip.SetTip(button, tip);
@@ -285,7 +286,7 @@ public partial class PanelView : UserControl
     }
 
     /// <summary>A place button's menu: here or in a new tab, and the place's other views.</summary>
-    private ContextMenu PlaceMenu(Place place)
+    internal ContextMenu PlaceMenu(Place place)
     {
         var items = new List<Control>();
         void Add(string header, Action act)
@@ -298,6 +299,11 @@ public partial class PanelView : UserControl
         Add("Open in a new tab", () => OpenPlace(place, newTab: true));
         if (place.Variants.Count > 0) items.Add(new Separator());
         foreach (var variant in place.Variants) Add(variant.Title, () => OpenPlace(variant, newTab: false));
+        if (OperatingSystem.IsWindows() && place.Drive is { } drive && _main is { } vm)
+        {
+            items.Add(new Separator());
+            Add("Drive properties", () => vm.ShowPropertiesForPath(drive.RootPath));
+        }
         return new ContextMenu { ItemsSource = items };
     }
 

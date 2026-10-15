@@ -483,7 +483,8 @@ public sealed partial class MainViewModel
                 if (FocusedFileSystemPath() is { } rp) Services.Shell.Reveal(rp);
                 break;
             case CommandIds.Properties:
-                if (FocusedFileSystemPath() is { } pp && !Services.Shell.ShowProperties(pp)) Notify("No properties dialog is available for this item.");
+                if (PropertiesPathForFocus() is { } pp) ShowPropertiesForPath(pp);
+                else Notify("Select a file, folder, or drive to show its properties.");
                 break;
             case CommandIds.HiddenData:
                 OpenHiddenData();
@@ -533,6 +534,23 @@ public sealed partial class MainViewModel
         if (tab?.Location is null || !tab.Listing.TryGetFocused(out var f)) return null;
         if (f.Kind == EntryKind.Parent) return tab.Location.IsFileSystem ? tab.Location.Path : null;
         return tab.Listing.GetItemRef(tab.Listing.FocusedStoreIndex).FileSystemPath;
+    }
+
+    internal string? PropertiesPathForFocus()
+    {
+        var tab = ActiveTab;
+        if (tab?.Location is null || !tab.Listing.TryGetFocused(out var focused)) return null;
+        // This PC is a virtual listing, so its ItemRef has no FileSystemPath. Its drive tag carries the
+        // actual root to hand to the Windows property sheet, including mounted and network volumes.
+        if (OperatingSystem.IsWindows() && tab.Location.Scheme == Schemes.Computer &&
+            focused.Kind == EntryKind.Drive && focused.Tag is DriveTag drive)
+            return drive.RootPath;
+        return FocusedFileSystemPath();
+    }
+
+    internal void ShowPropertiesForPath(string path)
+    {
+        if (!Services.Shell.ShowProperties(path, NativeOwner())) Notify("System properties could not be opened for this item.", true);
     }
 
     private string DisplayPathOf(ItemRef item) =>

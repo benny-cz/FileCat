@@ -1,7 +1,10 @@
 using Avalonia.Headless.XUnit;
 using FileCat.App.Services;
+using FileCat.App.ViewModels;
+using FileCat.App.Views;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
+using Avalonia.VisualTree;
 
 namespace FileCat.App.Tests;
 
@@ -19,6 +22,38 @@ public sealed class DriveListTests
         }
 
         protected override DriveTag QueryDrive(string root) => new(root, "Test", "Fixed", "NTFS", 1L << 30, 4L << 30, true);
+    }
+
+    [AvaloniaFact]
+    public async Task Windows_drive_rows_and_place_buttons_offer_the_same_system_properties_root()
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Windows drive property sheets are unavailable on this platform."); return; }
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var thisPc = vm.Workspace.Panels[0].ActiveTab!;
+            thisPc.Navigate(new Location(Schemes.Computer, string.Empty));
+            for (int i = 0; i < 250 && (thisPc.Listing.State != Core.Listing.ListingState.Complete || thisPc.Listing.VisibleCount == 0); i++)
+                await Task.Delay(20, ct);
+            var drive = Enumerable.Range(0, thisPc.Listing.VisibleCount)
+                .Select(thisPc.Listing.GetVisible).First(e => e.Kind == EntryKind.Drive);
+            var tag = Assert.IsType<DriveTag>(drive.Tag);
+            thisPc.Listing.SetFocus(thisPc.Listing.GetVisibleIndex(thisPc.Listing.FindStoreIndex(drive.Name)));
+            Assert.Equal(tag.RootPath, vm.PropertiesPathForFocus());
+
+            var view = window.GetVisualDescendants().OfType<PanelView>()
+                .First(v => ReferenceEquals(v.DataContext, vm.Workspace.Panels[0]));
+            var place = new Place(drive.Name, null, Location.FileSystem(tag.RootPath), () => null) { Drive = tag };
+            var menu = view.PlaceMenu(place);
+            var actions = Assert.IsAssignableFrom<IEnumerable<Avalonia.Controls.Control>>(menu.ItemsSource)
+                .OfType<Avalonia.Controls.MenuItem>().ToArray();
+            Assert.Equal("Drive properties", actions[^1].Header);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
     }
 
     [AvaloniaFact]
