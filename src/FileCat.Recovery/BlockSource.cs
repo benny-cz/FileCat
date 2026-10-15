@@ -131,9 +131,18 @@ public sealed class WindowSource(IBlockSource inner, long start, long length, st
 
     public int Read(long offset, Span<byte> buffer)
     {
-        if (offset < 0 || offset >= Length) return 0;
+        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+        if (offset >= Length) return 0;
         if (buffer.Length > Length - offset) buffer = buffer[..(int)(Length - offset)];
-        return inner.Read(Start + offset, buffer);
+        int completed = 0;
+        while (completed < buffer.Length)
+        {
+            int n = inner.Read(Start + offset + completed, buffer[completed..]);
+            if (n <= 0 || n > buffer.Length - completed)
+                throw new IOException("The selected volume ended before its reported length.");
+            completed += n;
+        }
+        return completed;
     }
 
     /// <summary>The window does not own the source it looks into.</summary>
