@@ -41,6 +41,8 @@ public sealed class FileListControl : Control
     private const double ResizeGrip = 4;
 
     private readonly ScrollBar _vbar;
+    private bool _updatingScrollBar;
+    private int? _refreshTopRow;
     private readonly Dictionary<long, CellText> _textCache = new();
     private SimpleGlyphs? _glyphs;
     private SimpleGlyphs? _boldGlyphs;
@@ -129,10 +131,12 @@ public sealed class FileListControl : Control
         {
             if (e.Property == RangeBase.ValueProperty)
             {
+                if (_updatingScrollBar) return;
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
                     _topRow = top;
+                    if (_refreshTopRow.HasValue) _refreshTopRow = top;
                     if (IsRenaming) InvalidateArrange();
                     InvalidateVisual();
                 }
@@ -346,6 +350,7 @@ public sealed class FileListControl : Control
             _widthOverrides.Clear();
             ClearTextCache();
             _topRow = 0;
+            _refreshTopRow = null;
             EnsureFocusVisible();
             RefreshGitStatuses();
             InvalidateMeasure();
@@ -363,7 +368,9 @@ public sealed class FileListControl : Control
         }
         else if (change.Property == BoundsProperty)
         {
-            EnsureFocusVisible();
+            // Resizing the panel changes its row capacity, not the user's chosen scroll position.
+            ClampTop();
+            UpdateScrollBar();
         }
     }
 
@@ -518,6 +525,7 @@ public sealed class FileListControl : Control
             RefreshGitStatuses();
             ClearTextCache();
             _topRow = 0;
+            _refreshTopRow = null;
             _anchorRow = -1;
             _cachedStore = _listing!.Store;
             _showLoadingHint = false;
@@ -533,7 +541,17 @@ public sealed class FileListControl : Control
         EnsureCacheStore();
         if ((change & (ListingChange.Rows | ListingChange.Marks)) != 0 && _textCache.Count > 4000) ClearTextCache();
         if ((change & ListingChange.Marks) != 0) ClearTextCache();
-        if ((change & (ListingChange.Focus | ListingChange.Reset | ListingChange.Rows)) != 0) EnsureFocusVisible();
+        if ((change & ListingChange.RefreshRows) != 0)
+        {
+            _refreshTopRow ??= _topRow;
+            _topRow = Math.Min(_refreshTopRow.Value, Math.Max(0, _listing!.VisibleCount - VisibleRowCapacity));
+        }
+        else if ((change & (ListingChange.Focus | ListingChange.Reset)) != 0)
+        {
+            EnsureFocusVisible();
+            if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
+        }
+        if ((change & ListingChange.RefreshComplete) != 0) _refreshTopRow = null;
         UpdateScrollBar();
         InvalidateVisual();
     }
@@ -616,12 +634,17 @@ public sealed class FileListControl : Control
     {
         int count = _listing?.VisibleCount ?? 0;
         int cap = VisibleRowCapacity;
-        _vbar.Maximum = Math.Max(0, count - cap);
-        _vbar.ViewportSize = cap;
-        _vbar.SmallChange = 1;
-        _vbar.LargeChange = Math.Max(1, cap - 1);
-        _vbar.Value = _topRow;
-        _vbar.IsVisible = count > cap;
+        _updatingScrollBar = true;
+        try
+        {
+            _vbar.Maximum = Math.Max(0, count - cap);
+            _vbar.ViewportSize = cap;
+            _vbar.SmallChange = 1;
+            _vbar.LargeChange = Math.Max(1, cap - 1);
+            _vbar.Value = _topRow;
+            _vbar.IsVisible = count > cap;
+        }
+        finally { _updatingScrollBar = false; }
     }
 
     // ---- Layout -----------------------------------------------------------------------------------------------
@@ -1155,6 +1178,7 @@ public sealed class FileListControl : Control
         base.OnPointerWheelChanged(e);
         _topRow -= (int)Math.Round(e.Delta.Y * 3);
         ClampTop();
+        if (_refreshTopRow.HasValue) _refreshTopRow = _topRow;
         UpdateScrollBar();
         if (IsRenaming) InvalidateArrange();
         InvalidateVisual();

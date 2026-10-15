@@ -52,8 +52,15 @@ public sealed class PathLineTests
             // Ctrl+click copies the path up to that folder.
             window.MouseDown(At(filesPart), MouseButton.Left, RawInputModifiers.Control);
             window.MouseUp(At(filesPart), MouseButton.Left, RawInputModifiers.Control);
-            for (int i = 0; i < 100 && vm.Notification is null; i++) await Task.Delay(20, ct);
-            Assert.Equal(files, await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
+            string? copied = null;
+            for (int i = 0; i < 250; i++)
+            {
+                copied = await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
+                if (copied == files) break;
+                await Task.Delay(20, ct);
+            }
+            Assert.Equal(files, copied);
+            Assert.Equal("Copied " + files, vm.Notification);
             Assert.Equal(deeper, tab.Location!.Path);
 
             // A middle click opens it in a new tab; the panel's own tab stays.

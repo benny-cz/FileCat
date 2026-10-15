@@ -23,6 +23,10 @@ public enum ListingChange
     Marks = 4,
     Focus = 8,
     State = 16,
+    /// <summary>Rows/focus were rebuilt by a background refresh, not an explicit cursor move.</summary>
+    RefreshRows = 32,
+    /// <summary>The current refresh has finished publishing its rows.</summary>
+    RefreshComplete = 64,
 }
 
 /// <summary>The marked items: how many, of which kind, and their size.</summary>
@@ -406,10 +410,10 @@ public sealed class ListingModel : IDisposable
     public void Refresh()
     {
         if (Location is null || Provider is null || _disposed) return;
-        if (_pendingRefresh is not null)
+        if (_refreshing is not null)
         {
-            // The refresh under way may have read the location before the change this one is for: run again after it
-            // (once, however many ask meanwhile), rather than dropping the request and keeping stale rows.
+            // A refresh may already have swapped in partial rows, leaving _pendingRefresh null while its pipeline
+            // still runs. Queue one follow-up instead of allowing overlapping generations to replace one another.
             _refreshAgain = true;
             return;
         }
@@ -540,7 +544,8 @@ public sealed class ListingModel : IDisposable
         {
             r.External?.Dispose();
             _issues.Add($"Could not update listing view: {DescribeError(r.Error!)}");
-            Raise(ListingChange.State);
+            Raise(ListingChange.State | (ReferenceEquals(p, _refreshing) && r.Done
+                ? ListingChange.RefreshRows | ListingChange.RefreshComplete : ListingChange.None));
             if (r.Done) RefreshFinished(p);
             return;
         }
@@ -605,6 +610,11 @@ public sealed class ListingModel : IDisposable
         _positions = r.External is null && _visible.Length > 0 ? BuildPositions(_visible, r.Count) : [];
         if (r.External is not null) p.ReleaseIndexReservation();
         var change = ListingChange.Rows;
+        if (ReferenceEquals(p, _refreshing))
+        {
+            change |= ListingChange.RefreshRows;
+            if (r.Done) change |= ListingChange.RefreshComplete;
+        }
 
         // Resolve names that were waiting for their entry to arrive.
         List<(int Index, long Size, bool LowerBound)>? sized = null;

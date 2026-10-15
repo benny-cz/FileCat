@@ -419,6 +419,36 @@ public sealed class ListingModelTests : IDisposable
     }
 
     [Fact]
+    public async Task A_refresh_asked_after_partial_rows_swap_waits_for_that_generation_to_finish()
+    {
+        var provider = new StreamingRefreshProvider();
+        _providers.Register(provider);
+        var model = await _ui.InvokeAsync(() => new ListingModel(_providers, _io, _ui));
+        await _ui.InvokeAsync(() => model.Load(Location.FileSystem(_dir.Path)));
+        await _ui.WaitUntilAsync(() => model.State == ListingState.Complete);
+
+        bool sawRefreshRows = false;
+        int completions = 0;
+        await _ui.InvokeAsync(() => model.Changed += (_, change) =>
+        {
+            sawRefreshRows |= (change & ListingChange.RefreshRows) != 0;
+            if ((change & ListingChange.RefreshComplete) != 0) completions++;
+        });
+        try
+        {
+            await _ui.InvokeAsync(model.Refresh);
+            await _ui.WaitUntilAsync(() => sawRefreshRows && !model.IsRefreshing);
+            int activeGeneration = await _ui.InvokeAsync(() => model.Generation);
+            await _ui.InvokeAsync(model.Refresh);
+            Assert.Equal(activeGeneration, await _ui.InvokeAsync(() => model.Generation));
+        }
+        finally { provider.Release(); }
+        await _ui.WaitUntilAsync(() => completions == 2 && model.Generation == 3 && model.State == ListingState.Complete);
+        Assert.Equal(["first.txt", "second.txt"], await VisibleNames(model));
+        await _ui.InvokeAsync(model.Dispose);
+    }
+
+    [Fact]
     public async Task A_refresh_during_the_first_load_keeps_the_name_that_is_to_be_focused()
     {
         // Going up focuses the folder just left; a change noticed while the parent loads must not move the cursor to the top.
@@ -476,6 +506,31 @@ public sealed class ListingModelTests : IDisposable
             _release.Wait(ct);
             sink.AddBatch([new EntryData(second, EntryKind.File)]);
             return Task.CompletedTask;
+        }
+        public void Release() => _release.Set();
+    }
+
+    private sealed class StreamingRefreshProvider : ResourceProvider
+    {
+        private readonly ManualResetEventSlim _release = new();
+        private int _calls;
+        public override string Scheme => Schemes.FileSystem;
+        public override string GetDisplayPath(Location location) => location.Path;
+        public override Location? GetParent(Location location) => null;
+        public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
+        public override Location? GetChildLocation(Location parent, in EntryData entry) => null;
+        public override async Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
+        {
+            int call = Interlocked.Increment(ref _calls);
+            sink.AddBatch([new EntryData("first.txt", EntryKind.File)]);
+            if (call == 2)
+            {
+                // A second result after the 400 ms swap delay publishes incomplete refresh rows.
+                await Task.Delay(550, ct);
+                sink.AddBatch(Enumerable.Range(0, 64).Select(i => new EntryData($"pulse-{i:00}.txt", EntryKind.File)).ToArray());
+                _release.Wait(ct);
+            }
+            sink.AddBatch([new EntryData("second.txt", EntryKind.File)]);
         }
         public void Release() => _release.Set();
     }

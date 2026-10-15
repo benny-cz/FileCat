@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -35,6 +36,65 @@ public sealed class HeadlessTestApplication : Application
 
 public sealed class FileListSmokeTests
 {
+    [AvaloniaFact]
+    public async Task Refresh_does_not_pull_a_manually_scrolled_view_back_to_its_focused_row()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-app-tests", Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(root, "changing");
+        Directory.CreateDirectory(folder);
+        for (int i = 0; i < 250; i++) File.WriteAllText(Path.Combine(folder, $"item-{i:D3}.txt"), "x");
+        try
+        {
+            using var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: root));
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            workspace.ActivePanel = panel;
+            var tab = panel.OpenTab(Location.FileSystem(folder));
+            var list = new FileListControl { Tab = tab };
+            var window = new Window { Width = 640, Height = 420, Content = list };
+            window.Show();
+            try
+            {
+                var ct = TestContext.Current.CancellationToken;
+                for (int i = 0; i < 250 && tab.Listing.State != ListingState.Complete; i++) await Task.Delay(20, ct);
+                Assert.Equal(ListingState.Complete, tab.Listing.State);
+                Assert.True(tab.Listing.FocusedIndex < 20);
+                var scroll = Assert.Single(list.GetVisualDescendants().OfType<ScrollBar>());
+                scroll.Value = 100;
+                Assert.Equal(100, scroll.Value);
+
+                File.WriteAllText(Path.Combine(folder, "item-250.txt"), "x");
+                tab.Refresh();
+                for (int i = 0; i < 250 && (tab.Listing.IsRefreshing || tab.Listing.TotalCount != 251); i++) await Task.Delay(20, ct);
+                Assert.Equal(251, tab.Listing.TotalCount);
+                Assert.Equal(100, scroll.Value);
+
+                window.Height = 460;
+                Assert.Equal(100, scroll.Value); // resizing must not seek back to the cursor either
+
+                scroll.Value = 75;
+                File.WriteAllText(Path.Combine(folder, "item-251.txt"), "x");
+                tab.Refresh();
+                for (int i = 0; i < 250 && (tab.Listing.IsRefreshing || tab.Listing.TotalCount != 252); i++) await Task.Delay(20, ct);
+                Assert.Equal(252, tab.Listing.TotalCount);
+                Assert.Equal(75, scroll.Value);
+
+                tab.Listing.SetFocus(220);
+                Assert.True(scroll.Value > 100); // an explicit cursor move still reveals the focused row
+            }
+            finally
+            {
+                window.Close();
+                tab.Dispose();
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
     [AvaloniaFact]
     public void File_list_constructs_and_lays_out_without_a_tab()
     {
