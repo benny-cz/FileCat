@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows;
 
 namespace FileCat.App.Services;
@@ -270,7 +271,9 @@ internal static class GitStatusReader
         var info = new FileInfo(path);
         if (info.Length > maxBytes) return null;
         // A short link or a file grown after the metadata check may lead to a much larger stream.
-        using var input = File.OpenRead(path);
+        using var input = OperatingSystem.IsWindows()
+            ? File.OpenRead(path)
+            : new FileStream(UnixFiles.OpenRegularFileForRead(path), FileAccess.Read);
         using var content = new MemoryStream((int)Math.Min(info.Length, maxBytes));
         Span<byte> buffer = stackalloc byte[4096];
         while (true)
@@ -510,7 +513,13 @@ internal static class GitStatusReader
                 var info = new FileInfo(path);
                 if (!info.Exists) continue;
                 if (info.Length > maxCharacters) return false;
-                foreach (string raw in File.ReadLines(path))
+                // The metadata-only size check cannot bound a FIFO or a file changed before open.
+                // Share the opened regular-file and actual-byte bound with other Git metadata.
+                string? alternates = ReadBoundedMetadataText(path, maxCharacters);
+                if (alternates is null) return false;
+                using var reader = new StringReader(alternates);
+                string? raw;
+                while ((raw = reader.ReadLine()) is not null)
                 {
                     if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromMilliseconds(250) ||
                         raw.Length >= maxCharacters - characters) return false;

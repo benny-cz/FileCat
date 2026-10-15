@@ -92,7 +92,7 @@ public static unsafe partial class UnixFiles
     }
 
     /// <summary>Open a regular Unix file without waiting on a FIFO or device. The type check uses the opened descriptor.</summary>
-    internal static SafeFileHandle OpenRegularFileForRead(string path)
+    public static SafeFileHandle OpenRegularFileForRead(string path)
     {
         if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         int flags = OperatingSystem.IsMacOS() ? 4 | 16777216 : 2048 | 524288; // O_RDONLY(0) | O_NONBLOCK | O_CLOEXEC

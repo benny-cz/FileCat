@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FileCat.App.Services;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.App.Tests;
 
@@ -13,6 +15,51 @@ public sealed class GitAlternateEffectCollection;
 [Collection("Git alternate effect")]
 public sealed class GitAlternateTests(ITestOutputHelper output)
 {
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    private static extern int MkFifo(string path, uint mode);
+
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenUnix(string path, int flags);
+
+    [Fact]
+    public async Task Unix_fifo_alternate_is_refused_without_waiting_for_a_writer()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("Unix FIFO admission only.");
+            return;
+        }
+        using var fixture = new Fixture();
+        string fifo = fixture.Alternates;
+        Assert.Equal(0, MkFifo(fifo, 0x180)); // owner-only 0600
+
+        var clock = Stopwatch.StartNew();
+        Task<string?> scan = Task.Run(() => GitStatusReader.SafeRepository(fixture.Repository),
+            TestContext.Current.CancellationToken);
+        bool promptly = await Task.WhenAny(scan,
+            Task.Delay(TimeSpan.FromMilliseconds(1200), TestContext.Current.CancellationToken)) == scan;
+        if (!promptly)
+        {
+            // Release the old reader after measuring its blocked admission. O_NONBLOCK keeps the
+            // control itself finite if admission was delayed before it reached this FIFO.
+            int flags = OperatingSystem.IsMacOS() ? 1 | 4 : 1 | 2048; // O_WRONLY | O_NONBLOCK
+            int fd = -1;
+            for (int i = 0; i < 50 && fd < 0; i++)
+            {
+                fd = OpenUnix(fifo, flags);
+                if (fd < 0) await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
+            Assert.True(fd >= 0, "The controlled FIFO reader did not become available for release.");
+            using var writer = new FileStream(new SafeFileHandle((IntPtr)fd, ownsHandle: true), FileAccess.Write);
+            writer.Write("\"invalid alternate\"\n"u8);
+        }
+        string? admitted = await scan.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        output.WriteLine(JsonSerializer.Serialize(new { PromptlyRefused = promptly, ElapsedMilliseconds = clock.ElapsedMilliseconds,
+            Admitted = admitted, OwnedFifo = true }));
+        Assert.True(promptly, "Automatic Git admission waited on a FIFO alternate despite its finite wall-clock budget.");
+        Assert.Null(admitted);
+    }
+
     [Theory]
     [InlineData("../../../target-link/objects")]
     [InlineData("\"../../../target-link/objects\"")]
