@@ -36,6 +36,9 @@ public sealed class PathLineTests
             var view = window.GetVisualDescendants().OfType<PanelView>().First(v => ReferenceEquals(v.DataContext, panel));
             var links = view.PathLinksControl;
             for (int i = 0; i < 100 && links.Text != tab.DisplayPath; i++) await Task.Delay(20, ct);
+            // The path text can publish before Avalonia lays out the new, longer line. Pointer coordinates
+            // must come from the frame that actually contains this path, not the initial short path.
+            window.CaptureRenderedFrame();
 
             // Every folder from the root down is a part: the root first, the folder shown last.
             var paths = links.Segments.Select(s => s.Target.Path.TrimEnd('\\', '/')).ToList();
@@ -50,17 +53,16 @@ public sealed class PathLineTests
             int filesPart = links.Segments.Count - 3;
 
             // Ctrl+click copies the path up to that folder.
+            string? requestedCopy = null;
+            links.CopyRequested += text => requestedCopy = text;
             window.MouseDown(At(filesPart), MouseButton.Left, RawInputModifiers.Control);
             window.MouseUp(At(filesPart), MouseButton.Left, RawInputModifiers.Control);
-            string? copied = null;
-            for (int i = 0; i < 250; i++)
-            {
-                copied = await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(window.Clipboard!);
-                if (copied == files) break;
-                await Task.Delay(20, ct);
-            }
-            Assert.Equal(files, copied);
+            Assert.Equal(files, requestedCopy);
+            // The notification follows SetTextAsync; waiting for it observes this click's write rather
+            // than repeatedly sampling a clipboard value left by an earlier headless test.
+            for (int i = 0; i < 250 && vm.Notification != "Copied " + files; i++) await Task.Delay(20, ct);
             Assert.Equal("Copied " + files, vm.Notification);
+            Assert.Equal(files, await Avalonia.Input.Platform.ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
             Assert.Equal(deeper, tab.Location!.Path);
 
             // A middle click opens it in a new tab; the panel's own tab stays.
