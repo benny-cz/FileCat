@@ -158,6 +158,11 @@ public sealed class PictureViewerTests
             for (int i = 0; i < 250 && viewer.PictureLoad is null; i++) await Task.Delay(20, ct);
             Assert.NotNull(viewer.PictureLoad);
             await viewer.PictureLoad;
+            var pictureView = viewer.GetVisualDescendants().OfType<FileCat.App.Controls.PictureView>().FirstOrDefault();
+            string? pictureMessage = pictureView is null ? null : pictureView.GetVisualDescendants()
+                .OfType<Avalonia.Controls.TextBlock>().FirstOrDefault(t => t.IsVisible)?.Text;
+            Assert.True(viewer.Picture is not null,
+                $"Picture worker did not publish a decoded image. {pictureMessage ?? viewer.StatusLine}");
             Assert.Equal((640, 400), (viewer.Picture!.Width, viewer.Picture.Height));
 
             // The wheel zooms around the pointer: the point of the picture under it stays under it (away from the edges,

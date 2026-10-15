@@ -92,7 +92,13 @@ jobs:
       - run: dotnet build FileCat.slnx -c Release
       # FTP and FTPS tests run against pyftpdlib (MIT); they skip where it is missing.
       - run: python -m pip install --quiet pyftpdlib pyopenssl
-      - run: dotnet test FileCat.slnx -c Release --no-build --logger "trx;LogFileName=results.trx" --blame-hang-timeout 4m --blame-hang-dump-type mini
+      # Run the four inventories serially so project-level load cannot confound
+      # the App picture worker's 30-second limit. The preceding hosted failure's
+      # cause is unproven. Keep every TRX even when an earlier project fails.
+      - name: Windows test projects, sequential with complete receipts
+        shell: pwsh
+        continue-on-error: true
+        run: ./eng/validation/run-windows-ci-tests.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/filecat-windows-test-projects"
       - name: Windows instance profile aliases and state roots
         shell: pwsh
         run: |
@@ -130,6 +136,7 @@ jobs:
             **/TestResults/*.trx
             **/TestResults/**/Sequence_*.xml
             **/TestResults/**/*.dmp
+            ${{ runner.temp }}/filecat-windows-test-projects/results.json
             src/FileCat.PrivilegedHost/obj/**/bootstrap-build.json
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/compiler-*.log
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/source-dependencies.json
@@ -137,6 +144,10 @@ jobs:
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/NativeBootstrap.rc
             src/FileCat.PrivilegedHost/obj/**/native-bootstrap*/NativeBootstrap.res
             src/FileCat.PrivilegedHost/bin/Release/net10.0/FileCat.PrivilegedHost.exe
+      - name: Require all Windows test projects passed
+        if: always()
+        shell: pwsh
+        run: ./eng/validation/assert-windows-ci-tests.ps1 -EvidenceDirectory "$env:RUNNER_TEMP/filecat-windows-test-projects"
 
   # D-48: FileCat for Windows on ARM64, built and tested natively; its package starts and draws with the ARM64 Skia.
   windows-arm64:

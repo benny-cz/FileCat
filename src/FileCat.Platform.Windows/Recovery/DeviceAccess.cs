@@ -452,6 +452,7 @@ public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSe
 
     public int Read(long offset, Span<byte> buffer)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
         if (offset >= Length || buffer.IsEmpty) return 0;
         int done = 0;
         Span<byte> header = stackalloc byte[8];
@@ -460,7 +461,9 @@ public class PipeDeviceSource : IBlockSource, IDeviceDestinationGuard, IDeviceSe
             if (_closed) throw new IOException("The drive is no longer being read: the administrator helper has stopped.");
             while (done < buffer.Length && offset + done < Length)
             {
-                int want = Math.Min(buffer.Length - done, RawReadProtocol.MaxRead);
+                // The helper describes one finite source. Never ask for, or accept, bytes
+                // beyond that reported end even if the underlying device is longer.
+                int want = (int)Math.Min(Math.Min(buffer.Length - done, RawReadProtocol.MaxRead), Length - offset - done);
                 _request[0] = RawReadProtocol.Read;
                 BinaryPrimitives.WriteInt64LittleEndian(_request.AsSpan(1), offset + done);
                 BinaryPrimitives.WriteInt32LittleEndian(_request.AsSpan(9), want);
