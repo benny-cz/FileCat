@@ -139,7 +139,10 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
             pane.Attach(tab);
             await Load(pane);
             var image = pane.GetVisualDescendants().OfType<Image>().Single();
-            await WaitFor(() => image.Source is not null);
+            await WaitFor(() => image.Source is not null, PictureDecoder.Timeout + TimeSpan.FromSeconds(10),
+                () => $"Decoded quick picture did not appear: reads={source.Reads}, feederReads={source.FeederReads}, " +
+                      $"disposals={source.Disposals}, visible={image.IsVisible}, " +
+                      $"caption={string.Join(" | ", pane.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))}.");
             Assert.True(image.IsVisible);
             Assert.Contains(pane.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("320 × 200", StringComparison.Ordinal) == true);
             Assert.Equal(0, source.Disposals);
@@ -164,12 +167,13 @@ public sealed class PictureLifetimeTests(ITestOutputHelper output)
         return (Task)typeof(QuickViewPane).GetMethod("LoadAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(pane, null)!;
     }
 
-    private static async Task WaitFor(Func<bool> condition)
+    private static async Task WaitFor(Func<bool> condition, TimeSpan? timeout = null, Func<string>? diagnostic = null)
     {
         var clock = Stopwatch.StartNew();
         while (!condition())
         {
-            if (clock.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("Owned picture fixture did not reach its checkpoint.");
+            if (clock.Elapsed > (timeout ?? TimeSpan.FromSeconds(10)))
+                throw new TimeoutException(diagnostic?.Invoke() ?? "Owned picture fixture did not reach its checkpoint.");
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
     }

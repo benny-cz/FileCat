@@ -109,7 +109,16 @@ public sealed class SftpConnectTests
             // runs can take longer than the fixture's usual five-second UI readiness wait.
             await WaitAsync(() => s.Services.EditSessions.LoadAll().FirstOrDefault() is { } current &&
                 s.Services.EditSessions.StateOf(current) == Core.Edit.EditState.Unchanged, attempts: 1_000);
-            Assert.Equal(Core.Edit.EditState.Unchanged, s.Services.EditSessions.StateOf(s.Services.EditSessions.LoadAll().Single()));
+            var finalRecord = s.Services.EditSessions.LoadAll().Single();
+            var finalState = s.Services.EditSessions.StateOf(finalRecord);
+            var pendingCommits = (System.Collections.IDictionary)typeof(MainViewModel)
+                .GetField("_sessionCommits", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(s.Vm)!;
+            Assert.True(finalState == Core.Edit.EditState.Unchanged,
+                $"Remote bytes were uploaded, but the edit session is {finalState}; job={job.State}, " +
+                $"pendingCommits={pendingCommits.Count}, ioStopped={s.Services.Io.IsStopped}, " +
+                $"lastCommitUtc={finalRecord.LastCommitUtc:O}, baseSha256={finalRecord.BaseSha256}, " +
+                $"notification={s.Vm.Notification}.");
         }
         finally
         {
