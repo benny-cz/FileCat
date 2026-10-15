@@ -107,8 +107,16 @@ internal sealed class ExFatScanner
         var data = new byte[total];
         for (int i = 0; (long)i * _clusterSize < total; i++)
         {
-            int n = _volume.Read(ClusterOffset(clusters[i]), data.AsSpan(i * _clusterSize, (int)Math.Min(_clusterSize, total - (long)i * _clusterSize)));
-            if (n <= 0) return data[..(i * _clusterSize)];
+            int start = i * _clusterSize;
+            int length = (int)Math.Min(_clusterSize, total - (long)start);
+            int done = 0;
+            while (done < length)
+            {
+                int n = _volume.Read(ClusterOffset(clusters[i]) + done, data.AsSpan(start + done, length - done));
+                if (n <= 0 || n > length - done)
+                    throw new IOException("The exFAT directory or allocation bitmap ended before its reported length.");
+                done += n;
+            }
         }
         return data;
     }

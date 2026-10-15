@@ -165,8 +165,15 @@ internal sealed class FatScanner
         for (uint c = start; Valid(c) && seen.Count < MaxDirectoryClusters && seen.Add(c); c = _fat[c])
         {
             if (c != start) Placed(c, _clusterSize, known: true);
-            int n = Math.Max(0, _volume.Read(ClusterOffset(c), cluster));
-            if (!ParseEntries(folder, cluster.AsSpan(0, n), listing, insideDeleted: false, depth, ct) || n < _clusterSize || IsEnd(_fat[c]) || _fat[c] == 0) break;
+            int done = 0;
+            while (done < cluster.Length)
+            {
+                int n = _volume.Read(ClusterOffset(c) + done, cluster.AsSpan(done));
+                if (n <= 0 || n > cluster.Length - done)
+                    throw new IOException("The FAT directory ended before its reported length.");
+                done += n;
+            }
+            if (!ParseEntries(folder, cluster, listing, insideDeleted: false, depth, ct) || IsEnd(_fat[c]) || _fat[c] == 0) break;
         }
     }
 
